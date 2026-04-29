@@ -1,56 +1,205 @@
-# Secrets
+# ============================================
+# SECURITY - Secrets & Credentials
+# ============================================
+# Environment files with secrets
 .env
 .env.*
 !.env.example
 
-# Python
+# API keys and encryption keys
+*.key
+*.pem
+*.p12
+*.pfx
+!.pydeps/certifi/cacert.pem
+!.pydeps/grpc/_cython/_credentials/roots.pem
+
+# Certificates and tokens
+*.crt
+*.cer
+*.der
+*.token
+*.jwt
+
+# Cloud provider credentials
+*credentials*.json
+*serviceaccount*.json
+aws-credentials
+gcloud-credentials
+
+# SSH keys
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.ppk
+
+# ============================================
+# DATABASES & USER DATA
+# ============================================
+# SQLite databases (contain user data, sessions, auth)
+*.db
+*.sqlite
+*.sqlite3
+!data/.gitkeep
+
+# Database backups and dumps
+*.sql
+*.dump
+*.bak
+
+# User uploaded files and documents
+data/uploads/
+data/docs/
+data/sessions/
+data/sessions_cold/
+
+# ============================================
+# PYTHON
+# ============================================
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 .pytest_cache/
 .pytest_tmp/
 .pytest_*/
 pytest_tmp*/
 .venv/
 venv/
+env/
+ENV/
 .pydeps/
+*.cover
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
 
-# Node
+# ============================================
+# NODE / FRONTEND
+# ============================================
 node_modules/
 frontend/node_modules/
 frontend/dist/
+frontend/build/
 *.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
 
-# Local runtime data
+# ============================================
+# LOCAL RUNTIME DATA
+# ============================================
+# Vector stores and embeddings
+data/chroma/
+data/chunks/
+data/eval/
+
+# Application databases
+data/app.db
+data/auth.db
+
+# Test data
+data/test_tmp/
+data/.test_tmp/
+
+# Security data
+data/security/
+
+# Keep directory structure
 data/
 !data/.gitkeep
 
-# Build / metadata
+# ============================================
+# BUILD & METADATA
+# ============================================
 multi_agent_local_rag.egg-info/
+*.manifest
+*.spec
 
-# OS / IDE
+# ============================================
+# OS & IDE
+# ============================================
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
 Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+
+# IDEs
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
 
-# Temp/debug artifacts
+# ============================================
+# TEMP & DEBUG FILES
+# ============================================
+# Temporary numbered files
 .tmp_*.txt
+*.tmp
+*.temp
+
+# Debug artifacts
 tests/.tmp/
 artifacts/
 !artifacts/.gitkeep
 .tmp/
 
-# Logs
+# Screenshots and captures
+capture_*.py
+*_screenshot*.png
+*_capture*.png
+
+# Test scripts
+test_web_functionality.py
+test_*.temp.py
+
+# ============================================
+# LOGS
+# ============================================
 *.log
 backend.log
 frontend-dev.log
+npm-debug.log
+yarn-error.log
+pip-log.txt
 
-# Temporary scripts
-capture_*.py
-test_web_functionality.py
-
-# Claude local settings
+# ============================================
+# AI ASSISTANT SETTINGS
+# ============================================
+# Claude local settings (may contain API keys)
 .claude/settings.local.json
+.claude/worktrees/
+
+# Other AI assistant configs
+.cursor/
+.continue/
 
 # ============================================
 # Internal Documentation (Not for GitHub)
