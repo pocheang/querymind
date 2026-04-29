@@ -11,8 +11,6 @@
 *.pem
 *.p12
 *.pfx
-!.pydeps/certifi/cacert.pem
-!.pydeps/grpc/_cython/_credentials/roots.pem
 
 # Certificates and tokens
 *.crt
