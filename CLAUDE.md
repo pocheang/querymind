@@ -286,7 +286,7 @@ Tests in `tests/` directory:
 ## Important Notes
 
 - **Neo4j Required**: Backend will not start without Neo4j connection
-- **Model Backend**: Default is Anthropic Claude (requires `ANTHROPIC_API_KEY`). Set `MODEL_BACKEND=openai` for OpenAI or `MODEL_BACKEND=ollama` for local models
+- **Model Backend**: Supports OpenAI, Anthropic Claude, and Ollama. Configure via `MODEL_BACKEND` in `.env` (openai/anthropic/ollama)
 - **Data Directories**: `data/docs` (source documents), `data/chroma` (vector store), `data/sessions` (chat history)
 - **Chunk Stores**: `data/chunks/chunks.jsonl` (child chunks), `data/chunks/parents.jsonl` (parent chunks)
 - **Auto-Ingestion**: When enabled, watches `data/docs` and `data/uploads` for new files
