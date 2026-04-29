@@ -51,3 +51,54 @@ test_web_functionality.py
 
 # Claude local settings
 .claude/settings.local.json
+
+# ============================================
+# Internal Documentation (Not for GitHub)
+# ============================================
+
+# Internal project management and audit reports
+/project_audit/
+/internal_docs/
+
+# Internal development guides and plans
+ADMIN_USERS_FIX_PLAN.md
+ADMIN_USERS_PATCH_GUIDE.md
+ADMIN_USERS_SECURITY_AUDIT.md
+CLAUDE.md
+GITHUB_RELEASE_GUIDE.md
+GIT_COMMIT_GUIDE.md
+PROJECT_DOCUMENTATION_SUMMARY.md
+ROOT_ARCHIVE_REFERENCE.md
+SECURITY_FIXES_QUICK_REF.md
+SECURITY_FIXES_v0.3.1.2.md
+V0.3.1_COMPLETION_REPORT.md
+VERSION_DOCS_README.md
+VERSION_DOCUMENTATION_QUICK_OVERVIEW.md
+VERSION_DOCUMENTATION_SYSTEM_COMPLETION_REPORT.md
+VERSION_DOCUMENTATION_SYSTEM_SUMMARY.md
+
+# Internal documentation maintenance files
+docs/ARCHIVE_REFERENCE.md
+docs/DOCUMENTATION_MAINTENANCE.md
+docs/DOCUMENTATION_ORGANIZATION_SUMMARY.md
+docs/DOCUMENTATION_STANDARD.md
+docs/DOCUMENTATION_UPDATE_REPORT.md
+docs/DOCUMENTATION_UPDATE_SUMMARY.md
+docs/ENTERPRISE_DOCUMENTATION_STANDARD.md
+docs/VERSION_DOCUMENTATION_CHECKLIST.md
+docs/VERSION_DOCUMENTATION_GUIDE.md
+docs/VERSION_DOCUMENTATION_STANDARD.md
+docs/VERSION_RELEASE_QUICK_REFERENCE.md
+docs/runtime_speed_profiles.md
+
+# ============================================
+# Public Documentation (Visible on GitHub)
+# ============================================
+# Keep these files:
+# - README.md (main project documentation)
+# - CHANGELOG.md (version history)
+# - RELEASE_*.md (release notes)
+# - docs/README.md (documentation index)
+# - docs/API_SETTINGS_GUIDE.md (API usage guide)
+# - docs/PERFORMANCE_OPTIMIZATION.md (performance guide)
+# - docs/VERSION_HISTORY.md (version tracking)
