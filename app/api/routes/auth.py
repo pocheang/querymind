@@ -16,6 +16,7 @@ from app.api.dependencies import (
     settings,
 )
 from app.core.schemas import AuthCredentials, AuthLoginResponse, AuthUser
+from app.services.auth.validation import validate_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -28,6 +29,7 @@ def register(req: AuthCredentials, request: Request):
         _audit(request, action="auth.register", resource_type="auth", result="blocked", detail="register_rate_limited")
         raise HTTPException(status_code=429, detail="too many register attempts, retry later")
     try:
+        validate_password(req.password)
         user = auth_service.register(req.username, req.password)
     except ValueError as e:
         register_limiter.record(register_key)

@@ -2,6 +2,7 @@ import logging
 import time
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
+from app.agents.vector_rag_agent import run_vector_rag
 from app.graph.nodes.safe_wrappers import safe_vector_result, safe_graph_result
 from app.graph.state import GraphState
 from app.services.bulkhead import bulkhead
@@ -83,7 +84,6 @@ def vector_node(state: GraphState) -> GraphState:
         graph_result["hybrid_execution_success"] = graph_success
         return {**state, "vector_result": vector_result, "graph_result": graph_result}
     try:
-        from app.agents.vector_rag_agent import run_vector_rag
         with traced_span("workflow.vector_node", {"strategy": str(state.get("retrieval_strategy", "") or "default")}):
             with bulkhead("llm"):
                 result = call_with_retry(

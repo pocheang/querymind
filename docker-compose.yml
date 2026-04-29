@@ -4,10 +4,10 @@ services:
     container_name: local-rag-neo4j
     restart: unless-stopped
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
     environment:
-      NEO4J_AUTH: neo4j/neo4j_password
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in .env before starting compose}
       NEO4J_PLUGINS: '["apoc"]'
     volumes:
       - neo4j_data:/data
@@ -15,11 +15,11 @@ services:
       - neo4j_plugins:/plugins
       - neo4j_conf:/conf
   n8n:
-    image: n8nio/n8n:latest
+    image: ${N8N_IMAGE:?Set N8N_IMAGE to a pinned n8n image tag before starting compose}
     container_name: local-rag-n8n
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     environment:
       N8N_HOST: localhost
       N8N_PORT: 5678

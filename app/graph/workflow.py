@@ -1,7 +1,9 @@
 import threading
+import importlib
 
 from langgraph.graph import END, START, StateGraph
 
+from app.agents.vector_rag_agent import run_vector_rag
 from app.graph.nodes import (
     adaptive_planner_node,
     entry_decider_node,
@@ -11,14 +13,30 @@ from app.graph.nodes import (
     router_node,
     synthesis_node,
     vector_decider_node,
-    vector_node,
+    vector_node as _vector_node_impl,
     web_node,
 )
+from app.graph.routing.route_logic import route_after_graph, route_after_router, route_after_vector
 from app.graph.state import GraphState
+from app.services.hybrid_executor import submit_hybrid
 from app.services.tracing import traced_span
 
 _WORKFLOW_LOCK = threading.Lock()
 _WORKFLOW_APP = None
+_VECTOR_NODE_MODULE = importlib.import_module("app.graph.nodes.vector_node")
+
+
+def vector_node(state: GraphState) -> GraphState:
+    """Compatibility wrapper that keeps old workflow-level patch points working."""
+    original_submit = _VECTOR_NODE_MODULE.submit_hybrid
+    original_run_vector = _VECTOR_NODE_MODULE.run_vector_rag
+    _VECTOR_NODE_MODULE.submit_hybrid = submit_hybrid
+    _VECTOR_NODE_MODULE.run_vector_rag = run_vector_rag
+    try:
+        return _vector_node_impl(state)
+    finally:
+        _VECTOR_NODE_MODULE.submit_hybrid = original_submit
+        _VECTOR_NODE_MODULE.run_vector_rag = original_run_vector
 
 
 def build_workflow():

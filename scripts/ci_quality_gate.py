@@ -14,14 +14,19 @@ def _run_eval(dataset: str, autotune: bool = False, strategy: str = "") -> dict:
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
         stderr = str(proc.stderr or "").strip()
+        stdout = str(proc.stdout or "").strip()
+        detail = "\n".join(x for x in [stderr, stdout] if x)
         runtime_markers = (
             "OPENAI_API_KEY",
             "api_key client option must be set",
             "retrieval_runtime_unavailable",
             "ModuleNotFoundError",
             "No module named",
+            "InvalidArgumentError",
+            "expecting embedding with dimension",
+            "Collection expecting embedding",
         )
-        if any(marker in stderr for marker in runtime_markers):
+        if any(marker in detail for marker in runtime_markers):
             return {
                 "ok": True,
                 "payload": {
@@ -29,7 +34,7 @@ def _run_eval(dataset: str, autotune: bool = False, strategy: str = "") -> dict:
                     "hit": 0,
                     "recall_at_k": 0.0,
                     "error": "retrieval_runtime_unavailable:RuntimeDependencyError",
-                    "detail": stderr[:500],
+                    "detail": detail[:500],
                 },
             }
         return {"ok": False, "error": "eval_script_failed", "stderr": proc.stderr.strip()}

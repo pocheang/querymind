@@ -268,6 +268,7 @@ def admin_ops_export_csv(
     writer.writerow(["meta", "generated_at", overview["generated_at"]])
     writer.writerow(["meta", "window_hours", overview["window_hours"]])
     writer.writerow(["summary", "status", overview["status"]])
+    writer.writerow(["summary", "request_count", overview["kpi"]["requests_total"]])
     writer.writerow(["summary", "requests_total", overview["kpi"]["requests_total"]])
     writer.writerow(["summary", "requests_success", overview["kpi"]["requests_success"]])
     writer.writerow(["summary", "requests_error", overview["kpi"]["requests_error"]])

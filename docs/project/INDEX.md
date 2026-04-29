@@ -14,7 +14,7 @@
 Project documents in this directory should:
 - Be specific to this repository and its deployment/operation
 - Stay synchronized with current code and processes
-- Avoid duplicating content from root README or CLAUDE.md
+- Avoid duplicating content from the root README or internal assistant notes
 - Link to active core documents when broader context is needed
 
 ## When to Add Documents Here
@@ -35,3 +35,4 @@ Do not use this directory for:
 ---
 
 **Maintained by**: Bronit Team
+

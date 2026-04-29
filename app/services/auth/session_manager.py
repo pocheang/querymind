@@ -35,7 +35,7 @@ class SessionManager:
         with self.conn_factory() as conn:
             conn.execute("DELETE FROM auth_sessions WHERE token=?", (token,))
 
-    def get_user_by_token(self, token: str) -> dict[str, Any] | None:
+    def get_user_by_token(self, token: str, include_disabled: bool = False) -> dict[str, Any] | None:
         with self.conn_factory() as conn:
             now_ts = now()
             row = conn.execute(
@@ -53,8 +53,8 @@ class SessionManager:
             if parse_iso(str(row["expires_at"])) <= now_ts:
                 conn.execute("DELETE FROM auth_sessions WHERE token=?", (token,))
                 return None
-            # SECURITY FIX: Return user even if not active, let auth layer handle status check
-            # This ensures proper 403 response instead of 401 for disabled users
+            if str(row["status"]).lower() != "active" and not include_disabled:
+                return None
             return {
                 "user_id": str(row["user_id"]),
                 "username": str(row["username"]),

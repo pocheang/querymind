@@ -206,6 +206,9 @@ pip-log.txt
 # Internal project management and audit reports
 /project_audit/
 /internal_docs/
+docs/VALIDATION_REPORT.json
+docs/security/
+docs/plans/
 
 # Internal development guides and plans
 ADMIN_USERS_FIX_PLAN.md
@@ -232,11 +235,17 @@ docs/DOCUMENTATION_STANDARD.md
 docs/DOCUMENTATION_UPDATE_REPORT.md
 docs/DOCUMENTATION_UPDATE_SUMMARY.md
 docs/ENTERPRISE_DOCUMENTATION_STANDARD.md
+docs/PUBLICATION_MATRIX_PRIVATE.md
 docs/VERSION_DOCUMENTATION_CHECKLIST.md
 docs/VERSION_DOCUMENTATION_GUIDE.md
 docs/VERSION_DOCUMENTATION_STANDARD.md
 docs/VERSION_RELEASE_QUICK_REFERENCE.md
 docs/runtime_speed_profiles.md
+docs/archive/DEEP_CODE_REVIEW_*.md
+docs/archive/DOCUMENTATION_COMPLETENESS_REPORT.md
+docs/archive/FIXES_*.md
+docs/archive/*.md
+!docs/archive/INDEX.md
 
 # ============================================
 # Public Documentation (Visible on GitHub)
@@ -246,6 +255,8 @@ docs/runtime_speed_profiles.md
 # - CHANGELOG.md (version history)
 # - RELEASE_*.md (release notes)
 # - docs/README.md (documentation index)
+# - docs/PUBLICATION_MATRIX.md (public/private documentation rules)
+# - docs/SECURITY.md (responsible disclosure, no vulnerability details)
 # - docs/API_SETTINGS_GUIDE.md (API usage guide)
 # - docs/PERFORMANCE_OPTIMIZATION.md (performance guide)
 # - docs/VERSION_HISTORY.md (version tracking)

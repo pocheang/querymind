@@ -209,7 +209,8 @@ class DocumentationValidator:
                 print(f"    {issue['message']}")
 
         # 保存完整报告
-        report_file = Path("docs/VALIDATION_REPORT.json")
+        report_file = Path("internal_docs/docs_archive/VALIDATION_REPORT.json")
+        report_file.parent.mkdir(parents=True, exist_ok=True)
         with open(report_file, "w", encoding="utf-8") as f:
             json.dump({
                 "timestamp": datetime.now().isoformat(),

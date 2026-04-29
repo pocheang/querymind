@@ -7,6 +7,11 @@ import sys
 from pathlib import Path
 from collections import defaultdict
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 def extract_imports(file_path):
     """提取文件中的所有导入和使用的名称"""
     try:

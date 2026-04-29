@@ -234,7 +234,7 @@ def stream_synthesize_answer(
     graph_context: str = "",
     web_context: str = "",
     use_reasoning: bool = False,
-) -> Iterable[dict[str, str]]:
+) -> Iterable[dict[str, str] | str]:
     prompt = _build_prompt(question, skill_name, memory_context, vector_context, graph_context, web_context)
     try:
         with bulkhead("llm"):
@@ -247,7 +247,7 @@ def stream_synthesize_answer(
                     if content:
                         text = str(content)
                         parts.append(text)
-                        yield {"type": "chunk", "content": text}
+                        yield text
             except Exception as stream_error:
                 logger.warning(f"Stream failed, falling back to invoke: {type(stream_error).__name__}")
                 stream_failed = True
@@ -261,14 +261,20 @@ def stream_synthesize_answer(
                     result = model.invoke([("system", ANSWER_PROMPT), ("human", prompt)])
                 initial = str(result.content if hasattr(result, "content") else result).strip()
                 if initial:
-                    yield {"type": "reset", "content": initial}
+                    if parts:
+                        yield {"type": "reset", "content": initial}
+                    else:
+                        yield initial
             except Exception as invoke_error:
                 logger.exception(f"Invoke fallback also failed: {type(invoke_error).__name__}")
-                yield {"type": "reset", "content": SYNTHESIS_FALLBACK_MESSAGE}
+                if parts:
+                    yield {"type": "reset", "content": SYNTHESIS_FALLBACK_MESSAGE}
+                else:
+                    yield SYNTHESIS_FALLBACK_MESSAGE
                 return
 
         if not initial:
-            yield {"type": "reset", "content": SYNTHESIS_FALLBACK_MESSAGE}
+            yield SYNTHESIS_FALLBACK_MESSAGE
             return
 
         final = _refine_answer(
@@ -284,4 +290,4 @@ def stream_synthesize_answer(
             yield {"type": "reset", "content": final}
     except Exception as e:
         logger.exception(f"Stream synthesis failed for question: {question}")
-        yield {"type": "reset", "content": SYNTHESIS_FALLBACK_MESSAGE}
+        yield SYNTHESIS_FALLBACK_MESSAGE

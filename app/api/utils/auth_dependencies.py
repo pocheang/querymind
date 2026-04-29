@@ -29,7 +29,10 @@ def _resolve_authenticated_user(
         raise _unauthorized("Authentication required")
 
     _enforce_cookie_csrf(request, token_source)
-    user = auth_service.get_user_by_token(token)
+    try:
+        user = auth_service.get_user_by_token(token, include_disabled=True)
+    except TypeError:
+        user = auth_service.get_user_by_token(token)
     if not user:
         raise _unauthorized("Invalid or expired token")
 

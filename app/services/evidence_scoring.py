@@ -68,6 +68,8 @@ def evidence_is_sufficient(
     if route == "hybrid":
         v_score = vector_evidence_score(vector_result)
         g_score = graph_evidence_score(graph_result)
+        if (v_score + g_score) >= threshold:
+            return True
         # If either source is strong, lower the combined threshold moderately
         if v_score >= 0.67 or g_score >= 0.67:
             threshold = max(0.5, threshold - 0.2)

@@ -1,4 +1,8 @@
-﻿# Query-to-Answer UX Speed Design (v0.2.4)
+# Query-to-Answer UX Speed Design (v0.2.4)
+
+**Status**: Public historical design reference
+**Last Updated**: 2026-04-19
+**Audience**: Product, design, engineering
 
 Date: 2026-04-19
 Scope: Multi-Agent Local RAG first-phase UX redesign for the `question -> answer` path

@@ -1,10 +1,16 @@
 import json
+import sys
 
 from app.core.config import get_settings
 from app.retrievers.hybrid.caching import cache_lookup, cache_store, clear_retrieval_cache
+import app.retrievers.hybrid.candidate_collection as candidate_collection
+import app.retrievers.hybrid.parent_expansion as parent_expansion
+from app.retrievers.bm25_retriever import bm25_search
 from app.retrievers.hybrid.candidate_collection import collect_candidates, safe_similarity_search
 from app.retrievers.hybrid.parent_expansion import expand_to_parent_context
+from app.retrievers.parent_store import get_parent_text_map
 from app.retrievers.hybrid.strategy import strategy_flags
+from app.retrievers.vector_store import similarity_search
 from app.retrievers.reranker import rerank
 from app.services.query_rewrite import build_rewrite_queries
 from app.services.tracing import traced_span
@@ -42,7 +48,7 @@ def hybrid_search_with_diagnostics(
             return cached
 
         with traced_span("retrieval.collect_candidates", {"strategy": str(retrieval_strategy or "advanced")}):
-            fused, diag = collect_candidates(
+            fused, diag = _collect_candidates_for_current_module(
                 query,
                 allowed_sources=allowed_sources,
                 vector_threshold=strict_threshold,
@@ -66,9 +72,9 @@ def hybrid_search_with_diagnostics(
                     variants = [query]
 
                 for variant in variants:
-                    raw_vector_cache[variant] = safe_similarity_search(variant, k=vector_top_k, allowed_sources=allowed_sources)
+                    raw_vector_cache[variant] = _safe_similarity_search(variant, k=vector_top_k, allowed_sources=allowed_sources)
 
-                fused, diag = collect_candidates(
+                fused, diag = _collect_candidates_for_current_module(
                     query,
                     allowed_sources=allowed_sources,
                     vector_threshold=relaxed_threshold,
@@ -83,7 +89,7 @@ def hybrid_search_with_diagnostics(
 
         rerank_top_n = int(diag.get("reranker_top_n", getattr(settings, "reranker_top_n", 5)) or 5)
         reranked = rerank(query, fused, top_n=rerank_top_n)
-        expanded = expand_to_parent_context(reranked)
+        expanded = _expand_to_parent_context(reranked)
         diagnostics = {
             **diag,
             "degraded_to_relaxed_threshold": degraded,
@@ -105,5 +111,91 @@ def hybrid_search(query: str, allowed_sources: list[str] | None = None, retrieva
     return results
 
 
-# Re-export clear function for backward compatibility
-__all__ = ["hybrid_search", "hybrid_search_with_diagnostics", "clear_retrieval_cache"]
+def _safe_similarity_search(
+    query: str,
+    k: int,
+    allowed_sources: list[str] | None = None,
+):
+    """Backward-compatible vector search wrapper using this module's patch point."""
+    if allowed_sources is None:
+        return similarity_search(query, k=k)
+    try:
+        return similarity_search(query, k=k, allowed_sources=allowed_sources)
+    except TypeError:
+        return similarity_search(query, k=k)
+
+
+def _expand_to_parent_context(candidates: list[dict]) -> list[dict]:
+    """Backward-compatible wrapper for pre-refactor parent expansion helper."""
+    original_get_parent_text_map = parent_expansion.get_parent_text_map
+    parent_expansion.get_parent_text_map = get_parent_text_map
+    try:
+        return expand_to_parent_context(candidates)
+    finally:
+        parent_expansion.get_parent_text_map = original_get_parent_text_map
+
+
+def _collect_candidates_for_current_module(
+    query: str,
+    allowed_sources: list[str] | None,
+    vector_threshold: float,
+    settings,
+    retrieval_strategy: str | None = None,
+    precomputed_raw_vector_results: dict[str, list] | None = None,
+) -> tuple[list[dict], dict]:
+    original_rewrite = candidate_collection.build_rewrite_queries
+    original_vector = candidate_collection.safe_similarity_search
+    original_bm25 = candidate_collection.bm25_search
+    module = sys.modules.get(__name__)
+    candidate_collection.build_rewrite_queries = getattr(module, "build_rewrite_queries", build_rewrite_queries)
+    candidate_collection.safe_similarity_search = getattr(module, "_safe_similarity_search", _safe_similarity_search)
+    candidate_collection.bm25_search = getattr(module, "bm25_search", bm25_search)
+    try:
+        return candidate_collection.collect_candidates(
+            query,
+            allowed_sources=allowed_sources,
+            vector_threshold=vector_threshold,
+            settings=settings,
+            retrieval_strategy=retrieval_strategy,
+            precomputed_raw_vector_results=precomputed_raw_vector_results,
+        )
+    finally:
+        candidate_collection.build_rewrite_queries = original_rewrite
+        candidate_collection.safe_similarity_search = original_vector
+        candidate_collection.bm25_search = original_bm25
+
+
+def _collect_candidates(
+    query: str,
+    allowed_sources: list[str] | None = None,
+    vector_threshold: float | None = None,
+    retrieval_strategy: str | None = None,
+) -> tuple[list[dict], dict]:
+    """Backward-compatible wrapper for pre-refactor tests and scripts."""
+    settings = get_settings()
+    threshold = float(
+        vector_threshold
+        if vector_threshold is not None
+        else getattr(settings, "vector_similarity_threshold", 0.2) or 0.2
+    )
+    return _collect_candidates_for_current_module(
+        query,
+        allowed_sources=allowed_sources,
+        vector_threshold=threshold,
+        settings=settings,
+        retrieval_strategy=retrieval_strategy,
+    )
+
+
+# Re-export clear function and legacy helpers for backward compatibility.
+__all__ = [
+    "hybrid_search",
+    "hybrid_search_with_diagnostics",
+    "clear_retrieval_cache",
+    "_collect_candidates",
+    "_expand_to_parent_context",
+    "_safe_similarity_search",
+    "similarity_search",
+    "bm25_search",
+    "get_parent_text_map",
+]

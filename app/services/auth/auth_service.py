@@ -228,8 +228,8 @@ class AuthDBService:
     def logout(self, token: str) -> None:
         self.session_manager.delete_session(token)
 
-    def get_user_by_token(self, token: str) -> dict[str, Any] | None:
-        return self.session_manager.get_user_by_token(token)
+    def get_user_by_token(self, token: str, include_disabled: bool = False) -> dict[str, Any] | None:
+        return self.session_manager.get_user_by_token(token, include_disabled=include_disabled)
 
     def touch_session(self, token: str) -> None:
         self.session_manager.touch_session(token)

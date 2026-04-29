@@ -1,6 +1,7 @@
 """Main streaming query processor."""
 
 import logging
+import sys
 import time
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any, Generator
@@ -21,6 +22,20 @@ from app.services.tracing import traced_span
 logger = logging.getLogger(__name__)
 
 
+def _sync_agent_patchpoints() -> None:
+    """Honor tests and legacy callers that replace agent modules in sys.modules."""
+    global decide_route, stream_synthesize_answer, synthesize_answer
+    router_module = sys.modules.get("app.agents.router_agent")
+    if router_module is not None and hasattr(router_module, "decide_route"):
+        decide_route = router_module.decide_route
+    synthesis_module = sys.modules.get("app.agents.synthesis_agent")
+    if synthesis_module is not None:
+        if hasattr(synthesis_module, "stream_synthesize_answer"):
+            stream_synthesize_answer = synthesis_module.stream_synthesize_answer
+        if hasattr(synthesis_module, "synthesize_answer"):
+            synthesize_answer = synthesis_module.synthesize_answer
+
+
 def run_query_stream(
     question: str,
     use_web_fallback: bool = False,
@@ -31,6 +46,7 @@ def run_query_stream(
     retrieval_strategy: str | None = None,
 ) -> Generator[dict[str, Any], None, dict[str, Any]]:
     """Stream query processing with real-time events."""
+    _sync_agent_patchpoints()
     state: dict[str, Any] = {
         "question": question,
         "memory_context": memory_context,

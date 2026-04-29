@@ -90,7 +90,10 @@ def decide_route(question: str, use_reasoning: bool = False, agent_class_hint: s
 
     route = data.get("route", "vector")
     reason_raw = data.get("reason", "fallback")
-    if route not in {"vector", "graph", "hybrid"}:
+    if route == "web":
+        reason_raw = f"{reason_raw} | web_downgraded_to_local_first"
+        route = "vector"
+    elif route not in {"vector", "graph", "hybrid"}:
         reason_raw = f"{reason_raw} | invalid_route_fallback_to_vector"
         route = "vector"
 

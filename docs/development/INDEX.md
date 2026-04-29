@@ -20,9 +20,9 @@ Use `docs/development/` for:
 
 ## Related Documents
 
-For development context and architecture, see [../../CLAUDE.md](../../CLAUDE.md)
+For public project context, see [../../README.md](../../README.md)
 
-For documentation standards, see [../DOCUMENTATION_STANDARD.md](../DOCUMENTATION_STANDARD.md)
+For documentation standards, see [../../DOCUMENTATION_POLICY.md](../../DOCUMENTATION_POLICY.md) and [../PUBLICATION_MATRIX.md](../PUBLICATION_MATRIX.md)
 
 For version history and releases, see [../VERSION_HISTORY.md](../VERSION_HISTORY.md)
 

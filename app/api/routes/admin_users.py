@@ -45,6 +45,30 @@ def _is_valid_admin_approval_token_for_actor(token: str, actor_user_id: str) -> 
         return hmac.compare_digest(digest, configured_hash), "hash"
     return hmac.compare_digest(candidate, configured_plain), "plain"
 
+
+def _validate_admin_operation_token(token: str, actor_user_id: str, allow_actor_token: bool = True) -> tuple[bool, str]:
+    """Validate a global or actor-bound admin approval token."""
+    candidate = str(token or "").strip()
+    configured_hash = str(getattr(settings, "admin_create_approval_token_hash", "") or "").strip().lower()
+    configured_plain = str(getattr(settings, "admin_create_approval_token", "") or "").strip()
+    digest = hashlib.sha256(candidate.encode("utf-8")).hexdigest().lower()
+    if configured_hash:
+        ok, mode = validate_admin_approval_token(candidate, configured_hash, actor_user_id, token_tracker)
+        if ok:
+            return ok, mode
+    if configured_plain:
+        if not candidate:
+            return False, "empty"
+        ok = hmac.compare_digest(candidate, configured_plain)
+        return ok, "plain"
+    if allow_actor_token:
+        actor = auth_service.get_user_profile(actor_user_id)
+        actor_hash = str((actor or {}).get("admin_approval_token_hash", "") or "").strip().lower()
+        if not actor_hash:
+            return False, "missing"
+        return hmac.compare_digest(digest, actor_hash), "actor_hash"
+    return False, "missing"
+
 @router.get("/users", response_model=list[AdminUserSummary])
 
 
@@ -114,13 +138,10 @@ def admin_create_user_as_admin(req: AdminCreateAdminRequest, request: Request, u
     # SECURITY: Validate approval token with single-use tracking
     actor_user_id = str(user.get("user_id", ""))
     approval_token = req.approval_token or ""
-    configured_hash = str(getattr(settings, "admin_create_approval_token_hash", "") or "").strip().lower()
-
-    token_ok, token_mode = validate_admin_approval_token(
+    token_ok, token_mode = _validate_admin_operation_token(
         approval_token,
-        configured_hash,
         actor_user_id,
-        token_tracker
+        allow_actor_token=False,
     )
 
     if not token_ok:
@@ -202,13 +223,10 @@ def admin_reset_user_approval_token(
     # SECURITY: Validate approval token with single-use tracking
     actor_user_id = str(user.get("user_id", ""))
     approval_token = req.approval_token or ""
-    configured_hash = str(getattr(settings, "admin_create_approval_token_hash", "") or "").strip().lower()
-
-    token_ok, token_mode = validate_admin_approval_token(
+    token_ok, token_mode = _validate_admin_operation_token(
         approval_token,
-        configured_hash,
         actor_user_id,
-        token_tracker
+        allow_actor_token=True,
     )
 
     if not token_ok:
@@ -311,13 +329,10 @@ def admin_reset_user_password(
     # SECURITY: Validate approval token with single-use tracking
     actor_user_id = str(user.get("user_id", ""))
     approval_token = req.approval_token or ""
-    configured_hash = str(getattr(settings, "admin_create_approval_token_hash", "") or "").strip().lower()
-
-    token_ok, token_mode = validate_admin_approval_token(
+    token_ok, token_mode = _validate_admin_operation_token(
         approval_token,
-        configured_hash,
         actor_user_id,
-        token_tracker
+        allow_actor_token=True,
     )
 
     if not token_ok:
