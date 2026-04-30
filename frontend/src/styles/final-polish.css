@@ -1,0 +1,511 @@
+/* ============================================
+   Final Polish - Based on Screenshot Feedback
+   最终精细化 - 基于截图反馈
+   ============================================ */
+
+/* ============================================
+   1. Agent Workbench 卡片文字完全显示
+   ============================================ */
+
+.agent-mode-card {
+  padding: 18px 16px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+}
+
+/* ============================================
+   2. 输入框区域对比度和可见性增强
+   ============================================ */
+
+/* .composer-panel styles moved to pages.css */
+
+.composer-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.composer-main textarea {
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #0f172a;
+  padding: 14px 18px;
+  min-height: 120px;
+}
+
+.composer-main textarea::placeholder {
+  color: #94a3b8;
+  opacity: 0.9;
+}
+
+.composer-main textarea:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.composer-main textarea:focus {
+  border-color: rgba(102, 126, 234, 0.7);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15), 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   3. 选项栏对比度增强
+   ============================================ */
+
+.chat-options-bar {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.95));
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.option-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  letter-spacing: 0.02em;
+}
+
+.option-chip {
+  min-width: 60px;
+  height: 32px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  color: #475569;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.option-chip:hover {
+  border-color: rgba(102, 126, 234, 0.4);
+  background: rgba(102, 126, 234, 0.05);
+  color: #667eea;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.15);
+}
+
+.option-chip.active {
+  border-color: rgba(102, 126, 234, 0.7);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+}
+
+/* ============================================
+   4. 下拉框增强
+   ============================================ */
+
+.option-agent select,
+.chat-options-bar select {
+  height: 40px;
+  padding: 0 40px 0 16px;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.option-agent select:hover,
+.chat-options-bar select:hover {
+  border-color: rgba(102, 126, 234, 0.4);
+  background-color: rgba(102, 126, 234, 0.02);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.1);
+}
+
+.option-agent select:focus,
+.chat-options-bar select:focus {
+  border-color: rgba(102, 126, 234, 0.7);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+}
+
+/* ============================================
+   5. 提示文字增强
+   ============================================ */
+
+.option-hint {
+  padding: 12px 18px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
+  border: 1.5px solid rgba(102, 126, 234, 0.15);
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #334155;
+  font-weight: 500;
+}
+
+/* ============================================
+   6. 按钮组对比度增强
+   ============================================ */
+
+.composer-actions .primary-action {
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 800;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 6px 18px rgba(102, 126, 234, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.composer-actions .primary-action:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.5), 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.composer-actions .secondary,
+.composer-actions .link-btn {
+  padding: 11px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  color: #475569;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.composer-actions .secondary:hover,
+.composer-actions .link-btn:hover {
+  border-color: rgba(102, 126, 234, 0.4);
+  background: rgba(102, 126, 234, 0.05);
+  color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.composer-actions .danger {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.composer-actions .danger:hover {
+  border-color: rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+}
+
+/* ============================================
+   7. 快捷提示词按钮优化
+   ============================================ */
+
+.quick-prompt-row {
+  gap: 8px;
+  margin-top: 12px;
+  padding: 4px 0;
+}
+
+.quick-prompt-row .tiny-btn {
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1.5px solid rgba(102, 126, 234, 0.2);
+  background: rgba(102, 126, 234, 0.05);
+  color: #667eea;
+  opacity: 0.9;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.quick-prompt-row .tiny-btn:hover {
+  opacity: 1;
+  border-color: rgba(102, 126, 234, 0.4);
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+}
+
+/* ============================================
+   8. Sessions 列表优化
+   ============================================ */
+
+.session-item {
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 2px solid rgba(156, 180, 205, 0.15);
+}
+
+.session-item:hover {
+  border-color: rgba(58, 151, 232, 0.4);
+  transform: translateX(6px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.session-item.active {
+  border-color: rgba(58, 151, 232, 0.8);
+  box-shadow: 0 8px 20px rgba(58, 151, 232, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.session-item.active::before {
+  width: 5px;
+}
+
+/* ============================================
+   9. 消息气泡对比度增强
+   ============================================ */
+
+.bubble {
+  padding: 22px 24px;
+  border-radius: 18px;
+  margin-top: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.bubble:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.06);
+  transform: translateY(-3px);
+}
+
+.bubble.user {
+  border: 2px solid rgba(37, 130, 217, 0.25);
+  background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%);
+}
+
+.bubble.user:hover {
+  border-color: rgba(37, 130, 217, 0.5);
+}
+
+.bubble.assistant {
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+}
+
+.bubble.assistant:hover {
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.message-role {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bubble.user .message-role {
+  color: #1e40af;
+}
+
+.bubble.assistant .message-role {
+  color: #667eea;
+}
+
+/* ============================================
+   10. Chips 标签可见性增强
+   ============================================ */
+
+.chips {
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.chip {
+  padding: 4px 11px;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1.5px solid rgba(102, 126, 234, 0.2);
+  background: rgba(102, 126, 234, 0.08);
+  color: #667eea;
+  opacity: 0.9;
+  letter-spacing: 0.03em;
+}
+
+.chip:hover {
+  opacity: 1;
+  border-color: rgba(102, 126, 234, 0.35);
+  background: rgba(102, 126, 234, 0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.15);
+}
+
+/* ============================================
+   11. 操作按钮可见性优化
+   ============================================ */
+
+.row-actions {
+  opacity: 0.6;
+}
+
+.bubble:hover .row-actions {
+  opacity: 1;
+}
+
+.row-actions .tiny-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.row-actions .tiny-btn.secondary {
+  color: #64748b;
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+.row-actions .tiny-btn.secondary:hover {
+  color: #667eea;
+  border-color: rgba(102, 126, 234, 0.5);
+  background: rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+}
+
+.row-actions .tiny-btn.danger {
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.row-actions .tiny-btn.danger:hover {
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+}
+
+/* ============================================
+   12. 暗色模式对比度增强
+   ============================================ */
+
+:root[data-theme="dark"] .composer-panel {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
+}
+
+:root[data-theme="dark"] .composer-label {
+  color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .composer-main textarea {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.8);
+  color: #f1f5f9;
+}
+
+:root[data-theme="dark"] .chat-options-bar {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.7), rgba(30, 41, 59, 0.7));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .option-label {
+  color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .option-chip {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(30, 41, 59, 0.8);
+  color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .option-agent select,
+:root[data-theme="dark"] .chat-options-bar select {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.8);
+  color: #e2e8f0;
+}
+
+:root[data-theme="dark"] .option-hint {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+  border-color: rgba(102, 126, 234, 0.25);
+  color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .composer-actions .secondary,
+:root[data-theme="dark"] .composer-actions .link-btn {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(30, 41, 59, 0.8);
+  color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .bubble.assistant {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(30, 41, 59, 0.7);
+}
+
+:root[data-theme="dark"] .bubble.user {
+  border-color: rgba(102, 126, 234, 0.35);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.18), rgba(118, 75, 162, 0.18));
+}
+
+/* ============================================
+   13. 焦点状态增强
+   ============================================ */
+
+button:focus-visible,
+.option-chip:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(102, 126, 234, 0.6);
+  outline-offset: 3px;
+}
+
+/* ============================================
+   14. 过渡动画优化
+   ============================================ */
+
+.composer-panel,
+.chat-options-bar,
+.option-chip,
+.option-agent select,
+.chat-options-bar select,
+.composer-actions button,
+.quick-prompt-row .tiny-btn,
+.session-item,
+.agent-mode-card,
+.bubble,
+.row-actions .tiny-btn,
+.chip {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   15. 响应式优化
+   ============================================ */
+
+@media (max-width: 768px) {
+  .composer-panel {
+    padding: 18px;
+  }
+
+  .composer-main textarea {
+    font-size: 14px;
+    padding: 12px 16px;
+  }
+
+  .chat-options-bar {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .option-chip {
+    min-width: 54px;
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .composer-actions .primary-action {
+    padding: 11px 24px;
+    font-size: 14px;
+  }
+
+  .bubble {
+    padding: 18px 20px;
+  }
+}

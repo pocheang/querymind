@@ -1,0 +1,402 @@
+/* ============================================
+   Precision Adjustments - Based on Specific Requirements
+   精准调整 - 基于具体需求
+   ============================================ */
+
+/* ============================================
+   1. 强制重构表单开关 - iOS/Vercel 风格的 Toggle Switch
+   ============================================ */
+
+/* 隐藏原有的按钮样式，改为 Toggle Switch */
+.option-chip {
+  /* 重置按钮样式 */
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* 滑块 */
+.option-chip::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 隐藏文字 */
+.option-chip {
+  font-size: 0;
+  color: transparent;
+}
+
+/* Hover 状态 */
+.option-chip:hover {
+  background: rgba(0, 0, 0, 0.2);
+  transform: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Active 状态 - 开启 */
+.option-chip.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.option-chip.active::before {
+  left: 25px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.option-chip.active:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+/* 暗色模式 */
+:root[data-theme="dark"] .option-chip {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .option-chip::before {
+  background: #e2e8f0;
+}
+
+:root[data-theme="dark"] .option-chip:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================
+   2. 优化底部快捷指令 - Outline Chip 样式 + 横向滚动
+   ============================================ */
+
+.quick-prompt-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 4px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.quick-prompt-row::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-prompt-row .tiny-btn {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid rgba(102, 126, 234, 0.25);
+  border-radius: 999px;
+  background: transparent;
+  color: #667eea;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none;
+}
+
+.quick-prompt-row .tiny-btn:hover {
+  border-color: rgba(102, 126, 234, 0.5);
+  background: rgba(102, 126, 234, 0.08);
+  color: #5a6fd8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.15);
+}
+
+.quick-prompt-row .tiny-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(102, 126, 234, 0.1);
+}
+
+/* 暗色模式 */
+:root[data-theme="dark"] .quick-prompt-row .tiny-btn {
+  border-color: rgba(102, 126, 234, 0.3);
+  color: #a5b4fc;
+}
+
+:root[data-theme="dark"] .quick-prompt-row .tiny-btn:hover {
+  border-color: rgba(102, 126, 234, 0.5);
+  background: rgba(102, 126, 234, 0.12);
+  color: #c7d2fe;
+}
+
+/* ============================================
+   3. 强化侧边栏对比 - Agent Workbench Active 和 Hover
+   ============================================ */
+
+.agent-mode-card {
+  position: relative;
+  padding: 18px 16px;
+  min-height: 120px;
+  border-radius: 12px;
+  border: 2px solid rgba(156, 180, 205, 0.15);
+  background: rgba(16, 31, 44, 0.8);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Hover 状态 - 背景过渡动画 */
+.agent-mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+}
+
+.agent-mode-card:hover::before {
+  opacity: 1;
+}
+
+.agent-mode-card:hover {
+  border-color: rgba(58, 151, 232, 0.5);
+  background: rgba(21, 40, 56, 0.95);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Active 状态 - 强化背景色高亮 */
+.agent-mode-card.active {
+  border-color: rgba(102, 126, 234, 0.8);
+  background: linear-gradient(135deg, rgba(18, 48, 71, 1), rgba(25, 55, 85, 1));
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.agent-mode-card.active::before {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+  opacity: 1;
+}
+
+.agent-mode-card.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px 0 0 12px;
+  box-shadow: 0 0 12px rgba(102, 126, 234, 0.6);
+  z-index: 1;
+}
+
+.agent-mode-card.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(102, 126, 234, 0.5), 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* 确保内容在伪元素之上 */
+.agent-mode-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+.agent-mode-card:hover 
+
+.agent-mode-card.active 
+
+.agent-mode-card:hover 
+
+.agent-mode-card.active 
+
+/* ============================================
+   4. 输入框视觉升级 - 背景色区分 + Focus 光晕
+   ============================================ */
+
+.composer-main textarea {
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  /* 加深背景色，与外层卡片区分 */
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  font-size: 15px;
+  line-height: 1.7;
+  color: #0f172a;
+  padding: 14px 18px;
+  min-height: 120px;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.composer-main textarea::placeholder {
+  color: #94a3b8;
+  opacity: 0.9;
+}
+
+.composer-main textarea:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Focus 状态 - 柔和的亮色光晕 */
+.composer-main textarea:focus {
+  outline: none;
+  border-color: rgba(102, 126, 234, 0.8);
+  background: #ffffff;
+  /* 柔和的光晕效果 */
+  box-shadow:
+    0 0 0 4px rgba(102, 126, 234, 0.12),
+    0 0 0 8px rgba(102, 126, 234, 0.06),
+    0 4px 12px rgba(102, 126, 234, 0.15),
+    inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* 暗色模式 */
+:root[data-theme="dark"] .composer-main textarea {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.9));
+  color: #f1f5f9;
+}
+
+:root[data-theme="dark"] .composer-main textarea::placeholder {
+  color: #64748b;
+}
+
+:root[data-theme="dark"] .composer-main textarea:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .composer-main textarea:focus {
+  border-color: rgba(102, 126, 234, 0.8);
+  background: rgba(15, 23, 42, 1);
+  box-shadow:
+    0 0 0 4px rgba(102, 126, 234, 0.2),
+    0 0 0 8px rgba(102, 126, 234, 0.1),
+    0 4px 12px rgba(102, 126, 234, 0.25),
+    inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   5. 额外优化 - 选项栏布局调整
+   ============================================ */
+
+.chat-options-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.95));
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  margin-top: 16px;
+  align-items: center;
+}
+
+.option-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.option-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* 暗色模式 */
+:root[data-theme="dark"] .chat-options-bar {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .option-label {
+  color: #cbd5e1;
+}
+
+/* ============================================
+   6. 响应式优化
+   ============================================ */
+
+@media (max-width: 768px) {
+  .option-chip {
+    width: 44px;
+    height: 24px;
+  }
+
+  .option-chip::before {
+    width: 18px;
+    height: 18px;
+  }
+
+  .option-chip.active::before {
+    left: 23px;
+  }
+
+  .quick-prompt-row {
+    gap: 6px;
+  }
+
+  .quick-prompt-row .tiny-btn {
+    padding: 4px 12px;
+    font-size: 10px;
+  }
+
+  .agent-mode-card {
+    padding: 16px 14px;
+    min-height: 100px;
+  }
+
+  .composer-main textarea {
+    font-size: 14px;
+    padding: 12px 16px;
+    min-height: 100px;
+  }
+}
+
+/* ============================================
+   7. 平滑滚动提示（可选）
+   ============================================ */
+
+/* 为快捷提示词添加渐变遮罩，提示可滚动 */
+.quick-prompt-row {
+  position: relative;
+}
+
+.quick-prompt-row::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(90deg, transparent, var(--surface));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.quick-prompt-row:hover::after {
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .quick-prompt-row::after {
+  background: linear-gradient(90deg, transparent, rgba(30, 41, 59, 0.9));
+}

@@ -1,0 +1,353 @@
+/* ============================================
+   Sidebar Enhancements - Sessions & Agent Workbench
+   侧边栏增强 - 保持所有功能不变
+   ============================================ */
+
+/* ============================================
+   1. Sessions 列表优化
+   ============================================ */
+
+.session-item {
+  position: relative;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(156, 180, 205, 0.12);
+  background: rgba(16, 31, 44, 0.8);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.session-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  opacity: 0;
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.session-item:hover {
+  background: rgba(21, 40, 56, 0.9);
+  border-color: rgba(58, 151, 232, 0.35);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.session-item:hover::before {
+  opacity: 0.6;
+}
+
+.session-item.active {
+  border-color: rgba(58, 151, 232, 0.7);
+  background: linear-gradient(135deg, rgba(17, 42, 64, 0.95), rgba(19, 47, 76, 0.95));
+  box-shadow: 0 6px 16px rgba(58, 151, 232, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: translateX(2px);
+}
+
+.session-item.active::before {
+  opacity: 1;
+  width: 4px;
+}
+
+.session-item
+
+@keyframes sessionPulse {
+  0%, 100% {
+    border-color: rgba(58, 151, 232, 0.3);
+  }
+  50% {
+    border-color: rgba(58, 151, 232, 0.6);
+  }
+}
+
+.session-item:hover 
+
+.session-item.active 
+
+/* ============================================
+   2. Agent Workbench 优化
+   ============================================ */
+
+.agent-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.agent-mode-card {
+  position: relative;
+  padding: 14px 12px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(156, 180, 205, 0.15);
+  background: rgba(16, 31, 44, 0.8);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  overflow: hidden;
+}
+
+.agent-mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.agent-mode-card:hover::before {
+  opacity: 1;
+}
+
+.agent-mode-card:hover {
+  border-color: rgba(58, 151, 232, 0.45);
+  background: rgba(21, 40, 56, 0.9);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.agent-mode-card.active {
+  border-color: rgba(102, 126, 234, 0.6);
+  background: linear-gradient(135deg, rgba(18, 48, 71, 0.95), rgba(19, 47, 76, 0.95));
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.agent-mode-card.active::before {
+  opacity: 1;
+}
+
+.agent-mode-card.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.agent-mode-card:hover 
+
+.agent-mode-card.active 
+
+.agent-mode-card:hover 
+
+.agent-mode-card.active 
+
+/* ============================================
+   3. PDF Workbench 优化
+   ============================================ */
+
+.pdf-kpi-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(156, 180, 205, 0.15);
+  background: rgba(16, 31, 44, 0.8);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pdf-kpi-card:hover {
+  border-color: rgba(58, 151, 232, 0.35);
+  background: rgba(21, 40, 56, 0.9);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+/* ============================================
+   4. Documents Panel 优化
+   ============================================ */
+
+.doc-row {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(156, 180, 205, 0.12);
+  background: rgba(16, 31, 44, 0.7);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.doc-row:hover {
+  border-color: rgba(58, 151, 232, 0.3);
+  background: rgba(21, 40, 56, 0.85);
+  transform: translateX(3px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.doc-row:hover 
+
+/* ============================================
+   5. Prompt Templates 优化
+}
+
+.doc-action-btn:hover {
+  border-color: rgba(58, 151, 232, 0.4);
+  background: rgba(58, 151, 232, 0.15);
+  color: #a5b4fc;
+}
+
+/* ============================================
+   5. Prompt Templates 优化
+   ============================================ */
+
+.prompt-row {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(156, 180, 205, 0.12);
+  background: rgba(16, 31, 44, 0.7);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.prompt-row:hover {
+  border-color: rgba(58, 151, 232, 0.3);
+  background: rgba(21, 40, 56, 0.85);
+  transform: translateX(3px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.prompt-row:hover 
+
+/* ============================================
+   6. Upload Box & Dropzone 优化
+   ============================================ */
+
+.upload-box,
+.dropzone {
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px dashed rgba(156, 180, 205, 0.25);
+  background: rgba(10, 22, 33, 0.5);
+  text-align: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.upload-box:hover,
+.dropzone:hover {
+  border-color: rgba(58, 151, 232, 0.5);
+  background: rgba(58, 151, 232, 0.08);
+  box-shadow: 0 4px 12px rgba(58, 151, 232, 0.15);
+}
+
+.dropzone.active,
+.upload-box.dragover {
+  border-color: rgba(102, 126, 234, 0.7);
+  background: rgba(102, 126, 234, 0.15);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 0 4px 12px rgba(58, 151, 232, 0.2);
+  transform: scale(1.02);
+}
+
+/* ============================================
+   7. Progress Bar 优化
+   ============================================ */
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 999px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: progressShine 1.5s ease-in-out infinite;
+}
+
+@keyframes progressShine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.progress-text {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #93a6b8;
+  font-family: "Geist Mono", "Cascadia Code", monospace;
+  text-align: center;
+}
+
+/* ============================================
+   8. Section Headers 优化
+   ============================================ */
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(156, 180, 205, 0.15);
+}
+
+.section-head strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f7fbff;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+/* ============================================
+   9. Agent Distribution Stats
+   ============================================ */
+
+.agent-stats {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(156, 180, 205, 0.2);
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 180, 205, 0.35);
+}
+
+/* ============================================
+   11. 响应式优化
+   ============================================ */
+
+@media (max-width: 1024px) {
+  .agent-mode-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .agent-mode-grid {
+    grid-template-columns: 1fr;
+  }
+}
