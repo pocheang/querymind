@@ -216,9 +216,7 @@
   font-weight: 700;
 }
 
-/* ============================================
-   Dark Mode - Forms
-   ============================================ */
+/* Dark Mode - Forms */
 
 :root[data-theme="dark"] .auth-form {
   background: rgba(8, 16, 28, 0.94);

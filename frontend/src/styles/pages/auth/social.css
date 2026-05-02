@@ -88,9 +88,7 @@
   color: #1f2937;
 }
 
-/* ============================================
-   Dark Mode - Social Login
-   ============================================ */
+/* Dark Mode - Social Login */
 
 :root[data-theme="dark"] .secondary,
 :root[data-theme="dark"] button.secondary,

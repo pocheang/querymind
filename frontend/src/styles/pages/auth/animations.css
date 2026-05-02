@@ -1,5 +1,5 @@
 /* ============================================
-   Authentication Animations & Transitions
+   Authentication Animations
    ============================================ */
 
 @keyframes slideUp {
@@ -11,14 +11,4 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.auth-feature-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.auth-feature-card:hover {
-  transform: translateX(4px);
-  box-shadow: 0 18px 34px rgba(126, 149, 178, 0.2);
-  border-color: rgba(80, 122, 235, 0.28);
 }
