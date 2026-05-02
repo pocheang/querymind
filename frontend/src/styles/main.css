@@ -69,7 +69,10 @@
    Authentication, chat, admin, profile pages
    ============================================ */
 
-@import './pages/auth.css';
+@import './pages/auth/layout.css';
+@import './pages/auth/forms.css';
+@import './pages/auth/social.css';
+@import './pages/auth/animations.css';
 @import './pages/chat.css';
 @import './pages/admin/layout.css';
 @import './pages/admin/forms.css';
