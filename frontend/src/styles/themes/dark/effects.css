@@ -1,4 +1,292 @@
 /* ============================================
    Dark Theme - Effects & Animations
-   TODO: Extract from dark.css in Task 7
+   Extracted from dark.css - Task 7
    ============================================ */
+
+/* Pseudo-elements & Decorative Effects */
+:root[data-theme="dark"] .topbar::before {
+  background: linear-gradient(135deg, rgba(102, 182, 255, 0.16), rgba(34, 197, 246, 0.08));
+}
+
+:root[data-theme="dark"] .topbar-btn::before {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+}
+
+:root[data-theme="dark"] .topbar-btn.admin-btn::before {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+}
+
+:root[data-theme="dark"] .composer-panel::before {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+}
+
+:root[data-theme="dark"] .option-chip::before {
+  background: #e2e8f0;
+}
+
+:root[data-theme="dark"] .quick-prompt-row::after {
+  background: linear-gradient(90deg, transparent, rgba(30, 41, 59, 0.9));
+}
+
+:root[data-theme="dark"] .divider::before {
+  border-color: rgba(49, 67, 90, 0.92);
+}
+
+/* Backdrop Filter Effects */
+:root[data-theme="dark"] .user-menu-dropdown {
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* Transitions */
+:root[data-theme="dark"] .row-actions .tiny-btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Opacity Effects */
+:root[data-theme="dark"] .user-menu-item .menu-icon {
+  opacity: 0.8;
+}
+
+:root[data-theme="dark"] .user-menu-item:hover .menu-icon {
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .quick-prompt-row .tiny-btn {
+  opacity: 0.9;
+}
+
+:root[data-theme="dark"] .quick-prompt-row .tiny-btn:hover {
+  opacity: 1;
+}
+
+/* Hover States - Navigation & Topbar */
+:root[data-theme="dark"] .brand-logo:hover {
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.6), 0 4px 16px rgba(102, 126, 234, 0.45);
+}
+
+:root[data-theme="dark"] .user-badge:hover {
+  box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5), 0 2px 10px rgba(102, 126, 234, 0.4);
+}
+
+:root[data-theme="dark"] .topbar-btn:hover {
+  background: rgba(71, 85, 105, 0.9);
+  border-color: rgba(102, 126, 234, 0.6);
+  color: #f1f5f9;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.25), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="dark"] .topbar-btn.admin-btn:hover {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  box-shadow: 0 8px 28px rgba(102, 126, 234, 0.5), 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+:root[data-theme="dark"] .user-menu-item:hover {
+  background: linear-gradient(135deg, rgba(92, 167, 255, 0.16), rgba(34, 197, 246, 0.08));
+  color: #dff1ff;
+}
+
+:root[data-theme="dark"] .user-menu-item.logout:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.15));
+  color: #fecaca;
+}
+
+:root[data-theme="dark"] .theme-toggle:hover {
+  border-color: rgba(108, 182, 255, 0.42);
+  color: #f4f8fc;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+/* Hover States - Tables & Admin */
+:root[data-theme="dark"] .admin-shell .table tbody tr:hover {
+  background: rgba(52, 96, 176, 0.16);
+}
+
+/* Hover States - Panels & Cards */
+:root[data-theme="dark"] .chat-window.panel:hover,
+:root[data-theme="dark"] .composer-panel:hover,
+:root[data-theme="dark"] .process-panel:hover,
+:root[data-theme="dark"] details:hover,
+:root[data-theme="dark"] .citation-card:hover,
+:root[data-theme="dark"] .process-step:hover,
+:root[data-theme="dark"] .agent-mode-card:hover,
+:root[data-theme="dark"] .pdf-kpi-card:hover {
+  border-color: rgba(108, 182, 255, 0.4);
+}
+
+:root[data-theme="dark"] .chat-window.panel:hover {
+  border-color: rgba(102, 126, 234, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 3px 10px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="dark"] .composer-panel:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(102, 126, 234, 0.4);
+  box-shadow: 0 12px 36px -8px rgba(102, 126, 234, 0.2), 0 4px 16px -4px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="dark"] .process-panel:hover,
+:root[data-theme="dark"] details:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+:root[data-theme="dark"] .process-step:hover {
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+:root[data-theme="dark"] .citation-card:hover {
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+:root[data-theme="dark"] details summary:hover {
+  color: #a78bfa;
+}
+
+/* Hover States - Bubbles */
+:root[data-theme="dark"] .bubble.user:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(37, 99, 235, 0.22));
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="dark"] .bubble.assistant:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(102, 126, 234, 0.45);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Hover States - Buttons & Actions */
+:root[data-theme="dark"] .row-actions .tiny-btn.secondary:hover {
+  background: rgba(71, 85, 105, 0.95);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: #f1f5f9;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.25);
+}
+
+:root[data-theme="dark"] .row-actions .tiny-btn.danger:hover {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: rgba(239, 68, 68, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
+}
+
+:root[data-theme="dark"] .composer-actions button.secondary:hover,
+:root[data-theme="dark"] .composer-actions .link-btn:hover {
+  background: #1e293b;
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+:root[data-theme="dark"] .quick-prompt-row .tiny-btn:hover {
+  background: #1e293b;
+  border-color: rgba(102, 126, 234, 0.4);
+  color: #a78bfa;
+}
+
+:root[data-theme="dark"] .secondary:hover:not(:disabled),
+:root[data-theme="dark"] button.secondary:hover:not(:disabled),
+:root[data-theme="dark"] .social-btn:hover,
+:root[data-theme="dark"] .link-button:hover {
+  background: rgba(21, 37, 59, 0.98);
+  border-color: rgba(108, 182, 255, 0.48);
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .auth-footer .text-link:hover,
+:root[data-theme="dark"] .text-link-btn:hover {
+  color: #c9e5ff;
+}
+
+:root[data-theme="dark"] .empty-chat-label:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+  border-color: rgba(102, 126, 234, 0.6);
+}
+
+/* Hover States - Options & Chips */
+:root[data-theme="dark"] .chat-options-bar:hover {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(51, 65, 85, 0.9) 100%);
+  border-color: rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="dark"] .option-chip:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: #f1f5f9;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+:root[data-theme="dark"] .option-agent select:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(102, 126, 234, 0.5);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+/* Hover States - Textarea */
+:root[data-theme="dark"] .composer-main textarea:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Hover States - Scrollbar */
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Focus States */
+:root[data-theme="dark"] .composer-panel:focus-within {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(102, 126, 234, 0.6);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2), 0 12px 36px -8px rgba(102, 126, 234, 0.3);
+}
+
+:root[data-theme="dark"] .auth-input-shell:focus-within {
+  border-color: rgba(108, 182, 255, 0.64);
+  box-shadow: 0 0 0 4px rgba(108, 182, 255, 0.12);
+  background: rgba(17, 31, 51, 0.98);
+}
+
+:root[data-theme="dark"] .option-agent select:focus {
+  border-color: rgba(102, 126, 234, 0.6);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+:root[data-theme="dark"] .composer-main textarea:focus {
+  border-color: rgba(102, 126, 234, 0.8);
+  background: rgba(15, 23, 42, 1);
+  box-shadow:
+    0 0 0 4px rgba(102, 126, 234, 0.2),
+    0 0 0 8px rgba(102, 126, 234, 0.1),
+    0 4px 12px rgba(102, 126, 234, 0.25),
+    inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Active States */
+:root[data-theme="dark"] .admin-nav-item.active {
+  color: #ecf6ff;
+  border-color: rgba(82, 162, 255, 0.5);
+  background: linear-gradient(145deg, rgba(40, 136, 227, 0.92), rgba(34, 103, 196, 0.92));
+}
+
+:root[data-theme="dark"] .option-chip.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: rgba(102, 126, 234, 0.6);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+}
+
+/* Drag States */
+:root[data-theme="dark"] .composer-panel.dragover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  border-color: rgba(102, 126, 234, 0.5);
+}
+
+/* Scrollbar Effects */
+:root[data-theme="dark"] * {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
