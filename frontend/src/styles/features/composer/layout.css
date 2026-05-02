@@ -1,0 +1,76 @@
+/* ============================================
+   COMPOSER: Layout & Container
+   Composer panel, shell, positioning, responsive
+   ============================================ */
+
+/* Composer Panel */
+.composer-panel {
+  margin-top: 0;
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.1), 0 4px 8px -4px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.composer-panel::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 16px;
+  padding: 2px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.composer-panel:hover {
+  border-color: rgba(102, 126, 234, 0.2);
+  box-shadow: 0 12px 32px -8px rgba(102, 126, 234, 0.15), 0 4px 12px -4px rgba(0, 0, 0, 0.08);
+}
+
+.composer-panel:hover::before {
+  opacity: 0.6;
+}
+
+.composer-panel:focus-within {
+  border-color: rgba(102, 126, 234, 0.4);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12), 0 12px 32px -8px rgba(102, 126, 234, 0.2);
+}
+
+.composer-panel:focus-within::before {
+  opacity: 1;
+}
+
+.composer-panel.dragover {
+  outline: 3px dashed rgba(102, 126, 234, 0.5);
+  outline-offset: 6px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+  border-color: rgba(102, 126, 234, 0.4);
+  transform: scale(1.01);
+}
+
+/* Composer Main */
+.composer-main {
+  display: grid;
+  gap: 8px;
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .composer-panel {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .composer-panel textarea {
+    min-height: 80px;
+    font-size: 15px;
+  }
+}
