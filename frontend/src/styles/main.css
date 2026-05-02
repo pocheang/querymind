@@ -62,7 +62,9 @@
 @import './components/dropdowns.css';
 @import './components/alerts.css';
 @import './components/tables.css';
-@import './components/sidebar.css';
+@import './components/sidebar/layout.css';
+@import './components/sidebar/navigation.css';
+@import './components/sidebar/actions.css';
 
 /* ============================================
    LAYER 4: PAGES - Page-Specific Layouts
