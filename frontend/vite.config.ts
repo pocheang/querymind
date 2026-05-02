@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+// @ts-ignore - JavaScript plugin without type definitions
 import inlineCriticalCSS from './vite-plugin-inline-critical.js';
 
 export default defineConfig({
