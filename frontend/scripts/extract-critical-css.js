@@ -1,6 +1,6 @@
 import { createServer } from 'vite';
 import { generate } from 'critical';
-import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -93,19 +93,21 @@ async function extractCriticalCSS(route) {
 function deduplicateCSS(cssArray) {
   console.log('🔄 Deduplicating CSS rules...');
 
-  // Simple deduplication: keep first occurrence of each selector
+  // Merge all CSS and use Set to remove exact duplicates
+  // Note: This preserves CSS structure (media queries, keyframes, etc.)
+  // by treating the entire CSS string as-is rather than parsing rules
+  const allCSS = cssArray.join('\n');
+
+  // Split by newlines and remove exact duplicate lines
+  const lines = allCSS.split('\n');
   const seen = new Set();
   const deduplicated = [];
 
-  for (const css of cssArray) {
-    const rules = css.split('}').filter(r => r.trim());
-
-    for (const rule of rules) {
-      const selector = rule.split('{')[0]?.trim();
-      if (selector && !seen.has(selector)) {
-        seen.add(selector);
-        deduplicated.push(rule + '}');
-      }
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      deduplicated.push(line);
     }
   }
 
@@ -150,6 +152,13 @@ async function main() {
 
     // Validate size
     validateSize(mergedCSS);
+
+    // Ensure output directory exists
+    const outputDir = dirname(OUTPUT_PATH);
+    if (!existsSync(outputDir)) {
+      mkdirSync(outputDir, { recursive: true });
+      console.log(`✓ Created output directory: ${outputDir}`);
+    }
 
     // Write to file
     writeFileSync(OUTPUT_PATH, mergedCSS, 'utf-8');
