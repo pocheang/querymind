@@ -1,0 +1,70 @@
+/* ============================================
+   Sidebar Actions
+   Header, buttons, collapse toggle, branding
+   ============================================ */
+
+/* ============================================
+   Sidebar Header
+   ============================================ */
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sidebar-brand-block {
+  display: grid;
+  gap: 6px;
+}
+
+.sidebar-brand-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(94, 168, 255, 0.12);
+  border: 1px solid rgba(94, 168, 255, 0.16);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-header .brand {
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.sidebar-header .muted {
+  max-width: 220px;
+  color: var(--text-tertiary);
+  line-height: 1.55;
+}
+
+/* ============================================
+   Sidebar Collapse Button
+   ============================================ */
+
+.sidebar-collapse-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(156, 180, 205, 0.14);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.sidebar-collapse-btn:hover {
+  background: rgba(108, 182, 255, 0.12);
+  border-color: rgba(108, 182, 255, 0.28);
+  color: var(--text-primary);
+}
