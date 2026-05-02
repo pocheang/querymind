@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import inlineCriticalCSS from './vite-plugin-inline-critical';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), inlineCriticalCSS()],
   base: "/app/",
   resolve: {
     alias: {
