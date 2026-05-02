@@ -49,7 +49,9 @@
    ============================================ */
 
 /* Atomic Components */
-@import './components/buttons.css';
+@import './components/buttons/base.css';
+@import './components/buttons/variants.css';
+@import './components/buttons/groups.css';
 @import './components/forms/inputs.css';
 @import './components/forms/selects.css';
 @import './components/forms/validation.css';
