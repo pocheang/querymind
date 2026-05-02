@@ -72,6 +72,7 @@ async function extractCriticalCSS(route, viewport) {
   // Extract all CSS rules and check which ones apply to above-the-fold elements
   const criticalCSS = await page.evaluate((viewportHeight) => {
     const criticalRules = new Set();
+    const usedAnimations = new Set();
 
     // Get all elements in the viewport (above the fold)
     const allElements = document.querySelectorAll('*');
@@ -79,6 +80,20 @@ async function extractCriticalCSS(route, viewport) {
       const rect = el.getBoundingClientRect();
       return rect.top < viewportHeight && rect.bottom > 0;
     });
+
+    console.log(`[DEBUG] Total elements: ${allElements.length}, Above fold: ${aboveFoldElements.length}`);
+
+    // First pass: collect used animation names from above-fold elements
+    for (const el of aboveFoldElements) {
+      const style = window.getComputedStyle(el);
+      const animationName = style.animationName;
+      if (animationName && animationName !== 'none') {
+        // Handle multiple animations (comma-separated)
+        animationName.split(',').forEach(name => {
+          usedAnimations.add(name.trim());
+        });
+      }
+    }
 
     // Get all stylesheets
     for (const sheet of document.styleSheets) {
@@ -112,8 +127,10 @@ async function extractCriticalCSS(route, viewport) {
                 }
               }
             } else if (rule.type === CSSRule.KEYFRAMES_RULE) {
-              // Include keyframes that are used by above-fold elements
-              criticalRules.add(rule.cssText);
+              // Only include keyframes that are actually used by above-fold elements
+              if (usedAnimations.has(rule.name)) {
+                criticalRules.add(rule.cssText);
+              }
             }
           }
         }
