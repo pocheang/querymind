@@ -17,6 +17,7 @@
    Design tokens, CSS reset, utility classes
    ============================================ */
 
+@import './core/critical.css';
 @import './core/tokens.css';
 @import './core/reset.css';
 @import './core/utilities.css';
