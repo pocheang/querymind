@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
-import inlineCriticalCSS from './vite-plugin-inline-critical';
+import inlineCriticalCSS from './vite-plugin-inline-critical.js';
 
 export default defineConfig({
   plugins: [react(), inlineCriticalCSS()],
@@ -26,7 +26,7 @@ export default defineConfig({
             if (setCookie) {
               proxyRes.headers['set-cookie'] = Array.isArray(setCookie)
                 ? setCookie.map(cookie => cookie.replace(/; secure/gi, ''))
-                : [setCookie.replace(/; secure/gi, '')];
+                : [(setCookie as string).replace(/; secure/gi, '')];
             }
           });
         }

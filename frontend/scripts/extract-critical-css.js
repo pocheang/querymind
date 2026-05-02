@@ -61,6 +61,14 @@ async function extractCriticalCSS(route, viewport) {
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
 
+  // Enable console logging from browser
+  page.on('console', msg => {
+    const text = msg.text();
+    if (text.includes('[DEBUG]')) {
+      console.log(`  ${text}`);
+    }
+  });
+
   await page.setViewport(viewport);
 
   const url = `${BASE_URL}${route.path}`;
@@ -68,6 +76,20 @@ async function extractCriticalCSS(route, viewport) {
 
   // Wait for CSS to load
   await new Promise(resolve => setTimeout(resolve, 2000));
+
+  // Debug: Check page state
+  const pageInfo = await page.evaluate(() => {
+    return {
+      stylesheetCount: document.styleSheets.length,
+      elementCount: document.querySelectorAll('*').length,
+      hasRoot: !!document.getElementById('root'),
+      rootContent: document.getElementById('root')?.innerHTML.substring(0, 500),
+      bodyContent: document.body.innerHTML.substring(0, 500)
+    };
+  });
+  console.log(`  [DEBUG] Stylesheets: ${pageInfo.stylesheetCount}, Elements: ${pageInfo.elementCount}`);
+  console.log(`  [DEBUG] Root content: ${pageInfo.rootContent}`);
+  console.log(`  [DEBUG] Body content: ${pageInfo.bodyContent}`);
 
   // Extract all CSS rules and check which ones apply to above-the-fold elements
   const criticalCSS = await page.evaluate((viewportHeight) => {
