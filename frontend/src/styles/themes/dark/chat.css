@@ -76,7 +76,6 @@
   color: #dff1ff;
 }
 
-:root[data-theme="dark"] .chat-window.panel,
 :root[data-theme="dark"] .composer-panel,
 :root[data-theme="dark"] .chat-options-bar,
 :root[data-theme="dark"] .process-panel,
