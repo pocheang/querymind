@@ -1,0 +1,121 @@
+/* ============================================
+   FEATURE: Process Timeline & Panels
+   Extracted from: chat-workbench.css
+   ============================================ */
+
+/* Process Panel */
+.process-panel,
+details {
+  margin-top: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: rgba(248, 250, 252, 0.6);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.process-panel:hover,
+details:hover {
+  border-color: rgba(102, 126, 234, 0.2);
+  background: rgba(248, 250, 252, 0.9);
+}
+
+details summary {
+  cursor: pointer;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+details summary:hover {
+  color: #667eea;
+}
+
+details[open] summary {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Process Timeline */
+.process-timeline {
+  gap: 10px;
+  margin-top: 12px;
+  display: grid;
+}
+
+/* Process Step */
+.process-step {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #ffffff;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.process-step:hover {
+  border-color: rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateX(2px);
+}
+
+.process-step-head {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: grid;
+  gap: 10px;
+  align-items: center;
+}
+
+.process-kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #667eea;
+}
+
+.process-time {
+  color: var(--work-muted);
+  font-size: 11px;
+  font-family: "Geist Mono", "Cascadia Code", Consolas, monospace;
+  font-weight: 500;
+}
+
+.process-detail {
+  margin-top: 8px;
+  color: var(--work-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  padding-left: 12px;
+  border-left: 2px solid rgba(102, 126, 234, 0.15);
+}
+
+/* Process Kind Variants */
+.kind-vector,
+.kind-graph,
+.kind-web,
+.kind-status,
+.kind-thought {
+  margin-top: 0;
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.1), 0 4px 8px -4px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}

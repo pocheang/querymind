@@ -1,0 +1,76 @@
+import type { AdminUserSummary, AdminModelSettingsView, RetrievalProfileState } from "@/types/api";
+
+export interface AdminActionsParams {
+  users: AdminUserSummary[];
+  modelSettings: AdminModelSettingsView | null;
+  modelApiKey: string;
+  canaryEnabled: boolean;
+  canaryBaseline: number;
+  canarySafe: number;
+  canarySeed: string;
+  profileState: RetrievalProfileState | null;
+  auditLimit: number;
+  auditActorUserId: string;
+  auditActionKeyword: string;
+  auditEventCategory: string;
+  auditSeverity: string;
+  auditResult: string;
+  systemLogLimit: number;
+  systemLogLevel: string;
+  systemLogLogger: string;
+  systemLogKeyword: string;
+  opsHours: number;
+  opsActorUserId: string;
+  opsActionKeyword: string;
+  adminUsername: string;
+  adminPassword: string;
+  adminPassword2: string;
+  adminApprovalToken: string;
+  newAdminApprovalToken: string;
+  adminTicketId: string;
+  adminReason: string;
+  editingUser: AdminUserSummary | null;
+  editBu: string;
+  editDept: string;
+  editType: string;
+  editScope: string;
+  isAdmin: boolean;
+  onLogout: () => Promise<void>;
+  setUsers: (users: AdminUserSummary[] | ((prev: AdminUserSummary[]) => AdminUserSummary[])) => void;
+  setLogs: (logs: any[]) => void;
+  setSystemLogs: (logs: any[]) => void;
+  setOps: (ops: any) => void;
+  setProfileState: (state: RetrievalProfileState | null) => void;
+  setBenchmarkTrends: (trends: any[]) => void;
+  setModelSettings: (settings: AdminModelSettingsView | null | ((prev: AdminModelSettingsView | null) => AdminModelSettingsView | null)) => void;
+  setError: (error: string) => void;
+  setStatusText: (text: string) => void;
+  setLoadingUsers: (loading: boolean) => void;
+  setLoadingLogs: (loading: boolean) => void;
+  setLoadingSystemLogs: (loading: boolean) => void;
+  setLoadingOps: (loading: boolean) => void;
+  setCreatingAdmin: (creating: boolean) => void;
+  setSavingClass: (saving: boolean) => void;
+  setBenchmarkRunning: (running: boolean) => void;
+  setModelLoading: (loading: boolean) => void;
+  setModelSaving: (saving: boolean) => void;
+  setModelTesting: (testing: boolean) => void;
+  setModelApiKey: (key: string) => void;
+  setModelTestResult: (result: { type: "success" | "error"; message: string } | null) => void;
+  setCanaryEnabled: (enabled: boolean) => void;
+  setCanaryBaseline: (baseline: number) => void;
+  setCanarySafe: (safe: number) => void;
+  setCanarySeed: (seed: string) => void;
+  setAdminUsername: (username: string) => void;
+  setAdminPassword: (password: string) => void;
+  setAdminPassword2: (password: string) => void;
+  setAdminApprovalToken: (token: string) => void;
+  setNewAdminApprovalToken: (token: string) => void;
+  setAdminTicketId: (id: string) => void;
+  setAdminReason: (reason: string) => void;
+  setEditingUser: (user: AdminUserSummary | null) => void;
+}
+
+export interface ErrorHandler {
+  handleApiError: (e: unknown, fallback: string) => Promise<void>;
+}

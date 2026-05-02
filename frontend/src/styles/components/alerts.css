@@ -1,0 +1,139 @@
+/* ============================================
+   Alerts Component
+   Consolidated from: components.css, ApiSettings.css
+   ============================================ */
+
+/* ============================================
+   Base Alert Styles
+   ============================================ */
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-size: var(--text-sm);
+  margin-top: 8px;
+  margin-bottom: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.alert:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.alert-warning {
+  background: #fff5df;
+  border: 1px solid #f7d189;
+  color: #9a6100;
+}
+
+/* ============================================
+   Test Result Alerts (from ApiSettings.css)
+   ============================================ */
+
+.test-result {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  font-size: 13px;
+  line-height: 1.6;
+  animation: resultFadeIn 0.3s ease-out;
+}
+
+@keyframes resultFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.test-result.success {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 8%, transparent);
+}
+
+.test-result.error {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+/* ============================================
+   Settings Note (from ApiSettings.css)
+   ============================================ */
+
+.settings-note {
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ============================================
+   Empty State Messages
+   ============================================ */
+
+.empty-chat-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  gap: var(--space-4);
+  animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.empty-chat-state h3 {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  animation: fadeInUp 0.5s ease 0.1s both;
+}
+
+.empty-chat-state p {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  max-width: 500px;
+  line-height: 1.7;
+  animation: fadeInUp 0.5s ease 0.2s both;
+}
+
+/* ============================================
+   Dark Mode Overrides
+   ============================================ */
+
+:root[data-theme="dark"] .alert-warning {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+}
+
+:root[data-theme="dark"] .settings-note {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}

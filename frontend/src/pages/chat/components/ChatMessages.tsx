@@ -22,10 +22,11 @@ export function ChatMessages({ messages, containerRef, onEditMessage, onRemoveMe
     <section className="chat-window panel" ref={containerRef}>
       {messages.length === 0 && (
         <div className="empty-chat-state">
-          <span className="empty-chat-label">Ready</span>
+          <span className="empty-chat-label">Console Ready</span>
           <h3>开始一次有证据链的分析</h3>
           <p>
-            你可以上传 PDF/图片，指定 Agent 模式，选择检索策略，或直接询问知识库。回答会展示路由、检索来源、执行过程和引用片段。
+            你可以上传 PDF 或图片、指定 Agent 模式、选择检索策略，或直接询问知识库。回答会展示路由、检索来源、
+            执行过程和引用片段。
           </p>
         </div>
       )}
@@ -36,7 +37,7 @@ export function ChatMessages({ messages, containerRef, onEditMessage, onRemoveMe
         return (
           <article key={msg.message_id} className={`bubble ${isAssistant ? "assistant" : "user"}`}>
             <div className="message-head">
-              <span className="message-role">{isAssistant ? "Assistant" : "You"}</span>
+              <span className="message-role">{isAssistant ? "ASSISTANT" : "YOU"}</span>
               {msg.message_id.startsWith("local-") ? null : (
                 <div className="row-actions">
                   <button type="button" className="secondary tiny-btn" onClick={() => void onEditMessage(msg)}>

@@ -57,11 +57,7 @@ export function ChatComposer({
   onComposerDrop,
   onChatUploadChange,
 }: Props) {
-  const strategyLabel = retrievalStrategy === "baseline"
-    ? "基础"
-    : retrievalStrategy === "safe"
-      ? "安全"
-      : "高级";
+  const strategyLabel = retrievalStrategy === "baseline" ? "基础" : retrievalStrategy === "safe" ? "安全" : "高级";
   const modeHint = !useWeb && !useReasoning
     ? `本地快速模式，${strategyLabel}检索：适合低延迟问答和已入库资料分析。`
     : useWeb
@@ -77,7 +73,10 @@ export function ChatComposer({
       onDrop={(evt) => void onComposerDrop(evt)}
     >
       <div className="composer-main">
-        <label className="composer-label">Ask the RAG system</label>
+        <div className="composer-heading-row">
+          <label className="composer-label">ASK THE RAG SYSTEM</label>
+          <span className="composer-meta-pill">Ctrl/Cmd + Enter</span>
+        </div>
         <textarea
           ref={questionRef}
           value={question}
@@ -101,11 +100,7 @@ export function ChatComposer({
       <div className="chat-options-bar" aria-label="chat options">
         <div className="option-group">
           <span className="option-label">联网检索</span>
-          <button
-            type="button"
-            className={`option-chip ${useWeb ? "active" : ""}`}
-            onClick={() => onUseWebChange(!useWeb)}
-          >
+          <button type="button" className={`option-chip ${useWeb ? "active" : ""}`} onClick={() => onUseWebChange(!useWeb)}>
             {useWeb ? "开启" : "关闭"}
           </button>
         </div>

@@ -6,6 +6,9 @@ import { LoginPage } from "@/pages/LoginPage";
 import { ChatPage } from "@/pages/ChatPage";
 import { AdminPage } from "@/pages/AdminPage";
 import { ArchitecturePage } from "@/pages/ArchitecturePage";
+import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
+import { ProfilePage } from "@/pages/ProfilePage";
+import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import type { AuthUser } from "@/types/api";
 
@@ -90,6 +93,19 @@ export function App() {
         }
       />
       <Route
+        path="/app/forgot-password"
+        element={
+          user ? (
+            <Navigate to="/app" replace />
+          ) : (
+            <ForgotPasswordPage
+              themeLabel={themeLabel}
+              onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
+            />
+          )
+        }
+      />
+      <Route
         path="/app"
         element={
           <Protected user={user} authReady={authReady}>
@@ -112,6 +128,22 @@ export function App() {
               themeLabel={themeLabel}
               onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
             />
+          </Protected>
+        }
+      />
+      <Route
+        path="/app/change-password"
+        element={
+          <Protected user={user} authReady={authReady}>
+            <ChangePasswordPage themeLabel={themeLabel} onThemeToggle={() => setTheme((prev) => nextTheme(prev))} />
+          </Protected>
+        }
+      />
+      <Route
+        path="/app/profile"
+        element={
+          <Protected user={user} authReady={authReady}>
+            <ProfilePage user={user} />
           </Protected>
         }
       />

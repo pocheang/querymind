@@ -1,0 +1,769 @@
+/* ============================================
+   Admin Page
+   ============================================ */
+
+.admin-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: var(--space-8);
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.admin-shell .topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-8);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--info) 100%);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-2xl);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-xl);
+  margin-bottom: var(--space-8);
+  gap: var(--space-4);
+}
+
+.admin-shell .topbar h2 {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-inverse);
+}
+
+.admin-shell .topbar .muted {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--text-base);
+}
+
+.admin-shell .topbar .top-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-shell .topbar button {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--text-inverse);
+  backdrop-filter: blur(10px);
+}
+
+.admin-shell .topbar button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.admin-shell .panel {
+  margin-top: 0;
+  border-radius: 20px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.9));
+  box-shadow:
+    0 18px 36px -30px rgba(16, 42, 82, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.admin-shell .section-head {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 18%, var(--border));
+}
+
+.admin-shell .section-head strong {
+  font-size: 18px;
+  letter-spacing: 0.05px;
+  font-weight: 800;
+}
+
+.admin-nav-item.active {
+  color: #fff;
+  border-color: #1b7fd4;
+  background: linear-gradient(145deg, #23a5ff, #1e75d8);
+  box-shadow: 0 12px 20px -14px rgba(18, 93, 175, 0.8);
+}
+
+/* ============================================
+   Admin Section Tabs
+   ============================================ */
+
+.admin-section-tabs {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, var(--surface)), var(--surface));
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+}
+
+.admin-section-tabs button {
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-fast);
+  min-height: 40px;
+}
+
+.admin-section-tabs button:not(.secondary) {
+  background: var(--accent);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-section-tabs button.secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+
+.admin-section-tabs button.secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-medium);
+}
+
+.admin-shell .admin-section-tabs {
+  gap: 10px;
+}
+
+.admin-shell .admin-section-tabs button {
+  min-width: 120px;
+  border-radius: 999px;
+}
+
+/* ============================================
+   Admin KPI Cards
+   ============================================ */
+
+.admin-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.admin-kpi-card span {
+  font-size: 12px;
+  opacity: 0.92;
+}
+
+.admin-kpi-card strong {
+  font-size: 26px;
+  line-height: 1.05;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-kpi-card,
+.ops-kpi-card:hover,
+.admin-kpi-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-3px);
+}
+
+.ops-kpi-card span,
+.admin-kpi-card span {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+  font-weight: 500;
+}
+
+.ops-kpi-card strong,
+.admin-kpi-card strong {
+  display: block;
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.admin-shell .ops-kpi-card,
+.admin-shell .ops-health-card,
+.admin-shell .ops-trend-list {
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border));
+}
+
+.admin-shell .ops-kpi-card strong {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   Admin Forms & Inputs
+   ============================================ */
+
+.ops-two-col,
+.admin-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.admin-field {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-field span {
+  font-size: 12px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
+  letter-spacing: 0.2px;
+}
+
+.admin-field input {
+  margin-top: 0;
+  height: 46px;
+  border-radius: 12px;
+}
+
+.admin-field input,
+.admin-field select,
+.admin-field textarea {
+  width: 100%;
+  border: 1.5px solid var(--border-light);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.admin-field input:hover,
+.admin-field select:hover,
+.admin-field textarea:hover {
+  border-color: var(--border-medium);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.admin-field input:focus,
+.admin-field select:focus,
+.admin-field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.admin-shell .ops-two-col input,
+.admin-shell .ops-two-col select {
+  margin-top: 0;
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition: all 0.2s ease;
+}
+
+.admin-shell .ops-two-col input:hover,
+.admin-shell .ops-two-col select:hover {
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.admin-shell .ops-two-col input:focus,
+.admin-shell .ops-two-col select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, #9abdf2);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.row-actions.wrap {
+  margin-top: 8px;
+}
+
+.admin-shell .row-actions button,
+.admin-shell .row-actions .link-btn {
+  min-height: 38px;
+  transition: transform 0.16s ease, box-shadow 0.18s ease, filter 0.16s ease;
+}
+
+.admin-shell .row-actions button:hover,
+.admin-shell .row-actions .link-btn:hover {
+  transform: translateY(-1.5px);
+  filter: brightness(1.04);
+  box-shadow: 0 14px 24px -18px rgba(27, 77, 144, 0.55);
+}
+
+.admin-shell .admin-field input,
+.admin-shell .admin-field select,
+.admin-shell .admin-field textarea {
+  min-height: 44px;
+  border-radius: 14px;
+}
+
+.admin-shell .admin-field textarea {
+  min-height: 112px;
+}
+
+.admin-shell .muted {
+  font-size: 13px;
+}
+
+.admin-shell .status {
+  margin-top: 0;
+  border: 1px solid color-mix(in srgb, var(--ok) 38%, var(--border));
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.admin-shell .status.error {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.admin-shell .tiny-btn {
+  border-radius: 10px;
+}
+
+/* ============================================
+   Admin Tables
+   ============================================ */
+
+.admin-shell .table {
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 9%, var(--border));
+  background: #fff;
+  box-shadow: 0 14px 32px -28px rgba(15, 23, 42, 0.35);
+}
+
+.admin-shell .table thead th {
+  font-size: 11px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  background: linear-gradient(180deg, #f7faff, #f3f7ff);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border));
+}
+
+.admin-shell .table tbody tr {
+  transition: background-color 0.14s ease;
+}
+
+.admin-shell .table tbody tr:hover {
+  background: #f6faff;
+}
+
+.admin-shell .table td,
+.admin-shell .table th {
+  padding: 11px 10px;
+}
+
+.admin-shell .table td .row-actions {
+  gap: 8px;
+}
+
+.admin-shell .table td select {
+  margin-top: 0;
+  height: 34px;
+  border-radius: 10px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+/* ============================================
+   Admin Create Panel
+   ============================================ */
+
+.admin-create-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-create-hint {
+  margin-top: -4px;
+  font-size: 13px;
+}
+
+.admin-create-grid {
+  gap: 14px;
+}
+
+.admin-create-actions {
+  display: grid;
+  align-items: end;
+}
+
+.admin-create-actions button {
+  width: 100%;
+  height: 46px;
+  border-radius: 12px;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+}
+
+/* ============================================
+   Admin Users Panel
+   ============================================ */
+
+.admin-users-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-users-hint {
+  margin-top: -4px;
+  font-size: 13px;
+}
+
+.admin-filter-grid {
+  gap: 14px;
+}
+
+.admin-user-table {
+  table-layout: fixed;
+}
+
+.admin-user-table th,
+.admin-user-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-user-table th:first-child,
+.admin-user-table td:first-child {
+  width: 286px;
+}
+
+.admin-user-id {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.admin-username {
+  font-weight: 700;
+}
+
+.user-row-actions {
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.user-row-actions .tiny-btn {
+  min-width: 68px;
+}
+
+/* ============================================
+   Admin Audit Panel
+   ============================================ */
+
+.admin-audit-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-audit-hint {
+  margin-top: -4px;
+  font-size: 13px;
+}
+
+.admin-audit-head-actions select {
+  min-width: 168px;
+  height: 36px;
+  margin-top: 0;
+}
+
+.admin-audit-quick-actions {
+  align-self: end;
+  justify-content: flex-start;
+}
+
+.audit-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(249, 252, 255, 0.9));
+}
+
+.admin-audit-table {
+  min-width: 1760px;
+  width: 100%;
+  table-layout: fixed;
+  border: 0;
+  background: transparent;
+}
+
+.admin-audit-table th,
+.admin-audit-table td {
+  vertical-align: top;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-audit-table th {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+.admin-audit-table th:nth-child(1),
+.admin-audit-table td:nth-child(1) {
+  min-width: 170px;
+}
+
+.admin-audit-table th:nth-child(2),
+.admin-audit-table td:nth-child(2) {
+  min-width: 260px;
+}
+
+.admin-audit-table th:nth-child(3),
+.admin-audit-table td:nth-child(3) {
+  min-width: 220px;
+}
+
+.admin-audit-table th:nth-child(6),
+.admin-audit-table td:nth-child(6) {
+  min-width: 260px;
+}
+
+.admin-audit-table th:nth-child(9),
+.admin-audit-table td:nth-child(9) {
+  min-width: 360px;
+}
+
+.admin-audit-table th:nth-child(10),
+.admin-audit-table td:nth-child(10) {
+  min-width: 300px;
+}
+
+.admin-audit-table th:nth-child(8),
+.admin-audit-table td:nth-child(8) {
+  min-width: 110px;
+}
+
+.audit-time {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.admin-audit-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.admin-audit-table tbody tr:nth-child(2n) {
+  background: rgba(42, 122, 220, 0.03);
+}
+
+.admin-audit-table tbody tr:hover {
+  background: rgba(42, 122, 220, 0.08);
+}
+
+.audit-cell-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.audit-sub {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-id {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-code {
+  display: inline-block;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+
+.audit-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.audit-user-agent,
+.audit-detail {
+  white-space: nowrap;
+  line-height: 1.35;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-actor,
+.audit-action,
+.audit-resource {
+  white-space: nowrap;
+  line-height: 1.45;
+}
+
+.admin-audit-scroll-hint {
+  margin-top: -2px;
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+
+.audit-ip {
+  white-space: nowrap;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.admin-audit-match-hint {
+  margin-top: -6px;
+}
+
+/* ============================================
+   Dark Mode
+   ============================================ */
+
+:root[data-theme="dark"] .audit-table-wrap {
+  background: linear-gradient(180deg, rgba(17, 26, 40, 0.76), rgba(13, 20, 31, 0.86));
+}
+
+:root[data-theme="dark"] .admin-shell .panel {
+  background: linear-gradient(180deg, rgba(22, 30, 44, 0.92), rgba(16, 24, 36, 0.9));
+}
+
+:root[data-theme="dark"] .admin-shell .topbar {
+  background:
+    linear-gradient(110deg, rgba(19, 85, 163, 0.94), rgba(14, 67, 133, 0.9)),
+    radial-gradient(90% 130% at 0% -30%, rgba(255, 255, 255, 0.2), transparent 52%);
+}
+
+:root[data-theme="dark"] .admin-nav-item.active {
+  color: #ecf6ff;
+  border-color: rgba(82, 162, 255, 0.5);
+  background: linear-gradient(145deg, rgba(40, 136, 227, 0.92), rgba(34, 103, 196, 0.92));
+}
+
+:root[data-theme="dark"] .admin-mini-card strong {
+  color: #9acbff;
+}
+
+:root[data-theme="dark"] .admin-shell .ops-two-col input,
+:root[data-theme="dark"] .admin-shell .ops-two-col select,
+:root[data-theme="dark"] .admin-shell .table td select {
+  background: rgba(12, 18, 30, 0.88);
+}
+
+:root[data-theme="dark"] .admin-shell .table {
+  background: rgba(14, 20, 30, 0.86);
+}
+
+:root[data-theme="dark"] .admin-shell .table thead th {
+  background: linear-gradient(180deg, rgba(27, 38, 58, 0.9), rgba(22, 32, 49, 0.88));
+}
+
+:root[data-theme="dark"] .admin-shell .table tbody tr:hover {
+  background: rgba(52, 96, 176, 0.16);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 860px) {
+  .admin-shell {
+    padding: 12px 10px;
+    gap: 10px;
+  }
+
+  .admin-shell .panel {
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .admin-shell .topbar {
+    border-radius: 14px;
+    padding: 12px;
+    align-items: flex-start;
+  }
+
+  .admin-shell .topbar .top-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-shell .table {
+    border-radius: 10px;
+    font-size: 12px;
+  }
+
+  .admin-shell .table td,
+  .admin-shell .table th {
+    padding: 8px 7px;
+  }
+
+  .user-row-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .admin-user-table th:first-child,
+  .admin-user-table td:first-child {
+    width: 210px;
+  }
+
+  .admin-audit-head-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-audit-head-actions select {
+    min-width: 140px;
+  }
+
+  .admin-audit-quick-actions {
+    align-self: start;
+  }
+
+  .admin-shell .admin-section-tabs button {
+    flex: 1 1 140px;
+  }
+}

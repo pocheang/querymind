@@ -1,0 +1,58 @@
+import type { ApiConfig, Provider } from "./apiSettingsConstants";
+import { PROVIDER_DEFAULTS } from "./apiSettingsConstants";
+
+export function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function requiresApiKey(provider: Provider): boolean {
+  return !["local", "ollama"].includes(provider);
+}
+
+export function requiresBaseUrl(provider: Provider): boolean {
+  return provider !== "local";
+}
+
+export function validateConfig(config: ApiConfig): string {
+  if (!config.provider) return "Please select provider";
+  if (requiresBaseUrl(config.provider) && !config.baseUrl.trim()) return "Base URL is required";
+  if (!config.model.trim()) return "Model is required";
+  if (requiresApiKey(config.provider) && !config.apiKey.trim() && !config.apiKeyMasked.trim()) {
+    return "API key is required for this provider";
+  }
+  return "";
+}
+
+export function buildApiPayload(config: ApiConfig) {
+  return {
+    provider: config.provider,
+    api_key: config.apiKey.trim(),
+    base_url: config.baseUrl.trim(),
+    model: config.model.trim(),
+    temperature: clampNumber(Number(config.temperature), 0, 2),
+    max_tokens: clampNumber(Number(config.maxTokens), 256, 8192),
+  };
+}
+
+export function applyProviderDefaults(provider: Provider): Partial<ApiConfig> {
+  const defaults = PROVIDER_DEFAULTS[provider];
+  return {
+    provider,
+    baseUrl: defaults.baseUrl,
+    model: defaults.model,
+    apiKey: "",
+    apiKeyMasked: "",
+  };
+}
+
+export function parseApiResponse(response: any): ApiConfig {
+  return {
+    provider: (response.provider || "ollama") as Provider,
+    apiKey: "",
+    apiKeyMasked: response.api_key_masked || "",
+    baseUrl: response.base_url || "",
+    model: response.model || "",
+    temperature: Number(response.temperature ?? 0.7),
+    maxTokens: Number(response.max_tokens ?? 2048),
+  };
+}

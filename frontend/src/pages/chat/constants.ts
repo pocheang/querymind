@@ -9,6 +9,22 @@ export const QUICK_PROMPTS = [
 
 export const SUPPORTED_DOC_RE = /\.(md|txt|pdf|png|jpe?g|bmp|tiff?|webp)$/i;
 export const SUPPORTED_CHAT_RE = /\.(pdf|png|jpe?g|bmp|tiff?|webp)$/i;
+export const PDF_FILE_RE = /\.(pdf|png|jpe?g|bmp|tiff?|webp)$/i;
+
+export type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
+export type RetrievalStrategy = "baseline" | "advanced" | "safe";
+
+export const AGENT_MODES: Array<{
+  key: AgentClassHint;
+  title: string;
+  desc: string;
+}> = [
+  { key: "", title: "Auto Router", desc: "Automatically route by user intent and context." },
+  { key: "cybersecurity", title: "Cybersecurity", desc: "Threat analysis, incident response, and hardening." },
+  { key: "artificial_intelligence", title: "AI Research", desc: "LLM, RAG, and model/system design questions." },
+  { key: "pdf_text", title: "PDF Reader", desc: "Focus on PDF/image document Q&A and evidence extraction." },
+  { key: "general", title: "General Analyst", desc: "Cross-domain summaries and executive reporting." },
+];
 
 export const EMPTY_METADATA: ChatMetadata = {
   route: "",

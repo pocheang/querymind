@@ -1,0 +1,43 @@
+/* ============================================
+   FEATURE: Citation Cards
+   Extracted from: chat-workbench.css
+   ============================================ */
+
+/* Citation Card */
+.citation-card {
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 14px 16px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.citation-card:hover {
+  border-color: rgba(102, 126, 234, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.citation-card strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #667eea;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Citation Grid */
+.citation-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .citation-grid {
+    grid-template-columns: 1fr;
+  }
+}

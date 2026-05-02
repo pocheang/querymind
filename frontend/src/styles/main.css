@@ -1,0 +1,84 @@
+/* ============================================
+   Multi-Agent RAG Local - Main Stylesheet
+   主样式表 - 统一CSS入口
+   ============================================
+
+   IMPORT ORDER (CRITICAL - DO NOT REORDER):
+   1. Core Layer - Design tokens, reset, utilities
+   2. Theme Layer - Dark mode and theme variants
+   3. Component Layer - Reusable UI components
+   4. Page Layer - Page-specific layouts
+   5. Feature Layer - Feature-specific modules
+
+   ============================================ */
+
+/* ============================================
+   LAYER 1: CORE - Foundation
+   Design tokens, CSS reset, utility classes
+   ============================================ */
+
+@import './core/tokens.css';
+@import './core/reset.css';
+@import './core/utilities.css';
+
+/* ============================================
+   LAYER 2: THEMES - Visual Variants
+   Dark mode and theme-specific overrides
+   ============================================ */
+
+@import './themes/dark.css';
+
+/* ============================================
+   LAYER 3: COMPONENTS - Reusable UI Elements
+   Buttons, forms, cards, modals, etc.
+   Order: Atomic → Composite
+   ============================================ */
+
+/* Atomic Components */
+@import './components/buttons.css';
+@import './components/forms.css';
+@import './components/badges.css';
+@import './components/avatars.css';
+@import './components/spinners.css';
+@import './components/tooltips.css';
+
+/* Composite Components */
+@import './components/cards.css';
+@import './components/modals.css';
+@import './components/dropdowns.css';
+@import './components/alerts.css';
+@import './components/tables.css';
+@import './components/sidebar.css';
+
+/* ============================================
+   LAYER 4: PAGES - Page-Specific Layouts
+   Authentication, chat, admin, profile pages
+   ============================================ */
+
+@import './pages/auth.css';
+@import './pages/chat.css';
+@import './pages/admin.css';
+@import './pages/profile.css';
+
+/* ============================================
+   LAYER 5: FEATURES - Feature-Specific Modules
+   Messages, composer, citations, process timeline
+   ============================================ */
+
+@import './features/messages.css';
+@import './features/composer.css';
+@import './features/citations.css';
+@import './features/process.css';
+
+/* ============================================
+   END OF MAIN STYLESHEET
+
+   MAINTENANCE NOTES:
+   - Keep import order strict (core → themes → components → pages → features)
+   - Add new files to appropriate layer section
+   - Document any deviations from standard order
+   - All styles now integrated into modular structure
+
+   BUNDLE SIZE TARGET: < 150KB uncompressed
+   CRITICAL CSS TARGET: < 14KB (first paint)
+   ============================================ */
