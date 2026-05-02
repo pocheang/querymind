@@ -1,0 +1,117 @@
+/* ============================================
+   Form Controls
+   Checkboxes, radio buttons, switches, toggles
+   ============================================ */
+
+/* ============================================
+   Checkbox
+   ============================================ */
+
+.checkline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-sm);
+  color: #52627d;
+}
+
+.checkline input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+  box-shadow: none;
+}
+
+/* ============================================
+   Toggle Switch - iOS/Vercel Style
+   ============================================ */
+
+.option-chip {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  font-size: 0;
+  color: transparent;
+}
+
+.option-chip::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.option-chip:hover {
+  background: rgba(0, 0, 0, 0.2);
+  transform: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.option-chip.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.option-chip.active::before {
+  left: 25px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.option-chip.active:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   Dark Mode
+   ============================================ */
+
+:root[data-theme="dark"] .option-chip {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .option-chip::before {
+  background: #e2e8f0;
+}
+
+:root[data-theme="dark"] .option-chip:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 768px) {
+  .option-chip {
+    width: 44px;
+    height: 24px;
+  }
+
+  .option-chip::before {
+    width: 18px;
+    height: 18px;
+  }
+
+  .option-chip.active::before {
+    left: 23px;
+  }
+}
