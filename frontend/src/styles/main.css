@@ -50,7 +50,10 @@
 
 /* Atomic Components */
 @import './components/buttons.css';
-@import './components/forms.css';
+@import './components/forms/inputs.css';
+@import './components/forms/selects.css';
+@import './components/forms/validation.css';
+@import './components/forms/controls.css';
 @import './components/badges.css';
 @import './components/avatars.css';
 @import './components/spinners.css';
