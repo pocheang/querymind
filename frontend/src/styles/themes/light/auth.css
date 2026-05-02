@@ -1,0 +1,9 @@
+/* ============================================
+   Light Theme - Authentication Pages
+   Login, register, and auth-related styles
+   ============================================ */
+
+:root[data-theme="light"] {
+  /* Auth page styles will be added as needed */
+  /* Currently using default light theme colors from colors.css */
+}

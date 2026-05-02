@@ -1,0 +1,9 @@
+/* ============================================
+   Light Theme - Chat Interface
+   Chat page, messages, composer styles
+   ============================================ */
+
+:root[data-theme="light"] {
+  /* Chat interface styles will be added as needed */
+  /* Currently using default light theme colors from colors.css */
+}

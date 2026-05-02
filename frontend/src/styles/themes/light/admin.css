@@ -1,0 +1,9 @@
+/* ============================================
+   Light Theme - Admin Interface
+   Admin dashboard, tables, and management styles
+   ============================================ */
+
+:root[data-theme="light"] {
+  /* Admin interface styles will be added as needed */
+  /* Currently using default light theme colors from colors.css */
+}
