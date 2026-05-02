@@ -1,0 +1,211 @@
+/* ============================================
+   Admin Layout - Shell, Topbar, Panels, Tabs, KPI Cards
+   ============================================ */
+
+.admin-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: var(--space-8);
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.admin-shell .topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-8);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--info) 100%);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-2xl);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-xl);
+  margin-bottom: var(--space-8);
+  gap: var(--space-4);
+}
+
+.admin-shell .topbar h2 {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-inverse);
+}
+
+.admin-shell .topbar .muted {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--text-base);
+}
+
+.admin-shell .topbar .top-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-shell .topbar button {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--text-inverse);
+  backdrop-filter: blur(10px);
+}
+
+.admin-shell .topbar button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.admin-shell .panel {
+  margin-top: 0;
+  border-radius: 20px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.9));
+  box-shadow:
+    0 18px 36px -30px rgba(16, 42, 82, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.admin-shell .section-head {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 18%, var(--border));
+}
+
+.admin-shell .section-head strong {
+  font-size: 18px;
+  letter-spacing: 0.05px;
+  font-weight: 800;
+}
+
+.admin-nav-item.active {
+  color: #fff;
+  border-color: #1b7fd4;
+  background: linear-gradient(145deg, #23a5ff, #1e75d8);
+  box-shadow: 0 12px 20px -14px rgba(18, 93, 175, 0.8);
+}
+
+/* ============================================
+   Admin Section Tabs
+   ============================================ */
+
+.admin-section-tabs {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, var(--surface)), var(--surface));
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+}
+
+.admin-section-tabs button {
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-fast);
+  min-height: 40px;
+}
+
+.admin-section-tabs button:not(.secondary) {
+  background: var(--accent);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-section-tabs button.secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+
+.admin-section-tabs button.secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-medium);
+}
+
+.admin-shell .admin-section-tabs {
+  gap: 10px;
+}
+
+.admin-shell .admin-section-tabs button {
+  min-width: 120px;
+  border-radius: 999px;
+}
+
+/* ============================================
+   Admin KPI Cards
+   ============================================ */
+
+.admin-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.admin-kpi-card span {
+  font-size: 12px;
+  opacity: 0.92;
+}
+
+.admin-kpi-card strong {
+  font-size: 26px;
+  line-height: 1.05;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-kpi-card,
+.ops-kpi-card:hover,
+.admin-kpi-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-3px);
+}
+
+.ops-kpi-card span,
+.admin-kpi-card span {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+  font-weight: 500;
+}
+
+.ops-kpi-card strong,
+.admin-kpi-card strong {
+  display: block;
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.admin-shell .ops-kpi-card,
+.admin-shell .ops-health-card,
+.admin-shell .ops-trend-list {
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border));
+}
+
+.admin-shell .ops-kpi-card strong {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-shell .muted {
+  font-size: 13px;
+}
+
+.admin-shell .status {
+  margin-top: 0;
+  border: 1px solid color-mix(in srgb, var(--ok) 38%, var(--border));
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.admin-shell .status.error {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
