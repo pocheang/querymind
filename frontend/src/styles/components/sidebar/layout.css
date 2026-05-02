@@ -1,0 +1,164 @@
+/* ============================================
+   Sidebar Layout
+   Container, positioning, shell, responsive
+   ============================================ */
+
+/* ============================================
+   Sidebar Container & Shell
+   ============================================ */
+
+.page-shell.sidebar-collapsed {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.sidebar-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  flex: 1;
+}
+
+/* ============================================
+   Sidebar History Layout
+   ============================================ */
+
+.sidebar-history {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 40vh;
+}
+
+.sidebar-history-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-history-panel .session-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+/* ============================================
+   Sidebar Tools Layout
+   ============================================ */
+
+.sidebar-tools {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding-right: 4px;
+}
+
+/* ============================================
+   Sidebar Module Layout
+   ============================================ */
+
+.sidebar-module {
+  margin-top: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(145, 172, 204, 0.14);
+  background: linear-gradient(180deg, rgba(18, 33, 48, 0.92), rgba(14, 27, 40, 0.98));
+}
+
+.sidebar-module-body {
+  padding: 0 16px 16px;
+}
+
+.sidebar-module-body > .panel {
+  margin-top: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.sidebar-module-body > .panel > .section-head {
+  display: none;
+}
+
+.sidebar-module-body > .panel:hover {
+  box-shadow: none;
+}
+
+/* ============================================
+   Sidebar Rail (Collapsed State)
+   ============================================ */
+
+.sidebar-rail {
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 10px;
+}
+
+.sidebar-rail-header,
+.sidebar-rail-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.sidebar-rail-brand,
+.sidebar-rail-btn {
+  width: 52px;
+  min-height: 52px;
+  padding: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(156, 180, 205, 0.18);
+  background: rgba(16, 31, 44, 0.92);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.sidebar-rail-brand {
+  font-size: 20px;
+}
+
+.sidebar-rail-brand:hover,
+.sidebar-rail-btn:hover {
+  border-color: rgba(108, 182, 255, 0.4);
+  background: rgba(24, 43, 64, 0.98);
+}
+
+.page-shell.sidebar-collapsed .main {
+  min-width: 0;
+}
+
+/* ============================================
+   Responsive Adjustments
+   ============================================ */
+
+@media (max-width: 1080px) {
+  .page-shell.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-shell {
+    height: 100%;
+  }
+
+  .sidebar-history {
+    max-height: 34vh;
+  }
+
+  .sidebar-collapse-btn {
+    display: none;
+  }
+}
