@@ -26,7 +26,13 @@
    Dark mode and theme-specific overrides
    ============================================ */
 
-@import './themes/dark.css';
+/* Dark Theme - Modular Structure */
+@import './themes/dark/colors.css';
+@import './themes/dark/auth.css';
+@import './themes/dark/chat.css';
+@import './themes/dark/admin.css';
+@import './themes/dark/components.css';
+@import './themes/dark/effects.css';
 
 /* ============================================
    LAYER 3: COMPONENTS - Reusable UI Elements
