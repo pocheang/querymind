@@ -71,7 +71,10 @@
 
 @import './pages/auth.css';
 @import './pages/chat.css';
-@import './pages/admin.css';
+@import './pages/admin/layout.css';
+@import './pages/admin/forms.css';
+@import './pages/admin/tables.css';
+@import './pages/admin/actions.css';
 @import './pages/profile.css';
 
 /* ============================================
