@@ -1,0 +1,176 @@
+/* ============================================
+   Button Variants
+   Primary, secondary, danger, and specialized button types
+   ============================================ */
+
+/* ============================================
+   Primary Button
+   ============================================ */
+
+.primary-action-btn,
+button:not([class]) {
+  background: linear-gradient(135deg, #2f63e6 0%, #356af0 100%);
+  color: var(--text-inverse);
+  border-color: #2f63e6;
+  box-shadow: 0 14px 24px rgba(47, 99, 230, 0.24);
+}
+
+.primary-action-btn:hover:not(:disabled),
+button:not([class]):hover:not(:disabled) {
+  background: linear-gradient(135deg, #264fbc 0%, #315fda 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 28px rgba(47, 99, 230, 0.28);
+}
+
+.primary-action-btn:active:not(:disabled),
+button:not([class]):active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   Secondary Button
+   ============================================ */
+
+.secondary,
+button.secondary {
+  background: #fff;
+  color: #17305e;
+  border-color: #d8e1ef;
+  box-shadow: 0 8px 16px rgba(151, 166, 194, 0.1);
+}
+
+.secondary:hover:not(:disabled),
+button.secondary:hover:not(:disabled) {
+  background: #f9fbff;
+  border-color: #b8caec;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(151, 166, 194, 0.14);
+}
+
+.secondary:active:not(:disabled),
+button.secondary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   Danger Button
+   ============================================ */
+
+.danger,
+button.danger {
+  background: linear-gradient(135deg, var(--danger) 0%, #c53030 100%);
+  color: var(--text-inverse);
+  border-color: var(--danger);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.danger:hover:not(:disabled),
+button.danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c53030 0%, var(--danger) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.danger:active:not(:disabled),
+button.danger:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   Text Link Button
+   ============================================ */
+
+.text-link-btn {
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: #3467ea;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.text-link-btn:hover {
+  color: #274fbc;
+  text-decoration: underline;
+}
+
+/* ============================================
+   Link Button
+   ============================================ */
+
+.link-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 0 20px;
+  background: #fff;
+  border: 1px solid #d8e1ef;
+  border-radius: 16px;
+  color: #17305e;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  box-shadow: 0 8px 16px rgba(151, 166, 194, 0.1);
+}
+
+.link-button:hover {
+  background: #f9fbff;
+  border-color: #b8caec;
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   Social Button
+   ============================================ */
+
+.social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 0 16px;
+  border: 1px solid #d8e1ef;
+  border-radius: 16px;
+  background: #fff;
+  color: #17305e;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 16px rgba(151, 166, 194, 0.1);
+}
+
+.social-btn:hover {
+  background: #f9fbff;
+  border-color: #b8caec;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(151, 166, 194, 0.14);
+}
+
+.social-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   Dark Mode Overrides
+   ============================================ */
+
+:root[data-theme="dark"] .link-button {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+:root[data-theme="dark"] .link-button:hover {
+  background: rgba(51, 65, 85, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+}
