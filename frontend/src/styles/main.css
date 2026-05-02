@@ -91,7 +91,9 @@
    ============================================ */
 
 @import './features/messages.css';
-@import './features/composer.css';
+@import './features/composer/layout.css';
+@import './features/composer/editor.css';
+@import './features/composer/actions.css';
 @import './features/citations.css';
 @import './features/process.css';
 
