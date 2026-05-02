@@ -1,0 +1,179 @@
+/* ============================================
+   COMPOSER: Actions & Buttons
+   Send button, secondary actions, quick prompts
+   ============================================ */
+
+/* Composer Actions */
+.composer-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.primary-action {
+  min-width: 140px;
+  min-height: 44px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  color: white;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35), 0 2px 4px rgba(102, 126, 234, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.primary-action::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.primary-action:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.45), 0 4px 8px rgba(102, 126, 234, 0.25);
+}
+
+.primary-action:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.primary-action:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}
+
+.primary-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.composer-actions button.secondary,
+.composer-actions .link-btn {
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #ffffff;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  color: #475569;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.composer-actions button.secondary:hover,
+.composer-actions .link-btn:hover {
+  border-color: rgba(102, 126, 234, 0.3);
+  background: #fafbfc;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+
+.composer-actions button.danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: none;
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+}
+
+.composer-actions button.danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.45);
+}
+
+/* Quick Prompt Row */
+.quick-prompt-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.quick-prompt-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Scroll hint gradient */
+.quick-prompt-row::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(90deg, transparent, var(--surface));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.quick-prompt-row:hover::after {
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .quick-prompt-row::after {
+  background: linear-gradient(90deg, transparent, rgba(30, 41, 59, 0.9));
+}
+
+.quick-prompt-row .tiny-btn {
+  border-radius: 999px;
+  color: #475569;
+  background: #ffffff;
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.quick-prompt-row .tiny-btn:hover {
+  border-color: rgba(102, 126, 234, 0.3);
+  background: #fafbfc;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.15);
+  color: #667eea;
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .primary-action {
+    min-width: 100%;
+    min-height: 48px;
+    font-size: 15px;
+  }
+
+  .composer-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .composer-actions button.secondary,
+  .composer-actions .link-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .quick-prompt-row {
+    gap: 6px;
+  }
+
+  .quick-prompt-row .tiny-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
