@@ -23,10 +23,18 @@
 
 /* ============================================
    LAYER 2: THEMES - Visual Variants
-   Dark mode and theme-specific overrides
+   Light and dark mode theme-specific overrides
    ============================================ */
 
-/* Dark Theme - Modular Structure */
+/* Light Theme (default) - Modular Structure */
+@import './themes/light/colors.css';
+@import './themes/light/auth.css';
+@import './themes/light/chat.css';
+@import './themes/light/admin.css';
+@import './themes/light/components.css';
+@import './themes/light/effects.css';
+
+/* Dark Theme (override) - Modular Structure */
 @import './themes/dark/colors.css';
 @import './themes/dark/auth.css';
 @import './themes/dark/chat.css';
