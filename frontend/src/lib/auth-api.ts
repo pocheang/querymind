@@ -33,6 +33,13 @@ export const authApi = {
       body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
     });
   },
+  async updateProfile(displayName: string) {
+    return request<AuthUser>("/auth/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name: displayName }),
+    });
+  },
   setToken(_token: string) {
     localStorage.removeItem(TOKEN_KEY_EXPORT);
   },

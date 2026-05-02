@@ -44,6 +44,10 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class UpdateProfileRequest(BaseModel):
+    display_name: str
+
+
 @router.post("/register", response_model=AuthUser)
 def register(req: AuthCredentials, request: Request):
     ip = _client_ip(request)
@@ -105,6 +109,32 @@ def logout(request: Request, response: Response, auth: tuple[dict[str, Any], str
 @router.get("/me", response_model=AuthUser)
 def auth_me(user: dict[str, Any] = Depends(_require_user)):
     return AuthUser(**user)
+
+
+@router.put("/profile", response_model=AuthUser)
+def update_profile(
+    req: UpdateProfileRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(_require_user),
+):
+    """Update user profile (display name)."""
+    user_id = user["user_id"]
+
+    updated_user = auth_service.user_manager.update_user_display_name(
+        user_id, req.display_name
+    )
+
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    _audit(
+        request,
+        "profile_updated",
+        user_id=user_id,
+        details={"display_name": req.display_name},
+    )
+
+    return AuthUser(**updated_user)
 
 
 @router.post("/change-password")

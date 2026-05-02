@@ -160,6 +160,8 @@ class AuthDBService:
             conn.execute("ALTER TABLE users ADD COLUMN data_scope TEXT")
         if "settings" not in existing:
             conn.execute("ALTER TABLE users ADD COLUMN settings TEXT")
+        if "display_name" not in existing:
+            conn.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
 
     def _ensure_audit_columns(self, conn: sqlite3.Connection) -> None:
         rows = conn.execute("PRAGMA table_info(audit_logs)").fetchall()

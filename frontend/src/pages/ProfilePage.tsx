@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthUser } from "@/types/api";
+import { authApi } from "@/lib/auth-api";
 
 type Props = {
   user: AuthUser | null;
@@ -16,7 +17,7 @@ export function ProfilePage({ user }: Props) {
 
   useEffect(() => {
     if (user) {
-      setDisplayName(user.username);
+      setDisplayName(user.display_name || user.username);
       setEmail(user.username);
     }
   }, [user]);
@@ -27,8 +28,7 @@ export function ProfilePage({ user }: Props) {
     setStatus("保存中...");
 
     try {
-      // TODO: Add API endpoint to update user profile
-      // await authApi.updateProfile({ display_name: displayName });
+      await authApi.updateProfile(displayName);
       setStatus("个人资料已保存");
       setTimeout(() => setStatus(""), 3000);
     } catch (e) {

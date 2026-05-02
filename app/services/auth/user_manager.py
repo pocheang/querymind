@@ -50,6 +50,7 @@ class UserManager:
         department: str | None = None,
         user_type: str | None = None,
         data_scope: str | None = None,
+        display_name: str | None = None,
     ) -> dict[str, Any]:
         username = validate_username(username)
         password = _validate_service_password(password)
@@ -62,6 +63,7 @@ class UserManager:
         department = normalize_classification_value(department)
         user_type = normalize_classification_value(user_type)
         data_scope = normalize_classification_value(data_scope)
+        display_name = (display_name or "").strip() or None
         try:
             with self.conn_factory() as conn:
                 conn.execute(
@@ -69,8 +71,8 @@ class UserManager:
                     INSERT INTO users(
                       user_id, username, salt, password_hash, role, status,
                       created_by_user_id, created_by_username, admin_ticket_id, admin_approval_token_hash,
-                      business_unit, department, user_type, data_scope, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      business_unit, department, user_type, data_scope, display_name, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
@@ -87,6 +89,7 @@ class UserManager:
                         department,
                         user_type,
                         data_scope,
+                        display_name,
                         now_ts,
                     ),
                 )
@@ -105,6 +108,7 @@ class UserManager:
             "department": department,
             "user_type": user_type,
             "data_scope": data_scope,
+            "display_name": display_name,
         }
 
     def authenticate(self, username: str, password: str) -> dict[str, Any] | None:
@@ -238,6 +242,20 @@ class UserManager:
                 WHERE u.user_id=?
                 """,
                 (now_ts, now_ts, recent_10m, user_id),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def update_user_display_name(self, user_id: str, display_name: str | None) -> dict[str, Any] | None:
+        with self.conn_factory() as conn:
+            result = conn.execute(
+                "UPDATE users SET display_name=? WHERE user_id=?",
+                (display_name, user_id),
+            )
+            if result.rowcount <= 0:
+                return None
+            row = conn.execute(
+                "SELECT user_id, username, display_name, role, status FROM users WHERE user_id=?",
+                (user_id,),
             ).fetchone()
             return dict(row) if row else None
 
