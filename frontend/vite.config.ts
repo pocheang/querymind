@@ -11,6 +11,39 @@ export default defineConfig({
       "@": "/src",
     },
   },
+  build: {
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Component-level CSS splitting (Phase 4)
+          if (id.includes('components/modals.css')) {
+            return 'modal-styles';
+          }
+          if (id.includes('components/dropdowns.css')) {
+            return 'dropdown-styles';
+          }
+          if (id.includes('components/tooltips.css')) {
+            return 'tooltip-styles';
+          }
+
+          // Route-specific CSS splitting (Phase 3)
+          if (id.includes('pages/auth') || id.includes('themes/light/auth') || id.includes('themes/dark/auth')) {
+            return 'auth-styles';
+          }
+          if (id.includes('pages/chat') || id.includes('themes/light/chat') || id.includes('themes/dark/chat')) {
+            return 'chat-styles';
+          }
+          if (id.includes('pages/admin') || id.includes('themes/light/admin') || id.includes('themes/dark/admin')) {
+            return 'admin-styles';
+          }
+          if (id.includes('pages/profile')) {
+            return 'profile-styles';
+          }
+        }
+      }
+    }
+  },
   server: {
     port: 5173,
     host: "127.0.0.1",

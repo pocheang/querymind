@@ -8,7 +8,7 @@
    ============================================ */
 
 .page-shell.sidebar-collapsed {
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -33,7 +33,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: 40vh;
+  max-height: min(54vh, 540px);
 }
 
 .sidebar-history-panel {
@@ -47,7 +47,31 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding-right: 2px;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(132, 147, 204, 0.5) rgba(8, 14, 27, 0.42);
+}
+
+.sidebar-history-panel .session-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-history-panel .session-list::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(8, 14, 27, 0.24), rgba(18, 26, 45, 0.5));
+}
+
+.sidebar-history-panel .session-list::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(8, 14, 27, 0.42);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(91, 140, 255, 0.62), rgba(139, 122, 255, 0.5));
+}
+
+.sidebar-history-panel .session-list::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(180deg, rgba(109, 154, 255, 0.8), rgba(139, 122, 255, 0.72));
 }
 
 /* ============================================
@@ -72,9 +96,16 @@
   margin-top: 0;
   padding: 0;
   overflow: hidden;
-  border-radius: 18px;
-  border: 1px solid rgba(145, 172, 204, 0.14);
-  background: linear-gradient(180deg, rgba(18, 33, 48, 0.92), rgba(14, 27, 40, 0.98));
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.sidebar-module:hover {
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-md), 0 0 20px rgba(91, 140, 255, 0.08);
 }
 
 .sidebar-module-body {
@@ -97,46 +128,6 @@
   box-shadow: none;
 }
 
-/* ============================================
-   Sidebar Rail (Collapsed State)
-   ============================================ */
-
-.sidebar-rail {
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 10px;
-}
-
-.sidebar-rail-header,
-.sidebar-rail-actions {
-  display: grid;
-  gap: 10px;
-}
-
-.sidebar-rail-brand,
-.sidebar-rail-btn {
-  width: 52px;
-  min-height: 52px;
-  padding: 0;
-  border-radius: 16px;
-  border: 1px solid rgba(156, 180, 205, 0.18);
-  background: rgba(16, 31, 44, 0.92);
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 800;
-  box-shadow: none;
-}
-
-.sidebar-rail-brand {
-  font-size: 20px;
-}
-
-.sidebar-rail-brand:hover,
-.sidebar-rail-btn:hover {
-  border-color: rgba(108, 182, 255, 0.4);
-  background: rgba(24, 43, 64, 0.98);
-}
-
 .page-shell.sidebar-collapsed .main {
   min-width: 0;
 }
@@ -155,7 +146,7 @@
   }
 
   .sidebar-history {
-    max-height: 34vh;
+    max-height: 44vh;
   }
 
   .sidebar-collapse-btn {

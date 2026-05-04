@@ -5,10 +5,12 @@
 
    IMPORT ORDER (CRITICAL - DO NOT REORDER):
    1. Core Layer - Design tokens, reset, utilities
-   2. Theme Layer - Dark mode and theme variants
+   2. Theme Layer - Dark mode and theme variants (shared only)
    3. Component Layer - Reusable UI components
-   4. Page Layer - Page-specific layouts
-   5. Feature Layer - Feature-specific modules
+   4. Feature Layer - Feature-specific modules
+
+   NOTE: Route-specific CSS (pages and route-specific themes)
+   is now imported directly in page components for code splitting.
 
    ============================================ */
 
@@ -23,30 +25,27 @@
 @import './core/utilities.css';
 
 /* ============================================
-   LAYER 2: THEMES - Visual Variants
-   Light and dark mode theme-specific overrides
+   LAYER 2: THEMES - Shared Theme Styles
+   Light and dark mode for shared components only
+   Route-specific theme styles loaded by page components
    ============================================ */
 
-/* Light Theme (default) - Modular Structure */
+/* Light Theme (shared components) */
 @import './themes/light/colors.css';
-@import './themes/light/auth.css';
-@import './themes/light/chat.css';
-@import './themes/light/admin.css';
 @import './themes/light/components.css';
 @import './themes/light/effects.css';
 
-/* Dark Theme (override) - Modular Structure */
+/* Dark Theme (shared components) */
 @import './themes/dark/colors.css';
-@import './themes/dark/auth.css';
-@import './themes/dark/chat.css';
-@import './themes/dark/admin.css';
 @import './themes/dark/components.css';
 @import './themes/dark/effects.css';
 
 /* ============================================
    LAYER 3: COMPONENTS - Reusable UI Elements
-   Buttons, forms, cards, modals, etc.
+   Buttons, forms, cards, etc.
    Order: Atomic → Composite
+
+   NOTE: Modals and dropdowns are lazy-loaded by components
    ============================================ */
 
 /* Atomic Components */
@@ -60,36 +59,29 @@
 @import './components/badges.css';
 @import './components/avatars.css';
 @import './components/spinners.css';
-@import './components/tooltips.css';
+/* @import './components/tooltips.css'; */ /* Lazy-loaded (low usage) */
 
 /* Composite Components */
 @import './components/cards.css';
-@import './components/modals.css';
-@import './components/dropdowns.css';
+/* @import './components/modals.css'; */ /* Lazy-loaded by ApiSettings */
+/* @import './components/dropdowns.css'; */ /* Lazy-loaded by ChatTopbar */
 @import './components/alerts.css';
 @import './components/tables.css';
+@import './components/topbar.css';
+@import './components/topbar-responsive.css';
 @import './components/sidebar/layout.css';
+@import './components/sidebar/modern-layout.css';
+@import './components/sidebar/rail.css';
 @import './components/sidebar/navigation.css';
+@import './components/sidebar/modern-sessions.css';
+@import './components/sidebar/modules.css';
 @import './components/sidebar/actions.css';
+@import './components/sidebar/footer.css';
+@import './components/sidebar/backdrop.css';
+@import './components/sidebar/responsive.css';
 
 /* ============================================
-   LAYER 4: PAGES - Page-Specific Layouts
-   Authentication, chat, admin, profile pages
-   ============================================ */
-
-@import './pages/auth/layout.css';
-@import './pages/auth/forms.css';
-@import './pages/auth/social.css';
-@import './pages/auth/animations.css';
-@import './pages/chat.css';
-@import './pages/admin/layout.css';
-@import './pages/admin/forms.css';
-@import './pages/admin/tables.css';
-@import './pages/admin/actions.css';
-@import './pages/profile.css';
-
-/* ============================================
-   LAYER 5: FEATURES - Feature-Specific Modules
+   LAYER 4: FEATURES - Feature-Specific Modules
    Messages, composer, citations, process timeline
    ============================================ */
 
@@ -104,11 +96,17 @@
    END OF MAIN STYLESHEET
 
    MAINTENANCE NOTES:
-   - Keep import order strict (core → themes → components → pages → features)
-   - Add new files to appropriate layer section
-   - Document any deviations from standard order
-   - All styles now integrated into modular structure
+   - Keep import order strict (core to themes to components to features)
+   - Route-specific CSS now loaded by page components
+   - LoginPage, ForgotPasswordPage, ChangePasswordPage load auth styles
+   - ChatPage loads chat styles
+   - AdminPage loads admin styles
+   - ProfilePage loads profile styles
+   - Add new shared components to Layer 3
+   - Add new features to Layer 4
 
-   BUNDLE SIZE TARGET: < 150KB uncompressed
-   CRITICAL CSS TARGET: < 14KB (first paint)
+   BUNDLE SIZE TARGET:
+   - Main bundle: ~60KB (shared components + features)
+   - Route bundles: 15-25KB each (lazy-loaded)
+   - Critical CSS: 14KB (inlined in HTML)
    ============================================ */

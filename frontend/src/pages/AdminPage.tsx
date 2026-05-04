@@ -13,6 +13,15 @@ import { useAdminState } from "@/pages/admin/useAdminState";
 import { formatAuditTime } from "@/pages/admin/utils";
 import { ROLE_OPTIONS, STATUS_OPTIONS, ACTION_KEYWORD_OPTIONS } from "@/pages/admin/constants";
 
+// Route-specific CSS (code-split by Vite)
+import "@/styles/pages/admin/layout.css";
+import "@/styles/pages/admin/ops.css";
+import "@/styles/pages/admin/forms.css";
+import "@/styles/pages/admin/tables.css";
+import "@/styles/pages/admin/actions.css";
+import "@/styles/themes/light/admin.css";
+import "@/styles/themes/dark/admin.css";
+
 type Props = {
   user: AuthUser | null;
   onLogout: () => Promise<void>;

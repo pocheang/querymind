@@ -1,41 +1,35 @@
 /* ============================================
    FEATURE: Citation Cards
-   Extracted from: chat-workbench.css
    ============================================ */
 
-/* Citation Card */
-.citation-card {
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 14px 16px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.citation-card:hover {
-  border-color: rgba(102, 126, 234, 0.25);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transform: translateY(-2px);
-}
-
-.citation-card strong {
-  display: block;
-  margin-bottom: 8px;
-  color: #667eea;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* Citation Grid */
 .citation-grid {
-  margin-top: 12px;
   display: grid;
   gap: 10px;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
-/* Responsive */
+.citation-card {
+  border-radius: 12px;
+  border: 1px solid rgba(111, 132, 189, 0.16);
+  background: rgba(5, 10, 22, 0.38);
+  padding: 13px 14px;
+  transition: all 0.18s ease;
+}
+
+.citation-card:hover {
+  border-color: rgba(91, 140, 255, 0.34);
+  background: rgba(18, 26, 45, 0.66);
+  transform: translateY(-1px);
+}
+
+.citation-card strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #b8c7ff;
+  font-size: 13px;
+  font-weight: 760;
+}
+
 @media (max-width: 860px) {
   .citation-grid {
     grid-template-columns: 1fr;

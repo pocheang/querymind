@@ -23,11 +23,11 @@
 }
 
 .row-actions .tiny-btn.secondary:hover {
-  color: #667eea;
-  border-color: rgba(102, 126, 234, 0.4);
-  background: rgba(102, 126, 234, 0.08);
+  color: #5b8cff;
+  border-color: rgba(91, 140, 255, 0.4);
+  background: rgba(91, 140, 255, 0.08);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 2px 8px rgba(91, 140, 255, 0.15);
 }
 
 .row-actions .tiny-btn.danger {
@@ -54,8 +54,8 @@
   font-size: 15px;
   font-weight: 800;
   border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 6px 18px rgba(102, 126, 234, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
+  box-shadow: 0 6px 18px rgba(91, 140, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1);
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
@@ -75,7 +75,7 @@
 
 .composer-actions .primary-action:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.5), 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 24px rgba(91, 140, 255, 0.5), 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .composer-actions .secondary,
@@ -91,10 +91,10 @@
 
 .composer-actions .secondary:hover,
 .composer-actions .link-btn:hover {
-  border-color: rgba(102, 126, 234, 0.4);
-  background: rgba(102, 126, 234, 0.05);
-  color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+  border-color: rgba(91, 140, 255, 0.4);
+  background: rgba(91, 140, 255, 0.05);
+  color: #5b8cff;
+  box-shadow: 0 2px 8px rgba(91, 140, 255, 0.2);
 }
 
 .composer-actions .danger {
@@ -126,17 +126,17 @@
   padding: 7px 16px;
   font-size: 12px;
   font-weight: 600;
-  border: 1.5px solid rgba(102, 126, 234, 0.2);
-  background: rgba(102, 126, 234, 0.05);
-  color: #667eea;
+  border: 1.5px solid rgba(91, 140, 255, 0.2);
+  background: rgba(91, 140, 255, 0.05);
+  color: #5b8cff;
   opacity: 0.9;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .quick-prompt-row .tiny-btn:hover {
   opacity: 1;
-  border-color: rgba(102, 126, 234, 0.4);
-  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(91, 140, 255, 0.4);
+  background: rgba(91, 140, 255, 0.1);
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 4px 10px rgba(91, 140, 255, 0.2);
 }

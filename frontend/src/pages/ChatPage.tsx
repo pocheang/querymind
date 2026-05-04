@@ -19,6 +19,13 @@ import { useChatPageState } from "@/pages/chat/hooks/useChatPageState";
 import { useDragHandlers } from "@/pages/chat/hooks/useDragHandlers";
 import { useChatComputed } from "@/pages/chat/hooks/useChatComputed";
 import { useChatHelpers } from "@/pages/chat/hooks/useChatHelpers";
+import { KeyboardHelp } from "@/components/KeyboardHelp";
+
+// Route-specific CSS (code-split by Vite)
+import "@/styles/pages/chat.css";
+import "@/styles/themes/light/chat.css";
+import "@/styles/themes/dark/chat.css";
+import "@/styles/pages/chat-responsive.css";
 
 export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
   const {
@@ -66,7 +73,6 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
   const {
     isAdmin,
     canUploadAndManageDocs,
-    userBadge,
     pdfDocuments,
     pdfNeedingReindex,
     agentDistribution,
@@ -161,7 +167,7 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
     const el = questionRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(260, el.scrollHeight)}px`;
+    el.style.height = `${Math.min(180, el.scrollHeight)}px`;
   }, [question, questionRef]);
 
   useEffect(() => {
@@ -258,19 +264,17 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
           setPromptContent(p.content || "");
         }}
         onDeletePrompt={helpers.deletePrompt}
+        onLogout={onLogout}
       />
 
       <div className={`backdrop ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
       <main className="main">
         <ChatTopbar
-          userBadge={userBadge}
           themeLabel={themeLabel}
           sidebarCollapsed={sidebarCollapsed}
-          isAdmin={isAdmin}
           onToggleSidebar={handleSidebarToggle}
           onOpenSettings={() => setSettingsOpen(true)}
           onThemeToggle={onThemeToggle}
-          onLogout={onLogout}
         />
 
         <ChatMessages
@@ -312,6 +316,7 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
 
       <ToastStack toasts={toasts} />
       <ApiSettings isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <KeyboardHelp />
     </div>
   );
 }

@@ -214,6 +214,12 @@ frontend/src/styles/pages.css.backup.phase*
 # Internal Documentation (Not for GitHub)
 # ============================================
 
+# Local startup scripts (user-specific paths)
+start-backend.ps1
+start-frontend.ps1
+start-all.ps1
+README-STARTUP.md
+
 # Internal project management and audit reports
 /project_audit/
 /internal_docs/

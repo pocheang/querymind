@@ -7,6 +7,19 @@
   grid-template-columns: 280px 1fr;
   min-height: 100vh;
   background: var(--bg);
+  position: relative;
+}
+
+.page-shell::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 400px;
+  background: radial-gradient(ellipse at top, rgba(91, 140, 255, 0.15), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .sidebar {
@@ -17,6 +30,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  position: relative;
+  z-index: 1;
 }
 
 .brand {
@@ -34,15 +49,17 @@
 
 .panel {
   padding: var(--space-6);
-  background: var(--surface);
+  background: var(--panel);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-xl);
+  border-radius: 16px;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition-base);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
 }
 
 .panel:hover {
   box-shadow: var(--shadow-md);
+  border-color: var(--border-medium);
 }
 
 .section-head {
@@ -68,27 +85,28 @@
 
 .list li {
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
   padding: var(--space-4);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
-  transition: all var(--transition-fast);
+  transition: all 0.2s ease;
   background: var(--surface);
+  cursor: pointer;
 }
 
 .list li:hover {
   background: var(--surface-hover);
   border-color: var(--border-medium);
   box-shadow: var(--shadow-sm);
-  transform: translateX(2px);
+  transform: translateX(3px);
 }
 
 .list li.active {
-  background: var(--accent-light);
+  background: var(--accent-soft);
   border-color: var(--accent);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm), 0 0 12px rgba(91, 140, 255, 0.15);
 }
 
 .skeleton-list {
@@ -148,12 +166,36 @@
 
 .chat-window {
   flex: 1;
-  overflow-y: auto;
+  min-height: 360px;
+  max-height: clamp(420px, 58vh, 680px);
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 216, 0.5) rgba(7, 13, 26, 0.56);
   padding: var(--space-4);
   background: var(--surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xl);
   margin: var(--space-4) 0;
+}
+
+.chat-window::-webkit-scrollbar {
+  width: 9px;
+}
+
+.chat-window::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(7, 13, 26, 0.56);
+}
+
+.chat-window::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(7, 13, 26, 0.56);
+  border-radius: 999px;
+  background: rgba(148, 163, 216, 0.5);
+}
+
+.chat-window::-webkit-scrollbar-thumb:hover {
+  background: rgba(184, 199, 255, 0.74);
 }
 
 .empty-chat-state {

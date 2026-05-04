@@ -1,10 +1,10 @@
 const THEME_KEY = "theme_preference";
-export type ThemeMode = "auto" | "light" | "dark";
+export type ThemeMode = "light" | "dark";
 
 export function getSavedTheme(): ThemeMode {
   const raw = localStorage.getItem(THEME_KEY);
-  if (raw === "light" || raw === "dark" || raw === "auto") return raw;
-  return "auto";
+  if (raw === "light" || raw === "dark") return raw;
+  return "light";
 }
 
 export function saveTheme(mode: ThemeMode) {
@@ -12,15 +12,9 @@ export function saveTheme(mode: ThemeMode) {
 }
 
 export function applyTheme(mode: ThemeMode) {
-  if (mode === "auto") {
-    document.documentElement.removeAttribute("data-theme");
-  } else {
-    document.documentElement.setAttribute("data-theme", mode);
-  }
+  document.documentElement.setAttribute("data-theme", mode);
 }
 
 export function nextTheme(mode: ThemeMode): ThemeMode {
-  if (mode === "auto") return "dark";
-  if (mode === "dark") return "light";
-  return "auto";
+  return mode === "dark" ? "light" : "dark";
 }

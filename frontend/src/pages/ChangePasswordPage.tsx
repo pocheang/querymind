@@ -2,6 +2,12 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
 
+// Route-specific CSS (code-split by Vite)
+import "@/styles/pages/auth/layout.css";
+import "@/styles/pages/auth/forms.css";
+import "@/styles/themes/light/auth.css";
+import "@/styles/themes/dark/auth.css";
+
 type Props = {
   themeLabel: string;
   onThemeToggle: () => void;

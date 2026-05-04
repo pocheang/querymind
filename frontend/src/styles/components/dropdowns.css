@@ -18,13 +18,13 @@
   width: 40px;
   height: 40px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
   color: white;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3), 0 1px 3px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 8px rgba(91, 140, 255, 0.3), 0 1px 3px rgba(91, 140, 255, 0.2);
   border: 2px solid rgba(255, 255, 255, 0.9);
   position: relative;
   overflow: hidden;
@@ -42,7 +42,7 @@
 
 .user-badge.clickable:hover {
   transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45), 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 6px 20px rgba(91, 140, 255, 0.45), 0 2px 8px rgba(91, 140, 255, 0.3);
 }
 
 .user-badge.clickable:hover::before {
@@ -51,7 +51,7 @@
 
 .user-badge.clickable:active {
   transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+  box-shadow: 0 4px 12px rgba(91, 140, 255, 0.35);
 }
 
 .user-menu-dropdown {
@@ -108,8 +108,8 @@
 }
 
 .user-menu-item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.08));
-  color: #667eea;
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.1), rgba(139, 122, 255, 0.08));
+  color: #5b8cff;
   transform: translateX(2px);
 }
 
@@ -120,7 +120,7 @@
 
 .user-menu-item:active {
   transform: translateX(1px) scale(0.98);
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.12));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.15), rgba(139, 122, 255, 0.12));
 }
 
 .user-menu-item.logout {
@@ -193,7 +193,7 @@
 }
 
 :root[data-theme="dark"] .user-menu-item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.15));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.2), rgba(139, 122, 255, 0.15));
   color: #a5b4fc;
 }
 

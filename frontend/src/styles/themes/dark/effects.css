@@ -9,7 +9,7 @@
 }
 
 :root[data-theme="dark"] .topbar-btn::before {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.15), rgba(139, 122, 255, 0.15));
 }
 
 :root[data-theme="dark"] .topbar-btn.admin-btn::before {
@@ -17,7 +17,7 @@
 }
 
 :root[data-theme="dark"] .composer-panel::before {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.2), rgba(139, 122, 255, 0.2));
 }
 
 :root[data-theme="dark"] .option-chip::before {
@@ -61,23 +61,23 @@
 
 /* Hover States - Navigation & Topbar */
 :root[data-theme="dark"] .brand-logo:hover {
-  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.6), 0 4px 16px rgba(102, 126, 234, 0.45);
+  box-shadow: 0 8px 32px rgba(91, 140, 255, 0.6), 0 4px 16px rgba(91, 140, 255, 0.45);
 }
 
 :root[data-theme="dark"] .user-badge:hover {
-  box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5), 0 2px 10px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 24px rgba(91, 140, 255, 0.5), 0 2px 10px rgba(91, 140, 255, 0.4);
 }
 
 :root[data-theme="dark"] .topbar-btn:hover {
   background: rgba(71, 85, 105, 0.9);
-  border-color: rgba(102, 126, 234, 0.6);
+  border-color: rgba(91, 140, 255, 0.6);
   color: #f1f5f9;
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.25), 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 20px rgba(91, 140, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 :root[data-theme="dark"] .topbar-btn.admin-btn:hover {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  box-shadow: 0 8px 28px rgba(102, 126, 234, 0.5), 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5b8cff, #8b7aff);
+  box-shadow: 0 8px 28px rgba(91, 140, 255, 0.5), 0 4px 12px rgba(91, 140, 255, 0.4);
 }
 
 :root[data-theme="dark"] .user-menu-item:hover {
@@ -114,28 +114,28 @@
 }
 
 :root[data-theme="dark"] .chat-window.panel:hover {
-  border-color: rgba(102, 126, 234, 0.35);
+  border-color: rgba(91, 140, 255, 0.35);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 3px 10px rgba(0, 0, 0, 0.35);
 }
 
 :root[data-theme="dark"] .composer-panel:hover {
   background: rgba(30, 41, 59, 0.9);
-  border-color: rgba(102, 126, 234, 0.4);
-  box-shadow: 0 12px 36px -8px rgba(102, 126, 234, 0.2), 0 4px 16px -4px rgba(0, 0, 0, 0.4);
+  border-color: rgba(91, 140, 255, 0.4);
+  box-shadow: 0 12px 36px -8px rgba(91, 140, 255, 0.2), 0 4px 16px -4px rgba(0, 0, 0, 0.4);
 }
 
 :root[data-theme="dark"] .process-panel:hover,
 :root[data-theme="dark"] details:hover {
   background: rgba(30, 41, 59, 0.8);
-  border-color: rgba(102, 126, 234, 0.3);
+  border-color: rgba(91, 140, 255, 0.3);
 }
 
 :root[data-theme="dark"] .process-step:hover {
-  border-color: rgba(102, 126, 234, 0.3);
+  border-color: rgba(91, 140, 255, 0.3);
 }
 
 :root[data-theme="dark"] .citation-card:hover {
-  border-color: rgba(102, 126, 234, 0.4);
+  border-color: rgba(91, 140, 255, 0.4);
 }
 
 :root[data-theme="dark"] details summary:hover {
@@ -151,17 +151,17 @@
 
 :root[data-theme="dark"] .bubble.assistant:hover {
   background: rgba(30, 41, 59, 0.95);
-  border-color: rgba(102, 126, 234, 0.45);
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15), 0 2px 8px rgba(0, 0, 0, 0.4);
+  border-color: rgba(91, 140, 255, 0.45);
+  box-shadow: 0 4px 16px rgba(91, 140, 255, 0.15), 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 /* Hover States - Buttons & Actions */
 :root[data-theme="dark"] .row-actions .tiny-btn.secondary:hover {
   background: rgba(71, 85, 105, 0.95);
-  border-color: rgba(102, 126, 234, 0.5);
+  border-color: rgba(91, 140, 255, 0.5);
   color: #f1f5f9;
   transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.25);
+  box-shadow: 0 3px 10px rgba(91, 140, 255, 0.25);
 }
 
 :root[data-theme="dark"] .row-actions .tiny-btn.danger:hover {
@@ -174,12 +174,12 @@
 :root[data-theme="dark"] .composer-actions button.secondary:hover,
 :root[data-theme="dark"] .composer-actions .link-btn:hover {
   background: #1e293b;
-  border-color: rgba(102, 126, 234, 0.4);
+  border-color: rgba(91, 140, 255, 0.4);
 }
 
 :root[data-theme="dark"] .quick-prompt-row .tiny-btn:hover {
   background: #1e293b;
-  border-color: rgba(102, 126, 234, 0.4);
+  border-color: rgba(91, 140, 255, 0.4);
   color: #a78bfa;
 }
 
@@ -198,28 +198,28 @@
 }
 
 :root[data-theme="dark"] .empty-chat-label:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
-  border-color: rgba(102, 126, 234, 0.6);
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.2), rgba(139, 122, 255, 0.2));
+  border-color: rgba(91, 140, 255, 0.6);
 }
 
 /* Hover States - Options & Chips */
 :root[data-theme="dark"] .chat-options-bar:hover {
   background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(51, 65, 85, 0.9) 100%);
-  border-color: rgba(102, 126, 234, 0.3);
+  border-color: rgba(91, 140, 255, 0.3);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 :root[data-theme="dark"] .option-chip:hover {
   background: rgba(30, 41, 59, 0.9);
-  border-color: rgba(102, 126, 234, 0.5);
+  border-color: rgba(91, 140, 255, 0.5);
   color: #f1f5f9;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 8px rgba(91, 140, 255, 0.2);
 }
 
 :root[data-theme="dark"] .option-agent select:hover {
   background: rgba(30, 41, 59, 0.9);
-  border-color: rgba(102, 126, 234, 0.5);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+  border-color: rgba(91, 140, 255, 0.5);
+  box-shadow: 0 2px 8px rgba(91, 140, 255, 0.2);
 }
 
 /* Hover States - Textarea */
@@ -237,8 +237,8 @@
 /* Focus States */
 :root[data-theme="dark"] .composer-panel:focus-within {
   background: rgba(30, 41, 59, 0.95);
-  border-color: rgba(102, 126, 234, 0.6);
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2), 0 12px 36px -8px rgba(102, 126, 234, 0.3);
+  border-color: rgba(91, 140, 255, 0.6);
+  box-shadow: 0 0 0 4px rgba(91, 140, 255, 0.2), 0 12px 36px -8px rgba(91, 140, 255, 0.3);
 }
 
 :root[data-theme="dark"] .auth-input-shell:focus-within {
@@ -248,17 +248,17 @@
 }
 
 :root[data-theme="dark"] .option-agent select:focus {
-  border-color: rgba(102, 126, 234, 0.6);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: rgba(91, 140, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(91, 140, 255, 0.15);
 }
 
 :root[data-theme="dark"] .composer-main textarea:focus {
-  border-color: rgba(102, 126, 234, 0.8);
+  border-color: rgba(91, 140, 255, 0.8);
   background: rgba(15, 23, 42, 1);
   box-shadow:
-    0 0 0 4px rgba(102, 126, 234, 0.2),
-    0 0 0 8px rgba(102, 126, 234, 0.1),
-    0 4px 12px rgba(102, 126, 234, 0.25),
+    0 0 0 4px rgba(91, 140, 255, 0.2),
+    0 0 0 8px rgba(91, 140, 255, 0.1),
+    0 4px 12px rgba(91, 140, 255, 0.25),
     inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -270,16 +270,16 @@
 }
 
 :root[data-theme="dark"] .option-chip.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
   color: white;
-  border-color: rgba(102, 126, 234, 0.6);
-  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+  border-color: rgba(91, 140, 255, 0.6);
+  box-shadow: 0 2px 10px rgba(91, 140, 255, 0.4);
 }
 
 /* Drag States */
 :root[data-theme="dark"] .composer-panel.dragover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-  border-color: rgba(102, 126, 234, 0.5);
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.1), rgba(139, 122, 255, 0.1));
+  border-color: rgba(91, 140, 255, 0.5);
 }
 
 /* Scrollbar Effects */

@@ -1,19 +1,18 @@
 /* ============================================
-   FEATURE: Message Bubbles
-   Extracted from: chat-workbench.css
+   FEATURE: Message Cards
+   Cyber dashboard conversation surface
    ============================================ */
 
-/* Message Bubbles */
 .bubble {
-  margin-top: 20px;
+  margin-top: 18px;
   max-width: 100%;
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 18px 20px;
-  line-height: 1.7;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  line-height: 1.72;
   overflow-wrap: anywhere;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: bubbleSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  animation: bubbleSlideIn 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease, background 0.22s ease;
 }
 
 @keyframes bubbleSlideIn {
@@ -32,130 +31,160 @@
 }
 
 .bubble:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
-/* User Bubble */
 .bubble.user {
-  width: min(720px, 92%);
+  width: min(780px, 92%);
   margin-left: auto;
-  border: 1.5px solid rgba(37, 130, 217, 0.2);
-  background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%);
-  position: relative;
+  border: 1px solid rgba(91, 140, 255, 0.35);
+  background:
+    linear-gradient(135deg, rgba(35, 53, 96, 0.78), rgba(32, 24, 72, 0.62)),
+    radial-gradient(circle at 0% 0%, rgba(91, 140, 255, 0.16), transparent 42%);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .bubble.user::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  border-radius: 16px;
-  padding: 1px;
-  background: linear-gradient(135deg, rgba(37, 130, 217, 0.3), rgba(37, 130, 217, 0.1));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  border-radius: inherit;
   pointer-events: none;
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.24), rgba(139, 122, 255, 0.16));
   opacity: 0;
-  transition: opacity 0.25s;
+  transition: opacity 0.22s ease;
 }
 
 .bubble.user:hover::before {
   opacity: 1;
 }
 
-.bubble.user:hover {
-  border-color: rgba(37, 130, 217, 0.4);
-  background: linear-gradient(135deg, #e8f3ff 0%, #dbeafe 100%);
-}
-
-/* Assistant Bubble */
 .bubble.assistant {
-  width: min(880px, 98%);
-  border: 1.5px solid rgba(0, 0, 0, 0.08);
-  background: #ffffff;
-  position: relative;
+  width: min(980px, 98%);
+  border: 1px solid rgba(111, 132, 189, 0.2);
+  background:
+    linear-gradient(180deg, rgba(18, 26, 45, 0.9), rgba(12, 19, 35, 0.86)),
+    radial-gradient(circle at 14% 0%, rgba(91, 140, 255, 0.12), transparent 36%);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(16px);
 }
 
 .bubble.assistant::after {
-  content: '';
+  content: "";
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: -1px;
+  top: 16px;
+  bottom: 16px;
   width: 3px;
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px 0 0 16px;
-  opacity: 0;
-  transition: opacity 0.25s;
-}
-
-.bubble.assistant:hover::after {
-  opacity: 1;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5b8cff 0%, #8b7aff 100%);
+  box-shadow: 0 0 18px rgba(91, 140, 255, 0.48);
+  opacity: 0.8;
 }
 
 .bubble.assistant:hover {
-  border-color: rgba(102, 126, 234, 0.25);
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  border-color: rgba(128, 151, 255, 0.4);
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.26), 0 0 34px rgba(91, 140, 255, 0.12);
 }
 
-/* Message Header */
 .message-head {
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(111, 132, 189, 0.14);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
 }
 
-.message-role {
-  color: #475569;
-  font-family: "Geist Mono", "Cascadia Code", monospace;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.message-identity {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
+  min-width: 0;
 }
 
-.bubble.user .message-role {
-  color: #1e40af;
+.message-avatar {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 18px;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bubble.user .message-avatar {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.message-avatar:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.message-role {
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .bubble.assistant .message-role {
-  color: #667eea;
+  color: rgba(255, 255, 255, 0.65);
 }
 
-/* Markdown Content */
+.bubble.user .message-role {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.74;
+  transition: opacity 0.18s ease;
+}
+
+.bubble:hover .row-actions {
+  opacity: 1;
+}
+
 .markdown {
-  color: var(--work-text);
+  color: var(--text-primary);
   font-size: 15px;
-  line-height: 1.7;
+  line-height: 1.72;
 }
 
 .markdown p {
-  margin: 0 0 12px 0;
+  margin: 0 0 12px;
 }
 
 .markdown p:last-child {
   margin-bottom: 0;
 }
 
-.markdown h1, .markdown h2, .markdown h3, .markdown h4 {
-  margin: 16px 0 10px 0;
-  font-weight: 600;
-  color: var(--work-text);
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: 16px 0 10px;
+  color: var(--text-primary);
+  font-weight: 720;
+  letter-spacing: -0.02em;
 }
 
-.markdown h1:first-child, .markdown h2:first-child, .markdown h3:first-child {
+.markdown h1:first-child,
+.markdown h2:first-child,
+.markdown h3:first-child {
   margin-top: 0;
 }
 
-.markdown ul, .markdown ol {
+.markdown ul,
+.markdown ol {
   margin: 12px 0;
   padding-left: 24px;
 }
@@ -165,119 +194,92 @@
 }
 
 .markdown code {
-  font-family: "Geist Mono", "Cascadia Code", Consolas, monospace;
-  font-size: 13px;
   padding: 2px 6px;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 4px;
-  color: #e11d48;
+  border-radius: 6px;
+  background: rgba(139, 122, 255, 0.14);
+  color: #f7b4c2;
+  font-family: var(--font-mono);
+  font-size: 13px;
 }
 
 .markdown pre {
-  border-radius: 10px;
-  background: #0f172a;
+  margin: 14px 0;
   padding: 16px;
-  margin: 12px 0;
+  border-radius: 13px;
+  border: 1px solid rgba(111, 132, 189, 0.16);
+  background: rgba(5, 10, 22, 0.78);
   overflow-x: auto;
 }
 
 .markdown pre code {
-  background: transparent;
   padding: 0;
+  background: transparent;
   color: #e2e8f0;
-  font-size: 13px;
 }
 
-/* Empty Chat State */
 .empty-chat-state {
   display: grid;
   place-items: center;
+  align-content: center;
   gap: 16px;
   min-height: 400px;
-  align-content: center;
   max-width: 680px;
   margin: 0 auto;
   padding: 40px 20px;
-  color: var(--work-muted);
+  color: var(--text-tertiary);
   text-align: center;
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: bubbleSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .empty-chat-label {
-  border: 1.5px solid rgba(102, 126, 234, 0.25);
-  border-radius: 999px;
-  padding: 8px 16px;
-  color: #667eea;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
-  font-family: "Geist Mono", "Cascadia Code", monospace;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: default;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.empty-chat-label:hover {
-  border-color: rgba(102, 126, 234, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(91, 140, 255, 0.32);
+  background: rgba(91, 140, 255, 0.1);
+  color: #b8c7ff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 820;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .empty-chat-state h3 {
   margin: 0;
-  color: var(--work-text);
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+  color: var(--text-primary);
+  font-size: clamp(24px, 4vw, 34px);
+  font-weight: 780;
+  line-height: 1.18;
+  letter-spacing: -0.04em;
 }
 
 .empty-chat-state p {
   max-width: 580px;
-  line-height: 1.7;
+  color: var(--text-secondary);
   font-size: 15px;
-  color: var(--work-muted);
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+  line-height: 1.75;
 }
 
-/* Responsive */
 @media (max-width: 860px) {
   .bubble {
-    padding: 14px 16px;
-    border-radius: 12px;
+    padding: 15px 16px;
+    border-radius: 15px;
   }
 
-  .bubble.user {
-    width: min(100%, 95%);
-  }
-
+  .bubble.user,
   .bubble.assistant {
     width: 100%;
   }
 
-  .empty-chat-state {
-    padding: 20px 10px;
-    min-height: 300px;
+  .message-head {
+    align-items: flex-start;
   }
 
-  .empty-chat-state h3 {
-    font-size: 24px;
+  .row-actions .tiny-btn {
+    min-height: 40px;
+    min-width: 40px;
   }
 }

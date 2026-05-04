@@ -19,7 +19,15 @@ import {
   applyProviderDefaults,
   parseApiResponse,
 } from "./apiSettingsUtils";
-import "./ApiSettings.css";
+
+// Lazy-load modal CSS only when component is used
+let modalStylesLoaded = false;
+async function loadModalStyles() {
+  if (!modalStylesLoaded) {
+    await import("@/styles/components/modals.css");
+    modalStylesLoaded = true;
+  }
+}
 
 type Props = {
   isOpen: boolean;
@@ -34,8 +42,12 @@ export function ApiSettings({ isOpen, onClose }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Load modal CSS when component opens
   useEffect(() => {
-    if (isOpen) void loadSettings();
+    if (isOpen) {
+      loadModalStyles();
+      void loadSettings();
+    }
   }, [isOpen]);
 
   const selectedModels = useMemo(() => PROVIDER_MODELS[config.provider] || [], [config.provider]);

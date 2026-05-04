@@ -3,6 +3,14 @@ import { Link } from "react-router-dom";
 import { authApi } from "@/lib/api";
 import type { AuthUser } from "@/types/api";
 
+// Route-specific CSS (code-split by Vite)
+import "@/styles/pages/auth/layout.css";
+import "@/styles/pages/auth/forms.css";
+import "@/styles/pages/auth/social.css";
+import "@/styles/pages/auth/animations.css";
+import "@/styles/themes/light/auth.css";
+import "@/styles/themes/dark/auth.css";
+
 type Props = {
   onLogin: (user: AuthUser) => void;
   themeLabel: string;

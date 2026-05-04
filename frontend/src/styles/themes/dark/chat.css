@@ -6,12 +6,12 @@
 :root[data-theme="dark"] .topbar {
   background:
     linear-gradient(135deg, rgba(15, 29, 48, 0.98), rgba(9, 18, 31, 0.98)),
-    radial-gradient(100% 160% at 0% -30%, rgba(102, 182, 255, 0.14), transparent 52%);
+    radial-gradient(100% 160% at 0% -30%, rgba(91, 140, 255, 0.14), transparent 52%);
   border-color: rgba(57, 78, 105, 0.74);
 }
 
 :root[data-theme="dark"] .topbar::before {
-  background: linear-gradient(135deg, rgba(102, 182, 255, 0.16), rgba(34, 197, 246, 0.08));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.16), rgba(79, 195, 247, 0.08));
 }
 
 :root[data-theme="dark"] .brand-info h2 {
@@ -45,20 +45,20 @@
 :root[data-theme="dark"] .composer-actions .secondary:hover,
 :root[data-theme="dark"] .composer-actions .link-btn:hover {
   background: rgba(26, 44, 69, 0.98);
-  border-color: rgba(108, 182, 255, 0.48);
+  border-color: rgba(91, 140, 255, 0.48);
   color: #ffffff;
 }
 
 :root[data-theme="dark"] .topbar-btn.admin-btn,
 :root[data-theme="dark"] .composer-actions .primary-action,
 :root[data-theme="dark"] .option-chip.active {
-  background: linear-gradient(135deg, #4d93ea 0%, #2f6fc7 100%);
-  border-color: rgba(108, 182, 255, 0.72);
-  box-shadow: 0 10px 24px rgba(44, 104, 182, 0.34);
+  background: linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
+  border-color: rgba(91, 140, 255, 0.72);
+  box-shadow: 0 10px 24px rgba(91, 140, 255, 0.34);
 }
 
 :root[data-theme="dark"] .user-badge {
-  background: linear-gradient(135deg, rgba(71, 146, 237, 0.94), rgba(29, 110, 201, 0.94));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.94), rgba(139, 122, 255, 0.94));
   border-color: rgba(255, 255, 255, 0.16);
 }
 
@@ -72,7 +72,7 @@
 }
 
 :root[data-theme="dark"] .user-menu-item:hover {
-  background: linear-gradient(135deg, rgba(92, 167, 255, 0.16), rgba(34, 197, 246, 0.08));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.16), rgba(79, 195, 247, 0.08));
   color: #dff1ff;
 }
 
@@ -102,7 +102,7 @@
 :root[data-theme="dark"] .process-step:hover,
 :root[data-theme="dark"] .agent-mode-card:hover,
 :root[data-theme="dark"] .pdf-kpi-card:hover {
-  border-color: rgba(108, 182, 255, 0.4);
+  border-color: rgba(91, 140, 255, 0.4);
 }
 
 :root[data-theme="dark"] .bubble.assistant {
@@ -111,8 +111,8 @@
 }
 
 :root[data-theme="dark"] .bubble.user {
-  background: linear-gradient(135deg, rgba(74, 149, 236, 0.22), rgba(43, 108, 196, 0.2));
-  border-color: rgba(108, 182, 255, 0.38);
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.22), rgba(139, 122, 255, 0.2));
+  border-color: rgba(91, 140, 255, 0.38);
 }
 
 :root[data-theme="dark"] .bubble.assistant .message-role,
@@ -142,7 +142,7 @@
 }
 
 :root[data-theme="dark"] .markdown code {
-  background: rgba(108, 182, 255, 0.12);
+  background: rgba(91, 140, 255, 0.12);
   color: #ffd6d6;
 }
 
@@ -167,8 +167,8 @@
 :root[data-theme="dark"] .process-kind,
 :root[data-theme="dark"] details[open] summary,
 :root[data-theme="dark"] .quick-prompt-row .tiny-btn:hover {
-  background: rgba(108, 182, 255, 0.1);
-  border-color: rgba(108, 182, 255, 0.26);
+  background: rgba(91, 140, 255, 0.1);
+  border-color: rgba(91, 140, 255, 0.26);
 }
 
 :root[data-theme="dark"] .chat-window.panel {

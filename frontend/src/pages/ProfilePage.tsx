@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import type { AuthUser } from "@/types/api";
 import { authApi } from "@/lib/auth-api";
 
+// Route-specific CSS (code-split by Vite)
+import "@/styles/pages/profile.css";
+
 type Props = {
   user: AuthUser | null;
 };

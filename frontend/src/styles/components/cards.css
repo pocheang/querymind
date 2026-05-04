@@ -140,7 +140,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.12), rgba(139, 122, 255, 0.12));
   opacity: 0;
   transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 0;
@@ -159,14 +159,14 @@
 
 /* Active state - enhanced background highlight */
 .agent-mode-card.active {
-  border-color: rgba(102, 126, 234, 0.8);
+  border-color: rgba(91, 140, 255, 0.8);
   background: linear-gradient(135deg, rgba(18, 48, 71, 1), rgba(25, 55, 85, 1));
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 24px rgba(91, 140, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
   transform: translateY(-2px);
 }
 
 .agent-mode-card.active::before {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.2), rgba(139, 122, 255, 0.2));
   opacity: 1;
 }
 
@@ -177,15 +177,15 @@
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(180deg, #5b8cff 0%, #8b7aff 100%);
   border-radius: 12px 0 0 12px;
-  box-shadow: 0 0 12px rgba(102, 126, 234, 0.6);
+  box-shadow: 0 0 12px rgba(91, 140, 255, 0.6);
   z-index: 1;
 }
 
 .agent-mode-card.active:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(102, 126, 234, 0.5), 0 6px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 28px rgba(91, 140, 255, 0.5), 0 6px 16px rgba(0, 0, 0, 0.25);
 }
 
 /* Ensure content is above pseudo-elements */

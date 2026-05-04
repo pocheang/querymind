@@ -49,20 +49,8 @@ export function App() {
       .finally(() => setAuthReady(true));
   }, []);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handle = () => {
-      if (theme === "auto") applyTheme("auto");
-    };
-    mq.addEventListener("change", handle);
-    return () => mq.removeEventListener("change", handle);
-  }, [theme]);
-
   const themeLabel = useMemo(() => {
-    if (theme === "light") return "主题: 亮色";
-    if (theme === "dark") return "主题: 暗色";
-    const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    return `主题: 跟随系统(${dark ? "暗" : "亮"})`;
+    return theme === "dark" ? "主题: 暗色" : "主题: 亮色";
   }, [theme]);
 
   const logout = async () => {

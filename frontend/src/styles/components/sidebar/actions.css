@@ -8,43 +8,66 @@
    ============================================ */
 
 .sidebar-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.sidebar-brand-block {
+.sidebar-brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
   display: grid;
-  gap: 6px;
+  place-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent),
+    linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
+  box-shadow: 0 14px 30px rgba(91, 140, 255, 0.34), 0 0 26px rgba(139, 122, 255, 0.24);
+}
+
+.sidebar-brand-mark span {
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.sidebar-brand-block {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 
 .sidebar-brand-kicker {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(94, 168, 255, 0.12);
-  border: 1px solid rgba(94, 168, 255, 0.16);
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #5b8cff;
+  font-size: 9px;
+  font-weight: 860;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .sidebar-header .brand {
-  font-size: 28px;
+  font-size: 20px;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
+  font-weight: 820;
 }
 
 .sidebar-header .muted {
   max-width: 220px;
   color: var(--text-tertiary);
-  line-height: 1.55;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 /* ============================================
@@ -52,19 +75,21 @@
    ============================================ */
 
 .sidebar-collapse-btn {
-  min-height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(156, 180, 205, 0.14);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: rgba(16, 25, 43, 0.7);
+  border: 1px solid rgba(100, 122, 180, 0.18);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 760;
   box-shadow: none;
+  transition: all 0.2s ease;
 }
 
 .sidebar-collapse-btn:hover {
-  background: rgba(108, 182, 255, 0.12);
-  border-color: rgba(108, 182, 255, 0.28);
+  background: rgba(44, 59, 96, 0.72);
+  border-color: rgba(91, 140, 255, 0.36);
   color: var(--text-primary);
+  transform: translateY(-1px);
 }

@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+// Route-specific CSS (code-split by Vite)
+import "@/styles/pages/auth/layout.css";
+import "@/styles/pages/auth/forms.css";
+import "@/styles/pages/auth/social.css";
+import "@/styles/pages/auth/animations.css";
+import "@/styles/themes/light/auth.css";
+import "@/styles/themes/dark/auth.css";
+
 type Props = {
   themeLabel: string;
   onThemeToggle: () => void;

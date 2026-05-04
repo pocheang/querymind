@@ -32,6 +32,7 @@ export function AgentWorkbench({
             type="button"
             className={`agent-mode-card ${agentClassHint === mode.key ? "active" : ""}`}
             onClick={() => onSwitchAgentMode(mode.key)}
+            title={`${mode.title}: ${mode.desc}`}
           >
             <strong>{mode.title}</strong>
             <span>{mode.desc}</span>
