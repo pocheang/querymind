@@ -101,6 +101,8 @@ yarn-error.log*
 data/chroma/
 data/chunks/
 data/eval/
+!data/eval/*.jsonl
+!data/eval/*.txt
 
 # Application databases
 data/app.db
