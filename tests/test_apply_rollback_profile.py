@@ -6,6 +6,7 @@ import sys
 def test_apply_rollback_profile_updates_env_file():
     profile = Path("data/eval/.tmp_profile.env")
     env_file = Path("data/eval/.tmp_env.env")
+    profile.parent.mkdir(parents=True, exist_ok=True)
     profile.write_text("RETRIEVAL_STRATEGY=baseline\nQUERY_REWRITE_ENABLED=false\n", encoding="utf-8")
     env_file.write_text("FOO=bar\n", encoding="utf-8")
     proc = subprocess.run(

@@ -60,6 +60,7 @@ class AuthUser(BaseModel):
     username: str
     role: str = "viewer"
     status: str = "active"
+    display_name: str | None = None
 
 
 class AuthLoginResponse(BaseModel):

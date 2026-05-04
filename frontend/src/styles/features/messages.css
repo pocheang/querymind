@@ -1,0 +1,285 @@
+/* ============================================
+   FEATURE: Message Cards
+   Cyber dashboard conversation surface
+   ============================================ */
+
+.bubble {
+  margin-top: 18px;
+  max-width: 100%;
+  border-radius: 18px;
+  padding: 18px 20px;
+  line-height: 1.72;
+  overflow-wrap: anywhere;
+  position: relative;
+  animation: bubbleSlideIn 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease, background 0.22s ease;
+}
+
+@keyframes bubbleSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bubble:first-of-type {
+  margin-top: 0;
+}
+
+.bubble:hover {
+  transform: translateY(-1px);
+}
+
+.bubble.user {
+  width: min(780px, 92%);
+  margin-left: auto;
+  border: 1px solid rgba(91, 140, 255, 0.35);
+  background:
+    linear-gradient(135deg, rgba(35, 53, 96, 0.78), rgba(32, 24, 72, 0.62)),
+    radial-gradient(circle at 0% 0%, rgba(91, 140, 255, 0.16), transparent 42%);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.bubble.user::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.24), rgba(139, 122, 255, 0.16));
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.bubble.user:hover::before {
+  opacity: 1;
+}
+
+.bubble.assistant {
+  width: min(980px, 98%);
+  border: 1px solid rgba(111, 132, 189, 0.2);
+  background:
+    linear-gradient(180deg, rgba(18, 26, 45, 0.9), rgba(12, 19, 35, 0.86)),
+    radial-gradient(circle at 14% 0%, rgba(91, 140, 255, 0.12), transparent 36%);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(16px);
+}
+
+.bubble.assistant::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #5b8cff 0%, #8b7aff 100%);
+  box-shadow: 0 0 18px rgba(91, 140, 255, 0.48);
+  opacity: 0.8;
+}
+
+.bubble.assistant:hover {
+  border-color: rgba(128, 151, 255, 0.4);
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.26), 0 0 34px rgba(91, 140, 255, 0.12);
+}
+
+.message-head {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(111, 132, 189, 0.14);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.message-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.message-avatar {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 18px;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bubble.user .message-avatar {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.message-avatar:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.message-role {
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.bubble.assistant .message-role {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.bubble.user .message-role {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.74;
+  transition: opacity 0.18s ease;
+}
+
+.bubble:hover .row-actions {
+  opacity: 1;
+}
+
+.markdown {
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.72;
+}
+
+.markdown p {
+  margin: 0 0 12px;
+}
+
+.markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  margin: 16px 0 10px;
+  color: var(--text-primary);
+  font-weight: 720;
+  letter-spacing: -0.02em;
+}
+
+.markdown h1:first-child,
+.markdown h2:first-child,
+.markdown h3:first-child {
+  margin-top: 0;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.markdown li {
+  margin: 6px 0;
+}
+
+.markdown code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(139, 122, 255, 0.14);
+  color: #f7b4c2;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.markdown pre {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: 13px;
+  border: 1px solid rgba(111, 132, 189, 0.16);
+  background: rgba(5, 10, 22, 0.78);
+  overflow-x: auto;
+}
+
+.markdown pre code {
+  padding: 0;
+  background: transparent;
+  color: #e2e8f0;
+}
+
+.empty-chat-state {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 16px;
+  min-height: 400px;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  color: var(--text-tertiary);
+  text-align: center;
+  animation: bubbleSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.empty-chat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(91, 140, 255, 0.32);
+  background: rgba(91, 140, 255, 0.1);
+  color: #b8c7ff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 820;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.empty-chat-state h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(24px, 4vw, 34px);
+  font-weight: 780;
+  line-height: 1.18;
+  letter-spacing: -0.04em;
+}
+
+.empty-chat-state p {
+  max-width: 580px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+@media (max-width: 860px) {
+  .bubble {
+    padding: 15px 16px;
+    border-radius: 15px;
+  }
+
+  .bubble.user,
+  .bubble.assistant {
+    width: 100%;
+  }
+
+  .message-head {
+    align-items: flex-start;
+  }
+
+  .row-actions .tiny-btn {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}

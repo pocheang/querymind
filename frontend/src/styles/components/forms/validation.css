@@ -1,0 +1,22 @@
+/* ============================================
+   Form Validation
+   Error states, success states, help text
+   ============================================ */
+
+/* ============================================
+   Hint Text
+   ============================================ */
+
+.hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #95a0b6;
+}
+
+.hint.ok {
+  color: #4b6cb7;
+}
+
+.hint.error {
+  color: #d34f4f;
+}

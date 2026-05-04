@@ -1,0 +1,410 @@
+/* ============================================
+   Forms Component
+   Consolidated from: components.css, precision-adjustments.css
+   ============================================ */
+
+/* ============================================
+   Base Input Styles
+   ============================================ */
+
+input,
+textarea,
+select {
+  width: 100%;
+  padding: 0.625rem 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1.5px solid var(--border-light);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  outline: none;
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: var(--border-medium);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light), 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: var(--surface);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ============================================
+   Textarea
+   ============================================ */
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+}
+
+/* ============================================
+   Select
+   ============================================ */
+
+select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right var(--space-3) center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: var(--space-10);
+}
+
+/* ============================================
+   Input Group
+   ============================================ */
+
+.input-group {
+  margin-bottom: 22px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f1f47;
+}
+
+/* ============================================
+   Auth Input Shell
+   ============================================ */
+
+.auth-input-shell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 16px;
+  background: #f8fbff;
+  border: 1px solid #d9e3f2;
+  border-radius: 16px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.auth-input-shell:focus-within {
+  border-color: rgba(59, 102, 224, 0.65);
+  box-shadow: 0 0 0 4px rgba(59, 102, 224, 0.1);
+  background: #fff;
+}
+
+.auth-input-icon {
+  width: 18px;
+  height: 18px;
+  color: #9aa7c0;
+  flex-shrink: 0;
+}
+
+.auth-input-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.auth-input-shell input {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.auth-input-shell input:hover,
+.auth-input-shell input:focus {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* ============================================
+   Hint Text
+   ============================================ */
+
+.hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #95a0b6;
+}
+
+.hint.ok {
+  color: #4b6cb7;
+}
+
+.hint.error {
+  color: #d34f4f;
+}
+
+/* ============================================
+   Checkbox
+   ============================================ */
+
+.checkline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-sm);
+  color: #52627d;
+}
+
+.checkline input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+  box-shadow: none;
+}
+
+/* ============================================
+   Toggle Switch (from precision-adjustments.css)
+   iOS/Vercel Style Toggle
+   ============================================ */
+
+.option-chip {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  font-size: 0;
+  color: transparent;
+}
+
+/* Toggle slider */
+.option-chip::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Hover state */
+.option-chip:hover {
+  background: rgba(0, 0, 0, 0.2);
+  transform: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Active state - ON */
+.option-chip.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.option-chip.active::before {
+  left: 25px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.option-chip.active:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   Composer Textarea (from precision-adjustments.css)
+   Enhanced textarea with gradient background
+   ============================================ */
+
+.composer-main textarea {
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  font-size: 15px;
+  line-height: 1.7;
+  color: #0f172a;
+  padding: 14px 18px;
+  min-height: 120px;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.composer-main textarea::placeholder {
+  color: #94a3b8;
+  opacity: 0.9;
+}
+
+.composer-main textarea:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Focus state with soft glow */
+.composer-main textarea:focus {
+  outline: none;
+  border-color: rgba(102, 126, 234, 0.8);
+  background: #ffffff;
+  box-shadow:
+    0 0 0 4px rgba(102, 126, 234, 0.12),
+    0 0 0 8px rgba(102, 126, 234, 0.06),
+    0 4px 12px rgba(102, 126, 234, 0.15),
+    inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   Dark Mode Overrides
+   ============================================ */
+
+:root[data-theme="dark"] .option-chip {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .option-chip::before {
+  background: #e2e8f0;
+}
+
+:root[data-theme="dark"] .option-chip:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+:root[data-theme="dark"] .composer-main textarea {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.9));
+  color: #f1f5f9;
+}
+
+:root[data-theme="dark"] .composer-main textarea::placeholder {
+  color: #64748b;
+}
+
+:root[data-theme="dark"] .composer-main textarea:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .composer-main textarea:focus {
+  border-color: rgba(102, 126, 234, 0.8);
+  background: rgba(15, 23, 42, 1);
+  box-shadow:
+    0 0 0 4px rgba(102, 126, 234, 0.2),
+    0 0 0 8px rgba(102, 126, 234, 0.1),
+    0 4px 12px rgba(102, 126, 234, 0.25),
+    inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   Toggle Switch - iOS/Vercel Style
+   Migrated from: overrides.css
+   ============================================ */
+
+.option-chip {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  font-size: 0;
+  color: transparent;
+}
+
+.option-chip::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.option-chip:hover {
+  background: rgba(0, 0, 0, 0.2);
+  transform: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.option-chip.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.option-chip.active::before {
+  left: 25px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.option-chip.active:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+:root[data-theme="dark"] .option-chip {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .option-chip::before {
+  background: #e2e8f0;
+}
+
+:root[data-theme="dark"] .option-chip:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================
+   Responsive Adjustments
+   ============================================ */
+
+@media (max-width: 768px) {
+  .option-chip {
+    width: 44px;
+    height: 24px;
+  }
+
+  .option-chip::before {
+    width: 18px;
+    height: 18px;
+  }
+
+  .option-chip.active::before {
+    left: 23px;
+  }
+
+  .composer-main textarea {
+    font-size: 14px;
+    padding: 12px 16px;
+    min-height: 100px;
+  }
+}

@@ -1,0 +1,9 @@
+/* ============================================
+   Light Theme - Effects and Animations
+   Shadows, transitions, hover effects, and animations
+   ============================================ */
+
+:root[data-theme="light"] {
+  /* Effects and animation styles will be added as needed */
+  /* Currently using default light theme shadows from colors.css */
+}

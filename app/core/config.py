@@ -112,6 +112,12 @@ class Settings(BaseSettings):
     auth_login_window_seconds: int = Field(default=300, alias="AUTH_LOGIN_WINDOW_SECONDS")
     auth_register_max_attempts: int = Field(default=12, alias="AUTH_REGISTER_MAX_ATTEMPTS")
     auth_register_window_seconds: int = Field(default=300, alias="AUTH_REGISTER_WINDOW_SECONDS")
+
+    # OAuth Configuration
+    google_client_id: str = Field(default="", alias="GOOGLE_CLIENT_ID")
+    google_client_secret: str = Field(default="", alias="GOOGLE_CLIENT_SECRET")
+    google_redirect_uri: str = Field(default="http://localhost:8000/api/auth/google/callback", alias="OAUTH_REDIRECT_URI")
+
     query_rate_limit_max_attempts: int = Field(default=30, alias="QUERY_RATE_LIMIT_MAX_ATTEMPTS")
     query_rate_limit_window_seconds: int = Field(default=60, alias="QUERY_RATE_LIMIT_WINDOW_SECONDS")
     query_guard_backend: str = Field(default="auto", alias="QUERY_GUARD_BACKEND")  # auto|memory|redis
@@ -185,7 +191,7 @@ class Settings(BaseSettings):
     ollama_vision_model: str = Field(default="llava:7b", alias="OLLAMA_VISION_MODEL")
     cors_enabled: bool = Field(default=True, alias="CORS_ENABLED")
     cors_allow_origins: str = Field(
-        default="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8000,http://localhost:8000",
+        default="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174,http://127.0.0.1:8000,http://localhost:8000",
         alias="CORS_ALLOW_ORIGINS",
     )
     cors_allow_methods: str = Field(default="*", alias="CORS_ALLOW_METHODS")

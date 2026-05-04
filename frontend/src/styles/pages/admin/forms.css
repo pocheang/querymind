@@ -1,0 +1,173 @@
+/* ============================================
+   Admin Forms & Inputs
+   ============================================ */
+
+.ops-two-col,
+.admin-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.admin-field {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-field span {
+  font-size: 12px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
+  letter-spacing: 0.2px;
+}
+
+.admin-field input {
+  margin-top: 0;
+  height: 46px;
+  border-radius: 12px;
+}
+
+.admin-field input,
+.admin-field select,
+.admin-field textarea {
+  width: 100%;
+  border: 1.5px solid var(--border-light);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.admin-field input:hover,
+.admin-field select:hover,
+.admin-field textarea:hover {
+  border-color: var(--border-medium);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.admin-field input:focus,
+.admin-field select:focus,
+.admin-field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.admin-shell .ops-two-col input,
+.admin-shell .ops-two-col select {
+  margin-top: 0;
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition: all 0.2s ease;
+}
+
+.admin-shell .ops-two-col input:hover,
+.admin-shell .ops-two-col select:hover {
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.admin-shell .ops-two-col input:focus,
+.admin-shell .ops-two-col select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, #9abdf2);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.admin-shell .admin-field input,
+.admin-shell .admin-field select,
+.admin-shell .admin-field textarea {
+  min-height: 44px;
+  border-radius: 14px;
+}
+
+.admin-shell .admin-field textarea {
+  min-height: 112px;
+}
+
+.admin-filter-grid {
+  gap: 14px;
+}
+
+/* ============================================
+   Admin Create Panel
+   ============================================ */
+
+.admin-create-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-create-hint {
+  margin-top: -4px;
+  font-size: 13px;
+}
+
+.admin-create-grid {
+  gap: 14px;
+}
+
+.admin-create-actions {
+  display: grid;
+  align-items: end;
+}
+
+.admin-create-actions button {
+  width: 100%;
+  height: 46px;
+  border-radius: 12px;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+}
+
+/* ============================================
+   Admin Users Panel
+   ============================================ */
+
+.admin-users-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-users-hint {
+  margin-top: -4px;
+  font-size: 13px;
+}
+
+/* ============================================
+   Admin Audit Panel
+   ============================================ */
+
+.admin-audit-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-audit-hint {
+  margin-top: -4px;
+  font-size: 13px;
+}
+
+.admin-audit-head-actions select {
+  min-width: 168px;
+  height: 36px;
+  margin-top: 0;
+}
+
+.admin-audit-quick-actions {
+  align-self: end;
+  justify-content: flex-start;
+}
+
+.admin-audit-scroll-hint {
+  margin-top: -2px;
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+
+.admin-audit-match-hint {
+  margin-top: -6px;
+}

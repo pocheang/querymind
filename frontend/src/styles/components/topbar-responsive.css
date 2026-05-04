@@ -1,0 +1,77 @@
+/* ============================================
+   Topbar Responsive Styles
+   ============================================ */
+
+@media (max-width: 1080px) {
+  .topbar {
+    min-height: 64px;
+    padding: 12px 16px;
+  }
+
+  .topbar-rail-toggle {
+    display: inline-flex;
+    min-height: 38px;
+    border-radius: 12px;
+  }
+
+  .topbar-brand {
+    display: flex;
+  }
+
+  .brand-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .brand-info h2 {
+    font-size: 16px;
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+
+  .top-actions {
+    gap: 8px;
+  }
+
+  .topbar-btn {
+    min-height: 38px;
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    gap: 10px;
+  }
+
+  .topbar-left {
+    gap: 10px;
+  }
+
+  .top-actions {
+    margin-left: auto;
+  }
+
+  .topbar-btn .btn-label {
+    display: none;
+  }
+
+  .topbar-btn {
+    width: 38px;
+    justify-content: center;
+    padding-inline: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 10px 12px;
+  }
+
+  .topbar-brand {
+    display: none;
+  }
+}

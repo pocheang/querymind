@@ -1,0 +1,37 @@
+/* ============================================
+   FEATURE: Citation Cards
+   ============================================ */
+
+.citation-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.citation-card {
+  border-radius: 12px;
+  border: 1px solid rgba(111, 132, 189, 0.16);
+  background: rgba(5, 10, 22, 0.38);
+  padding: 13px 14px;
+  transition: all 0.18s ease;
+}
+
+.citation-card:hover {
+  border-color: rgba(91, 140, 255, 0.34);
+  background: rgba(18, 26, 45, 0.66);
+  transform: translateY(-1px);
+}
+
+.citation-card strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #b8c7ff;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+@media (max-width: 860px) {
+  .citation-grid {
+    grid-template-columns: 1fr;
+  }
+}

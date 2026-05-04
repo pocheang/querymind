@@ -1,0 +1,253 @@
+/* ============================================
+   Admin Tables
+   ============================================ */
+
+.admin-shell .table {
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 9%, var(--border));
+  background: #fff;
+  box-shadow: 0 14px 32px -28px rgba(15, 23, 42, 0.35);
+}
+
+.admin-shell .table thead th {
+  font-size: 11px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  background: linear-gradient(180deg, #f7faff, #f3f7ff);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border));
+}
+
+.admin-shell .table tbody tr {
+  transition: background-color 0.14s ease;
+}
+
+.admin-shell .table tbody tr:hover {
+  background: #f6faff;
+}
+
+.admin-shell .table td,
+.admin-shell .table th {
+  padding: 11px 10px;
+}
+
+.admin-shell .table td .row-actions {
+  gap: 8px;
+}
+
+.admin-shell .table td select {
+  margin-top: 0;
+  height: 34px;
+  border-radius: 10px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+/* ============================================
+   Admin User Table
+   ============================================ */
+
+.admin-user-table {
+  table-layout: fixed;
+}
+
+.admin-user-table th,
+.admin-user-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-user-table th:first-child,
+.admin-user-table td:first-child {
+  width: 286px;
+}
+
+.admin-user-id {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.admin-username {
+  font-weight: 700;
+}
+
+.user-row-actions {
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.user-row-actions .tiny-btn {
+  min-width: 68px;
+}
+
+/* ============================================
+   Admin Audit Table
+   ============================================ */
+
+.audit-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(249, 252, 255, 0.9));
+}
+
+.admin-audit-table {
+  min-width: 1760px;
+  width: 100%;
+  table-layout: fixed;
+  border: 0;
+  background: transparent;
+}
+
+.admin-audit-table th,
+.admin-audit-table td {
+  vertical-align: top;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-audit-table th {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+.admin-audit-table th:nth-child(1),
+.admin-audit-table td:nth-child(1) {
+  min-width: 170px;
+}
+
+.admin-audit-table th:nth-child(2),
+.admin-audit-table td:nth-child(2) {
+  min-width: 260px;
+}
+
+.admin-audit-table th:nth-child(3),
+.admin-audit-table td:nth-child(3) {
+  min-width: 220px;
+}
+
+.admin-audit-table th:nth-child(6),
+.admin-audit-table td:nth-child(6) {
+  min-width: 260px;
+}
+
+.admin-audit-table th:nth-child(9),
+.admin-audit-table td:nth-child(9) {
+  min-width: 360px;
+}
+
+.admin-audit-table th:nth-child(10),
+.admin-audit-table td:nth-child(10) {
+  min-width: 300px;
+}
+
+.admin-audit-table th:nth-child(8),
+.admin-audit-table td:nth-child(8) {
+  min-width: 110px;
+}
+
+.audit-time {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.admin-audit-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.admin-audit-table tbody tr:nth-child(2n) {
+  background: rgba(42, 122, 220, 0.03);
+}
+
+.admin-audit-table tbody tr:hover {
+  background: rgba(42, 122, 220, 0.08);
+}
+
+.audit-cell-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.audit-sub {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-id {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-code {
+  display: inline-block;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+
+.audit-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.audit-user-agent,
+.audit-detail {
+  white-space: nowrap;
+  line-height: 1.35;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-actor,
+.audit-action,
+.audit-resource {
+  white-space: nowrap;
+  line-height: 1.45;
+}
+
+.audit-ip {
+  white-space: nowrap;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}

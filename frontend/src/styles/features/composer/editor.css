@@ -1,0 +1,129 @@
+/* ============================================
+   COMPOSER: Editor and Upload Entry
+   ============================================ */
+
+.composer-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.composer-label {
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 720;
+  letter-spacing: -0.01em;
+}
+
+.composer-drop-hint {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.composer-input-wrapper {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(111, 132, 189, 0.16);
+  background: rgba(4, 9, 21, 0.34);
+}
+
+.composer-panel textarea {
+  width: 100%;
+  min-height: 112px;
+  max-height: 180px;
+  border: 0;
+  border-radius: 12px;
+  padding: 5px 10px 5px 2px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.66;
+  resize: vertical;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 216, 0.48) rgba(7, 13, 26, 0.5);
+  transition: color 0.2s ease;
+}
+
+.composer-panel textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.composer-panel textarea::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(7, 13, 26, 0.5);
+}
+
+.composer-panel textarea::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(7, 13, 26, 0.5);
+  border-radius: 999px;
+  background: rgba(148, 163, 216, 0.5);
+}
+
+.composer-panel textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(184, 199, 255, 0.72);
+}
+
+.composer-panel textarea:focus {
+  outline: none;
+}
+
+.composer-panel textarea::placeholder {
+  color: rgba(184, 197, 214, 0.56);
+}
+
+.composer-input-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.composer-upload-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(18, 26, 45, 0.72);
+  border: 1px solid rgba(111, 132, 189, 0.18);
+  color: #aebfff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-size: 18px;
+  font-weight: 760;
+}
+
+.composer-upload-btn:hover {
+  background: rgba(61, 83, 137, 0.42);
+  border-color: rgba(91, 140, 255, 0.42);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 680px) {
+  .composer-heading-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .composer-input-wrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .composer-input-actions {
+    justify-content: flex-end;
+  }
+}

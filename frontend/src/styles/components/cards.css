@@ -1,0 +1,276 @@
+/* ============================================
+   Cards Component
+   Consolidated from: components.css, final-polish.css, precision-adjustments.css
+   ============================================ */
+
+/* ============================================
+   Base Panel/Card Styles
+   ============================================ */
+
+.panel {
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base);
+}
+
+.panel:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ============================================
+   Auth Card
+   ============================================ */
+
+.auth-card {
+  width: min(1024px, 100%);
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(220, 228, 242, 0.9);
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 30px 70px rgba(91, 113, 150, 0.16);
+  animation: slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.change-password-card {
+  grid-template-columns: 1fr 1fr;
+}
+
+.forgot-password-card {
+  grid-template-columns: 0.98fr 1.02fr;
+}
+
+/* ============================================
+   Auth Feature Card
+   ============================================ */
+
+.auth-feature-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 74px;
+  padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(220, 228, 242, 0.95);
+  border-radius: 18px;
+  box-shadow: 0 14px 30px rgba(126, 149, 178, 0.16);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  color: #0f1f47;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.auth-feature-card:hover {
+  transform: translateX(4px);
+  box-shadow: 0 18px 34px rgba(126, 149, 178, 0.2);
+  border-color: rgba(80, 122, 235, 0.28);
+}
+
+.auth-feature-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eef3ff;
+  flex-shrink: 0;
+}
+
+.auth-feature-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.auth-feature-icon-purple {
+  color: #5b5bf4;
+  background: rgba(92, 92, 244, 0.12);
+}
+
+.auth-feature-icon-blue {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.auth-feature-icon-amber {
+  color: #ea7a13;
+  background: rgba(234, 122, 19, 0.14);
+}
+
+/* ============================================
+   Agent Mode Card (from precision-adjustments.css & final-polish.css)
+   Enhanced with hover animations and active state
+   ============================================ */
+
+.agent-mode-card {
+  position: relative;
+  padding: 18px 16px;
+  min-height: 120px;
+  border-radius: 12px;
+  border: 2px solid rgba(156, 180, 205, 0.15);
+  background: rgba(16, 31, 44, 0.8);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+}
+
+/* Hover state - background transition animation */
+.agent-mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.12), rgba(139, 122, 255, 0.12));
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+}
+
+.agent-mode-card:hover::before {
+  opacity: 1;
+}
+
+.agent-mode-card:hover {
+  border-color: rgba(58, 151, 232, 0.5);
+  background: rgba(21, 40, 56, 0.95);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Active state - enhanced background highlight */
+.agent-mode-card.active {
+  border-color: rgba(91, 140, 255, 0.8);
+  background: linear-gradient(135deg, rgba(18, 48, 71, 1), rgba(25, 55, 85, 1));
+  box-shadow: 0 8px 24px rgba(91, 140, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.agent-mode-card.active::before {
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.2), rgba(139, 122, 255, 0.2));
+  opacity: 1;
+}
+
+.agent-mode-card.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #5b8cff 0%, #8b7aff 100%);
+  border-radius: 12px 0 0 12px;
+  box-shadow: 0 0 12px rgba(91, 140, 255, 0.6);
+  z-index: 1;
+}
+
+.agent-mode-card.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(91, 140, 255, 0.5), 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Ensure content is above pseudo-elements */
+.agent-mode-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* ============================================
+   Auth Info Panel
+   ============================================ */
+
+.auth-info-panel {
+  position: relative;
+  z-index: 1;
+  padding: 22px 24px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 20px;
+  box-shadow: 0 14px 30px rgba(126, 149, 178, 0.12);
+}
+
+.auth-info-panel h3 {
+  margin: 0 0 14px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f1f47;
+}
+
+/* ============================================
+   Help Option Card
+   ============================================ */
+
+.help-option {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: #f8fbff;
+  border: 1px solid #dbe5f2;
+  border-radius: 18px;
+  transition: all 0.2s ease;
+}
+
+.help-option:hover {
+  border-color: #bfd0ee;
+  box-shadow: 0 14px 28px rgba(151, 166, 194, 0.12);
+  transform: translateY(-1px);
+}
+
+.help-option-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.help-option h4 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f1f47;
+}
+
+.help-option p {
+  margin: 0;
+  font-size: 14px;
+  color: #617393;
+  line-height: 1.6;
+}
+
+/* ============================================
+   Dark Mode Overrides
+   ============================================ */
+
+:root[data-theme="dark"] .auth-card {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   Responsive Adjustments
+   ============================================ */
+
+@media (max-width: 768px) {
+  .agent-mode-card {
+    padding: 16px 14px;
+    min-height: 100px;
+  }
+}

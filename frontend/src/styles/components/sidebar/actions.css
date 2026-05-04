@@ -1,0 +1,95 @@
+/* ============================================
+   Sidebar Actions
+   Header, buttons, collapse toggle, branding
+   ============================================ */
+
+/* ============================================
+   Sidebar Header
+   ============================================ */
+
+.sidebar-header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sidebar-brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent),
+    linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
+  box-shadow: 0 14px 30px rgba(91, 140, 255, 0.34), 0 0 26px rgba(139, 122, 255, 0.24);
+}
+
+.sidebar-brand-mark span {
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.sidebar-brand-block {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.sidebar-brand-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #5b8cff;
+  font-size: 9px;
+  font-weight: 860;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sidebar-header .brand {
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 0;
+  font-weight: 820;
+}
+
+.sidebar-header .muted {
+  max-width: 220px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+/* ============================================
+   Sidebar Collapse Button
+   ============================================ */
+
+.sidebar-collapse-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: rgba(16, 25, 43, 0.7);
+  border: 1px solid rgba(100, 122, 180, 0.18);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 760;
+  box-shadow: none;
+  transition: all 0.2s ease;
+}
+
+.sidebar-collapse-btn:hover {
+  background: rgba(44, 59, 96, 0.72);
+  border-color: rgba(91, 140, 255, 0.36);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}

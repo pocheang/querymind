@@ -1,54 +1,58 @@
 import { Link } from "react-router-dom";
 
 type Props = {
-  userBadge: string;
   themeLabel: string;
-  isAdmin: boolean;
+  sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   onOpenSettings: () => void;
   onThemeToggle: () => void;
-  onLogout: () => Promise<void>;
 };
 
 export function ChatTopbar({
-  userBadge,
   themeLabel,
-  isAdmin,
+  sidebarCollapsed,
   onToggleSidebar,
   onOpenSettings,
   onThemeToggle,
-  onLogout,
 }: Props) {
+  const themeDisplay = themeLabel.includes("暗") ? "暗色" : "亮色";
+
   return (
     <header className="topbar">
-      <div className="topbar-copy">
-        <span className="workspace-kicker">Local RAG Command Center</span>
-        <h2>Evidence Chat</h2>
-        <p className="muted">统一调度会话、PDF 证据、混合检索和 Agent 路由。</p>
-      </div>
-      <div className="top-actions">
-        <span className="user-badge">{userBadge}</span>
-        <button type="button" className="secondary mobile-menu-btn" onClick={onToggleSidebar}>
+      <div className="topbar-left">
+        <button
+          type="button"
+          className="secondary mobile-menu-btn topbar-rail-toggle"
+          onClick={onToggleSidebar}
+          aria-label={sidebarCollapsed ? "展开侧边栏" : "打开侧边栏"}
+          aria-expanded={!sidebarCollapsed}
+        >
           菜单
         </button>
-        <button type="button" className="secondary settings-action-btn" onClick={onOpenSettings} title="API 设置">
-          <span aria-hidden="true">⚙︎</span>
-          <span>设置</span>
+        <div className="topbar-brand">
+          <div className="brand-logo" aria-hidden="true">
+            <span className="brand-logo-glyph">▶</span>
+          </div>
+          <div className="brand-info">
+            <h2>Local RAG</h2>
+            <span className="brand-subtitle">AI Knowledge Operations</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="top-actions">
+        <button type="button" className="topbar-btn" onClick={onOpenSettings} aria-label="打开设置">
+          <span className="btn-icon" aria-hidden="true">⚙</span>
+          <span className="btn-label">设置</span>
         </button>
-        <button type="button" className="secondary" onClick={onThemeToggle}>
-          {themeLabel}
+        <button type="button" className="topbar-btn" onClick={onThemeToggle} aria-label={`切换主题，当前：${themeDisplay}`}>
+          <span className="btn-icon" aria-hidden="true">◐</span>
+          <span className="btn-label">{themeDisplay}</span>
         </button>
-        <Link className="secondary link-btn" to="/app/architecture">
-          架构总览
+        <Link className="topbar-btn" to="/app/architecture" aria-label="查看系统架构">
+          <span className="btn-icon" aria-hidden="true">▦</span>
+          <span className="btn-label">架构</span>
         </Link>
-        {isAdmin && (
-          <Link className="secondary link-btn" to="/app/admin">
-            管理页
-          </Link>
-        )}
-        <button type="button" className="logout-btn" onClick={() => void onLogout()}>
-          退出
-        </button>
       </div>
     </header>
   );

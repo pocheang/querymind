@@ -101,6 +101,8 @@ yarn-error.log*
 data/chroma/
 data/chunks/
 data/eval/
+!data/eval/*.jsonl
+!data/eval/*.txt
 
 # Application databases
 data/app.db
@@ -184,14 +186,25 @@ test_*.temp.py
 *.log
 backend.log
 frontend-dev.log
+frontend/frontend.log
 npm-debug.log
 yarn-error.log
 pip-log.txt
+
+# Frontend generated audit artifacts and backups
+frontend/css-audit-report.json
+frontend/css-performance-baseline.json
+frontend/src/styles.backup/
+frontend/src/styles/.legacy-backup/
+frontend/src/styles.css.backup*
+frontend/src/styles/components.css.backup.phase*
+frontend/src/styles/pages.css.backup.phase*
 
 # ============================================
 # AI ASSISTANT SETTINGS
 # ============================================
 # Claude local settings (may contain API keys)
+.claude/settings.json
 .claude/settings.local.json
 .claude/worktrees/
 
@@ -202,6 +215,12 @@ pip-log.txt
 # ============================================
 # Internal Documentation (Not for GitHub)
 # ============================================
+
+# Local startup scripts (user-specific paths)
+start-backend.ps1
+start-frontend.ps1
+start-all.ps1
+README-STARTUP.md
 
 # Internal project management and audit reports
 /project_audit/

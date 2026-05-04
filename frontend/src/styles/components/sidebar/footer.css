@@ -1,0 +1,108 @@
+/* ============================================
+   Sidebar Footer - Account Dock
+   ============================================ */
+
+.sidebar-footer {
+  padding: 12px 0 0;
+  border-top: 1px solid rgba(111, 132, 189, 0.14);
+  margin-top: auto;
+  display: grid;
+  gap: 9px;
+}
+
+.sidebar-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px;
+  background:
+    linear-gradient(135deg, rgba(29, 41, 73, 0.82), rgba(13, 21, 38, 0.8));
+  border-radius: 10px;
+  border: 1px solid rgba(111, 132, 189, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.sidebar-user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 820;
+  font-size: 14px;
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 12px 28px rgba(91, 140, 255, 0.28);
+}
+
+.sidebar-user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  color: var(--text-primary);
+  font-weight: 760;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sidebar-user-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.sidebar-user-action-btn {
+  min-width: 0;
+  height: 32px;
+  border-radius: 9px;
+  background: rgba(18, 26, 45, 0.72);
+  border: 1px solid rgba(111, 132, 189, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-size: 11px;
+  font-weight: 760;
+  text-decoration: none;
+  color: var(--text-tertiary);
+}
+
+.sidebar-user-action-btn:hover {
+  background: rgba(61, 83, 137, 0.42);
+  border-color: rgba(91, 140, 255, 0.38);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+}
+
+.sidebar-user-action-admin {
+  color: #b8c7ff;
+}
+
+.sidebar-collapse-btn-bottom {
+  width: 100%;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: transparent;
+  border: 0;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}

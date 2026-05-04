@@ -1,0 +1,145 @@
+/* ============================================
+   Chat Page Responsive Layout
+   ============================================ */
+
+@media (max-width: 1080px) {
+  .main {
+    min-width: 0;
+    padding: 16px;
+  }
+
+  .chat-window {
+    min-height: min(58vh, 620px);
+    margin: 14px 0;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .panel {
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 860px) {
+  .main {
+    padding: 12px;
+  }
+
+  .chat-window {
+    min-height: 52vh;
+    padding: 12px;
+  }
+
+  .bubble {
+    width: 100%;
+    margin-top: 14px;
+  }
+
+  .message-head {
+    gap: 10px;
+  }
+
+  .chips {
+    gap: 6px;
+  }
+
+  .chip {
+    max-width: 100%;
+  }
+
+  .composer-controls {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .composer-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .option-group {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .option-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .quick-actions {
+    max-height: 128px;
+    overflow: auto;
+    padding-bottom: 2px;
+  }
+}
+
+@media (max-width: 620px) {
+  .main {
+    padding: 10px;
+  }
+
+  .chat-window {
+    min-height: 50vh;
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .bubble {
+    padding: 14px;
+  }
+
+  .message-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .row-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .composer-options {
+    grid-template-columns: 1fr;
+  }
+
+  .composer-primary-btn {
+    min-width: 0;
+  }
+
+  .quick-actions {
+    gap: 8px;
+  }
+
+  .quick-action-btn {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .empty-chat-state {
+    min-height: 280px;
+    padding: 24px 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .main {
+    padding: 8px;
+  }
+
+  .chat-window {
+    margin: 10px 0;
+  }
+
+  .composer-input-wrapper {
+    padding: 10px;
+  }
+
+  .composer-panel textarea {
+    min-height: 96px;
+    font-size: 15px;
+  }
+}

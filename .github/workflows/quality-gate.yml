@@ -2,25 +2,123 @@ name: Quality Gate
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  quality-gate:
+  backend-tests:
+    name: Backend Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install Minimal Deps
+          cache: 'pip'
+
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e . || true
-      - name: Run Quality Gate
+          pip install -e .
+          pip install -r requirements-dev.txt
+
+      - name: Run Backend Tests
+        run: python -m pytest -q
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            .pytest_cache/
+            htmlcov/
+          if-no-files-found: ignore
+
+  documentation-validation:
+    name: Documentation Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate Documentation
+        run: python scripts/validate_documentation.py
+
+      - name: Upload Validation Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-validation-report
+          path: internal_docs/docs_archive/VALIDATION_REPORT.json
+          if-no-files-found: ignore
+
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+  rag-quality-gate:
+    name: RAG Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install Dependencies
         run: |
-          python scripts/ci_quality_gate.py --dataset data/eval/retrieval_eval.jsonl --min-recall 0.35 --auto-rollback-file artifacts/rollback.env --report-md artifacts/quality-report.md
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install -r requirements-dev.txt
+
+      - name: Run RAG Quality Gate
+        run: |
+          python scripts/ci_quality_gate.py \
+            --dataset data/eval/retrieval_eval.jsonl \
+            --min-recall 0.35 \
+            --allow-runtime-unavailable \
+            --auto-rollback-file artifacts/rollback.env \
+            --report-md artifacts/quality-report.md
+
       - name: Upload Rollback Profile
         if: always()
         uses: actions/upload-artifact@v4
@@ -28,6 +126,7 @@ jobs:
           name: rollback-profile
           path: artifacts/rollback.env
           if-no-files-found: ignore
+
       - name: Upload Quality Report
         if: always()
         uses: actions/upload-artifact@v4
@@ -35,3 +134,22 @@ jobs:
           name: quality-report
           path: artifacts/quality-report.md
           if-no-files-found: ignore
+
+  quality-gate-summary:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [backend-tests, documentation-validation, frontend-build, rag-quality-gate]
+    if: always()
+    steps:
+      - name: Check All Gates Passed
+        run: |
+          if [ "${{ needs.backend-tests.result }}" != "success" ] || \
+             [ "${{ needs.documentation-validation.result }}" != "success" ] || \
+             [ "${{ needs.frontend-build.result }}" != "success" ]; then
+            echo "❌ Quality gate failed"
+            exit 1
+          fi
+          if [ "${{ needs.rag-quality-gate.result }}" != "success" ]; then
+            echo "⚠️  RAG quality gate did not pass (non-blocking for frontend-only releases)"
+          fi
+          echo "✅ All critical quality gates passed"

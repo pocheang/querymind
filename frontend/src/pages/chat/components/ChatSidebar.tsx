@@ -1,0 +1,270 @@
+import { Link } from "react-router-dom";
+import { useState } from "react";
+import type React from "react";
+import type { IndexedFileSummary, PromptTemplate, SessionSummary } from "@/types/api";
+import { SessionList } from "@/pages/chat/components/SessionList";
+import { WorkbenchPanel } from "@/pages/chat/components/WorkbenchPanel";
+
+type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
+
+type AgentMode = {
+  key: AgentClassHint;
+  title: string;
+  desc: string;
+};
+
+type Props = {
+  sidebarOpen: boolean;
+  sidebarCollapsed: boolean;
+  sessions: SessionSummary[];
+  sessionLoading: boolean;
+  currentSessionId: string | null;
+  busySessionId: string | null;
+  agentClassHint: AgentClassHint;
+  agentModes: AgentMode[];
+  agentDistribution: Array<{ agent: string; count: number }>;
+  pdfDocuments: IndexedFileSummary[];
+  pdfNeedingReindex: IndexedFileSummary[];
+  pdfTargetFile: string;
+  documents: IndexedFileSummary[];
+  docsLoading: boolean;
+  uploading: boolean;
+  uploadInfo: string;
+  uploadProgress: number;
+  uploadProgressText: string;
+  uploadVisibility: "private" | "public";
+  docDropActive: boolean;
+  canUploadAndManageDocs: boolean;
+  isAdmin: boolean;
+  user: any;
+  prompts: PromptTemplate[];
+  promptsLoading: boolean;
+  promptTitle: string;
+  promptContent: string;
+  editingPromptId: string | null;
+  promptCheckInfo: string;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  onToggleSidebarCollapsed: () => void;
+  onCreateSession: () => Promise<void>;
+  onLoadSession: (sessionId: string) => Promise<void>;
+  onDeleteSession: (sessionId: string) => Promise<void>;
+  onSwitchAgentMode: (mode: AgentClassHint) => void;
+  onDraftPdfQuestion: () => void;
+  onPdfTargetFileChange: (filename: string) => void;
+  onRefreshDocuments: () => Promise<void>;
+  onUploadVisibilityChange: (visibility: "private" | "public") => void;
+  onMainUploadChange: (evt: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  onDocsDrop: (evt: React.DragEvent<HTMLDivElement>) => Promise<void>;
+  onDocDropActiveChange: (active: boolean) => void;
+  onReindexDocument: (doc: IndexedFileSummary) => Promise<void>;
+  onDeleteDocument: (doc: IndexedFileSummary, removeFile: boolean) => Promise<void>;
+  onRefreshPrompts: () => Promise<void>;
+  onPromptTitleChange: (title: string) => void;
+  onPromptContentChange: (content: string) => void;
+  onCheckPrompt: () => Promise<void>;
+  onSavePrompt: () => Promise<void>;
+  onUsePrompt: (prompt: PromptTemplate) => void;
+  onEditPrompt: (prompt: PromptTemplate) => void;
+  onDeletePrompt: (prompt: PromptTemplate) => Promise<void>;
+  onLogout: () => Promise<void>;
+};
+
+export function ChatSidebar({
+  sidebarOpen,
+  sidebarCollapsed,
+  sessions,
+  sessionLoading,
+  currentSessionId,
+  busySessionId,
+  agentClassHint,
+  agentModes,
+  agentDistribution,
+  pdfDocuments,
+  pdfNeedingReindex,
+  pdfTargetFile,
+  documents,
+  docsLoading,
+  uploading,
+  uploadInfo,
+  uploadProgress,
+  uploadProgressText,
+  uploadVisibility,
+  docDropActive,
+  canUploadAndManageDocs,
+  isAdmin,
+  user,
+  prompts,
+  promptsLoading,
+  promptTitle,
+  promptContent,
+  editingPromptId,
+  promptCheckInfo,
+  fileInputRef,
+  onToggleSidebarCollapsed,
+  onCreateSession,
+  onLoadSession,
+  onDeleteSession,
+  onSwitchAgentMode,
+  onDraftPdfQuestion,
+  onPdfTargetFileChange,
+  onRefreshDocuments,
+  onUploadVisibilityChange,
+  onMainUploadChange,
+  onDocsDrop,
+  onDocDropActiveChange,
+  onReindexDocument,
+  onDeleteDocument,
+  onRefreshPrompts,
+  onPromptTitleChange,
+  onPromptContentChange,
+  onCheckPrompt,
+  onSavePrompt,
+  onUsePrompt,
+  onEditPrompt,
+  onDeletePrompt,
+  onLogout,
+}: Props) {
+  const isDesktop = typeof window !== "undefined" ? window.innerWidth > 1080 : true;
+  const showCompactRail = sidebarCollapsed && isDesktop;
+  const [sessionSearchRequest, setSessionSearchRequest] = useState(0);
+
+  const handleCreateFromRail = async () => {
+    onToggleSidebarCollapsed();
+    await onCreateSession();
+  };
+
+  const handleSearchFromRail = () => {
+    setSessionSearchRequest((current) => current + 1);
+    onToggleSidebarCollapsed();
+  };
+
+  if (showCompactRail) {
+    return (
+      <aside className="sidebar sidebar-rail" aria-label="收起后的侧边栏">
+        <div className="sidebar-rail-actions">
+          <button type="button" className="sidebar-rail-btn active" onClick={onToggleSidebarCollapsed} title="展开侧栏">
+            <span className="rail-icon rail-icon-panel" aria-hidden="true" />
+          </button>
+          <button type="button" className="sidebar-rail-btn" onClick={() => void handleCreateFromRail()} title="展开并新建会话">
+            <span className="rail-icon rail-icon-edit" aria-hidden="true" />
+          </button>
+          <button type="button" className="sidebar-rail-btn" onClick={handleSearchFromRail} title="展开并搜索会话">
+            <span className="rail-icon rail-icon-search" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="sidebar-rail-footer">
+          <button type="button" className="sidebar-rail-user" onClick={onToggleSidebarCollapsed} title="展开账号信息">
+            {user?.username?.charAt(0).toUpperCase() || "U"}
+          </button>
+        </div>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+      <div className="sidebar-shell">
+        <div className="sidebar-header">
+          <div className="sidebar-brand-mark" aria-hidden="true">
+            <span>R</span>
+          </div>
+          <div className="sidebar-brand-block">
+            <span className="sidebar-brand-kicker">Operations Deck</span>
+            <div className="brand">Local RAG</div>
+            <p className="muted">多智能体知识库与检索工作台</p>
+          </div>
+          <button type="button" className="sidebar-collapse-btn" onClick={onToggleSidebarCollapsed}>
+            收起
+          </button>
+        </div>
+
+        <div className="sidebar-history">
+          <div className="sidebar-group-title">
+            <span>SESSIONS</span>
+          </div>
+          <SessionList
+            sessions={sessions}
+            sessionLoading={sessionLoading}
+            currentSessionId={currentSessionId}
+            busySessionId={busySessionId}
+            searchRequestKey={sessionSearchRequest}
+            onCreateSession={onCreateSession}
+            onLoadSession={onLoadSession}
+            onDeleteSession={onDeleteSession}
+          />
+        </div>
+
+        <WorkbenchPanel
+          agentClassHint={agentClassHint}
+          agentModes={agentModes}
+          agentDistribution={agentDistribution}
+          pdfDocuments={pdfDocuments}
+          pdfNeedingReindex={pdfNeedingReindex}
+          pdfTargetFile={pdfTargetFile}
+          documents={documents}
+          docsLoading={docsLoading}
+          uploading={uploading}
+          uploadInfo={uploadInfo}
+          uploadProgress={uploadProgress}
+          uploadProgressText={uploadProgressText}
+          uploadVisibility={uploadVisibility}
+          docDropActive={docDropActive}
+          canUploadAndManageDocs={canUploadAndManageDocs}
+          isAdmin={isAdmin}
+          user={user}
+          prompts={prompts}
+          promptsLoading={promptsLoading}
+          promptTitle={promptTitle}
+          promptContent={promptContent}
+          editingPromptId={editingPromptId}
+          promptCheckInfo={promptCheckInfo}
+          fileInputRef={fileInputRef}
+          onSwitchAgentMode={onSwitchAgentMode}
+          onDraftPdfQuestion={onDraftPdfQuestion}
+          onPdfTargetFileChange={onPdfTargetFileChange}
+          onRefreshDocuments={onRefreshDocuments}
+          onUploadVisibilityChange={onUploadVisibilityChange}
+          onMainUploadChange={onMainUploadChange}
+          onDocsDrop={onDocsDrop}
+          onDocDropActiveChange={onDocDropActiveChange}
+          onReindexDocument={onReindexDocument}
+          onDeleteDocument={onDeleteDocument}
+          onRefreshPrompts={onRefreshPrompts}
+          onPromptTitleChange={onPromptTitleChange}
+          onPromptContentChange={onPromptContentChange}
+          onCheckPrompt={onCheckPrompt}
+          onSavePrompt={onSavePrompt}
+          onUsePrompt={onUsePrompt}
+          onEditPrompt={onEditPrompt}
+          onDeletePrompt={onDeletePrompt}
+        />
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user-info">
+            <div className="sidebar-user-avatar">{user?.username?.charAt(0).toUpperCase() || "U"}</div>
+            <div className="sidebar-user-details">
+              <div className="sidebar-user-name">{user?.username || "User"}</div>
+              <div className="sidebar-user-role">{user?.role || "user"}</div>
+            </div>
+          </div>
+          <div className="sidebar-user-actions">
+            <Link to="/app/profile" className="sidebar-user-action-btn" title="个人资料">
+              <span>资料</span>
+            </Link>
+            <Link to="/app/change-password" className="sidebar-user-action-btn" title="修改密码">
+              <span>密码</span>
+            </Link>
+            {isAdmin && (
+              <Link to="/app/admin" className="sidebar-user-action-btn sidebar-user-action-admin" title="管理员面板">
+                <span>Admin</span>
+              </Link>
+            )}
+            <button type="button" className="sidebar-user-action-btn" onClick={() => void onLogout()} title="退出登录">
+              <span>退出</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}

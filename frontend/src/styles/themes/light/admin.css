@@ -1,0 +1,154 @@
+/* ============================================
+   Light Theme - Admin Interface
+   Admin dashboard, tables, and management styles
+   ============================================ */
+
+:root[data-theme="light"] {
+  /* Admin interface styles will be added as needed */
+  /* Currently using default light theme colors from colors.css */
+}
+
+/* ============================================
+   Light Theme - Admin Topbar Override
+   ============================================ */
+
+:root[data-theme="light"] .admin-shell .topbar {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+}
+
+:root[data-theme="light"] .admin-shell .topbar::before {
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+}
+
+:root[data-theme="light"] .admin-shell .topbar h2 {
+  color: var(--text-primary);
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+:root[data-theme="light"] .admin-shell .topbar .muted {
+  color: var(--text-secondary);
+}
+
+:root[data-theme="light"] .admin-shell .topbar button,
+:root[data-theme="light"] .admin-shell .topbar .link-btn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  backdrop-filter: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme="light"] .admin-shell .topbar button:hover,
+:root[data-theme="light"] .admin-shell .topbar .link-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================
+   Light Theme - Admin Section Tabs
+   ============================================ */
+
+:root[data-theme="light"] .admin-section-tabs {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .admin-section-tabs button.secondary:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+/* ============================================
+   Light Theme - KPI Cards
+   ============================================ */
+
+:root[data-theme="light"] .ops-kpi-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .ops-kpi-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+}
+
+/* ============================================
+   Light Theme - Trend Lists
+   ============================================ */
+
+:root[data-theme="light"] .ops-trend-list {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .ops-trend-list > strong {
+  border-bottom-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .ops-trend-row:hover {
+  background: #f8fafc;
+}
+
+:root[data-theme="light"] .ops-trend-bar {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+/* ============================================
+   Light Theme - Controls
+   ============================================ */
+
+:root[data-theme="light"] .ops-controls-row {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .ops-controls-row select,
+:root[data-theme="light"] .ops-filter-row input,
+:root[data-theme="light"] .ops-filter-row select {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: var(--text-primary);
+}
+
+:root[data-theme="light"] .ops-controls-row select:focus,
+:root[data-theme="light"] .ops-filter-row input:focus,
+:root[data-theme="light"] .ops-filter-row select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+:root[data-theme="light"] .tiny-btn.secondary {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: var(--text-primary);
+}
+
+:root[data-theme="light"] .tiny-btn.secondary:hover {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+/* ============================================
+   Light Theme - Panels
+   ============================================ */
+
+:root[data-theme="light"] .admin-shell .panel {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="light"] .admin-shell .section-head {
+  border-bottom-color: #e2e8f0;
+}

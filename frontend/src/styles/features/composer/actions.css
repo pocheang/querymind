@@ -1,0 +1,240 @@
+/* ============================================
+   COMPOSER: Actions, Controls and Quick Actions
+   ============================================ */
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.composer-primary-btn {
+  min-width: 188px;
+  min-height: 58px;
+  padding: 0 26px;
+  border-radius: 15px;
+  border: 1px solid rgba(185, 198, 255, 0.28);
+  background: linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
+  color: white;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 16px 36px rgba(91, 140, 255, 0.34), 0 0 34px rgba(139, 122, 255, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.composer-primary-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 42%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.composer-primary-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.38);
+  box-shadow: 0 20px 48px rgba(91, 140, 255, 0.42), 0 0 42px rgba(139, 122, 255, 0.24);
+}
+
+.composer-primary-btn:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.composer-primary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.composer-primary-btn .btn-text,
+.composer-primary-btn .btn-shortcut,
+.composer-primary-btn .spinner {
+  position: relative;
+  z-index: 1;
+}
+
+.composer-primary-btn .btn-text {
+  font-size: 16px;
+  font-weight: 820;
+}
+
+.composer-primary-btn .btn-shortcut {
+  font-size: 11px;
+  font-weight: 650;
+  opacity: 0.78;
+}
+
+.option-group {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(111, 132, 189, 0.22);
+  background: rgba(14, 22, 41, 0.42);
+  backdrop-filter: blur(8px);
+  transition: all 0.22s ease;
+}
+
+.option-group:hover {
+  border-color: rgba(111, 132, 189, 0.36);
+  background: rgba(18, 28, 48, 0.52);
+}
+
+.option-label {
+  color: rgba(184, 199, 255, 0.68);
+  font-size: 12px;
+  font-weight: 680;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.option-toggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.toggle-track {
+  display: block;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(111, 132, 189, 0.18);
+  border: 1px solid rgba(111, 132, 189, 0.12);
+  position: relative;
+  transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(184, 199, 255, 0.88);
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+  transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.option-toggle.active .toggle-track {
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.88), rgba(139, 122, 255, 0.88));
+  border-color: rgba(139, 122, 255, 0.42);
+  box-shadow: 0 0 16px rgba(91, 140, 255, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.12);
+}
+
+.option-toggle.active .toggle-thumb {
+  transform: translateX(20px);
+  background: #ffffff;
+  box-shadow: 0 3px 12px rgba(91, 140, 255, 0.42);
+}
+
+.option-select {
+  min-height: 32px;
+  min-width: 138px;
+  padding: 6px 32px 6px 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(111, 132, 189, 0.24);
+  background:
+    linear-gradient(135deg, rgba(18, 28, 48, 0.88), rgba(14, 22, 41, 0.92)),
+    radial-gradient(circle at 100% 0%, rgba(139, 122, 255, 0.08), transparent 50%);
+  color: rgba(224, 234, 255, 0.96);
+  font-size: 13px;
+  font-weight: 640;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  backdrop-filter: blur(8px);
+  appearance: none;
+  background-image:
+    linear-gradient(135deg, rgba(18, 28, 48, 0.88), rgba(14, 22, 41, 0.92)),
+    radial-gradient(circle at 100% 0%, rgba(139, 122, 255, 0.08), transparent 50%);
+  background-position: right 10px center;
+  background-repeat: no-repeat;
+  background-size: cover, cover;
+}
+
+.option-select:hover {
+  border-color: rgba(91, 140, 255, 0.42);
+  background:
+    linear-gradient(135deg, rgba(24, 36, 58, 0.92), rgba(18, 28, 48, 0.96)),
+    radial-gradient(circle at 100% 0%, rgba(139, 122, 255, 0.14), transparent 50%);
+}
+
+.option-select:focus {
+  outline: none;
+  border-color: rgba(91, 140, 255, 0.68);
+  box-shadow:
+    0 0 0 3px rgba(91, 140, 255, 0.16),
+    0 4px 12px rgba(91, 140, 255, 0.18);
+  background:
+    linear-gradient(135deg, rgba(24, 36, 58, 0.96), rgba(18, 28, 48, 1)),
+    radial-gradient(circle at 100% 0%, rgba(139, 122, 255, 0.18), transparent 50%);
+}
+
+.composer-hint {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(111, 132, 189, 0.14);
+  background: rgba(7, 13, 27, 0.32);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.quick-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.quick-action-btn {
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(111, 132, 189, 0.16);
+  background: rgba(18, 26, 45, 0.64);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 680;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.quick-action-btn:hover {
+  border-color: rgba(91, 140, 255, 0.4);
+  background: rgba(91, 140, 255, 0.12);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.quick-action-btn.danger {
+  color: #ff9b9b;
+  border-color: rgba(255, 107, 107, 0.28);
+  background: rgba(255, 107, 107, 0.1);
+}
+
+@media (max-width: 980px) {
+  .composer-primary-btn {
+    width: 100%;
+  }
+}

@@ -1,63 +1,38 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { appApi } from "@/lib/api";
-import "./ApiSettings.css";
+import { ApiSettingsFormFields } from "./ApiSettingsFormFields";
+import { ApiSettingsPresets } from "./ApiSettingsPresets";
+import { ApiSettingsProviderTabs } from "./ApiSettingsProviderTabs";
+import {
+  type Provider,
+  type ApiConfig,
+  PROVIDER_MODELS,
+  QUICK_PRESETS,
+  PROVIDERS,
+  DEFAULT_CONFIG,
+} from "./apiSettingsConstants";
+import {
+  requiresApiKey,
+  requiresBaseUrl,
+  validateConfig,
+  buildApiPayload,
+  applyProviderDefaults,
+  parseApiResponse,
+} from "./apiSettingsUtils";
 
-type Provider = "local" | "openai" | "anthropic" | "deepseek" | "ollama" | "custom";
-
-type ApiConfig = {
-  provider: Provider;
-  apiKey: string;
-  apiKeyMasked: string;
-  baseUrl: string;
-  model: string;
-  temperature: number;
-  maxTokens: number;
-};
+// Lazy-load modal CSS only when component is used
+let modalStylesLoaded = false;
+async function loadModalStyles() {
+  if (!modalStylesLoaded) {
+    await import("@/styles/components/modals.css");
+    modalStylesLoaded = true;
+  }
+}
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
 };
-
-const PROVIDER_MODELS: Record<Provider, string[]> = {
-  local: ["local-evidence"],
-  openai: ["gpt-5.4-codex", "gpt-5.2", "gpt-4o", "gpt-4o-mini"],
-  anthropic: ["claude-sonnet-4-6", "claude-opus-4-7", "claude-3-5-sonnet-20241022"],
-  deepseek: ["deepseek-chat", "deepseek-reasoner"],
-  ollama: ["qwen2.5:7b", "qwen2.5:7b-instruct", "llama3.2", "mistral", "phi3"],
-  custom: [],
-};
-
-const PROVIDER_DEFAULTS: Record<Provider, Pick<ApiConfig, "baseUrl" | "model">> = {
-  local: { baseUrl: "", model: "local-evidence" },
-  openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.4-codex" },
-  anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-sonnet-4-6" },
-  deepseek: { baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" },
-  ollama: { baseUrl: "http://localhost:11434", model: "qwen2.5:7b-instruct" },
-  custom: { baseUrl: "", model: "" },
-};
-
-const QUICK_PRESETS: Array<{ name: string; provider: Provider; model: string; mark: string }> = [
-  { name: "Local Evidence", provider: "local", model: "local-evidence", mark: "LC" },
-  { name: "Ollama Local", provider: "ollama", model: "qwen2.5:7b-instruct", mark: "OL" },
-  { name: "OpenAI GPT", provider: "openai", model: "gpt-5.4-codex", mark: "OA" },
-  { name: "DeepSeek", provider: "deepseek", model: "deepseek-chat", mark: "DS" },
-  { name: "Claude", provider: "anthropic", model: "claude-sonnet-4-6", mark: "CL" },
-];
-
-const DEFAULT_CONFIG: ApiConfig = {
-  provider: "ollama",
-  apiKey: "",
-  apiKeyMasked: "",
-  baseUrl: "http://localhost:11434",
-  model: "qwen2.5:7b-instruct",
-  temperature: 0.7,
-  maxTokens: 2048,
-};
-
-function clampNumber(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
 
 export function ApiSettings({ isOpen, onClose }: Props) {
   const [config, setConfig] = useState<ApiConfig>(DEFAULT_CONFIG);
@@ -67,13 +42,17 @@ export function ApiSettings({ isOpen, onClose }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Load modal CSS when component opens
   useEffect(() => {
-    if (isOpen) void loadSettings();
+    if (isOpen) {
+      loadModalStyles();
+      void loadSettings();
+    }
   }, [isOpen]);
 
   const selectedModels = useMemo(() => PROVIDER_MODELS[config.provider] || [], [config.provider]);
-  const requiresApiKey = !["local", "ollama"].includes(config.provider);
-  const requiresBaseUrl = config.provider !== "local";
+  const needsApiKey = requiresApiKey(config.provider);
+  const needsBaseUrl = requiresBaseUrl(config.provider);
 
   const loadSettings = async () => {
     setIsLoading(true);
@@ -81,15 +60,7 @@ export function ApiSettings({ isOpen, onClose }: Props) {
     try {
       const response = await appApi.getUserApiSettings();
       if (response.ok && response.settings) {
-        setConfig({
-          provider: (response.settings.provider || "ollama") as Provider,
-          apiKey: "",
-          apiKeyMasked: response.settings.api_key_masked || "",
-          baseUrl: response.settings.base_url || "",
-          model: response.settings.model || "",
-          temperature: Number(response.settings.temperature ?? 0.7),
-          maxTokens: Number(response.settings.max_tokens ?? 2048),
-        });
+        setConfig(parseApiResponse(response.settings));
       }
     } catch (error) {
       setResult({ type: "error", message: error instanceof Error ? error.message : "Failed to load settings" });
@@ -104,37 +75,21 @@ export function ApiSettings({ isOpen, onClose }: Props) {
   };
 
   const changeProvider = (provider: Provider) => {
-    const defaults = PROVIDER_DEFAULTS[provider];
-    patchConfig({ provider, baseUrl: defaults.baseUrl, model: defaults.model, apiKey: "", apiKeyMasked: "" });
+    patchConfig(applyProviderDefaults(provider));
   };
 
-  const applyPreset = (preset: (typeof QUICK_PRESETS)[number]) => {
-    const defaults = PROVIDER_DEFAULTS[preset.provider];
-    patchConfig({ provider: preset.provider, baseUrl: defaults.baseUrl, model: preset.model, apiKey: "", apiKeyMasked: "" });
-  };
-
-  const validateConfig = () => {
-    if (!config.provider) return "Please select provider";
-    if (requiresBaseUrl && !config.baseUrl.trim()) return "Base URL is required";
-    if (!config.model.trim()) return "Model is required";
-    if (requiresApiKey && !config.apiKey.trim() && !config.apiKeyMasked.trim()) return "API key is required for this provider";
-    return "";
+  const applyPreset = (preset: typeof QUICK_PRESETS[number]) => {
+    const defaults = applyProviderDefaults(preset.provider);
+    patchConfig({ ...defaults, model: preset.model });
   };
 
   const handleCheck = async () => {
     setIsChecking(true);
     setResult(null);
     try {
-      const message = validateConfig();
+      const message = validateConfig(config);
       if (message) throw new Error(message);
-      const payload = {
-        provider: config.provider,
-        api_key: config.apiKey.trim(),
-        base_url: config.baseUrl.trim(),
-        model: config.model.trim(),
-        temperature: clampNumber(Number(config.temperature), 0, 2),
-        max_tokens: clampNumber(Number(config.maxTokens), 256, 8192),
-      };
+      const payload = buildApiPayload(config);
       const probe = await appApi.testUserApiSettings(payload);
       if (probe.ok && probe.reachable) {
         const previewSuffix = probe.preview ? ` | Preview: ${probe.preview}` : "";
@@ -159,16 +114,9 @@ export function ApiSettings({ isOpen, onClose }: Props) {
     setIsSaving(true);
     setResult(null);
     try {
-      const message = validateConfig();
+      const message = validateConfig(config);
       if (message) throw new Error(message);
-      const payload = {
-        provider: config.provider,
-        api_key: config.apiKey.trim(),
-        base_url: config.baseUrl.trim(),
-        model: config.model.trim(),
-        temperature: clampNumber(Number(config.temperature), 0, 2),
-        max_tokens: clampNumber(Number(config.maxTokens), 256, 8192),
-      };
+      const payload = buildApiPayload(config);
       const saved = await appApi.saveUserApiSettings(payload);
       setConfig((prev) => ({
         ...prev,
@@ -208,144 +156,28 @@ export function ApiSettings({ isOpen, onClose }: Props) {
             <div className="settings-loading">Loading settings...</div>
           ) : (
             <>
-              <section className="settings-section">
-                <label className="section-label">Quick Presets</label>
-                <div className="preset-grid">
-                  {QUICK_PRESETS.map((preset) => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      className={`preset-card ${config.provider === preset.provider && config.model === preset.model ? "active" : ""}`}
-                      onClick={() => applyPreset(preset)}
-                    >
-                      <span className="preset-icon">{preset.mark}</span>
-                      <span className="preset-name">{preset.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
+              <ApiSettingsPresets
+                presets={QUICK_PRESETS}
+                activeProvider={config.provider}
+                activeModel={config.model}
+                onApplyPreset={applyPreset}
+              />
 
-              <section className="settings-section">
-                <label className="section-label">Provider</label>
-                <div className="provider-tabs">
-                  {(["local", "ollama", "openai", "deepseek", "anthropic", "custom"] as Provider[]).map((provider) => (
-                    <button
-                      key={provider}
-                      type="button"
-                      className={`provider-tab ${config.provider === provider ? "active" : ""}`}
-                      onClick={() => changeProvider(provider)}
-                    >
-                      {provider}
-                    </button>
-                  ))}
-                </div>
-              </section>
+              <ApiSettingsProviderTabs
+                providers={PROVIDERS}
+                activeProvider={config.provider}
+                onChangeProvider={changeProvider}
+              />
 
-              <section className="settings-section">
-                <div className="settings-note">
-                  These settings apply to chat and reasoning calls. Embeddings are configured globally by an admin so the vector index stays consistent.
-                </div>
-              </section>
-
-              {requiresApiKey && (
-                <section className="settings-section">
-                  <label className="section-label" htmlFor="api-key-input">API Key</label>
-                  <div className="input-with-action">
-                    <input
-                      id="api-key-input"
-                      type={showApiKey ? "text" : "password"}
-                      className="api-input-field"
-                      placeholder={config.apiKeyMasked ? `Saved: ${config.apiKeyMasked}` : "sk-..."}
-                      value={config.apiKey}
-                      onChange={(e) => patchConfig({ apiKey: e.target.value, apiKeyMasked: "" })}
-                    />
-                    <button type="button" className="input-action-btn" onClick={() => setShowApiKey((v) => !v)}>
-                      {showApiKey ? "Hide" : "Show"}
-                    </button>
-                  </div>
-                </section>
-              )}
-
-              {requiresBaseUrl && <section className="settings-section">
-                <label className="section-label" htmlFor="base-url-input">Base URL</label>
-                <input
-                  id="base-url-input"
-                  type="text"
-                  className="api-input-field"
-                  placeholder="https://api.example.com/v1"
-                  value={config.baseUrl}
-                  onChange={(e) => patchConfig({ baseUrl: e.target.value })}
-                />
-              </section>}
-
-              <section className="settings-section">
-                <label className="section-label" htmlFor="model-input">Model</label>
-                {selectedModels.length > 0 ? (
-                  <select
-                    id="model-input"
-                    className="api-select"
-                    value={config.model}
-                    onChange={(e) => patchConfig({ model: e.target.value })}
-                  >
-                    {selectedModels.map((model) => (
-                      <option key={model} value={model}>{model}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    id="model-input"
-                    type="text"
-                    className="api-input-field"
-                    placeholder="model-name"
-                    value={config.model}
-                    onChange={(e) => patchConfig({ model: e.target.value })}
-                  />
-                )}
-              </section>
-
-              <section className="settings-section">
-                <label className="section-label" htmlFor="temperature-input">
-                  Temperature
-                  <span className="label-value">{Number(config.temperature).toFixed(1)}</span>
-                </label>
-                <input
-                  id="temperature-input"
-                  type="range"
-                  className="api-slider"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={config.temperature}
-                  onChange={(e) => patchConfig({ temperature: Number(e.target.value) })}
-                />
-                <div className="slider-labels">
-                  <span>Stable</span>
-                  <span>Balanced</span>
-                  <span>Creative</span>
-                </div>
-              </section>
-
-              <section className="settings-section">
-                <label className="section-label" htmlFor="max-tokens-input">
-                  Max Tokens
-                  <span className="label-value">{config.maxTokens}</span>
-                </label>
-                <input
-                  id="max-tokens-input"
-                  type="range"
-                  className="api-slider"
-                  min="256"
-                  max="8192"
-                  step="256"
-                  value={config.maxTokens}
-                  onChange={(e) => patchConfig({ maxTokens: Number(e.target.value) })}
-                />
-                <div className="slider-labels">
-                  <span>256</span>
-                  <span>4096</span>
-                  <span>8192</span>
-                </div>
-              </section>
+              <ApiSettingsFormFields
+                config={config}
+                selectedModels={selectedModels}
+                requiresApiKey={needsApiKey}
+                requiresBaseUrl={needsBaseUrl}
+                showApiKey={showApiKey}
+                onShowApiKeyToggle={() => setShowApiKey((v) => !v)}
+                onConfigChange={patchConfig}
+              />
 
               {result && <div className={`test-result ${result.type}`}>{result.message}</div>}
             </>

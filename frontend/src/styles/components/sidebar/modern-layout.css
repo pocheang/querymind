@@ -1,0 +1,162 @@
+/* ============================================
+   Modern Sidebar Layout - Cyber Deck
+   ============================================ */
+
+.sidebar {
+  width: 292px;
+  padding: 0;
+  background:
+    radial-gradient(circle at 24% -8%, rgba(62, 113, 255, 0.2), transparent 30%),
+    radial-gradient(circle at 100% 16%, rgba(138, 68, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(6, 10, 20, 0.99), rgba(9, 16, 30, 0.97) 48%, rgba(7, 12, 23, 0.99));
+  border-right: 1px solid rgba(108, 128, 176, 0.24);
+  box-shadow: 20px 0 58px rgba(0, 0, 0, 0.34), inset -1px 0 0 rgba(255, 255, 255, 0.025);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-shell {
+  padding: 20px 18px 18px;
+  gap: 16px;
+  min-height: 100vh;
+}
+
+.sidebar-header {
+  padding: 0 0 6px;
+  border-bottom: 0;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent),
+    linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
+  box-shadow: 0 14px 30px rgba(91, 140, 255, 0.34), 0 0 26px rgba(139, 122, 255, 0.24);
+}
+
+.sidebar-brand-mark span {
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.sidebar-brand-block {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.sidebar-brand-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #3d92ff;
+  font-size: 9px;
+  font-weight: 860;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sidebar-header .brand {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 820;
+  letter-spacing: 0;
+}
+
+.sidebar-header .muted {
+  display: block;
+  max-width: 220px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.sidebar-header .sidebar-collapse-btn {
+  display: inline-flex;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: rgba(16, 25, 43, 0.7);
+  border-color: rgba(100, 122, 180, 0.18);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.sidebar-history {
+  padding: 0;
+  max-height: min(52vh, 520px);
+}
+
+.sidebar-history-panel {
+  gap: 10px;
+}
+
+.sidebar-history .section-head {
+  padding: 0 1px;
+  margin: 0 0 7px;
+}
+
+.sidebar-history .section-head strong {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+}
+
+.sidebar-history .section-head .muted {
+  display: none;
+}
+
+.sidebar-history .section-head button {
+  display: none;
+}
+
+.sidebar-history .section-head button {
+  min-height: 32px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(100, 122, 180, 0.2);
+  background: rgba(31, 42, 70, 0.72);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.sidebar-history .section-head button:hover {
+  background: rgba(61, 83, 137, 0.42);
+  border-color: rgba(91, 140, 255, 0.46);
+  color: var(--text-primary);
+}
+
+.sidebar-tools {
+  margin-top: 0;
+  padding: 0 2px 0 0;
+  border-top: 0;
+  gap: 10px;
+}
+
+.sidebar-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+}

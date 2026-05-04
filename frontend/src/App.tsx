@@ -6,6 +6,9 @@ import { LoginPage } from "@/pages/LoginPage";
 import { ChatPage } from "@/pages/ChatPage";
 import { AdminPage } from "@/pages/AdminPage";
 import { ArchitecturePage } from "@/pages/ArchitecturePage";
+import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
+import { ProfilePage } from "@/pages/ProfilePage";
+import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import type { AuthUser } from "@/types/api";
 
@@ -46,20 +49,8 @@ export function App() {
       .finally(() => setAuthReady(true));
   }, []);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handle = () => {
-      if (theme === "auto") applyTheme("auto");
-    };
-    mq.addEventListener("change", handle);
-    return () => mq.removeEventListener("change", handle);
-  }, [theme]);
-
   const themeLabel = useMemo(() => {
-    if (theme === "light") return "主题: 亮色";
-    if (theme === "dark") return "主题: 暗色";
-    const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    return `主题: 跟随系统(${dark ? "暗" : "亮"})`;
+    return theme === "dark" ? "主题: 暗色" : "主题: 亮色";
   }, [theme]);
 
   const logout = async () => {
@@ -90,6 +81,19 @@ export function App() {
         }
       />
       <Route
+        path="/app/forgot-password"
+        element={
+          user ? (
+            <Navigate to="/app" replace />
+          ) : (
+            <ForgotPasswordPage
+              themeLabel={themeLabel}
+              onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
+            />
+          )
+        }
+      />
+      <Route
         path="/app"
         element={
           <Protected user={user} authReady={authReady}>
@@ -112,6 +116,22 @@ export function App() {
               themeLabel={themeLabel}
               onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
             />
+          </Protected>
+        }
+      />
+      <Route
+        path="/app/change-password"
+        element={
+          <Protected user={user} authReady={authReady}>
+            <ChangePasswordPage themeLabel={themeLabel} onThemeToggle={() => setTheme((prev) => nextTheme(prev))} />
+          </Protected>
+        }
+      />
+      <Route
+        path="/app/profile"
+        element={
+          <Protected user={user} authReady={authReady}>
+            <ProfilePage user={user} />
           </Protected>
         }
       />

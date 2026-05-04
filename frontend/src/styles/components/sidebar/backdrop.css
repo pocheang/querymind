@@ -1,0 +1,21 @@
+/* ============================================
+   Sidebar Backdrop (Mobile Overlay)
+   ============================================ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(91, 140, 255, 0.18), transparent 34%),
+    rgba(2, 6, 16, 0.66);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s ease;
+  backdrop-filter: blur(8px);
+}
+
+.backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}

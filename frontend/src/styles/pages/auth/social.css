@@ -1,0 +1,119 @@
+/* ============================================
+   Authentication Social Login
+   ============================================ */
+
+.divider {
+  margin: 28px 0 18px;
+  text-align: center;
+  position: relative;
+}
+
+.divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--border-light);
+}
+
+.divider span {
+  position: relative;
+  background: #fff;
+  padding: 0 16px;
+  font-size: 13px;
+  color: #9aa7c0;
+  font-weight: 500;
+}
+
+.social-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 0 16px;
+  border: 1px solid #d8e1ef;
+  border-radius: 16px;
+  background: #fff;
+  color: #17305e;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 16px rgba(151, 166, 194, 0.1);
+}
+
+.social-btn:hover {
+  background: #f9fbff;
+  border-color: #b8caec;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(151, 166, 194, 0.14);
+}
+
+.social-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.social-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.social-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.social-icon-google {
+  color: #4285f4;
+}
+
+.social-icon-github {
+  color: #1f2937;
+}
+
+/* Dark Mode - Social Login */
+
+:root[data-theme="dark"] .secondary,
+:root[data-theme="dark"] button.secondary,
+:root[data-theme="dark"] .social-btn,
+:root[data-theme="dark"] .link-button {
+  background: rgba(16, 29, 47, 0.98);
+  border-color: rgba(56, 76, 102, 0.9);
+  color: #eef5fd;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+:root[data-theme="dark"] .secondary:hover:not(:disabled),
+:root[data-theme="dark"] button.secondary:hover:not(:disabled),
+:root[data-theme="dark"] .social-btn:hover,
+:root[data-theme="dark"] .link-button:hover {
+  background: rgba(21, 37, 59, 0.98);
+  border-color: rgba(108, 182, 255, 0.48);
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .divider::before {
+  border-color: rgba(49, 67, 90, 0.92);
+}
+
+:root[data-theme="dark"] .divider span {
+  background: rgba(8, 16, 28, 0.94);
+  color: #89a0bb;
+}

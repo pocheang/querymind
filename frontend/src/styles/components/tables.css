@@ -1,0 +1,137 @@
+/* ============================================
+   Tables Component
+   Consolidated from: tables.css, admin.css
+   ============================================ */
+
+/* ============================================
+   Base Table Styles
+   ============================================ */
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border-light);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.table:hover {
+  border-color: var(--border-medium);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.table thead {
+  background: var(--bg-secondary);
+}
+
+.table th {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1.5px solid var(--border-light);
+}
+
+.table td {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+}
+
+.table tbody tr {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.table tbody tr:hover {
+  background: var(--surface-hover);
+  transform: translateX(2px);
+}
+
+.table tbody tr:hover td {
+  color: var(--accent);
+}
+
+.table tbody tr:nth-child(even) {
+  background: var(--bg);
+}
+
+.table tbody tr:nth-child(even):hover {
+  background: var(--surface-hover);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ============================================
+   Admin Tables (from admin.css)
+   ============================================ */
+
+.admin-shell .table {
+  margin-top: 16px;
+}
+
+.admin-user-table,
+.admin-audit-table {
+  width: 100%;
+}
+
+.audit-table-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+/* ============================================
+   Table Row Actions
+   ============================================ */
+
+.table .row-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ============================================
+   Dark Mode Overrides
+   ============================================ */
+
+:root[data-theme="dark"] .table {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(71, 85, 105, 0.6);
+}
+
+:root[data-theme="dark"] .table thead {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+:root[data-theme="dark"] .table th {
+  color: #94a3b8;
+  border-bottom-color: rgba(71, 85, 105, 0.6);
+}
+
+:root[data-theme="dark"] .table td {
+  color: #e2e8f0;
+  border-bottom-color: rgba(71, 85, 105, 0.4);
+}
+
+:root[data-theme="dark"] .table tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+:root[data-theme="dark"] .table tbody tr:hover {
+  background: rgba(51, 65, 85, 0.6);
+}
+
+:root[data-theme="dark"] .table tbody tr:hover td {
+  color: #a5b4fc;
+}
