@@ -6,6 +6,7 @@ import sys
 def test_ci_quality_gate_emits_rollback_profile_when_runtime_required():
     rollback = Path("data/eval/.tmp_rollback_test.env")
     report = Path("data/eval/.tmp_quality_report_test.md")
+    rollback.parent.mkdir(parents=True, exist_ok=True)
     if rollback.exists():
         rollback.unlink()
     if report.exists():
