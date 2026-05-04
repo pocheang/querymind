@@ -8,7 +8,7 @@
 
 Enterprise-oriented, local-first RAG platform with multi-agent orchestration, hybrid retrieval, graph enhancement, admin governance, and streaming chat.
 
-**Latest Release**: v0.3.2 (2026-04-28) - CI/CD Quality Gates & Frontend Modernization
+**Latest Release**: v0.3.2 (2026-05-03) - CI/CD Quality Gates & Frontend Modernization
 
 This repository packages a FastAPI backend, a React frontend, and a modular retrieval pipeline designed for private knowledge bases, internal copilots, and controlled enterprise AI workflows.
 
