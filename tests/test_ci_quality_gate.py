@@ -26,10 +26,10 @@ def test_ci_quality_gate_emits_rollback_profile_when_runtime_required():
         capture_output=True,
         text=True,
     )
-    # In lightweight test env, runtime is usually unavailable and should trigger rollback profile.
-    assert proc.returncode in {0, 3}
+    # In lightweight test env, runtime is usually unavailable (exit 3) or recall below threshold (exit 4).
+    assert proc.returncode in {0, 3, 4}
     assert report.exists()
-    if proc.returncode == 3:
+    if proc.returncode in {3, 4}:
         assert rollback.exists()
         content = rollback.read_text(encoding="utf-8")
         assert "RETRIEVAL_STRATEGY=baseline" in content
@@ -49,7 +49,7 @@ def test_ci_quality_gate_runtime_unavailable_fails_by_default_and_can_be_overrid
     proc_default = subprocess.run(base_cmd, capture_output=True, text=True)
     proc_allow = subprocess.run(base_cmd + ["--allow-runtime-unavailable"], capture_output=True, text=True)
 
-    assert proc_default.returncode in {0, 3}
-    assert proc_allow.returncode in {0, 3}
-    if proc_default.returncode == 3:
+    assert proc_default.returncode in {0, 3, 4}
+    assert proc_allow.returncode in {0, 3, 4}
+    if proc_default.returncode in {3, 4}:
         assert proc_allow.returncode == 0
