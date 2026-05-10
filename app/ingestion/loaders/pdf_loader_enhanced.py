@@ -12,18 +12,24 @@ from app.ingestion.utils.table_merger import merge_cross_page_tables
 logger = logging.getLogger(__name__)
 
 
-def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
-    """Load PDF with enhanced processing (cleaning, table merging, etc).
+def load_pdf_enhanced(
+    path: Path,
+    by_page: bool = True,
+    enable_cleaning: bool = True,
+    enable_table_merging: bool = True,
+    enable_nested_table_handling: bool = True
+) -> list[Document]:
+    """Load PDF with configurable enhanced processing.
 
-    This function uses Docling for Markdown conversion, then applies:
-    - Header/footer removal
-    - Cross-page table merging
-    - Nested table flattening
-    - Multi-column layout handling
+    This function uses Docling for Markdown conversion, then applies
+    optional processing steps based on configuration.
 
     Args:
         path: Path to PDF file
         by_page: If True, return one Document per page
+        enable_cleaning: Remove headers/footers
+        enable_table_merging: Merge cross-page tables
+        enable_nested_table_handling: Simplify nested tables
 
     Returns:
         List of Document objects with enhanced content
@@ -49,20 +55,36 @@ def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
             logger.warning(f"No content extracted from {path.name}")
             return []
 
-        # Step 3: Clean pages (remove headers/footers)
-        cleaned_pages = clean_pdf_pages(pages_content)
+        # Step 3: Clean pages (optional)
+        if enable_cleaning:
+            pages_content = clean_pdf_pages(pages_content)
+            logger.debug(f"Applied cleaning to {path.name}")
 
-        # Step 4: Merge cross-page tables
-        merged_pages = merge_cross_page_tables(cleaned_pages)
+        # Step 4: Merge cross-page tables (optional)
+        if enable_table_merging:
+            pages_content = merge_cross_page_tables(pages_content)
+            logger.debug(f"Applied table merging to {path.name}")
 
-        # Step 5: Simplify complex tables
+        # Step 5: Simplify complex tables (optional)
         processed_pages = []
-        for page_content in merged_pages:
-            # Simplify nested tables
-            simplified = simplify_complex_table(page_content)
-            processed_pages.append(simplified)
+        for page_content in pages_content:
+            if enable_nested_table_handling:
+                page_content = simplify_complex_table(page_content)
+            processed_pages.append(page_content)
+
+        if enable_nested_table_handling:
+            logger.debug(f"Applied nested table handling to {path.name}")
 
         # Step 6: Create Document objects
+        metadata_base = {
+            "source": str(path),
+            "format": "markdown",
+            "converter": "docling_enhanced",
+            "cleaning_enabled": enable_cleaning,
+            "table_merging_enabled": enable_table_merging,
+            "nested_table_handling_enabled": enable_nested_table_handling,
+        }
+
         if not by_page:
             # Single document
             full_content = "\n\n---\n\n".join(processed_pages)
@@ -70,9 +92,7 @@ def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
                 Document(
                     page_content=full_content,
                     metadata={
-                        "source": str(path),
-                        "format": "markdown",
-                        "converter": "docling_enhanced",
+                        **metadata_base,
                         "total_pages": len(processed_pages),
                     },
                 )
@@ -85,10 +105,8 @@ def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
                 Document(
                     page_content=page_content,
                     metadata={
-                        "source": str(path),
+                        **metadata_base,
                         "page": page_idx,
-                        "format": "markdown",
-                        "converter": "docling_enhanced",
                     },
                 )
             )

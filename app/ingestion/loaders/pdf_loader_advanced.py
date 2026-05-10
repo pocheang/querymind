@@ -19,7 +19,9 @@ def load_pdf_advanced(
     by_page: bool = True,
     enable_structure: bool = True,
     enable_coreference: bool = True,
-    enable_formula_enrichment: bool = True
+    enable_formula_enrichment: bool = True,
+    enable_cleaning: bool = True,
+    enable_table_merging: bool = True
 ) -> List[Document]:
     """
     Load PDF with all advanced processing features.
@@ -36,12 +38,20 @@ def load_pdf_advanced(
         enable_structure: Enable document structure analysis
         enable_coreference: Enable coreference resolution
         enable_formula_enrichment: Enable formula semantic extraction
+        enable_cleaning: Enable header/footer removal
+        enable_table_merging: Enable cross-page table merging
 
     Returns:
         List of Document objects with advanced processing
     """
     # Load with enhanced processing (cleaning, tables, etc.)
-    docs = load_pdf_enhanced(path, by_page=by_page)
+    docs = load_pdf_enhanced(
+        path,
+        by_page=by_page,
+        enable_cleaning=enable_cleaning,
+        enable_table_merging=enable_table_merging,
+        enable_nested_table_handling=True
+    )
 
     if not docs:
         logger.warning(f"No documents loaded from {path.name}")
@@ -55,17 +65,17 @@ def load_pdf_advanced(
         metadata = doc.metadata.copy()
 
         try:
-            # Step 1: Formula enrichment
+            # Step 1: Formula enrichment (optional)
             if enable_formula_enrichment:
                 content = enrich_text_with_formulas(content)
                 metadata['formula_enrichment'] = True
 
-            # Step 2: Coreference resolution
+            # Step 2: Coreference resolution (optional)
             if enable_coreference:
                 content = simple_coreference_resolution(content)
                 metadata['coreference_resolved'] = True
 
-            # Step 3: Document structure
+            # Step 3: Document structure (optional)
             if enable_structure:
                 sections = extract_document_structure(content, page=metadata.get('page'))
                 if sections:

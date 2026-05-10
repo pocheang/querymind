@@ -77,7 +77,9 @@ def _load_pdf_with_mode(path: Path, pdf_mode: str, settings) -> list[Document]:
                 by_page=True,
                 enable_structure=settings.pdf_enable_structure_analysis,
                 enable_coreference=settings.pdf_enable_coreference,
-                enable_formula_enrichment=settings.pdf_enable_formula_enrichment
+                enable_formula_enrichment=settings.pdf_enable_formula_enrichment,
+                enable_cleaning=settings.pdf_enable_cleaning,
+                enable_table_merging=settings.pdf_enable_table_merging,
             )
 
             if advanced_docs:
@@ -88,7 +90,12 @@ def _load_pdf_with_mode(path: Path, pdf_mode: str, settings) -> list[Document]:
             logger.warning(f"Advanced processing failed for {path.name}: {e}")
 
         # Fallback to enhanced
-        enhanced_docs = load_pdf_enhanced(path, by_page=True)
+        enhanced_docs = load_pdf_enhanced(
+            path,
+            by_page=True,
+            enable_cleaning=settings.pdf_enable_cleaning,
+            enable_table_merging=settings.pdf_enable_table_merging,
+        )
         if enhanced_docs:
             logger.info(f"Loaded {path.name} with enhanced processing (fallback)")
             return enhanced_docs
@@ -99,7 +106,13 @@ def _load_pdf_with_mode(path: Path, pdf_mode: str, settings) -> list[Document]:
 
     elif pdf_mode == "docling_enhanced":
         # Try enhanced processing
-        enhanced_docs = load_pdf_enhanced(path, by_page=True)
+        enhanced_docs = load_pdf_enhanced(
+            path,
+            by_page=True,
+            enable_cleaning=settings.pdf_enable_cleaning,
+            enable_table_merging=settings.pdf_enable_table_merging,
+            enable_nested_table_handling=True  # Always enabled for enhanced mode
+        )
         if enhanced_docs:
             logger.info(f"Loaded {path.name} with enhanced processing")
             return enhanced_docs

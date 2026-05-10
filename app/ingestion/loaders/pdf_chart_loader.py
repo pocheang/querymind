@@ -45,54 +45,57 @@ def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: s
                 logger.warning("Anthropic API key not configured, chart extraction will fail")
 
     try:
-        reader = PdfReader(str(path))
+        # Use context manager for proper resource cleanup
+        with open(path, 'rb') as pdf_file:
+            reader = PdfReader(pdf_file)
+
+            for page_idx, page in enumerate(reader.pages, start=1):
+                # Extract images from page
+                try:
+                    images = list(page.images or [])
+                except Exception as e:
+                    logger.warning(f"Failed to extract images from page {page_idx}: {e}")
+                    images = []
+
+                for img_idx, img_obj in enumerate(images, start=1):
+                    img_bytes = getattr(img_obj, "data", None)
+                    if not img_bytes:
+                        continue
+
+                    # Detect if image is a chart
+                    detection = detect_chart_in_image(img_bytes)
+
+                    if not detection.get("is_chart"):
+                        continue
+
+                    # Extract chart data
+                    if use_vision:
+                        chart_data = extract_chart_data_with_vision(
+                            img_bytes,
+                            model=vision_model,
+                            api_key=api_key
+                        )
+                        chart_text = chart_data_to_markdown(chart_data)
+                    else:
+                        chart_text = f"[Chart detected but vision extraction disabled]"
+
+                    # Create document
+                    doc = Document(
+                        page_content=chart_text,
+                        metadata={
+                            "source": str(path),
+                            "page": page_idx,
+                            "image_index": img_idx,
+                            "modality": "chart",
+                            "chart_type": detection.get("chart_type", "unknown"),
+                            "detection_confidence": detection.get("confidence", 0.0),
+                        }
+                    )
+                    docs.append(doc)
+
     except Exception as e:
-        logger.error(f"Failed to read PDF {path}: {e}")
+        logger.error(f"PDF chart extraction failed for {path.name}: {e}", exc_info=True)
         return docs
-
-    for page_idx, page in enumerate(reader.pages, start=1):
-        # Extract images from page
-        try:
-            images = list(page.images or [])
-        except Exception as e:
-            logger.warning(f"Failed to extract images from page {page_idx}: {e}")
-            images = []
-
-        for img_idx, img_obj in enumerate(images, start=1):
-            img_bytes = getattr(img_obj, "data", None)
-            if not img_bytes:
-                continue
-
-            # Detect if image is a chart
-            detection = detect_chart_in_image(img_bytes)
-
-            if not detection.get("is_chart"):
-                continue
-
-            # Extract chart data
-            if use_vision:
-                chart_data = extract_chart_data_with_vision(
-                    img_bytes,
-                    model=vision_model,
-                    api_key=api_key
-                )
-                chart_text = chart_data_to_markdown(chart_data)
-            else:
-                chart_text = f"[Chart detected but vision extraction disabled]"
-
-            # Create document
-            doc = Document(
-                page_content=chart_text,
-                metadata={
-                    "source": str(path),
-                    "page": page_idx,
-                    "image_index": img_idx,
-                    "modality": "chart",
-                    "chart_type": detection.get("chart_type", "unknown"),
-                    "detection_confidence": detection.get("confidence", 0.0),
-                }
-            )
-            docs.append(doc)
 
     return docs
 
