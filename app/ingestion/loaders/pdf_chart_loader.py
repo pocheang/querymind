@@ -2,10 +2,14 @@
 
 from pathlib import Path
 from typing import List
+import logging
 
 from langchain_core.documents import Document
 
+from app.core.config import get_settings
 from app.ingestion.utils.chart_extractor import detect_chart_in_image, extract_chart_data_with_vision, chart_data_to_markdown
+
+logger = logging.getLogger(__name__)
 
 
 def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: str = "gpt-4-vision") -> List[Document]:
@@ -27,16 +31,31 @@ def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: s
 
     docs = []
 
+    # Get API key from settings
+    settings = get_settings()
+    api_key = None
+    if use_vision:
+        if vision_model.startswith("gpt-4") or vision_model.startswith("gpt"):
+            api_key = settings.openai_api_key
+            if not api_key:
+                logger.warning("OpenAI API key not configured, chart extraction will fail")
+        elif vision_model.startswith("claude"):
+            api_key = settings.anthropic_api_key
+            if not api_key:
+                logger.warning("Anthropic API key not configured, chart extraction will fail")
+
     try:
         reader = PdfReader(str(path))
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to read PDF {path}: {e}")
         return docs
 
     for page_idx, page in enumerate(reader.pages, start=1):
         # Extract images from page
         try:
             images = list(page.images or [])
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to extract images from page {page_idx}: {e}")
             images = []
 
         for img_idx, img_obj in enumerate(images, start=1):
@@ -52,7 +71,11 @@ def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: s
 
             # Extract chart data
             if use_vision:
-                chart_data = extract_chart_data_with_vision(img_bytes, model=vision_model)
+                chart_data = extract_chart_data_with_vision(
+                    img_bytes,
+                    model=vision_model,
+                    api_key=api_key
+                )
                 chart_text = chart_data_to_markdown(chart_data)
             else:
                 chart_text = f"[Chart detected but vision extraction disabled]"

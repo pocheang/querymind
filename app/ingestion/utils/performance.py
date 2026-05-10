@@ -3,7 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
-from typing import List, Optional, Callable, Any
+from typing import List, Optional, Callable, Any, Dict
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import logging
 
@@ -27,8 +27,26 @@ def compute_file_hash(file_path: Path) -> str:
     return sha256.hexdigest()
 
 
+def compute_config_hash(config_dict: Dict) -> str:
+    """
+    Compute hash of configuration parameters.
+
+    Args:
+        config_dict: Configuration parameters
+
+    Returns:
+        Short hash of configuration (8 chars)
+    """
+    if not config_dict:
+        return ""
+
+    # Sort keys for consistent hashing
+    config_str = json.dumps(config_dict, sort_keys=True)
+    return hashlib.md5(config_str.encode()).hexdigest()[:8]
+
+
 class PDFProcessingCache:
-    """Cache for PDF processing results."""
+    """Cache for PDF processing results with configuration-aware keys."""
 
     def __init__(self, cache_dir: Path = Path("./data/cache/pdf_processing")):
         """
@@ -40,24 +58,42 @@ class PDFProcessingCache:
         self.cache_dir = cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def get_cache_path(self, file_path: Path, operation: str) -> Path:
-        """Get cache file path for a PDF and operation."""
+    def get_cache_path(self, file_path: Path, operation: str, config: Optional[Dict] = None) -> Path:
+        """
+        Get cache file path for a PDF, operation, and configuration.
+
+        Args:
+            file_path: Path to PDF file
+            operation: Operation name (e.g., 'docling', 'ocr', 'charts')
+            config: Configuration parameters that affect the result
+
+        Returns:
+            Path to cache file
+        """
         file_hash = compute_file_hash(file_path)
-        cache_file = f"{file_hash}_{operation}.json"
+
+        # Include config hash in cache key to avoid collisions
+        if config:
+            config_hash = compute_config_hash(config)
+            cache_file = f"{file_hash}_{operation}_{config_hash}.json"
+        else:
+            cache_file = f"{file_hash}_{operation}.json"
+
         return self.cache_dir / cache_file
 
-    def get(self, file_path: Path, operation: str) -> Optional[Any]:
+    def get(self, file_path: Path, operation: str, config: Optional[Dict] = None) -> Optional[Any]:
         """
         Get cached result.
 
         Args:
             file_path: Path to PDF file
             operation: Operation name (e.g., 'docling', 'ocr', 'charts')
+            config: Configuration parameters used for this operation
 
         Returns:
             Cached result or None
         """
-        cache_path = self.get_cache_path(file_path, operation)
+        cache_path = self.get_cache_path(file_path, operation, config)
 
         if not cache_path.exists():
             return None
@@ -68,44 +104,77 @@ class PDFProcessingCache:
                 logger.info(f"Cache hit for {file_path.name} - {operation}")
                 return data
         except Exception as e:
-            logger.warning(f"Cache read failed: {e}")
+            logger.warning(f"Cache read failed for {file_path.name}: {e}")
             return None
 
-    def set(self, file_path: Path, operation: str, result: Any) -> None:
+    def set(self, file_path: Path, operation: str, result: Any, config: Optional[Dict] = None) -> None:
         """
-        Cache result.
+        Cache result with atomic write to prevent corruption.
 
         Args:
             file_path: Path to PDF file
             operation: Operation name
             result: Result to cache (must be JSON serializable)
+            config: Configuration parameters used for this operation
         """
-        cache_path = self.get_cache_path(file_path, operation)
+        cache_path = self.get_cache_path(file_path, operation, config)
 
         try:
-            with open(cache_path, 'w', encoding='utf-8') as f:
-                json.dump(result, f, ensure_ascii=False, indent=2)
-                logger.info(f"Cached result for {file_path.name} - {operation}")
-        except Exception as e:
-            logger.warning(f"Cache write failed: {e}")
+            # Use temporary file + atomic rename to prevent corruption
+            temp_path = cache_path.with_suffix('.tmp')
 
-    def clear(self, file_path: Optional[Path] = None) -> None:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+
+            # Atomic operation - replaces existing file safely
+            temp_path.replace(cache_path)
+            logger.info(f"Cached result for {file_path.name} - {operation}")
+
+        except Exception as e:
+            logger.warning(f"Cache write failed for {file_path.name}: {e}")
+            # Clean up temp file if it exists
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except Exception:
+                    pass
+
+    def clear(self, file_path: Optional[Path] = None, operation: Optional[str] = None) -> None:
         """
         Clear cache.
 
         Args:
             file_path: If provided, clear cache for this file only.
                       If None, clear all cache.
+            operation: If provided with file_path, clear only this operation's cache.
         """
-        if file_path:
-            file_hash = compute_file_hash(file_path)
-            for cache_file in self.cache_dir.glob(f"{file_hash}_*.json"):
-                cache_file.unlink()
-                logger.info(f"Cleared cache for {file_path.name}")
-        else:
-            for cache_file in self.cache_dir.glob("*.json"):
-                cache_file.unlink()
-            logger.info("Cleared all cache")
+        try:
+            if file_path:
+                file_hash = compute_file_hash(file_path)
+                if operation:
+                    # Clear specific operation for this file
+                    pattern = f"{file_hash}_{operation}_*.json"
+                else:
+                    # Clear all operations for this file
+                    pattern = f"{file_hash}_*.json"
+
+                cleared = 0
+                for cache_file in self.cache_dir.glob(pattern):
+                    cache_file.unlink()
+                    cleared += 1
+
+                if cleared > 0:
+                    logger.info(f"Cleared {cleared} cache entries for {file_path.name}")
+            else:
+                # Clear all cache
+                cleared = 0
+                for cache_file in self.cache_dir.glob("*.json"):
+                    cache_file.unlink()
+                    cleared += 1
+                logger.info(f"Cleared all cache ({cleared} entries)")
+
+        except Exception as e:
+            logger.error(f"Cache clear failed: {e}")
 
 
 def process_pdfs_parallel(
