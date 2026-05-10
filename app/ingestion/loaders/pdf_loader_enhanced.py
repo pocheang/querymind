@@ -1,12 +1,15 @@
 """Enhanced PDF loader with advanced processing."""
 
 from pathlib import Path
+import logging
 
 from langchain_core.documents import Document
 
 from app.ingestion.utils.nested_table_handler import simplify_complex_table
 from app.ingestion.utils.pdf_cleaner import clean_pdf_pages
 from app.ingestion.utils.table_merger import merge_cross_page_tables
+
+logger = logging.getLogger(__name__)
 
 
 def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
@@ -43,6 +46,7 @@ def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
                 pages_content.append(page_markdown)
 
         if not pages_content:
+            logger.warning(f"No content extracted from {path.name}")
             return []
 
         # Step 3: Clean pages (remove headers/footers)
@@ -91,5 +95,9 @@ def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
 
         return docs
 
-    except Exception:
+    except ImportError as e:
+        logger.warning(f"Docling not available: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Enhanced PDF processing failed for {path.name}: {e}", exc_info=True)
         return []

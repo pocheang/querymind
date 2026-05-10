@@ -1,15 +1,22 @@
 """PDF document loader."""
 
 from pathlib import Path
+import logging
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 
+logger = logging.getLogger(__name__)
+
 
 def load_pdf_text(path: Path) -> list[Document]:
     """Load text content from PDF using PyPDFLoader."""
-    loader = PyPDFLoader(str(path))
-    return loader.load()
+    try:
+        loader = PyPDFLoader(str(path))
+        return loader.load()
+    except Exception as e:
+        logger.error(f"PyPDF loading failed for {path.name}: {e}", exc_info=True)
+        return []
 
 
 def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
@@ -30,7 +37,12 @@ def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
     try:
         from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced as _load_enhanced
         return _load_enhanced(path, by_page)
-    except Exception:
+    except ImportError as e:
+        logger.warning(f"Enhanced loader not available: {e}")
+        # Fallback to regular Docling
+        return load_pdf_with_docling(path, by_page)
+    except Exception as e:
+        logger.error(f"Enhanced loading failed for {path.name}: {e}", exc_info=True)
         # Fallback to regular Docling
         return load_pdf_with_docling(path, by_page)
 
@@ -47,7 +59,8 @@ def load_pdf_with_docling(path: Path, by_page: bool = True) -> list[Document]:
     """
     try:
         from docling.document_converter import DocumentConverter
-    except ImportError:
+    except ImportError as e:
+        logger.warning(f"Docling not available: {e}")
         return []
 
     try:
@@ -80,9 +93,14 @@ def load_pdf_with_docling(path: Path, by_page: bool = True) -> list[Document]:
                         "converter": "docling",
                     }
                 ))
+
+        if not docs:
+            logger.warning(f"No content extracted from {path.name} using Docling")
+
         return docs
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"Docling conversion failed for {path.name}: {e}", exc_info=True)
         return []
 
 

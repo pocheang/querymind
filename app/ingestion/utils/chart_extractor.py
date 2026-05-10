@@ -6,6 +6,64 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Configuration
+MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
+MAX_IMAGE_DIMENSION = 2048  # pixels
+
+
+def _resize_image_if_needed(image_bytes: bytes, max_size_bytes: int = MAX_IMAGE_SIZE_BYTES) -> bytes:
+    """
+    Resize image if it exceeds size limit.
+
+    Args:
+        image_bytes: Original image bytes
+        max_size_bytes: Maximum allowed size in bytes
+
+    Returns:
+        Resized image bytes (or original if under limit)
+    """
+    if len(image_bytes) <= max_size_bytes:
+        return image_bytes
+
+    try:
+        from PIL import Image
+        from io import BytesIO
+
+        logger.info(f"Resizing large image ({len(image_bytes)} bytes) to fit {max_size_bytes} bytes")
+
+        img = Image.open(BytesIO(image_bytes))
+
+        # Calculate scale factor
+        scale = (max_size_bytes / len(image_bytes)) ** 0.5
+        new_width = int(img.width * scale)
+        new_height = int(img.height * scale)
+
+        # Ensure dimensions don't exceed maximum
+        if new_width > MAX_IMAGE_DIMENSION or new_height > MAX_IMAGE_DIMENSION:
+            aspect_ratio = img.width / img.height
+            if aspect_ratio > 1:
+                new_width = MAX_IMAGE_DIMENSION
+                new_height = int(MAX_IMAGE_DIMENSION / aspect_ratio)
+            else:
+                new_height = MAX_IMAGE_DIMENSION
+                new_width = int(MAX_IMAGE_DIMENSION * aspect_ratio)
+
+        # Resize
+        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        # Save to bytes
+        output = BytesIO()
+        img.save(output, format='JPEG', quality=85, optimize=True)
+        resized_bytes = output.getvalue()
+
+        logger.info(f"Resized image from {len(image_bytes)} to {len(resized_bytes)} bytes")
+        return resized_bytes
+
+    except Exception as e:
+        logger.error(f"Image resize failed: {e}", exc_info=True)
+        # Return original if resize fails
+        return image_bytes
+
 
 def detect_chart_in_image(image_bytes: bytes) -> Dict[str, any]:
     """
@@ -56,7 +114,7 @@ def detect_chart_in_image(image_bytes: bytes) -> Dict[str, any]:
 
 def extract_chart_data_with_vision(
     image_bytes: bytes,
-    model: str = "gpt-4-vision",
+    model: str = "gpt-4o",
     api_key: Optional[str] = None
 ) -> Dict[str, any]:
     """
@@ -64,7 +122,7 @@ def extract_chart_data_with_vision(
 
     Args:
         image_bytes: Image bytes
-        model: Model to use (gpt-4-vision, claude-3, etc.)
+        model: Model to use (gpt-4o, gpt-4-turbo, claude-3-5-sonnet, etc.)
         api_key: API key for the model
 
     Returns:
@@ -75,23 +133,73 @@ def extract_chart_data_with_vision(
         - description: str
     """
     try:
-        if model.startswith("gpt-4"):
-            return _extract_with_openai(image_bytes, api_key)
+        # Resize image if too large (prevent memory issues)
+        image_bytes = _resize_image_if_needed(image_bytes)
+
+        if model.startswith("gpt-4") or model.startswith("gpt"):
+            return _extract_with_openai(image_bytes, api_key, model)
         elif model.startswith("claude"):
-            return _extract_with_anthropic(image_bytes, api_key)
+            return _extract_with_anthropic(image_bytes, api_key, model)
         else:
+            logger.error(f"Unsupported model: {model}")
             return {"error": f"Unsupported model: {model}"}
 
     except Exception as e:
-        logger.error(f"Chart extraction failed: {e}")
+        logger.error(f"Chart extraction failed: {e}", exc_info=True)
         return {"error": str(e)}
 
 
-def _extract_with_openai(image_bytes: bytes, api_key: Optional[str]) -> Dict:
-    """Extract chart data using OpenAI GPT-4V."""
+def _extract_json_from_text(text: str) -> Optional[Dict]:
+    """
+    Extract JSON from text with multiple strategies.
+
+    Args:
+        text: Text containing JSON
+
+    Returns:
+        Parsed JSON dict or None
+    """
+    import json
+    import re
+
+    # Strategy 1: Look for JSON code block
+    code_block_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if code_block_match:
+        try:
+            return json.loads(code_block_match.group(1))
+        except json.JSONDecodeError as e:
+            logger.debug(f"JSON code block parse failed: {e}")
+
+    # Strategy 2: Find first complete JSON object
+    brace_count = 0
+    start_idx = text.find('{')
+    if start_idx == -1:
+        return None
+
+    for i in range(start_idx, len(text)):
+        if text[i] == '{':
+            brace_count += 1
+        elif text[i] == '}':
+            brace_count -= 1
+            if brace_count == 0:
+                try:
+                    return json.loads(text[start_idx:i+1])
+                except json.JSONDecodeError as e:
+                    logger.debug(f"JSON object parse failed: {e}")
+                break
+
+    return None
+
+
+def _extract_with_openai(image_bytes: bytes, api_key: Optional[str], model: str = "gpt-4o") -> Dict:
+    """Extract chart data using OpenAI GPT-4o/GPT-4-turbo."""
     try:
         import base64
         from openai import OpenAI
+
+        if not api_key:
+            logger.error("OpenAI API key not provided")
+            return {"error": "OpenAI API key not configured"}
 
         # Encode image
         image_b64 = base64.b64encode(image_bytes).decode('utf-8')
@@ -117,8 +225,9 @@ Format your response as JSON:
   "description": "..."
 }"""
 
+        # Use latest model
         response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model=model,
             messages=[
                 {
                     "role": "user",
@@ -140,28 +249,30 @@ Format your response as JSON:
         content = response.choices[0].message.content
 
         # Try to extract JSON
-        import json
-        import re
-
-        json_match = re.search(r'\{.*\}', content, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group(0))
+        data = _extract_json_from_text(content)
+        if data:
             return data
         else:
+            logger.warning("Could not extract JSON from response, returning raw text")
             return {"description": content, "raw_response": True}
 
     except ImportError:
+        logger.error("OpenAI library not installed")
         return {"error": "OpenAI library not installed"}
     except Exception as e:
-        logger.error(f"OpenAI extraction failed: {e}")
+        logger.error(f"OpenAI extraction failed: {e}", exc_info=True)
         return {"error": str(e)}
 
 
-def _extract_with_anthropic(image_bytes: bytes, api_key: Optional[str]) -> Dict:
+def _extract_with_anthropic(image_bytes: bytes, api_key: Optional[str], model: str = "claude-3-5-sonnet-20241022") -> Dict:
     """Extract chart data using Anthropic Claude."""
     try:
         import base64
         from anthropic import Anthropic
+
+        if not api_key:
+            logger.error("Anthropic API key not provided")
+            return {"error": "Anthropic API key not configured"}
 
         # Encode image
         image_b64 = base64.b64encode(image_bytes).decode('utf-8')
@@ -180,7 +291,7 @@ Please provide:
 Format your response as JSON."""
 
         message = client.messages.create(
-            model="claude-3-opus-20240229",
+            model=model,
             max_tokens=1000,
             messages=[
                 {
@@ -207,20 +318,18 @@ Format your response as JSON."""
         content = message.content[0].text
 
         # Try to extract JSON
-        import json
-        import re
-
-        json_match = re.search(r'\{.*\}', content, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group(0))
+        data = _extract_json_from_text(content)
+        if data:
             return data
         else:
+            logger.warning("Could not extract JSON from response, returning raw text")
             return {"description": content, "raw_response": True}
 
     except ImportError:
+        logger.error("Anthropic library not installed")
         return {"error": "Anthropic library not installed"}
     except Exception as e:
-        logger.error(f"Anthropic extraction failed: {e}")
+        logger.error(f"Anthropic extraction failed: {e}", exc_info=True)
         return {"error": str(e)}
 
 
