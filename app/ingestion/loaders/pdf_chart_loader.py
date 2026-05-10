@@ -1,0 +1,99 @@
+"""PDF loader with chart extraction support."""
+
+from pathlib import Path
+from typing import List
+
+from langchain_core.documents import Document
+
+from app.ingestion.utils.chart_extractor import detect_chart_in_image, extract_chart_data_with_vision, chart_data_to_markdown
+
+
+def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: str = "gpt-4-vision") -> List[Document]:
+    """
+    Extract charts from PDF and convert to structured text.
+
+    Args:
+        path: Path to PDF file
+        use_vision: Use multimodal LLM for chart extraction
+        vision_model: Vision model to use (gpt-4-vision, claude-3, etc.)
+
+    Returns:
+        List of Document objects with chart data
+    """
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return []
+
+    docs = []
+
+    try:
+        reader = PdfReader(str(path))
+    except Exception:
+        return docs
+
+    for page_idx, page in enumerate(reader.pages, start=1):
+        # Extract images from page
+        try:
+            images = list(page.images or [])
+        except Exception:
+            images = []
+
+        for img_idx, img_obj in enumerate(images, start=1):
+            img_bytes = getattr(img_obj, "data", None)
+            if not img_bytes:
+                continue
+
+            # Detect if image is a chart
+            detection = detect_chart_in_image(img_bytes)
+
+            if not detection.get("is_chart"):
+                continue
+
+            # Extract chart data
+            if use_vision:
+                chart_data = extract_chart_data_with_vision(img_bytes, model=vision_model)
+                chart_text = chart_data_to_markdown(chart_data)
+            else:
+                chart_text = f"[Chart detected but vision extraction disabled]"
+
+            # Create document
+            doc = Document(
+                page_content=chart_text,
+                metadata={
+                    "source": str(path),
+                    "page": page_idx,
+                    "image_index": img_idx,
+                    "modality": "chart",
+                    "chart_type": detection.get("chart_type", "unknown"),
+                    "detection_confidence": detection.get("confidence", 0.0),
+                }
+            )
+            docs.append(doc)
+
+    return docs
+
+
+def load_pdf_with_charts(path: Path, extract_charts: bool = True, vision_model: str = "gpt-4-vision") -> List[Document]:
+    """
+    Load PDF with chart extraction.
+
+    Args:
+        path: Path to PDF file
+        extract_charts: Enable chart extraction
+        vision_model: Vision model for chart extraction
+
+    Returns:
+        List of Document objects (text + charts)
+    """
+    from app.ingestion.loaders.pdf_loader import load_pdf_text
+
+    # Load text content
+    text_docs = load_pdf_text(path)
+
+    # Extract charts if enabled
+    if extract_charts:
+        chart_docs = extract_charts_from_pdf(path, use_vision=True, vision_model=vision_model)
+        return text_docs + chart_docs
+
+    return text_docs
