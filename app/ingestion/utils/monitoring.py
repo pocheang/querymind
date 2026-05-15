@@ -1,12 +1,16 @@
 import json
-import time
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
+logger = logging.getLogger(__name__)
+
 
 class PDFProcessingMetrics:
     """Collects and analyzes PDF processing metrics."""
+
+    COST_PER_API_CALL_USD = 0.01  # Estimated cost per API call
 
     def __init__(self, metrics_file: Path = Path("./data/metrics/pdf_processing.jsonl")):
         """Initialize metrics collection.
@@ -53,8 +57,11 @@ class PDFProcessingMetrics:
             "error": error
         }
 
-        with open(self.metrics_file, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(metric, ensure_ascii=False) + '\n')
+        try:
+            with open(self.metrics_file, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(metric, ensure_ascii=False) + '\n')
+        except IOError as e:
+            logger.warning(f"Failed to write metrics: {e}")
 
     def get_summary(self, days: int = 7) -> Dict:
         """Get summary statistics for metrics within the specified time window.
@@ -79,7 +86,11 @@ class PDFProcessingMetrics:
                         timestamp = datetime.fromisoformat(metric["timestamp"])
                         if timestamp >= cutoff:
                             metrics.append(metric)
-        except (json.JSONDecodeError, IOError):
+        except json.JSONDecodeError as e:
+            logger.warning(f"Corrupted metrics file: {e}")
+            return {}
+        except IOError as e:
+            logger.warning(f"Failed to read metrics file: {e}")
             return {}
 
         if not metrics:
@@ -89,11 +100,11 @@ class PDFProcessingMetrics:
         total_processed = len(metrics)
         avg_time_seconds = sum(m["duration_seconds"] for m in metrics) / total_processed
         cache_hits = sum(1 for m in metrics if m["cache_hit"])
-        cache_hit_rate = cache_hits / total_processed if total_processed > 0 else 0
+        cache_hit_rate = cache_hits / total_processed
         total_api_calls = sum(m["api_calls"] for m in metrics)
-        estimated_cost_usd = total_api_calls * 0.01
+        estimated_cost_usd = total_api_calls * self.COST_PER_API_CALL_USD
         errors = sum(1 for m in metrics if m["error"] is not None)
-        error_rate = errors / total_processed if total_processed > 0 else 0
+        error_rate = errors / total_processed
 
         return {
             "period_days": days,
