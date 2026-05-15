@@ -1,6 +1,6 @@
 [run]
 # Source paths to measure coverage
-source = app/ingestion
+source = app
 
 # Branch coverage
 branch = True
