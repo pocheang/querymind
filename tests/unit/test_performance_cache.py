@@ -5,6 +5,7 @@ import json
 import threading
 import tempfile
 import shutil
+import time
 from pathlib import Path
 from app.ingestion.utils.performance import (
     PDFProcessingCache,
@@ -31,6 +32,28 @@ def sample_pdf():
     pdf_path = Path(temp_dir) / "sample.pdf"
     pdf_path.write_bytes(b"%PDF-1.4\ntest content")
     yield pdf_path
+    # Cleanup
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def sample_pdf2():
+    """Create a second sample PDF file for testing."""
+    temp_dir = tempfile.mkdtemp(prefix="test_pdf2_")
+    pdf_path = Path(temp_dir) / "another.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\nother")
+    yield pdf_path
+    # Cleanup
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def test_file():
+    """Create a test file for hash testing."""
+    temp_dir = tempfile.mkdtemp(prefix="test_hash_")
+    file_path = Path(temp_dir) / "test.txt"
+    file_path.write_text("test content")
+    yield file_path
     # Cleanup
     shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -110,7 +133,6 @@ def test_cache_hit_and_miss(cache, sample_pdf):
 # Atomic write tests
 def test_cache_atomic_write(cache, sample_pdf):
     """Test that cache writes are atomic (no corruption)."""
-    import time
 
     def write_cache(value):
         cache.set(sample_pdf, "test", {"value": value})
@@ -137,30 +159,50 @@ def test_cache_atomic_write(cache, sample_pdf):
 
 
 # Cache clear tests
-def test_cache_clear_operations(cache, sample_pdf):
+def test_cache_clear_operations(cache, sample_pdf, sample_pdf2):
     """Test cache clearing functionality."""
     # Create multiple cache entries
     cache.set(sample_pdf, "op1", {"data": 1})
     cache.set(sample_pdf, "op2", {"data": 2})
 
-    # Create another PDF in a temp directory
-    temp_dir = tempfile.mkdtemp(prefix="test_pdf2_")
-    pdf2 = Path(temp_dir) / "another.pdf"
-    pdf2.write_bytes(b"%PDF-1.4\nother")
+    cache.set(sample_pdf2, "op1", {"data": 3})
+
+    # Clear specific file
+    cache.clear(sample_pdf)
+
+    assert cache.get(sample_pdf, "op1") is None
+    assert cache.get(sample_pdf, "op2") is None
+    assert cache.get(sample_pdf2, "op1") == {"data": 3}
+
+    # Clear all
+    cache.clear()
+    assert cache.get(sample_pdf2, "op1") is None
+
+
+# File hash tests
+def test_compute_file_hash_consistent(test_file):
+    """Test that same file produces same hash."""
+    hash1 = compute_file_hash(test_file)
+    hash2 = compute_file_hash(test_file)
+
+    assert hash1 == hash2
+    assert len(hash1) == 64  # SHA256 hex digest
+
+
+def test_compute_file_hash_different_content():
+    """Test that different files produce different hashes."""
+    temp_dir = tempfile.mkdtemp(prefix="test_hash_diff_")
 
     try:
-        cache.set(pdf2, "op1", {"data": 3})
+        file1 = Path(temp_dir) / "file1.txt"
+        file2 = Path(temp_dir) / "file2.txt"
 
-        # Clear specific file
-        cache.clear(sample_pdf)
+        file1.write_text("content A")
+        file2.write_text("content B")
 
-        assert cache.get(sample_pdf, "op1") is None
-        assert cache.get(sample_pdf, "op2") is None
-        assert cache.get(pdf2, "op1") == {"data": 3}
+        hash1 = compute_file_hash(file1)
+        hash2 = compute_file_hash(file2)
 
-        # Clear all
-        cache.clear()
-        assert cache.get(pdf2, "op1") is None
+        assert hash1 != hash2
     finally:
-        # Cleanup
         shutil.rmtree(temp_dir, ignore_errors=True)
