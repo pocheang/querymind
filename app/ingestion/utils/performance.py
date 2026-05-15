@@ -102,7 +102,7 @@ class PDFProcessingCache:
         try:
             cache_age = time.time() - cache_path.stat().st_mtime
             return cache_age < self.ttl_seconds
-        except Exception as e:
+        except (OSError, PermissionError) as e:
             logger.warning(f"Failed to check cache validity: {e}")
             return False
 
@@ -136,7 +136,7 @@ class PDFProcessingCache:
                 data = json.load(f)
                 logger.info(f"Cache hit for {file_path.name} - {operation}")
                 return data
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as e:
             logger.warning(f"Cache read failed for {file_path.name}: {e}")
             return None
 
@@ -163,13 +163,13 @@ class PDFProcessingCache:
             temp_path.replace(cache_path)
             logger.info(f"Cached result for {file_path.name} - {operation}")
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Cache write failed for {file_path.name}: {e}")
             # Clean up temp file if it exists
             if temp_path.exists():
                 try:
                     temp_path.unlink()
-                except Exception:
+                except OSError:
                     pass
 
     def clear(self, file_path: Optional[Path] = None, operation: Optional[str] = None) -> None:
@@ -206,7 +206,7 @@ class PDFProcessingCache:
                     cleared += 1
                 logger.info(f"Cleared all cache ({cleared} entries)")
 
-        except Exception as e:
+        except OSError as e:
             logger.error(f"Cache clear failed: {e}")
 
     def cleanup_expired(self) -> int:
@@ -224,13 +224,13 @@ class PDFProcessingCache:
                     try:
                         cache_file.unlink()
                         cleaned += 1
-                    except Exception as e:
+                    except OSError as e:
                         logger.warning(f"Failed to delete expired cache file {cache_file}: {e}")
 
             if cleaned > 0:
                 logger.info(f"Cleaned {cleaned} expired cache entries")
 
-        except Exception as e:
+        except OSError as e:
             logger.warning(f"Cache cleanup failed: {e}")
 
         return cleaned
@@ -263,12 +263,12 @@ class PDFProcessingCache:
                     else:
                         stats["expired_files"] += 1
 
-                except Exception as e:
+                except OSError as e:
                     logger.warning(f"Failed to stat cache file {cache_file}: {e}")
 
             stats["total_size_mb"] = total_size / (1024 * 1024)
 
-        except Exception as e:
+        except OSError as e:
             logger.warning(f"Failed to get cache stats: {e}")
 
         return stats
