@@ -185,11 +185,16 @@ def test_cleanup_expired_removes_old_files(cache_short_ttl, sample_pdf):
     # Mock the file's modification time for both to be expired
     old_mtime = time.time() - (2 * 24 * 3600)  # 2 days ago
 
-    with patch('pathlib.Path.stat') as mock_stat:
-        mock_stat_result = MagicMock()
-        mock_stat_result.st_mtime = old_mtime
-        mock_stat.return_value = mock_stat_result
+    # Patch is_cache_valid instead of stat to avoid breaking glob()
+    original_is_cache_valid = cache_short_ttl.is_cache_valid
 
+    def mock_is_cache_valid(path):
+        # Mark all cache files as expired
+        if path.suffix == ".json":
+            return False
+        return original_is_cache_valid(path)
+
+    with patch.object(cache_short_ttl, 'is_cache_valid', side_effect=mock_is_cache_valid):
         # cleanup_expired should remove expired files
         cleaned = cache_short_ttl.cleanup_expired()
         assert cleaned == 2  # Both files are expired in this mock
@@ -220,14 +225,16 @@ def test_cleanup_expired_returns_count(cache_short_ttl, sample_pdf):
     cache_short_ttl.set(sample_pdf, "op2", {"data": 2})
     cache_short_ttl.set(sample_pdf, "op3", {"data": 3})
 
-    # Mock all files as expired
-    old_mtime = time.time() - (2 * 24 * 3600)
+    # Patch is_cache_valid instead of stat to avoid breaking glob()
+    original_is_cache_valid = cache_short_ttl.is_cache_valid
 
-    with patch('pathlib.Path.stat') as mock_stat:
-        mock_stat_result = MagicMock()
-        mock_stat_result.st_mtime = old_mtime
-        mock_stat.return_value = mock_stat_result
+    def mock_is_cache_valid(path):
+        # Mark all cache files as expired
+        if path.suffix == ".json":
+            return False
+        return original_is_cache_valid(path)
 
+    with patch.object(cache_short_ttl, 'is_cache_valid', side_effect=mock_is_cache_valid):
         cleaned = cache_short_ttl.cleanup_expired()
         assert cleaned == 3
 
