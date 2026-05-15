@@ -136,7 +136,8 @@ class PDFBenchmark:
     def benchmark_sequential_chart_extraction(
         self,
         images: List[bytes],
-        mock_api_delay: float = 0.1
+        mock_api_delay: float = 0.1,
+        warmup_runs: int = 1
     ) -> Dict:
         """
         Benchmark sequential chart extraction (baseline).
@@ -144,6 +145,7 @@ class PDFBenchmark:
         Args:
             images: List of image bytes to process
             mock_api_delay: Simulated API call delay in seconds
+            warmup_runs: Number of warmup iterations before timing (default: 1)
 
         Returns:
             Benchmark results dict
@@ -151,7 +153,6 @@ class PDFBenchmark:
         from unittest.mock import patch
 
         num_images = len(images)
-        mem_before = self.process.memory_info().rss / 1024 / 1024
 
         # Mock the API call to return consistent results with controlled timing
         def mock_extract(image_bytes, model="gpt-4o", api_key=None):
@@ -163,21 +164,28 @@ class PDFBenchmark:
                 "description": "Mock chart data"
             }
 
-        start = time.time()
-        results = []
-
         # Patch both the internal functions to avoid actual API calls
         with patch('app.ingestion.utils.chart_extractor._extract_with_openai', side_effect=mock_extract), \
              patch('app.ingestion.utils.chart_extractor._extract_with_anthropic', side_effect=mock_extract):
             from app.ingestion.utils.chart_extractor import extract_chart_data_with_vision
+
+            # Warmup runs to eliminate first-run overhead
+            for _ in range(warmup_runs):
+                for img in images:
+                    extract_chart_data_with_vision(img, model="gpt-4o", api_key="mock_key")
+
+            # Actual timed run
+            mem_before = self.process.memory_info().rss / 1024 / 1024
+            start = time.time()
+            results = []
+
             for img in images:
                 result = extract_chart_data_with_vision(img, model="gpt-4o", api_key="mock_key")
                 results.append(result)
 
-        duration = time.time() - start
-
-        mem_after = self.process.memory_info().rss / 1024 / 1024
-        mem_peak = mem_after - mem_before
+            duration = time.time() - start
+            mem_after = self.process.memory_info().rss / 1024 / 1024
+            mem_peak = mem_after - mem_before
 
         return {
             "operation": "sequential_chart_extraction",
@@ -192,7 +200,8 @@ class PDFBenchmark:
         self,
         images: List[bytes],
         batch_size: int = 5,
-        mock_api_delay: float = 0.1
+        mock_api_delay: float = 0.1,
+        warmup_runs: int = 1
     ) -> Dict:
         """
         Benchmark batch chart extraction (optimized).
@@ -201,6 +210,7 @@ class PDFBenchmark:
             images: List of image bytes to process
             batch_size: Number of concurrent API calls
             mock_api_delay: Simulated API call delay in seconds
+            warmup_runs: Number of warmup iterations before timing (default: 1)
 
         Returns:
             Benchmark results dict
@@ -209,7 +219,6 @@ class PDFBenchmark:
         from unittest.mock import patch
 
         num_images = len(images)
-        mem_before = self.process.memory_info().rss / 1024 / 1024
 
         # Mock the API call to return consistent results with controlled timing
         def mock_extract(image_bytes, model="gpt-4o", api_key=None):
@@ -221,23 +230,36 @@ class PDFBenchmark:
                 "description": "Mock chart data"
             }
 
-        start = time.time()
-
         # Patch both the internal functions to avoid actual API calls
         with patch('app.ingestion.utils.chart_extractor._extract_with_openai', side_effect=mock_extract), \
              patch('app.ingestion.utils.chart_extractor._extract_with_anthropic', side_effect=mock_extract):
             from app.ingestion.utils.batch_chart_extractor import BatchChartExtractor
+
+            # Warmup runs to eliminate first-run overhead
+            for _ in range(warmup_runs):
+                extractor = BatchChartExtractor(batch_size=batch_size)
+                asyncio.run(extractor.extract_charts_batch(
+                    images,
+                    model="gpt-4o",
+                    api_key="mock_key"
+                ))
+                extractor._executor.shutdown(wait=True)
+
+            # Actual timed run
+            mem_before = self.process.memory_info().rss / 1024 / 1024
+            start = time.time()
+
             extractor = BatchChartExtractor(batch_size=batch_size)
             results = asyncio.run(extractor.extract_charts_batch(
                 images,
                 model="gpt-4o",
                 api_key="mock_key"
             ))
+            extractor._executor.shutdown(wait=True)
 
-        duration = time.time() - start
-
-        mem_after = self.process.memory_info().rss / 1024 / 1024
-        mem_peak = mem_after - mem_before
+            duration = time.time() - start
+            mem_after = self.process.memory_info().rss / 1024 / 1024
+            mem_peak = mem_after - mem_before
 
         return {
             "operation": "batch_chart_extraction",
