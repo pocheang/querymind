@@ -2,6 +2,8 @@
 
 import hashlib
 import json
+import time
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Callable, Any, Dict
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
@@ -48,15 +50,18 @@ def compute_config_hash(config_dict: Dict) -> str:
 class PDFProcessingCache:
     """Cache for PDF processing results with configuration-aware keys."""
 
-    def __init__(self, cache_dir: Path = Path("./data/cache/pdf_processing")):
+    def __init__(self, cache_dir: Path = Path("./data/cache/pdf_processing"), ttl_days: int = 30):
         """
         Initialize cache.
 
         Args:
             cache_dir: Directory to store cache files
+            ttl_days: Time-to-live for cache entries in days (default: 30)
         """
         self.cache_dir = cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.ttl_days = ttl_days
+        self.ttl_seconds = ttl_days * 24 * 3600
 
     def get_cache_path(self, file_path: Path, operation: str, config: Optional[Dict] = None) -> Path:
         """
@@ -81,6 +86,26 @@ class PDFProcessingCache:
 
         return self.cache_dir / cache_file
 
+    def is_cache_valid(self, cache_path: Path) -> bool:
+        """
+        Check if cache file is valid (exists and not expired).
+
+        Args:
+            cache_path: Path to cache file
+
+        Returns:
+            True if cache is valid, False if expired or missing
+        """
+        if not cache_path.exists():
+            return False
+
+        try:
+            cache_age = time.time() - cache_path.stat().st_mtime
+            return cache_age < self.ttl_seconds
+        except Exception as e:
+            logger.warning(f"Failed to check cache validity: {e}")
+            return False
+
     def get(self, file_path: Path, operation: str, config: Optional[Dict] = None) -> Optional[Any]:
         """
         Get cached result.
@@ -95,7 +120,15 @@ class PDFProcessingCache:
         """
         cache_path = self.get_cache_path(file_path, operation, config)
 
-        if not cache_path.exists():
+        # Check if cache is valid (exists and not expired)
+        if not self.is_cache_valid(cache_path):
+            # Delete expired cache if it exists
+            if cache_path.exists():
+                try:
+                    cache_path.unlink()
+                    logger.info(f"Cache expired for {file_path.name}, removing")
+                except Exception as e:
+                    logger.warning(f"Failed to delete expired cache: {e}")
             return None
 
         try:
@@ -175,6 +208,70 @@ class PDFProcessingCache:
 
         except Exception as e:
             logger.error(f"Cache clear failed: {e}")
+
+    def cleanup_expired(self) -> int:
+        """
+        Remove expired cache entries.
+
+        Returns:
+            Number of cache files cleaned
+        """
+        cleaned = 0
+
+        try:
+            for cache_file in self.cache_dir.glob("*.json"):
+                if not self.is_cache_valid(cache_file):
+                    try:
+                        cache_file.unlink()
+                        cleaned += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to delete expired cache file {cache_file}: {e}")
+
+            if cleaned > 0:
+                logger.info(f"Cleaned {cleaned} expired cache entries")
+
+        except Exception as e:
+            logger.warning(f"Cache cleanup failed: {e}")
+
+        return cleaned
+
+    def get_cache_stats(self) -> Dict:
+        """
+        Get cache statistics.
+
+        Returns:
+            Dictionary with keys: total_files, total_size_mb, expired_files, valid_files
+        """
+        stats = {
+            "total_files": 0,
+            "total_size_mb": 0.0,
+            "expired_files": 0,
+            "valid_files": 0
+        }
+
+        try:
+            total_size = 0
+
+            for cache_file in self.cache_dir.glob("*.json"):
+                stats["total_files"] += 1
+
+                try:
+                    total_size += cache_file.stat().st_size
+
+                    if self.is_cache_valid(cache_file):
+                        stats["valid_files"] += 1
+                    else:
+                        stats["expired_files"] += 1
+
+                except Exception as e:
+                    logger.warning(f"Failed to stat cache file {cache_file}: {e}")
+
+            stats["total_size_mb"] = total_size / (1024 * 1024)
+
+        except Exception as e:
+            logger.warning(f"Failed to get cache stats: {e}")
+
+        return stats
 
 
 def process_pdfs_parallel(
