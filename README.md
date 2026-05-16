@@ -4,53 +4,64 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Backend](https://img.shields.io/badge/backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-61DAFB.svg)](https://react.dev/)
-[![Version](https://img.shields.io/badge/version-v0.3.2-blue.svg)](./docs/VERSION_HISTORY.md)
+[![Version](https://img.shields.io/badge/version-v0.3.3-blue.svg)](./docs/VERSION_HISTORY.md)
 
 Enterprise-oriented, local-first RAG platform with multi-agent orchestration, hybrid retrieval, graph enhancement, admin governance, and streaming chat.
 
-**Latest Release**: v0.3.2 (2026-05-03) - CI/CD Quality Gates & Frontend Modernization
+**Latest Release**: v0.3.3 (2026-05-07) - Performance Optimization & Enhanced Testing
 
 This repository packages a FastAPI backend, a React frontend, and a modular retrieval pipeline designed for private knowledge bases, internal copilots, and controlled enterprise AI workflows.
 
 ## Executive Summary
 
-- Multi-agent query orchestration built on LangGraph
-- Hybrid retrieval with vector search, BM25, fusion, and reranking
-- Optional Neo4j knowledge graph enrichment
-- Local-first document ingestion with OCR support
-- Role-based access control, session isolation, and admin operations
-- Runtime controls for retrieval profiles, canary, rollback, benchmarking, and replay
-- Streaming chat UX with session history and prompt management
+- Multi-agent query orchestration built on LangGraph with intelligent routing
+- Hybrid retrieval with vector search, BM25, reciprocal rank fusion, and reranking
+- Optional Neo4j knowledge graph enrichment for entity relationships
+- Local-first document ingestion with OCR support (Tesseract) and image captioning
+- Role-based access control (RBAC), session isolation, and comprehensive admin operations
+- Runtime controls for retrieval profiles, canary routing, rollback, benchmarking, and replay
+- Streaming chat UX with session history, prompt versioning, and memory management
+- CI/CD quality gates with automated RAG evaluation and performance benchmarking
+- Frontend performance optimization with critical CSS extraction and code splitting
 
 ## Target Use Cases
 
-- Internal knowledge assistant for enterprise teams
-- Private document Q&A over PDF, image, and text corpora
-- RAG evaluation and retrieval strategy experimentation
-- Controlled AI operations with auditability and rollback
-- Hybrid local and hosted model deployments
+- Internal knowledge assistant for enterprise teams with secure document access
+- Private document Q&A over PDF, image, and text corpora with OCR support
+- RAG evaluation and retrieval strategy experimentation with benchmarking tools
+- Controlled AI operations with auditability, rollback, and canary deployment
+- Hybrid local and hosted model deployments (Ollama, OpenAI, Anthropic)
+- Multi-hop reasoning with knowledge graph integration for complex queries
+- Session-based conversational AI with memory and context management
 
 ## System Overview
 
 ### Core Components
 
-- `app/api/`: FastAPI application, route modules, middleware, dependencies
-- `app/graph/`: LangGraph workflow, routing logic, streaming helpers
-- `app/agents/`: router, retrieval, graph, web, and synthesis agents
-- `app/retrievers/`: hybrid retrieval pipeline and ranking logic
-- `app/services/`: auth, runtime governance, caching, resilience, memory, prompts
-- `app/ingestion/`: loaders, chunking, OCR, indexing
-- `frontend/`: React + Vite user interface
-- `tests/`: backend and workflow regression coverage
+- `app/api/`: FastAPI application with 10+ route modules, middleware, and dependencies
+- `app/graph/`: LangGraph workflow orchestration, routing logic, and streaming helpers
+- `app/agents/`: Router, retrieval, graph, web research, and synthesis agents
+- `app/retrievers/`: Hybrid retrieval pipeline with vector, BM25, fusion, and reranking
+- `app/services/`: Auth, runtime governance, caching, resilience, memory, and prompt management
+- `app/ingestion/`: Document loaders, chunking strategies, OCR processing, and indexing
+- `frontend/`: React + Vite user interface with TypeScript and modern CSS architecture
+- `tests/`: Comprehensive backend and workflow regression coverage (29+ tests)
+- `scripts/`: Operational tooling for benchmarking, evaluation, load testing, and CI/CD
 
 ### Request Flow
 
-1. User authenticates and starts or resumes a session.
-2. Query enters the FastAPI layer and shared dependencies initialize context.
-3. LangGraph routes the request through retrieval, graph, web, and synthesis steps.
-4. Hybrid retrieval gathers evidence from Chroma, BM25, and optional graph context.
-5. Safety and grounding logic shape the final answer.
-6. The frontend receives streamed or non-streamed output with citations and metadata.
+1. User authenticates via JWT-based auth system and starts or resumes a session.
+2. Query enters the FastAPI layer where shared dependencies initialize request context.
+3. LangGraph orchestrates the multi-agent workflow through specialized nodes:
+   - **Router Agent**: Analyzes query intent and determines execution strategy
+   - **Vector RAG Agent**: Performs hybrid retrieval (vector + BM25 + reranking)
+   - **Graph RAG Agent**: Queries Neo4j for entity relationships and knowledge enrichment
+   - **Web Research Agent**: Conducts web search when local knowledge is insufficient
+   - **Synthesis Agent**: Generates final answer with grounding and safety checks
+4. Hybrid retrieval gathers evidence from ChromaDB, BM25 index, and optional graph context.
+5. Tiered execution system automatically adjusts retrieval depth based on query complexity.
+6. Safety guards, grounding logic, and citation extraction shape the final answer.
+7. Frontend receives streamed or non-streamed output with citations, metadata, and tier information.
 
 ## API Surface
 
@@ -58,40 +69,49 @@ The main backend entry point is `app.api.main:app`.
 
 ### Major Route Groups
 
-- `/auth`: register, login, logout, current user
-- `/query`: synchronous and streaming query endpoints
-- `/sessions`: session CRUD, strategy lock, memory operations
-- `/documents`: document inventory, deletion, reindex, upload
-- `/prompts`: prompt templates, validation, versions, approval, rollback
-- `/admin/users`: user lifecycle and audit operations
-- `/admin/ops`: retrieval profile, canary, rollback, benchmark, replay, reports
-- `/admin/model-settings` and `/user/api-settings`: runtime model settings
-- `/health`, `/ready`, `/metrics`: health and readiness endpoints
+- `/auth`: User registration, login, logout, token refresh, and current user info
+- `/query`: Synchronous and streaming query endpoints with tier-based execution
+- `/sessions`: Session CRUD, strategy lock, memory operations, and history management
+- `/documents`: Document inventory, deletion, reindex, upload, and metadata retrieval
+- `/prompts`: Prompt templates, validation, versioning, approval workflow, and rollback
+- `/admin/users`: User lifecycle management, role/status updates, and audit operations
+- `/admin/ops`: Retrieval profile management, canary routing, rollback, benchmark, replay, and operational reports
+- `/admin/model-settings` and `/user/api-settings`: Runtime model configuration and API key management
+- `/health`, `/ready`, `/metrics`: Health checks, readiness probes, and system metrics
 
 ## Architecture Characteristics
 
 ### Retrieval
 
-- Dense retrieval through ChromaDB
-- Sparse retrieval through BM25
-- Reciprocal Rank Fusion for candidate blending
-- Optional reranking with `BAAI/bge-reranker-v2-m3`
-- Parent-child chunk strategy for precision and answer context
+- **Dense retrieval** through ChromaDB with configurable embedding models
+- **Sparse retrieval** through BM25 with document filtering and source allowlists
+- **Reciprocal Rank Fusion** for intelligent candidate blending from multiple sources
+- **Optional reranking** with `BAAI/bge-reranker-v2-m3` for precision improvement
+- **Parent-child chunk strategy** for balancing precision and answer context
+- **Query rewriting** with deduplication to reduce redundant LLM calls (10-30% savings)
+- **Tier-based retrieval** with adaptive top_k and rerank parameters (fast/balanced/deep)
 
 ### Orchestration
 
-- LangGraph-based node orchestration
-- Router, vector, graph, web, and synthesis stages
-- Streaming support for partial answer delivery
-- Runtime-safe wrappers and fallback handling
+- **LangGraph-based** multi-agent workflow with conditional routing
+- **Five specialized agents**: Router, Vector RAG, Graph RAG, Web Research, and Synthesis
+- **Streaming support** for progressive answer delivery with real-time updates
+- **Runtime-safe wrappers** with timeout controls and fallback handling
+- **Concurrent execution** for vector and graph retrieval in hybrid mode
+- **Tier-based execution** with automatic complexity classification and load-based degradation
+- **State management** with comprehensive parameter validation and error recovery
 
 ### Governance and Safety
 
-- RBAC and user-scoped data access
-- Approval-token flow for privileged admin creation
-- Audit logging for sensitive operations
-- Retrieval profiles, canary routing, and rollback support
-- Query guards, quota controls, and resilience utilities
+- **RBAC** with user-scoped data access and role-based permissions (admin/user)
+- **Approval-token flow** for privileged admin creation with single-use enforcement
+- **Comprehensive audit logging** for sensitive operations with failure tracking
+- **Retrieval profiles** (baseline/advanced/safe) with canary routing and rollback support
+- **Query guards** with quota controls, rate limiting, and input validation
+- **Resilience utilities** including circuit breakers, bulkhead isolation, and retry logic
+- **Security hardening** with constant-time token comparison, HTTPS-only cookies, and CSRF protection
+- **Password policy** enforcement (12-128 chars, special characters required)
+- **Session isolation** with user-scoped document access and memory management
 
 ## Repository Layout
 
@@ -136,6 +156,44 @@ Queries are automatically classified into three tiers based on complexity:
 
 **Load-Based Degradation**: System automatically downgrades tiers when load >80% for stability.
 
+## Recent Improvements (v0.3.x)
+
+### v0.3.3 (2026-05-07)
+- **CI/CD Quality Gates**: Automated RAG evaluation with precision/recall metrics in CI pipeline
+- **Test Infrastructure**: Enhanced test reliability with proper flag handling and exit code validation
+- **Evaluation Datasets**: Committed evaluation data to git for reproducible CI testing
+- **Non-blocking Quality Gates**: Frontend releases no longer blocked by backend test failures
+- **Test Coverage**: Maintained 29+ backend tests with comprehensive workflow regression coverage
+
+### v0.3.2 (2026-05-03)
+- **Frontend Modernization**: Critical CSS extraction and code splitting architecture
+- **Performance Optimization**: Reduced CSS bundle size by 86% (99KB → 14KB critical CSS)
+- **User Profile Management**: Added display name update functionality with validation
+- **Build Improvements**: TypeScript strict mode and Vite plugin enhancements
+
+### v0.3.1.2 (2026-04-28)
+- **Security Hardening**: Fixed critical admin self-modification and token reuse vulnerabilities
+- **Password Policy**: Strengthened to 12-128 characters with special character requirements
+- **Rate Limiting**: Added to all admin operations (1-5 requests/hour depending on sensitivity)
+- **Cookie Security**: Hardened with `secure=true` and `samesite=strict` defaults
+- **Audit Logging**: Comprehensive logging for all admin and auth operations with failure tracking
+
+### v0.3.1.1 (2026-04-28)
+- **Upload Statistics**: Fixed PDF upload statistics to count actual files instead of internal objects
+- **User Feedback**: Improved upload success messages with file/chunk/page counts in Chinese
+- **Page Tracking**: Enhanced page information aggregation with proper numerical sorting
+
+### v0.3.1 (2026-04-27)
+- **Documentation Organization**: Enterprise-grade documentation structure with 5 category directories
+- **Documentation Consolidation**: Reduced documentation by 23.9% through deduplication
+- **Documentation Standards**: Implemented single-source-of-truth principle and lifecycle management
+
+### v0.3.0 (2026-04-27)
+- **Modular Architecture**: Refactored from 7 large files (9135 lines) to 65 focused modules
+- **Code Reduction**: 90.7% reduction in main file sizes while maintaining 100% compatibility
+- **Bug Fixes**: 18 critical fixes addressing P0-P3 priority issues
+- **Performance**: 10-30% reduction in redundant LLM calls, 100-500ms latency improvement
+
 ## Prerequisites
 
 - Python 3.11+
@@ -150,6 +208,16 @@ Queries are automatically classified into three tiers based on complexity:
 
 ### 1. Backend Setup
 
+**Using Conda (Recommended)**:
+```bash
+conda create -n rag-local python=3.11
+conda activate rag-local
+pip install -U pip
+pip install -e .
+copy .env.example .env
+```
+
+**Using venv**:
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
@@ -162,7 +230,7 @@ copy .env.example .env
 
 Edit `.env` and set the backend you want to use.
 
-Example for OpenAI:
+**Example for OpenAI**:
 
 ```bash
 MODEL_BACKEND=openai
@@ -171,13 +239,24 @@ OPENAI_CHAT_MODEL=gpt-4-turbo
 OPENAI_EMBED_MODEL=text-embedding-3-small
 ```
 
-Example for Ollama:
+**Example for Ollama (Local)**:
 
 ```bash
 MODEL_BACKEND=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_CHAT_MODEL=qwen2.5:7b-instruct
 OLLAMA_EMBED_MODEL=nomic-embed-text
+```
+
+**Example for Anthropic**:
+
+```bash
+MODEL_BACKEND=anthropic
+ANTHROPIC_API_KEY=your_api_key
+ANTHROPIC_CHAT_MODEL=claude-3-5-sonnet-20241022
+# Note: Anthropic uses OpenAI embeddings
+OPENAI_API_KEY=your_openai_key
+OPENAI_EMBED_MODEL=text-embedding-3-small
 ```
 
 ### 3. Start Neo4j
@@ -249,30 +328,59 @@ Useful related settings:
 
 ### Security
 
-- `AUTH_TOKEN_TTL_HOURS`
-- `ADMIN_CREATE_APPROVAL_TOKEN_HASH`
-- `API_SETTINGS_ENCRYPTION_KEY`
-- `API_BASE_URL_ALLOWLIST`
+- `AUTH_TOKEN_TTL_HOURS` - JWT token expiration time
+- `ADMIN_CREATE_APPROVAL_TOKEN_HASH` - Hashed approval token for admin creation
+- `API_SETTINGS_ENCRYPTION_KEY` - Encryption key for API credentials storage
+- `API_BASE_URL_ALLOWLIST` - Comma-separated list of allowed API base URLs
+- `AUTH_COOKIE_SECURE` - Enable HTTPS-only cookies (default: true)
+- `AUTH_COOKIE_SAMESITE` - CSRF protection mode (default: strict)
+- `AUTH_COOKIE_HTTPONLY` - Prevent JavaScript access to cookies (default: true)
 
 ### OCR and Media
 
-- `TESSERACT_CMD`
-- `TESSERACT_LANG`
-- `OCR_PREPROCESS_ENABLED`
-- `IMAGE_CAPTION_ENABLED`
+- `TESSERACT_CMD` - Path to Tesseract OCR executable
+- `TESSERACT_LANG` - OCR language (default: eng+chi_sim for English and Chinese)
+- `OCR_PREPROCESS_ENABLED` - Enable image preprocessing for better OCR accuracy
+- `IMAGE_CAPTION_ENABLED` - Enable AI-powered image captioning for visual content
+- `OCR_DPI` - DPI setting for OCR processing (default: 300)
+- `IMAGE_MAX_SIZE` - Maximum image dimension for processing
 
 ## Operations
 
 ### Backend Tests
 
 ```bash
+# Run all tests
 pytest -q
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+
+# Run specific test modules
+pytest tests/test_routing_logic.py -v
+
+# Run tests allowing runtime unavailable (for CI environments)
+pytest --allow-runtime-unavailable
 ```
 
-### Quality Gate
+### CI/CD Quality Gate
 
 ```bash
+# Run comprehensive quality checks (includes backend tests, RAG evaluation, benchmarks)
 python scripts/ci_quality_gate.py
+
+# Components:
+# - Backend tests (29+ tests with workflow regression coverage)
+# - RAG evaluation (precision/recall/F1 metrics)
+# - Performance benchmarks (latency and throughput)
+# - Code quality checks
+
+# Exit codes:
+# 0 = All checks passed
+# 1 = Backend tests failed
+# 2 = Precision below threshold
+# 3 = F1 score below threshold
+# 4 = Recall below threshold (non-blocking in CI)
 ```
 
 ### Frontend Build
@@ -280,40 +388,74 @@ python scripts/ci_quality_gate.py
 ```bash
 cd frontend
 npm run build
+
+# Development mode with hot reload
+npm run dev
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
 ```
 
 ### Example Operational Scripts
 
-- `scripts/benchmark_pipeline.py`
-- `scripts/load_test_query.py`
-- `scripts/eval_retrieval.py`
-- `scripts/chaos_probe.py`
+- `scripts/benchmark_pipeline.py` - Retrieval pipeline performance benchmarking with latency analysis
+- `scripts/load_test_query.py` - Concurrent query load testing with throughput metrics
+- `scripts/eval_retrieval.py` - RAG evaluation with precision/recall/F1 metrics
+- `scripts/chaos_probe.py` - Chaos engineering and resilience testing for failure scenarios
+- `scripts/ingest.py` - Manual document ingestion and indexing with OCR support
+- `scripts/ci_quality_gate.py` - Comprehensive CI/CD quality gate with automated checks
 
 ## Security Notes
 
-- Do not commit `.env`
-- Prefer hashed admin approval token over plaintext token
-- Review upload limits and API allowlists before production use
-- Validate cross-user isolation and admin endpoint restrictions in every release
-- Treat model-provider credentials as environment-scoped secrets
+- **Never commit `.env` files** - Use `.env.example` as a template
+- **Use hashed approval tokens** - Prefer `ADMIN_CREATE_APPROVAL_TOKEN_HASH` over plaintext
+- **Review upload limits** - Configure `MAX_UPLOAD_SIZE_MB` and file type restrictions
+- **Validate API allowlists** - Set `API_BASE_URL_ALLOWLIST` before production deployment
+- **Enable HTTPS in production** - Set `AUTH_COOKIE_SECURE=true` for secure cookie transmission
+- **Enforce strong passwords** - System requires 12+ characters with special characters
+- **Monitor audit logs** - Review admin operations and authentication events regularly
+- **Validate cross-user isolation** - Test user-scoped data access in every release
+- **Protect model credentials** - Treat API keys as environment-scoped secrets
+- **Rate limit admin endpoints** - Built-in rate limiting prevents abuse (configurable)
+- **Single-use approval tokens** - Tokens are tracked and can only be used once
+- **Constant-time comparisons** - Prevents timing attacks on sensitive operations
 
 ## Documentation
 
 Start with the documentation hub: [docs/README.md](./docs/README.md)
 
-Recommended reading order:
+### Recommended Reading Order
 
-1. [docs/README.md](./docs/README.md)
-2. [docs/production_readiness_checklist.md](./docs/production_readiness_checklist.md)
-3. [docs/DOCUMENTATION_STANDARD.md](./docs/DOCUMENTATION_STANDARD.md)
-4. [CHANGELOG.md](./CHANGELOG.md)
-5. [CLAUDE.md](./CLAUDE.md)
+1. **[docs/README.md](./docs/README.md)** - Documentation hub and navigation guide
+2. **[docs/production_readiness_checklist.md](./docs/production_readiness_checklist.md)** - Pre-deployment validation checklist
+3. **[docs/DOCUMENTATION_STANDARD.md](./docs/DOCUMENTATION_STANDARD.md)** - Documentation standards and guidelines
+4. **[CHANGELOG.md](./CHANGELOG.md)** - Detailed version history and changes
+5. **[CLAUDE.md](./CLAUDE.md)** - Project configuration for AI assistants
+
+### Additional Resources
+
+- **[docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md)** - Complete version timeline
+- **API Documentation** - Available at `/docs` when backend is running
+- **Historical Reports** - Preserved under `docs/` for audit and traceability
 
 Historical release and refactoring reports are retained under `docs/` for audit and traceability, but they should be treated as point-in-time records rather than the primary operational source of truth.
 
 ## Known Documentation Note
 
-The repository contains historical documents and release artifacts from multiple milestones. Core entry documents have been normalized for enterprise use, while older milestone reports remain preserved as historical records.
+The repository contains historical documents and release artifacts from multiple milestones (v0.2.5 through v0.3.3). Core entry documents have been normalized for enterprise use, while older milestone reports remain preserved as historical records for audit purposes.
+
+## Contributing
+
+Contributions are welcome! Please ensure:
+
+- All tests pass before submitting PRs
+- Follow the existing code style and architecture patterns
+- Update documentation for new features
+- Add tests for new functionality
+- Run the CI quality gate locally before pushing
 
 ## License
 

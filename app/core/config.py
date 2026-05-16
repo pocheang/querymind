@@ -92,6 +92,17 @@ class Settings(BaseSettings):
     graph_extraction_mode: str = Field(default="llm", alias="GRAPH_EXTRACTION_MODE")
     graph_triplet_batch_chars: int = Field(default=2200, alias="GRAPH_TRIPLET_BATCH_CHARS")
 
+    pdf_loader_mode: str = Field(default="pypdf", alias="PDF_LOADER_MODE")  # pypdf|docling|docling_enhanced|docling_advanced|hybrid
+    pdf_enable_cleaning: bool = Field(default=True, alias="PDF_ENABLE_CLEANING")  # Remove headers/footers
+    pdf_enable_table_merging: bool = Field(default=True, alias="PDF_ENABLE_TABLE_MERGING")  # Merge cross-page tables
+    pdf_enable_chart_extraction: bool = Field(default=False, alias="PDF_ENABLE_CHART_EXTRACTION")  # Extract charts with vision
+    pdf_chart_vision_model: str = Field(default="gpt-4-vision", alias="PDF_CHART_VISION_MODEL")  # gpt-4-vision|claude-3
+    pdf_enable_structure_analysis: bool = Field(default=False, alias="PDF_ENABLE_STRUCTURE_ANALYSIS")  # Document structure
+    pdf_enable_coreference: bool = Field(default=False, alias="PDF_ENABLE_COREFERENCE")  # Pronoun resolution
+    pdf_enable_formula_enrichment: bool = Field(default=False, alias="PDF_ENABLE_FORMULA_ENRICHMENT")  # Formula semantics
+    pdf_enable_caching: bool = Field(default=True, alias="PDF_ENABLE_CACHING")  # Cache processing results
+    pdf_parallel_workers: int = Field(default=4, alias="PDF_PARALLEL_WORKERS")  # Parallel processing workers
+
     sessions_dir: str = Field(default="./data/sessions", alias="SESSIONS_DIR")
     uploads_dir: str = Field(default="./data/uploads", alias="UPLOADS_DIR")
     auto_ingest_enabled: bool = Field(default=False, alias="AUTO_INGEST_ENABLED")
