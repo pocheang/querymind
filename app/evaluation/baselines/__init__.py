@@ -1,1 +1,1 @@
-"""Baseline retrieval systems for comparison."""
+"""Baseline retrieval systems for performance comparison."""

@@ -1,1 +1,1 @@
-"""Evaluation services and metrics calculation."""
+"""Evaluation services for metrics calculation and comparison."""

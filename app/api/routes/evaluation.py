@@ -9,11 +9,13 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.evaluation.models import TestQuery, GroundTruth, EvaluationMetrics, SystemComparison
-from app.evaluation.services.evaluation_service import EvaluationService
-from app.evaluation.baselines.vector_only import VectorOnlyRetriever
-from app.evaluation.baselines.hybrid import HybridRetriever
-from app.evaluation.baselines.rerank import RerankRetriever
+from app.evaluation import (
+    TestQuery,
+    EvaluationMetrics,
+    SystemComparison,
+    EvaluationService,
+    load_test_queries,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +24,9 @@ router = APIRouter(prefix="/api/evaluation", tags=["evaluation"])
 
 # Request/Response models
 class RunEvaluationRequest(BaseModel):
-    system: str  # "vector_only", "hybrid", "rerank", "full"
+    system: str  # "vector_only", "hybrid", "rerank"
     queries: Optional[List[str]] = None  # Optional: specific query IDs
+    query_file: str = "data/evaluation/demo_queries.json"
 
 
 class RunEvaluationResponse(BaseModel):
@@ -36,53 +39,76 @@ class RunEvaluationResponse(BaseModel):
 
 class CompareSystemsRequest(BaseModel):
     systems: List[str]  # List of system names to compare
+    query_file: str = "data/evaluation/demo_queries.json"
 
 
-# Load test queries and ground truth
-def load_test_queries() -> List[TestQuery]:
-    """Load test queries from JSON file."""
-    queries_path = Path("data/demo/evaluation/test_queries.json")
-    if not queries_path.exists():
-        raise FileNotFoundError(f"Test queries not found at {queries_path}")
-
-    with open(queries_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-    return [TestQuery(**q) for q in data]
+class EvaluationMetricsResponse(BaseModel):
+    precision_at_5: float
+    recall_at_5: float
+    f1_at_5: float
+    mrr: float
+    ndcg_at_5: float
+    avg_latency_ms: float
+    total_queries: int
 
 
-def load_ground_truth() -> dict:
-    """Load ground truth from JSON file."""
-    gt_path = Path("data/demo/evaluation/ground_truth.json")
-    if not gt_path.exists():
-        raise FileNotFoundError(f"Ground truth not found at {gt_path}")
-
-    with open(gt_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-    return {qid: GroundTruth(query_id=qid, **gt_data)
-            for qid, gt_data in data.items()}
+class SystemComparisonResponse(BaseModel):
+    system_name: str
+    metrics: EvaluationMetricsResponse
 
 
 def get_retriever(system_name: str):
-    """Get retriever instance by system name."""
-    if system_name == "vector_only":
-        return VectorOnlyRetriever()
-    elif system_name == "hybrid":
-        return HybridRetriever()
-    elif system_name == "rerank":
-        return RerankRetriever()
-    elif system_name == "full":
-        # TODO: Implement full multi-agent system retriever
-        raise HTTPException(
-            status_code=501,
-            detail="Full multi-agent system not yet implemented"
-        )
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown system: {system_name}"
-        )
+    """Get retriever instance by system name.
+    
+    Note: This is a placeholder. In a real implementation, this would
+    return actual retriever instances configured with the vectorstore,
+    BM25 index, and reranking model.
+    """
+    # TODO: Implement actual retriever instantiation
+    # This requires:
+    # 1. Access to the Chroma vectorstore
+    # 2. BM25 index for hybrid search
+    # 3. Reranking model for rerank baseline
+    
+    raise HTTPException(
+        status_code=501,
+        detail=f"Retriever instantiation not yet implemented. "
+               f"Please use the evaluation module directly for now."
+    )
+
+
+@router.get("/queries", response_model=List[TestQuery])
+async def list_queries(
+    query_file: str = "data/evaluation/demo_queries.json",
+    category: Optional[str] = None,
+    difficulty: Optional[str] = None
+):
+    """
+    List all test queries.
+    
+    Args:
+        query_file: Path to test query JSON file
+        category: Optional category filter
+        difficulty: Optional difficulty filter
+
+    Returns:
+        List of test queries
+    """
+    try:
+        queries = load_test_queries(query_file)
+        
+        if category:
+            queries = [q for q in queries if q.category == category]
+        
+        if difficulty:
+            queries = [q for q in queries if q.difficulty == difficulty]
+        
+        return queries
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error loading queries: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/run", response_model=RunEvaluationResponse)
@@ -95,11 +121,12 @@ async def run_evaluation(request: RunEvaluationRequest):
 
     Returns:
         RunEvaluationResponse with metrics and run ID
+        
+    Note: This endpoint requires retriever implementation to be completed.
     """
     try:
-        # Load test data
-        all_queries = load_test_queries()
-        ground_truth = load_ground_truth()
+        # Load test queries
+        all_queries = load_test_queries(request.query_file)
 
         # Filter queries if specific IDs provided
         if request.queries:
@@ -112,48 +139,34 @@ async def run_evaluation(request: RunEvaluationRequest):
         else:
             queries = all_queries
 
-        # Get retriever
+        # Get retriever (currently not implemented)
         retriever = get_retriever(request.system)
 
         # Run evaluation
         logger.info(f"Running evaluation for {request.system} on {len(queries)} queries")
         service = EvaluationService()
-        metrics = service.run_evaluation(
-            system_name=request.system,
-            retriever=retriever,
-            test_queries=queries,
-            ground_truth=ground_truth
-        )
-
-        # Generate run ID
-        run_id = f"{request.system}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        eval_run = service.evaluate_system(retriever, queries, request.system)
 
         # Save results
         results_dir = Path("data/evaluation/results")
         results_dir.mkdir(parents=True, exist_ok=True)
-        results_path = results_dir / f"{run_id}.json"
+        results_path = results_dir / f"{eval_run.run_id}.json"
 
-        service.save_results(
-            {
-                "run_id": run_id,
-                "system": request.system,
-                "timestamp": datetime.now().isoformat(),
-                "metrics": metrics.model_dump(),
-                "num_queries": len(queries)
-            },
-            results_path
-        )
+        with open(results_path, 'w', encoding='utf-8') as f:
+            json.dump(eval_run.model_dump(), f, indent=2)
 
         return RunEvaluationResponse(
-            run_id=run_id,
+            run_id=eval_run.run_id,
             system=request.system,
             status="completed",
-            metrics=metrics,
+            metrics=eval_run.metrics,
             message=f"Evaluation completed successfully on {len(queries)} queries"
         )
 
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error running evaluation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -182,7 +195,7 @@ async def get_results(run_id: str):
         return json.load(f)
 
 
-@router.post("/compare", response_model=SystemComparison)
+@router.post("/compare", response_model=List[SystemComparisonResponse])
 async def compare_systems(request: CompareSystemsRequest):
     """
     Compare multiple systems.
@@ -191,54 +204,53 @@ async def compare_systems(request: CompareSystemsRequest):
         request: CompareSystemsRequest with list of system names
 
     Returns:
-        SystemComparison with comparative metrics
+        List of SystemComparison with comparative metrics
+        
+    Note: This endpoint requires retriever implementation to be completed.
     """
     try:
-        # Load test data
-        queries = load_test_queries()
-        ground_truth = load_ground_truth()
+        # Load test queries
+        queries = load_test_queries(request.query_file)
 
-        # Run evaluation for each system
-        service = EvaluationService()
-        system_results = {}
-
+        # Get retrievers for each system
+        retrievers = {}
         for system_name in request.systems:
-            logger.info(f"Evaluating {system_name}...")
-            retriever = get_retriever(system_name)
-            metrics = service.run_evaluation(
-                system_name=system_name,
-                retriever=retriever,
-                test_queries=queries,
-                ground_truth=ground_truth
+            logger.info(f"Loading retriever for {system_name}...")
+            retrievers[system_name] = get_retriever(system_name)
+
+        # Run comparison
+        service = EvaluationService()
+        comparisons = service.compare_systems(retrievers, queries)
+
+        # Convert to response format
+        return [
+            SystemComparisonResponse(
+                system_name=comp.system_name,
+                metrics=EvaluationMetricsResponse(**comp.metrics.model_dump())
             )
-            system_results[system_name] = metrics
+            for comp in comparisons
+        ]
 
-        # Compare systems
-        comparison = service.compare_systems(system_results)
-
-        return comparison
-
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error comparing systems: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/queries", response_model=List[TestQuery])
-async def list_queries():
+@router.get("/systems")
+async def list_systems():
     """
-    List all test queries.
+    List available retrieval systems for evaluation.
 
     Returns:
-        List of test queries
+        Dictionary of available system names
     """
-    try:
-        queries = load_test_queries()
-        return queries
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error loading queries: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "systems": ["vector_only", "hybrid", "rerank"],
+        "count": 3,
+        "note": "Retriever instantiation not yet implemented. Use evaluation module directly."
+    }
 
 
 @router.get("/health")
