@@ -118,6 +118,9 @@ data/security/
 # Keep directory structure
 data/
 !data/.gitkeep
+# Exception: Allow demo dataset for interview demonstration
+!data/demo/
+!data/demo/**
 
 # ============================================
 # BUILD & METADATA
