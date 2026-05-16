@@ -439,22 +439,26 @@ Start with the documentation hub: [docs/README.md](./docs/README.md)
 ### Recommended Reading Order
 
 1. **[docs/README.md](./docs/README.md)** - Documentation hub and navigation guide
-2. **[docs/production_readiness_checklist.md](./docs/production_readiness_checklist.md)** - Pre-deployment validation checklist
-3. **[docs/DOCUMENTATION_STANDARD.md](./docs/DOCUMENTATION_STANDARD.md)** - Documentation standards and guidelines
-4. **[CHANGELOG.md](./CHANGELOG.md)** - Detailed version history and changes
-5. **[CLAUDE.md](./CLAUDE.md)** - Project configuration for AI assistants
+2. **[CHANGELOG.md](./CHANGELOG.md)** - Detailed version history and changes
+3. **[docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md)** - Complete version timeline
+4. **[CLAUDE.md](./CLAUDE.md)** - Project configuration for AI assistants
+
+### Documentation Structure
+
+- **[docs/](./docs/)** - Main documentation directory
+  - **[releases/](./docs/releases/)** - Release notes and version announcements
+  - **[archive/](./docs/archive/)** - Historical reports and investigations
+    - `refactoring/` - Refactoring reports and technical debt cleanup
+    - `ui/` - UI modernization and CSS cleanup reports
+    - `investigations/` - Technical investigation reports
+  - **[development/](./docs/development/)** - Development guides and workflows
+  - **[operations/](./docs/operations/)** - Deployment and operational guides
+  - **[project/](./docs/project/)** - Project planning and architecture
 
 ### Additional Resources
 
-- **[docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md)** - Complete version timeline
 - **API Documentation** - Available at `/docs` when backend is running
-- **Historical Reports** - Preserved under `docs/` for audit and traceability
-
-Historical release and refactoring reports are retained under `docs/` for audit and traceability, but they should be treated as point-in-time records rather than the primary operational source of truth.
-
-## Known Documentation Note
-
-The repository contains historical documents and release artifacts from multiple milestones (v0.2.5 through v0.3.3). Core entry documents have been normalized for enterprise use, while older milestone reports remain preserved as historical records for audit purposes.
+- **[README-STARTUP.md](./README-STARTUP.md)** - Quick startup guide for development
 
 ## Contributing
 
