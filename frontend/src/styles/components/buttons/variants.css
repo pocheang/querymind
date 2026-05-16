@@ -80,6 +80,38 @@ button.danger:active:not(:disabled) {
 }
 
 /* ============================================
+   Link Button (styled as button)
+   ============================================ */
+
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.link-btn.secondary {
+  background: #fff;
+  color: #17305e;
+  border-color: #d8e1ef;
+  box-shadow: 0 8px 16px rgba(151, 166, 194, 0.1);
+}
+
+.link-btn.secondary:hover {
+  background: #f9fbff;
+  border-color: #b8caec;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(151, 166, 194, 0.14);
+}
+
+/* ============================================
    Text Link Button
    ============================================ */
 

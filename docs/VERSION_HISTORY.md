@@ -15,7 +15,7 @@ For current release notes, also see [../CHANGELOG.md](../CHANGELOG.md).
 
 | Version | Date | Type | Public Summary |
 | --- | --- | --- | --- |
-| v0.4.0 | 2026-05-16 | Major Feature | Interview demo features: Performance comparison, Agent visualization, Chinese NLP, Advanced RAG, Streaming PDF, Demo dataset |
+| v0.4.0 | 2026-05-16 | Major Feature | Interview demo features: Performance comparison, Agent visualization, Chinese NLP, Advanced RAG, Streaming PDF, Demo dataset, Modern UI redesign |
 | v0.3.3 | 2026-05-07 | Feature | Performance optimization and enhanced testing |
 | v0.3.1.2 | 2026-04-28 | Security hardening | Admin user management hardening, RBAC checks, input validation, safer auth behavior |
 | v0.3.1.1 | 2026-04-28 | Patch | PDF upload statistics fixes and user feedback improvements |
@@ -40,11 +40,18 @@ Public highlights:
 - **Streaming PDF Processing**: True streaming with 70% memory reduction for large PDFs (1000+ pages)
 - **Batch Chart Extraction**: Parallel processing for improved throughput
 - **Demo Dataset**: 6 documents (2,763 lines, ~19,000 words) for interview demonstrations
+- **Modern UI Redesign**:
+  - Welcome Screen component with system statistics, quick actions, and feature highlights
+  - API Settings modal redesign with unified card-based design and modern form inputs
+  - Interactive Architecture visualization with React Flow (28 functional nodes)
+  - Sidebar optimization with enhanced visual hierarchy and status badges
+  - CSS architecture improvements with lazy-loaded styles
 
 Key metrics:
-- 84 files modified/added with 15,086+ lines of new code
+- 84+ files modified/added with 15,086+ lines of new code
 - 13 new backend services, 3 API route modules
 - 9 comprehensive unit test files, 6 demo documents
+- 4 new UI components (WelcomeScreen, DataFlowVisualization)
 - 15-25% accuracy improvement over baseline systems
 - 70% memory reduction for large PDF processing
 - Real-time agent execution tracking with SSE support

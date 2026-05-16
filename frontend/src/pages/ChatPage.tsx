@@ -280,8 +280,12 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
         <ChatMessages
           messages={messages}
           containerRef={chatScrollRef}
+          documentsCount={documents.length}
+          sessionsCount={sessions.length}
           onEditMessage={(msg) => messageActions.editMessage(msg, useWeb, useReasoning)}
           onRemoveMessage={messageActions.removeMessage}
+          onCreateSession={async () => { await actions.createSession(); }}
+          onNavigateToArchitecture={() => window.location.href = '/architecture'}
         />
 
         <ChatComposer

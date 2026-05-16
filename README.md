@@ -8,7 +8,7 @@
 
 Enterprise-oriented, local-first RAG platform with multi-agent orchestration, hybrid retrieval, graph enhancement, admin governance, and streaming chat.
 
-**Latest Release**: v0.4.0 (2026-05-16) - Interview Demo Features: Performance Comparison, Agent Visualization, Chinese NLP, Advanced RAG, Streaming PDF, Demo Dataset
+**Latest Release**: v0.4.0 (2026-05-16) - Interview Demo Features: Performance Comparison, Agent Visualization, Chinese NLP, Advanced RAG, Streaming PDF, Demo Dataset, Modern UI Redesign
 
 This repository packages a FastAPI backend, a React frontend, and a modular retrieval pipeline designed for private knowledge bases, internal copilots, and controlled enterprise AI workflows.
 
@@ -22,6 +22,7 @@ This repository packages a FastAPI backend, a React frontend, and a modular retr
 - **Advanced RAG techniques** including query decomposition and Self-RAG evaluation
 - **Streaming PDF processing** with true streaming and 70% memory reduction for large documents
 - **Batch chart extraction** with parallel processing for improved throughput
+- **Modern UI design** with welcome screen, interactive architecture visualization, and optimized settings modal
 - Optional Neo4j knowledge graph enrichment for entity relationships
 - Local-first document ingestion with OCR support (Tesseract) and image captioning
 - Role-based access control (RBAC), session isolation, and comprehensive admin operations

@@ -148,10 +148,9 @@ export function WorkbenchPanel({
             <strong>AGENT WORKBENCH</strong>
             <small>自动路由与执行模式切换</small>
           </div>
-          <div className="sidebar-module-meta">
-            <em>{moduleStatus.agents}</em>
-            <span>{toolsCollapsed.agents ? "展开" : "收起"}</span>
-          </div>
+          <span className={`sidebar-module-status ${agentClassHint ? 'status-locked' : 'status-auto'}`}>
+            {moduleStatus.agents}
+          </span>
         </button>
         {!toolsCollapsed.agents && (
           <div className="sidebar-module-body">
@@ -171,10 +170,9 @@ export function WorkbenchPanel({
             <strong>PDF WORKBENCH</strong>
             <small>PDF 与图片问答、重建索引</small>
           </div>
-          <div className="sidebar-module-meta">
-            <em>{moduleStatus.pdf}</em>
-            <span>{toolsCollapsed.pdf ? "展开" : "收起"}</span>
-          </div>
+          <span className="sidebar-module-status status-files">
+            {moduleStatus.pdf}
+          </span>
         </button>
         {!toolsCollapsed.pdf && (
           <div className="sidebar-module-body">
@@ -196,10 +194,9 @@ export function WorkbenchPanel({
             <strong>KNOWLEDGE BASE</strong>
             <small>上传、刷新、重建与删除</small>
           </div>
-          <div className="sidebar-module-meta">
-            <em>{moduleStatus.docs}</em>
-            <span>{toolsCollapsed.docs ? "展开" : "收起"}</span>
-          </div>
+          <span className="sidebar-module-status status-docs">
+            {moduleStatus.docs}
+          </span>
         </button>
         {!toolsCollapsed.docs && (
           <div className="sidebar-module-body">
@@ -244,10 +241,9 @@ export function WorkbenchPanel({
             <strong>PROMPT LIBRARY</strong>
             <small>保存与复用常用 Prompt</small>
           </div>
-          <div className="sidebar-module-meta">
-            <em>{moduleStatus.prompts}</em>
-            <span>{toolsCollapsed.prompts ? "展开" : "收起"}</span>
-          </div>
+          <span className="sidebar-module-status status-saved">
+            {moduleStatus.prompts}
+          </span>
         </button>
         {!toolsCollapsed.prompts && (
           <div className="sidebar-module-body">

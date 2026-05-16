@@ -53,12 +53,6 @@ export function SessionList({
 
   return (
     <section className="sidebar-history-panel">
-      <div className="section-head sidebar-section-head">
-        <div>
-          <strong>SESSIONS</strong>
-          <small className="muted">最近会话流</small>
-        </div>
-      </div>
       <label className="session-search" aria-label="搜索会话">
         <span className="session-search-icon" aria-hidden="true" />
         <input

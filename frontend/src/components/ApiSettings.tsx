@@ -25,6 +25,7 @@ let modalStylesLoaded = false;
 async function loadModalStyles() {
   if (!modalStylesLoaded) {
     await import("@/styles/components/modals.css");
+    await import("@/styles/components/dropdowns.css");
     modalStylesLoaded = true;
   }
 }

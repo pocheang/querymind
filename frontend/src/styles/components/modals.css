@@ -158,11 +158,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
 }
 
 /* ============================================
@@ -226,6 +226,260 @@
 }
 
 /* ============================================
+   Quick Presets
+   ============================================ */
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.preset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.preset-card:hover {
+  border-color: rgba(91, 140, 255, 0.3);
+  background: rgba(91, 140, 255, 0.08);
+  color: var(--text-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.preset-card.active {
+  border-color: rgba(91, 140, 255, 0.5);
+  background: rgba(91, 140, 255, 0.15);
+  color: #b8c7ff;
+  box-shadow: 0 4px 12px rgba(91, 140, 255, 0.2);
+}
+
+.preset-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.preset-name {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ============================================
+   Form Fields
+   ============================================ */
+
+.settings-note {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(91, 140, 255, 0.2);
+  background: rgba(91, 140, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.label-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(91, 140, 255, 0.15);
+  color: #b8c7ff;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.api-input-field,
+.api-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.api-input-field::placeholder {
+  color: var(--text-tertiary);
+}
+
+.api-input-field:focus,
+.api-select:focus {
+  outline: none;
+  border-color: rgba(91, 140, 255, 0.5);
+  background: rgba(91, 140, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(91, 140, 255, 0.1);
+}
+
+.api-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23b8c7ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
+}
+
+.input-with-action {
+  display: flex;
+  gap: 8px;
+}
+
+.input-with-action .api-input-field {
+  flex: 1;
+}
+
+.input-action-btn {
+  min-width: 70px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-action-btn:hover {
+  border-color: rgba(91, 140, 255, 0.3);
+  background: rgba(91, 140, 255, 0.08);
+  color: var(--text-primary);
+}
+
+/* ============================================
+   Slider
+   ============================================ */
+
+.api-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+  cursor: pointer;
+}
+
+.api-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5b8cff 0%, #4a7ae8 100%);
+  box-shadow: 0 2px 8px rgba(91, 140, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.api-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(91, 140, 255, 0.5);
+}
+
+.api-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5b8cff 0%, #4a7ae8 100%);
+  box-shadow: 0 2px 8px rgba(91, 140, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.api-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(91, 140, 255, 0.5);
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================
+   Info Box
+   ============================================ */
+
+.settings-info-box {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(91, 140, 255, 0.2);
+  background: rgba(91, 140, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ============================================
+   Test Result
+   ============================================ */
+
+.test-result {
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  animation: resultSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes resultSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.test-result.success {
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+}
+
+.test-result.error {
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+}
+
+/* ============================================
    Responsive Adjustments
    ============================================ */
 
@@ -243,5 +497,9 @@
 
   .settings-footer {
     grid-template-columns: 1fr;
+  }
+
+  .preset-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
