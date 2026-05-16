@@ -72,7 +72,8 @@ from app.api.middleware import request_timing_middleware
 
 # Import route modules
 from app.api.routes import health, auth, query, sessions, documents, prompts
-from app.api.routes import admin_users, admin_ops, admin_settings, evaluation
+from app.api.routes import admin_users, admin_ops, admin_settings
+from app.api.routes import agent_tracking, evaluation
 from app.api.routes.health import _check_neo4j_ready
 
 auth_dependencies.auth_service = auth_service
@@ -130,6 +131,7 @@ app.include_router(prompts.router)
 app.include_router(admin_users.router)
 app.include_router(admin_ops.router)
 app.include_router(admin_settings.router)
+app.include_router(agent_tracking.router)
 app.include_router(evaluation.router)
 
 # React frontend serving
