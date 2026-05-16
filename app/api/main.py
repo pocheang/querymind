@@ -74,6 +74,7 @@ from app.api.middleware import request_timing_middleware
 from app.api.routes import health, auth, query, sessions, documents, prompts
 from app.api.routes import admin_users, admin_ops, admin_settings
 from app.api.routes import agent_tracking, evaluation
+from app.api.routes import advanced_rag
 from app.api.routes.health import _check_neo4j_ready
 
 auth_dependencies.auth_service = auth_service
@@ -133,6 +134,7 @@ app.include_router(admin_ops.router)
 app.include_router(admin_settings.router)
 app.include_router(agent_tracking.router)
 app.include_router(evaluation.router)
+app.include_router(advanced_rag.router)
 
 # React frontend serving
 react_dist_dir = Path(__file__).resolve().parents[2] / "frontend" / "dist"
