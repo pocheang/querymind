@@ -4,11 +4,11 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Backend](https://img.shields.io/badge/backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-61DAFB.svg)](https://react.dev/)
-[![Version](https://img.shields.io/badge/version-v0.3.3-blue.svg)](./docs/VERSION_HISTORY.md)
+[![Version](https://img.shields.io/badge/version-v0.4.0-blue.svg)](./docs/VERSION_HISTORY.md)
 
 Enterprise-oriented, local-first RAG platform with multi-agent orchestration, hybrid retrieval, graph enhancement, admin governance, and streaming chat.
 
-**Latest Release**: v0.3.3 (2026-05-07) - Performance Optimization & Enhanced Testing
+**Latest Release**: v0.4.0 (2026-05-16) - Interview Demo Features: Performance Comparison, Agent Visualization, Chinese NLP, Advanced RAG
 
 This repository packages a FastAPI backend, a React frontend, and a modular retrieval pipeline designed for private knowledge bases, internal copilots, and controlled enterprise AI workflows.
 
@@ -16,6 +16,10 @@ This repository packages a FastAPI backend, a React frontend, and a modular retr
 
 - Multi-agent query orchestration built on LangGraph with intelligent routing
 - Hybrid retrieval with vector search, BM25, reciprocal rank fusion, and reranking
+- **Performance comparison framework** with baseline systems and comprehensive evaluation metrics
+- **Agent execution visualization** with real-time tracking and SSE streaming
+- **Chinese NLP optimization** with tokenization, synonym expansion, and query preprocessing
+- **Advanced RAG techniques** including query decomposition and Self-RAG evaluation
 - Optional Neo4j knowledge graph enrichment for entity relationships
 - Local-first document ingestion with OCR support (Tesseract) and image captioning
 - Role-based access control (RBAC), session isolation, and comprehensive admin operations
@@ -77,6 +81,9 @@ The main backend entry point is `app.api.main:app`.
 - `/admin/users`: User lifecycle management, role/status updates, and audit operations
 - `/admin/ops`: Retrieval profile management, canary routing, rollback, benchmark, replay, and operational reports
 - `/admin/model-settings` and `/user/api-settings`: Runtime model configuration and API key management
+- `/api/evaluation`: Performance comparison, baseline systems, and evaluation metrics
+- `/api/agent-tracking`: Real-time agent execution tracking with SSE streaming
+- `/api/advanced-rag`: Query decomposition and Self-RAG evaluation endpoints
 - `/health`, `/ready`, `/metrics`: Health checks, readiness probes, and system metrics
 
 ## Architecture Characteristics

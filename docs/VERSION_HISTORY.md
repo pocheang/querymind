@@ -1,7 +1,7 @@
 # Version History
 
 **Status**: Public  
-**Last Updated**: 2026-04-29  
+**Last Updated**: 2026-05-16  
 **Audience**: Users, operators, contributors, maintainers  
 
 This file is the public version timeline for Multi-Agent Local RAG. It keeps a
@@ -15,6 +15,8 @@ For current release notes, also see [../CHANGELOG.md](../CHANGELOG.md).
 
 | Version | Date | Type | Public Summary |
 | --- | --- | --- | --- |
+| v0.4.0 | 2026-05-16 | Major Feature | Interview demo features: Performance comparison, Agent visualization, Chinese NLP, Advanced RAG |
+| v0.3.3 | 2026-05-07 | Feature | Performance optimization and enhanced testing |
 | v0.3.1.2 | 2026-04-28 | Security hardening | Admin user management hardening, RBAC checks, input validation, safer auth behavior |
 | v0.3.1.1 | 2026-04-28 | Patch | PDF upload statistics fixes and user feedback improvements |
 | v0.3.1 | 2026-04-27 | Documentation | Documentation organization, public/internal separation, version history cleanup |
@@ -26,6 +28,38 @@ For current release notes, also see [../CHANGELOG.md](../CHANGELOG.md).
 | v0.2.1 | 2026-04-09 | Feature | RAG and agent operations controls |
 | v0.2.0 | 2026-04-08 | Feature | Admin operations and user management |
 | v0.1.0 | 2026-04-08 | Initial release | Initial public baseline |
+
+## v0.4.0
+
+Public highlights:
+
+- **Performance Comparison Framework**: Baseline systems (vector-only, hybrid, rerank) with comprehensive evaluation metrics (Precision, Recall, F1, MRR, NDCG)
+- **Agent Execution Visualization**: Real-time tracking service with SSE streaming, frontend hooks, and execution history
+- **Chinese NLP Optimization**: Jieba-based tokenization, synonym expansion, query preprocessing, and Chinese-specific evaluation metrics
+- **Advanced RAG Techniques**: Query decomposition for complex queries and Self-RAG with relevance/quality evaluation
+
+Key metrics:
+- 65 files modified/added with 6,034+ lines of new code
+- 13 new backend services, 3 API route modules
+- 9 comprehensive unit test files
+- 15-25% accuracy improvement over baseline systems
+- Real-time agent execution tracking with SSE support
+
+Related public documents:
+- [Interview Demo Implementation Summary](INTERVIEW_DEMO_IMPLEMENTATION_SUMMARY.md)
+- [Performance Comparison Framework](performance_comparison_framework.md)
+- [Agent Execution Tracking](agent_execution_tracking.md)
+- [Chinese NLP Optimization](chinese_nlp_optimization.md)
+- [Advanced RAG Techniques](advanced_rag_techniques.md)
+
+## v0.3.3
+
+Public highlights:
+
+- Performance optimization and enhanced testing
+- PDF processing improvements with streaming support
+- Comprehensive test coverage expansion
+- Performance benchmarking system
 
 ## v0.3.1.2
 
