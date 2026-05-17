@@ -65,17 +65,20 @@ def safe_vector_result(
                     retrieved_sources.append(source)
 
             retrieval_logger.log_retrieval(RetrievalLog(
-                query_id=str(uuid.uuid4()),
+                log_id=str(uuid.uuid4()),
                 timestamp=datetime.now(timezone.utc),
+                question=question,
+                agent_class=agent_class or "general",
                 route="vector",
-                query=question,
-                retrieval_time=retrieval_time_ms / 1000,
+                filtered_docs_count=len(allowed_sources) if allowed_sources else 0,
                 retrieved_count=retrieved_count,
                 effective_hit_count=effective_hit_count,
                 top_scores=top_scores,
+                retrieval_time_ms=retrieval_time_ms,
+                total_time_ms=retrieval_time_ms,
                 retrieved_sources=retrieved_sources,
-                filters={"allowed_sources": allowed_sources, "retrieval_strategy": retrieval_strategy, "agent_class": agent_class},
-                success=True
+                has_result=retrieved_count > 0,
+                error=None
             ))
         except Exception as log_error:
             logger.warning(f"Failed to log retrieval: {log_error}")
@@ -89,18 +92,20 @@ def safe_vector_result(
         try:
             retrieval_logger = RetrievalLogger.get_instance()
             retrieval_logger.log_retrieval(RetrievalLog(
-                query_id=str(uuid.uuid4()),
+                log_id=str(uuid.uuid4()),
                 timestamp=datetime.now(timezone.utc),
+                question=question,
+                agent_class=agent_class or "general",
                 route="vector",
-                query=question,
-                retrieval_time=retrieval_time_ms / 1000,
+                filtered_docs_count=len(allowed_sources) if allowed_sources else 0,
                 retrieved_count=0,
                 effective_hit_count=0,
                 top_scores=[],
+                retrieval_time_ms=retrieval_time_ms,
+                total_time_ms=retrieval_time_ms,
                 retrieved_sources=[],
-                filters={"allowed_sources": allowed_sources, "retrieval_strategy": retrieval_strategy, "agent_class": agent_class},
-                success=False,
-                error_type=type(e).__name__
+                has_result=False,
+                error=str(e)
             ))
         except Exception as log_error:
             logger.warning(f"Failed to log retrieval: {log_error}")
@@ -143,17 +148,20 @@ def safe_graph_result(question: str, allowed_sources: list[str] | None = None, a
                     retrieved_sources.append(source)
 
             retrieval_logger.log_retrieval(RetrievalLog(
-                query_id=str(uuid.uuid4()),
+                log_id=str(uuid.uuid4()),
                 timestamp=datetime.now(timezone.utc),
+                question=question,
+                agent_class=agent_class or "general",
                 route="graph",
-                query=question,
-                retrieval_time=retrieval_time_ms / 1000,
+                filtered_docs_count=len(allowed_sources) if allowed_sources else 0,
                 retrieved_count=retrieved_count,
                 effective_hit_count=effective_hit_count,
-                top_scores=[],  # Graph doesn't have relevance scores
+                top_scores=[],
+                retrieval_time_ms=retrieval_time_ms,
+                total_time_ms=retrieval_time_ms,
                 retrieved_sources=retrieved_sources,
-                filters={"allowed_sources": allowed_sources, "agent_class": agent_class},
-                success=True
+                has_result=retrieved_count > 0,
+                error=None
             ))
         except Exception as log_error:
             logger.warning(f"Failed to log retrieval: {log_error}")
@@ -167,18 +175,20 @@ def safe_graph_result(question: str, allowed_sources: list[str] | None = None, a
         try:
             retrieval_logger = RetrievalLogger.get_instance()
             retrieval_logger.log_retrieval(RetrievalLog(
-                query_id=str(uuid.uuid4()),
+                log_id=str(uuid.uuid4()),
                 timestamp=datetime.now(timezone.utc),
+                question=question,
+                agent_class=agent_class or "general",
                 route="graph",
-                query=question,
-                retrieval_time=retrieval_time_ms / 1000,
+                filtered_docs_count=len(allowed_sources) if allowed_sources else 0,
                 retrieved_count=0,
                 effective_hit_count=0,
                 top_scores=[],
+                retrieval_time_ms=retrieval_time_ms,
+                total_time_ms=retrieval_time_ms,
                 retrieved_sources=[],
-                filters={"allowed_sources": allowed_sources, "agent_class": agent_class},
-                success=False,
-                error_type=type(e).__name__
+                has_result=False,
+                error=str(e)
             ))
         except Exception as log_error:
             logger.warning(f"Failed to log retrieval: {log_error}")
