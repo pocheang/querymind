@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import type { AuthUser } from '@/types/api';
 
 interface AnalyticsOverview {
   total_queries: number;
@@ -25,9 +27,16 @@ interface DocumentStats {
   avg_score: number;
 }
 
+type Props = {
+  user: AuthUser | null;
+  onLogout: () => Promise<void>;
+  themeLabel: string;
+  onThemeToggle: () => void;
+};
+
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export default function AnalyticsPage() {
+export default function AnalyticsPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [agents, setAgents] = useState<AgentStats[]>([]);
   const [documents, setDocuments] = useState<DocumentStats[]>([]);
@@ -98,8 +107,70 @@ export default function AnalyticsPage() {
   }));
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
       {/* Header */}
+      <header style={{
+        backgroundColor: 'white',
+        borderBottom: '1px solid #e0e0e0',
+        padding: '1rem 2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '2rem'
+      }}>
+        <div>
+          <h2 style={{ margin: '0 0 0.25rem 0', fontSize: '1.5rem', fontWeight: 600 }}>监控分析</h2>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>系统性能和使用情况分析</p>
+        </div>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <button
+            onClick={onThemeToggle}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#f0f0f0',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.9rem'
+            }}
+          >
+            {themeLabel}
+          </button>
+          <Link
+            to="/app/admin"
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#f0f0f0',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              textDecoration: 'none',
+              color: 'inherit'
+            }}
+          >
+            返回管理
+          </Link>
+          <button
+            onClick={() => void onLogout()}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#ff4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.9rem'
+            }}
+          >
+            退出登录
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div style={{ padding: '0 2rem 2rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Refresh Button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 600 }}>Analytics Dashboard</h1>
         <button
@@ -306,6 +377,7 @@ export default function AnalyticsPage() {
         >
           Export CSV
         </button>
+      </div>
       </div>
     </div>
   );

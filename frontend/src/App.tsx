@@ -5,6 +5,7 @@ import { applyTheme, getSavedTheme, nextTheme, saveTheme, type ThemeMode } from 
 import { LoginPage } from "@/pages/LoginPage";
 import { ChatPage } from "@/pages/ChatPage";
 import { AdminPage } from "@/pages/AdminPage";
+import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { ArchitecturePage } from "@/pages/ArchitecturePage";
 import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
 import { ProfilePage } from "@/pages/ProfilePage";
@@ -111,6 +112,19 @@ export function App() {
         element={
           <Protected user={user} authReady={authReady}>
             <AdminPage
+              user={user}
+              onLogout={logout}
+              themeLabel={themeLabel}
+              onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
+            />
+          </Protected>
+        }
+      />
+      <Route
+        path="/app/analytics"
+        element={
+          <Protected user={user} authReady={authReady}>
+            <AnalyticsPage
               user={user}
               onLogout={logout}
               themeLabel={themeLabel}

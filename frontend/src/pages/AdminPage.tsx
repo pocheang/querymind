@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { AuthUser } from "@/types/api";
 import { AdminAuditLogManagement } from "@/pages/admin/AdminAuditLogManagement";
 import { AdminCreateForm } from "@/pages/admin/AdminCreateForm";
@@ -30,6 +30,7 @@ type Props = {
 };
 
 export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
+  const navigate = useNavigate();
   const state = useAdminState();
   const isAdmin = useMemo(() => (user?.role || "").toLowerCase() === "admin", [user?.role]);
 
@@ -93,6 +94,7 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
         </div>
         <div className="top-actions">
           <button className="secondary" type="button" onClick={onThemeToggle}>{themeLabel}</button>
+          <button className="secondary" type="button" onClick={() => navigate('/app/analytics')}>📊 查看监控分析</button>
           <Link className="secondary link-btn" to="/app">返回聊天</Link>
           <button type="button" onClick={() => void onLogout()}>退出登录</button>
         </div>
