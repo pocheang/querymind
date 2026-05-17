@@ -1,4 +1,3 @@
-import type React from "react";
 import "../../../styles/components/welcome-screen.css";
 
 type Props = {

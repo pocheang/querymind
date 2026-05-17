@@ -11,7 +11,6 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   ExecutionTrace,
   ExecutionListResponse,
-  ExecutionStatusResponse,
   ExecutionStats,
   TimelineEvent,
 } from '../types/agent-tracking';
@@ -372,7 +371,7 @@ export function useTimelineEvents(trace: ExecutionTrace | null): TimelineEvent[]
       agent_name: step.agent_name,
       start_time: new Date(step.start_time),
       end_time: step.end_time ? new Date(step.end_time) : null,
-      duration: step.duration_seconds,
+      duration: step.duration_seconds ?? null,
       status: step.status,
     }));
   })[0];

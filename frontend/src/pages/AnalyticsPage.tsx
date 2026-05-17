@@ -36,7 +36,7 @@ type Props = {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export function AnalyticsPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
+export function AnalyticsPage({ onLogout, themeLabel, onThemeToggle }: Props) {
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [agents, setAgents] = useState<AgentStats[]>([]);
   const [documents, setDocuments] = useState<DocumentStats[]>([]);
@@ -281,12 +281,12 @@ export function AnalyticsPage({ user, onLogout, themeLabel, onThemeToggle }: Pro
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
               >
-                {agentDistributionData.map((entry, index) => (
+                {agentDistributionData.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
