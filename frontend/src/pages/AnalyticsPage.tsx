@@ -36,7 +36,7 @@ type Props = {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export default function AnalyticsPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
+export function AnalyticsPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [agents, setAgents] = useState<AgentStats[]>([]);
   const [documents, setDocuments] = useState<DocumentStats[]>([]);
