@@ -27,7 +27,7 @@ interface DocumentStats {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export function AnalyticsPage() {
+export default function AnalyticsPage() {
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [agents, setAgents] = useState<AgentStats[]>([]);
   const [documents, setDocuments] = useState<DocumentStats[]>([]);
