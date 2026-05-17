@@ -49,6 +49,8 @@ id_ed25519
 # User uploaded files and documents
 data/uploads/
 data/docs/
+!data/docs/security/
+!data/docs/security/**
 data/sessions/
 data/sessions_cold/
 
@@ -111,9 +113,6 @@ data/auth.db
 # Test data
 data/test_tmp/
 data/.test_tmp/
-
-# Security data
-data/security/
 
 # Keep directory structure
 data/
