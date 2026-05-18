@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class QueryRequest(BaseModel):
@@ -12,6 +12,13 @@ class QueryRequest(BaseModel):
     agent_class_hint: str | None = None
     retrieval_strategy: str | None = None  # baseline|advanced|safe
     force_language: str = Field(default="", description="Force response language: 'zh' or 'en', empty for auto-detect")
+
+    @field_validator("force_language")
+    @classmethod
+    def validate_force_language(cls, v: str) -> str:
+        if v and v not in {"zh", "en", ""}:
+            raise ValueError("force_language must be 'zh', 'en', or empty string")
+        return v
 
 
 class Citation(BaseModel):

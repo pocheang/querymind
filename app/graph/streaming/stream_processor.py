@@ -44,6 +44,7 @@ def run_query_stream(
     allowed_sources: list[str] | None = None,
     agent_class_hint: str | None = None,
     retrieval_strategy: str | None = None,
+    force_language: str = "",
 ) -> Generator[dict[str, Any], None, dict[str, Any]]:
     """Stream query processing with real-time events."""
     _sync_agent_patchpoints()
@@ -53,6 +54,7 @@ def run_query_stream(
         "use_web_fallback": use_web_fallback,
         "use_reasoning": use_reasoning,
         "retrieval_strategy": retrieval_strategy,
+        "force_language": force_language,
     }
     thoughts: list[str] = []
 
@@ -70,6 +72,7 @@ def run_query_stream(
             "answer_safety": {},
             "explainability": {},
             "thoughts": ["执行前已超出请求超时预算。"],
+            "detected_language": state.get("force_language") or "zh",
         }
         yield {"type": "done", "result": timeout_payload}
         return timeout_payload
@@ -147,6 +150,7 @@ def run_query_stream(
             "answer_safety": state["answer_safety"],
             "explainability": explainability,
             "thoughts": thoughts,
+            "detected_language": state.get("force_language") or "zh",
         }
         yield {"type": "done", "result": final_payload}
         return final_payload
@@ -470,6 +474,7 @@ def run_query_stream(
         "answer_safety": safety_report,
         "explainability": explainability,
         "thoughts": thoughts,
+        "detected_language": state.get("detected_language", "zh"),
     }
     yield {"type": "done", "result": final_payload}
     return final_payload
