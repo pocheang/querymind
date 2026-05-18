@@ -322,6 +322,7 @@ def stream_synthesize_answer(
     """
     # Detect language (or use forced language)
     detected_language = force_language if force_language else detect_language(question)
+    logger.info(f"Streaming synthesis language: {detected_language} (forced={bool(force_language)})")
 
     # Build prompt with language hint
     prompt = _build_prompt_with_language(
@@ -386,6 +387,9 @@ def stream_synthesize_answer(
         )
         if final != initial:
             yield {"type": "reset", "content": final}
+
+        # Yield detected language metadata
+        yield {"type": "metadata", "detected_language": detected_language}
     except Exception as e:
         logger.exception(f"Stream synthesis failed for question: {question}")
         yield SYNTHESIS_FALLBACK_MESSAGE

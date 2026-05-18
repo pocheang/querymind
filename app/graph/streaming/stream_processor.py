@@ -378,6 +378,7 @@ def run_query_stream(
             graph_context=state.get("graph_result", {}).get("context", ""),
             web_context=state.get("web_result", {}).get("context", ""),
             use_reasoning=use_reasoning,
+            force_language=state.get("force_language", ""),
         ):
             if not isinstance(chunk_event, dict):
                 text = str(chunk_event)
@@ -386,6 +387,13 @@ def run_query_stream(
                 yield {"type": "answer_chunk", "content": text}
                 continue
             event_type = str(chunk_event.get("type", "chunk") or "chunk").strip().lower()
+
+            # Handle metadata events (e.g., detected_language)
+            if event_type == "metadata":
+                if "detected_language" in chunk_event:
+                    state["detected_language"] = chunk_event["detected_language"]
+                continue
+
             content = str(chunk_event.get("content", "") or "")
             if not content:
                 continue
@@ -418,6 +426,7 @@ def run_query_stream(
                 graph_context=state.get("graph_result", {}).get("context", ""),
                 web_context=state.get("web_result", {}).get("context", ""),
                 use_reasoning=use_reasoning,
+                force_language=state.get("force_language", ""),
             )
             # Extract answer text from dict response
             answer = result["answer"] if isinstance(result, dict) else result
