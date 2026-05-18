@@ -87,8 +87,9 @@ def test_synthesize_answer_returns_fallback_on_error(monkeypatch):
     monkeypatch.setattr(synthesis_agent, "get_reasoning_model", lambda: BrokenModel())
     monkeypatch.setattr(synthesis_agent, "get_chat_model", lambda: BrokenModel())
 
-    answer = synthesis_agent.synthesize_answer("q", "answer_with_citations", use_reasoning=True)
-    assert answer == synthesis_agent.SYNTHESIS_FALLBACK_MESSAGE
+    result = synthesis_agent.synthesize_answer("q", "answer_with_citations", use_reasoning=True)
+    assert isinstance(result, dict)
+    assert result["answer"] == synthesis_agent.SYNTHESIS_FALLBACK_MESSAGE
 
 
 def test_synthesize_answer_returns_fallback_when_model_build_fails(monkeypatch):
@@ -98,8 +99,9 @@ def test_synthesize_answer_returns_fallback_when_model_build_fails(monkeypatch):
     monkeypatch.setattr(synthesis_agent, "get_reasoning_model", _raise_build_error)
     monkeypatch.setattr(synthesis_agent, "get_chat_model", _raise_build_error)
 
-    answer = synthesis_agent.synthesize_answer("q", "answer_with_citations", use_reasoning=True)
-    assert answer == synthesis_agent.SYNTHESIS_FALLBACK_MESSAGE
+    result = synthesis_agent.synthesize_answer("q", "answer_with_citations", use_reasoning=True)
+    assert isinstance(result, dict)
+    assert result["answer"] == synthesis_agent.SYNTHESIS_FALLBACK_MESSAGE
 
 
 def test_stream_synthesize_yields_fallback_on_error(monkeypatch):
@@ -364,8 +366,9 @@ def test_synthesize_uses_high_temperature_for_casual_chat(monkeypatch):
     monkeypatch.setattr(synthesis_agent, "get_reasoning_model", _fake_chat_model)
     monkeypatch.setattr(synthesis_agent, "is_casual_chat_query", lambda _q: True)
 
-    out = synthesis_agent.synthesize_answer("你是谁", "answer_with_citations", use_reasoning=False)
-    assert out == "ok"
+    result = synthesis_agent.synthesize_answer("你是谁", "answer_with_citations", use_reasoning=False)
+    assert isinstance(result, dict)
+    assert result["answer"] == "ok"
     assert synthesis_agent.CASUAL_CHAT_HIGH_TEMPERATURE in seen["temps"]
 
 
@@ -406,8 +409,9 @@ def test_synthesize_refine_stops_after_max_5_rounds(monkeypatch):
     monkeypatch.setattr(synthesis_agent, "get_reasoning_model", lambda temperature=None: FakeModel())
     monkeypatch.setattr(synthesis_agent, "is_casual_chat_query", lambda _q: False)
 
-    out = synthesis_agent.synthesize_answer("q", "answer_with_citations", use_reasoning=False)
-    assert out == "ans-5"
+    result = synthesis_agent.synthesize_answer("q", "answer_with_citations", use_reasoning=False)
+    assert isinstance(result, dict)
+    assert result["answer"] == "ans-5"
     assert counters["review_calls"] == 5
 
 
@@ -428,8 +432,9 @@ def test_synthesize_refine_stops_when_answer_is_similar(monkeypatch):
     monkeypatch.setattr(synthesis_agent, "get_reasoning_model", lambda temperature=None: FakeModel())
     monkeypatch.setattr(synthesis_agent, "is_casual_chat_query", lambda _q: False)
 
-    out = synthesis_agent.synthesize_answer("q", "answer_with_citations", use_reasoning=False)
-    assert out == "same answer"
+    result = synthesis_agent.synthesize_answer("q", "answer_with_citations", use_reasoning=False)
+    assert isinstance(result, dict)
+    assert result["answer"] == "same answer"
     assert counters["review_calls"] == 1
 
 

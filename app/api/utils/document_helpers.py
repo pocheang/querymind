@@ -265,8 +265,13 @@ def _resynthesize_after_source_scope(
         web_context=web_context,
         use_reasoning=use_reasoning,
     )
+    # Extract answer text from dict response
+    answer_text = answer["answer"] if isinstance(answer, dict) else answer
+    detected_language = answer.get("detected_language", "zh") if isinstance(answer, dict) else "zh"
+
     out = dict(result)
-    out["answer"] = answer
+    out["answer"] = answer_text
+    out["detected_language"] = detected_language
     source_scope = dict(out.get("source_scope", {}) or {})
     source_scope["answer_resynthesized"] = True
     out["source_scope"] = source_scope

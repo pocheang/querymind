@@ -548,7 +548,7 @@ def test_resynthesize_after_source_scope_uses_filtered_context(monkeypatch):
 
     def fake_synthesize_answer(**kwargs):
         seen["vector_context"] = kwargs.get("vector_context", "")
-        return "answer from allowed context"
+        return {"answer": "answer from allowed context", "detected_language": "zh"}
 
     monkeypatch.setattr(api_main, "synthesize_answer", fake_synthesize_answer)
     result = {

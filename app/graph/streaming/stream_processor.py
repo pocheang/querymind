@@ -164,8 +164,9 @@ def run_query_stream(
         vector_result = {"context": "", "citations": [], "retrieved_count": 0, "error": "vector_error:Timeout"}
         graph_result = {"context": "", "entities": [], "neighbors": [], "error": "graph_error:Timeout"}
         try:
-            fut_vector = submit_hybrid(safe_vector_result, question, allowed_sources, retrieval_strategy)
-            fut_graph = submit_hybrid(safe_graph_result, question, allowed_sources)
+            agent_class = state.get("agent_class")
+            fut_vector = submit_hybrid(safe_vector_result, question, allowed_sources, retrieval_strategy, agent_class)
+            fut_graph = submit_hybrid(safe_graph_result, question, allowed_sources, agent_class)
             try:
                 left = max(0.1, deadline - time.monotonic())
                 vector_result = fut_vector.result(timeout=left)
@@ -246,6 +247,7 @@ def run_query_stream(
                 question,
                 allowed_sources=allowed_sources,
                 retrieval_strategy=retrieval_strategy,
+                agent_class=state.get("agent_class"),
             )
         if state["vector_result"].get("error"):
             thoughts.append(f"本地向量检索异常，已降级继续: {state['vector_result']['error']}")
@@ -271,7 +273,7 @@ def run_query_stream(
 
     if (not casual_chat) and route in {"graph", "hybrid"} and (not did_parallel_hybrid) and (not deadline_exceeded()):
         yield {"type": "status", "message": "retrieving_graph"}
-        state["graph_result"] = safe_graph_result(question, allowed_sources=allowed_sources)
+        state["graph_result"] = safe_graph_result(question, allowed_sources=allowed_sources, agent_class=state.get("agent_class"))
         if state["graph_result"].get("error"):
             thoughts.append(f"本地图谱检索异常，已降级继续: {state['graph_result']['error']}")
             yield {"type": "thought", "content": thoughts[-1]}
@@ -408,7 +410,7 @@ def run_query_stream(
     answer = "".join(answer_parts).strip()
     if stream_failed or (not answer):
         try:
-            answer = synthesize_answer(
+            result = synthesize_answer(
                 question=question,
                 skill_name=state.get("skill", "answer_with_citations"),
                 memory_context=state.get("memory_context", ""),
@@ -417,6 +419,10 @@ def run_query_stream(
                 web_context=state.get("web_result", {}).get("context", ""),
                 use_reasoning=use_reasoning,
             )
+            # Extract answer text from dict response
+            answer = result["answer"] if isinstance(result, dict) else result
+            detected_language = result.get("detected_language", "zh") if isinstance(result, dict) else "zh"
+            state["detected_language"] = detected_language
         except Exception as e:
             logger.exception(f"Fallback synthesis crashed for question: {question}")
             thoughts.append(f"兜底生成也异常: {type(e).__name__}")

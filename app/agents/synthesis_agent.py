@@ -6,6 +6,7 @@ import re
 from app.core.config import get_settings
 from app.core.models import get_chat_model, get_reasoning_model
 from app.services.bulkhead import bulkhead
+from app.services.language_detector import detect_language
 from app.services.query_intent import is_casual_chat_query
 from app.services.request_context import deadline_exceeded, overload_mode_enabled
 
@@ -32,6 +33,11 @@ ANSWER_PROMPT = """
 - 语言简洁、直接、逻辑清楚，默认中文。
 - 除非用户要求，不强制输出固定大纲或长篇分点。
 - 安全边界：可解释原理与防护，不提供可直接滥用的攻击指令或破坏命令。
+
+语言适配规则：
+- 若提示中包含 [Language: zh]，必须用中文回答。
+- 若提示中包含 [Language: en]，必须用英文回答。
+- 保持回答语言与用户问题语言一致。
 """
 
 REVIEW_PROMPT = """
@@ -59,6 +65,28 @@ def _build_prompt(
     web_context: str = "",
 ) -> str:
     return (
+        f"技能: {skill_name}\n\n"
+        f"用户问题:\n{question}\n\n"
+        f"记忆上下文:\n{memory_context or '无'}\n\n"
+        f"向量检索上下文:\n{vector_context or '无'}\n\n"
+        f"图谱上下文:\n{graph_context or '无'}\n\n"
+        f"联网补充上下文:\n{web_context or '无'}\n"
+    )
+
+
+def _build_prompt_with_language(
+    question: str,
+    detected_language: str,
+    skill_name: str,
+    memory_context: str = "",
+    vector_context: str = "",
+    graph_context: str = "",
+    web_context: str = "",
+) -> str:
+    """Build prompt with language hint for multilingual support."""
+    language_hint = f"[Language: {detected_language}]\n"
+    return (
+        f"{language_hint}"
         f"技能: {skill_name}\n\n"
         f"用户问题:\n{question}\n\n"
         f"记忆上下文:\n{memory_context or '无'}\n\n"
@@ -203,8 +231,38 @@ def synthesize_answer(
     graph_context: str = "",
     web_context: str = "",
     use_reasoning: bool = False,
-) -> str:
-    prompt = _build_prompt(question, skill_name, memory_context, vector_context, graph_context, web_context)
+    force_language: str = "",
+) -> dict:
+    """
+    Synthesize answer with language detection support.
+
+    Args:
+        question: User question
+        skill_name: Skill name for context
+        memory_context: Memory context
+        vector_context: Vector retrieval context
+        graph_context: Graph context
+        web_context: Web search context
+        use_reasoning: Whether to use reasoning model
+        force_language: Force specific language ('zh' or 'en'), empty string for auto-detect
+
+    Returns:
+        dict with 'answer' and 'detected_language' keys
+    """
+    # Detect language (or use forced language)
+    detected_language = force_language if force_language else detect_language(question)
+
+    # Build prompt with language hint
+    prompt = _build_prompt_with_language(
+        question=question,
+        detected_language=detected_language,
+        skill_name=skill_name,
+        memory_context=memory_context,
+        vector_context=vector_context,
+        graph_context=graph_context,
+        web_context=web_context,
+    )
+
     try:
         with bulkhead("llm"):
             model = _build_generation_model(use_reasoning=use_reasoning, question=question)
@@ -212,8 +270,11 @@ def synthesize_answer(
         content = result.content if hasattr(result, "content") else str(result)
         initial = str(content).strip()
         if not initial:
-            return SYNTHESIS_FALLBACK_MESSAGE
-        return _refine_answer(
+            return {
+                "answer": SYNTHESIS_FALLBACK_MESSAGE,
+                "detected_language": detected_language,
+            }
+        final_answer = _refine_answer(
             question=question,
             initial_answer=initial,
             memory_context=memory_context,
@@ -222,8 +283,15 @@ def synthesize_answer(
             web_context=web_context,
             use_reasoning=use_reasoning,
         )
+        return {
+            "answer": final_answer,
+            "detected_language": detected_language,
+        }
     except Exception:
-        return SYNTHESIS_FALLBACK_MESSAGE
+        return {
+            "answer": SYNTHESIS_FALLBACK_MESSAGE,
+            "detected_language": detected_language,
+        }
 
 
 def stream_synthesize_answer(
@@ -234,8 +302,38 @@ def stream_synthesize_answer(
     graph_context: str = "",
     web_context: str = "",
     use_reasoning: bool = False,
+    force_language: str = "",
 ) -> Iterable[dict[str, str] | str]:
-    prompt = _build_prompt(question, skill_name, memory_context, vector_context, graph_context, web_context)
+    """
+    Stream synthesize answer with language detection support.
+
+    Args:
+        question: User question
+        skill_name: Skill name for context
+        memory_context: Memory context
+        vector_context: Vector retrieval context
+        graph_context: Graph context
+        web_context: Web search context
+        use_reasoning: Whether to use reasoning model
+        force_language: Force specific language ('zh' or 'en'), empty string for auto-detect
+
+    Yields:
+        Text chunks or dict with metadata
+    """
+    # Detect language (or use forced language)
+    detected_language = force_language if force_language else detect_language(question)
+
+    # Build prompt with language hint
+    prompt = _build_prompt_with_language(
+        question=question,
+        detected_language=detected_language,
+        skill_name=skill_name,
+        memory_context=memory_context,
+        vector_context=vector_context,
+        graph_context=graph_context,
+        web_context=web_context,
+    )
+
     try:
         with bulkhead("llm"):
             model = _build_generation_model(use_reasoning=use_reasoning, question=question)

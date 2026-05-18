@@ -51,14 +51,24 @@ def synthesis_node(state: GraphState) -> GraphState:
         web_context=web_context,
         use_reasoning=state.get("use_reasoning", True),
     )
+    # Extract answer text from dict response
+    answer_text = answer["answer"] if isinstance(answer, dict) else answer
+    detected_language = answer.get("detected_language", "zh") if isinstance(answer, dict) else "zh"
+
     evidence_texts = []
     for c in state.get("vector_result", {}).get("citations", []) or []:
         evidence_texts.append(str(c.get("content", "")))
     for c in state.get("web_result", {}).get("citations", []) or []:
         evidence_texts.append(str(c.get("content", "")))
     evidence_texts.append(graph_context)
-    grounded_answer, grounding_report = apply_sentence_grounding(answer=answer, evidence_texts=evidence_texts)
+    grounded_answer, grounding_report = apply_sentence_grounding(answer=answer_text, evidence_texts=evidence_texts)
     safe_answer, safety_report = sanitize_answer(grounded_answer)
-    next_state = {**state, "answer": safe_answer, "grounding": grounding_report, "answer_safety": safety_report}
+    next_state = {
+        **state,
+        "answer": safe_answer,
+        "detected_language": detected_language,
+        "grounding": grounding_report,
+        "answer_safety": safety_report,
+    }
     next_state["explainability"] = build_explainability_report(next_state)
     return next_state
