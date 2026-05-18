@@ -3,6 +3,7 @@ from typing import Any, TypedDict
 
 class GraphState(TypedDict, total=False):
     question: str
+    session_id: str
     memory_context: str
     use_web_fallback: bool
     use_reasoning: bool
@@ -27,3 +28,4 @@ class GraphState(TypedDict, total=False):
     retrieval_strategy: str | None
     force_language: str
     detected_language: str
+    language_preference: str

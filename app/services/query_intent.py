@@ -25,14 +25,14 @@ _CASUAL_CHAT_PATTERNS = [
 
 # 明确任务请求默认不是闲聊。
 _TASK_HINT_PATTERNS = [
-    r"(请|帮我|需要|如何|怎么|给出|分析|总结|解释|比较|编写|生成|优化|排查|修复|调试|实现)",
-    r"(what|how|why|analyze|summarize|explain|compare|debug|implement|fix)",
+    r"(请|帮我|需要|如何|怎么|怎样|给出|给我|分析|总结|解释|比较|编写|生成|优化|排查|修复|调试|实现|介绍|讲解|说明|列举|列出|展示|提供)",
+    r"(what|how|why|analyze|summarize|explain|compare|debug|implement|fix|introduce|describe|list|show|provide)",
 ]
 
 _FACT_QUERY_HINT_PATTERNS = [
-    r"(是什么|是谁|多少|几点|哪里|哪家|哪种|哪一个|何时|什么时候|多久|多大|多高|多少岁)",
-    r"(价格|股价|汇率|天气|新闻|公告|财报|比分|赛程|票房|发布|更新|版本|漏洞|趋势|动态|情报|威胁)",
-    r"(what is|who is|how much|when is|where is|price|weather|news|release|update|version|score)",
+    r"(是什么|是谁|多少|几点|哪里|哪家|哪种|哪一个|何时|什么时候|多久|多大|多高|多少岁|有哪些|有什么|包含|涵盖)",
+    r"(价格|股价|汇率|天气|新闻|公告|财报|比分|赛程|票房|发布|更新|版本|漏洞|趋势|动态|情报|威胁|知识|文档|资料|内容)",
+    r"(what is|who is|how much|when is|where is|price|weather|news|release|update|version|score|knowledge|document|content)",
 ]
 
 _SMALLTALK_REPLY_PATTERNS = [

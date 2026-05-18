@@ -2,10 +2,21 @@ from pathlib import Path
 
 from app.core.config import get_settings
 from app.retrievers.hybrid_retriever import hybrid_search_with_diagnostics
+from app.services.agent_document_filter import get_sources_by_agent_class
 
 
-def run_vector_rag(question: str, allowed_sources: list[str] | None = None, retrieval_strategy: str | None = None) -> dict:
+def run_vector_rag(
+    question: str,
+    allowed_sources: list[str] | None = None,
+    retrieval_strategy: str | None = None,
+    agent_class: str | None = None,
+) -> dict:
     settings = get_settings()
+
+    # 自动应用 agent 文档过滤
+    if allowed_sources is None and agent_class:
+        allowed_sources = get_sources_by_agent_class(agent_class)
+
     try:
         results, diagnostics = hybrid_search_with_diagnostics(
             question,

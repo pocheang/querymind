@@ -1,11 +1,15 @@
 import json
+import logging
 import re
 
 from pydantic import BaseModel
 
 from app.core.models import get_chat_model, get_reasoning_model
 from app.services.agent_classifier import classify_agent_class, pick_cyber_skill
+from app.services.llm_intent_classifier import classify_intent_with_llm
 from app.services.query_intent import is_smalltalk_query
+
+logger = logging.getLogger(__name__)
 
 
 class RouteDecision(BaseModel):
@@ -64,14 +68,44 @@ def _normalize_agent_class_hint(agent_class_hint: str | None) -> str | None:
     return None
 
 
-def decide_route(question: str, use_reasoning: bool = False, agent_class_hint: str | None = None) -> RouteDecision:
+def decide_route(question: str, use_reasoning: bool = False, agent_class_hint: str | None = None, use_llm_intent: bool = True) -> RouteDecision:
+    """
+    决定查询路由和技能。
+
+    Args:
+        question: 用户问题
+        use_reasoning: 是否使用推理模型
+        agent_class_hint: 强制指定的agent类别
+        use_llm_intent: 是否使用LLM进行意图分类（默认True）
+
+    Returns:
+        RouteDecision: 路由决策结果
+    """
     forced = _normalize_agent_class_hint(agent_class_hint)
-    agent_class = forced or classify_agent_class(question)
+
+    # 选择意图分类方法
+    if forced:
+        agent_class = forced
+        classification_method = "forced"
+    elif use_llm_intent:
+        try:
+            intent_result = classify_intent_with_llm(question)
+            agent_class = intent_result["agent_class"]
+            classification_method = f"llm(confidence={intent_result['confidence']:.2f})"
+            logger.info(f"LLM intent classification: {intent_result}")
+        except Exception as e:
+            logger.warning(f"LLM intent classification failed, fallback to rule-based: {e}")
+            agent_class = classify_agent_class(question)
+            classification_method = "rule_fallback"
+    else:
+        agent_class = classify_agent_class(question)
+        classification_method = "rule"
+
     forced_reason = f" | forced_agent_class={forced}" if forced else ""
     if is_smalltalk_query(question):
         return RouteDecision(
             route="vector",
-            reason=f"smalltalk_local_only | agent_class={agent_class}{forced_reason}",
+            reason=f"smalltalk_local_only | agent_class={agent_class} | method={classification_method}{forced_reason}",
             skill="answer_with_citations",
             agent_class=agent_class,
         )
@@ -120,7 +154,7 @@ def decide_route(question: str, use_reasoning: bool = False, agent_class_hint: s
         if skill not in {"pdf_text_reader"}:
             skill = "pdf_text_reader"
 
-    reason = f"{reason_raw} | agent_class={agent_class}"
+    reason = f"{reason_raw} | agent_class={agent_class} | method={classification_method}"
     if forced:
         reason = f"{reason} | forced_agent_class={forced}"
     return RouteDecision(route=route, reason=reason, skill=skill, agent_class=agent_class)

@@ -4,34 +4,205 @@
 
 .citation-grid {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
 }
 
 .citation-card {
-  border-radius: 12px;
-  border: 1px solid rgba(111, 132, 189, 0.16);
-  background: rgba(5, 10, 22, 0.38);
-  padding: 13px 14px;
-  transition: all 0.18s ease;
+  border-radius: 8px;
+  border: 1px solid rgba(91, 140, 255, 0.25);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(12, 19, 35, 0.9) 100%);
+  padding: 0;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.citation-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #5b8cff 0%, #8b7aff 100%);
+  opacity: 0.7;
 }
 
 .citation-card:hover {
-  border-color: rgba(91, 140, 255, 0.34);
-  background: rgba(18, 26, 45, 0.66);
-  transform: translateY(-1px);
+  border-color: rgba(91, 140, 255, 0.45);
+  background: linear-gradient(135deg, rgba(18, 26, 45, 0.98) 0%, rgba(15, 23, 42, 0.95) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), 0 0 20px rgba(91, 140, 255, 0.1);
+}
+
+.citation-card:hover::before {
+  opacity: 1;
+  width: 5px;
 }
 
 .citation-card strong {
   display: block;
-  margin-bottom: 8px;
-  color: #b8c7ff;
+  padding: 14px 16px 12px 20px;
+  background: rgba(91, 140, 255, 0.08);
+  border-bottom: 1px solid rgba(91, 140, 255, 0.15);
+  color: #93bbff;
   font-size: 13px;
-  font-weight: 760;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.citation-card .markdown {
+  padding: 14px 16px 14px 20px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: rgba(226, 232, 240, 0.9);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.citation-card .markdown::-webkit-scrollbar {
+  width: 5px;
+}
+
+.citation-card .markdown::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.citation-card .markdown::-webkit-scrollbar-thumb {
+  background: rgba(91, 140, 255, 0.35);
+  border-radius: 3px;
+}
+
+.citation-card .markdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(91, 140, 255, 0.55);
+}
+
+.citation-card .markdown p {
+  margin: 0 0 10px 0;
+}
+
+.citation-card .markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.citation-card .markdown ul,
+.citation-card .markdown ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.citation-card .markdown li {
+  margin: 4px 0;
+  line-height: 1.6;
+}
+
+.citation-card .markdown strong {
+  display: inline;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #bfdbfe;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.citation-card .markdown em {
+  color: #c4b5fd;
+  font-style: italic;
+}
+
+.citation-card .markdown code {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #fcd34d;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  border: 1px solid rgba(252, 211, 77, 0.15);
+}
+
+.citation-card .markdown pre {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 11.5px;
+  line-height: 1.5;
+  border: 1px solid rgba(91, 140, 255, 0.15);
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 10px 0;
+}
+
+.citation-card .markdown pre code {
+  background: none;
+  padding: 0;
+  border: none;
+  color: #e2e8f0;
+  font-size: inherit;
+}
+
+.citation-card .markdown blockquote {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-left: 3px solid rgba(91, 140, 255, 0.4);
+  background: rgba(91, 140, 255, 0.05);
+  color: rgba(226, 232, 240, 0.85);
+  font-style: italic;
+}
+
+.citation-card .markdown h1,
+.citation-card .markdown h2,
+.citation-card .markdown h3,
+.citation-card .markdown h4 {
+  margin: 12px 0 8px 0;
+  color: #a5b4fc;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.citation-card .markdown h1 { font-size: 16px; }
+.citation-card .markdown h2 { font-size: 15px; }
+.citation-card .markdown h3 { font-size: 14px; }
+.citation-card .markdown h4 { font-size: 13.5px; }
+
+.citation-card .markdown a {
+  color: #60a5fa;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+  transition: all 0.2s ease;
+}
+
+.citation-card .markdown a:hover {
+  color: #93bbff;
+  border-bottom-color: rgba(147, 187, 255, 0.6);
+}
+
+.citation-card .markdown hr {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid rgba(111, 132, 189, 0.2);
 }
 
 @media (max-width: 860px) {
   .citation-grid {
     grid-template-columns: 1fr;
+  }
+
+  .citation-card {
+    padding: 0;
+  }
+
+  .citation-card strong {
+    padding: 12px 14px 10px 18px;
+  }
+
+  .citation-card .markdown {
+    padding: 12px 14px 12px 18px;
   }
 }

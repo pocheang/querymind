@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   QUICK_PROMPTS,
   AGENT_MODES,
@@ -20,6 +20,7 @@ import { useDragHandlers } from "@/pages/chat/hooks/useDragHandlers";
 import { useChatComputed } from "@/pages/chat/hooks/useChatComputed";
 import { useChatHelpers } from "@/pages/chat/hooks/useChatHelpers";
 import { KeyboardHelp } from "@/components/KeyboardHelp";
+import { generateSmartPrompts } from "@/pages/chat/utils/smartPrompts";
 
 // Route-specific CSS (code-split by Vite)
 import "@/styles/pages/chat.css";
@@ -202,6 +203,11 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
     setSidebarCollapsed((value) => !value);
   };
 
+  // 智能生成快速提示
+  const smartQuickPrompts = useMemo(() => {
+    return generateSmartPrompts(messages);
+  }, [messages]);
+
   return (
     <div className={`page-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <ChatSidebar
@@ -240,7 +246,6 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
         onLoadSession={actions.loadSession}
         onDeleteSession={actions.deleteSession}
         onSwitchAgentMode={helpers.switchAgentMode}
-        onDraftPdfQuestion={helpers.draftPdfQuestion}
         onPdfTargetFileChange={setPdfTargetFile}
         onRefreshDocuments={actions.refreshDocuments}
         onUploadVisibilityChange={setUploadVisibility}
@@ -294,7 +299,7 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
           questionRef={questionRef}
           chatUploadInputRef={chatUploadInputRef}
           isSending={isSending}
-          quickPrompts={QUICK_PROMPTS}
+          quickPrompts={smartQuickPrompts}
           runStatus={runStatus}
           error={error}
           useWeb={useWeb}

@@ -6,10 +6,34 @@ from app.core.models import get_reasoning_model
 from app.services.input_normalizer import normalize_user_question
 
 _JSON_OBJ_RE = re.compile(r"\{.*\}", flags=re.DOTALL)
+
+# Enhanced dangerous pattern detection
 _DANGEROUS_RE = re.compile(
-    r"(rm\s+-rf|del\s+/[sqf]|format\s+[a-z]:|powershell\s+-enc|curl\s+[^\\n]*\|\s*(bash|sh))",
+    r"(rm\s+-rf|del\s+/[sqf]|format\s+[a-z]:|powershell\s+-enc|curl\s+[^\n]*\|\s*(bash|sh)|"
+    r"eval\s*\(|exec\s*\(|__import__|subprocess|os\.system|shell=True|"
+    r"<script|javascript:|onerror=|onload=|onclick=)",
     flags=re.IGNORECASE,
 )
+
+
+def _sanitize_output(text: str) -> str:
+    """Sanitize text output to prevent XSS attacks."""
+    if not text:
+        return ""
+
+    # Remove HTML tags
+    text = re.sub(r'<[^>]*>', '', text)
+
+    # Remove javascript: protocol
+    text = re.sub(r'javascript:', '', text, flags=re.IGNORECASE)
+
+    # Remove event handlers
+    text = re.sub(r'on\w+\s*=', '', text, flags=re.IGNORECASE)
+
+    # Remove script tags and content
+    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.IGNORECASE | re.DOTALL)
+
+    return text.strip()
 
 
 def _extract_json(text: str) -> dict[str, Any] | None:
@@ -29,8 +53,10 @@ def _contains_any(text: str, words: list[str]) -> bool:
 
 
 def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = False) -> dict[str, Any]:
-    t = normalize_user_question(title or "未命名模板")
-    c = normalize_user_question(content or "")
+    # Normalize and sanitize inputs
+    t = _sanitize_output(normalize_user_question(title or "未命名模板"))
+    c = _sanitize_output(normalize_user_question(content or ""))
+
     issues: list[str] = []
     suggestions: list[str] = []
 
@@ -40,16 +66,16 @@ def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = Fal
 
     if not _contains_any(c, ["目标", "任务", "objective", "task"]):
         issues.append("缺少任务目标描述。")
-        suggestions.append("增加“任务目标”段，明确要完成什么。")
+        suggestions.append("增加'任务目标'段，明确要完成什么。")
     if not _contains_any(c, ["上下文", "背景", "context"]):
         issues.append("缺少上下文/背景。")
-        suggestions.append("增加“上下文”段，指定输入来源和范围。")
+        suggestions.append("增加'上下文'段，指定输入来源和范围。")
     if not _contains_any(c, ["约束", "限制", "不要", "must", "constraint"]):
         issues.append("缺少约束条件。")
-        suggestions.append("增加“约束”段，明确禁用项与边界。")
+        suggestions.append("增加'约束'段，明确禁用项与边界。")
     if not _contains_any(c, ["输出格式", "格式", "json", "markdown", "结构"]):
         issues.append("缺少输出格式规范。")
-        suggestions.append("增加“输出格式”段，例如固定标题或 JSON 结构。")
+        suggestions.append("增加'输出格式'段，例如固定标题或 JSON 结构。")
 
     if _DANGEROUS_RE.search(c):
         issues.append("检测到潜在危险命令片段。")
@@ -82,10 +108,11 @@ def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = Fal
             text = result.content if hasattr(result, "content") else str(result)
             data = _extract_json(text)
             if data:
-                t = normalize_user_question(str(data.get("title", t)))
-                enhanced = normalize_user_question(str(data.get("content", enhanced)))
-                llm_issues = [str(x) for x in (data.get("issues", []) or []) if str(x).strip()]
-                llm_suggestions = [str(x) for x in (data.get("suggestions", []) or []) if str(x).strip()]
+                # Sanitize LLM outputs to prevent injection
+                t = _sanitize_output(normalize_user_question(str(data.get("title", t))))
+                enhanced = _sanitize_output(normalize_user_question(str(data.get("content", enhanced))))
+                llm_issues = [_sanitize_output(str(x)) for x in (data.get("issues", []) or []) if str(x).strip()]
+                llm_suggestions = [_sanitize_output(str(x)) for x in (data.get("suggestions", []) or []) if str(x).strip()]
                 if llm_issues:
                     issues = llm_issues
                 if llm_suggestions:
@@ -94,4 +121,10 @@ def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = Fal
             # 推理模型不可用时保持规则增强结果
             pass
 
-    return {"title": t, "content": enhanced, "issues": issues, "suggestions": suggestions}
+    # Final sanitization of all outputs
+    return {
+        "title": _sanitize_output(t),
+        "content": _sanitize_output(enhanced),
+        "issues": [_sanitize_output(str(x)) for x in issues],
+        "suggestions": [_sanitize_output(str(x)) for x in suggestions]
+    }

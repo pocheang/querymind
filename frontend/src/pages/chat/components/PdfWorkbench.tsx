@@ -6,7 +6,6 @@ type Props = {
   pdfDocuments: IndexedFileSummary[];
   pdfNeedingReindex: IndexedFileSummary[];
   pdfTargetFile: string;
-  onDraftPdfQuestion: () => void;
   onPdfTargetFileChange: (filename: string) => void;
   onSwitchAgentMode: (mode: AgentClassHint) => void;
 };
@@ -15,51 +14,47 @@ export function PdfWorkbench({
   pdfDocuments,
   pdfNeedingReindex,
   pdfTargetFile,
-  onDraftPdfQuestion,
   onPdfTargetFileChange,
   onSwitchAgentMode,
 }: Props) {
   return (
-    <section className="panel">
-      <div className="section-head">
-        <strong>PDF Workbench</strong>
-        <button type="button" className="secondary tiny-btn" onClick={onDraftPdfQuestion}>
-          Draft Question
-        </button>
-      </div>
+    <>
       <div className="pdf-kpi-grid">
         <div className="pdf-kpi-card">
-          <span>PDF/Image Docs</span>
+          <span>PDF/IMAGE DOCS</span>
           <strong>{pdfDocuments.length}</strong>
         </div>
         <div className="pdf-kpi-card">
-          <span>Need Reindex</span>
+          <span>NEED REINDEX</span>
           <strong>{pdfNeedingReindex.length}</strong>
         </div>
       </div>
+
       <select
         value={pdfTargetFile}
         onChange={(e) => onPdfTargetFileChange(e.target.value)}
         disabled={!pdfDocuments.length}
       >
-        {!pdfDocuments.length && <option value="">No PDF docs</option>}
+        {!pdfDocuments.length && <option value="">暂无PDF文档</option>}
         {pdfDocuments.map((doc) => (
           <option key={doc.source} value={doc.filename}>
-            {doc.filename} (chunks={doc.chunks || 0})
+            {doc.filename} (块={doc.chunks || 0})
           </option>
         ))}
       </select>
+
       <div className="row-actions wrap">
         <button type="button" className="secondary tiny-btn" onClick={() => onSwitchAgentMode("pdf_text")}>
-          Force pdf_text
+          强制 pdf_text
         </button>
         <button type="button" className="secondary tiny-btn" onClick={() => onSwitchAgentMode("")}>
-          Back to auto
+          返回自动
         </button>
       </div>
+
       {pdfNeedingReindex.length > 0 && (
-        <div className="hint">Some PDF docs have 0 chunks. Reindex before asking detailed questions.</div>
+        <div className="hint">部分PDF文档块数为0，请在提问前重建索引。</div>
       )}
-    </section>
+    </>
   );
 }

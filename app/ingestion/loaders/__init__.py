@@ -6,10 +6,13 @@ from langchain_core.documents import Document
 
 # Import from parent module (app.ingestion.loaders is the file, not this package)
 import sys
-from importlib import import_module
+import importlib.util
 
-# Import the refactored loaders module
-loaders_module = import_module('app.ingestion.loaders')
+# Import the refactored loaders module (loaders.py file, not this package)
+_loaders_file = str(Path(__file__).parent.parent / "loaders.py")
+_spec = importlib.util.spec_from_file_location("app.ingestion._loaders_impl", _loaders_file)
+loaders_module = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(loaders_module)
 
 from app.ingestion.loaders.pdf_loader import load_pdf_text, load_pdf_image_ocr
 from app.ingestion.loaders.image_loader import load_image_file

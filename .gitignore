@@ -120,6 +120,10 @@ data/
 # Exception: Allow demo dataset for interview demonstration
 !data/demo/
 !data/demo/**
+# Exception: Allow security documentation for RAG knowledge base
+!data/docs/
+!data/docs/security/
+!data/docs/security/**
 
 # ============================================
 # BUILD & METADATA

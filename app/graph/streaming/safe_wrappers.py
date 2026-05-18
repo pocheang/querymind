@@ -35,6 +35,7 @@ def safe_vector_result(
     question: str,
     allowed_sources: list[str] | None = None,
     retrieval_strategy: str | None = None,
+    agent_class: str | None = None,
 ) -> dict[str, Any]:
     """Execute vector RAG with resilience patterns."""
     try:
@@ -49,6 +50,7 @@ def safe_vector_result(
                         question,
                         allowed_sources=allowed_sources,
                         retrieval_strategy=retrieval_strategy,
+                        agent_class=agent_class,
                     ),
                 ),
             )
@@ -59,13 +61,14 @@ def safe_vector_result(
             question,
             allowed_sources=allowed_sources,
             retrieval_strategy=retrieval_strategy,
+            agent_class=agent_class,
         )
     except Exception as e:
         logger.exception(f"Vector RAG failed for question: {question}")
         return {"context": "", "citations": [], "retrieved_count": 0, "error": f"vector_error:{type(e).__name__}"}
 
 
-def safe_graph_result(question: str, allowed_sources: list[str] | None = None) -> dict[str, Any]:
+def safe_graph_result(question: str, allowed_sources: list[str] | None = None, agent_class: str | None = None) -> dict[str, Any]:
     """Execute graph RAG with resilience patterns."""
     try:
         run_graph_rag = _agent_func("app.agents.graph_rag_agent", "run_graph_rag")
@@ -74,12 +77,12 @@ def safe_graph_result(question: str, allowed_sources: list[str] | None = None) -
                 "stream.graph_rag",
                 lambda: call_with_circuit_breaker(
                     "graph_rag.run",
-                    lambda: _call_with_supported_kwargs(run_graph_rag, question, allowed_sources=allowed_sources),
+                    lambda: _call_with_supported_kwargs(run_graph_rag, question, allowed_sources=allowed_sources, agent_class=agent_class),
                 ),
             )
     except CircuitBreakerOpenError:
         run_graph_rag = _agent_func("app.agents.graph_rag_agent", "run_graph_rag")
-        return _call_with_supported_kwargs(run_graph_rag, question, allowed_sources=allowed_sources)
+        return _call_with_supported_kwargs(run_graph_rag, question, allowed_sources=allowed_sources, agent_class=agent_class)
     except Exception as e:
         logger.exception(f"Graph RAG failed for question: {question}")
         return {"context": "", "entities": [], "neighbors": [], "error": f"graph_error:{type(e).__name__}"}

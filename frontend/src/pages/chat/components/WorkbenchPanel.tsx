@@ -40,7 +40,6 @@ type Props = {
   promptCheckInfo: string;
   fileInputRef: React.RefObject<HTMLInputElement>;
   onSwitchAgentMode: (mode: AgentClassHint) => void;
-  onDraftPdfQuestion: () => void;
   onPdfTargetFileChange: (filename: string) => void;
   onRefreshDocuments: () => Promise<void>;
   onUploadVisibilityChange: (visibility: "private" | "public") => void;
@@ -85,7 +84,6 @@ export function WorkbenchPanel({
   promptCheckInfo,
   fileInputRef,
   onSwitchAgentMode,
-  onDraftPdfQuestion,
   onPdfTargetFileChange,
   onRefreshDocuments,
   onUploadVisibilityChange,
@@ -180,7 +178,6 @@ export function WorkbenchPanel({
               pdfDocuments={pdfDocuments}
               pdfNeedingReindex={pdfNeedingReindex}
               pdfTargetFile={pdfTargetFile}
-              onDraftPdfQuestion={onDraftPdfQuestion}
               onPdfTargetFileChange={onPdfTargetFileChange}
               onSwitchAgentMode={onSwitchAgentMode}
             />

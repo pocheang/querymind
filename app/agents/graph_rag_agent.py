@@ -1,11 +1,16 @@
 import logging
 
 from app.tools.graph_tools import graph_lookup
+from app.services.agent_document_filter import get_sources_by_agent_class
 
 logger = logging.getLogger(__name__)
 
 
-def run_graph_rag(question: str, allowed_sources: list[str] | None = None) -> dict:
+def run_graph_rag(question: str, allowed_sources: list[str] | None = None, agent_class: str | None = None) -> dict:
+    # 自动应用 agent 文档过滤
+    if allowed_sources is None and agent_class:
+        allowed_sources = get_sources_by_agent_class(agent_class)
+
     try:
         graph_result = graph_lookup(question, allowed_sources=allowed_sources)
     except Exception as e:

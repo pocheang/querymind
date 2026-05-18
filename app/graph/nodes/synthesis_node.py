@@ -5,6 +5,7 @@ from app.services.citation_grounding import apply_sentence_grounding
 from app.services.explainability import build_explainability_report
 from app.services.query_intent import is_casual_chat_query, quick_smalltalk_reply
 from app.services.request_context import deadline_exceeded
+from app.services.session_language import get_language_preference, update_language_history
 
 
 def synthesis_node(state: GraphState) -> GraphState:
@@ -57,6 +58,14 @@ def synthesis_node(state: GraphState) -> GraphState:
     answer_text = answer["answer"] if isinstance(answer, dict) else answer
     detected_language = answer.get("detected_language", "zh") if isinstance(answer, dict) else "zh"
 
+    # Update session language history
+    session_id = state.get("session_id", "")
+    if session_id:
+        update_language_history(session_id, detected_language)
+
+    # Get language preference for the session
+    language_preference = get_language_preference(session_id) if session_id else "zh"
+
     evidence_texts = []
     for c in state.get("vector_result", {}).get("citations", []) or []:
         evidence_texts.append(str(c.get("content", "")))
@@ -69,6 +78,7 @@ def synthesis_node(state: GraphState) -> GraphState:
         **state,
         "answer": safe_answer,
         "detected_language": detected_language,
+        "language_preference": language_preference,
         "grounding": grounding_report,
         "answer_safety": safety_report,
     }

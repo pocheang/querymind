@@ -210,3 +210,40 @@
   gap: 6px;
   margin-top: 8px;
 }
+
+/* PDF Workbench Grid - matches Knowledge Base styling */
+.pdf-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pdf-kpi-card {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(100, 122, 180, 0.16);
+  background: rgba(7, 12, 24, 0.38);
+  transition: all 0.18s ease;
+}
+
+.pdf-kpi-card:hover {
+  border-color: rgba(91, 140, 255, 0.28);
+  background: rgba(15, 25, 45, 0.52);
+}
+
+.pdf-kpi-card span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.pdf-kpi-card strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 780;
+}

@@ -49,7 +49,6 @@ type Props = {
   onLoadSession: (sessionId: string) => Promise<void>;
   onDeleteSession: (sessionId: string) => Promise<void>;
   onSwitchAgentMode: (mode: AgentClassHint) => void;
-  onDraftPdfQuestion: () => void;
   onPdfTargetFileChange: (filename: string) => void;
   onRefreshDocuments: () => Promise<void>;
   onUploadVisibilityChange: (visibility: "private" | "public") => void;
@@ -105,7 +104,6 @@ export function ChatSidebar({
   onLoadSession,
   onDeleteSession,
   onSwitchAgentMode,
-  onDraftPdfQuestion,
   onPdfTargetFileChange,
   onRefreshDocuments,
   onUploadVisibilityChange,
@@ -220,7 +218,6 @@ export function ChatSidebar({
           promptCheckInfo={promptCheckInfo}
           fileInputRef={fileInputRef}
           onSwitchAgentMode={onSwitchAgentMode}
-          onDraftPdfQuestion={onDraftPdfQuestion}
           onPdfTargetFileChange={onPdfTargetFileChange}
           onRefreshDocuments={onRefreshDocuments}
           onUploadVisibilityChange={onUploadVisibilityChange}

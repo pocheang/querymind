@@ -5,6 +5,25 @@ import type { Toast } from "@/pages/chat/types";
 
 type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 
+// Security constants
+const MAX_TITLE_LENGTH = 200;
+const MAX_CONTENT_LENGTH = 50000;
+const VALID_AGENT_CLASSES: AgentClassHint[] = ["", "general", "cybersecurity", "artificial_intelligence", "pdf_text"];
+
+// Sanitize string to prevent XSS
+function sanitizeString(input: string): string {
+  return input
+    .replace(/[<>]/g, "") // Remove angle brackets
+    .replace(/javascript:/gi, "") // Remove javascript: protocol
+    .replace(/on\w+=/gi, "") // Remove event handlers
+    .trim();
+}
+
+// Validate agent class hint
+function isValidAgentClass(value: unknown): value is AgentClassHint {
+  return typeof value === "string" && VALID_AGENT_CLASSES.includes(value as AgentClassHint);
+}
+
 interface UsePromptActionsParams {
   setPrompts: Dispatch<SetStateAction<PromptTemplate[]>>;
   setPromptsLoading: Dispatch<SetStateAction<boolean>>;
@@ -48,15 +67,33 @@ export function usePromptActions(params: UsePromptActionsParams) {
   const savePrompt = async (promptTitle: string, promptContent: string, editingPromptId: string | null) => {
     const title = promptTitle.trim();
     const content = promptContent.trim();
+
+    // Validate required fields
     if (!title || !content) {
       notify("Title and content are required", "warn");
       return;
     }
+
+    // Validate length limits
+    if (title.length > MAX_TITLE_LENGTH) {
+      notify(`Title must be under ${MAX_TITLE_LENGTH} characters`, "warn");
+      return;
+    }
+    if (content.length > MAX_CONTENT_LENGTH) {
+      notify(`Content must be under ${MAX_CONTENT_LENGTH} characters`, "warn");
+      return;
+    }
+
     try {
       const saved = editingPromptId
         ? await appApi.promptUpdate(editingPromptId, title, content)
         : await appApi.promptCreate(title, content);
-      if (saved.agent_class) setAgentClassHint((saved.agent_class as AgentClassHint) || "");
+
+      // Validate and set agent class with runtime type checking
+      if (saved.agent_class && isValidAgentClass(saved.agent_class)) {
+        setAgentClassHint(saved.agent_class);
+      }
+
       setEditingPromptId(null);
       setPromptTitle("");
       setPromptContent("");
@@ -70,20 +107,45 @@ export function usePromptActions(params: UsePromptActionsParams) {
   const checkPrompt = async (promptTitle: string, promptContent: string, useReasoning: boolean) => {
     const title = promptTitle.trim();
     const content = promptContent.trim();
+
+    // Validate required fields
     if (!title || !content) {
       notify("Fill in title and content first", "warn");
       return;
     }
+
+    // Validate length limits
+    if (title.length > MAX_TITLE_LENGTH) {
+      notify(`Title must be under ${MAX_TITLE_LENGTH} characters`, "warn");
+      return;
+    }
+    if (content.length > MAX_CONTENT_LENGTH) {
+      notify(`Content must be under ${MAX_CONTENT_LENGTH} characters`, "warn");
+      return;
+    }
+
     try {
       setPromptCheckInfo("Checking...");
       const res = await appApi.promptCheck(title, content, useReasoning);
-      const suggestions = (res.suggestions || []).filter(Boolean);
-      const suggestionBlock = suggestions.length
-        ? `\n\n[Suggestions]\n${suggestions.map((x, i) => `${i + 1}. ${x}`).join("\n")}`
+
+      // Sanitize API response data to prevent XSS
+      const sanitizedTitle = sanitizeString(res.title || title);
+      const sanitizedContent = sanitizeString(res.content || content);
+      const sanitizedSuggestions = (res.suggestions || [])
+        .filter(Boolean)
+        .map((s) => sanitizeString(String(s)));
+
+      const suggestionBlock = sanitizedSuggestions.length
+        ? `\n\n[Suggestions]\n${sanitizedSuggestions.map((x, i) => `${i + 1}. ${x}`).join("\n")}`
         : "";
-      setPromptTitle(res.title || title);
-      setPromptContent(`${(res.content || content).trim()}${suggestionBlock}`);
-      setPromptCheckInfo(`Check done. ${(res.issues || []).slice(0, 3).join(";")}`);
+
+      const sanitizedIssues = (res.issues || [])
+        .slice(0, 3)
+        .map((issue) => sanitizeString(String(issue)));
+
+      setPromptTitle(sanitizedTitle);
+      setPromptContent(`${sanitizedContent.trim()}${suggestionBlock}`);
+      setPromptCheckInfo(`Check done. ${sanitizedIssues.join(";")}`);
       notify("Prompt check completed", "success");
     } catch (e) {
       setPromptCheckInfo("");
@@ -92,7 +154,10 @@ export function usePromptActions(params: UsePromptActionsParams) {
   };
 
   const deletePrompt = async (item: PromptTemplate, editingPromptId: string | null) => {
-    if (!window.confirm(`Delete template: ${item.title}?`)) return;
+    // Sanitize title for display in confirmation dialog
+    const sanitizedTitle = sanitizeString(item.title);
+    if (!window.confirm(`Delete template: ${sanitizedTitle}?`)) return;
+
     try {
       await appApi.promptDelete(item.prompt_id);
       if (editingPromptId === item.prompt_id) {

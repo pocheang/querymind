@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 
 from app.api.dependencies import (
     _audit,
+    _client_ip,
     _guess_agent_class_for_upload,
     _is_probably_valid_upload_signature,
     _is_source_manageable_for_user,
@@ -15,6 +16,7 @@ from app.api.dependencies import (
     _require_user,
     _require_permission,
     settings,
+    upload_limiter,
 )
 from app.core.schemas import (
     FileIndexActionResponse,
@@ -137,6 +139,16 @@ async def upload_files(
     user: dict[str, Any] = Depends(_require_user),
 ):
     _require_permission(user, "upload:create", request, "document")
+
+    # Rate limiting: prevent storage abuse
+    limiter_key = f"upload:{user['user_id']}:{_client_ip(request)}"
+    if not upload_limiter.allow(limiter_key):
+        _audit(request, action="upload.create", resource_type="document", result="rate_limited", user=user)
+        raise HTTPException(
+            status_code=429,
+            detail="Upload rate limit exceeded. Maximum 20 uploads per hour.",
+        )
+
     if len(files) > settings.upload_max_files:
         raise HTTPException(status_code=400, detail=f"too many files, max={settings.upload_max_files}")
 
@@ -157,11 +169,22 @@ async def upload_files(
     for f in files:
         if not f.filename:
             continue
-        suffix = Path(f.filename).suffix.lower()
-        if suffix not in {".txt", ".md", ".pdf", *IMAGE_EXTENSIONS}:
-            skipped_files.append(Path(f.filename).name)
+
+        # Security: Sanitize filename to prevent path traversal
+        raw_filename = Path(f.filename).name
+        safe_filename = raw_filename.replace('/', '').replace('\\', '').replace('..', '')
+
+        # Reject hidden files and invalid filenames
+        if not safe_filename or safe_filename.startswith('.') or safe_filename.startswith('_'):
+            skipped_files.append(raw_filename)
             continue
-        target = user_upload_root / Path(f.filename).name
+
+        suffix = Path(safe_filename).suffix.lower()
+        if suffix not in {".txt", ".md", ".pdf", *IMAGE_EXTENSIONS}:
+            skipped_files.append(safe_filename)
+            continue
+
+        target = user_upload_root / safe_filename
         file_uploaded_bytes = 0
         file_head = b""
         try:
@@ -193,10 +216,10 @@ async def upload_files(
         if suffix in {".pdf", *IMAGE_EXTENSIONS} and not _is_probably_valid_upload_signature(suffix, file_head):
             if target.exists():
                 target.unlink()
-            raise HTTPException(status_code=400, detail=f"invalid file signature: {target.name}")
+            raise HTTPException(status_code=400, detail=f"invalid file signature: {safe_filename}")
         saved_paths.append(target)
-        filenames.append(target.name)
-        assigned_agent_classes[str(target)] = _guess_agent_class_for_upload(target.name)
+        filenames.append(safe_filename)
+        assigned_agent_classes[str(target)] = _guess_agent_class_for_upload(safe_filename)
 
     if not saved_paths:
         detail = "no supported files uploaded"

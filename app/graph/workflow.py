@@ -144,6 +144,7 @@ def run_query(
     agent_class_hint: str | None = None,
     retrieval_strategy: str | None = None,
     force_language: str = "",
+    session_id: str = "",
     execution_id: Optional[str] = None,
     enable_tracking: bool = True,
 ) -> GraphState:
@@ -166,6 +167,7 @@ def run_query(
             result = app.invoke(
                 {
                     "question": question,
+                    "session_id": session_id,
                     "memory_context": memory_context,
                     "use_web_fallback": use_web_fallback,
                     "use_reasoning": use_reasoning,

@@ -164,6 +164,11 @@ register_limiter = SlidingWindowLimiter(
     max_attempts=settings.auth_register_max_attempts,
     window_seconds=settings.auth_register_window_seconds,
 )
+# Upload rate limiter - prevent storage abuse
+upload_limiter = SlidingWindowLimiter(
+    max_attempts=20,  # 20 uploads per hour per user
+    window_seconds=3600,
+)
 
 # Query guard and caching
 query_guard = QueryLoadGuard(
@@ -337,17 +342,40 @@ _query_model_fingerprint_for_user = _query_model_fingerprint_for_user_wrapper
 # ============================================================================
 
 def _normalize_prompt_fields(title: str, content: str) -> tuple[str, str]:
-    """Normalize and validate prompt fields."""
+    """Normalize and validate prompt fields with security checks."""
     t = (title or "").strip()
     c = (content or "").strip()
+
+    # Required field validation
     if not t:
         raise HTTPException(status_code=400, detail="title is required")
     if not c:
         raise HTTPException(status_code=400, detail="content is required")
-    if len(t) > 120:
-        raise HTTPException(status_code=400, detail="title too long")
-    if len(c) > 6000:
-        raise HTTPException(status_code=400, detail="content too long")
+
+    # Length validation (aligned with frontend limits)
+    if len(t) > 200:
+        raise HTTPException(status_code=400, detail="title must be under 200 characters")
+    if len(c) > 50000:
+        raise HTTPException(status_code=400, detail="content must be under 50000 characters")
+
+    # Security: Remove dangerous characters that could lead to XSS
+    # Remove HTML tags and script-related patterns
+    t = re.sub(r'<[^>]*>', '', t)
+    t = re.sub(r'javascript:', '', t, flags=re.IGNORECASE)
+    t = re.sub(r'on\w+\s*=', '', t, flags=re.IGNORECASE)
+
+    c = re.sub(r'<script[^>]*>.*?</script>', '', c, flags=re.IGNORECASE | re.DOTALL)
+    c = re.sub(r'javascript:', '', c, flags=re.IGNORECASE)
+    c = re.sub(r'on\w+\s*=', '', c, flags=re.IGNORECASE)
+
+    # Final trim after sanitization
+    t = t.strip()
+    c = c.strip()
+
+    # Recheck after sanitization
+    if not t or not c:
+        raise HTTPException(status_code=400, detail="invalid content after sanitization")
+
     return t, c
 
 

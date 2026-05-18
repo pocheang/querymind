@@ -83,44 +83,31 @@ def apply_sentence_grounding(
     evidence_texts: list[str],
     threshold: float = 0.22,
 ) -> tuple[str, dict]:
+    # Temporarily disabled to avoid confusion with Ollama models
+    # Return answer as-is without adding hedge prefixes
     sentences = _split_sentences(answer)
     evid_tokens = _tokenize("\n".join([x for x in evidence_texts if x]))
+
     if not sentences:
         return answer, {"enabled": False, "reason": "no_sentences", "total_sentences": 0}
     if not evid_tokens:
         return answer, {"enabled": False, "reason": "no_evidence", "total_sentences": len(sentences)}
 
     supported = 0
-    rewritten: list[str] = []
     low_support_examples: list[str] = []
     for sent in sentences:
         score = _support_score(sent, evid_tokens)
-        if score >= threshold:
+        if score >= threshold or _has_hedge(sent):
             supported += 1
-            rewritten.append(sent)
-            continue
-        if _has_hedge(sent):
-            rewritten.append(sent)
-            continue
-        low_support_examples.append(sent[:120])
-        # Add hedge prefix, but preserve sentence structure
-        # Handle both Chinese and English sentences
-        if sent and sent[0] in '。！？.!?':
-            # Sentence starts with punctuation (edge case), just prepend
-            rewritten.append(f"基于当前可用证据，{sent}")
         else:
-            rewritten.append(f"基于当前可用证据，{sent}")
-
-    # Join sentences with proper spacing
-    grounded = " ".join(rewritten).strip()
-    # Clean up multiple spaces
-    grounded = re.sub(r'\s+', ' ', grounded)
+            low_support_examples.append(sent[:120])
 
     report = {
-        "enabled": True,
+        "enabled": False,
+        "reason": "disabled_for_ollama",
         "total_sentences": len(sentences),
         "supported_sentences": supported,
-        "support_ratio": (supported / len(sentences)),
+        "support_ratio": (supported / len(sentences)) if sentences else 0.0,
         "low_support_examples": low_support_examples[:3],
     }
-    return grounded or answer, report
+    return answer, report

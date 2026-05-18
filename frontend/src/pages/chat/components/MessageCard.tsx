@@ -117,31 +117,76 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Props) 
                   {metadata.graph_result.neighbors.length > 0 && (
                     <div className="graph-section">
                       <strong>邻居关系 ({metadata.graph_result.neighbors.length})</strong>
-                      <ul className="compact-list">
+                      <div className="graph-neighbors">
                         {metadata.graph_result.neighbors.slice(0, 10).map((neighbor, index) => (
-                          <li key={`${message.message_id}-neighbor-${index}`}>
-                            {neighbor.entity} -[{neighbor.relation}]-{" "}
-                            {neighbor.direction === "out" ? "->" : "<-"}
-                          </li>
+                          <div key={`${message.message_id}-neighbor-${index}`} className="graph-neighbor-item">
+                            <span className="graph-entity">{neighbor.entity}</span>
+                            <span className="graph-relation">
+                              {neighbor.direction === "out" ? "→" : "←"}
+                              <span className="relation-label">{neighbor.relation}</span>
+                              {neighbor.direction === "out" ? "→" : "←"}
+                            </span>
+                            <span className="graph-target">目标实体</span>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
                   {metadata.graph_result.paths.length > 0 && (
                     <div className="graph-section">
                       <strong>推理路径 ({metadata.graph_result.paths.length})</strong>
-                      <ul className="compact-list">
-                        {metadata.graph_result.paths.slice(0, 5).map((path, index) => (
-                          <li key={`${message.message_id}-path-${index}`}>
-                            {path.entities.map((entity, entityIndex) => (
-                              <span key={entityIndex}>
-                                {entity}
-                                {entityIndex < path.relations.length && ` -[${path.relations[entityIndex]}]-> `}
-                              </span>
-                            ))}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="graph-paths">
+                        {metadata.graph_result.paths.slice(0, 5).map((path, index) => {
+                          // 处理两种数据格式：
+                          // 1. 新格式: {entities: [...], relations: [...]}
+                          // 2. 旧格式: {source, rel1, middle, rel2, target}
+                          const hasNewFormat = path.entities && Array.isArray(path.entities);
+                          const hasOldFormat = path.source && path.middle && path.target;
+
+                          if (hasNewFormat) {
+                            return (
+                              <div key={`${message.message_id}-path-${index}`} className="graph-path-item">
+                                {path.entities.map((entity, entityIndex) => (
+                                  <span key={entityIndex} className="path-segment">
+                                    <span className="path-entity">{entity}</span>
+                                    {entityIndex < (path.relations?.length || 0) && (
+                                      <span className="path-arrow">
+                                        → <span className="path-relation">{path.relations[entityIndex]}</span> →
+                                      </span>
+                                    )}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          } else if (hasOldFormat) {
+                            return (
+                              <div key={`${message.message_id}-path-${index}`} className="graph-path-item">
+                                <span className="path-segment">
+                                  <span className="path-entity">{path.source}</span>
+                                  <span className="path-arrow">
+                                    → <span className="path-relation">{path.rel1 || 'RELATED'}</span> →
+                                  </span>
+                                </span>
+                                <span className="path-segment">
+                                  <span className="path-entity">{path.middle}</span>
+                                  <span className="path-arrow">
+                                    → <span className="path-relation">{path.rel2 || 'RELATED'}</span> →
+                                  </span>
+                                </span>
+                                <span className="path-segment">
+                                  <span className="path-entity">{path.target}</span>
+                                </span>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div key={`${message.message_id}-path-${index}`} className="graph-path-item">
+                                <span className="path-error">路径数据不完整</span>
+                              </div>
+                            );
+                          }
+                        })}
+                      </div>
                     </div>
                   )}
                   {metadata.graph_result.context && (

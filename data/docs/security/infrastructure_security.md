@@ -52,6 +52,22 @@ Use Docker networks to isolate containers. Only expose necessary ports.
 
 **Zero Trust Networking**: Assume breach. Verify every connection, even internal ones.
 
+### TLS/HTTPS
+
+**Transport Layer Security (TLS)** encrypts data in transit between clients and servers, preventing eavesdropping and tampering.
+
+**Key principles:**
+- Use TLS 1.2 or 1.3 exclusively. Disable older versions (TLS 1.0, 1.1, SSL).
+- Use strong cipher suites (AES-256-GCM, ChaCha20-Poly1305).
+- Enable HTTP Strict Transport Security (HSTS) to prevent protocol downgrade attacks.
+- Use certificate pinning for internal service-to-service communication.
+- Automate certificate renewal to prevent expiration-related outages.
+
+**Certificate types:**
+- **Self-signed**: Development only. Never use in production.
+- **Let's Encrypt**: Free, automated certificates for public-facing services.
+- **Internal CA**: For service-to-service mutual TLS (mTLS) within the cluster.
+
 ### Database Security
 
 **Authentication**: Require strong passwords or certificate-based authentication.
@@ -116,6 +132,25 @@ neo4j_driver = GraphDatabase.driver("bolt://neo4j:7687", auth=("neo4j", "passwor
 
 **Impact**: Attackers can intercept authentication tokens, modify responses, inject malicious content.
 
+### Supply Chain Attacks
+
+**Problem**: Malicious code injected into dependencies, base images, or build tools.
+
+**Attack vectors:**
+- Compromised PyPI/npm packages (typosquatting, account takeover)
+- Poisoned Docker base images from untrusted registries
+- Malicious GitHub Actions or CI/CD plugins
+- Compromised build tools or compilers
+
+**Example scenario**: Attacker publishes `requets` (typo of `requests`) on PyPI. Developer installs it, and the package exfiltrates environment variables containing API keys and database credentials.
+
+**Mitigations:**
+- Pin all dependency versions in `requirements.txt` (use `==` not `>=`)
+- Verify package checksums with `pip install --require-hashes`
+- Use only official Docker images from Docker Hub verified publishers
+- Enable Dependabot or Snyk for automated vulnerability scanning
+- Review dependency changes in pull requests before merging
+
 ### Insecure Docker Daemon Exposure
 
 **Problem**: Docker daemon exposed on TCP without authentication.
@@ -143,7 +178,7 @@ dockerd -H tcp://0.0.0.0:2375
 
 ### Container Hardening
 
-**1. Use Minimal Base Images**
+**1. Use Minimal Base Images with Multi-Stage Builds**
 
 ```dockerfile
 # GOOD: Use slim Python image
@@ -155,6 +190,27 @@ FROM python:3.11-alpine
 # BEST: Use distroless for minimal attack surface
 FROM gcr.io/distroless/python3-debian11
 ```
+
+**Multi-Stage Build (recommended for production):**
+
+```dockerfile
+# Stage 1: Build dependencies
+FROM python:3.11-slim AS builder
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Stage 2: Production image (minimal)
+FROM python:3.11-slim
+RUN useradd -m -u 1000 appuser
+COPY --from=builder /install /usr/local
+COPY --chown=appuser:appuser ./app /app
+USER appuser
+WORKDIR /app
+CMD ["python", "api/main.py"]
+```
+
+Multi-stage builds separate build-time dependencies from runtime, reducing the final image size and attack surface significantly.
 
 **2. Run as Non-Root User**
 
@@ -652,7 +708,46 @@ openssl req -x509 -newkey rsa:4096 -nodes \
 certbot certonly --standalone -d rag.example.com
 ```
 
-### Step 5: Secrets Rotation Script
+### Step 5: Network Policies
+
+```yaml
+# For Kubernetes deployments - restrict pod-to-pod communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: rag-backend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: neo4j
+      ports:
+        - port: 7687
+    - to:
+        - podSelector:
+            matchLabels:
+              app: chromadb
+      ports:
+        - port: 8000
+```
+
+For Docker Compose environments, use the `internal: true` network flag to prevent external access to backend services (see Network Security Implementation section above).
+
+### Step 6: Secrets Rotation Script
 
 ```bash
 #!/bin/bash
@@ -822,6 +917,43 @@ tar -czf chroma_backup_$(date +%Y%m%d).tar.gz data/chroma/
 
 # SQLite backup
 cp data/app.db data/backups/app_$(date +%Y%m%d).db
+```
+
+### Emergency Procedures
+
+**Suspected container compromise:**
+```bash
+# 1. Isolate the container immediately
+docker network disconnect frontend rag-backend
+docker network disconnect backend rag-backend
+
+# 2. Capture forensic snapshot
+docker commit rag-backend rag-backend-forensic:$(date +%Y%m%d%H%M)
+docker logs rag-backend > /tmp/compromised_container_logs.txt
+
+# 3. Stop the container
+docker stop rag-backend
+
+# 4. Rotate all secrets
+./scripts/rotate_secrets.sh
+
+# 5. Rebuild and redeploy from clean image
+docker-compose build --no-cache backend
+docker-compose up -d backend
+```
+
+**Exposed secrets detected:**
+```bash
+# 1. Immediately rotate the exposed secret
+openssl rand -base64 32 > secrets/new_password.txt
+
+# 2. Update the service with new credentials
+docker-compose restart backend
+
+# 3. Revoke old API keys via provider dashboard
+
+# 4. Audit access logs for unauthorized usage
+docker logs neo4j | grep "authentication failure"
 ```
 
 ---

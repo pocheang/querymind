@@ -253,6 +253,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         "memory_context": memory_context,
         "allowed_sources": allowed_sources,
         "force_language": req.force_language,
+        "session_id": req.session_id,
     }
     hinted = _normalize_agent_class_hint(req.agent_class_hint)
     if hinted:
@@ -746,6 +747,7 @@ async def stream_query(
             "memory_context": memory_context,
             "allowed_sources": allowed_sources,
             "force_language": force_language,
+            "session_id": req.session_id,
         }
         if hinted:
             stream_kwargs["agent_class_hint"] = hinted

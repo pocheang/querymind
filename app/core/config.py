@@ -89,6 +89,11 @@ class Settings(BaseSettings):
     reranker_model_name: str = Field(default="BAAI/bge-reranker-v2-m3", alias="RERANKER_MODEL_NAME")
     reranker_top_n: int = Field(default=5, alias="RERANKER_TOP_N")
 
+    # LLM-powered features
+    enable_llm_intent_classification: bool = Field(default=True, alias="ENABLE_LLM_INTENT_CLASSIFICATION")
+    enable_query_rewrite: bool = Field(default=True, alias="ENABLE_QUERY_REWRITE")
+    query_rewrite_max_variants: int = Field(default=3, alias="QUERY_REWRITE_MAX_VARIANTS")
+
     graph_extraction_mode: str = Field(default="llm", alias="GRAPH_EXTRACTION_MODE")
     graph_triplet_batch_chars: int = Field(default=2200, alias="GRAPH_TRIPLET_BATCH_CHARS")
 

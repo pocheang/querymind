@@ -17,6 +17,7 @@ from app.services.explainability import build_explainability_report
 from app.services.hybrid_executor import HybridExecutorRejectedError, submit_hybrid
 from app.services.query_intent import is_casual_chat_query, quick_smalltalk_reply, should_force_web_research
 from app.services.request_context import deadline_exceeded, remaining_seconds
+from app.services.session_language import update_language_history
 from app.services.tracing import traced_span
 
 logger = logging.getLogger(__name__)
@@ -45,11 +46,13 @@ def run_query_stream(
     agent_class_hint: str | None = None,
     retrieval_strategy: str | None = None,
     force_language: str = "",
+    session_id: str = "",
 ) -> Generator[dict[str, Any], None, dict[str, Any]]:
     """Stream query processing with real-time events."""
     _sync_agent_patchpoints()
     state: dict[str, Any] = {
         "question": question,
+        "session_id": session_id,
         "memory_context": memory_context,
         "use_web_fallback": use_web_fallback,
         "use_reasoning": use_reasoning,
@@ -460,6 +463,13 @@ def run_query_stream(
     state["answer"] = safe_answer
     state["grounding"] = grounding_report
     state["answer_safety"] = safety_report
+
+    # Update session language history
+    detected_language = state.get("detected_language", "zh")
+    session_id = state.get("session_id", "")
+    if session_id and detected_language:
+        update_language_history(session_id, detected_language)
+
     explainability = build_explainability_report(state)
     final_payload = {
         "answer": safe_answer,
