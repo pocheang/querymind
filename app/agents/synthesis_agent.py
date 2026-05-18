@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.core.models import get_chat_model, get_reasoning_model
 from app.services.bulkhead import bulkhead
 from app.services.language_detector import detect_language
+from app.services.language_analytics import LanguageAnalytics
 from app.services.query_intent import is_casual_chat_query
 from app.services.request_context import deadline_exceeded, overload_mode_enabled
 
@@ -232,6 +233,7 @@ def synthesize_answer(
     web_context: str = "",
     use_reasoning: bool = False,
     force_language: str = "",
+    session_id: str = "",
 ) -> dict:
     """
     Synthesize answer with language detection support.
@@ -245,12 +247,25 @@ def synthesize_answer(
         web_context: Web search context
         use_reasoning: Whether to use reasoning model
         force_language: Force specific language ('zh' or 'en'), empty string for auto-detect
+        session_id: Session identifier for analytics
 
     Returns:
         dict with 'answer' and 'detected_language' keys
     """
     # Detect language (or use forced language)
     detected_language = force_language if force_language else detect_language(question)
+
+    # Log language detection for analytics
+    try:
+        analytics = LanguageAnalytics.get_instance()
+        analytics.log_detection(
+            query=question,
+            detected_language=detected_language,
+            force_language=force_language,
+            session_id=session_id,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to log language analytics: {e}")
 
     # Build prompt with language hint
     prompt = _build_prompt_with_language(
@@ -303,6 +318,7 @@ def stream_synthesize_answer(
     web_context: str = "",
     use_reasoning: bool = False,
     force_language: str = "",
+    session_id: str = "",
 ) -> Iterable[dict[str, str] | str]:
     """
     Stream synthesize answer with language detection support.
@@ -316,6 +332,7 @@ def stream_synthesize_answer(
         web_context: Web search context
         use_reasoning: Whether to use reasoning model
         force_language: Force specific language ('zh' or 'en'), empty string for auto-detect
+        session_id: Session identifier for analytics
 
     Yields:
         Text chunks or dict with metadata
@@ -323,6 +340,18 @@ def stream_synthesize_answer(
     # Detect language (or use forced language)
     detected_language = force_language if force_language else detect_language(question)
     logger.info(f"Streaming synthesis language: {detected_language} (forced={bool(force_language)})")
+
+    # Log language detection for analytics
+    try:
+        analytics = LanguageAnalytics.get_instance()
+        analytics.log_detection(
+            query=question,
+            detected_language=detected_language,
+            force_language=force_language,
+            session_id=session_id,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to log language analytics: {e}")
 
     # Build prompt with language hint
     prompt = _build_prompt_with_language(

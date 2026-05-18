@@ -386,6 +386,7 @@ def run_query_stream(
             web_context=state.get("web_result", {}).get("context", ""),
             use_reasoning=use_reasoning,
             force_language=state.get("force_language", ""),
+            session_id=state.get("session_id", ""),
         ):
             if not isinstance(chunk_event, dict):
                 text = str(chunk_event)
@@ -434,6 +435,7 @@ def run_query_stream(
                 web_context=state.get("web_result", {}).get("context", ""),
                 use_reasoning=use_reasoning,
                 force_language=state.get("force_language", ""),
+                session_id=state.get("session_id", ""),
             )
             # Extract answer text from dict response
             answer = result["answer"] if isinstance(result, dict) else result
