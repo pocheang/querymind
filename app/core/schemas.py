@@ -11,6 +11,7 @@ class QueryRequest(BaseModel):
     request_id: str | None = None
     agent_class_hint: str | None = None
     retrieval_strategy: str | None = None  # baseline|advanced|safe
+    force_language: str = Field(default="", description="Force response language: 'zh' or 'en', empty for auto-detect")
 
 
 class Citation(BaseModel):
@@ -25,6 +26,7 @@ class QueryResponse(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     graph_entities: list[str] = Field(default_factory=list)
     web_used: bool = False
+    detected_language: str = Field(default="zh", description="Detected or forced response language")
     debug: dict[str, Any] = Field(default_factory=dict)
 
 

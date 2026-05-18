@@ -252,6 +252,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         "use_reasoning": effective_use_reasoning,
         "memory_context": memory_context,
         "allowed_sources": allowed_sources,
+        "force_language": req.force_language,
     }
     hinted = _normalize_agent_class_hint(req.agent_class_hint)
     if hinted:
@@ -389,6 +390,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         "citations": vector_citations + web_citations,
         "graph_entities": result.get("graph_result", {}).get("entities", []),
         "web_used": result.get("web_result", {}).get("used", False),
+        "detected_language": result.get("detected_language", "zh"),
         "debug": {
             "reason": result.get("reason", ""),
             "skill": result.get("skill", ""),
@@ -457,6 +459,7 @@ async def stream_query(
     request_id: Annotated[str | None, Form()] = None,
     agent_class_hint: Annotated[str | None, Form()] = None,
     retrieval_strategy: Annotated[str | None, Form()] = None,
+    force_language: Annotated[str, Form()] = "",
     user: dict[str, Any] = Depends(_require_user),
 ):
     _require_permission(user, "query:run", request, "query")
@@ -742,6 +745,7 @@ async def stream_query(
             "use_reasoning": effective_use_reasoning,
             "memory_context": memory_context,
             "allowed_sources": allowed_sources,
+            "force_language": force_language,
         }
         if hinted:
             stream_kwargs["agent_class_hint"] = hinted

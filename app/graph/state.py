@@ -25,3 +25,5 @@ class GraphState(TypedDict, total=False):
     agent_class_hint: str | None
     next_step: str
     retrieval_strategy: str | None
+    force_language: str
+    detected_language: str

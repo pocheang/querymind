@@ -41,6 +41,7 @@ def synthesis_node(state: GraphState) -> GraphState:
     vector_context = state.get("vector_result", {}).get("context", "")
     graph_context = state.get("graph_result", {}).get("context", "")
     web_context = state.get("web_result", {}).get("context", "")
+    force_language = state.get("force_language", "")
 
     answer = synthesize_answer(
         question=state["question"],
@@ -50,6 +51,7 @@ def synthesis_node(state: GraphState) -> GraphState:
         graph_context=graph_context,
         web_context=web_context,
         use_reasoning=state.get("use_reasoning", True),
+        force_language=force_language,
     )
     # Extract answer text from dict response
     answer_text = answer["answer"] if isinstance(answer, dict) else answer

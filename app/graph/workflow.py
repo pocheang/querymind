@@ -143,6 +143,7 @@ def run_query(
     allowed_sources: list[str] | None = None,
     agent_class_hint: str | None = None,
     retrieval_strategy: str | None = None,
+    force_language: str = "",
     execution_id: Optional[str] = None,
     enable_tracking: bool = True,
 ) -> GraphState:
@@ -171,6 +172,7 @@ def run_query(
                     "allowed_sources": allowed_sources,
                     "agent_class_hint": agent_class_hint,
                     "retrieval_strategy": retrieval_strategy,
+                    "force_language": force_language,
                     "execution_id": execution_id,
                 }
             )
