@@ -4,35 +4,48 @@ export function encodePathParam(value: string): string {
   return encodeURIComponent(value);
 }
 
+type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+export function buildRequest<T>(
+  method: HttpMethod,
+  path: string,
+  body?: Record<string, unknown>,
+  params?: Record<string, string | number | boolean | undefined>,
+): Promise<T> {
+  let fullPath = path;
+  if (params) {
+    const qs = buildQueryString(params);
+    fullPath = qs ? `${path}?${qs}` : path;
+  }
+
+  const options: RequestInit = { method };
+  if (body && method !== "GET") {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify(body);
+  }
+
+  return authRequest<T>(fullPath, options);
+}
+
 export function buildPatchRequest<T>(
   path: string,
   body: Record<string, unknown>,
 ): Promise<T> {
-  return authRequest<T>(path, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return buildRequest<T>("PATCH", path, body);
 }
 
 export function buildPostRequest<T>(
   path: string,
   body: Record<string, unknown>,
 ): Promise<T> {
-  return authRequest<T>(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return buildRequest<T>("POST", path, body);
 }
 
 export function buildGetRequest<T>(
   path: string,
   params?: Record<string, string | number | boolean | undefined>,
 ): Promise<T> {
-  const qs = params ? buildQueryString(params) : "";
-  const fullPath = qs ? `${path}?${qs}` : path;
-  return authRequest<T>(fullPath);
+  return buildRequest<T>("GET", path, undefined, params);
 }
 
 export { buildQueryString };

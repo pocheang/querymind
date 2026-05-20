@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { appApi } from "@/lib/api";
 import type { PromptTemplate } from "@/types/api";
 import type { Toast } from "@/pages/chat/types";
+import { sanitizeString } from "@/lib/validation";
 
 type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 
@@ -9,15 +10,6 @@ type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligenc
 const MAX_TITLE_LENGTH = 200;
 const MAX_CONTENT_LENGTH = 50000;
 const VALID_AGENT_CLASSES: AgentClassHint[] = ["", "general", "cybersecurity", "artificial_intelligence", "pdf_text"];
-
-// Sanitize string to prevent XSS
-function sanitizeString(input: string): string {
-  return input
-    .replace(/[<>]/g, "") // Remove angle brackets
-    .replace(/javascript:/gi, "") // Remove javascript: protocol
-    .replace(/on\w+=/gi, "") // Remove event handlers
-    .trim();
-}
 
 // Validate agent class hint
 function isValidAgentClass(value: unknown): value is AgentClassHint {
