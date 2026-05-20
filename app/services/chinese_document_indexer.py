@@ -2,7 +2,7 @@
 
 from typing import List, Dict, Any, Optional
 import logging
-from langchain.schema import Document
+from langchain_core.documents import Document
 from app.services.chinese_tokenizer import get_tokenizer
 from app.services.chinese_query_preprocessor import ChineseQueryPreprocessor
 

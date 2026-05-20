@@ -1,7 +1,7 @@
 """Unit tests for Chinese document indexer."""
 
 import pytest
-from langchain.schema import Document
+from langchain_core.documents import Document
 from app.services.chinese_document_indexer import (
     ChineseDocumentIndexer,
     ChineseAwareChunker,

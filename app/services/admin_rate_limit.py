@@ -2,7 +2,8 @@
 
 Provides rate limiting for sensitive admin operations to prevent brute-force attacks and abuse.
 """
-from typing import Optional
+from typing import Optional, Callable, Any
+from functools import wraps
 
 try:
     from slowapi import Limiter
@@ -13,16 +14,29 @@ except ImportError:
     Limiter = None
 
 
-def get_limiter() -> Optional[object]:
+class NoOpLimiter:
+    """No-op rate limiter that does nothing when slowapi is not available."""
+
+    def limit(self, limit_value: str) -> Callable:
+        """Return a no-op decorator that passes through the function unchanged."""
+        def decorator(func: Callable) -> Callable:
+            @wraps(func)
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
+                return func(*args, **kwargs)
+            return wrapper
+        return decorator
+
+
+def get_limiter() -> object:
     """
     Get rate limiter instance.
 
     Returns:
-        Limiter instance if slowapi is available, None otherwise
+        Limiter instance if slowapi is available, NoOpLimiter otherwise
     """
     if SLOWAPI_AVAILABLE:
         return Limiter(key_func=get_remote_address)
-    return None
+    return NoOpLimiter()
 
 
 # Rate limit configuration
