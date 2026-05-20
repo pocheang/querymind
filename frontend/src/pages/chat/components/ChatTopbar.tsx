@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { getThemeIcon, getThemeDisplay } from "@/lib/theme";
 
 type Props = {
   themeLabel: string;
@@ -15,7 +16,8 @@ export function ChatTopbar({
   onOpenSettings,
   onThemeToggle,
 }: Props) {
-  const themeDisplay = themeLabel.includes("暗") ? "暗色" : "亮色";
+  const themeDisplay = getThemeDisplay(themeLabel);
+  const themeIcon = getThemeIcon(themeLabel);
 
   return (
     <header className="topbar">
@@ -46,7 +48,7 @@ export function ChatTopbar({
           <span className="btn-label">设置</span>
         </button>
         <button type="button" className="topbar-btn" onClick={onThemeToggle} aria-label={`切换主题，当前：${themeDisplay}`}>
-          <span className="btn-icon" aria-hidden="true">◐</span>
+          <span className="btn-icon" aria-hidden="true">{themeIcon}</span>
           <span className="btn-label">{themeDisplay}</span>
         </button>
         <Link className="topbar-btn" to="/app/architecture" aria-label="查看系统架构">

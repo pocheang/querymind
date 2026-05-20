@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from "react";
 import {
-  QUICK_PROMPTS,
   AGENT_MODES,
   type AgentClassHint,
   type RetrievalStrategy,
@@ -245,6 +244,7 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
         onCreateSession={async () => { await actions.createSession(); }}
         onLoadSession={actions.loadSession}
         onDeleteSession={actions.deleteSession}
+        onRenameSession={actions.renameSession}
         onSwitchAgentMode={helpers.switchAgentMode}
         onPdfTargetFileChange={setPdfTargetFile}
         onRefreshDocuments={actions.refreshDocuments}

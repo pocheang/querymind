@@ -84,7 +84,7 @@ export function generateSmartPrompts(messages: SessionMessage[]): string[] {
   }
 
   // 5. 根据图谱关系推荐
-  if (metadata?.graph_result?.neighbors?.length > 0 || metadata?.graph_result?.paths?.length > 0) {
+  if ((metadata?.graph_result?.neighbors?.length ?? 0) > 0 || (metadata?.graph_result?.paths?.length ?? 0) > 0) {
     prompts.push("深入分析相关实体之间的关系");
     prompts.push("探索更多相关的知识点");
   }

@@ -1,6 +1,7 @@
 import type { FileIndexActionResponse, IndexedFileSummary, UploadResponse } from "@/types/api";
 import { authFetch, parseOrThrow, toUrl, getToken, safeParsePayload, ApiError } from "./api-client";
 import { authApi } from "./auth-api";
+import { encodePathParam } from "./api-helpers";
 
 export const documentApi = {
   upload(
@@ -68,7 +69,7 @@ export const documentApi = {
       remove_file: removeFile ? "true" : "false",
       source,
     });
-    const res = await authFetch(`/documents/${encodeURIComponent(filename)}?${qs.toString()}`, {
+    const res = await authFetch(`/documents/${encodePathParam(filename)}?${qs.toString()}`, {
       method: "DELETE",
     });
     return parseOrThrow<FileIndexActionResponse>(res);
@@ -76,7 +77,7 @@ export const documentApi = {
   async documentReindex(filename: string, source: string) {
     const qs = new URLSearchParams({ source });
     const res = await authFetch(
-      `/documents/${encodeURIComponent(filename)}/reindex?${qs.toString()}`,
+      `/documents/${encodePathParam(filename)}/reindex?${qs.toString()}`,
       { method: "POST" },
     );
     return parseOrThrow<FileIndexActionResponse>(res);

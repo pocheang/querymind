@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useFormState } from "@/hooks/useFormState";
+import { AuthInput } from "@/components/AuthInput";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // Route-specific CSS (code-split by Vite)
 import "@/styles/pages/auth/layout.css";
@@ -16,9 +19,7 @@ type Props = {
 
 export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const { status, setStatus, error, setError, loading, setLoading } = useFormState();
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async () => {
@@ -45,9 +46,7 @@ export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
   if (submitted) {
     return (
       <div className="auth-root">
-        <button type="button" className="theme-toggle" onClick={onThemeToggle}>
-          {themeLabel}
-        </button>
+        <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
 
         <main className="auth-card forgot-password-card">
           <section className="auth-intro auth-intro-support">
@@ -111,9 +110,7 @@ export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
 
   return (
     <div className="auth-root">
-      <button type="button" className="theme-toggle" onClick={onThemeToggle}>
-        {themeLabel}
-      </button>
+      <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
 
       <main className="auth-card forgot-password-card">
         <section className="auth-intro auth-intro-support">
@@ -141,24 +138,18 @@ export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
 
           <div className="input-group">
             <label htmlFor="email">用户名或邮箱</label>
-            <div className="auth-input-shell">
-              <span className="auth-input-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M4 6h16v12H4V6Zm2 2v.5l6 4l6-4V8l-6 4l-6-4Z" />
-                </svg>
-              </span>
-              <input
-                id="email"
-                type="text"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="请输入用户名或邮箱地址"
-                autoComplete="username"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void handleSubmit();
-                }}
-              />
-            </div>
+            <AuthInput
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="请输入用户名或邮箱"
+              autoComplete="email"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleSubmit();
+              }}
+              icon="email"
+            />
             <div className={`hint ${email.trim() ? "ok" : ""}`}>
               {email.trim() ? "信息已填写，可发送重置链接" : "请填写您注册时使用的用户名或邮箱"}
             </div>

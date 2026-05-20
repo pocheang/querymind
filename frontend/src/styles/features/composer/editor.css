@@ -40,7 +40,6 @@
 .composer-panel textarea {
   width: 100%;
   min-height: 112px;
-  max-height: 180px;
   border: 0;
   border-radius: 12px;
   padding: 5px 10px 5px 2px;
@@ -48,8 +47,8 @@
   color: var(--text-primary);
   font-size: 16px;
   line-height: 1.66;
-  resize: vertical;
-  overflow-y: scroll;
+  resize: none;
+  overflow-y: auto;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 216, 0.48) rgba(7, 13, 26, 0.5);

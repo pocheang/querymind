@@ -116,4 +116,23 @@ export async function parseOrThrow<T>(res: Response): Promise<T> {
   return payload as T;
 }
 
+export async function authRequest<T>(
+  path: string,
+  init: RequestInit = {},
+  opts: { networkRetry?: number; retryDelayMs?: number } = {},
+): Promise<T> {
+  const res = await authFetch(path, init, opts);
+  return parseOrThrow<T>(res);
+}
+
+export function buildQueryString(params: Record<string, string | number | boolean | undefined>): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) {
+      qs.set(key, String(value));
+    }
+  }
+  return qs.toString();
+}
+
 export const TOKEN_KEY_EXPORT = TOKEN_KEY;

@@ -1,21 +1,24 @@
 import type { SessionDetail, SessionSummary } from "@/types/api";
-import { authFetch, parseOrThrow } from "./api-client";
+import { authRequest } from "./api-client";
+import { buildQueryString, buildPatchRequest, encodePathParam } from "./api-helpers";
 
 export const sessionApi = {
   sessions() {
-    return authFetch("/sessions").then(parseOrThrow<SessionSummary[]>);
+    return authRequest<SessionSummary[]>("/sessions");
   },
   sessionCreate() {
-    return authFetch("/sessions", { method: "POST" }).then(parseOrThrow<SessionDetail>);
+    return authRequest<SessionDetail>("/sessions", { method: "POST" });
   },
   sessionDetail(sessionId: string) {
-    return authFetch(`/sessions/${encodeURIComponent(sessionId)}`).then(parseOrThrow<SessionDetail>);
+    return authRequest<SessionDetail>(`/sessions/${encodePathParam(sessionId)}`);
   },
-  async sessionDelete(sessionId: string) {
-    const res = await authFetch(`/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
-    return parseOrThrow<{ ok: boolean; session_id: string }>(res);
+  sessionDelete(sessionId: string) {
+    return authRequest<{ ok: boolean; session_id: string }>(`/sessions/${encodePathParam(sessionId)}`, { method: "DELETE" });
   },
-  async messageUpdate(
+  sessionRename(sessionId: string, newTitle: string) {
+    return buildPatchRequest<{ ok: boolean; session_id: string }>(`/sessions/${encodePathParam(sessionId)}`, { title: newTitle });
+  },
+  messageUpdate(
     sessionId: string,
     messageId: string,
     content: string,
@@ -23,26 +26,20 @@ export const sessionApi = {
     useWebFallback: boolean,
     useReasoning: boolean,
   ) {
-    const qs = new URLSearchParams({
+    const qs = buildQueryString({
       rerun: rerun ? "true" : "false",
       use_web_fallback: useWebFallback ? "1" : "0",
       use_reasoning: useReasoning ? "1" : "0",
     });
-    const res = await authFetch(
-      `/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}?${qs.toString()}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
-      },
+    return buildPatchRequest<SessionDetail>(
+      `/sessions/${encodePathParam(sessionId)}/messages/${encodePathParam(messageId)}?${qs}`,
+      { content },
     );
-    return parseOrThrow<SessionDetail>(res);
   },
-  async messageDelete(sessionId: string, messageId: string) {
-    const res = await authFetch(
-      `/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}`,
+  messageDelete(sessionId: string, messageId: string) {
+    return authRequest<SessionDetail>(
+      `/sessions/${encodePathParam(sessionId)}/messages/${encodePathParam(messageId)}`,
       { method: "DELETE" },
     );
-    return parseOrThrow<SessionDetail>(res);
   },
 };

@@ -93,10 +93,23 @@ export function useSessionActions(params: UseSessionActionsParams) {
     }
   };
 
+  const renameSession = async (sessionId: string, newTitle: string) => {
+    try {
+      await appApi.sessionRename(sessionId, newTitle);
+      setSessions(prev => prev.map(s =>
+        s.session_id === sessionId ? { ...s, title: newTitle } : s
+      ));
+      notify("Session renamed", "success");
+    } catch (e) {
+      await handleApiError(e, "Failed to rename session");
+    }
+  };
+
   return {
     loadSession,
     refreshSessions,
     createSession,
     deleteSession,
+    renameSession,
   };
 }

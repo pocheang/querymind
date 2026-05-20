@@ -65,12 +65,11 @@
   gap: 7px;
 }
 
+/* Base styles (layout only, no colors) */
 .sidebar-user-action-btn {
   min-width: 0;
   height: 32px;
   border-radius: 9px;
-  background: rgba(18, 26, 45, 0.72);
-  border: 1px solid rgba(111, 132, 189, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -79,10 +78,18 @@
   font-size: 11px;
   font-weight: 760;
   text-decoration: none;
+}
+
+/* Dark theme styles (default) */
+:root[data-theme="dark"] .sidebar-user-action-btn,
+:root:not([data-theme]) .sidebar-user-action-btn {
+  background: rgba(18, 26, 45, 0.72);
+  border: 1px solid rgba(111, 132, 189, 0.16);
   color: var(--text-tertiary);
 }
 
-.sidebar-user-action-btn:hover {
+:root[data-theme="dark"] .sidebar-user-action-btn:hover,
+:root:not([data-theme]) .sidebar-user-action-btn:hover {
   background: rgba(61, 83, 137, 0.42);
   border-color: rgba(91, 140, 255, 0.38);
   color: var(--text-primary);
@@ -90,7 +97,8 @@
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
 }
 
-.sidebar-user-action-admin {
+:root[data-theme="dark"] .sidebar-user-action-admin,
+:root:not([data-theme]) .sidebar-user-action-admin {
   color: #b8c7ff;
 }
 

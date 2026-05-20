@@ -74,20 +74,27 @@
    Sidebar Collapse Button
    ============================================ */
 
+/* Base styles (layout only) */
 .sidebar-collapse-btn {
   min-height: 32px;
   padding: 0 10px;
   border-radius: 10px;
-  background: rgba(16, 25, 43, 0.7);
-  border: 1px solid rgba(100, 122, 180, 0.18);
-  color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 760;
   box-shadow: none;
   transition: all 0.2s ease;
 }
 
-.sidebar-collapse-btn:hover {
+/* Dark theme styles (default) */
+:root[data-theme="dark"] .sidebar-collapse-btn,
+:root:not([data-theme]) .sidebar-collapse-btn {
+  background: rgba(16, 25, 43, 0.7);
+  border: 1px solid rgba(100, 122, 180, 0.18);
+  color: var(--text-tertiary);
+}
+
+:root[data-theme="dark"] .sidebar-collapse-btn:hover,
+:root:not([data-theme]) .sidebar-collapse-btn:hover {
   background: rgba(44, 59, 96, 0.72);
   border-color: rgba(91, 140, 255, 0.36);
   color: var(--text-primary);

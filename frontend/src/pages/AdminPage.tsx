@@ -12,6 +12,7 @@ import { useAdminActions } from "@/pages/admin/useAdminActions";
 import { useAdminState } from "@/pages/admin/useAdminState";
 import { formatAuditTime } from "@/pages/admin/utils";
 import { ROLE_OPTIONS, STATUS_OPTIONS, ACTION_KEYWORD_OPTIONS } from "@/pages/admin/constants";
+import { getThemeIcon } from "@/lib/theme";
 
 // Route-specific CSS (code-split by Vite)
 import "@/styles/pages/admin/layout.css";
@@ -33,6 +34,7 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
   const navigate = useNavigate();
   const state = useAdminState();
   const isAdmin = useMemo(() => (user?.role || "").toLowerCase() === "admin", [user?.role]);
+  const themeIcon = getThemeIcon(themeLabel);
 
   const actions = useAdminActions({
     ...state,
@@ -93,7 +95,9 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
           <p className="muted">企业级管理工作台</p>
         </div>
         <div className="top-actions">
-          <button className="secondary" type="button" onClick={onThemeToggle}>{themeLabel}</button>
+          <button className="secondary" type="button" onClick={onThemeToggle}>
+            {themeIcon} {themeLabel}
+          </button>
           <button className="secondary" type="button" onClick={() => navigate('/app/analytics')}>📊 查看监控分析</button>
           <Link className="secondary link-btn" to="/app">返回聊天</Link>
           <button type="button" onClick={() => void onLogout()}>退出登录</button>

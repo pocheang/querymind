@@ -48,6 +48,7 @@ type Props = {
   onCreateSession: () => Promise<void>;
   onLoadSession: (sessionId: string) => Promise<void>;
   onDeleteSession: (sessionId: string) => Promise<void>;
+  onRenameSession: (sessionId: string, newTitle: string) => Promise<void>;
   onSwitchAgentMode: (mode: AgentClassHint) => void;
   onPdfTargetFileChange: (filename: string) => void;
   onRefreshDocuments: () => Promise<void>;
@@ -103,6 +104,7 @@ export function ChatSidebar({
   onCreateSession,
   onLoadSession,
   onDeleteSession,
+  onRenameSession,
   onSwitchAgentMode,
   onPdfTargetFileChange,
   onRefreshDocuments,
@@ -189,6 +191,7 @@ export function ChatSidebar({
             onCreateSession={onCreateSession}
             onLoadSession={onLoadSession}
             onDeleteSession={onDeleteSession}
+            onRenameSession={onRenameSession}
           />
         </div>
 

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { AuthUser } from '@/types/api';
+import { getThemeIcon } from '@/lib/theme';
+import '../styles/pages/analytics.css';
 
 interface AnalyticsOverview {
   total_queries: number;
@@ -77,9 +79,11 @@ export function AnalyticsPage({ onLogout, themeLabel, onThemeToggle }: Props) {
     window.open(`/api/analytics/export?format=${format}`, '_blank');
   };
 
+  const themeIcon = getThemeIcon(themeLabel);
+
   if (loading && !overview) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <div className="analytics-loading">
         <p>Loading analytics...</p>
       </div>
     );
@@ -107,61 +111,23 @@ export function AnalyticsPage({ onLogout, themeLabel, onThemeToggle }: Props) {
   }));
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+    <div className="analytics-page">
       {/* Header */}
-      <header style={{
-        backgroundColor: 'white',
-        borderBottom: '1px solid #e0e0e0',
-        padding: '1rem 2rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '2rem'
-      }}>
-        <div>
-          <h2 style={{ margin: '0 0 0.25rem 0', fontSize: '1.5rem', fontWeight: 600 }}>监控分析</h2>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>系统性能和使用情况分析</p>
+      <header className="analytics-header">
+        <div className="analytics-header-content">
+          <h2>监控分析</h2>
+          <p>系统性能和使用情况分析</p>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button
-            onClick={onThemeToggle}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#f0f0f0',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.9rem'
-            }}
-          >
-            {themeLabel}
+        <div className="analytics-header-actions">
+          <button onClick={onThemeToggle} className="theme-btn">
+            {themeIcon} {themeLabel}
           </button>
-          <Link
-            to="/app/admin"
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#f0f0f0',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              textDecoration: 'none',
-              color: 'inherit'
-            }}
-          >
-            返回管理
+          <Link to="/app/admin" className="back-btn">
+            ← 返回管理
           </Link>
           <button
             onClick={() => void onLogout()}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#ff4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.9rem'
-            }}
+            className="logout-btn"
           >
             退出登录
           </button>
@@ -169,111 +135,46 @@ export function AnalyticsPage({ onLogout, themeLabel, onThemeToggle }: Props) {
       </header>
 
       {/* Main Content */}
-      <div style={{ padding: '0 2rem 2rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
+      <div className="analytics-content">
       {/* Refresh Button */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 600 }}>Analytics Dashboard</h1>
+      <div className="analytics-title-bar">
+        <h1>Analytics Dashboard</h1>
         <button
           onClick={fetchData}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#0088FE',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-          }}
+          className="refresh-btn"
         >
           Refresh
         </button>
       </div>
 
       {/* Statistics Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: '1.5rem',
-          marginBottom: '2rem',
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}
-        >
-          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#666' }}>Total Queries</h3>
-          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 600, color: '#0088FE' }}>
-            {overview?.total_queries || 0}
-          </p>
+      <div className="analytics-stats-grid">
+        <div className="stat-card-analytics blue">
+          <h3>Total Queries</h3>
+          <p>{overview?.total_queries || 0}</p>
         </div>
 
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}
-        >
-          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#666' }}>Success Rate</h3>
-          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 600, color: '#00C49F' }}>
-            {overview?.success_rate ? `${overview.success_rate.toFixed(1)}%` : '0%'}
-          </p>
+        <div className="stat-card-analytics green">
+          <h3>Success Rate</h3>
+          <p>{overview?.success_rate ? `${overview.success_rate.toFixed(1)}%` : '0%'}</p>
         </div>
 
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}
-        >
-          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#666' }}>Avg Response Time</h3>
-          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 600, color: '#FFBB28' }}>
-            {overview?.avg_total_time_ms ? `${overview.avg_total_time_ms.toFixed(0)}ms` : '0ms'}
-          </p>
+        <div className="stat-card-analytics yellow">
+          <h3>Avg Response Time</h3>
+          <p>{overview?.avg_total_time_ms ? `${overview.avg_total_time_ms.toFixed(0)}ms` : '0ms'}</p>
         </div>
 
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}
-        >
-          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#666' }}>Avg Docs Retrieved</h3>
-          <p style={{ margin: 0, fontSize: '2rem', fontWeight: 600, color: '#FF8042' }}>
-            {overview?.avg_retrieved_count ? overview.avg_retrieved_count.toFixed(1) : '0'}
-          </p>
+        <div className="stat-card-analytics orange">
+          <h3>Avg Docs Retrieved</h3>
+          <p>{overview?.avg_retrieved_count ? overview.avg_retrieved_count.toFixed(1) : '0'}</p>
         </div>
       </div>
 
       {/* Charts Section */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-          gap: '1.5rem',
-          marginBottom: '2rem',
-        }}
-      >
+      <div className="analytics-charts-grid">
         {/* Agent Distribution Pie Chart */}
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}
-        >
-          <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 600 }}>Agent Distribution</h2>
+        <div className="chart-card">
+          <h2>Agent Distribution</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -296,15 +197,8 @@ export function AnalyticsPage({ onLogout, themeLabel, onThemeToggle }: Props) {
         </div>
 
         {/* Agent Performance Bar Chart */}
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}
-        >
-          <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 600 }}>Agent Performance</h2>
+        <div className="chart-card">
+          <h2>Agent Performance</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={agentPerformanceData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -320,18 +214,8 @@ export function AnalyticsPage({ onLogout, themeLabel, onThemeToggle }: Props) {
       </div>
 
       {/* Document Heatmap - Full Width */}
-      <div
-        style={{
-          backgroundColor: 'white',
-          padding: '1.5rem',
-          borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          marginBottom: '2rem',
-        }}
-      >
-        <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 600 }}>
-          Top 10 Retrieved Documents
-        </h2>
+      <div className="chart-card-full">
+        <h2>Top 10 Retrieved Documents</h2>
         <ResponsiveContainer width="100%" height={400}>
           <BarChart data={documentHeatmapData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" />
@@ -346,34 +230,16 @@ export function AnalyticsPage({ onLogout, themeLabel, onThemeToggle }: Props) {
       </div>
 
       {/* Export Buttons */}
-      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+      <div className="analytics-export-actions">
         <button
           onClick={() => handleExport('json')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#0088FE',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            fontWeight: 500,
-          }}
+          className="export-btn json"
         >
           Export JSON
         </button>
         <button
           onClick={() => handleExport('csv')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#00C49F',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            fontWeight: 500,
-          }}
+          className="export-btn csv"
         >
           Export CSV
         </button>

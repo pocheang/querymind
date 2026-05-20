@@ -91,57 +91,84 @@
 
 /* Sidebar Session Search */
 :root[data-theme="light"] .session-search {
-  background: var(--chat-bg-surface);
-  border-color: var(--chat-border-soft);
+  background: #ffffff;
+  border-color: rgba(226, 232, 240, 0.8);
+}
+
+:root[data-theme="light"] .session-search:hover {
+  border-color: rgba(203, 213, 225, 0.9);
+  background: #fafbfc;
 }
 
 :root[data-theme="light"] .session-search:focus-within {
-  background: var(--chat-bg-surface-soft);
-  border-color: var(--chat-brand);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  background: #ffffff;
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
 }
 
 :root[data-theme="light"] .session-search-icon {
-  border-color: var(--chat-text-secondary);
+  border-color: #94a3b8;
   opacity: 1;
 }
 
 :root[data-theme="light"] .session-search-icon::after {
-  background: var(--chat-text-secondary);
+  background: #94a3b8;
+}
+
+:root[data-theme="light"] .session-search:focus-within .session-search-icon {
+  border-color: #3b82f6;
+}
+
+:root[data-theme="light"] .session-search:focus-within .session-search-icon::after {
+  background: #3b82f6;
 }
 
 :root[data-theme="light"] .session-search input {
-  color: var(--chat-text-primary);
+  color: #1e293b;
 }
 
 :root[data-theme="light"] .session-search input::placeholder {
-  color: var(--chat-text-muted);
+  color: #94a3b8;
 }
 
 /* Sidebar New Session Button */
 :root[data-theme="light"] .session-create-btn {
-  background: var(--chat-bg-surface);
-  border-color: var(--chat-border-soft);
-  color: var(--chat-text-secondary);
+  background: #ffffff;
+  border-color: rgba(226, 232, 240, 0.8);
+  color: #475569;
 }
 
 :root[data-theme="light"] .session-create-btn:hover:not(:disabled) {
-  background: var(--chat-bg-muted);
-  border-color: var(--chat-border-medium);
-  color: var(--chat-text-primary);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+  background: rgba(241, 245, 249, 0.8);
+  border-color: rgba(203, 213, 225, 0.8);
+  color: #1e293b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 :root[data-theme="light"] .session-create-icon {
-  background: var(--chat-brand-soft);
-  border-color: var(--chat-brand-border);
-  color: var(--chat-brand);
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+:root[data-theme="light"] .session-create-btn:hover:not(:disabled) .session-create-icon {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #2563eb;
 }
 
 :root[data-theme="light"] .session-create-btn small {
-  background: var(--chat-brand-soft);
-  border-color: var(--chat-brand-border);
-  color: var(--chat-brand);
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+:root[data-theme="light"] .session-create-btn:hover:not(:disabled) small {
+  background: #475569;
+  border-color: #334155;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 /* Sidebar Session List */
@@ -150,57 +177,77 @@
 }
 
 :root[data-theme="light"] .session-item:hover {
-  background: var(--chat-bg-surface);
-  border-color: var(--chat-border-soft);
+  background: rgba(241, 245, 249, 0.6);
+  border-color: rgba(226, 232, 240, 0.8);
 }
 
 :root[data-theme="light"] .session-item.active {
-  background: var(--chat-brand-soft);
-  border-color: var(--chat-brand-border);
-  box-shadow: inset 3px 0 0 var(--chat-brand), 0 2px 8px rgba(99, 102, 241, 0.1);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(99, 102, 241, 0.06));
+  border-color: rgba(59, 130, 246, 0.25);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
 }
 
 :root[data-theme="light"] .session-item.active::before {
-  background: var(--chat-brand);
-  box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+  background: linear-gradient(180deg, #3b82f6, #6366f1);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
 }
 
 :root[data-theme="light"] .session-icon {
-  background: var(--chat-bg-muted);
-  border-color: var(--chat-border-soft);
-  color: var(--chat-text-secondary);
+  background: rgba(241, 245, 249, 0.8);
+  border-color: rgba(226, 232, 240, 0.6);
+  color: #64748b;
+}
+
+:root[data-theme="light"] .session-item:hover .session-icon {
+  background: rgba(226, 232, 240, 0.8);
+  border-color: rgba(203, 213, 225, 0.8);
 }
 
 :root[data-theme="light"] .session-item.active .session-icon {
-  background: var(--chat-brand);
-  border-color: var(--chat-brand);
-  color: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 :root[data-theme="light"] .session-title {
-  color: var(--chat-text-secondary);
+  color: #475569;
 }
 
 :root[data-theme="light"] .session-meta {
-  color: var(--chat-text-muted);
+  color: #94a3b8;
 }
 
-:root[data-theme="light"] .session-item.active .session-title,
+:root[data-theme="light"] .session-item.active .session-title {
+  color: #1e293b;
+  font-weight: 600;
+}
+
 :root[data-theme="light"] .session-item:hover .session-title {
-  color: var(--chat-text-primary);
+  color: #334155;
 }
 
 :root[data-theme="light"] .session-count {
-  background: var(--chat-bg-muted);
-  border-color: var(--chat-border-soft);
-  color: var(--chat-text-muted);
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+:root[data-theme="light"] .session-item:hover .session-count {
+  background: #475569;
+  border-color: #334155;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 :root[data-theme="light"] .session-item.active .session-count {
-  background: var(--chat-brand-soft);
-  border-color: var(--chat-brand-border);
-  color: var(--chat-brand);
+  background: #3b82f6;
+  border-color: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
 :root[data-theme="light"] .session-empty {
@@ -211,15 +258,16 @@
 
 /* Sidebar Collapse Button */
 :root[data-theme="light"] .sidebar-collapse-btn {
-  background: var(--chat-bg-surface);
-  border-color: var(--chat-border-soft);
-  color: var(--chat-text-secondary);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
 }
 
 :root[data-theme="light"] .sidebar-collapse-btn:hover {
-  background: var(--chat-bg-muted);
-  border-color: var(--chat-border-medium);
-  color: var(--chat-text-primary);
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  transform: translateY(-1px);
 }
 
 /* Sidebar Footer - User Info */
@@ -243,24 +291,41 @@
 
 /* Sidebar Footer - Action Buttons */
 :root[data-theme="light"] .sidebar-user-action-btn {
-  background: var(--chat-bg-muted);
-  border-color: var(--chat-border-soft);
-  color: var(--chat-text-secondary);
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+:root[data-theme="light"] .sidebar-user-action-btn span {
+  color: #475569 !important;
 }
 
 :root[data-theme="light"] .sidebar-user-action-btn:hover {
-  background: var(--chat-brand-soft);
-  border-color: var(--chat-brand-border);
-  color: var(--chat-brand);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+  background: #e2e8f0 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  transform: translateY(-1px) !important;
+}
+
+:root[data-theme="light"] .sidebar-user-action-btn:hover span {
+  color: #1e293b !important;
 }
 
 :root[data-theme="light"] .sidebar-user-action-admin {
-  color: var(--chat-brand);
+  color: #3b82f6 !important;
+}
+
+:root[data-theme="light"] .sidebar-user-action-admin span {
+  color: #3b82f6 !important;
 }
 
 :root[data-theme="light"] .sidebar-collapse-btn-bottom {
-  color: var(--chat-text-secondary);
+  color: #64748b !important;
+}
+
+:root[data-theme="light"] .sidebar-collapse-btn-bottom:hover {
+  color: #1e293b !important;
 }
 
 /* ============================================

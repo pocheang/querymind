@@ -2,6 +2,10 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { authApi } from "@/lib/api";
 import type { AuthUser } from "@/types/api";
+import { validateUsername, validatePassword } from "@/lib/validation";
+import { useFormState } from "@/hooks/useFormState";
+import { AuthInput } from "@/components/AuthInput";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // Route-specific CSS (code-split by Vite)
 import "@/styles/pages/auth/layout.css";
@@ -17,27 +21,11 @@ type Props = {
   onThemeToggle: () => void;
 };
 
-function validateUsername(value: string) {
-  return /^[A-Za-z0-9._-]{3,32}$/.test(value.trim());
-}
-
-function validatePassword(value: string) {
-  return (
-    value.length >= 12 &&
-    /[a-z]/.test(value) &&
-    /[A-Z]/.test(value) &&
-    /[0-9]/.test(value) &&
-    /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(value)
-  );
-}
-
 export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
   const [username, setUsername] = useState(localStorage.getItem("remembered_username") || "");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(!!localStorage.getItem("remembered_username"));
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const { status, setStatus, error, setError, loading, setLoading } = useFormState();
 
   const loginValid = useMemo(() => validateUsername(username) && password.length > 0, [username, password]);
   const registerValid = useMemo(
@@ -95,9 +83,7 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
 
   return (
     <div className="auth-root">
-      <button type="button" className="theme-toggle" onClick={onThemeToggle}>
-        {themeLabel}
-      </button>
+      <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
 
       <main className="auth-card">
         <section className="auth-intro auth-intro-primary">
@@ -150,20 +136,14 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
 
           <div className="input-group">
             <label htmlFor="username">用户名</label>
-            <div className="auth-input-shell">
-              <span className="auth-input-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M12 12a4 4 0 1 0-4-4a4 4 0 0 0 4 4Zm0 2c-3.33 0-6 2.02-6 4.5V20h12v-1.5c0-2.48-2.67-4.5-6-4.5Z" />
-                </svg>
-              </span>
-              <input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="请输入用户名"
-                autoComplete="username"
-              />
-            </div>
+            <AuthInput
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="请输入用户名"
+              autoComplete="username"
+              icon="user"
+            />
             <div className={`hint ${validateUsername(username) ? "ok" : username.length > 0 ? "error" : ""}`}>
               {username.length === 0
                 ? "3-32位字母、数字或._-"
@@ -175,24 +155,18 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
 
           <div className="input-group">
             <label htmlFor="password">密码</label>
-            <div className="auth-input-shell">
-              <span className="auth-input-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4V7Z" />
-                </svg>
-              </span>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="请输入密码"
-                autoComplete="current-password"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void login();
-                }}
-              />
-            </div>
+            <AuthInput
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="请输入密码"
+              autoComplete="current-password"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void login();
+              }}
+              icon="lock"
+            />
             <div className={`hint ${validatePassword(password) ? "ok" : password.length > 0 ? "error" : ""}`}>
               {password.length === 0
                 ? "注册需 12 位以上，含大小写、数字和特殊字符"

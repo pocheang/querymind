@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import "../styles/pages/architecture.css";
 import { DataFlowVisualization } from "../components/DataFlowVisualization";
+import { getThemeIcon } from "@/lib/theme";
 
 type Props = {
   isLoggedIn: boolean;
@@ -9,6 +10,8 @@ type Props = {
 };
 
 export function ArchitecturePage({ isLoggedIn, themeLabel, onThemeToggle }: Props) {
+  const themeIcon = getThemeIcon(themeLabel);
+
   return (
     <div className="admin-shell architecture-shell">
       <header className="topbar">
@@ -18,7 +21,7 @@ export function ArchitecturePage({ isLoggedIn, themeLabel, onThemeToggle }: Prop
         </div>
         <div className="top-actions">
           <button type="button" className="secondary" onClick={onThemeToggle}>
-            {themeLabel}
+            {themeIcon} {themeLabel}
           </button>
           <Link className="secondary link-btn" to={isLoggedIn ? "/app" : "/app/login"}>
             {isLoggedIn ? "返回系统" : "去登录"}

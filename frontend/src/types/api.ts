@@ -51,6 +51,12 @@ export type SessionMessageMetadata = {
     paths: Array<{
       entities: string[];
       relations: string[];
+    } | {
+      source: string;
+      rel1?: string;
+      middle: string;
+      rel2?: string;
+      target: string;
     }>;
     context?: string;
   };

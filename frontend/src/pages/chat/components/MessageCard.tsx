@@ -140,8 +140,8 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Props) 
                           // 处理两种数据格式：
                           // 1. 新格式: {entities: [...], relations: [...]}
                           // 2. 旧格式: {source, rel1, middle, rel2, target}
-                          const hasNewFormat = path.entities && Array.isArray(path.entities);
-                          const hasOldFormat = path.source && path.middle && path.target;
+                          const hasNewFormat = 'entities' in path && Array.isArray(path.entities);
+                          const hasOldFormat = 'source' in path && 'middle' in path && 'target' in path;
 
                           if (hasNewFormat) {
                             return (

@@ -18,3 +18,16 @@ export function applyTheme(mode: ThemeMode) {
 export function nextTheme(mode: ThemeMode): ThemeMode {
   return mode === "dark" ? "light" : "dark";
 }
+
+export const THEME_LABELS = {
+  SWITCH_TO_LIGHT: '切换到亮色',
+  SWITCH_TO_DARK: '切换到暗色',
+} as const;
+
+export function getThemeIcon(themeLabel: string): string {
+  return themeLabel.includes("暗") ? "🌙" : "☀️";
+}
+
+export function getThemeDisplay(themeLabel: string): string {
+  return themeLabel.includes("暗") ? "暗色" : "亮色";
+}

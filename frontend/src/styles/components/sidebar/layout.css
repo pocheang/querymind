@@ -46,32 +46,34 @@
 .sidebar-history-panel .session-list {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding-right: 6px;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding-right: 8px;
+  padding-bottom: 80px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(132, 147, 204, 0.5) rgba(8, 14, 27, 0.42);
+  scrollbar-color: rgba(139, 122, 255, 0.6) rgba(8, 14, 27, 0.5);
 }
 
 .sidebar-history-panel .session-list::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 .sidebar-history-panel .session-list::-webkit-scrollbar-track {
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(8, 14, 27, 0.24), rgba(18, 26, 45, 0.5));
+  background: linear-gradient(180deg, rgba(8, 14, 27, 0.3), rgba(18, 26, 45, 0.6));
+  border: 1px solid rgba(101, 122, 172, 0.1);
 }
 
 .sidebar-history-panel .session-list::-webkit-scrollbar-thumb {
-  border: 2px solid rgba(8, 14, 27, 0.42);
+  border: 2px solid rgba(8, 14, 27, 0.5);
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(91, 140, 255, 0.62), rgba(139, 122, 255, 0.5));
+  background: linear-gradient(180deg, rgba(91, 140, 255, 0.7), rgba(139, 122, 255, 0.6));
+  transition: background 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-history-panel .session-list::-webkit-scrollbar-thumb:hover {
-  background:
-    linear-gradient(180deg, rgba(109, 154, 255, 0.8), rgba(139, 122, 255, 0.72));
+  background: linear-gradient(180deg, rgba(109, 154, 255, 0.85), rgba(139, 122, 255, 0.8));
+  box-shadow: 0 0 12px rgba(91, 140, 255, 0.4);
 }
 
 /* ============================================

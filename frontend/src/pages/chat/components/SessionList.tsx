@@ -10,6 +10,7 @@ type Props = {
   onCreateSession: () => Promise<void>;
   onLoadSession: (sessionId: string) => Promise<void>;
   onDeleteSession: (sessionId: string) => Promise<void>;
+  onRenameSession?: (sessionId: string, newTitle: string) => Promise<void>;
 };
 
 function formatSessionTime(value?: string) {
@@ -32,9 +33,12 @@ export function SessionList({
   onCreateSession,
   onLoadSession,
   onDeleteSession,
+  onRenameSession,
 }: Props) {
   const [sessionQuery, setSessionQuery] = useState("");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const normalizedQuery = sessionQuery.trim().toLowerCase();
   const filteredSessions = useMemo(() => {
     if (!normalizedQuery) return sessions;
@@ -50,6 +54,41 @@ export function SessionList({
     setSessionQuery("");
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }, [searchRequestKey]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+
+    if (openMenuId) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [openMenuId]);
+
+  const handleMenuToggle = (sessionId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setOpenMenuId(openMenuId === sessionId ? null : sessionId);
+  };
+
+  const handleDelete = (sessionId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setOpenMenuId(null);
+    void onDeleteSession(sessionId);
+  };
+
+  const handleRename = (sessionId: string, currentTitle: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setOpenMenuId(null);
+
+    const newTitle = window.prompt("重命名会话", currentTitle || "Untitled");
+    if (newTitle !== null && newTitle.trim() !== "" && newTitle !== currentTitle) {
+      void onRenameSession?.(sessionId, newTitle.trim());
+    }
+  };
 
   return (
     <section className="sidebar-history-panel">
@@ -88,21 +127,42 @@ export function SessionList({
                 onClick={() => void onLoadSession(s.session_id)}
                 disabled={busySessionId === s.session_id}
               >
-                <span className="session-icon" aria-hidden="true">R</span>
                 <span className="session-copy">
                   <span className="session-title">{s.title || "Untitled"}</span>
                   <small className="session-meta">{formatSessionTime(s.updated_at)}</small>
                 </span>
                 <small className="session-count">{s.message_count || 0}</small>
               </button>
-              <button
-                type="button"
-                className="danger tiny-btn session-delete-btn"
-                onClick={() => void onDeleteSession(s.session_id)}
-                aria-label={`删除会话 ${s.title || "未命名会话"}`}
-              >
-                ×
-              </button>
+              <div className="session-menu-wrapper">
+                <button
+                  type="button"
+                  className="session-menu-btn"
+                  onClick={(e) => handleMenuToggle(s.session_id, e)}
+                  aria-label={`会话选项 ${s.title || "未命名会话"}`}
+                >
+                  ⋯
+                </button>
+                {openMenuId === s.session_id && (
+                  <div ref={menuRef} className="session-dropdown-menu">
+                    <button
+                      type="button"
+                      className="session-menu-item"
+                      onClick={(e) => handleRename(s.session_id, s.title || "", e)}
+                    >
+                      <span className="menu-icon">✏️</span>
+                      重命名
+                    </button>
+                    <button
+                      type="button"
+                      className="session-menu-item danger"
+                      onClick={(e) => handleDelete(s.session_id, e)}
+                    >
+                      <span className="menu-icon">🗑️</span>
+                      删除
+                    </button>
+                  </div>
+                )}
+              </div>
             </li>
           ))}
         </ul>

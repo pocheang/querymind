@@ -358,7 +358,12 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         + list(result.get("web_result", {}).get("citations", []) or [])
     )
     if conflict_report.get("conflict"):
-        result["answer"] = f"[evidence-conflict-warning]\n{result.get('answer', '')}"
+        detected_lang = result.get("detected_language", "zh")
+        if detected_lang == "zh":
+            warning_msg = "⚠️ 注意：检索到的信息中存在相互矛盾的内容，以下回答已综合考虑多方观点。\n\n"
+        else:
+            warning_msg = "⚠️ Note: Conflicting information was found in the retrieved sources. The answer below considers multiple perspectives.\n\n"
+        result["answer"] = f"{warning_msg}{result.get('answer', '')}"
     execution_route = execution_route_from_result(result)
     if req.session_id:
         history_store = _history_store_for_user(user)
@@ -747,7 +752,7 @@ async def stream_query(
             "memory_context": memory_context,
             "allowed_sources": allowed_sources,
             "force_language": force_language,
-            "session_id": req.session_id,
+            "session_id": session_id,
         }
         if hinted:
             stream_kwargs["agent_class_hint"] = hinted
