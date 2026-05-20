@@ -30,9 +30,9 @@ jobs:
 
       - name: Run Backend Tests
         run: |
-          # 并行运行所有测试，跳过已知崩溃的集成测试
+          # 并行运行所有测试
           pip install pytest-xdist
-          python -m pytest -n auto -v --tb=short --maxfail=10 --ignore=tests/integration/test_streaming_pdf.py
+          python -m pytest tests/ -n auto -v --tb=short --maxfail=10
 
       - name: Upload Test Results
         if: always()
