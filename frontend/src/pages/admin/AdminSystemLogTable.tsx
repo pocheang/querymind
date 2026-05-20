@@ -1,3 +1,5 @@
+import { AdminFormField, AdminFormSelect } from "@/components/AdminFormField";
+
 type SystemLog = {
   created_at?: string | null;
   level?: string | null;
@@ -54,26 +56,32 @@ export function AdminSystemLogTable({
       </div>
       <p className="muted admin-audit-hint">展示应用运行日志（含错误堆栈），用于管理层查看系统健康与异常。</p>
       <div className="ops-two-col admin-filter-grid">
-        <label className="admin-field">
-          <span>级别</span>
-          <select value={systemLogLevel} onChange={(e) => onSystemLogLevelChange(e.target.value)}>
-            <option value="">全部级别</option>
-            <option value="INFO">INFO</option>
-            <option value="WARNING">WARNING</option>
-            <option value="ERROR">ERROR</option>
-            <option value="CRITICAL">CRITICAL</option>
-          </select>
-        </label>
-        <label className="admin-field">
-          <span>Logger</span>
-          <input placeholder="例如 app.graph.streaming" value={systemLogLogger} onChange={(e) => onSystemLogLoggerChange(e.target.value)} />
-        </label>
+        <AdminFormSelect
+          label="级别"
+          value={systemLogLevel}
+          onChange={onSystemLogLevelChange}
+          options={[
+            { value: "", label: "全部级别" },
+            { value: "INFO", label: "INFO" },
+            { value: "WARNING", label: "WARNING" },
+            { value: "ERROR", label: "ERROR" },
+            { value: "CRITICAL", label: "CRITICAL" },
+          ]}
+        />
+        <AdminFormField
+          label="Logger"
+          value={systemLogLogger}
+          onChange={onSystemLogLoggerChange}
+          placeholder="例如 app.graph.streaming"
+        />
       </div>
       <div className="ops-two-col admin-filter-grid">
-        <label className="admin-field">
-          <span>关键词</span>
-          <input placeholder="关键字（message/exception）" value={systemLogKeyword} onChange={(e) => onSystemLogKeywordChange(e.target.value)} />
-        </label>
+        <AdminFormField
+          label="关键词"
+          value={systemLogKeyword}
+          onChange={onSystemLogKeywordChange}
+          placeholder="关键字（message/exception）"
+        />
         <div className="row-actions admin-audit-quick-actions">
           <button type="button" className="secondary tiny-btn" onClick={onClearFilters}>
             清空

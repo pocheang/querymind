@@ -1,5 +1,6 @@
 import type { AdminUserSummary, AuditLogEntry } from "@/types/api";
 import { AdminAuditLogTable } from "@/pages/admin/AdminAuditLogTable";
+import { AdminFormSelect } from "@/components/AdminFormField";
 
 const ACTION_KEYWORD_OPTIONS = [
   "auth.login",
@@ -96,50 +97,56 @@ export function AdminAuditLogManagement({
           <span>执行者</span>
           <input list="actor-user-options" placeholder="执行者用户ID或用户名" value={auditActorUserId} onChange={(e) => onAuditActorUserIdChange(e.target.value)} />
         </label>
-        <label className="admin-field">
-          <span>动作</span>
-          <select value={auditActionKeyword} onChange={(e) => onAuditActionKeywordChange(e.target.value)}>
-            <option value="">全部动作（可选）</option>
-            {ACTION_KEYWORD_OPTIONS.map((action) => (
-              <option key={`audit-${action}`} value={action}>{action}</option>
-            ))}
-          </select>
-        </label>
+        <AdminFormSelect
+          label="动作"
+          value={auditActionKeyword}
+          onChange={onAuditActionKeywordChange}
+          options={[
+            { value: "", label: "全部动作（可选）" },
+            ...ACTION_KEYWORD_OPTIONS.map((action) => ({ value: action, label: action })),
+          ]}
+        />
       </div>
 
       <div className="ops-two-col admin-filter-grid">
-        <label className="admin-field">
-          <span>分类</span>
-          <select value={auditEventCategory} onChange={(e) => onAuditEventCategoryChange(e.target.value)}>
-            <option value="">全部分类</option>
-            <option value="auth">auth</option>
-            <option value="admin">admin</option>
-            <option value="data">data</option>
-            <option value="prompt">prompt</option>
-            <option value="system">system</option>
-          </select>
-        </label>
-        <label className="admin-field">
-          <span>级别</span>
-          <select value={auditSeverity} onChange={(e) => onAuditSeverityChange(e.target.value)}>
-            <option value="">全部级别</option>
-            <option value="info">info</option>
-            <option value="medium">medium</option>
-            <option value="high">high</option>
-          </select>
-        </label>
+        <AdminFormSelect
+          label="分类"
+          value={auditEventCategory}
+          onChange={onAuditEventCategoryChange}
+          options={[
+            { value: "", label: "全部分类" },
+            { value: "auth", label: "auth" },
+            { value: "admin", label: "admin" },
+            { value: "data", label: "data" },
+            { value: "prompt", label: "prompt" },
+            { value: "system", label: "system" },
+          ]}
+        />
+        <AdminFormSelect
+          label="级别"
+          value={auditSeverity}
+          onChange={onAuditSeverityChange}
+          options={[
+            { value: "", label: "全部级别" },
+            { value: "info", label: "info" },
+            { value: "medium", label: "medium" },
+            { value: "high", label: "high" },
+          ]}
+        />
       </div>
 
       <div className="ops-two-col admin-filter-grid">
-        <label className="admin-field">
-          <span>结果</span>
-          <select value={auditResult} onChange={(e) => onAuditResultChange(e.target.value)}>
-            <option value="">全部结果</option>
-            <option value="success">success</option>
-            <option value="failed">failed</option>
-            <option value="denied">denied</option>
-          </select>
-        </label>
+        <AdminFormSelect
+          label="结果"
+          value={auditResult}
+          onChange={onAuditResultChange}
+          options={[
+            { value: "", label: "全部结果" },
+            { value: "success", label: "success" },
+            { value: "failed", label: "failed" },
+            { value: "denied", label: "denied" },
+          ]}
+        />
         <div className="row-actions admin-audit-quick-actions">
           <button type="button" className="secondary tiny-btn" onClick={() => onAuditResultChange("failed")}>仅失败</button>
           <button type="button" className="secondary tiny-btn" onClick={() => onAuditSeverityChange("high")}>仅高危</button>

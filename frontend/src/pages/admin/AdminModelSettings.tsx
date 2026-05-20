@@ -1,4 +1,5 @@
 import type { AdminModelSettingsView } from "@/types/api";
+import { AdminFormField, AdminFormSelect } from "@/components/AdminFormField";
 
 type ModelProvider = "local" | "ollama" | "openai" | "deepseek" | "anthropic" | "custom";
 
@@ -86,54 +87,58 @@ export function AdminModelSettings({
             <input type="checkbox" checked={Boolean(modelSettings.enabled)} onChange={(e) => onPatch({ enabled: e.target.checked })} />
             <span>启用全局模型覆盖</span>
           </label>
-          <label className="admin-field">
-            <span>后端类型</span>
-            <select value={modelSettings.provider} onChange={(e) => changeModelProvider(e.target.value as ModelProvider)}>
-              {MODEL_PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
-            </select>
-          </label>
+          <AdminFormSelect
+            label="后端类型"
+            value={modelSettings.provider}
+            onChange={(value) => changeModelProvider(value as ModelProvider)}
+            options={MODEL_PROVIDERS}
+          />
         </div>
 
         {modelSettings.provider !== "local" && <div className="ops-two-col">
-          <label className="admin-field">
-            <span>Base URL</span>
-            <input placeholder="https://api.example.com/v1" value={modelSettings.base_url} onChange={(e) => onPatch({ base_url: e.target.value })} />
-          </label>
-          <label className="admin-field">
-            <span>API Key</span>
-            <input
-              type="password"
-              placeholder={modelSettings.api_key_masked ? `已保存：${modelSettings.api_key_masked}` : modelSettings.provider === "ollama" ? "Ollama 通常留空" : "输入后本地加密保存"}
-              value={modelApiKey}
-              onChange={(e) => onApiKeyChange(e.target.value)}
-            />
-          </label>
+          <AdminFormField
+            label="Base URL"
+            value={modelSettings.base_url}
+            onChange={(value) => onPatch({ base_url: value })}
+            placeholder="https://api.example.com/v1"
+          />
+          <AdminFormField
+            label="API Key"
+            type="password"
+            value={modelApiKey}
+            onChange={onApiKeyChange}
+            placeholder={modelSettings.api_key_masked ? `已保存：${modelSettings.api_key_masked}` : modelSettings.provider === "ollama" ? "Ollama 通常留空" : "输入后本地加密保存"}
+          />
         </div>}
 
         <div className="ops-two-col">
-          <label className="admin-field">
-            <span>聊天模型</span>
-            <input placeholder="chat model" value={modelSettings.chat_model} onChange={(e) => onPatch({ chat_model: e.target.value })} />
-          </label>
-          <label className="admin-field">
-            <span>推理模型</span>
-            <input placeholder="reasoning model" value={modelSettings.reasoning_model} onChange={(e) => onPatch({ reasoning_model: e.target.value })} />
-          </label>
+          <AdminFormField
+            label="聊天模型"
+            value={modelSettings.chat_model}
+            onChange={(value) => onPatch({ chat_model: value })}
+            placeholder="chat model"
+          />
+          <AdminFormField
+            label="推理模型"
+            value={modelSettings.reasoning_model}
+            onChange={(value) => onPatch({ reasoning_model: value })}
+            placeholder="reasoning model"
+          />
         </div>
 
         <div className="ops-two-col">
-          <label className="admin-field">
-            <span>Embedding 模型</span>
-            <input
-              placeholder={modelSettings.provider === "anthropic" ? "Anthropic 不提供 Embedding，留空沿用 .env" : "embedding model"}
-              value={modelSettings.embedding_model}
-              onChange={(e) => onPatch({ embedding_model: e.target.value })}
-            />
-          </label>
-          <label className="admin-field">
-            <span>Max Tokens</span>
-            <input type="number" min={256} max={8192} step={256} value={modelSettings.max_tokens} onChange={(e) => onPatch({ max_tokens: Number(e.target.value) || 2048 })} />
-          </label>
+          <AdminFormField
+            label="Embedding 模型"
+            value={modelSettings.embedding_model}
+            onChange={(value) => onPatch({ embedding_model: value })}
+            placeholder={modelSettings.provider === "anthropic" ? "Anthropic 不提供 Embedding，留空沿用 .env" : "embedding model"}
+          />
+          <AdminFormField
+            label="Max Tokens"
+            type="number"
+            value={String(modelSettings.max_tokens)}
+            onChange={(value) => onPatch({ max_tokens: Number(value) || 2048 })}
+          />
         </div>
 
         <div className="section-head" style={{ marginTop: 6 }}>
