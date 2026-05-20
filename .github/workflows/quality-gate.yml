@@ -23,7 +23,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install -e ".[dev]"
           pip install -r requirements-dev.txt
 
       - name: Run Backend Tests
@@ -107,7 +107,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install -e ".[dev]"
           pip install -r requirements-dev.txt
 
       - name: Run RAG Quality Gate
