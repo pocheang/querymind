@@ -38,9 +38,9 @@ export function createUserActions(params: AdminActionsParams, errorHandler: Erro
   const loadUsers = async () => {
     if (!isAdmin) return;
     setLoadingUsers(true);
+    setError("");
     try {
       setUsers(await appApi.adminUsers());
-      setError("");
     } catch (e) {
       await handleApiError(e, "加载用户失败");
     } finally {
