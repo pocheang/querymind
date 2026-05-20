@@ -203,7 +203,7 @@ def validate_and_check_approval_token(
     Raises:
         HTTPException: If token is invalid or configuration is missing
     """
-    from fastapi import HTTPException
+    from app.api.utils.error_responses import forbidden
     from app.services.admin_token_tracker import validate_admin_approval_token, get_token_tracker
 
     configured_hash = str(
@@ -228,7 +228,7 @@ def validate_and_check_approval_token(
             user=user,
             detail=f"approval_failed; mode={token_mode}"
         )
-        raise HTTPException(status_code=403, detail="unauthorized")
+        raise forbidden("unauthorized")
 
     return token_ok, token_mode
 
@@ -256,7 +256,7 @@ def handle_service_exception(
         HTTPException: Converted HTTP exception
     """
     import logging
-    from fastapi import HTTPException
+    from app.api.utils.error_responses import bad_request, internal_error
 
     logger = logging.getLogger(__name__)
 
@@ -271,8 +271,8 @@ def handle_service_exception(
     )
 
     if isinstance(e, ValueError):
-        raise HTTPException(status_code=400, detail=str(e))
+        raise bad_request(str(e))
 
     logger.error(f"Unexpected error in {action}: {e}", exc_info=True)
-    raise HTTPException(status_code=500, detail="operation failed")
+    raise internal_error("operation failed")
 

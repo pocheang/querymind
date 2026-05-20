@@ -3,8 +3,7 @@ Session-related helper functions for the Multi-Agent Local RAG API.
 """
 from typing import Any
 
-from fastapi import HTTPException
-
+from app.api.utils.error_responses import bad_request, not_found
 from app.core.config import get_settings
 from app.services.history import HistoryStore, validate_session_id
 
@@ -21,7 +20,7 @@ def _require_valid_session_id(session_id: str) -> str:
     try:
         return validate_session_id(session_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail="invalid session_id format")
+        raise bad_request("invalid session_id format")
 
 
 def _require_existing_session_for_query(user: dict[str, Any], session_id: str | None) -> str | None:
@@ -30,7 +29,7 @@ def _require_existing_session_for_query(user: dict[str, Any], session_id: str | 
         return None
     normalized = _require_valid_session_id(session_id)
     if _history_store_for_user(user).get_session(normalized) is None:
-        raise HTTPException(status_code=404, detail="session not found")
+        raise not_found("session not found")
     return normalized
 
 

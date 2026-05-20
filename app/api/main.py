@@ -7,11 +7,12 @@ import sys
 import threading
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.utils.error_responses import not_found
 from app.core.config import get_settings
 from app.services.log_buffer import setup_log_capture
 from app.graph.neo4j_client import Neo4jClient
@@ -151,7 +152,7 @@ if react_assets_dir.exists():
 def _serve_react_index() -> FileResponse:
     """Serve the React index.html file."""
     if not react_index_file.exists():
-        raise HTTPException(status_code=404, detail="frontend build not found")
+        raise not_found("frontend build not found")
     return FileResponse(str(react_index_file))
 
 
@@ -167,7 +168,7 @@ def serve_react_app(frontend_path: str):
     """Serve React app for all frontend routes."""
     normalized = str(frontend_path or "").strip().strip("/")
     if normalized.startswith("assets/"):
-        raise HTTPException(status_code=404, detail="asset not found")
+        raise not_found("asset not found")
     return _serve_react_index()
 
 

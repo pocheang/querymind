@@ -3,9 +3,10 @@
 Provides security checks for admin operations to prevent self-modification and privilege escalation.
 """
 from typing import Any, Callable
-from fastapi import HTTPException, Request
+from fastapi import Request
 
 from app.api.dependencies import settings
+from app.api.utils.error_responses import bad_request, forbidden
 from app.api.utils.string_utils import normalize_string
 from app.services.admin_token_tracker import validate_admin_approval_token, get_token_tracker
 
@@ -45,10 +46,7 @@ def check_self_modification(
                 detail=f"attempted self-modification: {operation}"
             )
 
-        raise HTTPException(
-            status_code=403,
-            detail="cannot modify your own account"
-        )
+        raise forbidden("cannot modify your own account")
 
 
 def check_admin_role_change(role: str) -> None:
@@ -62,10 +60,7 @@ def check_admin_role_change(role: str) -> None:
         HTTPException: If attempting to promote to admin role
     """
     if normalize_string(role, lowercase=True) == "admin":
-        raise HTTPException(
-            status_code=400,
-            detail="admin role promotion is restricted; use /admin/users/create-admin"
-        )
+        raise bad_request("admin role promotion is restricted; use /admin/users/create-admin")
 
 
 def validate_ticket_id(ticket_id: str) -> None:
@@ -84,16 +79,10 @@ def validate_ticket_id(ticket_id: str) -> None:
     TICKET_PATTERN = re.compile(r'^[A-Z]+-\d+$')
 
     if not ticket_id or len(ticket_id) < 3:
-        raise HTTPException(
-            status_code=400,
-            detail="ticket_id is required (minimum 3 characters)"
-        )
+        raise bad_request("ticket_id is required (minimum 3 characters)")
 
     if not TICKET_PATTERN.match(ticket_id):
-        raise HTTPException(
-            status_code=400,
-            detail="invalid ticket format (expected: PROJECT-NUMBER, e.g., JIRA-123)"
-        )
+        raise bad_request("invalid ticket format (expected: PROJECT-NUMBER, e.g., JIRA-123)")
 
 
 def validate_reason(reason: str, min_length: int = 5) -> None:
@@ -108,10 +97,7 @@ def validate_reason(reason: str, min_length: int = 5) -> None:
         HTTPException: If reason is too short
     """
     if not reason or len(reason) < min_length:
-        raise HTTPException(
-            status_code=400,
-            detail=f"reason is required (minimum {min_length} characters)"
-        )
+        raise bad_request(f"reason is required (minimum {min_length} characters)")
 
 
 def validate_approval_token_length(token: str, min_length: int = 12) -> None:
@@ -126,10 +112,7 @@ def validate_approval_token_length(token: str, min_length: int = 12) -> None:
         HTTPException: If token is too short
     """
     if not token or len(token) < min_length:
-        raise HTTPException(
-            status_code=400,
-            detail=f"approval token is required (minimum {min_length} characters)"
-        )
+        raise bad_request(f"approval token is required (minimum {min_length} characters)")
 
 
 def validate_and_check_approval_token(
@@ -181,6 +164,6 @@ def validate_and_check_approval_token(
             resource_id=resource_id,
             detail=f"approval_failed; mode={token_mode}"
         )
-        raise HTTPException(status_code=403, detail="unauthorized")
+        raise forbidden("unauthorized")
 
     return token_ok, token_mode

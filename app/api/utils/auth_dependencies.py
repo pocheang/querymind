@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.api.utils.error_responses import forbidden
 from app.services.auth.auth_service import AuthDBService
 
 auth_scheme = HTTPBearer(auto_error=False)
@@ -60,10 +61,7 @@ def _require_user(
             user=user,
             detail=f"status={user_status}"
         )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="account is not active"
-        )
+        raise forbidden("account is not active")
 
     return user
 
@@ -112,7 +110,4 @@ def _require_permission(
             resource_id=resource_id,
             detail=f"permission={permission}; role={user.get('role', 'unknown')}"
         )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Permission denied: {permission}",
-        )
+        raise forbidden(f"Permission denied: {permission}")

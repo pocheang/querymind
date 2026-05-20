@@ -25,7 +25,8 @@ from urllib.parse import urlparse
 
 import httpx
 
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, Request, Response, status
+from app.api.utils.error_responses import bad_request
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -349,15 +350,15 @@ def _normalize_prompt_fields(title: str, content: str) -> tuple[str, str]:
 
     # Required field validation
     if not t:
-        raise HTTPException(status_code=400, detail="title is required")
+        raise bad_request("title is required")
     if not c:
-        raise HTTPException(status_code=400, detail="content is required")
+        raise bad_request("content is required")
 
     # Length validation (aligned with frontend limits)
     if len(t) > 200:
-        raise HTTPException(status_code=400, detail="title must be under 200 characters")
+        raise bad_request("title must be under 200 characters")
     if len(c) > 50000:
-        raise HTTPException(status_code=400, detail="content must be under 50000 characters")
+        raise bad_request("content must be under 50000 characters")
 
     # Security: Remove dangerous characters that could lead to XSS
     # Remove HTML tags and script-related patterns
@@ -375,7 +376,7 @@ def _normalize_prompt_fields(title: str, content: str) -> tuple[str, str]:
 
     # Recheck after sanitization
     if not t or not c:
-        raise HTTPException(status_code=400, detail="invalid content after sanitization")
+        raise bad_request("invalid content after sanitization")
 
     return t, c
 

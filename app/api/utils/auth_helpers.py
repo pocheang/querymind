@@ -4,7 +4,8 @@ Authentication helper functions for the Multi-Agent Local RAG API.
 from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import HTTPException, Request, Response
+from fastapi import Request, Response
+from app.api.utils.error_responses import forbidden
 from fastapi.security import HTTPAuthorizationCredentials
 
 from app.core.config import get_settings
@@ -103,7 +104,7 @@ def _enforce_cookie_csrf(request: Request, token_source: str | None) -> None:
         return
     if _origin_is_allowed(request, _request_origin(request)):
         return
-    raise HTTPException(status_code=403, detail="csrf validation failed")
+    raise forbidden("csrf validation failed")
 
 
 def _client_ip(request: Request) -> str:

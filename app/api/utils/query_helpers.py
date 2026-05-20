@@ -8,8 +8,9 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 
+from app.api.utils.error_responses import bad_request, rate_limited, internal_error
 from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 from app.services.agent_classifier import classify_agent_class
@@ -128,7 +129,7 @@ def _run_with_query_runtime(
                 "reason": str(e),
             },
         )
-        raise HTTPException(status_code=400, detail=f"invalid api settings: {e}")
+        raise bad_request(f"invalid api settings: {e}")
     try:
         with query_guard.acquire(limiter_key):
             with request_context(
@@ -147,7 +148,7 @@ def _run_with_query_runtime(
                 "trace_id": _trace_id(request),
             },
         )
-        raise HTTPException(status_code=429, detail=str(e))
+        raise rate_limited(str(e))
     except QueryOverloadedError as e:
         runtime_metrics.inc("query_overloaded_total")
         emit_alert(
@@ -158,7 +159,7 @@ def _run_with_query_runtime(
                 "trace_id": _trace_id(request),
             },
         )
-        raise HTTPException(status_code=503, detail=str(e))
+        raise internal_error(str(e))
 
 
 def _user_api_settings_for_runtime(user: dict[str, Any], auth_service) -> dict[str, Any] | None:
