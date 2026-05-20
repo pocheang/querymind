@@ -1,5 +1,6 @@
 import { appApi } from "@/lib/api";
 import type { AdminActionsParams, ErrorHandler } from "./types";
+import { resolveUserIdFromInput } from "../utils";
 
 export function createAuditActions(params: AdminActionsParams, errorHandler: ErrorHandler) {
   const {
@@ -18,25 +19,12 @@ export function createAuditActions(params: AdminActionsParams, errorHandler: Err
 
   const { handleApiError } = errorHandler;
 
-  const resolveActorUserIdForAudit = (raw: string) => {
-    const value = raw.trim();
-    if (!value) return undefined;
-    const exactId = users.find((u) => u.user_id === value);
-    if (exactId) return exactId.user_id;
-    const exactName = users.find((u) => (u.username || "").toLowerCase() === value.toLowerCase());
-    if (exactName) return exactName.user_id;
-    const fuzzy = users.filter((u) => (u.username || "").toLowerCase().includes(value.toLowerCase()));
-    if (fuzzy.length === 1) return fuzzy[0].user_id;
-    if (/^[a-zA-Z0-9_-]{16,}$/.test(value)) return value;
-    return undefined;
-  };
-
   const loadLogs = async () => {
     if (!isAdmin) return;
     setLoadingLogs(true);
     try {
       const rawActor = auditActorUserId.trim();
-      const resolvedActorId = resolveActorUserIdForAudit(rawActor);
+      const resolvedActorId = resolveUserIdFromInput(rawActor, users);
       let rows = await appApi.adminAudit({
         limit: auditLimit,
         actorUserId: resolvedActorId,

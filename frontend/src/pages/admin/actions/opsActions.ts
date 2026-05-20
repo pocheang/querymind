@@ -1,5 +1,7 @@
 import { appApi } from "@/lib/api";
 import type { AdminActionsParams, ErrorHandler } from "./types";
+import { resolveUserIdFromInput } from "../utils";
+import { downloadFile, generateTimestampedFilename } from "@/lib/file-utils";
 
 export function createOpsActions(params: AdminActionsParams, errorHandler: ErrorHandler) {
   const {
@@ -28,25 +30,13 @@ export function createOpsActions(params: AdminActionsParams, errorHandler: Error
 
   const { handleApiError } = errorHandler;
 
-  const resolveActorUserId = (raw: string) => {
-    const value = raw.trim();
-    if (!value) return undefined;
-    const exactId = users.find((u) => u.user_id === value);
-    if (exactId) return exactId.user_id;
-    const byUsername = users.find((u) => (u.username || "").toLowerCase() === value.toLowerCase());
-    if (byUsername) return byUsername.user_id;
-    const fuzzy = users.filter((u) => (u.username || "").toLowerCase().includes(value.toLowerCase()));
-    if (fuzzy.length === 1) return fuzzy[0].user_id;
-    return value;
-  };
-
   const loadOps = async () => {
     if (!isAdmin) return;
     setLoadingOps(true);
     try {
       setOps(await appApi.adminOpsOverview({
         hours: opsHours,
-        actorUserId: resolveActorUserId(opsActorUserId),
+        actorUserId: resolveUserIdFromInput(opsActorUserId, users, { allowRawId: false }),
         actionKeyword: opsActionKeyword.trim() || undefined,
       }));
       setError("");
@@ -78,18 +68,10 @@ export function createOpsActions(params: AdminActionsParams, errorHandler: Error
     try {
       const csv = await appApi.adminOpsExportCsv({
         hours: opsHours,
-        actorUserId: resolveActorUserId(opsActorUserId),
+        actorUserId: resolveUserIdFromInput(opsActorUserId, users, { allowRawId: false }),
         actionKeyword: opsActionKeyword.trim() || undefined,
       });
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `ops_report_${new Date().toISOString().replace(/[:.]/g, "-")}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      downloadFile(csv, generateTimestampedFilename("ops_report", "csv"), "text/csv");
       setStatusText("运维报表导出成功");
     } catch (e) {
       await handleApiError(e, "导出失败");
@@ -164,15 +146,7 @@ export function createOpsActions(params: AdminActionsParams, errorHandler: Error
   const exportAuditReportMd = async () => {
     try {
       const text = await appApi.adminOpsExportAuditReportMd({ hours: opsHours });
-      const blob = new Blob([text], { type: "text/markdown;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `ops_audit_report_${new Date().toISOString().replace(/[:.]/g, "-")}.md`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      downloadFile(text, generateTimestampedFilename("ops_audit_report", "md"), "text/markdown");
       setStatusText("审计 Markdown 报告导出成功");
     } catch (e) {
       await handleApiError(e, "导出审计报告失败");
