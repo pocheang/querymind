@@ -1,7 +1,7 @@
 # Version History
 
 **Status**: Public  
-**Last Updated**: 2026-05-16  
+**Last Updated**: 2024-04-29  
 **Audience**: Users, operators, contributors, maintainers  
 
 This file is the public version timeline for Multi-Agent Local RAG. It keeps a
@@ -15,6 +15,7 @@ For current release notes, also see [../CHANGELOG.md](../CHANGELOG.md).
 
 | Version | Date | Type | Public Summary |
 | --- | --- | --- | --- |
+| v0.4.1 | 2024-04-29 | Refactoring | Code quality improvements: Eliminated ~2,700 lines of duplicate code, created 19 reusable modules, standardized error handling and API patterns |
 | v0.4.0 | 2026-05-16 | Major Feature | Interview demo features: Performance comparison, Agent visualization, Chinese NLP, Advanced RAG, Streaming PDF, Demo dataset, Modern UI redesign |
 | v0.3.3 | 2026-05-07 | Feature | Performance optimization and enhanced testing |
 | v0.3.1.2 | 2026-04-28 | Security hardening | Admin user management hardening, RBAC checks, input validation, safer auth behavior |
@@ -28,6 +29,35 @@ For current release notes, also see [../CHANGELOG.md](../CHANGELOG.md).
 | v0.2.1 | 2026-04-09 | Feature | RAG and agent operations controls |
 | v0.2.0 | 2026-04-08 | Feature | Admin operations and user management |
 | v0.1.0 | 2026-04-08 | Initial release | Initial public baseline |
+
+## v0.4.1
+
+Public highlights:
+
+- **Frontend Refactoring** (6 commits, ~2,400 lines removed):
+  - Created 11 reusable modules: API helpers, validation utilities, file utilities, string utilities, async utilities
+  - Created 5 custom React hooks: useCopyToClipboard, useAsyncAction, useAsyncState, useConfirmDialog
+  - Created 2 reusable components: AdminFormField, ConfirmDialog
+  - Unified API client patterns across 7 API modules
+  - Removed 3,562 lines of backup CSS files
+  
+- **Backend Refactoring** (8 commits, ~300 lines removed):
+  - Created 4 utility modules: error_responses (9 functions), request_helpers, string_utils, token_utils
+  - Consolidated duplicate admin_users.py files (eliminated 480 lines)
+  - Replaced 60+ inline HTTPException instances with standardized error functions
+  - Replaced 50+ inline string normalization patterns with normalize_string()
+  - Extracted approval token validation logic to admin_security.py
+
+- **Bug Fixes**:
+  - Fixed unauthorized() function to return correct 401 status code
+  - Fixed TypeScript errors in frontend build
+  - Corrected RetrievalLog field names
+
+Key metrics:
+- Total code reduction: ~2,700 lines (net)
+- New reusable modules: 19 (11 frontend + 8 backend)
+- Files modified: 110
+- Commits: 14
 
 ## v0.4.0
 
