@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.4.1] - 2024-04-29
+## [0.4.1] - 2026-05-20
 
 ### 🎯 Major Refactoring - Code Quality Improvements
 

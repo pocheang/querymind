@@ -8,7 +8,7 @@
 
 Enterprise-oriented, local-first RAG platform with multi-agent orchestration, hybrid retrieval, graph enhancement, admin governance, and streaming chat.
 
-**Latest Release**: v0.4.1 (2024-04-29) - Code Quality Improvements: Eliminated ~2,700 lines of duplicate code, created 19 reusable modules, standardized error handling and API patterns across frontend and backend
+**Latest Release**: v0.4.1 (2026-05-20) - Code Quality Improvements: Eliminated ~2,700 lines of duplicate code, created 19 reusable modules, standardized error handling and API patterns across frontend and backend
 
 This repository packages a FastAPI backend, a React frontend, and a modular retrieval pipeline designed for private knowledge bases, internal copilots, and controlled enterprise AI workflows.
 
@@ -23,6 +23,8 @@ This repository packages a FastAPI backend, a React frontend, and a modular retr
 - **Streaming PDF processing** with true streaming and 70% memory reduction for large documents
 - **Batch chart extraction** with parallel processing for improved throughput
 - **Modern UI design** with welcome screen, interactive architecture visualization, and optimized settings modal
+- **Multilingual response support** with automatic language detection and session preferences
+- **Retrieval analytics and monitoring** with visualization dashboard and statistics export
 - Optional Neo4j knowledge graph enrichment for entity relationships
 - Local-first document ingestion with OCR support (Tesseract) and image captioning
 - Role-based access control (RBAC), session isolation, and comprehensive admin operations
@@ -87,6 +89,7 @@ The main backend entry point is `app.api.main:app`.
 - `/api/evaluation`: Performance comparison, baseline systems, and evaluation metrics
 - `/api/agent-tracking`: Real-time agent execution tracking with SSE streaming
 - `/api/advanced-rag`: Query decomposition and Self-RAG evaluation endpoints
+- `/api/analytics`: Retrieval analytics, monitoring statistics, and visualization data
 - `/health`, `/ready`, `/metrics`: Health checks, readiness probes, and system metrics
 
 ## Architecture Characteristics
@@ -166,7 +169,22 @@ Queries are automatically classified into three tiers based on complexity:
 
 **Load-Based Degradation**: System automatically downgrades tiers when load >80% for stability.
 
-## Recent Improvements (v0.3.x)
+## Recent Improvements
+
+### v0.4.1 (2026-05-20)
+- **Code Quality Refactoring**: Eliminated ~2,700 lines of duplicate code across frontend and backend
+- **Reusable Modules**: Created 19 new utility modules and components for better maintainability
+- **Error Handling**: Standardized error responses across all API routes with dedicated utilities
+- **Multilingual Support**: Automatic language detection with 20% Chinese threshold and session preferences
+- **Analytics Dashboard**: Retrieval monitoring with statistics, visualization, and export capabilities
+- **Bug Fixes**: Corrected unauthorized() status code from 403 to 401 for HTTP compliance
+
+### v0.4.0 (2026-05-16)
+- **Performance Comparison Framework**: Baseline systems with comprehensive evaluation metrics
+- **Agent Execution Visualization**: Real-time tracking with SSE streaming and interactive display
+- **Chinese NLP Optimization**: Tokenization, synonym expansion, and query preprocessing
+- **Advanced RAG Techniques**: Query decomposition and Self-RAG evaluation endpoints
+- **Demo Dataset**: Curated evaluation dataset for system demonstration and testing
 
 ### v0.3.3 (2026-05-07)
 - **CI/CD Quality Gates**: Automated RAG evaluation with precision/recall metrics in CI pipeline

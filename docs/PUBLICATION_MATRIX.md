@@ -1,7 +1,7 @@
 # GitHub Publication Matrix
 
 **Status**: Public  
-**Last Updated**: 2026-04-29  
+**Last Updated**: 2026-05-20  
 **Audience**: Maintainers, contributors, release managers  
 
 This matrix defines which documents can be public on GitHub and which must stay

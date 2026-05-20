@@ -1,7 +1,7 @@
 # Security Policy
 
 **Status**: Public  
-**Last Updated**: 2026-04-29  
+**Last Updated**: 2026-05-20  
 **Audience**: Security reporters, maintainers, operators  
 
 This public document explains how to report security issues. It intentionally
