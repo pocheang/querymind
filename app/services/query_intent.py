@@ -1,5 +1,7 @@
 import re
 
+from app.api.utils.string_utils import normalize_string
+
 FORCE_WEB_PATTERNS = [
     r"(上网|联网|网络|互联网|网页|web|google|bing).{0,6}(查|搜索|检索|看看|找)",
     r"(查|搜索|检索|找).{0,6}(上网|联网|网络|互联网|网页|web|google|bing)",
@@ -55,7 +57,7 @@ def _strip_internal_guidance(text: str) -> str:
 
 
 def _is_casual_chat_by_rules(text: str) -> bool:
-    t = str(text or "").strip().lower()
+    t = normalize_string(text, lowercase=True)
     if not t:
         return False
     if should_force_web_research(t):
@@ -84,7 +86,7 @@ def is_casual_chat_query(text: str) -> bool:
 
 
 def _looks_like_information_request(text: str) -> bool:
-    t = str(text or "").strip().lower()
+    t = normalize_string(text, lowercase=True)
     if not t:
         return False
     if any(re.search(p, t, flags=re.IGNORECASE) for p in _TASK_HINT_PATTERNS):

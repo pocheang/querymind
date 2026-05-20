@@ -1,5 +1,6 @@
 import re
 
+from app.api.utils.string_utils import normalize_string
 from app.graph.neo4j_client import Neo4jClient
 from app.services.bulkhead import bulkhead
 from app.services.resilience import call_with_circuit_breaker
@@ -17,7 +18,7 @@ _ENTITY_ALIASES = {
 
 
 def _normalize_token(token: str) -> str:
-    t = str(token or "").strip().lower()
+    t = normalize_string(token, lowercase=True)
     if not t:
         return ""
     return _ENTITY_ALIASES.get(t, t)
@@ -28,7 +29,7 @@ def _normalize_entity_name(name: str) -> str:
 
 
 def _relation_weight(rel: str) -> float:
-    r = str(rel or "").strip().lower()
+    r = normalize_string(rel, lowercase=True)
     if not r:
         return 0.0
     if r in _NOISY_RELATIONS:

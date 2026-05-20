@@ -7,7 +7,6 @@ import logging
 from typing import Optional, Dict, Any
 from app.agents.router_agent import decide_route, RouteDecision
 from app.services.query_decomposer import QueryDecomposer
-from app.models.advanced_rag_models import DecomposedQuery
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ import re
 
 from pydantic import BaseModel
 
+from app.api.utils.string_utils import normalize_string
 from app.core.models import get_chat_model, get_reasoning_model
 from app.services.agent_classifier import classify_agent_class, pick_cyber_skill
 from app.services.llm_intent_classifier import classify_intent_with_llm
@@ -62,7 +63,7 @@ def _extract_json(text: str) -> dict:
 
 
 def _normalize_agent_class_hint(agent_class_hint: str | None) -> str | None:
-    hint = str(agent_class_hint or "").strip().lower()
+    hint = normalize_string(agent_class_hint, lowercase=True)
     if hint in {"general", "cybersecurity", "artificial_intelligence", "pdf_text", "policy"}:
         return hint
     return None

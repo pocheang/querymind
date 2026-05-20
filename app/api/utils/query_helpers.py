@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 
+from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 from app.services.agent_classifier import classify_agent_class
 from app.services.alerting import emit_alert
@@ -194,7 +195,7 @@ _ALLOWED_RETRIEVAL_STRATEGIES = {"baseline", "advanced", "safe"}
 
 def _normalize_agent_class_hint(value: str | None) -> str | None:
     """Normalize agent class hint."""
-    hint = str(value or "").strip().lower()
+    hint = normalize_string(value, lowercase=True)
     if hint in _ALLOWED_AGENT_CLASSES:
         return hint
     return None
@@ -202,7 +203,7 @@ def _normalize_agent_class_hint(value: str | None) -> str | None:
 
 def _normalize_retrieval_strategy(value: str | None) -> str | None:
     """Normalize retrieval strategy."""
-    strategy = str(value or "").strip().lower()
+    strategy = normalize_string(value, lowercase=True)
     if strategy in _ALLOWED_RETRIEVAL_STRATEGIES:
         return normalize_retrieval_profile(strategy)
     return normalize_retrieval_profile(None)

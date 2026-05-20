@@ -6,6 +6,7 @@ from typing import Any, Callable
 from fastapi import HTTPException, Request
 
 from app.api.dependencies import settings
+from app.api.utils.string_utils import normalize_string
 from app.services.admin_token_tracker import validate_admin_approval_token, get_token_tracker
 
 
@@ -60,7 +61,7 @@ def check_admin_role_change(role: str) -> None:
     Raises:
         HTTPException: If attempting to promote to admin role
     """
-    if str(role or "").strip().lower() == "admin":
+    if normalize_string(role, lowercase=True) == "admin":
         raise HTTPException(
             status_code=400,
             detail="admin role promotion is restricted; use /admin/users/create-admin"

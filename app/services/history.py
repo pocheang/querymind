@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 
 DEFAULT_TITLE = "新会话"
@@ -107,7 +108,7 @@ class HistoryStore:
         if data is None:
             return None
         policy = dict(data.get("runtime_policy", {}) or {})
-        policy["strategy_lock"] = str(strategy or "").strip().lower() or None
+        policy["strategy_lock"] = normalize_string(strategy, lowercase=True) or None
         data["runtime_policy"] = policy
         data["updated_at"] = self._now()
         self._write(session_id, data)

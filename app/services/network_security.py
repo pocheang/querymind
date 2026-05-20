@@ -4,6 +4,7 @@ import ipaddress
 import socket
 from urllib.parse import urlparse
 
+from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 
 IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
@@ -18,7 +19,7 @@ def _csv_hosts(raw: str) -> list[str]:
 
 
 def _host_allowlisted(host: str, allowlist: list[str]) -> bool:
-    host_lc = str(host or "").strip().lower()
+    host_lc = normalize_string(host, lowercase=True)
     if not host_lc or not allowlist:
         return False
     for item in allowlist:
@@ -78,7 +79,7 @@ def validate_api_base_url_for_provider(base_url: str, *, provider: str) -> str:
     scheme = str(parsed.scheme or "").lower()
     if scheme not in {"http", "https"}:
         raise OutboundURLValidationError("base_url must use http or https")
-    host = str(parsed.hostname or "").strip().lower()
+    host = normalize_string(parsed.hostname, lowercase=True)
     if not host:
         raise OutboundURLValidationError("base_url host is required")
 
@@ -86,7 +87,7 @@ def validate_api_base_url_for_provider(base_url: str, *, provider: str) -> str:
     if _host_allowlisted(host, allowlist):
         return normalized
 
-    provider_lc = str(provider or "").strip().lower()
+    provider_lc = normalize_string(provider, lowercase=True)
     allow_private = bool(getattr(settings, "api_base_url_allow_private", False))
     if provider_lc == "ollama":
         # Local Ollama deployment is an explicit in-host use case.

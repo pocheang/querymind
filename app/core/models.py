@@ -4,6 +4,7 @@ import math
 import re
 from types import SimpleNamespace
 
+from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 from app.services.model_config_store import get_global_model_settings
 from app.services.network_security import validate_api_base_url_for_provider
@@ -15,7 +16,7 @@ def _norm_temp(temperature: float | None) -> float:
 
 
 def _normalize_backend(backend: str) -> str:
-    b = str(backend or "").strip().lower()
+    b = normalize_string(backend, lowercase=True)
     if b in {"deepseek", "custom"}:
         return "openai"
     if b not in {"openai", "ollama", "anthropic", "local"}:

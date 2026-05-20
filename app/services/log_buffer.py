@@ -7,6 +7,8 @@ import threading
 import traceback
 from typing import Any
 
+from app.api.utils.string_utils import normalize_string
+
 _LOCK = threading.Lock()
 _BUFFER: deque[dict[str, Any]] = deque(maxlen=4000)
 _INSTALLED = False
@@ -59,9 +61,9 @@ def list_captured_logs(
     keyword: str | None = None,
 ) -> list[dict[str, Any]]:
     cap = max(1, min(int(limit or 200), 1000))
-    level_lc = str(level or "").strip().lower()
-    logger_lc = str(logger_keyword or "").strip().lower()
-    keyword_lc = str(keyword or "").strip().lower()
+    level_lc = normalize_string(level, lowercase=True)
+    logger_lc = normalize_string(logger_keyword, lowercase=True)
+    keyword_lc = normalize_string(keyword, lowercase=True)
     with _LOCK:
         rows = list(_BUFFER)
     out: list[dict[str, Any]] = []

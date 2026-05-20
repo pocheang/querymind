@@ -60,6 +60,7 @@ from app.graph.workflow import run_query
 from app.agents.synthesis_agent import synthesize_answer
 
 # Import helper functions from utility modules
+from app.api.utils.string_utils import normalize_string
 from app.api.utils.auth_helpers import (
     _set_auth_cookie,
     _clear_auth_cookie,
@@ -393,7 +394,7 @@ def _api_settings_view(settings_data: UserApiSettings) -> UserApiSettingsView:
     """Convert API settings to view model."""
     from app.core.schemas import UserApiSettingsView
     return UserApiSettingsView(
-        provider=str(settings_data.provider or "").strip().lower() or "ollama",
+        provider=normalize_string(settings_data.provider, lowercase=True) or "ollama",
         api_key_masked=_mask_api_key(settings_data.api_key),
         base_url=str(settings_data.base_url or "").strip(),
         model=str(settings_data.model or "").strip(),

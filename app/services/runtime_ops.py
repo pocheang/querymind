@@ -7,6 +7,7 @@ from pathlib import Path
 import threading
 from typing import Any
 
+from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 from app.services.retrieval_profiles import normalize_retrieval_profile
 
@@ -131,8 +132,8 @@ def set_shadow(enabled: bool, strategy: str = "baseline", sample_percent: int = 
 def set_feature_flags(flags: dict[str, str]) -> dict[str, Any]:
     normalized: dict[str, str] = {}
     for k, v in (flags or {}).items():
-        name = str(k or "").strip().lower()
-        rule = str(v or "").strip().lower()
+        name = normalize_string(k, lowercase=True)
+        rule = normalize_string(v, lowercase=True)
         if not name:
             continue
         if rule in {"on", "off"} or rule.startswith("pct:"):
@@ -169,7 +170,7 @@ def feature_enabled(
     session_id: str = "",
     question: str = "",
 ) -> bool:
-    feature = str(name or "").strip().lower()
+    feature = normalize_string(name, lowercase=True)
     if not feature:
         return False
     state = get_runtime_state()

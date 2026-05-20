@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 from app.services.auth_db import AuthDBService
 from app.services.network_security import OutboundURLValidationError, validate_api_base_url_for_provider
@@ -30,7 +31,7 @@ def default_global_model_settings() -> dict[str, Any]:
 
 def _default_base_url(provider: str) -> str:
     settings = get_settings()
-    provider = str(provider or "").strip().lower()
+    provider = normalize_string(provider, lowercase=True)
     if provider == "ollama":
         return str(settings.ollama_base_url or "http://localhost:11434").rstrip("/")
     if provider == "openai":
@@ -44,7 +45,7 @@ def _default_base_url(provider: str) -> str:
 
 def _default_chat_model(provider: str) -> str:
     settings = get_settings()
-    provider = str(provider or "").strip().lower()
+    provider = normalize_string(provider, lowercase=True)
     if provider == "local":
         return "local-evidence"
     if provider == "ollama":
@@ -58,7 +59,7 @@ def _default_chat_model(provider: str) -> str:
 
 def _default_reasoning_model(provider: str) -> str:
     settings = get_settings()
-    provider = str(provider or "").strip().lower()
+    provider = normalize_string(provider, lowercase=True)
     if provider == "local":
         return "local-evidence"
     if provider == "ollama":
@@ -72,7 +73,7 @@ def _default_reasoning_model(provider: str) -> str:
 
 def _default_embedding_model(provider: str) -> str:
     settings = get_settings()
-    provider = str(provider or "").strip().lower()
+    provider = normalize_string(provider, lowercase=True)
     if provider == "local":
         return "local-hash-384"
     if provider == "ollama":

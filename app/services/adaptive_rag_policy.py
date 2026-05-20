@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import re
 
+from app.api.utils.string_utils import normalize_string
+
 
 _COMPLEXITY_PATTERNS = {
     "complex": [
@@ -27,7 +29,7 @@ class AdaptivePlan:
 
 
 def _estimate_complexity_level(question: str) -> str:
-    q = str(question or "").strip().lower()
+    q = normalize_string(question, lowercase=True)
     if not q:
         return "simple"
     for pattern in _COMPLEXITY_PATTERNS["complex"]:

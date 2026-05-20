@@ -7,7 +7,6 @@ import logging
 from typing import Optional, Dict, Any, List
 from app.agents.vector_rag_agent import run_vector_rag
 from app.services.self_rag_evaluator import SelfRAGEvaluator
-from app.models.advanced_rag_models import RelevanceScore, AnswerQuality
 
 logger = logging.getLogger(__name__)
 

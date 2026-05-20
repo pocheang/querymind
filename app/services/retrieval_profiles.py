@@ -1,3 +1,4 @@
+from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 
 
@@ -5,10 +6,10 @@ _ALLOWED = {"baseline", "advanced", "safe"}
 
 
 def normalize_retrieval_profile(value: str | None) -> str:
-    v = str(value or "").strip().lower()
+    v = normalize_string(value, lowercase=True)
     if v in _ALLOWED:
         return v
-    default = str(get_settings().retrieval_profile or "advanced").strip().lower()
+    default = normalize_string(get_settings().retrieval_profile, lowercase=True) or "advanced"
     return default if default in _ALLOWED else "advanced"
 
 

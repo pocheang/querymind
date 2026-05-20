@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, Request
 
 from app.api.utils.error_responses import bad_request
+from app.api.utils.string_utils import normalize_string
 from app.api.dependencies import (
     _admin_model_settings_view,
     _api_settings_view,
@@ -305,7 +306,7 @@ def save_user_api_settings(
     """Save user's API settings"""
     user_id = user["user_id"]
 
-    provider = str(req_settings.provider or "").strip().lower()
+    provider = normalize_string(req_settings.provider, lowercase=True)
     allowed_providers = {"local", "openai", "anthropic", "deepseek", "ollama", "custom"}
     if provider not in allowed_providers:
         raise bad_request("unsupported provider")
@@ -351,7 +352,7 @@ def test_user_api_settings(
     request: Request,
     user: dict[str, Any] = Depends(_require_user),
 ):
-    provider = str(req.provider or "").strip().lower()
+    provider = normalize_string(req.provider, lowercase=True)
     model_name = str(req.model or "").strip()
     base_url = str(req.base_url or "").strip().rstrip("/")
     api_key = str(req.api_key or "").strip()
