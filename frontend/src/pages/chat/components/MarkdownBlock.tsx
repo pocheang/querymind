@@ -1,23 +1,14 @@
-import { isValidElement, useState } from "react";
+import { isValidElement } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useCopyToClipboard } from "@/lib/hooks/useCopyToClipboard";
 
 function CodeBlock({ code, className = "" }: { code: string; className?: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1200);
-    } catch {
-      setCopied(false);
-    }
-  };
+  const { copied, copy } = useCopyToClipboard(1200);
 
   return (
     <pre>
-      <button type="button" className="copy-code-btn" onClick={() => void copyCode()}>
+      <button type="button" className="copy-code-btn" onClick={() => void copy(code)}>
         {copied ? "已复制" : "复制"}
       </button>
       <code className={className}>{code}</code>

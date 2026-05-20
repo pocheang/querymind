@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import '../styles/components/code-block.css';
+import { useCopyToClipboard } from '@/lib/hooks/useCopyToClipboard';
 
 export interface CodeBlockProps {
   code: string;
@@ -8,17 +8,7 @@ export interface CodeBlockProps {
 }
 
 export function CodeBlock({ code, language, filename }: CodeBlockProps) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy code:', err);
-    }
-  };
+  const { copied, copy } = useCopyToClipboard(2000);
 
   return (
     <div className="code-block-wrapper">
@@ -30,7 +20,7 @@ export function CodeBlock({ code, language, filename }: CodeBlockProps) {
         <button
           type="button"
           className="code-block-copy"
-          onClick={handleCopy}
+          onClick={() => copy(code)}
           aria-label={copied ? '已复制' : '复制代码'}
           title={copied ? '已复制到剪贴板' : '复制到剪贴板'}
         >
