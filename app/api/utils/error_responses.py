@@ -13,8 +13,8 @@ def bad_request(detail: str) -> HTTPException:
 
 
 def unauthorized(detail: str = "Unauthorized") -> HTTPException:
-    """Return a 403 Forbidden error."""
-    return HTTPException(status_code=403, detail=detail)
+    """Return a 401 Unauthorized error."""
+    return HTTPException(status_code=401, detail=detail)
 
 
 def forbidden(detail: str = "Forbidden") -> HTTPException:
