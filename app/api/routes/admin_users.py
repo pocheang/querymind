@@ -37,8 +37,8 @@ from app.services.admin_security import (
     validate_ticket_id,
     validate_reason,
     validate_approval_token_length,
+    validate_and_check_approval_token,
 )
-from app.services.admin_token_tracker import validate_admin_approval_token, get_token_tracker
 from app.services.admin_rate_limit import get_limiter, get_rate_limit
 from app.api.utils.admin_helpers import handle_service_exception
 
@@ -113,28 +113,14 @@ def admin_create_user_as_admin(
     actor_user_id = str(user.get("user_id", ""))
 
     # Security: Validate approval token (single-use, timing-attack resistant)
-    configured_hash = str(
-        getattr(settings, "admin_create_approval_token_hash", "") or ""
-    ).strip().lower()
-
-    tracker = get_token_tracker()
-    token_ok, token_mode = validate_admin_approval_token(
+    validate_and_check_approval_token(
         approval_token,
-        configured_hash,
         actor_user_id,
-        tracker
+        "admin.user.create_admin",
+        _audit,
+        request,
+        user
     )
-
-    if not token_ok:
-        _audit(
-            request,
-            action="admin.user.create_admin",
-            resource_type="user",
-            result="failed",
-            user=user,
-            detail=f"approval_failed; mode={token_mode}"
-        )
-        raise forbidden("Unauthorized")
 
     ticket_id = (req.ticket_id or "").strip()
     reason = (req.reason or "").strip()
@@ -196,29 +182,15 @@ def admin_reset_user_approval_token(
     actor_user_id = str(user.get("user_id", ""))
 
     # Security: Validate approval token
-    configured_hash = str(
-        getattr(settings, "admin_create_approval_token_hash", "") or ""
-    ).strip().lower()
-
-    tracker = get_token_tracker()
-    token_ok, token_mode = validate_admin_approval_token(
+    validate_and_check_approval_token(
         approval_token,
-        configured_hash,
         actor_user_id,
-        tracker
+        "admin.user.reset_approval_token",
+        _audit,
+        request,
+        user,
+        user_id
     )
-
-    if not token_ok:
-        _audit(
-            request,
-            action="admin.user.reset_approval_token",
-            resource_type="user",
-            result="failed",
-            user=user,
-            resource_id=user_id,
-            detail=f"approval_failed; mode={token_mode}"
-        )
-        raise forbidden("Unauthorized")
 
     ticket_id = (req.ticket_id or "").strip()
     reason = (req.reason or "").strip()
@@ -271,29 +243,15 @@ def admin_reset_user_password(
     actor_user_id = str(user.get("user_id", ""))
 
     # Security: Validate approval token
-    configured_hash = str(
-        getattr(settings, "admin_create_approval_token_hash", "") or ""
-    ).strip().lower()
-
-    tracker = get_token_tracker()
-    token_ok, token_mode = validate_admin_approval_token(
+    validate_and_check_approval_token(
         approval_token,
-        configured_hash,
         actor_user_id,
-        tracker
+        "admin.user.reset_password",
+        _audit,
+        request,
+        user,
+        user_id
     )
-
-    if not token_ok:
-        _audit(
-            request,
-            action="admin.user.reset_password",
-            resource_type="user",
-            result="failed",
-            user=user,
-            resource_id=user_id,
-            detail=f"approval_failed; mode={token_mode}"
-        )
-        raise forbidden("Unauthorized")
 
     ticket_id = (req.ticket_id or "").strip()
     reason = (req.reason or "").strip()

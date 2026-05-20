@@ -2,8 +2,11 @@
 
 Provides security checks for admin operations to prevent self-modification and privilege escalation.
 """
-from typing import Any
+from typing import Any, Callable
 from fastapi import HTTPException, Request
+
+from app.api.dependencies import settings
+from app.services.admin_token_tracker import validate_admin_approval_token, get_token_tracker
 
 
 def check_self_modification(
@@ -124,5 +127,59 @@ def validate_approval_token_length(token: str, min_length: int = 12) -> None:
     if not token or len(token) < min_length:
         raise HTTPException(
             status_code=400,
-            detail=f"approval token must be at least {min_length} characters"
+            detail=f"approval token is required (minimum {min_length} characters)"
         )
+
+
+def validate_and_check_approval_token(
+    approval_token: str,
+    actor_user_id: str,
+    action: str,
+    audit_callback: Callable,
+    request: Request,
+    user: dict[str, Any],
+    resource_id: str = None
+) -> tuple[bool, str]:
+    """
+    Validate approval token with single-use enforcement and audit logging.
+
+    Args:
+        approval_token: Token to validate
+        actor_user_id: User ID performing the action
+        action: Action name for audit log
+        audit_callback: Audit log callback function
+        request: FastAPI request object
+        user: User performing the action
+        resource_id: Optional resource ID for audit log
+
+    Returns:
+        Tuple of (token_ok, token_mode)
+
+    Raises:
+        HTTPException: If token validation fails (403)
+    """
+    configured_hash = str(
+        getattr(settings, "admin_create_approval_token_hash", "") or ""
+    ).strip().lower()
+
+    tracker = get_token_tracker()
+    token_ok, token_mode = validate_admin_approval_token(
+        approval_token,
+        configured_hash,
+        actor_user_id,
+        tracker
+    )
+
+    if not token_ok:
+        audit_callback(
+            request,
+            action=action,
+            resource_type="user",
+            result="failed",
+            user=user,
+            resource_id=resource_id,
+            detail=f"approval_failed; mode={token_mode}"
+        )
+        raise HTTPException(status_code=403, detail="unauthorized")
+
+    return token_ok, token_mode

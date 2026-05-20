@@ -5,8 +5,9 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
+from app.api.utils.error_responses import bad_request
 from app.api.dependencies import (
     _admin_model_settings_view,
     _api_settings_view,
@@ -307,7 +308,7 @@ def save_user_api_settings(
     provider = str(req_settings.provider or "").strip().lower()
     allowed_providers = {"local", "openai", "anthropic", "deepseek", "ollama", "custom"}
     if provider not in allowed_providers:
-        raise HTTPException(status_code=400, detail="unsupported provider")
+        raise bad_request("unsupported provider")
     normalized_base_url = str(req_settings.base_url or "").strip().rstrip("/")
     if provider == "ollama":
         normalized_base_url = re.sub(r"/v1$", "", normalized_base_url, flags=re.IGNORECASE)
@@ -315,11 +316,11 @@ def save_user_api_settings(
         normalized_base_url = ""
     else:
         if not normalized_base_url:
-            raise HTTPException(status_code=400, detail="base_url is required")
+            raise bad_request("base_url is required")
         try:
             normalized_base_url = validate_api_base_url_for_provider(normalized_base_url, provider=provider)
         except OutboundURLValidationError as e:
-            raise HTTPException(status_code=400, detail=f"unsafe base_url: {e}")
+            raise bad_request(f"unsafe base_url: {e}")
     existing = auth_service.get_user_metadata(user_id, "api_settings")
     incoming_api_key = str(req_settings.api_key or "").strip()
     existing_api_key = ""
@@ -331,7 +332,7 @@ def save_user_api_settings(
     if (not effective_api_key) and provider != "ollama" and existing_provider == provider:
         effective_api_key = existing_api_key
     if provider not in {"local", "ollama"} and not effective_api_key:
-        raise HTTPException(status_code=400, detail="api_key is required for this provider")
+        raise bad_request("api_key is required for this provider")
     if provider in {"local", "ollama"} and not incoming_api_key:
         effective_api_key = ""
     normalized_settings = req_settings.model_copy(
@@ -356,13 +357,13 @@ def test_user_api_settings(
     api_key = str(req.api_key or "").strip()
     allowed_providers = {"local", "openai", "anthropic", "deepseek", "ollama", "custom"}
     if provider not in allowed_providers:
-        raise HTTPException(status_code=400, detail="unsupported provider")
+        raise bad_request("unsupported provider")
     if provider != "local" and not base_url:
-        raise HTTPException(status_code=400, detail="base_url is required")
+        raise bad_request("base_url is required")
     if not model_name:
-        raise HTTPException(status_code=400, detail="model is required")
+        raise bad_request("model is required")
     if provider not in {"local", "ollama"} and not api_key:
-        raise HTTPException(status_code=400, detail="api_key is required for this provider")
+        raise bad_request("api_key is required for this provider")
     if provider == "ollama":
         base_url = re.sub(r"/v1$", "", base_url, flags=re.IGNORECASE)
     if provider == "local":
@@ -371,7 +372,7 @@ def test_user_api_settings(
         try:
             base_url = validate_api_base_url_for_provider(base_url, provider=provider)
         except OutboundURLValidationError as e:
-            raise HTTPException(status_code=400, detail=f"unsafe base_url: {e}")
+            raise bad_request(f"unsafe base_url: {e}")
     if provider == "anthropic":
         host = str(urlparse(base_url).hostname or "").lower()
         if host and ("anthropic.com" not in host):

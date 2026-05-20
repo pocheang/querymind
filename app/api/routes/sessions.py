@@ -1,7 +1,7 @@
 """Session management routes for the Multi-Agent Local RAG API."""
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
 from app.api.utils.error_responses import not_found
 from app.api.dependencies import (
@@ -153,7 +153,7 @@ def update_session_message(
 
     data = history_store.update_message(session_id=session_id, message_id=message_id, content=content)
     if data is None:
-        raise HTTPException(status_code=404, detail="message not found")
+        raise not_found("Message")
 
     if rerun and current.get("role") == "user":
         effective_question = content if is_casual_chat_query(content) else enhance_user_question_for_completion(content)
@@ -179,7 +179,7 @@ def update_session_message(
             },
         )
         if data is None:
-            raise HTTPException(status_code=404, detail="message not found")
+            raise not_found("Message")
         _promote_long_term_memory(user=user, session_id=session_id, question=content, result=result)
     _audit(request, action="message.update", resource_type="message", result="success", user=user, resource_id=message_id)
     return data
@@ -191,6 +191,6 @@ def delete_session_message(session_id: str, message_id: str, request: Request, u
     _require_permission(user, "message:manage", request, "message", resource_id=message_id)
     data = _history_store_for_user(user).delete_message(session_id=session_id, message_id=message_id)
     if data is None:
-        raise HTTPException(status_code=404, detail="message not found")
+        raise not_found("Message")
     _audit(request, action="message.delete", resource_type="message", result="success", user=user, resource_id=message_id)
     return data
