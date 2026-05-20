@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
-from app.api.utils.error_responses import not_found
+from app.api.utils.error_responses import not_found, bad_request
 from app.api.dependencies import (
     _allowed_sources_for_user,
     _audit,
@@ -149,7 +149,7 @@ def update_session_message(
         else:
             content = normalize_user_question(req.content)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise bad_request(str(e))
 
     data = history_store.update_message(session_id=session_id, message_id=message_id, content=content)
     if data is None:

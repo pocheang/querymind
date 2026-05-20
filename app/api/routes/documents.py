@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
-from app.api.utils.error_responses import bad_request, forbidden, not_found, conflict, internal_error
+from app.api.utils.error_responses import bad_request, forbidden, not_found, conflict, internal_error, payload_too_large
 from app.api.utils.string_utils import normalize_string
 from app.api.dependencies import (
     _audit,
@@ -146,10 +146,7 @@ async def upload_files(
     limiter_key = f"upload:{user['user_id']}:{_client_ip(request)}"
     if not upload_limiter.allow(limiter_key):
         _audit(request, action="upload.create", resource_type="document", result="rate_limited", user=user)
-        raise HTTPException(
-            status_code=429,
-            detail="Upload rate limit exceeded. Maximum 20 uploads per hour.",
-        )
+        raise rate_limited("Upload rate limit exceeded. Maximum 20 uploads per hour.")
 
     if len(files) > settings.upload_max_files:
         raise bad_request(f"too many files, max={settings.upload_max_files}")
@@ -200,9 +197,9 @@ async def upload_files(
                     file_uploaded_bytes += len(chunk)
                     total_uploaded_bytes += len(chunk)
                     if file_uploaded_bytes > settings.upload_max_file_bytes:
-                        raise HTTPException(status_code=413, detail=f"file too large: {target.name}")
+                        raise payload_too_large(f"file too large: {target.name}")
                     if total_uploaded_bytes > settings.upload_max_total_bytes:
-                        raise HTTPException(status_code=413, detail="total upload size exceeded")
+                        raise payload_too_large("total upload size exceeded")
                     out.write(chunk)
         except HTTPException:
             if target.exists():
@@ -218,7 +215,7 @@ async def upload_files(
         if suffix in {".pdf", *IMAGE_EXTENSIONS} and not _is_probably_valid_upload_signature(suffix, file_head):
             if target.exists():
                 target.unlink()
-            raise HTTPException(status_code=400, detail=f"invalid file signature: {safe_filename}")
+            raise bad_request(f"invalid file signature: {safe_filename}")
         saved_paths.append(target)
         filenames.append(safe_filename)
         assigned_agent_classes[str(target)] = _guess_agent_class_for_upload(safe_filename)
@@ -227,14 +224,14 @@ async def upload_files(
         detail = "no supported files uploaded"
         if skipped_files:
             detail = f"{detail}; skipped={','.join(skipped_files)}"
-        raise HTTPException(status_code=400, detail=detail)
+        raise bad_request(detail)
 
     try:
         for target in saved_paths:
             delete_file_index(target.name, remove_physical_file=False, source=str(target))
     except Exception as e:
         _audit(request, action="document.upload", resource_type="document", result="failed", user=user, detail=f"pre-clean failed: {e}")
-        raise HTTPException(status_code=500, detail="upload pre-clean failed")
+        raise internal_error("upload pre-clean failed")
 
     ingest_started = time.perf_counter()
     try:
@@ -253,7 +250,7 @@ async def upload_files(
         )
     except Exception as e:
         _audit(request, action="document.upload", resource_type="document", result="failed", user=user, detail=str(e))
-        raise HTTPException(status_code=500, detail="upload ingest failed")
+        raise internal_error("upload ingest failed")
     ingest_elapsed = (time.perf_counter() - ingest_started)
     per_file = ingest_elapsed / max(1, len(saved_paths))
     chunks_by_source = {str(row.get("source", "") or ""): int(row.get("chunks", 0) or 0) for row in list_indexed_files()}

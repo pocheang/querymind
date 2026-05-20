@@ -4,8 +4,10 @@ API routes for advanced RAG functionality.
 
 import logging
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
+
+from app.api.utils.error_responses import internal_error
 
 from app.workflow.advanced_rag_workflow import AdvancedRAGWorkflow
 from app.models.advanced_rag_models import AdvancedRAGResult
@@ -70,10 +72,7 @@ async def process_advanced_rag_query(request: AdvancedRAGRequest):
 
     except Exception as e:
         logger.error(f"Error processing advanced RAG query: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing query: {str(e)}"
-        )
+        raise internal_error(f"Error processing query: {str(e)}")
 
 
 @router.get("/health")

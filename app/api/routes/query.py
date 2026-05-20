@@ -4,6 +4,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 
+from app.api.utils.error_responses import bad_request, conflict, rate_limited
 from app.api.dependencies import (
     auth_service,
     query_guard,
@@ -114,11 +115,11 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
             "query_quota_exceeded",
             {"trace_id": _trace_id(request), "message": str(e), "user_id": str(user.get("user_id", ""))},
         )
-        raise HTTPException(status_code=429, detail=str(e))
+        raise rate_limited(str(e))
     try:
         normalized_question = normalize_and_validate_user_question(req.question)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise bad_request(str(e))
     original_question = normalized_question
     effective_agent_class = _resolve_effective_agent_class(normalized_question, req.agent_class_hint)
     pdf_allowed_sources: list[str] | None = None
@@ -246,7 +247,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
             "query_quota_exceeded",
             {"trace_id": _trace_id(request), "message": str(e), "user_id": str(user.get("user_id", ""))},
         )
-        raise HTTPException(status_code=429, detail=str(e))
+        raise rate_limited(str(e))
     run_query_kwargs: dict[str, Any] = {
         "use_web_fallback": effective_use_web_fallback,
         "use_reasoning": effective_use_reasoning,
@@ -299,7 +300,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
             "query_duplicate_inflight",
             {"trace_id": _trace_id(request), "session_id": str(req.session_id or "")},
         )
-        raise HTTPException(status_code=409, detail="duplicate request in progress")
+        raise conflict("duplicate request in progress")
     def _query_pipeline():
         runtime_kwargs = dict(run_query_kwargs)
         if overload_mode_enabled():
@@ -478,11 +479,11 @@ async def stream_query(
             "query_stream_quota_exceeded",
             {"trace_id": _trace_id(request), "message": str(e), "user_id": str(user.get("user_id", ""))},
         )
-        raise HTTPException(status_code=429, detail=str(e))
+        raise rate_limited(str(e))
     try:
         normalized_question = normalize_and_validate_user_question(question)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise bad_request(str(e))
     original_question = normalized_question
     effective_agent_class = _resolve_effective_agent_class(normalized_question, agent_class_hint)
     pdf_allowed_sources: list[str] | None = None
@@ -669,7 +670,7 @@ async def stream_query(
             "query_stream_quota_exceeded",
             {"trace_id": _trace_id(request), "message": str(e), "user_id": str(user.get("user_id", ""))},
         )
-        raise HTTPException(status_code=429, detail=str(e))
+        raise rate_limited(str(e))
     hinted = _normalize_agent_class_hint(agent_class_hint)
     stream_retrieval_strategy = (
         profile_to_strategy(normalized_strategy)
@@ -725,7 +726,7 @@ async def stream_query(
             "query_stream_duplicate_inflight",
             {"trace_id": _trace_id(request), "session_id": str(session_id or "")},
         )
-        raise HTTPException(status_code=409, detail="duplicate request in progress")
+        raise conflict("duplicate request in progress")
     if session_id:
         history_store.append_message(session_id, "user", original_question)
     try:
@@ -741,7 +742,7 @@ async def stream_query(
             },
         )
         query_result_cache.clear_inflight(stream_cache_key)
-        raise HTTPException(status_code=400, detail=f"invalid api settings: {e}")
+        raise bad_request(f"invalid api settings: {e}")
 
     async def event_gen():
         final_result = None

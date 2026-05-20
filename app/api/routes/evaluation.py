@@ -6,8 +6,10 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
+
+from app.api.utils.error_responses import not_found, bad_request, internal_error, not_implemented
 
 from app.evaluation import (
     TestQuery,
@@ -70,10 +72,9 @@ def get_retriever(system_name: str):
     # 2. BM25 index for hybrid search
     # 3. Reranking model for rerank baseline
     
-    raise HTTPException(
-        status_code=501,
-        detail=f"Retriever instantiation not yet implemented. "
-               f"Please use the evaluation module directly for now."
+    raise not_implemented(
+        f"Retriever instantiation not yet implemented. "
+        f"Please use the evaluation module directly for now."
     )
 
 
@@ -105,10 +106,10 @@ async def list_queries(
         
         return queries
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise not_found(str(e))
     except Exception as e:
         logger.error(f"Error loading queries: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_error(str(e))
 
 
 @router.post("/run", response_model=RunEvaluationResponse)
@@ -132,10 +133,7 @@ async def run_evaluation(request: RunEvaluationRequest):
         if request.queries:
             queries = [q for q in all_queries if q.id in request.queries]
             if not queries:
-                raise HTTPException(
-                    status_code=400,
-                    detail="No matching queries found"
-                )
+                raise bad_request("No matching queries found")
         else:
             queries = all_queries
 
@@ -164,12 +162,12 @@ async def run_evaluation(request: RunEvaluationRequest):
         )
 
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise not_found(str(e))
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error running evaluation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_error(str(e))
 
 
 @router.get("/results/{run_id}")
@@ -186,10 +184,7 @@ async def get_results(run_id: str):
     results_path = Path(f"data/evaluation/results/{run_id}.json")
 
     if not results_path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Results not found for run_id: {run_id}"
-        )
+        raise not_found(f"Results not found for run_id: {run_id}")
 
     with open(results_path, 'r', encoding='utf-8') as f:
         return json.load(f)
@@ -235,7 +230,7 @@ async def compare_systems(request: CompareSystemsRequest):
         raise
     except Exception as e:
         logger.error(f"Error comparing systems: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise internal_error(str(e))
 
 
 @router.get("/systems")

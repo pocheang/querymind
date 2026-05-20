@@ -30,3 +30,19 @@ def internal_error(detail: str = "Internal server error") -> HTTPException:
 def conflict(detail: str) -> HTTPException:
     """Return a 409 Conflict error."""
     return HTTPException(status_code=409, detail=detail)
+
+
+def rate_limited(detail: str = "Too many requests, retry later") -> HTTPException:
+    """Return a 429 Rate Limited error."""
+    return HTTPException(status_code=429, detail=detail)
+
+
+def not_implemented(detail: str = "Not implemented") -> HTTPException:
+    """Return a 501 Not Implemented error."""
+    return HTTPException(status_code=501, detail=detail)
+
+
+def payload_too_large(detail: str = "Payload too large") -> HTTPException:
+    """Return a 413 Payload Too Large error."""
+    return HTTPException(status_code=413, detail=detail)
+

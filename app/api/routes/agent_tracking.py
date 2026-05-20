@@ -3,9 +3,11 @@ import json
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+from app.api.utils.error_responses import not_found, bad_request
 
 from app.services.agent_execution_tracker import (
     AgentExecutionTracker,
@@ -91,7 +93,7 @@ async def get_execution_trace(execution_id: str):
     trace = tracker.get_execution_trace(execution_id)
 
     if not trace:
-        raise HTTPException(status_code=404, detail="Execution not found")
+        raise not_found("Execution not found")
 
     return trace
 
@@ -102,7 +104,7 @@ async def get_execution_history(limit: int = 20):
     Get recent execution traces.
     """
     if limit < 1 or limit > 100:
-        raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
+        raise bad_request("Limit must be between 1 and 100")
 
     tracker = AgentExecutionTracker.get_instance()
     return tracker.get_recent_executions(limit=limit)
@@ -117,7 +119,7 @@ async def get_execution_status(execution_id: str):
     trace = tracker.get_execution_trace(execution_id)
 
     if not trace:
-        raise HTTPException(status_code=404, detail="Execution not found")
+        raise not_found("Execution not found")
 
     return ExecutionStatus(
         execution_id=trace.execution_id,
@@ -139,7 +141,7 @@ async def delete_execution_trace(execution_id: str):
     trace = tracker.get_execution_trace(execution_id)
 
     if not trace:
-        raise HTTPException(status_code=404, detail="Execution not found")
+        raise not_found("Execution not found")
 
     with tracker._traces_lock:
         del tracker._traces[execution_id]

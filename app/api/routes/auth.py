@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from authlib.integrations.starlette_client import OAuth
 
-from app.api.utils.error_responses import bad_request, unauthorized
+from app.api.utils.error_responses import bad_request, unauthorized, not_found, internal_error, rate_limited, not_implemented
 from app.api.utils.string_utils import normalize_string
 from app.api.dependencies import (
     _audit,
@@ -56,7 +56,7 @@ def register(req: AuthCredentials, request: Request):
     register_key = f"register::{ip}"
     if register_limiter.is_limited(register_key):
         _audit(request, action="auth.register", resource_type="auth", result="blocked", detail="register_rate_limited")
-        raise HTTPException(status_code=429, detail="too many register attempts, retry later")
+        raise rate_limited("too many register attempts, retry later")
     try:
         validate_password(req.password)
         user = auth_service.register(req.username, req.password)
@@ -76,7 +76,7 @@ def login(req: AuthCredentials, request: Request, response: Response):
     login_key = f"login::{ip}::{username_key}"
     if login_limiter.is_limited(login_key):
         _audit(request, action="auth.login", resource_type="auth", result="blocked", detail="login_rate_limited")
-        raise HTTPException(status_code=429, detail="too many login attempts, retry later")
+        raise rate_limited("too many login attempts, retry later")
     try:
         payload = auth_service.login(req.username, req.password)
     except ValueError as e:
@@ -127,7 +127,7 @@ def update_profile(
     )
 
     if not updated_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise not_found("User")
 
     _audit(
         request,
@@ -162,7 +162,7 @@ def change_password(
             resource_id=user_id,
             detail="old_password_incorrect",
         )
-        raise HTTPException(status_code=400, detail="旧密码不正确")
+        raise bad_request("旧密码不正确")
 
     # Validate new password
     try:
@@ -177,7 +177,7 @@ def change_password(
             resource_id=user_id,
             detail=f"validation_failed: {e}",
         )
-        raise HTTPException(status_code=400, detail=str(e))
+        raise bad_request(str(e))
 
     # Check new password is different from old
     if req.old_password == req.new_password:
@@ -190,7 +190,7 @@ def change_password(
             resource_id=user_id,
             detail="new_password_same_as_old",
         )
-        raise HTTPException(status_code=400, detail="新密码不能与旧密码相同")
+        raise bad_request("新密码不能与旧密码相同")
 
     # Update password
     try:
@@ -205,7 +205,7 @@ def change_password(
             resource_id=user_id,
             detail=f"update_failed: {e}",
         )
-        raise HTTPException(status_code=500, detail="密码更新失败")
+        raise internal_error("密码更新失败")
 
     _audit(
         request,
@@ -223,7 +223,7 @@ def change_password(
 async def google_login(request: Request) -> RedirectResponse:
     """Initiate Google OAuth login flow."""
     if not oauth.google:
-        raise HTTPException(status_code=501, detail="Google OAuth 未配置")
+        raise not_implemented("Google OAuth 未配置")
 
     # Generate state for CSRF protection
     state = secrets.token_urlsafe(32)
@@ -237,7 +237,7 @@ async def google_login(request: Request) -> RedirectResponse:
 async def google_callback(request: Request, response: Response) -> RedirectResponse:
     """Handle Google OAuth callback."""
     if not oauth.google:
-        raise HTTPException(status_code=501, detail="Google OAuth 未配置")
+        raise not_implemented("Google OAuth 未配置")
 
     # Verify state
     state = request.query_params.get("state")
