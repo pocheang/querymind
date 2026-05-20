@@ -1,10 +1,18 @@
-"""Admin user management routes for the Multi-Agent Local RAG API."""
+"""Admin user management routes with security enhancements.
+
+This module provides secure admin operations with:
+- Self-modification prevention
+- Approval token single-use enforcement
+- Rate limiting
+- Comprehensive audit logging
+- Input validation
+"""
 import hashlib
-import hmac
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
+from app.api.utils.error_responses import not_found, forbidden, bad_request
 from app.api.dependencies import (
     auth_service,
     _audit,
@@ -23,56 +31,25 @@ from app.core.schemas import (
     AuditLogEntry,
 )
 from app.services.log_buffer import list_captured_logs
-from app.services.admin_token_tracker import token_tracker, validate_admin_approval_token, get_token_tracker
-from app.services.admin_rate_limit import rate_limiter
-from app.services.admin_security import check_self_modification
-from app.api.utils.admin_helpers import validate_and_check_approval_token, handle_service_exception
+from app.services.admin_security import (
+    check_self_modification,
+    check_admin_role_change,
+    validate_ticket_id,
+    validate_reason,
+    validate_approval_token_length,
+)
+from app.services.admin_token_tracker import validate_admin_approval_token, get_token_tracker
+from app.services.admin_rate_limit import get_limiter, get_rate_limit
+from app.api.utils.admin_helpers import handle_service_exception
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+limiter = get_limiter()
 
-
-def _is_valid_admin_approval_token_for_actor(token: str, actor_user_id: str) -> tuple[bool, str]:
-    """Validate the admin approval token against configured plain/hash values."""
-    candidate = str(token or "").strip()
-    configured_hash = str(getattr(settings, "admin_create_approval_token_hash", "") or "").strip().lower()
-    configured_plain = str(getattr(settings, "admin_create_approval_token", "") or "").strip()
-    if not configured_hash and not configured_plain:
-        return False, "missing"
-    if not candidate:
-        return False, "empty"
-    if configured_hash:
-        digest = hashlib.sha256(candidate.encode("utf-8")).hexdigest().lower()
-        return hmac.compare_digest(digest, configured_hash), "hash"
-    return hmac.compare_digest(candidate, configured_plain), "plain"
-
-
-def _validate_admin_operation_token(token: str, actor_user_id: str, allow_actor_token: bool = True) -> tuple[bool, str]:
-    """Validate a global or actor-bound admin approval token."""
-    candidate = str(token or "").strip()
-    configured_hash = str(getattr(settings, "admin_create_approval_token_hash", "") or "").strip().lower()
-    configured_plain = str(getattr(settings, "admin_create_approval_token", "") or "").strip()
-    digest = hashlib.sha256(candidate.encode("utf-8")).hexdigest().lower()
-    if configured_hash:
-        ok, mode = validate_admin_approval_token(candidate, configured_hash, actor_user_id, token_tracker)
-        if ok:
-            return ok, mode
-    if configured_plain:
-        if not candidate:
-            return False, "empty"
-        ok = hmac.compare_digest(candidate, configured_plain)
-        return ok, "plain"
-    if allow_actor_token:
-        actor = auth_service.get_user_profile(actor_user_id)
-        actor_hash = str((actor or {}).get("admin_approval_token_hash", "") or "").strip().lower()
-        if not actor_hash:
-            return False, "missing"
-        return hmac.compare_digest(digest, actor_hash), "actor_hash"
-    return False, "missing"
 
 @router.get("/users", response_model=list[AdminUserSummary])
-
-
+@limiter.limit(get_rate_limit("list_users"))
 def admin_list_users(request: Request, user: dict[str, Any] = Depends(_require_user)):
+    """List all users (admin only)."""
     _require_permission(user, "admin:user_manage", request, "admin")
     rows = auth_service.list_users()
     return [AdminUserSummary(**x) for x in rows]
@@ -80,30 +57,36 @@ def admin_list_users(request: Request, user: dict[str, Any] = Depends(_require_u
 
 @router.get("")
 def admin_page(request: Request, user: dict[str, Any] = Depends(_require_user)):
+    """Admin portal landing page."""
     _require_permission(user, "admin:user_manage", request, "admin")
     return {"ok": True, "message": "admin portal"}
 
 
 @router.patch("/users/{user_id}/role", response_model=AdminUserSummary)
-def admin_update_user_role(user_id: str, req: AdminRoleUpdateRequest, request: Request, user: dict[str, Any] = Depends(_require_user)):
+@limiter.limit(get_rate_limit("role_update"))
+def admin_update_user_role(
+    user_id: str,
+    req: AdminRoleUpdateRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(_require_user)
+):
+    """Update user role with security checks."""
     _require_permission(user, "admin:user_manage", request, "admin", resource_id=user_id)
 
-    # SECURITY: Prevent self-modification
+    # Security: Prevent self-modification
     check_self_modification(user_id, user, "admin.user.role_update", _audit, request)
 
-    if str(req.role or "").strip().lower() == "admin":
-        raise HTTPException(status_code=400, detail="admin role promotion is restricted; use /admin/users/create-admin")
+    # Security: Prevent direct admin promotion
+    check_admin_role_change(req.role)
+
     try:
         row = auth_service.update_user_role(user_id=user_id, role=req.role)
-    except ValueError as e:
-        _audit(request, action="admin.user.role_update", resource_type="user", result="failed", user=user, resource_id=user_id, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # SECURITY: Log all exceptions for audit trail
-        _audit(request, action="admin.user.role_update", resource_type="user", result="failed", user=user, resource_id=user_id, detail=f"Exception: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail="internal server error")
+        handle_service_exception(e, _audit, request, "admin.user.role_update", user, user_id)
+
     if row is None:
-        raise HTTPException(status_code=404, detail="user not found")
+        raise not_found("User")
+
     _audit(
         request,
         action="admin.user.role_update",
@@ -117,31 +100,29 @@ def admin_update_user_role(user_id: str, req: AdminRoleUpdateRequest, request: R
 
 
 @router.post("/users/create-admin", response_model=AdminUserSummary)
-def admin_create_user_as_admin(req: AdminCreateAdminRequest, request: Request, user: dict[str, Any] = Depends(_require_user)):
+@limiter.limit(get_rate_limit("admin_create"))
+def admin_create_user_as_admin(
+    req: AdminCreateAdminRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(_require_user)
+):
+    """Create new admin user with approval token validation."""
     _require_permission(user, "admin:user_manage", request, "admin")
 
-    # SECURITY: Input validation FIRST (before token validation)
-    ticket_id = (req.ticket_id or "").strip()
-    reason = (req.reason or "").strip()
-    new_admin_approval_token = (req.new_admin_approval_token or "").strip()
-
-    if len(ticket_id) < 3:
-        raise HTTPException(status_code=400, detail="ticket_id is required")
-    # Validate ticket format: PROJECT-NUMBER (e.g., JIRA-123)
-    if "-" not in ticket_id or len(ticket_id.split("-")[0]) < 2 or not ticket_id.split("-")[-1].isdigit():
-        raise HTTPException(status_code=400, detail="invalid ticket format (expected: PROJECT-NUMBER)")
-    if len(reason) < 5:
-        raise HTTPException(status_code=400, detail="reason is required")
-    if len(new_admin_approval_token) < 12:
-        raise HTTPException(status_code=400, detail="approval token must be at least 12 chars")
-
-    # SECURITY: Validate approval token with single-use tracking
-    actor_user_id = str(user.get("user_id", ""))
     approval_token = req.approval_token or ""
-    token_ok, token_mode = _validate_admin_operation_token(
+    actor_user_id = str(user.get("user_id", ""))
+
+    # Security: Validate approval token (single-use, timing-attack resistant)
+    configured_hash = str(
+        getattr(settings, "admin_create_approval_token_hash", "") or ""
+    ).strip().lower()
+
+    tracker = get_token_tracker()
+    token_ok, token_mode = validate_admin_approval_token(
         approval_token,
+        configured_hash,
         actor_user_id,
-        allow_actor_token=False,
+        tracker
     )
 
     if not token_ok:
@@ -151,30 +132,34 @@ def admin_create_user_as_admin(req: AdminCreateAdminRequest, request: Request, u
             resource_type="user",
             result="failed",
             user=user,
-            detail=f"approval_failed; mode={token_mode}",
+            detail=f"approval_failed; mode={token_mode}"
         )
-        raise HTTPException(status_code=403, detail="unauthorized")
+        raise forbidden("Unauthorized")
+
+    ticket_id = (req.ticket_id or "").strip()
+    reason = (req.reason or "").strip()
+    new_admin_approval_token = (req.new_admin_approval_token or "").strip()
+
+    # Security: Enhanced input validation
+    validate_ticket_id(ticket_id)
+    validate_reason(reason)
+    validate_approval_token_length(new_admin_approval_token)
+
     new_admin_approval_hash = hashlib.sha256(new_admin_approval_token.encode("utf-8")).hexdigest()
+
     try:
         row = auth_service.create_user_with_role(
             username=req.username,
             password=req.password,
             role="admin",
-            created_by_user_id=str(user.get("user_id", "")),
+            created_by_user_id=actor_user_id,
             created_by_username=str(user.get("username", "")),
             admin_ticket_id=ticket_id,
             admin_approval_token_hash=new_admin_approval_hash,
         )
-    except ValueError as e:
-        _audit(
-            request,
-            action="admin.user.create_admin",
-            resource_type="user",
-            result="failed",
-            user=user,
-            detail=str(e),
-        )
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        handle_service_exception(e, _audit, request, "admin.user.create_admin", user)
+
     _audit(
         request,
         action="admin.user.create_admin",
@@ -188,45 +173,39 @@ def admin_create_user_as_admin(req: AdminCreateAdminRequest, request: Request, u
 
 
 @router.post("/users/{user_id}/reset-approval-token", response_model=AdminUserSummary)
+@limiter.limit(get_rate_limit("approval_token_reset"))
 def admin_reset_user_approval_token(
     user_id: str,
     req: AdminResetApprovalTokenRequest,
     request: Request,
     user: dict[str, Any] = Depends(_require_user),
 ):
+    """Reset admin approval token with security checks."""
     _require_permission(user, "admin:user_manage", request, "admin", resource_id=user_id)
 
-    # SECURITY: Prevent self-modification
+    # Security: Prevent self-modification
     check_self_modification(user_id, user, "admin.user.reset_approval_token", _audit, request)
 
     target = auth_service.get_user_profile(user_id)
     if not target:
-        raise HTTPException(status_code=404, detail="user not found")
+        raise not_found("User")
     if str(target.get("role", "")).lower() != "admin":
-        raise HTTPException(status_code=400, detail="target user is not admin")
+        raise bad_request("target user is not admin")
 
-    # SECURITY: Input validation FIRST
-    ticket_id = (req.ticket_id or "").strip()
-    reason = (req.reason or "").strip()
-    new_admin_approval_token = (req.new_admin_approval_token or "").strip()
-
-    if len(ticket_id) < 3:
-        raise HTTPException(status_code=400, detail="ticket_id is required")
-    # Validate ticket format: PROJECT-NUMBER (e.g., JIRA-123)
-    if "-" not in ticket_id or len(ticket_id.split("-")[0]) < 2 or not ticket_id.split("-")[-1].isdigit():
-        raise HTTPException(status_code=400, detail="invalid ticket format (expected: PROJECT-NUMBER)")
-    if len(reason) < 5:
-        raise HTTPException(status_code=400, detail="reason is required")
-    if len(new_admin_approval_token) < 12:
-        raise HTTPException(status_code=400, detail="approval token must be at least 12 chars")
-
-    # SECURITY: Validate approval token with single-use tracking
-    actor_user_id = str(user.get("user_id", ""))
     approval_token = req.approval_token or ""
-    token_ok, token_mode = _validate_admin_operation_token(
+    actor_user_id = str(user.get("user_id", ""))
+
+    # Security: Validate approval token
+    configured_hash = str(
+        getattr(settings, "admin_create_approval_token_hash", "") or ""
+    ).strip().lower()
+
+    tracker = get_token_tracker()
+    token_ok, token_mode = validate_admin_approval_token(
         approval_token,
+        configured_hash,
         actor_user_id,
-        allow_actor_token=True,
+        tracker
     )
 
     if not token_ok:
@@ -237,9 +216,17 @@ def admin_reset_user_approval_token(
             result="failed",
             user=user,
             resource_id=user_id,
-            detail=f"approval_failed; mode={token_mode}",
+            detail=f"approval_failed; mode={token_mode}"
         )
-        raise HTTPException(status_code=403, detail="unauthorized")
+        raise forbidden("Unauthorized")
+
+    ticket_id = (req.ticket_id or "").strip()
+    reason = (req.reason or "").strip()
+    new_admin_approval_token = (req.new_admin_approval_token or "").strip()
+
+    validate_ticket_id(ticket_id)
+    validate_reason(reason)
+    validate_approval_token_length(new_admin_approval_token)
 
     token_hash = hashlib.sha256(new_admin_approval_token.encode("utf-8")).hexdigest()
     row = auth_service.update_user_admin_approval_token(
@@ -248,7 +235,7 @@ def admin_reset_user_approval_token(
         admin_ticket_id=ticket_id,
     )
     if row is None:
-        raise HTTPException(status_code=404, detail="user not found")
+        raise not_found("User")
 
     _audit(
         request,
@@ -266,73 +253,34 @@ def admin_reset_user_approval_token(
 
 
 @router.post("/users/{user_id}/reset-password", response_model=AdminUserSummary)
+@limiter.limit(get_rate_limit("password_reset"))
 def admin_reset_user_password(
     user_id: str,
     req: AdminResetPasswordRequest,
     request: Request,
     user: dict[str, Any] = Depends(_require_user),
 ):
+    """Reset user password with approval token validation."""
     _require_permission(user, "admin:user_manage", request, "admin", resource_id=user_id)
-
-    # SECURITY: Rate limiting for password reset (check early, before other validations)
-    rate_key = f"password_reset:{user.get('user_id', '')}:{user_id}"
-    if not hasattr(admin_reset_user_password, '_rate_limit_cache'):
-        admin_reset_user_password._rate_limit_cache = {}
-
-    import time
-    now = time.time()
-    cache = admin_reset_user_password._rate_limit_cache
-
-    # Clean old entries (older than 1 hour)
-    cache_keys_to_delete = [k for k, v in cache.items() if now - v['time'] > 3600]
-    for k in cache_keys_to_delete:
-        del cache[k]
-
-    # Check rate limit (5 per hour) - count ALL attempts including failed ones
-    if rate_key in cache:
-        entry = cache[rate_key]
-        if now - entry['time'] < 3600 and entry['count'] >= 5:
-            _audit(
-                request,
-                action="admin.user.reset_password",
-                resource_type="user",
-                result="rate_limited",
-                user=user,
-                resource_id=user_id,
-                detail="rate limit exceeded",
-            )
-            raise HTTPException(status_code=429, detail="rate limit exceeded")
-        if now - entry['time'] < 3600:
-            entry['count'] += 1
-        else:
-            cache[rate_key] = {'time': now, 'count': 1}
-    else:
-        cache[rate_key] = {'time': now, 'count': 1}
-
-    # SECURITY: Prevent self-modification
-    check_self_modification(user_id, user, "admin.user.reset_password", _audit, request)
 
     target = auth_service.get_user_profile(user_id)
     if not target:
-        raise HTTPException(status_code=404, detail="user not found")
+        raise not_found("User")
 
-    # SECURITY: Input validation FIRST
-    ticket_id = (req.ticket_id or "").strip()
-    reason = (req.reason or "").strip()
-    new_password = req.new_password or ""
-
-    if len(ticket_id) < 3:
-        raise HTTPException(status_code=400, detail="ticket_id is required")
-    if len(reason) < 5:
-        raise HTTPException(status_code=400, detail="reason is required")
-
-    # SECURITY: Validate approval token with single-use tracking
-    actor_user_id = str(user.get("user_id", ""))
     approval_token = req.approval_token or ""
-    token_ok, token_mode = _validate_admin_operation_token(
+    actor_user_id = str(user.get("user_id", ""))
+
+    # Security: Validate approval token
+    configured_hash = str(
+        getattr(settings, "admin_create_approval_token_hash", "") or ""
+    ).strip().lower()
+
+    tracker = get_token_tracker()
+    token_ok, token_mode = validate_admin_approval_token(
         approval_token,
+        configured_hash,
         actor_user_id,
-        allow_actor_token=True,
+        tracker
     )
 
     if not token_ok:
@@ -343,15 +291,24 @@ def admin_reset_user_password(
             result="failed",
             user=user,
             resource_id=user_id,
-            detail=f"approval_failed; mode={token_mode}",
+            detail=f"approval_failed; mode={token_mode}"
         )
-        raise HTTPException(status_code=403, detail="unauthorized")
+        raise forbidden("Unauthorized")
+
+    ticket_id = (req.ticket_id or "").strip()
+    reason = (req.reason or "").strip()
+    new_password = req.new_password or ""
+
+    validate_ticket_id(ticket_id)
+    validate_reason(reason)
+
     try:
         row = auth_service.update_user_password(user_id=user_id, password=new_password)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        handle_service_exception(e, _audit, request, "admin.user.reset_password", user, user_id)
+
     if row is None:
-        raise HTTPException(status_code=404, detail="user not found")
+        raise not_found("User")
 
     _audit(
         request,
@@ -369,19 +326,27 @@ def admin_reset_user_password(
 
 
 @router.patch("/users/{user_id}/status", response_model=AdminUserSummary)
-def admin_update_user_status(user_id: str, req: AdminStatusUpdateRequest, request: Request, user: dict[str, Any] = Depends(_require_user)):
+@limiter.limit(get_rate_limit("status_update"))
+def admin_update_user_status(
+    user_id: str,
+    req: AdminStatusUpdateRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(_require_user)
+):
+    """Update user status with self-modification check."""
     _require_permission(user, "admin:user_manage", request, "admin", resource_id=user_id)
 
-    # SECURITY: Prevent self-modification
+    # Security: Prevent self-modification
     check_self_modification(user_id, user, "admin.user.status_update", _audit, request)
 
     try:
         row = auth_service.update_user_status(user_id=user_id, status=req.status)
-    except ValueError as e:
-        _audit(request, action="admin.user.status_update", resource_type="user", result="failed", user=user, resource_id=user_id, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        handle_service_exception(e, _audit, request, "admin.user.status_update", user, user_id)
+
     if row is None:
-        raise HTTPException(status_code=404, detail="user not found")
+        raise not_found("User")
+
     _audit(
         request,
         action="admin.user.status_update",
@@ -401,10 +366,8 @@ def admin_update_user_classification(
     request: Request,
     user: dict[str, Any] = Depends(_require_user),
 ):
+    """Update user classification with improved error handling."""
     _require_permission(user, "admin:user_manage", request, "admin", resource_id=user_id)
-
-    # SECURITY: Prevent self-modification
-    check_self_modification(user_id, user, "admin.user.classification_update", _audit, request)
 
     try:
         row = auth_service.update_user_classification(
@@ -414,19 +377,12 @@ def admin_update_user_classification(
             user_type=req.user_type,
             data_scope=req.data_scope,
         )
-    except ValueError as e:
-        _audit(
-            request,
-            action="admin.user.classification_update",
-            resource_type="user",
-            result="failed",
-            user=user,
-            resource_id=user_id,
-            detail=str(e),
-        )
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        handle_service_exception(e, _audit, request, "admin.user.classification_update", user, user_id)
+
     if row is None:
-        raise HTTPException(status_code=404, detail="user not found")
+        raise not_found("User")
+
     _audit(
         request,
         action="admin.user.classification_update",
@@ -443,6 +399,7 @@ def admin_update_user_classification(
 
 
 @router.get("/audit-logs", response_model=list[AuditLogEntry])
+@limiter.limit(get_rate_limit("audit_logs"))
 def admin_list_audit_logs(
     request: Request,
     limit: int = 200,
@@ -453,6 +410,7 @@ def admin_list_audit_logs(
     result: str | None = None,
     user: dict[str, Any] = Depends(_require_user),
 ):
+    """List audit logs with rate limiting."""
     _require_permission(user, "admin:audit_read", request, "admin")
     rows = auth_service.list_audit_logs(
         limit=limit,
@@ -474,8 +432,7 @@ def admin_system_logs(
     keyword: str | None = None,
     user: dict[str, Any] = Depends(_require_user),
 ):
+    """Get system logs (admin only)."""
     _require_permission(user, "admin:audit_read", request, "admin")
     rows = list_captured_logs(limit=limit, level=level, logger_keyword=logger, keyword=keyword)
     return {"items": rows, "count": len(rows)}
-
-
