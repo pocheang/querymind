@@ -7,6 +7,8 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from authlib.integrations.starlette_client import OAuth
 
+from app.api.utils.error_responses import bad_request, unauthorized
+from app.api.utils.string_utils import normalize_string
 from app.api.dependencies import (
     _audit,
     _client_ip,
@@ -61,7 +63,7 @@ def register(req: AuthCredentials, request: Request):
     except ValueError as e:
         register_limiter.record(register_key)
         _audit(request, action="auth.register", resource_type="auth", result="failed", detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+        raise bad_request(str(e))
     register_limiter.reset(register_key)
     _audit(request, action="auth.register", resource_type="auth", result="success", resource_id=user["user_id"])
     return AuthUser(**user)
@@ -70,7 +72,7 @@ def register(req: AuthCredentials, request: Request):
 @router.post("/login", response_model=AuthLoginResponse)
 def login(req: AuthCredentials, request: Request, response: Response):
     ip = _client_ip(request)
-    username_key = (req.username or "").strip().lower() or "unknown"
+    username_key = normalize_string(req.username, lowercase=True) or "unknown"
     login_key = f"login::{ip}::{username_key}"
     if login_limiter.is_limited(login_key):
         _audit(request, action="auth.login", resource_type="auth", result="blocked", detail="login_rate_limited")
@@ -80,7 +82,7 @@ def login(req: AuthCredentials, request: Request, response: Response):
     except ValueError as e:
         login_limiter.record(login_key)
         _audit(request, action="auth.login", resource_type="auth", result="failed", detail=str(e))
-        raise HTTPException(status_code=401, detail="invalid credentials")
+        raise unauthorized("Invalid credentials")
     login_limiter.reset(login_key)
     _audit(
         request,

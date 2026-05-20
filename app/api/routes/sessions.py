@@ -3,6 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.api.utils.error_responses import not_found
 from app.api.dependencies import (
     _allowed_sources_for_user,
     _audit,
@@ -52,7 +53,7 @@ def get_session(session_id: str, request: Request, user: dict[str, Any] = Depend
     _require_permission(user, "session:manage", request, "session", resource_id=session_id)
     data = _history_store_for_user(user).get_session(session_id)
     if data is None:
-        raise HTTPException(status_code=404, detail="session not found")
+        raise not_found("Session")
     return data
 
 
@@ -63,7 +64,7 @@ def get_session_strategy_lock(session_id: str, request: Request, user: dict[str,
     store = _history_store_for_user(user)
     data = store.get_session(session_id)
     if data is None:
-        raise HTTPException(status_code=404, detail="session not found")
+        raise not_found("Session")
     return {"session_id": session_id, "strategy_lock": store.get_session_strategy_lock(session_id)}
 
 
@@ -81,7 +82,7 @@ def set_session_strategy_lock(
     store = _history_store_for_user(user)
     updated = store.set_session_strategy_lock(session_id, strategy)
     if updated is None:
-        raise HTTPException(status_code=404, detail="session not found")
+        raise not_found("Session")
     _audit(
         request,
         action="session.strategy_lock.set",
@@ -100,7 +101,7 @@ def delete_session(session_id: str, request: Request, user: dict[str, Any] = Dep
     _require_permission(user, "session:manage", request, "session", resource_id=session_id)
     ok = _history_store_for_user(user).delete_session(session_id)
     if not ok:
-        raise HTTPException(status_code=404, detail="session not found")
+        raise not_found("Session")
     _audit(request, action="session.delete", resource_type="session", result="success", user=user, resource_id=session_id)
     return {"ok": True, "session_id": session_id}
 
@@ -119,7 +120,7 @@ def delete_long_term_memory(session_id: str, memory_id: str, request: Request, u
     _require_permission(user, "session:manage", request, "session", resource_id=session_id)
     ok = _memory_store_for_user(user).delete_long_term(session_id=session_id, candidate_id=memory_id)
     if not ok:
-        raise HTTPException(status_code=404, detail="memory not found")
+        raise not_found("Memory")
     _audit(request, action="memory.long.delete", resource_type="memory", result="success", user=user, resource_id=memory_id)
     return {"ok": True, "memory_id": memory_id}
 
@@ -140,7 +141,7 @@ def update_session_message(
     history_store = _history_store_for_user(user)
     current = history_store.get_message(session_id=session_id, message_id=message_id)
     if current is None:
-        raise HTTPException(status_code=404, detail="message not found")
+        raise not_found("Message")
 
     try:
         if current.get("role") == "user":

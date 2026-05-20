@@ -22,6 +22,8 @@ from app.api.dependencies import (
     settings,
     shadow_queue,
 )
+from app.api.utils.error_responses import bad_request, internal_error
+from app.api.utils.request_helpers import get_string_param
 from app.core.config import reload_settings
 from app.core.models import clear_model_caches, get_chat_model
 from app.core.schemas import (
@@ -70,16 +72,16 @@ def admin_save_model_settings(
     payload = req.model_dump()
     current = get_global_model_settings()
     embedding_before = embedding_settings_signature(current)
-    provider = str(payload.get("provider", "") or "").strip().lower()
-    incoming_api_key = str(payload.get("api_key", "") or "").strip()
-    if not incoming_api_key and provider == str(current.get("provider", "") or "").strip().lower():
-        payload["api_key"] = str(current.get("api_key", "") or "")
+    provider = get_string_param(payload, "provider", lowercase=True)
+    incoming_api_key = get_string_param(payload, "api_key")
+    if not incoming_api_key and provider == get_string_param(current, "provider", lowercase=True):
+        payload["api_key"] = get_string_param(current, "api_key")
     try:
         saved = save_global_model_settings(payload)
     except OutboundURLValidationError as e:
-        raise HTTPException(status_code=400, detail=f"unsafe base_url: {e}")
+        raise bad_request(f"unsafe base_url: {e}")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise bad_request(str(e))
     clear_model_caches()
     clear_vector_store_cache()
     embedding_after = embedding_settings_signature(saved)
@@ -99,7 +101,7 @@ def admin_save_model_settings(
                     "embedding_model": str(saved.get("embedding_model", "")),
                 },
             )
-            raise HTTPException(status_code=500, detail="model settings saved, but embedding reindex failed")
+            raise internal_error("model settings saved, but embedding reindex failed")
     _audit(
         request,
         action="admin.model_settings.save",
@@ -127,15 +129,15 @@ def admin_test_model_settings(
     _require_permission(user, "admin:ops_manage", request, "admin")
     payload = req.model_dump()
     current = get_global_model_settings()
-    provider = str(payload.get("provider", "") or "").strip().lower()
-    if not str(payload.get("api_key", "") or "").strip() and provider == str(current.get("provider", "") or "").strip().lower():
-        payload["api_key"] = str(current.get("api_key", "") or "")
+    provider = get_string_param(payload, "provider", lowercase=True)
+    if not get_string_param(payload, "api_key") and provider == get_string_param(current, "provider", lowercase=True):
+        payload["api_key"] = get_string_param(current, "api_key")
     try:
         normalized = normalize_global_model_settings({**payload, "enabled": bool(payload.get("enabled", False))})
     except OutboundURLValidationError as e:
-        raise HTTPException(status_code=400, detail=f"unsafe base_url: {e}")
+        raise bad_request(f"unsafe base_url: {e}")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise bad_request(str(e))
     started = time.perf_counter()
     api_settings_payload = {
         "provider": normalized["provider"],
