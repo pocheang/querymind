@@ -6,6 +6,8 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
+from app.api.utils.error_responses import bad_request, forbidden, not_found, conflict, internal_error
+from app.api.utils.string_utils import normalize_string
 from app.api.dependencies import (
     _audit,
     _client_ip,
@@ -62,30 +64,30 @@ def delete_document(
     user: dict[str, Any] = Depends(_require_user),
 ):
     _require_permission(user, "document:manage_own", request, "document", resource_id=filename)
-    source = (source or "").strip() or _resolve_manageable_source_for_filename(filename, user)
+    source = normalize_string(source) or _resolve_manageable_source_for_filename(filename, user)
     if source is None:
-        raise HTTPException(status_code=400, detail="source is required")
+        raise bad_request("source is required")
     if not _is_source_manageable_for_user(source, user):
         _audit(request, action="document.delete", resource_type="document", result="denied", user=user, resource_id=filename)
-        raise HTTPException(status_code=403, detail="source not allowed")
+        raise forbidden("source not allowed")
     try:
         result = FileIndexActionResponse(**delete_file_index(filename, remove_physical_file=remove_file, source=source))
         _audit(request, action="document.delete", resource_type="document", result="success", user=user, resource_id=filename)
         return result
     except ValueError as e:
         _audit(request, action="document.delete", resource_type="document", result="failed", user=user, resource_id=filename, detail=str(e))
-        raise HTTPException(status_code=409, detail=str(e))
+        raise conflict(str(e))
 
 
 @router.post("/documents/{filename}/reindex", response_model=FileIndexActionResponse)
 def reindex_document(filename: str, request: Request, source: str | None = None, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, "document:manage_own", request, "document", resource_id=filename)
-    source = (source or "").strip() or _resolve_manageable_source_for_filename(filename, user)
+    source = normalize_string(source) or _resolve_manageable_source_for_filename(filename, user)
     if source is None:
-        raise HTTPException(status_code=400, detail="source is required")
+        raise bad_request("source is required")
     if not _is_source_manageable_for_user(source, user):
         _audit(request, action="document.reindex", resource_type="document", result="denied", user=user, resource_id=filename)
-        raise HTTPException(status_code=403, detail="source not allowed")
+        raise forbidden("source not allowed")
     try:
         t0 = time.perf_counter()
         visibility = "private"
@@ -125,10 +127,10 @@ def reindex_document(filename: str, request: Request, source: str | None = None,
         return result
     except ValueError as e:
         _audit(request, action="document.reindex", resource_type="document", result="failed", user=user, resource_id=filename, detail=str(e))
-        raise HTTPException(status_code=409, detail=str(e))
+        raise conflict(str(e))
     except FileNotFoundError as e:
         _audit(request, action="document.reindex", resource_type="document", result="failed", user=user, resource_id=filename, detail=str(e))
-        raise HTTPException(status_code=404, detail=str(e))
+        raise not_found(str(e))
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -150,7 +152,7 @@ async def upload_files(
         )
 
     if len(files) > settings.upload_max_files:
-        raise HTTPException(status_code=400, detail=f"too many files, max={settings.upload_max_files}")
+        raise bad_request(f"too many files, max={settings.upload_max_files}")
 
     saved_paths: list[Path] = []
     filenames: list[str] = []

@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 
+from app.api.utils.error_responses import bad_request
 from app.api.dependencies import (
     _audit,
     _check_chroma_ready,
@@ -391,7 +392,7 @@ def admin_ops_benchmark_run(
     query_path = Path("data/eval/benchmark_queries.txt")
     queries = _load_benchmark_queries(query_path, limit=max(1, min(max_queries, 100)))
     if not queries:
-        raise HTTPException(status_code=400, detail="benchmark query set is empty")
+        raise bad_request("benchmark query set is empty")
 
     used_profile = normalize_retrieval_profile(strategy)
     latencies: list[float] = []
@@ -510,7 +511,7 @@ def admin_ops_ab_compare(payload: dict[str, Any], request: Request, user: dict[s
     _require_permission(user, "admin:ops_manage", request, "admin")
     question = str(payload.get("question", "") or "").strip()
     if not question:
-        raise HTTPException(status_code=400, detail="question is required")
+        raise bad_request("question is required")
     raw_strategies = payload.get("strategies")
     strategies = raw_strategies if isinstance(raw_strategies, list) and raw_strategies else ["baseline", "advanced", "safe"]
     normalized = [normalize_retrieval_profile(str(item)) for item in strategies]
@@ -551,7 +552,7 @@ def admin_ops_autotune(payload: dict[str, Any], request: Request, user: dict[str
     target_grounding = float(payload.get("target_grounding", 0.65) or 0.65)
     trends = read_replay_trends(limit=1)
     if not trends:
-        raise HTTPException(status_code=400, detail="no replay trends found; run replay first")
+        raise bad_request("no replay trends found; run replay first")
     latest = trends[-1]
     latest_p95 = float(((latest.get("latency_ms", {}) or {}).get("p95", 0.0) or 0.0))
     latest_grounding = float(((latest.get("grounding_support_ratio", {}) or {}).get("avg", 0.0) or 0.0))
@@ -613,7 +614,7 @@ def admin_ops_replay_run(
         if len(questions) >= max_questions:
             break
     if not questions:
-        raise HTTPException(status_code=400, detail="no historical questions found")
+        raise bad_request("no historical questions found")
     return {
         "ok": True,
         "summary": {

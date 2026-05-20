@@ -1,6 +1,8 @@
 """Prompt management routes for the Multi-Agent Local RAG API."""
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
+
+from app.api.utils.error_responses import not_found
 from app.api.dependencies import (
     prompt_store,
     _audit,
@@ -55,7 +57,7 @@ def update_prompt(prompt_id: str, req: PromptTemplateUpdateRequest, request: Req
         agent_class=agent_class,
     )
     if row is None:
-        raise HTTPException(status_code=404, detail="prompt not found")
+        raise not_found("Prompt")
     _audit(request, action="prompt.update", resource_type="prompt", result="success", user=user, resource_id=prompt_id)
     return PromptTemplate(**row)
 
@@ -77,7 +79,7 @@ def approve_prompt_version(prompt_id: str, version_id: str, request: Request, us
         approved_by=str(user.get("username", "")),
     )
     if row is None:
-        raise HTTPException(status_code=404, detail="prompt version not found")
+        raise not_found("Prompt version")
     _audit(request, action="prompt.version.approve", resource_type="prompt", result="success", user=user, resource_id=prompt_id)
     return row
 
@@ -87,7 +89,7 @@ def rollback_prompt_version(prompt_id: str, version_id: str, request: Request, u
     _require_permission(user, "prompt:manage", request, "prompt", resource_id=prompt_id)
     row = prompt_store.rollback_to_version(user_id=user["user_id"], prompt_id=prompt_id, version_id=version_id)
     if row is None:
-        raise HTTPException(status_code=404, detail="prompt version not found")
+        raise not_found("Prompt version")
     _audit(request, action="prompt.version.rollback", resource_type="prompt", result="success", user=user, resource_id=prompt_id)
     return PromptTemplate(**row)
 
@@ -97,6 +99,6 @@ def delete_prompt(prompt_id: str, request: Request, user: dict[str, Any] = Depen
     _require_permission(user, "prompt:manage", request, "prompt", resource_id=prompt_id)
     ok = prompt_store.delete_prompt(user_id=user["user_id"], prompt_id=prompt_id)
     if not ok:
-        raise HTTPException(status_code=404, detail="prompt not found")
+        raise not_found("Prompt")
     _audit(request, action="prompt.delete", resource_type="prompt", result="success", user=user, resource_id=prompt_id)
     return {"ok": True, "prompt_id": prompt_id}
