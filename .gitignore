@@ -199,7 +199,12 @@ pip-log.txt
 
 # Frontend generated audit artifacts and backups
 frontend/css-audit-report.json
+frontend/css-audit-report.md
 frontend/css-performance-baseline.json
+frontend/.tmp_*.log
+frontend/build-test.log
+frontend/dev-test.log
+frontend/plugin-debug.log
 frontend/src/styles.backup/
 frontend/src/styles/.legacy-backup/
 frontend/src/styles.css.backup*
@@ -217,6 +222,17 @@ frontend/src/styles/pages.css.backup.phase*
 # Other AI assistant configs
 .cursor/
 .continue/
+
+# Skills lock file (Kiro/Claude superpowers - local hashes only)
+skills-lock.json
+
+# AI assistant local directories (per DOCUMENTATION_POLICY)
+.agents/
+.junie/
+.trae/
+
+# LangGraph dev server runtime state (checkpoints, ops, vector store)
+.langgraph_api/
 
 # ============================================
 # Internal Documentation (Not for GitHub)

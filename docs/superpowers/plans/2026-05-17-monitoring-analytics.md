@@ -477,14 +477,14 @@ pytest tests/api/test_analytics.py -v
 
 Expected: 所有测试 PASS
 
-- [ ] **Step 3: 更新 OPTIMIZATION_SUMMARY.md**
+- [ ] **Step 3: 更新 internal_docs/OPTIMIZATION_SUMMARY.md**
 
-在 `OPTIMIZATION_SUMMARY.md` 中添加"优化 5 - 监控和分析系统"的完成记录。
+在 `internal_docs/OPTIMIZATION_SUMMARY.md` 中添加"优化 5 - 监控和分析系统"的完成记录。
 
 - [ ] **Step 4: 最终提交**
 
 ```bash
-git add OPTIMIZATION_SUMMARY.md
+git add internal_docs/OPTIMIZATION_SUMMARY.md
 git commit -m "docs: mark monitoring and analytics system as completed"
 ```
 
