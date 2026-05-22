@@ -17,10 +17,9 @@ This will create:
 
 ## Manual Setup
 
-If you prefer to create the files manually, see the plan document:
-`docs/superpowers/plans/2026-05-15-performance-comparison-framework.md`
-
-The plan includes the full content for all demo documents.
+If you prefer to create the files manually, the demo dataset content was
+sourced from an internal plan document (now archived in `internal_docs/plans/`).
+Contact the maintainers for the full content.
 
 ## Ingesting Documents
 

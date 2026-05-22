@@ -776,6 +776,6 @@ PDF_PARALLEL_WORKERS=4
 ```
 
 ### 11.3 参考文档
-- docs/PDF_FIXES_SUMMARY.md
-- docs/PDF_HEALTH_CHECK.md
-- docs/PDF_ISSUES_AND_FIXES.md
+- 内部 PDF 修复记录见 `internal_docs/docs_archive/PDF_FIXES_SUMMARY.md`
+- 内部 PDF 健康检查见 `internal_docs/docs_archive/PDF_HEALTH_CHECK.md`
+- 内部 PDF 问题列表见 `internal_docs/docs_archive/PDF_ISSUES_AND_FIXES.md`

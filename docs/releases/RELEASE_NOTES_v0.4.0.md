@@ -209,7 +209,6 @@ pip install -e .
 
 ## 📚 Documentation
 
-- [Interview Demo Implementation Summary](docs/INTERVIEW_DEMO_IMPLEMENTATION_SUMMARY.md)
 - [Performance Comparison Framework](docs/performance_comparison_framework.md)
 - [Agent Execution Tracking](docs/agent_execution_tracking.md)
 - [Chinese NLP Optimization](docs/chinese_nlp_optimization.md)

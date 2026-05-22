@@ -228,9 +228,9 @@ Corporate credit cards are issued to:
         path.write_text(content, encoding='utf-8')
         logger.info(f"Created: {path}")
 
-    # Technical documents (abbreviated for script length - see full content in plan)
+    # Technical documents (abbreviated for script length)
     logger.info("\nNote: Technical documents and evaluation files should be created manually")
-    logger.info("See: docs/superpowers/plans/2026-05-15-performance-comparison-framework.md")
+    logger.info("Contact maintainers for the full demo dataset content")
     logger.info("\nDemo dataset setup complete!")
     logger.info(f"Documents created in: {demo_dir.absolute()}")
 

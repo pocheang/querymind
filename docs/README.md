@@ -43,20 +43,24 @@ docs/
 ├── PERFORMANCE_OPTIMIZATION.md
 ├── VERSION_HISTORY.md
 ├── releases/                    # Release notes and announcements
-│   ├── RELEASE_NOTES_v0.4.0.md
-│   └── RELEASE_v0.3.1.md
 ├── archive/                     # Historical reports and investigations
 │   ├── refactoring/            # Refactoring reports
 │   ├── ui/                     # UI modernization reports
 │   └── investigations/         # Technical investigation reports
 ├── project/                     # Project planning and architecture
-├── operations/                  # Deployment and operational guides
-├── development/                 # Development guides and workflows
-├── design/                      # Design documentation
-├── plans/                       # Implementation plans
-├── security/                    # Security documentation
+├── design/                      # Design documents and feature specs
+├── operations/                  # Deployment and operational guides (placeholder)
+├── development/                 # Development guides and workflows (placeholder)
+├── images/                      # Architecture diagrams and screenshots
 └── templates/                   # Documentation templates
 ```
+
+Internal-only locations excluded from this hub (kept under `internal_docs/`):
+
+- `internal_docs/plans/` - Execution plans with step-by-step instructions
+- `internal_docs/docs_archive/` - Test reports, fix logs, deep code reviews
+- `internal_docs/security/` - Security audits, patch guides, vulnerability details
+- `internal_docs/project_audit/` - Project audit reports and remediation backlogs
 
 ## Internal Documentation
 

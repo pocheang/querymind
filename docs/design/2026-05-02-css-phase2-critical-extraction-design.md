@@ -832,8 +832,8 @@ npm run build
 
 ### 9.3 Related Documentation
 
-- **Phase 1 Design**: `docs/superpowers/specs/2026-05-01-css-optimization-design.md`
-- **Phase 1 Plan**: `docs/superpowers/plans/2026-05-01-css-phase1-split-files.md`
+- **Phase 1 Design**: [2026-05-01-css-optimization-design.md](./2026-05-01-css-optimization-design.md)
+- **Phase 1 Plan**: stored in `internal_docs/plans/2026-05-01-css-phase1-split-files.md`
 - **Project README**: `README.md`
 
 ---

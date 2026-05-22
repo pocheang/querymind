@@ -1,51 +1,42 @@
 # Archive Documentation Index
 
-**Last Updated**: 2026-04-27  
-**Version**: v0.3.1  
-**Purpose**: Index of historical and archived documentation
+**Status**: Public
+**Last Updated**: 2026-05-22
+**Purpose**: Index of historical and archived public documentation
 
-## Archive Contents
+## About This Directory
 
 This public archive contains sanitized historical documents that are safe to keep
 on GitHub. Internal audits, deep code reviews, fix logs, and generated validation
-reports have been moved to `internal_docs/docs_archive/`.
+reports are stored in `internal_docs/docs_archive/` and excluded from the public
+repository.
 
-### Summary Documents (Consolidated)
+## Refactoring Reports
 
-**Refactoring Summary** (1 file)
-- `REFACTORING_SUMMARY.md` - Consolidated refactoring reports
+Located in [refactoring/](./refactoring/):
 
-**Release Summary** (1 file)
-- `RELEASE_v0.2.5_SUMMARY.md` - Consolidated v0.2.5 release documents
+- [refactoring/REFACTOR_PHASE1_SUMMARY.md](./refactoring/REFACTOR_PHASE1_SUMMARY.md) - Phase 1 frontend refactoring summary
+- [refactoring/PRECISION_ADJUSTMENTS.md](./refactoring/PRECISION_ADJUSTMENTS.md) - Precision adjustments
 
-**Version Summary** (2 files)
-- `V0.3.0_SUMMARY.md` - Consolidated v0.3.0 status reports
-- `V0.3.0_RELEASE_NOTES.md` - Complete v0.3.0 release notes
+## UI Modernization
 
-### Other Historical Documents
+Located in [ui/](./ui/):
 
-**Documentation & Changelog**
-- Public changelog and release history should remain in root `CHANGELOG.md`,
-  `RELEASE_*.md`, or sanitized archive files.
+- [ui/UI_IMPROVEMENTS.md](./ui/UI_IMPROVEMENTS.md) - UI improvement reports
+- [ui/UI_MODERNIZATION_SUMMARY.md](./ui/UI_MODERNIZATION_SUMMARY.md) - UI modernization summary
+- [ui/CSS_CLEANUP_PHASE1_REPORT.md](./ui/CSS_CLEANUP_PHASE1_REPORT.md) - CSS cleanup phase 1
+- [ui/CSS_PHASE1_DEAD_CODE_CLEANUP.md](./ui/CSS_PHASE1_DEAD_CODE_CLEANUP.md) - CSS dead code cleanup
 
-**Chinese Documentation** (1 file)
-- `README_CN.md` - Chinese version of README (archived)
+## Technical Investigations
 
-## How to Use This Archive
+Located in [investigations/](./investigations/):
 
-1. **For current operational guidance**: Use active core documents in `docs/` root
-2. **For historical context**: Reference archived documents with understanding they are point-in-time snapshots
-3. **For audit/traceability**: use public archive files only for sanitized history; use internal archives for sensitive audit evidence
-4. **When conflicts arise**: Active documents take precedence over archived ones
+- [investigations/CSRF_FIX.md](./investigations/CSRF_FIX.md) - CSRF vulnerability fix investigation
+- [investigations/STREAMING_PDF_INVESTIGATION_REPORT.md](./investigations/STREAMING_PDF_INVESTIGATION_REPORT.md) - Streaming PDF investigation
 
-## Maintenance Policy
+## Notes
 
-- Historical documents are preserved as-is for audit purposes
-- No updates are made to archived documents unless correcting factual errors
-- Documents are moved to archive when they become historical
-- Quarterly review recommended to identify documents that should be consolidated
-
----
-
-**Maintained by**: Bronit Team  
-**Total Archived Documents**: review with `git ls-files docs/archive`
+- These documents are point-in-time records and may not reflect the current
+  system state.
+- Documents are retained for traceability and audit purposes.
+- See [../PUBLICATION_MATRIX.md](../PUBLICATION_MATRIX.md) for classification rules.

@@ -87,7 +87,6 @@ Key metrics:
 - Real-time agent execution tracking with SSE support
 
 Related public documents:
-- [Interview Demo Implementation Summary](INTERVIEW_DEMO_IMPLEMENTATION_SUMMARY.md)
 - [Performance Comparison Framework](performance_comparison_framework.md)
 - [Agent Execution Tracking](agent_execution_tracking.md)
 - [Chinese NLP Optimization](chinese_nlp_optimization.md)
@@ -172,7 +171,7 @@ Public highlights:
 
 Related public design reference:
 
-- [Query-to-Answer UX Speed Design](superpowers/specs/2026-04-19-query-to-answer-ux-speed-design.md)
+- [Query-to-Answer UX Speed Design](design/2026-04-19-query-to-answer-ux-speed-design.md)
 
 ## v0.2.2.1
 

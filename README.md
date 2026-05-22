@@ -460,7 +460,6 @@ Start with the documentation hub: [docs/README.md](./docs/README.md)
 1. **[docs/README.md](./docs/README.md)** - Documentation hub and navigation guide
 2. **[CHANGELOG.md](./CHANGELOG.md)** - Detailed version history and changes
 3. **[docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md)** - Complete version timeline
-4. **[CLAUDE.md](./CLAUDE.md)** - Project configuration for AI assistants
 
 ### Documentation Structure
 
@@ -477,7 +476,6 @@ Start with the documentation hub: [docs/README.md](./docs/README.md)
 ### Additional Resources
 
 - **API Documentation** - Available at `/docs` when backend is running
-- **[README-STARTUP.md](./README-STARTUP.md)** - Quick startup guide for development
 
 ## Contributing
 

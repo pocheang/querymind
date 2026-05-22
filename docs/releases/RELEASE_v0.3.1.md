@@ -19,9 +19,8 @@ v0.3.1 establishes a complete **enterprise-grade documentation management system
 - Achieved 100% documentation coverage for all 9 historical versions
 
 ✅ **Version Planning Framework**
-- Created `docs/plans/` directory for version planning documents
-- Established planning documentation with Before/Current/Future structure
-- Provided comprehensive planning index for all versions
+- Established version planning documentation (now archived under `internal_docs/plans/`)
+- Provided planning structure with Before/Current/Future sections
 
 ✅ **Team Standardization**
 - Updated all documentation to reflect **Bronit Team** as project owner
@@ -49,10 +48,11 @@ v0.3.1 establishes a complete **enterprise-grade documentation management system
 - **FIXES_REPORT_TEMPLATE.md** - For patch releases
 - **VERSION_PLAN_TEMPLATE.md** - For version planning
 
-#### 4. Version Planning System
-- **docs/plans/README.md** - Planning directory guide
-- **docs/plans/INDEX.md** - Comprehensive version planning index
-- **docs/plans/V0.3.1_PLAN.md** - Detailed v0.3.1 plan (example)
+#### 4. Version Planning System (now internal)
+
+The version planning files were originally located under `docs/plans/`. Per the
+current documentation policy, this content has been archived under
+`internal_docs/plans/` and is no longer published.
 
 #### 5. Historical Version Reports (6 new files)
 - **V0.1.0_COMPLETION_REPORT.md** - Initial release report
@@ -175,19 +175,17 @@ project-root/
 
 When releasing a new version:
 
-1. Read [VERSION_DOCUMENTATION_GUIDE.md](docs/VERSION_DOCUMENTATION_GUIDE.md)
-2. Use [VERSION_DOCUMENTATION_CHECKLIST.md](docs/VERSION_DOCUMENTATION_CHECKLIST.md)
-3. Reference [VERSION_RELEASE_QUICK_REFERENCE.md](docs/VERSION_RELEASE_QUICK_REFERENCE.md)
-4. Use templates from `docs/templates/`
+1. Use templates from `docs/templates/`
+2. Refer to internal release documentation under `internal_docs/docs_archive/` if you have access
+3. Update [CHANGELOG.md](../../CHANGELOG.md) and [VERSION_HISTORY.md](../VERSION_HISTORY.md) with sanitized public summaries
 5. Run `scripts/check_version_docs.sh` to validate
 
 ### For Developers
 
 To understand version documentation requirements:
 
-1. Read [VERSION_DOCUMENTATION_STANDARD.md](docs/VERSION_DOCUMENTATION_STANDARD.md)
-2. Review [VERSION_HISTORY.md](docs/VERSION_HISTORY.md) for historical context
-3. Check existing version documents as examples
+1. Review [VERSION_HISTORY.md](../VERSION_HISTORY.md) for the public version timeline
+2. Check existing version documents under `docs/releases/` as examples
 
 ### For Documentation Maintainers
 
@@ -228,19 +226,19 @@ cat docs/VERSION_HISTORY.md
 ## 📚 Key Documentation Links
 
 ### Core Standards
-- [VERSION_DOCUMENTATION_STANDARD.md](docs/VERSION_DOCUMENTATION_STANDARD.md) - Documentation requirements
-- [VERSION_DOCUMENTATION_GUIDE.md](docs/VERSION_DOCUMENTATION_GUIDE.md) - Release workflow guide
-- [VERSION_DOCUMENTATION_CHECKLIST.md](docs/VERSION_DOCUMENTATION_CHECKLIST.md) - Pre-release checklist
+
+These internal documentation standards are now archived under
+`internal_docs/docs_archive/` per the documentation policy.
 
 ### Version Planning
-- [docs/plans/README.md](docs/plans/README.md) - Planning system guide
-- [docs/plans/INDEX.md](docs/plans/INDEX.md) - All version plans index
-- [docs/plans/V0.3.1_PLAN.md](docs/plans/V0.3.1_PLAN.md) - This version's plan
+
+The version planning workflow is now tracked under `internal_docs/plans/` per
+the documentation policy.
 
 ### Templates
-- [docs/templates/README.md](docs/templates/README.md) - Template usage guide
-- [VERSION_COMPLETION_REPORT_TEMPLATE.md](docs/templates/VERSION_COMPLETION_REPORT_TEMPLATE.md)
-- [VERSION_PLAN_TEMPLATE.md](docs/templates/VERSION_PLAN_TEMPLATE.md)
+- [docs/templates/README.md](../templates/README.md) - Template usage guide
+- [VERSION_COMPLETION_REPORT_TEMPLATE.md](../templates/VERSION_COMPLETION_REPORT_TEMPLATE.md)
+- [VERSION_PLAN_TEMPLATE.md](../templates/VERSION_PLAN_TEMPLATE.md)
 
 ### Historical Reports
 - [VERSION_COMPLETION_REPORTS_INDEX.md](docs/archive/VERSION_COMPLETION_REPORTS_INDEX.md) - All completion reports
@@ -302,7 +300,6 @@ cat docs/VERSION_HISTORY.md
 ## 📞 Support
 
 - **Documentation Issues**: Create an issue on GitHub
-- **Questions**: Check [VERSION_DOCUMENTATION_GUIDE.md](docs/VERSION_DOCUMENTATION_GUIDE.md)
 - **Feedback**: Submit via GitHub Issues
 
 ---
