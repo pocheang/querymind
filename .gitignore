@@ -200,11 +200,16 @@ pip-log.txt
 # Frontend generated audit artifacts and backups
 frontend/css-audit-report.json
 frontend/css-audit-report.md
+frontend/css-audit-summary.md
+frontend/css-migration-map.md
 frontend/css-performance-baseline.json
 frontend/.tmp_*.log
 frontend/build-test.log
+frontend/build-output.txt
 frontend/dev-test.log
 frontend/plugin-debug.log
+frontend/vite.config.d.ts
+frontend/vite.config.js
 frontend/src/styles.backup/
 frontend/src/styles/.legacy-backup/
 frontend/src/styles.css.backup*
