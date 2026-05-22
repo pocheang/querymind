@@ -54,8 +54,9 @@ This repository packages a FastAPI backend, a React frontend, and a modular retr
 - `app/services/`: Auth, runtime governance, caching, resilience, memory, and prompt management
 - `app/ingestion/`: Document loaders, chunking strategies, OCR processing, and indexing
 - `frontend/`: React + Vite user interface with TypeScript and modern CSS architecture
-- `tests/`: Comprehensive backend and workflow regression coverage (29+ tests)
-- `scripts/`: Operational tooling for benchmarking, evaluation, load testing, and CI/CD
+- `tests/`: Backend and workflow regression coverage (50+ test modules)
+- `scripts/`: Operational tooling for ingestion, benchmarking, evaluation, and CI/CD
+- `scripts/dev/`: Manual smoke and developer-driven verification scripts
 
 ### Request Flow
 
@@ -130,22 +131,28 @@ The main backend entry point is `app.api.main:app`.
 
 ```text
 .
-|-- app/
-|   |-- agents/
-|   |-- api/
-|   |-- core/
-|   |-- graph/
-|   |-- ingestion/
-|   |-- retrievers/
-|   |-- services/
-|   `-- tools/
-|-- configs/
-|-- data/
-|-- docs/
-|-- frontend/
-|-- scripts/
-`-- tests/
+├── app/                  # Backend code
+│   ├── agents/           # Specialized agent implementations
+│   ├── api/              # FastAPI app, routes, middleware
+│   ├── core/             # Settings, logging, shared utilities
+│   ├── graph/            # LangGraph orchestration and streaming
+│   ├── ingestion/        # Loaders, chunking, OCR, indexing
+│   ├── retrievers/       # Vector, BM25, fusion, reranking
+│   ├── services/         # Auth, governance, memory, prompts
+│   └── tools/            # Tool integrations
+├── configs/              # Runtime profile and config files
+├── data/                 # Local runtime data (mostly gitignored)
+├── docs/                 # Public documentation (see docs/README.md)
+├── frontend/             # React + Vite UI
+├── scripts/              # Operational tooling
+│   └── dev/              # Manual smoke / developer scripts
+├── tests/                # Backend and workflow regression tests
+└── examples/             # Usage examples
 ```
+
+Internal records (audits, plans, fix logs, AI assistant configs) live under
+`internal_docs/` and are excluded from the public repository per
+[DOCUMENTATION_POLICY.md](./DOCUMENTATION_POLICY.md).
 
 ## Multi-Agent Workflow
 
@@ -171,56 +178,21 @@ Queries are automatically classified into three tiers based on complexity:
 
 ## Recent Improvements
 
+For the full version history with all releases, see
+[CHANGELOG.md](./CHANGELOG.md) and [docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md).
+
 ### v0.4.1 (2026-05-20)
 - **Code Quality Refactoring**: Eliminated ~2,700 lines of duplicate code across frontend and backend
 - **Reusable Modules**: Created 19 new utility modules and components for better maintainability
 - **Error Handling**: Standardized error responses across all API routes with dedicated utilities
 - **Multilingual Support**: Automatic language detection with 20% Chinese threshold and session preferences
 - **Analytics Dashboard**: Retrieval monitoring with statistics, visualization, and export capabilities
-- **Bug Fixes**: Corrected unauthorized() status code from 403 to 401 for HTTP compliance
 
 ### v0.4.0 (2026-05-16)
 - **Performance Comparison Framework**: Baseline systems with comprehensive evaluation metrics
 - **Agent Execution Visualization**: Real-time tracking with SSE streaming and interactive display
 - **Chinese NLP Optimization**: Tokenization, synonym expansion, and query preprocessing
 - **Advanced RAG Techniques**: Query decomposition and Self-RAG evaluation endpoints
-- **Demo Dataset**: Curated evaluation dataset for system demonstration and testing
-
-### v0.3.3 (2026-05-07)
-- **CI/CD Quality Gates**: Automated RAG evaluation with precision/recall metrics in CI pipeline
-- **Test Infrastructure**: Enhanced test reliability with proper flag handling and exit code validation
-- **Evaluation Datasets**: Committed evaluation data to git for reproducible CI testing
-- **Non-blocking Quality Gates**: Frontend releases no longer blocked by backend test failures
-- **Test Coverage**: Maintained 29+ backend tests with comprehensive workflow regression coverage
-
-### v0.3.2 (2026-05-03)
-- **Frontend Modernization**: Critical CSS extraction and code splitting architecture
-- **Performance Optimization**: Reduced CSS bundle size by 86% (99KB → 14KB critical CSS)
-- **User Profile Management**: Added display name update functionality with validation
-- **Build Improvements**: TypeScript strict mode and Vite plugin enhancements
-
-### v0.3.1.2 (2026-04-28)
-- **Security Hardening**: Fixed critical admin self-modification and token reuse vulnerabilities
-- **Password Policy**: Strengthened to 12-128 characters with special character requirements
-- **Rate Limiting**: Added to all admin operations (1-5 requests/hour depending on sensitivity)
-- **Cookie Security**: Hardened with `secure=true` and `samesite=strict` defaults
-- **Audit Logging**: Comprehensive logging for all admin and auth operations with failure tracking
-
-### v0.3.1.1 (2026-04-28)
-- **Upload Statistics**: Fixed PDF upload statistics to count actual files instead of internal objects
-- **User Feedback**: Improved upload success messages with file/chunk/page counts in Chinese
-- **Page Tracking**: Enhanced page information aggregation with proper numerical sorting
-
-### v0.3.1 (2026-04-27)
-- **Documentation Organization**: Enterprise-grade documentation structure with 5 category directories
-- **Documentation Consolidation**: Reduced documentation by 23.9% through deduplication
-- **Documentation Standards**: Implemented single-source-of-truth principle and lifecycle management
-
-### v0.3.0 (2026-04-27)
-- **Modular Architecture**: Refactored from 7 large files (9135 lines) to 65 focused modules
-- **Code Reduction**: 90.7% reduction in main file sizes while maintaining 100% compatibility
-- **Bug Fixes**: 18 critical fixes addressing P0-P3 priority issues
-- **Performance**: 10-30% reduction in redundant LLM calls, 100-500ms latency improvement
 
 ## Prerequisites
 
@@ -236,19 +208,27 @@ Queries are automatically classified into three tiers based on complexity:
 
 ### 1. Backend Setup
 
-**Using Conda (Recommended)**:
+**Conda (recommended)**:
 ```bash
 conda create -n rag-local python=3.11
 conda activate rag-local
 pip install -U pip
 pip install -e .
-copy .env.example .env
+cp .env.example .env   # Windows: copy .env.example .env
 ```
 
-**Using venv**:
+**venv**:
 ```bash
+# macOS/Linux
 python -m venv .venv
-.venv\Scripts\activate
+source .venv/bin/activate
+pip install -U pip
+pip install -e .
+cp .env.example .env
+
+# Windows (PowerShell)
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -U pip
 pip install -e .
 copy .env.example .env
@@ -391,6 +371,12 @@ pytest tests/test_routing_logic.py -v
 pytest --allow-runtime-unavailable
 ```
 
+### Manual Smoke Scripts
+
+Developer-driven verification scripts live under `scripts/dev/`. These are CLI
+tools meant to be run interactively against a real environment, not automated
+tests. See [scripts/dev/README.md](./scripts/dev/README.md) for the catalog.
+
 ### CI/CD Quality Gate
 
 ```bash
@@ -460,18 +446,22 @@ Start with the documentation hub: [docs/README.md](./docs/README.md)
 1. **[docs/README.md](./docs/README.md)** - Documentation hub and navigation guide
 2. **[CHANGELOG.md](./CHANGELOG.md)** - Detailed version history and changes
 3. **[docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md)** - Complete version timeline
+4. **[DOCUMENTATION_POLICY.md](./DOCUMENTATION_POLICY.md)** - Public/internal classification policy
 
 ### Documentation Structure
 
-- **[docs/](./docs/)** - Main documentation directory
+- **[docs/](./docs/)** - Public documentation directory
   - **[releases/](./docs/releases/)** - Release notes and version announcements
+  - **[design/](./docs/design/)** - Feature design specifications and technical proposals
   - **[archive/](./docs/archive/)** - Historical reports and investigations
     - `refactoring/` - Refactoring reports and technical debt cleanup
     - `ui/` - UI modernization and CSS cleanup reports
     - `investigations/` - Technical investigation reports
   - **[development/](./docs/development/)** - Development guides and workflows
   - **[operations/](./docs/operations/)** - Deployment and operational guides
-  - **[project/](./docs/project/)** - Project planning and architecture
+  - **[project/](./docs/project/)** - Project planning and readiness checklists
+  - **[templates/](./docs/templates/)** - Documentation templates
+  - **[images/](./docs/images/)** - Architecture diagrams and screenshots
 
 ### Additional Resources
 
