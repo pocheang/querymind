@@ -43,7 +43,7 @@ PDF_LOADER_MODE=docling  # pypdf|docling|hybrid
 
 ```bash
 conda activate rag-local
-python scripts/test_docling_loader.py data/docs/your_file.pdf
+python scripts/dev/test_docling_loader.py data/docs/your_file.pdf
 ```
 
 这会显示：
@@ -180,7 +180,7 @@ A: 目前是全局配置。未来可以添加per-file配置。
 - **Docling加载器**: `app/ingestion/loaders/pdf_loader.py`
 - **主加载逻辑**: `app/ingestion/loaders.py`
 - **配置**: `app/core/config.py`
-- **测试脚本**: `scripts/test_docling_loader.py`
+- **测试脚本**: `scripts/dev/test_docling_loader.py`
 
 ### 工作流程
 

@@ -170,7 +170,7 @@ def main():
     else:
         print("\n" + "=" * 80)
         print("\nℹ️  To test on a real PDF, run:")
-        print("  python scripts/test_enhanced_pdf.py <path_to_pdf>")
+        print("  python scripts/dev/test_enhanced_pdf.py <path_to_pdf>")
 
     print("\n" + "=" * 80)
     print("✅ All tests complete!")

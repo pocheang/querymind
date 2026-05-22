@@ -91,7 +91,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("用法: python test_layout_vs_text.py <图片路径>")
         print("\n示例:")
-        print("  python scripts/test_layout_vs_text.py data/test_images/document.jpg")
+        print("  python scripts/dev/test_layout_vs_text.py data/test_images/document.jpg")
         print("\n建议测试文档类型:")
         print("  1. 产品手册（有大标题、章节、列表）")
         print("  2. 技术文档（有多级标题）")

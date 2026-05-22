@@ -67,7 +67,7 @@ ANTHROPIC_API_KEY=your_anthropic_key # 如果使用Claude 3
 
 ```bash
 # 测试图表提取
-python scripts/test_chart_extraction.py data/docs/report_with_charts.pdf
+python scripts/dev/test_chart_extraction.py data/docs/report_with_charts.pdf
 ```
 
 ---

@@ -274,13 +274,13 @@ Docling增强处理（表格、清理、合并）
 ### 单元测试
 
 ```bash
-python scripts/test_medium_priority.py
+python scripts/dev/test_medium_priority.py
 ```
 
 ### 集成测试
 
 ```bash
-python scripts/test_medium_priority.py path/to/test.pdf
+python scripts/dev/test_medium_priority.py path/to/test.pdf
 ```
 
 ### 预期输出

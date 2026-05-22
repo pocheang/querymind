@@ -41,7 +41,7 @@ docs.extend(ocr_image_bytes_with_structure(...))
 - 无需修改
 
 ### 4. 创建测试工具
-**文件**: `scripts/test_ocr_integration.py`
+**文件**: `scripts/dev/test_ocr_integration.py`
 
 **功能**:
 - 测试完整的 PDF → OCR → 切分流程
@@ -97,10 +97,10 @@ docs = ocr_image_bytes_with_structure(
 
 ```bash
 # 使用指定 PDF
-python scripts/test_ocr_integration.py data/docs/sample.pdf
+python scripts/dev/test_ocr_integration.py data/docs/sample.pdf
 
 # 自动查找测试 PDF
-python scripts/test_ocr_integration.py
+python scripts/dev/test_ocr_integration.py
 ```
 
 ### 预期输出

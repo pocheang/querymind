@@ -155,10 +155,10 @@ PDF_ENABLE_TABLE_MERGING=true     # 启用表格合并
 
 ```bash
 # 运行测试脚本
-python scripts/test_enhanced_pdf.py
+python scripts/dev/test_enhanced_pdf.py
 
 # 测试真实PDF
-python scripts/test_enhanced_pdf.py data/docs/complex_report.pdf
+python scripts/dev/test_enhanced_pdf.py data/docs/complex_report.pdf
 ```
 
 测试会显示：

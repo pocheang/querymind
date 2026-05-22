@@ -10,7 +10,7 @@ This design covers:
 
 - `scripts/create_admin.py`
 - `scripts/reset_admin_password.py`
-- `scripts/test_and_reset_admin.py`
+- `scripts/dev/test_and_reset_admin.py`
 - shared helper logic used by those scripts
 
 This design does not change:

@@ -140,7 +140,7 @@ def test_with_sample_pdf():
 
     print("❌ 未找到测试 PDF 文件")
     print("\n请提供 PDF 文件路径:")
-    print("  python scripts/test_ocr_integration.py <pdf_path>")
+    print("  python scripts/dev/test_ocr_integration.py <pdf_path>")
 
 
 if __name__ == "__main__":

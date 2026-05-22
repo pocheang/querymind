@@ -94,7 +94,7 @@ def main():
     else:
         print("\n" + "=" * 80)
         print("\nℹ️  To test on a real PDF with charts, run:")
-        print("  python scripts/test_chart_extraction.py <path_to_pdf>")
+        print("  python scripts/dev/test_chart_extraction.py <path_to_pdf>")
         print("\n⚠️  Note: Chart extraction requires:")
         print("  1. OpenAI API key (for GPT-4V) or Anthropic API key (for Claude 3)")
         print("  2. PDF_ENABLE_CHART_EXTRACTION=true in .env")

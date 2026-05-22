@@ -75,9 +75,9 @@ def test_docling_loader(pdf_path: str):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python scripts/test_docling_loader.py <path_to_pdf>")
+        print("Usage: python scripts/dev/test_docling_loader.py <path_to_pdf>")
         print("\nExample:")
-        print("  python scripts/test_docling_loader.py data/docs/sample.pdf")
+        print("  python scripts/dev/test_docling_loader.py data/docs/sample.pdf")
         sys.exit(1)
 
     test_docling_loader(sys.argv[1])
