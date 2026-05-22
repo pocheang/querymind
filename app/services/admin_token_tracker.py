@@ -5,8 +5,17 @@ Tracks approval token usage to implement single-use and expiration mechanisms.
 import hashlib
 import hmac
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+
+def _utcnow() -> datetime:
+    """Return current UTC time as a naive datetime for backward compatibility.
+
+    ``datetime.utcnow`` is deprecated since Python 3.12. Internal storage stays
+    naive so existing comparisons in this module remain valid.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +49,7 @@ class AdminTokenTracker:
             used_at = used_info.get("used_at")
 
             if used_at:
-                age = datetime.utcnow() - used_at
+                age = _utcnow() - used_at
                 if age.total_seconds() < self._expiry_hours * 3600:
                     logger.warning(
                         f"Token reuse attempt detected: hash={token_hash[:8]}..., "
@@ -63,7 +72,7 @@ class AdminTokenTracker:
             user_id: User ID who used the token
         """
         self._used_tokens[token_hash] = {
-            "used_at": datetime.utcnow(),
+            "used_at": _utcnow(),
             "used_by": user_id
         }
         logger.info(f"Token marked as used: hash={token_hash[:8]}..., user={user_id}")
@@ -75,7 +84,7 @@ class AdminTokenTracker:
         Returns:
             Number of tokens cleaned up
         """
-        now = datetime.utcnow()
+        now = _utcnow()
         expired = [
             token_hash for token_hash, info in self._used_tokens.items()
             if (now - info["used_at"]).total_seconds() >= self._expiry_hours * 3600

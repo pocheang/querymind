@@ -1,9 +1,12 @@
 import json
+import logging
 import re
 from collections import Counter
 
 from app.core.config import get_settings
 from app.core.models import get_chat_model
+
+logger = logging.getLogger(__name__)
 
 ENTITY_PATTERN = re.compile(r"\b([A-Z][A-Za-z0-9_\-]{2,}|[\u4e00-\u9fff]{2,12})\b")
 JSON_PATTERN = re.compile(r"\[.*\]", flags=re.DOTALL)
@@ -104,5 +107,5 @@ def extract_triplets(text: str) -> list[tuple[str, str, str]]:
         if llm_triplets:
             return dedupe_triplets(llm_triplets)
     except Exception:
-        pass
+        logger.warning("llm_triplet_extraction_failed_falling_back_to_rules", exc_info=True)
     return dedupe_triplets(extract_triplets_rules(text))

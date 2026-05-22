@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
+import logging
 import threading
 import time
+from contextlib import contextmanager
 from typing import Iterator
 
 from app.core.config import get_settings
 from app.services.rate_limiter import SlidingWindowLimiter
+
+logger = logging.getLogger(__name__)
 
 
 class QueryRateLimitedError(RuntimeError):
@@ -234,9 +237,13 @@ class QueryLoadGuard:
                 try:
                     client.decr(waiting_key)
                 except Exception:
-                    pass
+                    logger.warning(
+                        "query_guard_waiting_decr_failed user_key=%s", user_key, exc_info=True
+                    )
             if acquired:
                 try:
                     client.decr(inflight_key)
                 except Exception:
-                    pass
+                    logger.warning(
+                        "query_guard_inflight_decr_failed user_key=%s", user_key, exc_info=True
+                    )

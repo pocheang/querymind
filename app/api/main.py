@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -99,14 +100,63 @@ _ROUTE_MODULES = (
     admin_users,
     admin_ops,
     admin_settings,
+    admin_language_stats,
+    agent_tracking,
+    evaluation,
+    advanced_rag,
+    analytics,
 )
-
-# Initialize FastAPI app
-app = FastAPI(title="Multi-Agent Local RAG")
 
 # Setup logging
 setup_log_capture()
 logger = logging.getLogger(__name__)
+
+# Auto-ingest watcher state
+_auto_ingest_thread: threading.Thread | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage backend lifecycle (replaces deprecated on_event hooks)."""
+    global _auto_ingest_thread
+
+    # Startup
+    logger.info(
+        "startup_runtime python=%s conda_env=%s model_backend=%s ollama=%s chat_model=%s",
+        sys.executable,
+        str(os.environ.get("CONDA_DEFAULT_ENV", "") or ""),
+        str(settings.model_backend or ""),
+        str(settings.ollama_base_url or ""),
+        str(settings.ollama_chat_model or ""),
+    )
+    shadow_queue.start()
+
+    if settings.auto_ingest_enabled and (
+        _auto_ingest_thread is None or not _auto_ingest_thread.is_alive()
+    ):
+        _auto_ingest_stop_event.clear()
+        _auto_ingest_thread = threading.Thread(
+            target=auto_ingest_watcher.run_loop,
+            args=(lambda: _auto_ingest_stop_event.is_set(),),
+            daemon=True,
+            name="auto-ingest-watcher",
+        )
+        _auto_ingest_thread.start()
+
+    try:
+        yield
+    finally:
+        # Shutdown
+        _auto_ingest_stop_event.set()
+        if _auto_ingest_thread is not None and _auto_ingest_thread.is_alive():
+            _auto_ingest_thread.join(timeout=5)
+        _auto_ingest_thread = None
+        shadow_queue.stop(timeout=2.0)
+        Neo4jClient.close_shared_driver()
+
+
+# Initialize FastAPI app
+app = FastAPI(title="Multi-Agent Local RAG", lifespan=lifespan)
 
 # Configure CORS
 if bool(getattr(settings, "cors_enabled", True)):
@@ -172,51 +222,22 @@ def serve_react_app(frontend_path: str):
     return _serve_react_index()
 
 
-# Auto-ingest watcher state
-_auto_ingest_thread: threading.Thread | None = None
-
-
-@app.on_event("startup")
-def start_auto_ingest_watcher():
-    """Start the auto-ingest watcher on application startup."""
-    global _auto_ingest_thread
-    logger.info(
-        "startup_runtime python=%s conda_env=%s model_backend=%s ollama=%s chat_model=%s",
-        sys.executable,
-        str(os.environ.get("CONDA_DEFAULT_ENV", "") or ""),
-        str(settings.model_backend or ""),
-        str(settings.ollama_base_url or ""),
-        str(settings.ollama_chat_model or ""),
-    )
-    shadow_queue.start()
-    if not settings.auto_ingest_enabled:
-        return
-    if _auto_ingest_thread is not None and _auto_ingest_thread.is_alive():
-        return
-    _auto_ingest_stop_event.clear()
-    _auto_ingest_thread = threading.Thread(
-        target=auto_ingest_watcher.run_loop,
-        args=(lambda: _auto_ingest_stop_event.is_set(),),
-        daemon=True,
-        name="auto-ingest-watcher",
-    )
-    _auto_ingest_thread.start()
-
-
-@app.on_event("shutdown")
-def stop_auto_ingest_watcher():
-    """Stop the auto-ingest watcher on application shutdown."""
-    global _auto_ingest_thread
-    _auto_ingest_stop_event.set()
-    if _auto_ingest_thread is not None and _auto_ingest_thread.is_alive():
-        _auto_ingest_thread.join(timeout=5)
-    _auto_ingest_thread = None
-    shadow_queue.stop(timeout=2.0)
-    Neo4jClient.close_shared_driver()
-
-
 class _CompatMainModule(type(sys)):
-    """Propagate legacy app.api.main monkeypatches to split route modules."""
+    """Backward-compat shim for tests that monkeypatch ``app.api.main`` symbols.
+
+    Many tests do ``monkeypatch.setattr(api_main, "_audit", ...)`` or replace
+    globals such as ``auth_service`` and ``settings`` on ``app.api.main``. After
+    routes were split into ``app.api.routes.*`` and helpers into
+    ``app.api.utils.*``, those modules each hold their own bindings to the same
+    callables/instances. Without this shim, monkeypatching ``app.api.main`` no
+    longer affects the actual code path executed by the routes.
+
+    This metaclass intercepts attribute writes on the ``app.api.main`` module
+    object and propagates them to every module in ``_ROUTE_MODULES`` that
+    already has a binding with the same name. New route modules MUST be added
+    to ``_ROUTE_MODULES`` above; otherwise their copies of shared globals will
+    drift away from the patched ones.
+    """
 
     def __setattr__(self, name, value):
         super().__setattr__(name, value)

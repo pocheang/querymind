@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import threading
 import time
 from typing import Any
 
 from app.core.config import get_settings
 from app.services.resilience import TTLCache
+
+logger = logging.getLogger(__name__)
 
 _REDIS_CLIENT = None
 _REDIS_LOCK = threading.Lock()
@@ -134,7 +137,7 @@ class QueryResultCache:
                         if isinstance(data, dict):
                             return data
                 except Exception:
-                    pass
+                    logger.warning("query_cache_get_failed key=%s", key, exc_info=True)
         v = self._memory.get(key)
         return v if isinstance(v, dict) else None
 
@@ -150,7 +153,7 @@ class QueryResultCache:
                 try:
                     client.setex(f"qcache:{key}", self._ttl_seconds, json.dumps(value, ensure_ascii=False))
                 except Exception:
-                    pass
+                    logger.warning("query_cache_set_failed key=%s", key, exc_info=True)
 
     def mark_inflight(self, key: str) -> bool:
         now = time.time()
@@ -177,6 +180,7 @@ class QueryResultCache:
                             )
                         )
                     except Exception:
+                        logger.warning("query_inflight_lock_failed key=%s", key, exc_info=True)
                         locked = False
                     if not locked:
                         return False
@@ -197,7 +201,7 @@ class QueryResultCache:
                     if current == token:
                         client.delete(f"qinflight:{key}")
                 except Exception:
-                    pass
+                    logger.warning("query_inflight_clear_failed key=%s", key, exc_info=True)
 
     def is_inflight(self, key: str) -> bool:
         backend = self._effective_backend()
@@ -207,7 +211,7 @@ class QueryResultCache:
                 try:
                     return bool(client.exists(f"qinflight:{key}"))
                 except Exception:
-                    pass
+                    logger.warning("query_inflight_check_failed key=%s", key, exc_info=True)
         with self._lock:
             return key in self._inflight
 
@@ -228,7 +232,7 @@ class QueryResultCache:
                                 "done": bool(data.get("done", False)),
                             }
                 except Exception:
-                    pass
+                    logger.warning("query_stream_get_failed key=%s", key, exc_info=True)
         mem = self._stream_memory.get(key)
         if isinstance(mem, dict):
             return {
@@ -254,7 +258,7 @@ class QueryResultCache:
                     ttl = max(1, int(getattr(get_settings(), "stream_replay_cache_ttl_seconds", 600) or 600))
                     client.setex(f"qstream:{key}", ttl, json.dumps(row, ensure_ascii=False))
                 except Exception:
-                    pass
+                    logger.warning("query_stream_append_failed key=%s", key, exc_info=True)
 
     def mark_stream_done(self, key: str) -> None:
         cur = self.get_stream_events(key)
@@ -267,4 +271,4 @@ class QueryResultCache:
                     ttl = max(1, int(getattr(get_settings(), "stream_replay_cache_ttl_seconds", 600) or 600))
                     client.setex(f"qstream:{key}", ttl, json.dumps(row, ensure_ascii=False))
                 except Exception:
-                    pass
+                    logger.warning("query_stream_done_failed key=%s", key, exc_info=True)

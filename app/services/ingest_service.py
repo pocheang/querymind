@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 from typing import Any
 
 from langchain_core.documents import Document
@@ -12,6 +13,8 @@ from app.retrievers.corpus_store import documents_to_records, read_corpus_record
 from app.retrievers.hybrid_retriever import clear_retrieval_cache
 from app.retrievers.parent_store import read_parent_records, write_parent_records
 from app.retrievers.vector_store import add_documents, clear_vector_store_cache, get_vector_store
+
+logger = logging.getLogger(__name__)
 
 
 def _merge_records_by_id(existing: list[dict], incoming: list[dict]) -> list[dict]:
@@ -79,7 +82,7 @@ def ingest_paths(
         try:
             store.delete_collection()
         except Exception:
-            pass
+            logger.warning("vector_store_delete_collection_failed", exc_info=True)
         clear_vector_store_cache()
         store = get_vector_store()
     add_documents(chunks, ids=[record["id"] for record in records])
@@ -90,6 +93,7 @@ def ingest_paths(
     try:
         client = Neo4jClient()
     except Exception:
+        logger.warning("neo4j_client_init_failed", exc_info=True)
         client = None
 
     if client is not None:

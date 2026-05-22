@@ -1,4 +1,5 @@
 from functools import lru_cache
+import logging
 import threading
 
 from langchain_core.documents import Document
@@ -7,6 +8,8 @@ from langchain_chroma import Chroma
 
 from app.core.config import get_settings
 from app.core.models import get_embedding_model
+
+logger = logging.getLogger(__name__)
 
 _VECTOR_OP_LOCK = threading.RLock()
 
@@ -89,7 +92,7 @@ def reset_vector_store_from_records(records: list[dict]):
         try:
             store.delete_collection()
         except Exception:
-            pass
+            logger.warning("vector_store_reset_delete_failed", exc_info=True)
         _get_vector_store_cached.cache_clear()
         store = get_vector_store()
         documents = [Document(page_content=row.get("text", ""), metadata=row.get("metadata", {}) or {}) for row in records]

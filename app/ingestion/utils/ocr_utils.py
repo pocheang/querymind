@@ -1,5 +1,6 @@
 """OCR utilities for image processing."""
 
+import logging
 import os
 import re
 from io import BytesIO
@@ -8,6 +9,8 @@ from pathlib import Path
 from langchain_core.documents import Document
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_ocr_text(text: str) -> str:
@@ -75,7 +78,7 @@ def build_ocr_candidates(image, settings, pil_imageops):
             upscaled = image.resize((int(width * scale), int(height * scale)), resampling)
             candidates.append(("upscaled", upscaled))
         except Exception:
-            pass
+            logger.debug("ocr_upscale_skipped", exc_info=True)
 
     base_variants = list(candidates)
     for base_name, base_image in base_variants:
