@@ -88,19 +88,19 @@ from app.api.utils.response_helpers import (
 
 from app.api.utils.query_helpers import (
     _query_limiter_key,
-    _is_overload_mode,
-    _query_cache_key,
     _trace_id,
     _call_with_supported_kwargs,
-    _run_with_query_runtime,
-    _user_api_settings_for_runtime,
-    _query_model_fingerprint_for_user,
     _normalize_agent_class_hint,
     _normalize_retrieval_strategy,
     _resolve_effective_agent_class,
-    _effective_strategy_for_session,
-    _launch_shadow_run,
 )
+from app.api.utils.query_helpers import _is_overload_mode as _is_overload_mode_impl
+from app.api.utils.query_helpers import _query_cache_key as _query_cache_key_impl
+from app.api.utils.query_helpers import _run_with_query_runtime as _run_with_query_runtime_impl
+from app.api.utils.query_helpers import _user_api_settings_for_runtime as _user_api_settings_for_runtime_impl
+from app.api.utils.query_helpers import _query_model_fingerprint_for_user as _query_model_fingerprint_for_user_impl
+from app.api.utils.query_helpers import _effective_strategy_for_session as _effective_strategy_for_session_impl
+from app.api.utils.query_helpers import _launch_shadow_run as _launch_shadow_run_impl
 
 from app.api.utils.session_helpers import (
     _history_store_for_user,
@@ -112,9 +112,9 @@ from app.api.utils.session_helpers import (
 from app.api.utils.memory_helpers import (
     _memory_store_for_user,
     _memory_signals_from_result,
-    _build_memory_context_for_session,
     _promote_long_term_memory,
 )
+from app.api.utils.memory_helpers import _build_memory_context_for_session as _build_memory_context_for_session_impl
 
 from app.api.utils.document_helpers import (
     _is_source_allowed_for_user,
@@ -125,7 +125,6 @@ from app.api.utils.document_helpers import (
     _source_mtime_ns,
     _visible_index_fingerprint_for_user,
     _vector_context_from_citations,
-    _enforce_result_source_scope,
     _source_scope_needs_resynthesis,
     _resynthesize_after_source_scope,
     _list_visible_pdf_names_for_user,
@@ -135,6 +134,7 @@ from app.api.utils.document_helpers import (
     _guess_agent_class_for_upload,
     _is_probably_valid_upload_signature,
 )
+from app.api.utils.document_helpers import _enforce_result_source_scope as _enforce_result_source_scope_impl
 
 from app.api.utils.admin_helpers import (
     _parse_audit_ts,
@@ -144,8 +144,8 @@ from app.api.utils.admin_helpers import (
     _load_benchmark_queries,
     _check_ollama_ready,
     _check_chroma_ready,
-    _runtime_diagnostics_summary,
 )
+from app.api.utils.admin_helpers import _runtime_diagnostics_summary as _runtime_diagnostics_summary_impl
 
 # Global settings and logger
 settings = get_settings()
@@ -205,13 +205,16 @@ runtime_metrics = RuntimeMetrics()
 
 
 # ============================================================================
-# Wrapper functions that need access to global instances
+# Dependency-injected helpers
 # ============================================================================
+#
+# The functions below bind module-level singletons (auth_service, query_guard,
+# shadow_queue, runtime metrics, ...) to the pure utility helpers in
+# ``app.api.utils.*``. The utils layer is kept singleton-free so it remains
+# unit-testable; this module is the only place that knows about the live
+# dependencies.
 
-# These functions are thin wrappers that inject global dependencies into
-# the utility functions, maintaining backward compatibility.
-
-def _query_cache_key_wrapper(
+def _query_cache_key(
     *,
     user: dict[str, Any],
     session_id: str | None,
@@ -223,9 +226,8 @@ def _query_cache_key_wrapper(
     request_id: str | None,
     mode: str = "query",
 ) -> str:
-    """Wrapper for _query_cache_key that injects dependencies."""
-    from app.api.utils.query_helpers import _query_cache_key
-    return _query_cache_key(
+    """Compute the query cache key, injecting user-scoped fingerprint helpers."""
+    return _query_cache_key_impl(
         user=user,
         session_id=session_id,
         question=question,
@@ -239,14 +241,10 @@ def _query_cache_key_wrapper(
         model_fingerprint_fn=_query_model_fingerprint_for_user,
     )
 
-# Override the imported function with the wrapper
-_query_cache_key = _query_cache_key_wrapper
 
-
-def _run_with_query_runtime_wrapper(*, user: dict[str, Any], request: Request, fn):
-    """Wrapper for _run_with_query_runtime that injects dependencies."""
-    from app.api.utils.query_helpers import _run_with_query_runtime as _run_impl
-    return _run_impl(
+def _run_with_query_runtime(*, user: dict[str, Any], request: Request, fn):
+    """Run ``fn`` under the shared query guard / metrics runtime."""
+    return _run_with_query_runtime_impl(
         user=user,
         request=request,
         fn=fn,
@@ -255,21 +253,21 @@ def _run_with_query_runtime_wrapper(*, user: dict[str, Any], request: Request, f
         api_settings_fn=_user_api_settings_for_runtime,
     )
 
-_run_with_query_runtime = _run_with_query_runtime_wrapper
+
+def _is_overload_mode() -> bool:
+    """Return True when the query guard is currently shedding load."""
+    return _is_overload_mode_impl(query_guard)
 
 
-def _is_overload_mode_wrapper() -> bool:
-    """Wrapper for _is_overload_mode that injects dependencies."""
-    from app.api.utils.query_helpers import _is_overload_mode as _is_overload_impl
-    return _is_overload_impl(query_guard)
-
-_is_overload_mode = _is_overload_mode_wrapper
-
-
-def _launch_shadow_run_wrapper(*, user: dict[str, Any], session_id: str | None, question: str, primary_result: dict[str, Any]) -> None:
-    """Wrapper for _launch_shadow_run that injects dependencies."""
-    from app.api.utils.query_helpers import _launch_shadow_run as _launch_impl
-    return _launch_impl(
+def _launch_shadow_run(
+    *,
+    user: dict[str, Any],
+    session_id: str | None,
+    question: str,
+    primary_result: dict[str, Any],
+) -> None:
+    """Schedule a shadow comparison run on the background queue."""
+    return _launch_shadow_run_impl(
         user=user,
         session_id=session_id,
         question=question,
@@ -277,15 +275,12 @@ def _launch_shadow_run_wrapper(*, user: dict[str, Any], session_id: str | None, 
         shadow_queue=shadow_queue,
     )
 
-_launch_shadow_run = _launch_shadow_run_wrapper
 
-
-def _effective_strategy_for_session_wrapper(
+def _effective_strategy_for_session(
     *, req_strategy: str | None, user: dict[str, Any], session_id: str | None, question: str
 ) -> tuple[str, dict[str, Any]]:
-    """Wrapper for _effective_strategy_for_session that injects dependencies."""
-    from app.api.utils.query_helpers import _effective_strategy_for_session as _effective_impl
-    return _effective_impl(
+    """Resolve the strategy to use for a session, honoring strategy locks."""
+    return _effective_strategy_for_session_impl(
         req_strategy=req_strategy,
         user=user,
         session_id=session_id,
@@ -293,50 +288,37 @@ def _effective_strategy_for_session_wrapper(
         history_store_fn=_history_store_for_user,
     )
 
-_effective_strategy_for_session = _effective_strategy_for_session_wrapper
+
+def _build_memory_context_for_session(
+    user: dict[str, Any], session_id: str | None, question: str
+) -> str:
+    """Build the LLM-ready memory context block for a session."""
+    return _build_memory_context_for_session_impl(
+        user, session_id, question, _history_store_for_user
+    )
 
 
-def _build_memory_context_for_session_wrapper(user: dict[str, Any], session_id: str | None, question: str) -> str:
-    """Wrapper for _build_memory_context_for_session that injects dependencies."""
-    from app.api.utils.memory_helpers import _build_memory_context_for_session as _build_impl
-    return _build_impl(user, session_id, question, _history_store_for_user)
-
-_build_memory_context_for_session = _build_memory_context_for_session_wrapper
-
-
-def _enforce_result_source_scope_wrapper(
+def _enforce_result_source_scope(
     result: dict[str, Any], allowed_sources: list[str], request: Request, user: dict[str, Any]
 ) -> dict[str, Any]:
-    """Wrapper for _enforce_result_source_scope that injects dependencies."""
-    from app.api.utils.document_helpers import _enforce_result_source_scope as _enforce_impl
-    return _enforce_impl(result, allowed_sources, request, user, _audit)
-
-_enforce_result_source_scope = _enforce_result_source_scope_wrapper
+    """Drop citations outside the user's allowed source scope, with audit logging."""
+    return _enforce_result_source_scope_impl(result, allowed_sources, request, user, _audit)
 
 
-def _runtime_diagnostics_summary_wrapper() -> dict[str, Any]:
-    """Wrapper for _runtime_diagnostics_summary that injects dependencies."""
+def _runtime_diagnostics_summary() -> dict[str, Any]:
+    """Compose the runtime diagnostics block surfaced on /admin/* endpoints."""
     from app.api.middleware import get_request_metrics
-    from app.api.utils.admin_helpers import _runtime_diagnostics_summary as _runtime_impl
-    return _runtime_impl(get_request_metrics)
-
-_runtime_diagnostics_summary = _runtime_diagnostics_summary_wrapper
+    return _runtime_diagnostics_summary_impl(get_request_metrics)
 
 
-def _user_api_settings_for_runtime_wrapper(user: dict[str, Any]) -> dict[str, Any] | None:
-    """Wrapper for _user_api_settings_for_runtime that injects dependencies."""
-    from app.api.utils.query_helpers import _user_api_settings_for_runtime as _user_api_impl
-    return _user_api_impl(user, auth_service)
-
-_user_api_settings_for_runtime = _user_api_settings_for_runtime_wrapper
+def _user_api_settings_for_runtime(user: dict[str, Any]) -> dict[str, Any] | None:
+    """Resolve per-user API settings for runtime model selection."""
+    return _user_api_settings_for_runtime_impl(user, auth_service)
 
 
-def _query_model_fingerprint_for_user_wrapper(user: dict[str, Any]) -> str:
-    """Wrapper for _query_model_fingerprint_for_user that injects dependencies."""
-    from app.api.utils.query_helpers import _query_model_fingerprint_for_user as _query_model_impl
-    return _query_model_impl(user, auth_service, get_global_model_settings)
-
-_query_model_fingerprint_for_user = _query_model_fingerprint_for_user_wrapper
+def _query_model_fingerprint_for_user(user: dict[str, Any]) -> str:
+    """Compute a fingerprint of the resolved model config for cache invalidation."""
+    return _query_model_fingerprint_for_user_impl(user, auth_service, get_global_model_settings)
 
 
 # ============================================================================
