@@ -8,6 +8,7 @@ This module provides secure admin operations with:
 - Input validation
 """
 import hashlib
+import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
@@ -44,6 +45,25 @@ from app.api.utils.admin_helpers import handle_service_exception
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 limiter = get_limiter()
+
+
+def _audit_detail(**fields: Any) -> str:
+    """Render audit detail as a stable JSON string.
+
+    Using JSON instead of ``"k1=v1; k2=v2"`` ensures user-supplied values
+    (e.g. ``reason``) cannot break parsing or smuggle separators.
+    Empty string and None values are normalized to ``None``.
+    """
+    cleaned: dict[str, Any] = {}
+    for key, value in fields.items():
+        if value is None:
+            cleaned[key] = None
+            continue
+        if isinstance(value, str):
+            cleaned[key] = value.strip() or None
+        else:
+            cleaned[key] = value
+    return json.dumps(cleaned, ensure_ascii=False, sort_keys=True)
 
 
 @router.get("/users", response_model=list[AdminUserSummary])
@@ -113,7 +133,7 @@ def admin_create_user_as_admin(
     actor_user_id = str(user.get("user_id", ""))
 
     # Security: Validate approval token (single-use, timing-attack resistant)
-    validate_and_check_approval_token(
+    token_ok, token_mode = validate_and_check_approval_token(
         approval_token,
         actor_user_id,
         "admin.user.create_admin",
@@ -153,7 +173,12 @@ def admin_create_user_as_admin(
         result="success",
         user=user,
         resource_id=row["user_id"],
-        detail=f"username={row['username']}; mode={token_mode}; ticket={ticket_id}; reason={reason}",
+        detail=_audit_detail(
+            username=row["username"],
+            mode=token_mode,
+            ticket=ticket_id,
+            reason=reason,
+        ),
     )
     return AdminUserSummary(**row)
 
@@ -182,7 +207,7 @@ def admin_reset_user_approval_token(
     actor_user_id = str(user.get("user_id", ""))
 
     # Security: Validate approval token
-    validate_and_check_approval_token(
+    token_ok, token_mode = validate_and_check_approval_token(
         approval_token,
         actor_user_id,
         "admin.user.reset_approval_token",
@@ -216,9 +241,12 @@ def admin_reset_user_approval_token(
         result="success",
         user=user,
         resource_id=user_id,
-        detail=(
-            f"target={target.get('username', '-')}; mode={token_mode}; ticket={ticket_id}; reason={reason}; "
-            f"actor={user.get('username', '-')}"
+        detail=_audit_detail(
+            target=target.get("username", "-"),
+            mode=token_mode,
+            ticket=ticket_id,
+            reason=reason,
+            actor=user.get("username", "-"),
         ),
     )
     return AdminUserSummary(**row)
@@ -243,7 +271,7 @@ def admin_reset_user_password(
     actor_user_id = str(user.get("user_id", ""))
 
     # Security: Validate approval token
-    validate_and_check_approval_token(
+    token_ok, token_mode = validate_and_check_approval_token(
         approval_token,
         actor_user_id,
         "admin.user.reset_password",
@@ -275,9 +303,12 @@ def admin_reset_user_password(
         result="success",
         user=user,
         resource_id=user_id,
-        detail=(
-            f"target={target.get('username', '-')}; mode={token_mode}; ticket={ticket_id}; reason={reason}; "
-            f"actor={user.get('username', '-')}"
+        detail=_audit_detail(
+            target=target.get("username", "-"),
+            mode=token_mode,
+            ticket=ticket_id,
+            reason=reason,
+            actor=user.get("username", "-"),
         ),
     )
     return AdminUserSummary(**row)

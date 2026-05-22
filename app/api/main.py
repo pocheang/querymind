@@ -158,17 +158,43 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app
 app = FastAPI(title="Multi-Agent Local RAG", lifespan=lifespan)
 
-# Configure CORS
-if bool(getattr(settings, "cors_enabled", True)):
-    cors_origins = settings.cors_origins or []
+
+def _configure_cors(app_obj: FastAPI, settings_obj) -> None:
+    """Attach CORS middleware according to settings, with prod-safety guards.
+
+    Refuses to start when ``CORS_ALLOW_ORIGINS`` includes ``*`` and
+    ``APP_ENV`` is set to ``prod`` / ``production``. Wildcards are still
+    accepted in dev/staging but credentials are disabled in that case.
+    """
+    if not bool(getattr(settings_obj, "cors_enabled", True)):
+        return
+
+    cors_origins = settings_obj.cors_origins or []
     allow_all = "*" in cors_origins
-    app.add_middleware(
+    is_production = str(getattr(settings_obj, "app_env", "dev") or "").strip().lower() in {
+        "prod",
+        "production",
+    }
+
+    if allow_all and is_production:
+        raise RuntimeError(
+            "Refusing to start: CORS_ALLOW_ORIGINS=='*' is not allowed when APP_ENV is "
+            "'prod' or 'production'. Set CORS_ALLOW_ORIGINS to an explicit comma-separated "
+            "list of trusted frontend origins (https URLs)."
+        )
+
+    app_obj.add_middleware(
         CORSMiddleware,
         allow_origins=["*"] if allow_all else cors_origins,
-        allow_credentials=bool(getattr(settings, "cors_allow_credentials", True)) and (not allow_all),
-        allow_methods=settings.cors_methods,
-        allow_headers=settings.cors_headers,
+        allow_credentials=bool(getattr(settings_obj, "cors_allow_credentials", True))
+        and (not allow_all),
+        allow_methods=settings_obj.cors_methods,
+        allow_headers=settings_obj.cors_headers,
     )
+
+
+# Configure CORS
+_configure_cors(app, settings)
 
 # Add request timing middleware
 app.middleware("http")(request_timing_middleware)
