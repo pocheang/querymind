@@ -234,6 +234,33 @@ pip install -e .
 copy .env.example .env
 ```
 
+**Optional extras** (install only what you need):
+
+```bash
+# Tesseract-based OCR for scanned PDFs / images
+pip install -e ".[ocr]"
+
+# Cross-encoder reranker (BAAI/bge-reranker-v2-m3 by default)
+pip install -e ".[reranker]"
+
+# Docling for advanced PDF / DOCX / PPTX structured extraction
+pip install -e ".[docling]"
+
+# PaddleOCR for layout-aware Chinese OCR (~500MB native libs)
+pip install -e ".[paddle]"
+
+# All optional features at once (matches the historical "full" install)
+pip install -e ".[full]"
+
+# Development tooling (pytest, ruff, etc.)
+pip install -e ".[dev]"
+```
+
+The minimal `pip install -e .` boots the FastAPI backend, hybrid retriever
+(vector + BM25), graph integration, and basic PDF/text ingestion. OCR, the
+reranker, Docling, and PaddleOCR are loaded on-demand and degrade gracefully
+when their packages are absent.
+
 ### 2. Configure Environment
 
 Edit `.env` and set the backend you want to use.
