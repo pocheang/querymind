@@ -2,6 +2,79 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2026-05-22
+
+### 🛡️ Hardening & Hygiene Release
+
+This release is a focused hardening pass on v0.4.1. No user-facing
+features. **Net change: 18 files, +471 / −742 lines (net −271).**
+Five focused, independently reviewable commits.
+
+See [docs/releases/RELEASE_NOTES_v0.4.2.md](./docs/releases/RELEASE_NOTES_v0.4.2.md)
+for the full breakdown.
+
+#### Removed
+
+- `app/api/routes/admin_users.py.backup` (375 lines of accidentally
+  committed scratch text).
+- `app/services/auth.py` (135 lines of dead code shadowed by the
+  `app/services/auth/` subpackage; verified at runtime never to load).
+- `pytest.ini` and `.coveragerc` (settings consolidated into
+  `pyproject.toml`).
+- The `_xxx_wrapper` indirection pattern in `app/api/dependencies.py`:
+  10 helpers collapsed from three declarations each to one.
+
+#### Changed
+
+- **FastAPI lifecycle**: `@app.on_event("startup"/"shutdown")` →
+  `lifespan` async context manager.
+- **`_ROUTE_MODULES` tuple now includes** five recently added route
+  modules (`admin_language_stats`, `agent_tracking`, `evaluation`,
+  `advanced_rag`, `analytics`), preventing silent monkeypatch
+  failures.
+- **9 silent-failure paths now log warnings** (Redis cache get/set,
+  inflight lock/clear/check, stream replay, vector store collection
+  reset, Neo4j client init, LLM triplet fallback, OCR upscale).
+- **`datetime.utcnow()` → `datetime.now(timezone.utc)`** in
+  `admin_token_tracker.py` (Python 3.12+ compatibility).
+- **Heavy ML/OCR stacks moved to optional extras** (`[ocr]`,
+  `[paddle]`, `[docling]`, `[reranker]`, `[full]`). Core install is
+  now ~2GB lighter.
+- **`pyproject.toml` consolidates** tooling config:
+  `[tool.pytest.ini_options]`, `[tool.coverage.*]`, `[tool.ruff]`.
+
+#### Added
+
+- **`_configure_cors(app, settings)`** with production wildcard
+  refusal: when `APP_ENV` is `prod` / `production` and
+  `CORS_ALLOW_ORIGINS` includes `*`, startup fails with a clear error.
+- **`_audit_detail(**fields)`** helper in `admin_users.py`: admin
+  audit details for `create_admin`, `reset_password`,
+  `reset_approval_token` are now JSON-serialized so user-supplied
+  `reason` values cannot break parsing.
+- **`tests/test_cors_prod_guard.py`** (5 unit tests) for the CORS
+  production guard.
+- **README "Optional extras" install block** documenting each extra.
+
+#### Fixed
+
+- **Latent `NameError` on three admin endpoints**: the call to
+  `validate_and_check_approval_token()` returns `tuple[bool, str]`
+  but the result was being discarded while the next f-string
+  referenced `token_mode`. Now captures the tuple. The bug never
+  fired in practice because all covering tests mock the validator.
+
+#### Migration
+
+| If you... | Action |
+|-----------|--------|
+| Run with default config | Nothing required |
+| Have `APP_ENV=prod` and `CORS_ALLOW_ORIGINS=*` | Replace `*` with explicit https origins |
+| Parse audit `detail` for admin endpoints | Switch to `json.loads(detail)` |
+| Need OCR / reranker / Docling | Install with `pip install -e ".[full]"` or pick a subset |
+
+---
+
 ## [0.4.1] - 2026-05-20
 
 ### 🎯 Major Refactoring - Code Quality Improvements
