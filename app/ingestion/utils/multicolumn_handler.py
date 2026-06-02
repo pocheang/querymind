@@ -107,7 +107,11 @@ def extract_text_blocks_from_page(page) -> list[dict]:
         # Fallback: treat as single block
         return [{"text": text, "x": 0, "y": 0, "width": 100}]
 
-    except Exception:
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.debug(f"Failed to detect columns in text block: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error in column detection: {e}")
         return []
 
 

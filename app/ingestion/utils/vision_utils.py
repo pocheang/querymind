@@ -55,7 +55,9 @@ def _describe_image_openai(img_bytes: bytes, settings) -> dict:
 
     try:
         text = str((((data.get("choices") or [])[0]).get("message") or {}).get("content") or "").strip()
-    except Exception:
+    except (IndexError, KeyError, AttributeError, TypeError) as e:
+        # Failed to extract text from OpenAI response structure
+        logger.debug(f"Failed to extract caption from OpenAI response: {e}")
         text = ""
     if not text:
         return {"status": "openai_empty", "caption": "", "model": model, "error": ""}

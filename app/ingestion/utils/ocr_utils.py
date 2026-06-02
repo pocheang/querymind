@@ -52,7 +52,9 @@ def autorotate_image(image, pytesseract_module):
         osd = pytesseract_module.image_to_osd(image)
         match = re.search(r"Rotate:\s*(\d+)", osd or "")
         degrees = int(match.group(1)) if match else 0
-    except Exception:
+    except (RuntimeError, ValueError) as e:
+        # OSD detection failed or invalid rotation value
+        logger.debug(f"OSD detection failed, skipping rotation: {e}")
         degrees = 0
     if degrees in {90, 180, 270}:
         return image.rotate(360 - degrees, expand=True)
@@ -77,8 +79,10 @@ def build_ocr_candidates(image, settings, pil_imageops):
             scale = settings.ocr_upscale_min_side / float(min_side)
             upscaled = image.resize((int(width * scale), int(height * scale)), resampling)
             candidates.append(("upscaled", upscaled))
-        except Exception:
-            logger.debug("ocr_upscale_skipped", exc_info=True)
+        except (OSError, ValueError, AttributeError) as e:
+            logger.debug(f"OCR upscale skipped: {e}")
+        except Exception as e:
+            logger.debug(f"OCR upscale failed unexpectedly: {e}", exc_info=True)
 
     base_variants = list(candidates)
     for base_name, base_image in base_variants:
