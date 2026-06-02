@@ -64,7 +64,8 @@ def _extract_json_array(text: str) -> list[dict]:
     try:
         data = json.loads(match.group(0))
         return data if isinstance(data, list) else []
-    except Exception:
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.debug(f"Failed to parse JSON array from LLM response: {e}")
         return []
 
 
@@ -106,6 +107,8 @@ def extract_triplets(text: str) -> list[tuple[str, str, str]]:
         llm_triplets = extract_triplets_llm(text)
         if llm_triplets:
             return dedupe_triplets(llm_triplets)
-    except Exception:
-        logger.warning("llm_triplet_extraction_failed_falling_back_to_rules", exc_info=True)
+    except (RuntimeError, ValueError) as e:
+        logger.warning(f"LLM triplet extraction failed, falling back to rules: {e}")
+    except Exception as e:
+        logger.warning(f"Unexpected error in LLM triplet extraction, falling back to rules: {e}", exc_info=True)
     return dedupe_triplets(extract_triplets_rules(text))

@@ -108,7 +108,8 @@ def load_pdf_image_ocr(path: Path) -> list[Document]:
     """Extract and OCR images from PDF pages."""
     try:
         from pypdf import PdfReader
-    except Exception:
+    except ImportError as e:
+        logger.warning(f"pypdf not available for image OCR: {e}")
         return []
 
     from app.ingestion.utils.ocr_enhanced import ocr_image_bytes_with_structure
@@ -116,14 +117,16 @@ def load_pdf_image_ocr(path: Path) -> list[Document]:
     docs: list[Document] = []
     try:
         reader = PdfReader(str(path))
-    except Exception:
+    except (OSError, ValueError) as e:
+        logger.warning(f"Failed to read PDF for image OCR {path}: {e}")
         return docs
 
     for page_idx, page in enumerate(reader.pages, start=1):
         try:
             images = list(page.images or [])
-        except Exception:
-            images = []
+        except (AttributeError, TypeError) as e:
+            logger.debug(f"Failed to extract images from page {page_idx}: {e}")
+            images =[]
         for img_idx, img_obj in enumerate(images, start=1):
             img_bytes = getattr(img_obj, "data", None)
             if not img_bytes:

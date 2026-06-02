@@ -11,6 +11,7 @@ def load_image_file(path: Path) -> list[Document]:
     """Load and OCR an image file."""
     try:
         img_bytes = path.read_bytes()
-    except Exception:
+    except (OSError, IOError) as e:
+        logger.warning(f"Failed to read image file {path}: {e}")
         return []
     return ocr_image_bytes(img_bytes, source=path)
