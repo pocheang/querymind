@@ -181,24 +181,95 @@ def organize_documents_by_category(data_dir: Path = None, dry_run: bool = True):
         print("   要实际执行，请使用 --execute 参数")
     else:
         print("\n开始组织文档...")
-        # TODO: 实现文档移动逻辑
-        print("✅ 文档组织完成")
+        import shutil
+
+        moved_count = 0
+        skipped_count = 0
+        failed_count = 0
+
+        for file_path, category in classifications.items():
+            try:
+                source = data_dir / file_path
+
+                # 检查源文件是否存在
+                if not source.exists():
+                    print(f"⚠️  源文件不存在: {file_path}")
+                    skipped_count += 1
+                    continue
+
+                # 创建目标目录
+                target_dir = data_dir / "classified" / category
+                target_dir.mkdir(parents=True, exist_ok=True)
+                target = target_dir / source.name
+
+                # 检查目标文件是否已存在
+                if target.exists():
+                    print(f"⚠️  跳过（目标已存在）: {file_path}")
+                    skipped_count += 1
+                    continue
+
+                # 移动文件
+                shutil.move(str(source), str(target))
+                moved_count += 1
+                print(f"✅ 已移动: {file_path} -> classified/{category}/")
+
+            except Exception as e:
+                failed_count += 1
+                print(f"❌ 移动失败: {file_path} - {e}")
+
+        print(f"\n移动完成: 成功 {moved_count}, 跳过 {skipped_count}, 失败 {failed_count}")
 
     return classifications
 
 
-def update_document_metadata(classifications: dict):
-    """更新数据库中的文档元数据"""
+def update_document_metadata(classifications: dict, data_dir: Path = None):
+    """更新数据库中的文档元数据
+
+    使用JSON文件存储文档分类元数据，便于后续查询和管理。
+    """
+    import json
+    from datetime import datetime
+
     print("\n" + "=" * 60)
     print("更新文档元数据")
     print("=" * 60)
 
     try:
-        # TODO: 实现数据库更新逻辑
-        for file_path, category in classifications.items():
-            print(f"更新: {file_path} -> {category}")
+        if data_dir is None:
+            settings = get_settings()
+            data_dir = Path(settings.data_dir)
 
-        print("✅ 元数据更新完成")
+        # 元数据文件路径
+        metadata_file = data_dir / "document_metadata.json"
+
+        # 读取现有元数据
+        if metadata_file.exists():
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            print(f"📄 已加载现有元数据: {len(metadata)} 条记录")
+        else:
+            metadata = {}
+            print("📄 创建新的元数据文件")
+
+        # 更新分类信息
+        updated_count = 0
+        for file_path, category in classifications.items():
+            metadata[file_path] = {
+                "category": category,
+                "classified_at": datetime.now().isoformat(),
+                "auto_classified": True,
+                "file_name": Path(file_path).name
+            }
+            updated_count += 1
+            print(f"✅ 更新: {file_path} -> {category}")
+
+        # 保存更新后的元数据
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
+
+        print(f"\n✅ 元数据更新完成: {updated_count} 条记录")
+        print(f"📁 保存位置: {metadata_file}")
+
     except Exception as e:
         print(f"❌ 更新失败: {e}")
 

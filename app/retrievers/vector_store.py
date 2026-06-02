@@ -91,8 +91,10 @@ def reset_vector_store_from_records(records: list[dict]):
         store = get_vector_store()
         try:
             store.delete_collection()
-        except Exception:
-            logger.warning("vector_store_reset_delete_failed", exc_info=True)
+        except (RuntimeError, ValueError) as e:
+            logger.warning(f"vector_store_reset_delete_failed: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Unexpected error deleting vector store collection: {e}", exc_info=True)
         _get_vector_store_cached.cache_clear()
         store = get_vector_store()
         documents = [Document(page_content=row.get("text", ""), metadata=row.get("metadata", {}) or {}) for row in records]

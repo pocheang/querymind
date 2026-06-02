@@ -24,7 +24,8 @@ def _parse_audit_ts(value: str | None) -> datetime:
         return datetime.fromtimestamp(0, tz=timezone.utc)
     try:
         dt = datetime.fromisoformat(value)
-    except Exception:
+    except (ValueError, TypeError) as e:
+        # Invalid timestamp format, return epoch
         return datetime.fromtimestamp(0, tz=timezone.utc)
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
@@ -58,7 +59,8 @@ def _parse_request_ts(value: str | None) -> datetime:
         return datetime.fromtimestamp(0, tz=timezone.utc)
     try:
         dt = datetime.fromisoformat(value)
-    except Exception:
+    except (ValueError, TypeError) as e:
+        # Invalid timestamp format, return epoch
         return datetime.fromtimestamp(0, tz=timezone.utc)
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
@@ -73,7 +75,8 @@ def _extract_grounding_support_from_detail(detail: str | None) -> float | None:
         return None
     try:
         v = float(m.group(1))
-    except Exception:
+    except (ValueError, TypeError) as e:
+        # Invalid float format
         return None
     if v < 0:
         return 0.0

@@ -44,8 +44,13 @@ def emit_alert(event_type: str, payload: dict[str, Any]) -> bool:
         with _LOCK:
             _LAST_SENT[event_type] = now
         return True
-    except Exception:
+    except (httpx.HTTPError, httpx.TimeoutException, httpx.RequestError) as e:
         # keep silent to avoid cascading failures
+        logger.debug(f"Webhook notification failed: {e}")
+        return False
+    except Exception as e:
+        # Catch unexpected errors to avoid cascading failures
+        logger.warning(f"Unexpected error in webhook notification: {e}")
         return False
 
 

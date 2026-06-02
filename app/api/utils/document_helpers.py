@@ -101,7 +101,9 @@ def _source_mtime_ns(source: str) -> int:
         path = Path(source)
         if path.exists() and path.is_file():
             return int(path.stat().st_mtime_ns)
-    except Exception:
+    except (OSError, ValueError) as e:
+        # File access error or invalid path
+        logger.debug(f"Cannot get mtime for {source}: {e}")
         return 0
     return 0
 
@@ -300,7 +302,8 @@ def _visible_doc_chunks_by_filename_for_user(user: dict[str, Any]) -> dict[str, 
             continue
         try:
             chunks = int(row.get("chunks", 0) or 0)
-        except Exception:
+        except (ValueError, TypeError) as e:
+            # Invalid chunk count, default to 0
             chunks = 0
         if filename not in mapping:
             mapping[filename] = chunks

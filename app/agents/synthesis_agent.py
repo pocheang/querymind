@@ -129,7 +129,8 @@ def _extract_json(text: str) -> dict:
         return {}
     try:
         data = json.loads(match.group(0))
-    except Exception:
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.debug(f"Failed to parse JSON: {e}")
         return {}
     return data if isinstance(data, dict) else {}
 
@@ -302,7 +303,14 @@ def synthesize_answer(
             "answer": final_answer,
             "detected_language": detected_language,
         }
-    except Exception:
+    except (RuntimeError, ValueError) as e:
+        logger.error(f"Synthesis failed: {e}")
+        return {
+            "answer": SYNTHESIS_FALLBACK_MESSAGE,
+            "detected_language": detected_language,
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error in synthesis: {e}", exc_info=True)
         return {
             "answer": SYNTHESIS_FALLBACK_MESSAGE,
             "detected_language": detected_language,

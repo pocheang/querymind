@@ -16,7 +16,11 @@ def _load_cross_encoder():
             trust_remote_code=True,
             local_files_only=True,
         )
-    except Exception:
+    except ImportError as e:
+        logger.warning(f"sentence-transformers not installed: {e}")
+        return None
+    except (OSError, RuntimeError) as e:
+        logger.warning(f"Failed to load reranker model: {e}")
         return None
 
 
@@ -87,7 +91,11 @@ def rerank(query: str, candidates: list[dict], top_n: int | None = None) -> list
     pairs = [[query, item.get("text", "")] for item in candidates]
     try:
         scores = call_with_circuit_breaker("reranker.predict", lambda: model.predict(pairs))
-    except Exception:
+    except (RuntimeError, ValueError) as e:
+        logger.warning(f"Reranker prediction failed: {e}, falling back to lexical reranking")
+        return _lexical_fallback_rerank(query, candidates, top_n=limit)
+    except Exception as e:
+        logger.error(f"Unexpected reranker error: {e}, falling back to lexical reranking")
         return _lexical_fallback_rerank(query, candidates, top_n=limit)
 
     rescored = []

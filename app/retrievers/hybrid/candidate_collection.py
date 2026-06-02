@@ -29,7 +29,8 @@ def filter_vector_results(vector_results, score_threshold: float) -> list[tuple]
         doc, score = row
         try:
             score_value = float(score)
-        except Exception:
+        except (ValueError, TypeError) as e:
+            logger.debug(f"Invalid score value, skipping: {e}")
             continue
         if score_value >= score_threshold:
             filtered.append((doc, score_value))

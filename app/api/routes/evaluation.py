@@ -2,14 +2,19 @@
 
 import json
 import logging
+import time
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.api.utils.error_responses import not_found, bad_request, internal_error, not_implemented
+from app.core.config import get_settings
+from app.retrievers.hybrid_retriever import hybrid_search_with_diagnostics
+from app.retrievers.vector_store import similarity_search
+from app.evaluation.models import RetrievalResult
 
 from app.evaluation import (
     TestQuery,
@@ -59,23 +64,121 @@ class SystemComparisonResponse(BaseModel):
     metrics: EvaluationMetricsResponse
 
 
+class SimpleRetriever:
+    """Simple retriever wrapper for evaluation."""
+
+    def __init__(self, system_name: str):
+        """Initialize retriever with system configuration.
+
+        Args:
+            system_name: "vector_only", "hybrid", or "rerank"
+        """
+        self.system_name = system_name
+        self.settings = get_settings()
+
+    def retrieve(self, query: str, query_id: str = "") -> RetrievalResult:
+        """Retrieve documents for a query.
+
+        Args:
+            query: Query text
+            query_id: Optional query ID for tracking
+
+        Returns:
+            RetrievalResult with retrieved document IDs and latency
+        """
+        start_time = time.time()
+
+        try:
+            if self.system_name == "vector_only":
+                # Pure vector search
+                results = similarity_search(
+                    query=query,
+                    top_k=self.settings.vector_top_k or 10,
+                    allowed_sources=None
+                )
+                retrieved_docs = [doc.get("source", "") for doc in results]
+
+            elif self.system_name == "hybrid":
+                # Hybrid search without reranking
+                results, _ = hybrid_search_with_diagnostics(
+                    query=query,
+                    allowed_sources=None,
+                    retrieval_strategy="baseline"  # No reranking
+                )
+                retrieved_docs = [doc.get("source", "") for doc in results]
+
+            elif self.system_name == "rerank":
+                # Hybrid search with reranking
+                results, _ = hybrid_search_with_diagnostics(
+                    query=query,
+                    allowed_sources=None,
+                    retrieval_strategy="advanced"  # With reranking
+                )
+                retrieved_docs = [doc.get("source", "") for doc in results]
+
+            else:
+                raise ValueError(f"Unknown system: {self.system_name}")
+
+            latency_ms = (time.time() - start_time) * 1000
+
+            return RetrievalResult(
+                query_id=query_id,
+                query=query,
+                retrieved_docs=retrieved_docs,
+                latency_ms=latency_ms
+            )
+
+        except Exception as e:
+            logger.error(f"Retrieval failed for query '{query}': {e}")
+            # Return empty result on error
+            latency_ms = (time.time() - start_time) * 1000
+            return RetrievalResult(
+                query_id=query_id,
+                query=query,
+                retrieved_docs=[],
+                latency_ms=latency_ms
+            )
+
+    def batch_retrieve(
+        self,
+        queries: List[tuple[str, str]]
+    ) -> List[RetrievalResult]:
+        """Retrieve documents for multiple queries.
+
+        Args:
+            queries: List of (query_text, query_id) tuples
+
+        Returns:
+            List of RetrievalResult objects
+        """
+        results = []
+        for query_text, query_id in queries:
+            result = self.retrieve(query_text, query_id)
+            results.append(result)
+        return results
+
+
 def get_retriever(system_name: str):
     """Get retriever instance by system name.
-    
-    Note: This is a placeholder. In a real implementation, this would
-    return actual retriever instances configured with the vectorstore,
-    BM25 index, and reranking model.
+
+    Args:
+        system_name: "vector_only", "hybrid", or "rerank"
+
+    Returns:
+        SimpleRetriever instance configured for the system
+
+    Raises:
+        HTTPException: If system name is invalid
     """
-    # TODO: Implement actual retriever instantiation
-    # This requires:
-    # 1. Access to the Chroma vectorstore
-    # 2. BM25 index for hybrid search
-    # 3. Reranking model for rerank baseline
-    
-    raise not_implemented(
-        f"Retriever instantiation not yet implemented. "
-        f"Please use the evaluation module directly for now."
-    )
+    valid_systems = ["vector_only", "hybrid", "rerank"]
+
+    if system_name not in valid_systems:
+        raise bad_request(
+            f"Unknown system: {system_name}. "
+            f"Available systems: {', '.join(valid_systems)}"
+        )
+
+    return SimpleRetriever(system_name)
 
 
 @router.get("/queries", response_model=List[TestQuery])
