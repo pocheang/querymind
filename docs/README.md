@@ -1,7 +1,7 @@
 # Documentation Hub
 
 **Status**: Public  
-**Last Updated**: 2026-05-16  
+**Last Updated**: 2026-06-02  
 **Audience**: Users, operators, contributors, maintainers  
 
 This directory is the public GitHub documentation hub for Multi-Agent Local RAG.
@@ -19,15 +19,14 @@ audits, security findings, private plans, and generated reports are kept under
 | [../CHANGELOG.md](../CHANGELOG.md) | Public change history | Users, maintainers |
 | [../DOCUMENTATION_POLICY.md](../DOCUMENTATION_POLICY.md) | Documentation governance policy | Maintainers |
 | [INDEX.md](INDEX.md) | Complete documentation index | All users |
-| [PUBLICATION_MATRIX.md](PUBLICATION_MATRIX.md) | What can and cannot be published to GitHub | Maintainers, contributors |
-| [SECURITY.md](SECURITY.md) | Responsible disclosure policy | Security reporters, maintainers |
-| [API_SETTINGS_GUIDE.md](API_SETTINGS_GUIDE.md) | API/model configuration guidance | Admins, operators |
-| [PERFORMANCE_OPTIMIZATION.md](PERFORMANCE_OPTIMIZATION.md) | General performance tuning | Operators, engineers |
-| [VERSION_HISTORY.md](VERSION_HISTORY.md) | Public version timeline | Delivery, maintainers |
+| [project/PUBLICATION_MATRIX.md](project/PUBLICATION_MATRIX.md) | What can and cannot be published to GitHub | Maintainers, contributors |
+| [project/SECURITY.md](project/SECURITY.md) | Responsible disclosure policy | Security reporters, maintainers |
+| [project/CODE_CHANGE_POLICY.md](project/CODE_CHANGE_POLICY.md) | Code change policy | Maintainers, contributors |
+| [guides/API_SETTINGS_GUIDE.md](guides/API_SETTINGS_GUIDE.md) | API/model configuration guidance | Admins, operators |
+| [guides/PERFORMANCE_OPTIMIZATION.md](guides/PERFORMANCE_OPTIMIZATION.md) | General performance tuning | Operators, engineers |
+| [history/VERSION_HISTORY.md](history/VERSION_HISTORY.md) | Public version timeline | Delivery, maintainers |
 | [project/production_readiness_checklist.md](project/production_readiness_checklist.md) | Sanitized production readiness checklist | Operators, SRE, engineering |
 | [project/INDEX.md](project/INDEX.md) | Project documentation index | Operators, maintainers |
-| [operations/INDEX.md](operations/INDEX.md) | Operations documentation index | Operators |
-| [development/INDEX.md](development/INDEX.md) | Development documentation index | Contributors |
 | [design/INDEX.md](design/INDEX.md) | Public design documentation index | Product, engineering |
 | [templates/README.md](templates/README.md) | Documentation templates | Maintainers |
 
@@ -37,20 +36,31 @@ audits, security findings, private plans, and generated reports are kept under
 docs/
 ├── README.md                    # This file - documentation hub
 ├── INDEX.md                     # Complete documentation index
-├── PUBLICATION_MATRIX.md
-├── SECURITY.md
-├── API_SETTINGS_GUIDE.md
-├── PERFORMANCE_OPTIMIZATION.md
-├── VERSION_HISTORY.md
+├── guides/                      # Configuration and operation guides
+│   ├── API_SETTINGS_GUIDE.md
+│   ├── PDF_PERFORMANCE_TUNING.md
+│   ├── PDF_TESTING_GUIDE.md
+│   └── PERFORMANCE_OPTIMIZATION.md
+├── features/                    # Feature documentation
+│   ├── rag/                    # RAG and retrieval features
+│   ├── agents/                 # Agent system features
+│   ├── pdf/                    # PDF processing features
+│   └── ocr/                    # OCR and image processing
+├── history/                     # Version history and optimization records
+│   ├── VERSION_HISTORY.md
+│   ├── OPTIMIZATION_HISTORY.md
+│   └── demo_dataset_setup.md
+├── project/                     # Project planning and policies
+│   ├── CODE_CHANGE_POLICY.md
+│   ├── PUBLICATION_MATRIX.md
+│   ├── SECURITY.md
+│   └── production_readiness_checklist.md
+├── design/                      # Design documents and feature specs
 ├── releases/                    # Release notes and announcements
 ├── archive/                     # Historical reports and investigations
 │   ├── refactoring/            # Refactoring reports
 │   ├── ui/                     # UI modernization reports
 │   └── investigations/         # Technical investigation reports
-├── project/                     # Project planning and architecture
-├── design/                      # Design documents and feature specs
-├── operations/                  # Deployment and operational guides (placeholder)
-├── development/                 # Development guides and workflows (placeholder)
 ├── images/                      # Architecture diagrams and screenshots
 └── templates/                   # Documentation templates
 ```
