@@ -299,7 +299,7 @@ commit 0ad5abe: fix(stability): v0.4.3 - thread safety, memory management...
 ## 🔗 相关资源
 
 ### 核心文档
-- [CODE_CHANGE_POLICY.md](../docs/CODE_CHANGE_POLICY.md) - 完整政策
+- [CODE_CHANGE_POLICY.md](./CODE_CHANGE_POLICY.md) - 完整政策
 - [QUICK_REFERENCE.md](./.claude/QUICK_REFERENCE.md) - 快速参考
 - [change-plan-template.md](./templates/change-plan-template.md) - 计划模板
 - [change-summary-template.md](./templates/change-summary-template.md) - 总结模板

@@ -39,4 +39,4 @@ Located in [investigations/](./investigations/):
 - These documents are point-in-time records and may not reflect the current
   system state.
 - Documents are retained for traceability and audit purposes.
-- See [../PUBLICATION_MATRIX.md](../PUBLICATION_MATRIX.md) for classification rules.
+- See [../project/PUBLICATION_MATRIX.md](../project/PUBLICATION_MATRIX.md) for classification rules.
