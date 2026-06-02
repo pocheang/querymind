@@ -12,7 +12,7 @@ def traced_span(name: str, attributes: dict[str, Any] | None = None) -> Iterator
         return
     try:
         from opentelemetry import trace
-    except Exception:
+    except ImportError:
         yield
         return
     tracer = trace.get_tracer("multi-agent-local-rag")
@@ -20,6 +20,6 @@ def traced_span(name: str, attributes: dict[str, Any] | None = None) -> Iterator
         for k, v in (attributes or {}).items():
             try:
                 span.set_attribute(k, v)
-            except Exception:
+            except (ValueError, TypeError):
                 continue
         yield

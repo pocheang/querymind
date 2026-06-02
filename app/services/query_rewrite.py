@@ -1,6 +1,9 @@
+import logging
 import re
 
 from app.core.models import get_chat_model, get_reasoning_model
+
+logger = logging.getLogger(__name__)
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_\-]{2,}|[\u4e00-\u9fff]{2,}")
 _STOPWORDS = {
@@ -94,7 +97,8 @@ def _llm_rewrite(query: str, use_reasoning: bool = False) -> str | None:
         if not text or len(text) < 3:
             return None
         return text.replace("\n", " ").strip()
-    except Exception:
+    except (RuntimeError, ValueError, TypeError) as e:
+        logger.debug(f"Query rewrite failed: {e}")
         return None
 
 

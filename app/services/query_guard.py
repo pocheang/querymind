@@ -112,7 +112,8 @@ class QueryLoadGuard:
                 try:
                     inflight = int(client.get("qguard:inflight") or 0)
                     waiting = int(client.get("qguard:waiting") or 0)
-                except Exception:
+                except (ValueError, TypeError, OSError) as e:
+                    logger.debug(f"Failed to get query guard stats from Redis: {e}")
                     inflight = 0
                     waiting = 0
             return {
@@ -197,7 +198,8 @@ class QueryLoadGuard:
                     raise QueryRateLimitedError("query rate limit exceeded")
             except QueryRateLimitedError:
                 raise
-            except Exception:
+            except (ValueError, TypeError, OSError) as e:
+                logger.debug(f"Redis rate limit check failed for user {user_key}: {e}")
                 with self._acquire_memory(user_key):
                     yield
                 return
@@ -212,7 +214,8 @@ class QueryLoadGuard:
                         acquired = True
                         break
                     client.decr(inflight_key)
-                except Exception:
+                except (ValueError, TypeError, OSError) as e:
+                    logger.debug(f"Redis inflight increment failed: {e}")
                     with self._acquire_memory(user_key):
                         yield
                     return
@@ -230,7 +233,8 @@ class QueryLoadGuard:
                         queued = True
                     except QueryOverloadedError:
                         raise
-                    except Exception:
+                    except (ValueError, TypeError, OSError) as e:
+                        logger.debug(f"Redis waiting queue increment failed: {e}")
                         with self._acquire_memory(user_key):
                             yield
                         return
@@ -242,14 +246,14 @@ class QueryLoadGuard:
             if queued:
                 try:
                     client.decr(waiting_key)
-                except Exception:
+                except (ValueError, TypeError, OSError):
                     logger.warning(
                         "query_guard_waiting_decr_failed user_key=%s", user_key, exc_info=True
                     )
             if acquired:
                 try:
                     client.decr(inflight_key)
-                except Exception:
+                except (ValueError, TypeError, OSError):
                     logger.warning(
                         "query_guard_inflight_decr_failed user_key=%s", user_key, exc_info=True
                     )

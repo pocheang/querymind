@@ -187,7 +187,7 @@ def feature_enabled(
     if rule.startswith("pct:"):
         try:
             pct = max(0, min(int(rule.split(":", 1)[1]), 100))
-        except Exception:
+        except (ValueError, IndexError):
             return True
         seed = str(get_settings().feature_flag_seed or "feature")
         key = f"{seed}|{feature}|{user_id}|{session_id}|{question}"
@@ -310,7 +310,7 @@ def read_benchmark_trends(limit: int = 30) -> list[dict[str, Any]]:
                 continue
             try:
                 rows.append(json.loads(s))
-            except Exception:
+            except json.JSONDecodeError:
                 continue
     if limit <= 0:
         return rows
@@ -328,7 +328,7 @@ def _read_jsonl(path: Path, limit: int = 30) -> list[dict[str, Any]]:
                 continue
             try:
                 rows.append(json.loads(s))
-            except Exception:
+            except json.JSONDecodeError:
                 continue
     if limit <= 0:
         return rows

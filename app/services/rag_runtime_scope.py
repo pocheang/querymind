@@ -10,7 +10,7 @@ def is_under_path(path: Path, root: Path) -> bool:
     try:
         resolved = path.resolve()
         resolved_root = root.resolve()
-    except Exception:
+    except (OSError, RuntimeError):
         return False
     return resolved == resolved_root or resolved_root in resolved.parents
 
