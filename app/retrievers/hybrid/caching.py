@@ -23,12 +23,17 @@ def redis_client(settings):
         return _REDIS_CLIENT
     try:
         import redis  # type: ignore
-    except Exception:
+    except ImportError:
+        logger.debug("Redis module not available")
         return None
     try:
         _REDIS_CLIENT = redis.from_url(str(getattr(settings, "redis_url", "")))
         _REDIS_CLIENT.ping()
-    except Exception:
+    except (redis.ConnectionError, redis.TimeoutError) as e:
+        logger.warning(f"Redis connection failed: {e}")
+        _REDIS_CLIENT = None
+    except Exception as e:
+        logger.error(f"Unexpected Redis error: {e}")
         _REDIS_CLIENT = None
     return _REDIS_CLIENT
 
@@ -60,7 +65,11 @@ def clear_retrieval_cache() -> None:
         keys = list(client.scan_iter(match="retrieval:*", count=500))
         if keys:
             client.delete(*keys)
-    except Exception:
+    except (ImportError, AttributeError) as e:
+        logger.debug(f"Cache clear skipped: {e}")
+        return
+    except Exception as e:
+        logger.error(f"Unexpected error clearing cache: {e}")
         return
 
 
@@ -118,7 +127,11 @@ def cache_store(cache_key: str, results: list, diagnostics: dict, settings):
                     json.dumps({"results": results, "diagnostics": diagnostics}, ensure_ascii=False),
                 )
                 diagnostics["cache_backend"] = "redis"
-            except Exception:
+            except (json.JSONEncodeError, TypeError) as e:
+                logger.debug(f"Redis cache store failed (serialization): {e}")
+                diagnostics["cache_backend"] = "memory"
+            except Exception as e:
+                logger.debug(f"Redis cache store failed: {e}")
                 diagnostics["cache_backend"] = "memory"
         else:
             diagnostics["cache_backend"] = "memory"

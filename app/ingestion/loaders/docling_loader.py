@@ -41,7 +41,14 @@ def load_pdf_with_docling(path: Path) -> list[Document]:
 
         return [doc]
 
-    except Exception:
+    except ImportError as e:
+        logger.warning(f"Docling not available: {e}")
+        return []
+    except (OSError, ValueError, RuntimeError) as e:
+        logger.warning(f"Failed to load document with Docling {path}: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error in Docling loader: {e}")
         return []
 
 
@@ -88,5 +95,12 @@ def load_pdf_with_docling_by_page(path: Path) -> list[Document]:
 
         return docs
 
-    except Exception:
+    except ImportError as e:
+        logger.warning(f"Docling not available: {e}")
+        return []
+    except (OSError, ValueError, RuntimeError) as e:
+        logger.warning(f"Failed to load PDF by page with Docling {path}: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error in Docling page loader: {e}")
         return []

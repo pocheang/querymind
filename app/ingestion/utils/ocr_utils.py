@@ -95,7 +95,8 @@ def build_ocr_candidates(image, settings, pil_imageops):
             candidates.append((f"{base_name}_binary", binary))
             inverted = pil_imageops.invert(high_contrast)
             candidates.append((f"{base_name}_inverted", inverted))
-        except Exception:
+        except (AttributeError, ValueError, OSError) as e:
+            logger.debug(f"OCR preprocessing variant skipped for {base_name}: {e}")
             continue
 
     return candidates
