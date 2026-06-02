@@ -199,7 +199,8 @@ def ocr_image_bytes(img_bytes: bytes, source: Path, page: int | None = None, ima
 
     try:
         import pytesseract
-    except Exception:
+    except ImportError:
+        logger.warning("pytesseract not available for image OCR")
         metadata["ocr_status"] = "pytesseract_missing"
         content = f"{summary}\n{people_summary}\n{vision_summary}\n[image_ocr_error]\npytesseract not installed"
         return [Document(page_content=content, metadata=metadata)]

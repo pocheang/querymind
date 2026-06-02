@@ -33,7 +33,7 @@ def _now_iso() -> str:
 def _normalize_int(value: Any) -> int:
     try:
         return max(0, int(value or 0))
-    except Exception:
+    except (ValueError, TypeError):
         return 0
 
 

@@ -48,7 +48,13 @@ def submit_hybrid(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Future:
     future = None
     try:
         future = get_hybrid_executor().submit(fn, *args, **kwargs)
-    except Exception:
+    except (RuntimeError, ValueError) as e:
+        logger.warning(f"Failed to submit to hybrid executor: {e}")
+        with _PENDING_LOCK:
+            _PENDING = max(0, _PENDING - 1)
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error submitting to hybrid executor: {e}")
         with _PENDING_LOCK:
             _PENDING = max(0, _PENDING - 1)
         raise

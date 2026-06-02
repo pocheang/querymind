@@ -81,8 +81,8 @@ def ingest_paths(
     if reset_vector_store:
         try:
             store.delete_collection()
-        except Exception:
-            logger.warning("vector_store_delete_collection_failed", exc_info=True)
+        except (RuntimeError, ValueError) as e:
+            logger.warning(f"vector_store_delete_collection_failed: {e}", exc_info=True)
         clear_vector_store_cache()
         store = get_vector_store()
     add_documents(chunks, ids=[record["id"] for record in records])
@@ -92,8 +92,8 @@ def ingest_paths(
     client = None
     try:
         client = Neo4jClient()
-    except Exception:
-        logger.warning("neo4j_client_init_failed", exc_info=True)
+    except (ImportError, RuntimeError, ValueError) as e:
+        logger.warning(f"neo4j_client_init_failed: {e}", exc_info=True)
         client = None
 
     if client is not None:

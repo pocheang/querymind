@@ -371,12 +371,14 @@ class HistoryStore:
         for path in list(self.base_dir.glob("*.json")):
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
+            except (json.JSONDecodeError, OSError) as e:
+                logger.debug(f"Skipping invalid session file during archival {path}: {e}")
                 continue
             updated = str(data.get("updated_at", "") or "")
             try:
                 dt = datetime.fromisoformat(updated) if updated else datetime.now(timezone.utc)
-            except Exception:
+            except (ValueError, TypeError) as e:
+                logger.debug(f"Invalid timestamp, using current time: {e}")
                 dt = datetime.now(timezone.utc)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
@@ -386,7 +388,8 @@ class HistoryStore:
                 target = self._cold_dir / path.name
                 try:
                     path.replace(target)
-                except Exception:
+                except OSError as e:
+                    logger.debug(f"Failed to move session to cold storage {path}: {e}")
                     continue
 
     def _connect(self) -> sqlite3.Connection:

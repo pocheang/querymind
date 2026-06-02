@@ -112,7 +112,8 @@ def _try_tesseract(image, settings, metadata: dict) -> tuple[str | None, dict, s
     try:
         import pytesseract
         from PIL import ImageOps
-    except Exception:
+    except ImportError:
+        logger.warning("pytesseract or PIL not available")
         metadata["ocr_status"] = "pytesseract_missing"
         return None, metadata, "pytesseract not installed"
 
@@ -184,12 +185,14 @@ def ocr_image_bytes_with_structure(
     """
     try:
         from PIL import Image
-    except Exception:
+    except ImportError:
+        logger.warning("PIL not available for OCR enhanced processing")
         return []
 
     try:
         image = Image.open(BytesIO(img_bytes))
-    except Exception:
+    except (OSError, ValueError) as e:
+        logger.warning(f"Failed to open image bytes for OCR: {e}")
         return []
 
     settings = get_settings()

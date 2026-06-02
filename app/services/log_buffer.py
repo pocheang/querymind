@@ -18,7 +18,8 @@ class InMemoryLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
             created = datetime.fromtimestamp(float(record.created), tz=timezone.utc).isoformat()
-        except Exception:
+        except (ValueError, OSError) as e:
+            # Invalid timestamp, use current time
             created = datetime.now(timezone.utc).isoformat()
         message = str(record.getMessage() or "")
         exc_text = ""
