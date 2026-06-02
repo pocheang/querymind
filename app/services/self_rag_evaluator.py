@@ -92,18 +92,16 @@ Feedback: [brief explanation]"""
                     document=doc_preview
                 )
 
-                response = await self.llm.generate(
-                    prompt=prompt,
-                    max_tokens=100,
-                    temperature=0.1
-                )
+                # Use ainvoke for compatibility with LangChain 0.3+ API
+                response = await self.llm.ainvoke(prompt)
+                response_text = response.content if hasattr(response, "content") else str(response)
 
-                score = self._parse_relevance_score(response)
+                score = self._parse_relevance_score(response_text)
                 relevance_scores.append(
                     RelevanceScore(
                         document_id=str(doc_id),
                         score=score,
-                        reasoning=response.strip()
+                        reasoning=response_text.strip()
                     )
                 )
 
@@ -169,20 +167,18 @@ Feedback: [brief explanation]"""
                 documents=docs_text
             )
 
-            response = await self.llm.generate(
-                prompt=prompt,
-                max_tokens=200,
-                temperature=0.1
-            )
+            # Use ainvoke for compatibility with LangChain 0.3+ API
+            response = await self.llm.ainvoke(prompt)
+            response_text = response.content if hasattr(response, "content") else str(response)
 
-            quality = self._parse_quality_evaluation(response)
+            quality = self._parse_quality_evaluation(response_text)
 
             return AnswerQuality(
                 score=quality["score"],
                 completeness=quality["completeness"],
                 accuracy=quality["accuracy"],
                 relevance=quality["relevance"],
-                feedback=response.strip(),
+                feedback=response_text.strip(),
                 needs_refinement=quality["score"] < self.quality_threshold
             )
 

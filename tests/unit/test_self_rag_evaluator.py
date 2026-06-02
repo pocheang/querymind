@@ -12,7 +12,7 @@ from app.models.advanced_rag_models import RelevanceScore, AnswerQuality
 def mock_llm_client():
     """Create mock LLM client."""
     client = MagicMock()
-    client.generate = AsyncMock()
+    client.ainvoke = AsyncMock()
     return client
 
 
@@ -100,11 +100,12 @@ Relevance: 0.7"""
         """Test evaluation of retrieval relevance."""
         query = "What is FastAPI?"
 
-        # Mock LLM responses
-        mock_llm_client.generate.side_effect = [
-            "Score: 9/10\nReasoning: Directly answers the question",
-            "Score: 3/10\nReasoning: About Flask, not FastAPI",
-            "Score: 2/10\nReasoning: About Django, not relevant"
+        # Mock LLM responses - ainvoke returns objects with content attribute
+        from types import SimpleNamespace
+        mock_llm_client.ainvoke.side_effect = [
+            SimpleNamespace(content="Score: 9/10\nReasoning: Directly answers the question"),
+            SimpleNamespace(content="Score: 3/10\nReasoning: About Flask, not FastAPI"),
+            SimpleNamespace(content="Score: 2/10\nReasoning: About Django, not relevant")
         ]
 
         scores = await evaluator.evaluate_retrieval_relevance(query, sample_documents)
@@ -123,7 +124,7 @@ Relevance: 0.7"""
         query = "What is FastAPI?"
 
         # Mock LLM error
-        mock_llm_client.generate.side_effect = Exception("LLM error")
+        mock_llm_client.ainvoke.side_effect = Exception("LLM error")
 
         scores = await evaluator.evaluate_retrieval_relevance(query, sample_documents)
 
@@ -153,11 +154,12 @@ Relevance: 0.7"""
         answer = "FastAPI is a modern web framework for building APIs with Python."
 
         # Mock LLM response
-        mock_llm_client.generate.return_value = """Completeness: 0.9
+        from types import SimpleNamespace
+        mock_llm_client.ainvoke.return_value = SimpleNamespace(content="""Completeness: 0.9
 Accuracy: 1.0
 Relevance: 0.95
 Overall Score: 0.95
-Feedback: Excellent answer, directly addresses the question"""
+Feedback: Excellent answer, directly addresses the question""")
 
         quality = await evaluator.evaluate_answer_quality(query, answer, sample_documents)
 
@@ -175,11 +177,12 @@ Feedback: Excellent answer, directly addresses the question"""
         answer = "It's a framework."
 
         # Mock LLM response with low scores
-        mock_llm_client.generate.return_value = """Completeness: 0.3
+        from types import SimpleNamespace
+        mock_llm_client.ainvoke.return_value = SimpleNamespace(content="""Completeness: 0.3
 Accuracy: 0.5
 Relevance: 0.4
 Overall Score: 0.4
-Feedback: Answer is too brief and lacks detail"""
+Feedback: Answer is too brief and lacks detail""")
 
         quality = await evaluator.evaluate_answer_quality(query, answer, sample_documents)
 
@@ -195,7 +198,7 @@ Feedback: Answer is too brief and lacks detail"""
         answer = "FastAPI is a framework."
 
         # Mock LLM error
-        mock_llm_client.generate.side_effect = Exception("LLM error")
+        mock_llm_client.ainvoke.side_effect = Exception("LLM error")
 
         quality = await evaluator.evaluate_answer_quality(query, answer, sample_documents)
 

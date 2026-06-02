@@ -129,7 +129,14 @@ async def lifespan(app: FastAPI):
         str(settings.ollama_base_url or ""),
         str(settings.ollama_chat_model or ""),
     )
+
+    # Start shadow queue for background processing
     shadow_queue.start()
+
+    # Start agent execution tracker periodic cleanup
+    from app.services.agent_execution_tracker import get_tracker
+    tracker = get_tracker()
+    await tracker.start_periodic_cleanup(interval_seconds=300)  # 5 minutes
 
     if settings.auto_ingest_enabled and (
         _auto_ingest_thread is None or not _auto_ingest_thread.is_alive()
@@ -147,6 +154,11 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         # Shutdown
+        logger.info("Shutting down services...")
+
+        # Stop agent execution tracker cleanup
+        await tracker.stop_periodic_cleanup()
+
         _auto_ingest_stop_event.set()
         if _auto_ingest_thread is not None and _auto_ingest_thread.is_alive():
             _auto_ingest_thread.join(timeout=5)

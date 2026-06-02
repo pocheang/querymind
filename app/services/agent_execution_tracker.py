@@ -2,6 +2,7 @@ import asyncio
 import logging
 import threading
 import uuid
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Set
@@ -54,7 +55,8 @@ class AgentExecutionTracker:
 
     def __init__(self):
         self._traces: Dict[str, ExecutionTrace] = {}
-        self._traces_lock = threading.Lock()
+        self._traces_lock = threading.RLock()  # Use RLock for reentrant locking
+        self._trace_locks: Dict[str, threading.RLock] = defaultdict(threading.RLock)  # Per-trace fine-grained locks
         self._ttl_hours = 1
         self._cleanup_task: Optional[asyncio.Task] = None
 
@@ -221,7 +223,59 @@ class AgentExecutionTracker:
     def clear_all_traces(self) -> None:
         with self._traces_lock:
             self._traces.clear()
+            # Also clear per-trace locks to prevent memory leak
+            self._trace_locks.clear()
         logger.info("Cleared all execution traces")
+
+    async def start_periodic_cleanup(self, interval_seconds: int = 300) -> None:
+        """
+        Start background cleanup task that periodically removes old traces.
+
+        Args:
+            interval_seconds: Cleanup interval in seconds (default: 300 = 5 minutes)
+        """
+        if self._cleanup_task is not None and not self._cleanup_task.done():
+            logger.warning("Cleanup task already running")
+            return
+
+        self._cleanup_task = asyncio.create_task(self._cleanup_loop(interval_seconds))
+        logger.info(f"Started execution tracker cleanup (interval={interval_seconds}s, ttl={self._ttl_hours}h)")
+
+    async def _cleanup_loop(self, interval_seconds: int) -> None:
+        """Background task that periodically cleans old traces."""
+        while True:
+            try:
+                await asyncio.sleep(interval_seconds)
+                removed = self.cleanup_old_traces()
+                if removed > 0:
+                    logger.info(f"Periodic cleanup removed {removed} old execution traces")
+
+                # Also clean up orphaned per-trace locks
+                with self._traces_lock:
+                    active_ids = set(self._traces.keys())
+                    lock_ids = set(self._trace_locks.keys())
+                    orphaned = lock_ids - active_ids
+                    for orphan_id in orphaned:
+                        del self._trace_locks[orphan_id]
+                    if orphaned:
+                        logger.debug(f"Cleaned up {len(orphaned)} orphaned trace locks")
+
+            except asyncio.CancelledError:
+                logger.info("Cleanup task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Error in cleanup loop: {e}", exc_info=True)
+
+    async def stop_periodic_cleanup(self) -> None:
+        """Stop background cleanup task."""
+        if self._cleanup_task is not None and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+            try:
+                await self._cleanup_task
+            except asyncio.CancelledError:
+                pass
+        self._cleanup_task = None
+        logger.info("Stopped execution tracker cleanup")
 
 
 def track_agent_execution(agent_name: str) -> Callable:
