@@ -377,8 +377,9 @@ def estimate_processing_time(
         from pypdf import PdfReader
         reader = PdfReader(str(file_path))
         num_pages = len(reader.pages)
-    except Exception:
+    except (ImportError, OSError, ValueError) as e:
         # Fallback estimate based on file size
+        logger.debug(f"Failed to read PDF page count, using file size estimate: {e}")
         file_size_mb = file_path.stat().st_size / (1024 * 1024)
         num_pages = int(file_size_mb * 2)  # Rough estimate
 

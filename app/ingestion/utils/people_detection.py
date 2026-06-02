@@ -11,7 +11,8 @@ def detect_people_in_image(image, settings) -> dict:
     try:
         import cv2  # type: ignore
         import numpy as np
-    except Exception:
+    except ImportError:
+        logger.debug("OpenCV not available for people detection")
         return {"status": "unavailable", "person_count": 0, "face_count": 0, "human_present": False}
 
     try:
@@ -19,7 +20,8 @@ def detect_people_in_image(image, settings) -> dict:
         np_rgb = np.array(rgb)
         bgr = cv2.cvtColor(np_rgb, cv2.COLOR_RGB2BGR)
         gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    except Exception:
+    except (AttributeError, ValueError) as e:
+        logger.debug(f"Failed to convert image for people detection: {e}")
         return {"status": "cv_decode_error", "person_count": 0, "face_count": 0, "human_present": False}
 
     mode = str(getattr(settings, "people_detection_mode", "face") or "face").lower()
@@ -36,7 +38,8 @@ def detect_people_in_image(image, settings) -> dict:
             detector = cv2.CascadeClassifier(cascade_path)
             faces = detector.detectMultiScale(gray, scaleFactor=1.08, minNeighbors=4, minSize=(24, 24))
             face_count = int(len(faces))
-        except Exception:
+        except (AttributeError, OSError, RuntimeError) as e:
+            logger.debug(f"Face detection failed: {e}")
             status = "face_detector_error"
 
     if mode in {"hog", "both"}:
@@ -45,7 +48,8 @@ def detect_people_in_image(image, settings) -> dict:
             hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
             rects, _weights = hog.detectMultiScale(bgr, winStride=(8, 8), padding=(8, 8), scale=1.05)
             person_count = int(len(rects))
-        except Exception:
+        except (AttributeError, RuntimeError) as e:
+            logger.debug(f"HOG detection failed: {e}")
             if status == "ok":
                 status = "person_detector_error"
 

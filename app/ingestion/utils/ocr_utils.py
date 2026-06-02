@@ -149,12 +149,14 @@ def ocr_image_bytes(img_bytes: bytes, source: Path, page: int | None = None, ima
     """OCR image bytes and return Document with metadata."""
     try:
         from PIL import Image, ImageOps
-    except Exception:
+    except ImportError:
+        logger.warning("PIL not available for OCR")
         return []
 
     try:
         image = Image.open(BytesIO(img_bytes))
-    except Exception:
+    except (OSError, ValueError) as e:
+        logger.warning(f"Failed to open image: {e}")
         return []
 
     from app.ingestion.utils.people_detection import build_people_summary, detect_people_in_image
