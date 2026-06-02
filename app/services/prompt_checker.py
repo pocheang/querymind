@@ -1,9 +1,12 @@
 import json
+import logging
 import re
 from typing import Any
 
 from app.core.models import get_reasoning_model
 from app.services.input_normalizer import normalize_user_question
+
+logger = logging.getLogger(__name__)
 
 _JSON_OBJ_RE = re.compile(r"\{.*\}", flags=re.DOTALL)
 
@@ -43,7 +46,8 @@ def _extract_json(text: str) -> dict[str, Any] | None:
     try:
         data = json.loads(m.group(0))
         return data if isinstance(data, dict) else None
-    except Exception:
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.debug(f"Failed to extract JSON from text: {e}")
         return None
 
 
@@ -117,8 +121,9 @@ def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = Fal
                     issues = llm_issues
                 if llm_suggestions:
                     suggestions = llm_suggestions
-        except Exception:
-            # 推理模型不可用时保持规则增强结果
+        except (RuntimeError, ValueError) as e:
+            # LLM enhancement failed, keep rule-based results
+            logger.debug(f"LLM prompt enhancement failed: {e}")
             pass
 
     # Final sanitization of all outputs

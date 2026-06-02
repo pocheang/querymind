@@ -55,7 +55,13 @@ def _get_redis_client():
             _REDIS_CLIENT.ping()
             _REDIS_UNAVAILABLE_UNTIL = 0.0
             return _REDIS_CLIENT
-        except Exception:
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"Redis not available for query guard: {e}")
+            _REDIS_CLIENT = None
+            _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
+            return None
+        except Exception as e:
+            logger.warning(f"Redis connection failed for query guard: {e}")
             _REDIS_CLIENT = None
             _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
             return None
