@@ -362,8 +362,8 @@ This release represents **10 rounds of systematic optimization** over multiple s
 ## 📚 Related Documentation
 
 - CHANGELOG: See `CHANGELOG.md` for condensed summary
-- Previous Release: `docs/releases/RELEASE_NOTES_v0.4.2.md`
-- Version History: `docs/VERSION_HISTORY.md`
+- Previous Release: [RELEASE_NOTES_v0.4.2.md](./RELEASE_NOTES_v0.4.2.md)
+- Version History: [VERSION_HISTORY.md](../history/VERSION_HISTORY.md)
 
 ---
 

@@ -177,14 +177,14 @@ When releasing a new version:
 
 1. Use templates from `docs/templates/`
 2. Refer to internal release documentation under `internal_docs/docs_archive/` if you have access
-3. Update [CHANGELOG.md](../../CHANGELOG.md) and [VERSION_HISTORY.md](../VERSION_HISTORY.md) with sanitized public summaries
+3. Update [CHANGELOG.md](../../CHANGELOG.md) and [VERSION_HISTORY.md](../history/VERSION_HISTORY.md) with sanitized public summaries
 5. Run `scripts/check_version_docs.sh` to validate
 
 ### For Developers
 
 To understand version documentation requirements:
 
-1. Review [VERSION_HISTORY.md](../VERSION_HISTORY.md) for the public version timeline
+1. Review [VERSION_HISTORY.md](../history/VERSION_HISTORY.md) for the public version timeline
 2. Check existing version documents under `docs/releases/` as examples
 
 ### For Documentation Maintainers
@@ -218,7 +218,7 @@ ls -la docs/
 cat docs/VERSION_DOCUMENTATION_STANDARD.md
 
 # 4. Check version history
-cat docs/VERSION_HISTORY.md
+cat docs/history/VERSION_HISTORY.md
 ```
 
 ---

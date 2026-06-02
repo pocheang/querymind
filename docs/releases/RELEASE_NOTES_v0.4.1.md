@@ -136,7 +136,7 @@ Version 0.4.1 is a comprehensive refactoring release that eliminates code duplic
 - Updated `VERSION` file to 0.4.1
 - Created comprehensive `CHANGELOG.md`
 - Updated `README.md` with latest release information
-- Updated `docs/VERSION_HISTORY.md` with v0.4.1 entry
+- Updated `docs/history/VERSION_HISTORY.md` with v0.4.1 entry
 
 ## 🚀 Upgrade Notes
 

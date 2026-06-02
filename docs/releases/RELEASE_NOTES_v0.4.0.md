@@ -24,7 +24,7 @@ Compare the multi-agent RAG system against three baseline systems with comprehen
 - 15-25% accuracy improvement over pure vector search
 - Quantified metrics for demonstrating system advantages
 
-**Documentation**: [docs/performance_comparison_framework.md](docs/performance_comparison_framework.md)
+**Documentation**: [docs/features/rag/performance_comparison_framework.md](../features/rag/performance_comparison_framework.md)
 
 ### 2. Agent Execution Flow Visualization
 
@@ -41,7 +41,7 @@ Real-time tracking and visualization of multi-agent execution flows.
 - Demonstrate agent collaboration in interviews
 - Analyze execution patterns and bottlenecks
 
-**Documentation**: [docs/agent_execution_tracking.md](docs/agent_execution_tracking.md)
+**Documentation**: [docs/features/agents/agent_execution_tracking.md](../features/agents/agent_execution_tracking.md)
 
 ### 3. Chinese NLP Optimization
 
@@ -57,7 +57,7 @@ Comprehensive Chinese language support for improved retrieval and understanding.
 - 15-25% recall improvement for Chinese queries
 - Better handling of technical terms and domain vocabulary
 
-**Documentation**: [docs/chinese_nlp_optimization.md](docs/chinese_nlp_optimization.md)
+**Documentation**: [docs/features/rag/chinese_nlp_optimization.md](../features/rag/chinese_nlp_optimization.md)
 
 ### 4. Advanced RAG Techniques
 
@@ -72,7 +72,7 @@ Innovative RAG techniques for handling complex queries and improving accuracy.
 - 15-20% accuracy boost for complex multi-aspect queries
 - 10-15% overall accuracy improvement with Self-RAG
 
-**Documentation**: [docs/advanced_rag_techniques.md](docs/advanced_rag_techniques.md)
+**Documentation**: [docs/features/rag/advanced_rag_techniques.md](../features/rag/advanced_rag_techniques.md)
 
 ### 5. Streaming PDF Processing
 
@@ -106,7 +106,7 @@ Batch processing for chart extraction from large documents with parallel support
 - **Complete Documentation**: Usage guide and best practices
 
 **Files:**
-- `docs/batch_chart_extractor.md`: Feature documentation
+- `docs/features/pdf/batch_chart_extractor.md`: Feature documentation
 - `examples/batch_chart_extraction_example.py`: Usage examples
 - `tests/test_batch_chart_extractor.py`: Integration tests
 
@@ -209,10 +209,10 @@ pip install -e .
 
 ## 📚 Documentation
 
-- [Performance Comparison Framework](docs/performance_comparison_framework.md)
-- [Agent Execution Tracking](docs/agent_execution_tracking.md)
-- [Chinese NLP Optimization](docs/chinese_nlp_optimization.md)
-- [Advanced RAG Techniques](docs/advanced_rag_techniques.md)
+- [Performance Comparison Framework](../features/rag/performance_comparison_framework.md)
+- [Agent Execution Tracking](../features/agents/agent_execution_tracking.md)
+- [Chinese NLP Optimization](../features/rag/chinese_nlp_optimization.md)
+- [Advanced RAG Techniques](../features/rag/advanced_rag_techniques.md)
 
 ## 🔄 Migration Guide
 
