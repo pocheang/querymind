@@ -10,7 +10,7 @@ from app.services.history import validate_session_id
 
 try:
     from rank_bm25 import BM25Okapi
-except Exception:  # pragma: no cover - dependency fallback
+except ImportError:  # pragma: no cover - dependency fallback
     BM25Okapi = None  # type: ignore[assignment]
 
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_\\-]+|[\\u4e00-\\u9fff]")

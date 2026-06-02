@@ -3,7 +3,7 @@ from functools import lru_cache
 
 try:
     from rank_bm25 import BM25Okapi
-except Exception:  # pragma: no cover - optional dependency fallback
+except ImportError:  # pragma: no cover - optional dependency fallback
     BM25Okapi = None  # type: ignore[assignment]
 
 from app.retrievers.corpus_store import read_corpus_records

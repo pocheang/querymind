@@ -6,7 +6,7 @@ from typing import Any
 
 try:
     from langchain_text_splitters import RecursiveCharacterTextSplitter
-except Exception:  # pragma: no cover - optional dependency fallback
+except ImportError:  # pragma: no cover - optional dependency fallback
     RecursiveCharacterTextSplitter = None  # type: ignore[assignment]
 
 from app.core.config import get_settings
