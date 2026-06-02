@@ -67,6 +67,12 @@ def decrypt_api_settings_payload(payload: dict[str, Any], key: bytes) -> dict[st
         return out
     try:
         out["api_key"] = decrypt_secret_text(raw_key, key)
-    except Exception:
+    except (ValueError, TypeError) as e:
+        # Decryption failed, return empty key
+        logger.warning(f"Failed to decrypt API key: {e}")
+        out["api_key"] = ""
+    except Exception as e:
+        # Unexpected decryption error
+        logger.error(f"Unexpected error decrypting API key: {e}")
         out["api_key"] = ""
     return out

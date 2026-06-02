@@ -12,7 +12,8 @@ def parse_iso_datetime(value: str) -> datetime | None:
         if dt.tzinfo is None:
             return dt.replace(tzinfo=timezone.utc)
         return dt.astimezone(timezone.utc)
-    except Exception:
+    except (ValueError, TypeError) as e:
+        # Invalid datetime format
         return None
 
 

@@ -276,7 +276,8 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
     if isinstance(cached_response, dict) and cached_response:
         try:
             cached = QueryResponse.model_validate(cached_response)
-        except Exception:
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid cached query response: {e}")
             runtime_metrics.inc("query_cache_invalid_total")
             emit_alert(
                 "query_cache_invalid_payload",
@@ -294,7 +295,8 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         if isinstance(hot_cached, dict) and hot_cached:
             try:
                 return QueryResponse.model_validate(hot_cached)
-            except Exception:
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Invalid hot cached query response: {e}")
                 runtime_metrics.inc("query_cache_invalid_total")
         emit_alert(
             "query_duplicate_inflight",

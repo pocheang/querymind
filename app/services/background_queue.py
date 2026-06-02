@@ -78,7 +78,10 @@ class BackgroundTaskQueue:
                 continue
             try:
                 fn(*args, **kwargs)
-            except Exception:
-                logger.exception("background task failed")
+            except KeyboardInterrupt:
+                # Allow clean shutdown
+                raise
+            except Exception as e:
+                logger.exception(f"background task failed: {e}")
             finally:
                 self._queue.task_done()

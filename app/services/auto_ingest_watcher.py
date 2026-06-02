@@ -5,7 +5,8 @@ from typing import Callable
 from app.core.config import Settings
 try:
     from app.ingestion.loaders import SUPPORTED_EXTENSIONS
-except Exception:
+except ImportError as e:
+    # Fallback to default extensions if loaders module not available
     SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf", ".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
 
 
@@ -57,7 +58,8 @@ class AutoIngestWatcher:
         try:
             st = path.stat()
             return (int(st.st_mtime_ns), int(st.st_size))
-        except Exception:
+        except (OSError, ValueError) as e:
+            # File access error or invalid stat values
             return None
 
     def _iter_supported_files(self, root: Path):
@@ -74,8 +76,12 @@ class AutoIngestWatcher:
     def _ingest_file(self, path: Path, sig: tuple[int, int]) -> bool:
         try:
             self._resolve_delete_index_fn()(path.name, remove_physical_file=False, source=str(path))
-        except Exception:
+        except (FileNotFoundError, ValueError) as e:
             # Not indexed yet or cannot delete old index: keep going.
+            pass
+        except Exception as e:
+            # Unexpected error during index deletion
+            logger.warning(f"Failed to delete old index for {path}: {e}")
             pass
 
         result = self._resolve_ingest_fn()([path], reset_vector_store=False)
@@ -124,8 +130,13 @@ class AutoIngestWatcher:
             try:
                 if self._ingest_file(path, sig):
                     ingested += 1
-            except Exception:
-                # Keep last seen signature so unchanged file can retry later.
+            except (OSError, ValueError, RuntimeError) as e:
+                # Ingestion failed, keep last seen signature so unchanged file can retry later
+                logger.warning(f"Failed to ingest {path}: {e}")
+                self._indexed_signatures.pop(str(path.resolve()), None)
+            except Exception as e:
+                # Unexpected error during ingestion
+                logger.error(f"Unexpected error ingesting {path}: {e}")
                 self._indexed_signatures.pop(str(path.resolve()), None)
 
         return {"discovered": discovered, "ready": len(ready_paths), "ingested": ingested}
