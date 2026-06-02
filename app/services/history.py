@@ -307,7 +307,8 @@ class HistoryStore:
                 return None
             try:
                 data = json.loads(str(row[0] or ""))
-            except Exception:
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"Failed to parse session data for {session_id}: {e}")
                 return None
             return data if isinstance(data, dict) else None
         path = self.base_dir / f"{session_id}.json"
@@ -319,7 +320,8 @@ class HistoryStore:
                 return None
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Failed to read session file {session_id}: {e}")
             return None
         return data if isinstance(data, dict) else None
 
@@ -334,7 +336,8 @@ class HistoryStore:
             for row in out:
                 try:
                     data = json.loads(str(row[0] or ""))
-                except Exception:
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.debug(f"Skipping invalid session data: {e}")
                     continue
                 if isinstance(data, dict):
                     rows.append(data)
@@ -342,14 +345,16 @@ class HistoryStore:
         for path in sorted(self.base_dir.glob("*.json"), reverse=True):
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
+            except (json.JSONDecodeError, OSError) as e:
+                logger.debug(f"Skipping invalid session file {path}: {e}")
                 continue
             if isinstance(data, dict):
                 rows.append(data)
         for path in sorted(self._cold_dir.glob("*.json"), reverse=True):
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
+            except (json.JSONDecodeError, OSError) as e:
+                logger.debug(f"Skipping invalid cold session file {path}: {e}")
                 continue
             if isinstance(data, dict):
                 rows.append(data)

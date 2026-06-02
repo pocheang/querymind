@@ -131,19 +131,22 @@ def list_indexed_files() -> list[dict[str, Any]]:
 def _delete_triplets_by_sources(sources: list[str]) -> int:
     try:
         from app.graph.neo4j_client import Neo4jClient
-    except Exception:
+    except ImportError:
+        logger.debug("Neo4j client not available, skipping triplet deletion")
         return 0
 
     removed = 0
     try:
         client = Neo4jClient()
-    except Exception:
+    except (RuntimeError, ValueError) as e:
+        logger.warning(f"Failed to create Neo4j client: {e}")
         return 0
     try:
         for source_key in sources:
             try:
                 removed += client.delete_by_source(source_key)
-            except Exception:
+            except (RuntimeError, ValueError) as e:
+                logger.warning(f"Failed to delete triplets for source {source_key}: {e}")
                 continue
     finally:
         client.close()
