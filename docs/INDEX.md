@@ -64,7 +64,7 @@ under `internal_docs/` and excluded from GitHub. See
 - [project/INDEX.md](./project/INDEX.md) - Project planning and architecture
 - [design/INDEX.md](./design/INDEX.md) - Design documentation and feature specs
 - [archive/INDEX.md](./archive/INDEX.md) - Historical reports
-- [releases/](./releases/) - Release notes and announcements
+- [releases/README.md](./releases/README.md) - Release notes and announcements
 - [templates/README.md](./templates/README.md) - Documentation templates
 - [images/](./images/) - Architecture diagrams and screenshots
 
