@@ -1,6 +1,9 @@
 import json
+import logging
 
 from app.services.resilience import TTLCache
+
+logger = logging.getLogger(__name__)
 
 _RETRIEVAL_CACHE: TTLCache | None = None
 _REDIS_CLIENT = None
