@@ -55,13 +55,17 @@ class QueryComplexityAnalyzer:
 
         self.complexity_indicators = {
             # Comparison
-            "comparison": ["compare", "difference", "versus", "vs", "比较", "对比", "区别"],
+            "comparison": ["compare", "difference", "versus", "vs", "比较", "对比", "区别", "trade-off", "trade off"],
             # Sequential/process
-            "sequential": ["step", "process", "how to", "procedure", "步骤", "流程", "过程"],
+            "sequential": ["step", "process", "how to", "procedure", "步骤", "流程", "过程", "阶段", "stage", "phase"],
             # Analytical
-            "analytical": ["analyze", "explain", "why", "reason", "因为", "原因", "分析", "解释"],
+            "analytical": ["analyze", "explain", "why", "reason", "因为", "原因", "分析", "解释", "详细", "detail"],
             # Aggregate
             "aggregate": ["all", "every", "list", "summarize", "总结", "列出", "所有"],
+            # Optimization
+            "optimization": ["optimize", "improve", "enhance", "优化", "改进", "提升"],
+            # Implementation
+            "implementation": ["implement", "实现", "如何实现", "怎么实现"],
         }
 
     def analyze(self, query: str) -> tuple[ComplexityLevel, dict]:
@@ -152,22 +156,24 @@ class QueryComplexityAnalyzer:
         Compute complexity score from features.
 
         Score components:
-        - Length: 0-3 points
+        - Length: 0-3 points (adjusted for Chinese)
         - Question words: 0-2 points
         - Connectors: 0-2 points
         - Multiple questions: 0-1 point
-        - Special indicators: 0-2 points
+        - Special indicators: 0-3 points
 
-        Total range: 0-10
+        Total range: 0-11
         """
         score = 0.0
 
-        # 1. Length score (0-3)
-        if features["length"] < 20:
+        # 1. Length score (0-3) - ADJUSTED for Chinese
+        # Chinese text is more information-dense, so lower thresholds
+        length = features["length"]
+        if length < 15:
             score += 0  # Very short = simple
-        elif features["length"] < 50:
+        elif length < 40:
             score += 1  # Short-medium
-        elif features["length"] < 100:
+        elif length < 80:
             score += 2  # Medium-long
         else:
             score += 3  # Very long = complex
@@ -194,18 +200,18 @@ class QueryComplexityAnalyzer:
         if features["punctuation_count"] > 1:
             score += 1
 
-        # 5. Special indicators (0-2)
+        # 5. Special indicators (0-3) - INCREASED weight
         indicator_bonus = 0
         if features["has_comparison"]:
-            indicator_bonus += 1
+            indicator_bonus += 1.5  # Comparison is complex
         if features["has_sequential"]:
             indicator_bonus += 0.5
         if features["has_analytical"]:
-            indicator_bonus += 0.5
+            indicator_bonus += 1.0  # Analytical is complex
         if features["has_aggregate"]:
             indicator_bonus += 0.5
 
-        score += min(2, indicator_bonus)
+        score += min(3, indicator_bonus)
 
         return score
 
