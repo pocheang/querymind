@@ -416,20 +416,7 @@ input, textarea {
     linear-gradient(rgb(238, 244, 255) 0%, rgb(245, 248, 252) 100%);
 }
 
-.theme-toggle {
-  position: fixed;
-  top: 18px;
-  right: 18px;
-  z-index: var(--z-fixed);
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(166, 184, 214, 0.5);
-  background: rgba(255, 255, 255, 0.88);
-  color: var(--text-secondary);
-  backdrop-filter: blur(14px);
-  font-weight: 600;
-  transition: 0.2s;
-}
+/* .theme-toggle 样式已移至 components/theme-toggle.css */
 
 .auth-intro {
   position: relative;

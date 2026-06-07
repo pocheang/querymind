@@ -2,22 +2,12 @@
    Dark Theme - Authentication Pages
    ============================================ */
 
+/* .theme-toggle dark styles are now in components/theme-toggle.css */
+
 :root[data-theme="dark"] .auth-root {
   background:
     radial-gradient(circle at top left, rgba(85, 145, 226, 0.18), transparent 34%),
     linear-gradient(180deg, #09131f 0%, #0f1b2d 100%);
-}
-
-:root[data-theme="dark"] .theme-toggle {
-  border-color: rgba(56, 76, 102, 0.72);
-  background: rgba(12, 21, 35, 0.86);
-  color: #d3deeb;
-}
-
-:root[data-theme="dark"] .theme-toggle:hover {
-  border-color: rgba(108, 182, 255, 0.42);
-  color: #f4f8fc;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
 
 :root[data-theme="dark"] .auth-card {
