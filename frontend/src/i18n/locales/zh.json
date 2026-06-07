@@ -1,0 +1,216 @@
+{
+  "app": {
+    "title": "多智能体RAG系统",
+    "subtitle": "本地大语言模型与高级检索"
+  },
+  "nav": {
+    "home": "首页",
+    "query": "查询",
+    "dataFlow": "数据流",
+    "settings": "设置",
+    "admin": "管理",
+    "logout": "登出"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "username": "用户名",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "loginButton": "登录",
+    "registerButton": "创建账户",
+    "switchToRegister": "没有账户？立即注册",
+    "switchToLogin": "已有账户？立即登录",
+    "loginSuccess": "登录成功",
+    "loginFailed": "登录失败",
+    "registerSuccess": "注册成功",
+    "registerFailed": "注册失败"
+  },
+  "query": {
+    "title": "查询界面",
+    "placeholder": "请输入您的问题...",
+    "submit": "提交",
+    "clear": "清除",
+    "searching": "搜索中...",
+    "noResults": "未找到结果",
+    "error": "发生错误",
+    "mode": {
+      "fast": "快速模式",
+      "balanced": "平衡模式",
+      "deep": "深度模式"
+    }
+  },
+  "dataFlow": {
+    "title": "系统数据流",
+    "description": "可视化多智能体RAG架构",
+    "layers": {
+      "browser": "浏览器用户界面",
+      "auth": "认证层",
+      "query": "查询入口",
+      "security": "安全检查",
+      "rateLimit": "速率限制",
+      "nlp": "中文NLP预处理",
+      "advancedRAG": "高级RAG处理",
+      "router": "路由代理",
+      "vectorRAG": "向量RAG代理",
+      "graphRAG": "图谱RAG代理",
+      "webResearch": "网络研究代理",
+      "synthesis": "合成代理",
+      "chromaDB": "ChromaDB向量数据库",
+      "bm25": "BM25稀疏检索",
+      "neo4j": "Neo4j图数据库",
+      "docProcessing": "文档处理",
+      "streaming": "流式返回",
+      "persistence": "SQLite持久化",
+      "sessionHistory": "会话历史",
+      "fileStorage": "文件存储",
+      "monitoring": "运维监控",
+      "promptManagement": "提示词管理",
+      "circuitBreaker": "熔断器",
+      "loadDegradation": "负载降级",
+      "memoryCache": "内存缓存",
+      "apiEncryption": "API密钥加密",
+      "cicd": "CI/CD质量门",
+      "chartExtraction": "批量图表提取"
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "apiSettings": "API设置",
+    "provider": "提供商",
+    "model": "模型",
+    "temperature": "温度",
+    "maxTokens": "最大令牌数",
+    "save": "保存",
+    "cancel": "取消",
+    "saved": "设置保存成功",
+    "failed": "保存设置失败"
+  },
+  "admin": {
+    "title": "管理面板",
+    "userManagement": "用户管理",
+    "systemConfig": "系统配置",
+    "auditLog": "审计日志",
+    "statistics": "统计信息"
+  },
+  "common": {
+    "loading": "加载中...",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "confirm": "确认",
+    "close": "关闭",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "search": "搜索",
+    "filter": "筛选",
+    "export": "导出",
+    "import": "导入",
+    "refresh": "刷新",
+    "reset": "重置",
+    "apply": "应用",
+    "yes": "是",
+    "no": "否"
+  },
+  "theme": {
+    "light": "亮色",
+    "dark": "暗色",
+    "toggle": "切换主题"
+  },
+  "language": {
+    "en": "English",
+    "zh": "中文",
+    "toggle": "切换语言"
+  },
+  "features": {
+    "multiAgent": "多智能体编排",
+    "hybridSearch": "混合检索引擎",
+    "enterpriseSecurity": "企业级安全"
+  },
+  "architecture": {
+    "sections": {
+      "dataFlow": "1. 全链路数据流",
+      "coreMethods": "2. 核心方法",
+      "database": "3. 数据库与存储",
+      "security": "4. 安全能力",
+      "keyEndpoints": "5. 关键接口",
+      "modelBackends": "6. 模型后端支持",
+      "operations": "7. 运维与治理",
+      "frontend": "8. 前端技术栈"
+    },
+    "content": {
+      "coreMethods": [
+        "混合检索：Vector + BM25 + RRF + Rerank (BGE-reranker-v2-m3)",
+        "图谱检索：实体匹配 + 邻居关系 + APOC 插件",
+        "多智能体编排：LangGraph 工作流 + 条件路由",
+        "分层执行：Fast/Balanced/Deep 三档 + 负载降级",
+        "父子分块策略：平衡精度与上下文 (parent 1500 / child 600 tokens)",
+        "查询重写：去重优化减少 10-30% 冗余 LLM 调用",
+        "中文NLP优化：分词 + 同义词扩展 + 查询预处理",
+        "高级RAG：查询分解 + Self-RAG 评估",
+        "流式生成：SSE 按 chunk 返回 + 心跳保活",
+        "流式PDF处理：真实流式 + 70% 内存优化",
+        "批量图表提取：并行处理 + 吞吐量优化",
+        "OCR 支持：Tesseract (eng+chi_sim) + 图像预处理",
+        "图像字幕：AI 驱动的视觉内容描述",
+        "Prompt 管理：版本控制 + 审批流 + 回滚",
+        "性能对比：基线系统 + 综合评估指标",
+        "Agent 可视化：实时追踪 + SSE 流式更新",
+        "CI/CD 质门：自动化 RAG 评估 + 性能基准测试"
+      ],
+      "database": [
+        "SQLite：用户、会话、审计日志、Prompt版本、API设置加密存储",
+        "ChromaDB：向量索引 (持久化到 data/chroma)",
+        "Neo4j 5.26：关系图谱 + APOC 插件",
+        "JSONL：BM25 语料 (chunks.jsonl + parents.jsonl)",
+        "JSON：多会话历史（按用户隔离 sessions/user_*/*.json）",
+        "文件系统：上传文档 (uploads/user_*/) + OCR 缓存",
+        "内存缓存：检索配置 + 运行时状态"
+      ],
+      "security": [
+        "密码策略：PBKDF2 哈希 + salt + 12-128字符 + 特殊字符要求",
+        "JWT 鉴权：Bearer token + HttpOnly Cookie + 过期机制",
+        "Cookie 安全：Secure + SameSite=Strict + HttpOnly",
+        "RBAC 权限：用户/管理员角色 + 资源隔离",
+        "审批令牌：单次使用 + 常量时间比较防时序攻击",
+        "速率限制：管理员操作 1-5 req/hour + 查询配额",
+        "输入验证：安全检查 + 危险指令拦截 + SQL注入防护",
+        "会话隔离：按用户隔离上传目录、会话文件、文档访问",
+        "API密钥加密：AES加密存储 + 白名单URL验证",
+        "审计日志：全量记录敏感操作 + 失败追踪",
+        "熔断器：故障隔离 + 舱壁模式 + 重试逻辑"
+      ],
+      "modelBackends": [
+        "Ollama：本地部署 (qwen2.5, llama3, deepseek 等)",
+        "OpenAI：GPT-4, GPT-3.5 + text-embedding-3",
+        "Anthropic：Claude 3.5 Sonnet + OpenAI embeddings",
+        "混合部署：本地推理 + 云端嵌入",
+        "运行时切换：无需重启动态配置"
+      ],
+      "operations": [
+        "检索配置：baseline/advanced/safe 三档预设",
+        "金丝雀路由：灰度发布 + A/B 测试",
+        "配置回滚：一键恢复上一版本",
+        "基准测试：延迟分析 + 吞吐量测试",
+        "查询重放：历史查询重新执行验证",
+        "性能剖析：端到端延迟分解",
+        "负载降级：高负载时自动降档 (>80%)",
+        "Prompt 版本化：变更追踪 + 审批流",
+        "自动化评估：RAGAS 指标 + 回归测试"
+      ],
+      "frontend": [
+        "React 18 + TypeScript：类型安全的组件开发",
+        "Vite 6.4：快速构建 + HMR 热更新",
+        "React Router：SPA 路由管理",
+        "关键CSS提取：86% 体积优化 (99KB → 14KB)",
+        "代码分割：按需加载 + 懒加载优化",
+        "现代CSS架构：模块化 + 主题系统",
+        "SSE 流式渲染：实时消息流展示",
+        "响应式设计：移动端适配"
+      ]
+    },
+    "apiEndpoints": "# 认证与用户\nPOST /auth/register\nPOST /auth/login\nPOST /auth/logout\nPOST /auth/refresh\nGET  /auth/me\n\n# 查询与会话\nPOST /query\nPOST /query/stream\nGET  /sessions\nPOST /sessions\nDELETE /sessions/{id}\nPATCH /sessions/{id}/strategy\nPATCH /sessions/{id}/messages/{message_id}\nGET  /sessions/{id}/memory\nPOST /sessions/{id}/memory/clear\n\n# 文档管理\nGET  /documents\nDELETE /documents/{doc_id}\nPOST /documents/reindex\nPOST /upload\n\n# Prompt 管理\nGET  /prompts\nPOST /prompts\nPUT  /prompts/{id}\nPOST /prompts/check\nPOST /prompts/{id}/approve\nPOST /prompts/{id}/rollback\n\n# 管理员 - 用户管理\nGET  /admin/users\nPOST /admin/users\nPATCH /admin/users/{user_id}/role\nPATCH /admin/users/{user_id}/status\nDELETE /admin/users/{user_id}\n\n# 管理员 - 运维操作\nGET  /admin/ops/profiles\nPOST /admin/ops/profiles\nPOST /admin/ops/canary\nPOST /admin/ops/rollback\nPOST /admin/ops/benchmark\nPOST /admin/ops/replay\nGET  /admin/ops/report\n\n# 管理员 - 模型配置\nGET  /admin/model-settings\nPUT  /admin/model-settings\n\n# 用户 - API 设置\nGET  /user/api-settings\nPUT  /user/api-settings\n\n# 评估与追踪\nPOST /api/evaluation/compare\nGET  /api/evaluation/baselines\nGET  /api/agent-tracking/executions/{id}\nGET  /api/agent-tracking/stream/{id}\n\n# 高级 RAG\nPOST /api/advanced-rag/decompose\nPOST /api/advanced-rag/self-rag\n\n# 健康检查\nGET  /health\nGET  /ready\nGET  /metrics"
+  }
+}
