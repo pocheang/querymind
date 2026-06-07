@@ -308,3 +308,9 @@ docs/archive/*.md
 # - docs/API_SETTINGS_GUIDE.md (API usage guide)
 # - docs/PERFORMANCE_OPTIMIZATION.md (performance guide)
 # - docs/VERSION_HISTORY.md (version tracking)
+
+# Visualization outputs
+docs/dashboard.html
+docs/structure_*.txt
+docs/structure_*.html
+docs/visualizations/
