@@ -19,15 +19,8 @@ export function nextTheme(mode: ThemeMode): ThemeMode {
   return mode === "dark" ? "light" : "dark";
 }
 
-export const THEME_LABELS = {
-  SWITCH_TO_LIGHT: '切换到亮色',
-  SWITCH_TO_DARK: '切换到暗色',
-} as const;
-
 export function getThemeIcon(themeLabel: string): string {
-  return themeLabel.includes("暗") ? "🌙" : "☀️";
+  // 支持中英文判断：包含"暗"或"Dark"返回月亮，否则返回太阳
+  return themeLabel.includes("暗") || themeLabel.toLowerCase().includes("dark") ? "🌙" : "☀️";
 }
 
-export function getThemeDisplay(themeLabel: string): string {
-  return themeLabel.includes("暗") ? "暗色" : "亮色";
-}

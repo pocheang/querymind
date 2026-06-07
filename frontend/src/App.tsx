@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { authApi } from "@/lib/api";
 import { applyTheme, getSavedTheme, nextTheme, saveTheme, type ThemeMode } from "@/lib/theme";
 import { LoginPage } from "@/pages/LoginPage";
@@ -28,6 +29,7 @@ function Protected({
 }
 
 export function App() {
+  const { t, i18n } = useTranslation();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(getSavedTheme());
@@ -51,8 +53,8 @@ export function App() {
   }, []);
 
   const themeLabel = useMemo(() => {
-    return theme === "dark" ? "主题: 暗色" : "主题: 亮色";
-  }, [theme]);
+    return theme === "dark" ? t('theme.dark') : t('theme.light');
+  }, [theme, t, i18n.language]);
 
   const logout = async () => {
     await authApi.logout();

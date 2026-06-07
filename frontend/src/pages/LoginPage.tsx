@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { authApi } from "@/lib/api";
 import type { AuthUser } from "@/types/api";
 import { validateUsername, validatePassword } from "@/lib/validation";
 import { useFormState } from "@/hooks/useFormState";
 import { AuthInput } from "@/components/AuthInput";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 // Route-specific CSS (code-split by Vite)
 import "@/styles/pages/auth/layout.css";
@@ -22,6 +24,7 @@ type Props = {
 };
 
 export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState(localStorage.getItem("remembered_username") || "");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(!!localStorage.getItem("remembered_username"));
@@ -35,19 +38,19 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
 
   const login = async () => {
     if (!loginValid) {
-      setError("请输入有效用户名和密码");
+      setError(t('auth.loginFailed'));
       return;
     }
     setLoading(true);
     setError("");
-    setStatus("登录中...");
+    setStatus(t('query.searching'));
     try {
       const data = await authApi.login(username.trim(), password);
       if (rememberMe) localStorage.setItem("remembered_username", username.trim());
       else localStorage.removeItem("remembered_username");
       onLogin(data.user);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "登录失败");
+      setError(e instanceof Error ? e.message : t('auth.loginFailed'));
     } finally {
       setLoading(false);
       setStatus("");
@@ -56,17 +59,17 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
 
   const register = async () => {
     if (!registerValid) {
-      setError("请先修正输入内容");
+      setError(t('auth.registerFailed'));
       return;
     }
     setLoading(true);
     setError("");
-    setStatus("注册中...");
+    setStatus(t('query.searching'));
     try {
       const data = await authApi.register(username.trim(), password);
-      setStatus(`注册成功：${data.username}，请登录`);
+      setStatus(`${t('auth.registerSuccess')}: ${data.username}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "注册失败");
+      setError(e instanceof Error ? e.message : t('auth.registerFailed'));
     } finally {
       setLoading(false);
     }
@@ -83,18 +86,30 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
 
   return (
     <div className="auth-root">
-      <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
+      <div style={{
+        position: 'absolute',
+        top: '1rem',
+        right: '1rem',
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: '0.5rem',
+        zIndex: 1000
+      }}>
+        <LanguageToggle />
+        <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
+      </div>
 
       <main className="auth-card">
         <section className="auth-intro auth-intro-primary">
-          <div className="badge">多智能体 RAG 系统</div>
+          <div className="badge">{t('app.title')}</div>
           <div className="auth-intro-copy">
             <h1>
               Local RAG
               <br />
               Platform
             </h1>
-            <p>企业级本地知识库问答系统。支持多智能体协作、混合检索、知识图谱增强和流式对话。</p>
+            <p>{t('app.subtitle')}</p>
           </div>
 
           <div className="auth-feature-stack">
@@ -104,7 +119,7 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
                   <path d="M9 3h6v3h3v4h-2V8H8v2H6V6h3V3Zm-1 9h8v7H8v-7Zm4-4a2 2 0 1 0 0 4a2 2 0 0 0 0-4Z" />
                 </svg>
               </span>
-              <span>多智能体编排</span>
+              <span>{t('features.multiAgent')}</span>
             </div>
             <div className="auth-feature-card">
               <span className="auth-feature-icon auth-feature-icon-blue" aria-hidden="true">
@@ -112,7 +127,7 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
                   <path d="M10.5 4a6.5 6.5 0 1 1-4.03 11.6L3 19l1.4 1.4l3.4-3.47A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9a4.5 4.5 0 0 0 0-9Z" />
                 </svg>
               </span>
-              <span>混合检索引擎</span>
+              <span>{t('features.hybridSearch')}</span>
             </div>
             <div className="auth-feature-card">
               <span className="auth-feature-icon auth-feature-icon-amber" aria-hidden="true">
@@ -120,7 +135,7 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
                   <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4V7Z" />
                 </svg>
               </span>
-              <span>企业级安全</span>
+              <span>{t('features.enterpriseSecurity')}</span>
             </div>
           </div>
 
@@ -130,37 +145,37 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
 
         <section className="auth-form">
           <div className="auth-form-header">
-            <h2>欢迎回来</h2>
-            <p className="auth-form-subtitle">登录以访问您的知识库控制台</p>
+            <h2>{t('auth.login')}</h2>
+            <p className="auth-form-subtitle">{t('app.subtitle')}</p>
           </div>
 
           <div className="input-group">
-            <label htmlFor="username">用户名</label>
+            <label htmlFor="username">{t('auth.username')}</label>
             <AuthInput
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="请输入用户名"
+              placeholder={t('auth.username')}
               autoComplete="username"
               icon="user"
             />
             <div className={`hint ${validateUsername(username) ? "ok" : username.length > 0 ? "error" : ""}`}>
               {username.length === 0
-                ? "3-32位字母、数字或._-"
+                ? "3-32 characters, letters, numbers or ._-"
                 : validateUsername(username)
-                  ? "用户名格式可用"
-                  : "用户名格式不正确"}
+                  ? "✓"
+                  : "Invalid format"}
             </div>
           </div>
 
           <div className="input-group">
-            <label htmlFor="password">密码</label>
+            <label htmlFor="password">{t('auth.password')}</label>
             <AuthInput
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入密码"
+              placeholder={t('auth.password')}
               autoComplete="current-password"
               onKeyDown={(e) => {
                 if (e.key === "Enter") void login();
@@ -169,20 +184,20 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
             />
             <div className={`hint ${validatePassword(password) ? "ok" : password.length > 0 ? "error" : ""}`}>
               {password.length === 0
-                ? "注册需 12 位以上，含大小写、数字和特殊字符"
+                ? "12+ chars with uppercase, lowercase, number & special char"
                 : validatePassword(password)
-                  ? "密码强度达标"
-                  : "密码强度不足"}
+                  ? "✓"
+                  : "Weak password"}
             </div>
           </div>
 
           <div className="row-actions auth-extra-row">
             <label className="checkline auth-checkline">
               <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-              记住用户名
+              Remember me
             </label>
             <Link to="/app/forgot-password" className="text-link-btn">
-              忘记密码?
+              Forgot password?
             </Link>
           </div>
 
@@ -193,7 +208,7 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
               disabled={!loginValid || loading}
               onClick={() => void login()}
             >
-              {loading ? "登录中..." : "登录系统"}
+              {loading ? t('query.searching') : t('auth.loginButton')}
             </button>
             <button
               type="button"
@@ -201,12 +216,12 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
               disabled={!registerValid || loading}
               onClick={() => void register()}
             >
-              {loading ? "注册中..." : "注册新账号"}
+              {loading ? t('query.searching') : t('auth.registerButton')}
             </button>
           </div>
 
           <div className="divider">
-            <span>或使用第三方登录</span>
+            <span>or use social login</span>
           </div>
 
           <div className="social-grid">
@@ -228,7 +243,7 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
 
           <div className="auth-footer">
             <Link className="text-link" to="/app/architecture">
-              查看系统架构
+              {t('dataFlow.title')}
             </Link>
           </div>
 
