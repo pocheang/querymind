@@ -1,94 +1,190 @@
-# Documentation Hub
+# 多智能体RAG系统文档
 
-**Status**: Public  
-**Last Updated**: 2026-06-02  
-**Audience**: Users, operators, contributors, maintainers  
+**项目版本**: v0.4.4  
+**文档更新**: 2026-06-08  
+**状态**: 活跃维护
 
-This directory is the public GitHub documentation hub for Multi-Agent Local RAG.
-It contains only sanitized documentation that is safe to publish. Internal
-audits, security findings, private plans, and generated reports are kept under
-`internal_docs/` and are excluded from GitHub by `.gitignore`.
+---
 
-**Quick Navigation**: See [INDEX.md](./INDEX.md) for a complete documentation index.
+## 📚 快速导航
 
-## Public Documentation Map
+### 🚀 快速开始
+- [项目README](../README.md) - 项目概述、安装和使用
+- [CHANGELOG](../CHANGELOG.md) - 版本更新日志
+- [配置指南](guides/CONFIGURATION_GUIDE.md) - 系统配置指南
 
-| Document | Purpose | Audience |
-| --- | --- | --- |
-| [../README.md](../README.md) | Project overview, setup, usage | All users |
-| [../CHANGELOG.md](../CHANGELOG.md) | Public change history | Users, maintainers |
-| [../DOCUMENTATION_POLICY.md](../DOCUMENTATION_POLICY.md) | Documentation governance policy | Maintainers |
-| [INDEX.md](INDEX.md) | Complete documentation index | All users |
-| [project/PUBLICATION_MATRIX.md](project/PUBLICATION_MATRIX.md) | What can and cannot be published to GitHub | Maintainers, contributors |
-| [project/SECURITY.md](project/SECURITY.md) | Responsible disclosure policy | Security reporters, maintainers |
-| [project/CODE_CHANGE_POLICY.md](project/CODE_CHANGE_POLICY.md) | Code change policy | Maintainers, contributors |
-| [guides/API_SETTINGS_GUIDE.md](guides/API_SETTINGS_GUIDE.md) | API/model configuration guidance | Admins, operators |
-| [guides/PERFORMANCE_OPTIMIZATION.md](guides/PERFORMANCE_OPTIMIZATION.md) | General performance tuning | Operators, engineers |
-| [history/VERSION_HISTORY.md](history/VERSION_HISTORY.md) | Public version timeline | Delivery, maintainers |
-| [project/production_readiness_checklist.md](project/production_readiness_checklist.md) | Sanitized production readiness checklist | Operators, SRE, engineering |
-| [project/INDEX.md](project/INDEX.md) | Project documentation index | Operators, maintainers |
-| [design/INDEX.md](design/INDEX.md) | Public design documentation index | Product, engineering |
-| [templates/README.md](templates/README.md) | Documentation templates | Maintainers |
+### 📖 操作指南
+- [API配置指南](guides/API_SETTINGS_GUIDE.md) - API和模型配置
+- [性能优化指南](guides/PERFORMANCE_OPTIMIZATION.md) - 性能调优
+- [PDF性能调优](guides/PDF_PERFORMANCE_TUNING.md) - PDF处理优化
+- [PDF测试指南](guides/PDF_TESTING_GUIDE.md) - PDF测试流程
+- [Claude技能指南](guides/claude-skills-guide.md) - Claude Code技能使用
 
-## Public Directory Structure
+### ✨ 功能文档
+- [RAG功能](features/rag/) - 检索增强生成功能
+- [Agent系统](features/agents/) - 多智能体编排
+- [PDF处理](features/pdf/) - PDF文档处理
+- [OCR集成](features/ocr/) - 光学字符识别
 
-```text
+### 🔧 项目管理
+- [项目分析报告](project/PROJECT_ANALYSIS.md) - 完整项目分析
+- [代码变更政策](project/CODE_CHANGE_POLICY.md) - 代码变更规范
+- [文档政策](project/policies/DOCUMENTATION_POLICY.md) - 文档管理规范
+- [安全政策](project/SECURITY.md) - 安全披露政策
+
+### 🚀 版本发布
+- [v0.4.4 实现指南](releases/v0.4.4-implementation-guide.md)
+- [v0.4.4 快速参考](releases/v0.4.4-quick-reference.md)
+- [历史发布说明](releases/) - 所有版本发布说明
+
+---
+
+## 📁 文档组织
+
+我们的文档按照以下结构组织：
+
+```
 docs/
-├── README.md                    # This file - documentation hub
-├── INDEX.md                     # Complete documentation index
-├── guides/                      # Configuration and operation guides
-│   ├── API_SETTINGS_GUIDE.md
-│   ├── PDF_PERFORMANCE_TUNING.md
-│   ├── PDF_TESTING_GUIDE.md
-│   └── PERFORMANCE_OPTIMIZATION.md
-├── features/                    # Feature documentation
-│   ├── rag/                    # RAG and retrieval features
-│   ├── agents/                 # Agent system features
-│   ├── pdf/                    # PDF processing features
-│   └── ocr/                    # OCR and image processing
-├── history/                     # Version history and optimization records
-│   ├── VERSION_HISTORY.md
-│   ├── OPTIMIZATION_HISTORY.md
-│   └── demo_dataset_setup.md
-├── project/                     # Project planning and policies
-│   ├── CODE_CHANGE_POLICY.md
-│   ├── PUBLICATION_MATRIX.md
-│   ├── SECURITY.md
-│   └── production_readiness_checklist.md
-├── design/                      # Design documents and feature specs
-├── releases/                    # Release notes and announcements
-├── archive/                     # Historical reports and investigations
-│   ├── refactoring/            # Refactoring reports
-│   ├── ui/                     # UI modernization reports
-│   └── investigations/         # Technical investigation reports
-├── images/                      # Architecture diagrams and screenshots
-└── templates/                   # Documentation templates
+├── guides/          # 📖 操作和配置指南
+├── features/        # ✨ 功能文档和说明
+├── project/         # 🔧 项目管理和政策
+├── releases/        # 🚀 版本发布说明
+├── design/          # 🎨 架构和设计文档
+├── history/         # 📜 版本和优化历史
+├── templates/       # 📝 文档模板
+├── visualizations/  # 📊 项目可视化
+├── images/          # 🖼️ 图片和图表
+└── archive/         # 📦 历史归档
 ```
 
-Internal-only locations excluded from this hub (kept under `internal_docs/`):
+详细的结构说明请参考 [STRUCTURE.md](STRUCTURE.md)
 
-- `internal_docs/plans/` - Execution plans with step-by-step instructions
-- `internal_docs/docs_archive/` - Test reports, fix logs, deep code reviews
-- `internal_docs/security/` - Security audits, patch guides, vulnerability details
-- `internal_docs/project_audit/` - Project audit reports and remediation backlogs
+---
 
-## Internal Documentation
+## 🔍 查找文档
 
-The following content must not be linked from public docs and must stay in
-`internal_docs/`:
+### 按主题查找
+- **完整索引**: [INDEX.md](INDEX.md) - 所有文档的完整列表
+- **项目文档**: [project/INDEX.md](project/INDEX.md)
+- **设计文档**: [design/INDEX.md](design/INDEX.md)
+- **归档文档**: [archive/INDEX.md](archive/INDEX.md)
 
-- Security audits, vulnerability details, exploit scenarios, patch guides
-- Project audit reports, P0/P1 remediation lists, quality findings
-- Internal implementation plans and delivery roadmaps
-- AI assistant instructions and local operating notes
-- Generated validation reports, local logs, screenshots, temporary files
+### 按角色查找
 
-For the full classification rules, see [PUBLICATION_MATRIX.md](PUBLICATION_MATRIX.md).
+#### 👤 用户/运维人员
+- [配置指南](guides/CONFIGURATION_GUIDE.md)
+- [API配置](guides/API_SETTINGS_GUIDE.md)
+- [性能优化](guides/PERFORMANCE_OPTIMIZATION.md)
+- [功能文档](features/)
 
-## Review Rules
+#### 💻 开发者
+- [项目分析](project/PROJECT_ANALYSIS.md)
+- [架构设计](design/)
+- [开发指南](guides/development/)
+- [代码变更政策](project/CODE_CHANGE_POLICY.md)
 
-- Public docs should be safe for GitHub, customers, and external contributors.
-- Internal docs can contain sensitive detail but must remain ignored by Git.
-- If a document has both public and sensitive content, split it into a public
-  summary and an internal detailed record.
-- Do not link public docs to ignored internal files.
+#### 🔧 维护者
+- [项目工作流](project/project-workflow-and-standards.md)
+- [维护建议](project/MAINTENANCE_RECOMMENDATIONS.md)
+- [Claude文件夹维护](project/CLAUDE_FOLDER_CLEANUP_GUIDE.md)
+- [生产就绪检查](project/production_readiness_checklist.md)
+
+---
+
+## 📝 文档贡献
+
+### 添加新文档
+1. 确定文档类型（用户、开发、管理）
+2. 选择合适的目录
+3. 使用 [文档模板](templates/)
+4. 更新相应的索引文件
+
+### 更新现有文档
+1. 更新文档内容
+2. 修改文档顶部的更新日期
+3. 如有重大变更，更新CHANGELOG
+
+### 归档旧文档
+1. 移动到 `archive/` 相应子目录
+2. 添加日期前缀 `YYYY-MM-DD-`
+3. 更新索引，移除主索引中的链接
+4. 在原位置添加重定向（如需要）
+
+详见 [文档政策](project/policies/DOCUMENTATION_POLICY.md)
+
+---
+
+## 🎯 重要文档
+
+### 核心政策
+- [文档政策](project/policies/DOCUMENTATION_POLICY.md)
+- [代码变更政策](project/CODE_CHANGE_POLICY.md)
+- [安全政策](project/SECURITY.md)
+- [发布矩阵](project/PUBLICATION_MATRIX.md)
+
+### 关键指南
+- [配置指南](guides/CONFIGURATION_GUIDE.md)
+- [性能优化](guides/PERFORMANCE_OPTIMIZATION.md)
+- [项目工作流](project/project-workflow-and-standards.md)
+
+### 技术文档
+- [高级RAG技术](features/rag/advanced_rag_techniques.md)
+- [中文NLP优化](features/rag/chinese_nlp_optimization.md)
+- [Agent执行追踪](features/agents/agent_execution_tracking.md)
+- [Docling集成](features/pdf/docling_integration.md)
+
+---
+
+## 📊 项目可视化
+
+我们提供多种项目可视化工具，帮助理解项目结构：
+
+- [项目仪表板](visualizations/dashboard.html) - 交互式项目概览
+- [结构可视化](visualizations/structure_visualization.html) - 目录结构图
+- [可视化指南](visualizations/GUIDE.md) - 如何使用可视化工具
+
+---
+
+## 🔗 外部资源
+
+### 运行时文档
+- **API文档**: http://127.0.0.1:8000/docs（后端运行时）
+- **前端界面**: http://127.0.0.1:5173/app（前端运行时）
+
+### 相关链接
+- [GitHub仓库](https://github.com/your-org/multi-agent-rag) _(如适用)_
+- [问题追踪](project/issues/) - 当前问题和解决方案
+
+---
+
+## 📞 获取帮助
+
+### 文档问题
+- 检查 [INDEX.md](INDEX.md) 寻找相关文档
+- 查看 [归档文档](archive/) 了解历史背景
+- 参考 [模板](templates/) 创建新文档
+
+### 技术问题
+- 查阅相应的功能文档 [features/](features/)
+- 检查 [问题追踪](project/issues/)
+- 参考 [历史发布说明](releases/)
+
+### 贡献指南
+- 遵循 [文档政策](project/policies/DOCUMENTATION_POLICY.md)
+- 使用 [文档模板](templates/)
+- 查看 [项目工作流](project/project-workflow-and-standards.md)
+
+---
+
+## 📈 文档统计
+
+- **总文档数**: 184+ 篇
+- **活跃维护**: guides/, features/, project/
+- **归档文档**: archive/（仅供参考）
+- **最后整理**: 2026-06-08
+
+---
+
+**维护者**: 项目团队  
+**文档版本**: 2.0  
+**下次审查**: 每月或主要版本发布时
