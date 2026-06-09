@@ -508,17 +508,18 @@
 .admin-pagination-select-wrap {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-size: 12px;
   color: var(--admin-text-secondary);
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .admin-pagination-select-wrap select {
-  height: 32px;
-  min-width: 60px;
-  padding: 0 24px 0 10px;
-  border-radius: 6px;
+  height: 28px;
+  min-width: 50px;
+  padding: 0 20px 0 8px;
+  border-radius: 4px;
   border: 1px solid var(--admin-input-border);
   background: var(--admin-input-bg);
   color: var(--admin-text-primary);
@@ -528,9 +529,10 @@
   cursor: pointer;
   transition: all 0.2s ease;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 8px center;
+  background-position: right 6px center;
+  background-size: 10px;
 }
 
 .admin-pagination-select-wrap select:hover {
