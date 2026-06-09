@@ -1,5 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import type { AuthUser } from "@/types/api";
 import { AdminAuditLogManagement } from "@/pages/admin/AdminAuditLogManagement";
 import { AdminCreateForm } from "@/pages/admin/AdminCreateForm";
@@ -15,13 +17,7 @@ import { ROLE_OPTIONS, STATUS_OPTIONS, ACTION_KEYWORD_OPTIONS } from "@/pages/ad
 import { getThemeIcon } from "@/lib/theme";
 
 // Route-specific CSS (code-split by Vite)
-import "@/styles/pages/admin/layout.css";
-import "@/styles/pages/admin/ops.css";
-import "@/styles/pages/admin/forms.css";
-import "@/styles/pages/admin/tables.css";
-import "@/styles/pages/admin/actions.css";
-import "@/styles/themes/light/admin.css";
-import "@/styles/themes/dark/admin.css";
+import "@/styles/pages/admin-entry.css";
 
 type Props = {
   user: AuthUser | null;
@@ -31,10 +27,15 @@ type Props = {
 };
 
 export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const state = useAdminState();
   const isAdmin = useMemo(() => (user?.role || "").toLowerCase() === "admin", [user?.role]);
   const themeIcon = getThemeIcon(themeLabel);
+
+  // Pagination state for audit logs
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(20);
 
   const actions = useAdminActions({
     ...state,
@@ -87,26 +88,36 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
     // eslint-disable-next-line
   }, [isAdmin, state.section, state.opsAutoRefresh, state.opsHours, state.opsActorUserId, state.opsActionKeyword]);
 
+  // Reset audit pagination when filters change
+  useEffect(() => {
+    setAuditPage(1);
+  }, [state.auditLimit, state.auditActorUserId, state.auditActionKeyword, state.auditEventCategory, state.auditSeverity, state.auditResult]);
+
   return (
     <div className="admin-shell">
       <header className="topbar">
         <div>
-          <h2>管理控制台</h2>
-          <p className="muted">企业级管理工作台</p>
+          <h2>{t("pages.admin.console")}</h2>
+          <p className="muted">{t("pages.admin.subtitle")}</p>
         </div>
         <div className="top-actions">
+          <LanguageToggle />
           <button className="secondary" type="button" onClick={onThemeToggle}>
             {themeIcon} {themeLabel}
           </button>
-          <button className="secondary" type="button" onClick={() => navigate('/app/analytics')}>📊 查看监控分析</button>
-          <Link className="secondary link-btn" to="/app">返回聊天</Link>
-          <button type="button" onClick={() => void onLogout()}>退出登录</button>
+          <button className="secondary" type="button" onClick={() => navigate('/app/analytics')}>
+            {t("pages.admin.viewAnalytics")}
+          </button>
+          <Link className="secondary link-btn" to="/app">{t("pages.admin.backToChat")}</Link>
+          <button type="button" className="primary-action-btn" onClick={() => void onLogout()}>
+            {t("nav.logout")}
+          </button>
         </div>
       </header>
 
       {!isAdmin && (
         <main className="panel">
-          <div className="status error">当前账号没有管理员权限。</div>
+          <div className="status error">{t("pages.admin.noPermission")}</div>
         </main>
       )}
 
@@ -114,13 +125,13 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
         <>
           <main className="panel">
             <div className="row-actions wrap admin-section-tabs">
-              <button type="button" className={state.section === "ops" ? "" : "secondary"} onClick={() => state.setSection("ops")}>系统运维</button>
-              <button type="button" className={state.section === "rag" ? "" : "secondary"} onClick={() => state.setSection("rag")}>RAG/Agent 运维</button>
-              <button type="button" className={state.section === "models" ? "" : "secondary"} onClick={() => state.setSection("models")}>模型配置</button>
-              <button type="button" className={state.section === "admins" ? "" : "secondary"} onClick={() => state.setSection("admins")}>创建管理员</button>
-              <button type="button" className={state.section === "users" ? "" : "secondary"} onClick={() => state.setSection("users")}>用户管理</button>
-              <button type="button" className={state.section === "audit" ? "" : "secondary"} onClick={() => state.setSection("audit")}>审计日志</button>
-              <button type="button" className={state.section === "syslog" ? "" : "secondary"} onClick={() => state.setSection("syslog")}>系统日志</button>
+              <button type="button" className={state.section === "ops" ? "" : "secondary"} onClick={() => state.setSection("ops")}>{t("pages.admin.sections.ops")}</button>
+              <button type="button" className={state.section === "rag" ? "" : "secondary"} onClick={() => state.setSection("rag")}>{t("pages.admin.sections.rag")}</button>
+              <button type="button" className={state.section === "models" ? "" : "secondary"} onClick={() => state.setSection("models")}>{t("pages.admin.sections.models")}</button>
+              <button type="button" className={state.section === "admins" ? "" : "secondary"} onClick={() => state.setSection("admins")}>{t("pages.admin.sections.admins")}</button>
+              <button type="button" className={state.section === "users" ? "" : "secondary"} onClick={() => state.setSection("users")}>{t("pages.admin.sections.users")}</button>
+              <button type="button" className={state.section === "audit" ? "" : "secondary"} onClick={() => state.setSection("audit")}>{t("pages.admin.sections.audit")}</button>
+              <button type="button" className={state.section === "syslog" ? "" : "secondary"} onClick={() => state.setSection("syslog")}>{t("pages.admin.sections.syslog")}</button>
             </div>
           </main>
 
@@ -269,6 +280,10 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
                 state.setAuditSeverity("");
                 state.setAuditResult("");
               }}
+              currentPage={auditPage}
+              pageSize={auditPageSize}
+              onPageChange={setAuditPage}
+              onPageSizeChange={setAuditPageSize}
             />
           )}
 
