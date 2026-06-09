@@ -37,6 +37,10 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
   const [auditPage, setAuditPage] = useState(1);
   const [auditPageSize, setAuditPageSize] = useState(20);
 
+  // Pagination state for system logs
+  const [systemLogCurrentPage, setSystemLogCurrentPage] = useState(1);
+  const [systemLogPageSize, setSystemLogPageSize] = useState(20);
+
   const actions = useAdminActions({
     ...state,
     isAdmin,
@@ -92,6 +96,11 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
   useEffect(() => {
     setAuditPage(1);
   }, [state.auditLimit, state.auditActorUserId, state.auditActionKeyword, state.auditEventCategory, state.auditSeverity, state.auditResult]);
+
+  // Reset system log pagination when filters change
+  useEffect(() => {
+    setSystemLogCurrentPage(1);
+  }, [state.systemLogLevel, state.systemLogLogger, state.systemLogKeyword]);
 
   return (
     <div className="admin-shell">
@@ -306,6 +315,10 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
                 state.setSystemLogLogger("");
                 state.setSystemLogKeyword("");
               }}
+              systemLogCurrentPage={systemLogCurrentPage}
+              systemLogPageSize={systemLogPageSize}
+              onSystemLogPageChange={setSystemLogCurrentPage}
+              onSystemLogPageSizeChange={setSystemLogPageSize}
             />
           )}
 
