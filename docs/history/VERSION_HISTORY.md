@@ -1,7 +1,7 @@
 # Version History
 
 **Status**: Public  
-**Last Updated**: 2026-05-20  
+**Last Updated**: 2026-06-17  
 **Audience**: Users, operators, contributors, maintainers  
 
 This file is the public version timeline for Multi-Agent Local RAG. It keeps a
@@ -15,6 +15,7 @@ For current release notes, also see [../CHANGELOG.md](../CHANGELOG.md).
 
 | Version | Date | Type | Public Summary |
 | --- | --- | --- | --- |
+| v0.4.4 | 2026-06-17 | UI Enhancement | Admin Console pagination system, internationalization (i18n) infrastructure with English/Chinese support, UI optimization and accessibility improvements |
 | v0.4.1 | 2026-05-20 | Refactoring | Code quality improvements: Eliminated ~2,700 lines of duplicate code, created 19 reusable modules, standardized error handling and API patterns |
 | v0.4.0 | 2026-05-16 | Major Feature | Interview demo features: Performance comparison, Agent visualization, Chinese NLP, Advanced RAG, Streaming PDF, Demo dataset, Modern UI redesign |
 | v0.3.3 | 2026-05-07 | Feature | Performance optimization and enhanced testing |
