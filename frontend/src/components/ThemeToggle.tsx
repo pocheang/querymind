@@ -1,3 +1,4 @@
+import "../styles/components/theme-toggle.css";
 import { getThemeIcon } from "@/lib/theme";
 
 interface ThemeToggleProps {
@@ -14,6 +15,8 @@ export function ThemeToggle({ themeLabel, onThemeToggle, className = "theme-togg
       type="button"
       className={className}
       onClick={onThemeToggle}
+      aria-label={themeLabel}
+      title={themeLabel}
     >
       {themeIcon} {themeLabel}
     </button>

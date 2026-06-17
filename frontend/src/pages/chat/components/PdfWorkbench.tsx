@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { IndexedFileSummary } from "@/types/api";
 
 type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
@@ -17,44 +18,44 @@ export function PdfWorkbench({
   onPdfTargetFileChange,
   onSwitchAgentMode,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <>
       <div className="pdf-kpi-grid">
         <div className="pdf-kpi-card">
-          <span>PDF/IMAGE DOCS</span>
+          <span>{t("components.workbench.pdfImageDocsShort")}</span>
           <strong>{pdfDocuments.length}</strong>
         </div>
         <div className="pdf-kpi-card">
-          <span>NEED REINDEX</span>
+          <span>{t("components.workbench.needReindex")}</span>
           <strong>{pdfNeedingReindex.length}</strong>
         </div>
       </div>
 
       <select
         value={pdfTargetFile}
-        onChange={(e) => onPdfTargetFileChange(e.target.value)}
+        onChange={(event) => onPdfTargetFileChange(event.target.value)}
         disabled={!pdfDocuments.length}
       >
-        {!pdfDocuments.length && <option value="">暂无PDF文档</option>}
+        {!pdfDocuments.length && <option value="">{t("components.workbench.noPdfDocs")}</option>}
         {pdfDocuments.map((doc) => (
           <option key={doc.source} value={doc.filename}>
-            {doc.filename} (块={doc.chunks || 0})
+            {doc.filename} ({t("components.workbench.chunks", { count: doc.chunks || 0 })})
           </option>
         ))}
       </select>
 
       <div className="row-actions wrap">
         <button type="button" className="secondary tiny-btn" onClick={() => onSwitchAgentMode("pdf_text")}>
-          强制 pdf_text
+          {t("components.workbench.forcePdfText")}
         </button>
         <button type="button" className="secondary tiny-btn" onClick={() => onSwitchAgentMode("")}>
-          返回自动
+          {t("components.workbench.returnAuto")}
         </button>
       </div>
 
-      {pdfNeedingReindex.length > 0 && (
-        <div className="hint">部分PDF文档块数为0，请在提问前重建索引。</div>
-      )}
+      {pdfNeedingReindex.length > 0 && <div className="hint">{t("components.workbench.reindexHint")}</div>}
     </>
   );
 }

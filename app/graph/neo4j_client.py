@@ -63,7 +63,16 @@ class Neo4jClient:
                 self.__class__._schema_init_in_progress = False
                 self.__class__._schema_cv.notify_all()
 
-    def upsert_triplet(self, head: str, relation: str, tail: str, source: str):
+    def upsert_triplet(
+        self,
+        head: str,
+        relation: str,
+        tail: str,
+        source: str,
+        chunk_id: str = "",
+        page: int | None = None,
+        confidence: float = 0.7,
+    ):
         cypher = """
         MERGE (h:Entity {name: $head})
         MERGE (t:Entity {name: $tail})
@@ -73,13 +82,43 @@ class Neo4jClient:
             WHEN r.sources IS NULL THEN [$source]
             WHEN $source IN r.sources THEN r.sources
             ELSE r.sources + $source
+        END,
+        r.chunk_ids = CASE
+            WHEN $chunk_id = "" THEN coalesce(r.chunk_ids, [])
+            WHEN r.chunk_ids IS NULL THEN [$chunk_id]
+            WHEN $chunk_id IN r.chunk_ids THEN r.chunk_ids
+            ELSE r.chunk_ids + $chunk_id
+        END,
+        r.pages = CASE
+            WHEN $page IS NULL THEN coalesce(r.pages, [])
+            WHEN r.pages IS NULL THEN [$page]
+            WHEN $page IN r.pages THEN r.pages
+            ELSE r.pages + $page
+        END,
+        r.confidence_max = CASE
+            WHEN r.confidence_max IS NULL OR $confidence > r.confidence_max THEN $confidence
+            ELSE r.confidence_max
+        END,
+        r.confidence_count = coalesce(r.confidence_count, 0) + 1,
+        r.confidence_avg = CASE
+            WHEN r.confidence_avg IS NULL THEN $confidence
+            ELSE ((r.confidence_avg * (r.confidence_count - 1)) + $confidence) / r.confidence_count
         END
         MERGE (h)-[:MENTIONED_IN]->(s)
         MERGE (t)-[:MENTIONED_IN]->(s)
         RETURN h.name, r.type, t.name
         """
         with self.driver.session() as session:
-            session.run(cypher, head=head, relation=relation, tail=tail, source=source)
+            session.run(
+                cypher,
+                head=head,
+                relation=relation,
+                tail=tail,
+                source=source,
+                chunk_id=chunk_id,
+                page=page,
+                confidence=float(confidence),
+            )
 
     def search_entities(self, keywords: list[str], limit: int = 10, allowed_sources: list[str] | None = None) -> list[dict]:
         if allowed_sources is not None:

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 
 type AgentMode = {
@@ -19,11 +21,13 @@ export function AgentWorkbench({
   agentDistribution,
   onSwitchAgentMode,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <section className="panel">
       <div className="section-head">
-        <strong>Agent Workbench</strong>
-        <small className="muted">current: {agentClassHint || "auto"}</small>
+        <strong>{t("components.messages.agentWorkbench")}</strong>
+        <small className="muted">{t("components.messages.current", { mode: agentClassHint || t("components.workbench.auto") })}</small>
       </div>
       <div className="agent-mode-grid">
         {agentModes.map((mode) => (
@@ -40,7 +44,7 @@ export function AgentWorkbench({
         ))}
       </div>
       <div className="agent-stats">
-        {agentDistribution.length === 0 && <span className="muted">No indexed docs yet</span>}
+        {agentDistribution.length === 0 && <span className="muted">{t("components.messages.noIndexedDocs")}</span>}
         {agentDistribution.map((item) => (
           <span key={item.agent} className="chip">
             {item.agent}: {item.count}

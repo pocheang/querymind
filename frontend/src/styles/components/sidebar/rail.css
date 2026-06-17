@@ -2,7 +2,7 @@
    Sidebar Rail - Minimal Dark Dock
    ============================================ */
 
-.sidebar-rail {
+.page-shell .sidebar-rail {
   width: 72px;
   min-height: 100vh;
   padding: 12px 8px;
@@ -17,8 +17,8 @@
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.03), 14px 0 34px rgba(0, 0, 0, 0.2);
 }
 
-.sidebar-rail-actions,
-.sidebar-rail-footer {
+.page-shell .sidebar-rail-actions,
+.page-shell .sidebar-rail-footer {
   width: 100%;
   display: grid;
   justify-items: center;
@@ -26,19 +26,19 @@
   z-index: 1;
 }
 
-.sidebar-rail-actions {
+.page-shell .sidebar-rail-actions {
   align-content: start;
   gap: 8px;
   padding-top: 14px;
 }
 
-.sidebar-rail-footer {
+.page-shell .sidebar-rail-footer {
   margin-top: auto;
   padding-bottom: 34px;
 }
 
-.sidebar-rail-btn,
-.sidebar-rail-user {
+.page-shell .sidebar-rail-btn,
+.page-shell .sidebar-rail-user {
   position: relative;
   border: 0;
   background: transparent;
@@ -50,7 +50,7 @@
     transform 0.16s ease;
 }
 
-.sidebar-rail-btn {
+.page-shell .sidebar-rail-btn {
   width: 40px;
   height: 40px;
   padding: 0;
@@ -59,18 +59,18 @@
   place-items: center;
 }
 
-.sidebar-rail-btn.active {
+.page-shell .sidebar-rail-btn.active {
   background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
 }
 
-.sidebar-rail-btn:hover {
+.page-shell .sidebar-rail-btn:hover {
   background: rgba(255, 255, 255, 0.07);
   color: #ffffff;
   transform: translateY(-1px);
 }
 
-.rail-icon {
+.page-shell .rail-icon {
   width: 18px;
   height: 18px;
   position: relative;
@@ -78,12 +78,12 @@
   color: currentColor;
 }
 
-.rail-icon-panel {
+.page-shell .rail-icon-panel {
   border: 1.8px solid currentColor;
   border-radius: 4px;
 }
 
-.rail-icon-panel::before {
+.page-shell .rail-icon-panel::before {
   content: "";
   position: absolute;
   top: 2px;
@@ -94,12 +94,12 @@
   background: currentColor;
 }
 
-.rail-icon-edit {
+.page-shell .rail-icon-edit {
   border: 1.8px solid currentColor;
   border-radius: 4px;
 }
 
-.rail-icon-edit::before {
+.page-shell .rail-icon-edit::before {
   content: "";
   position: absolute;
   width: 11px;
@@ -113,19 +113,19 @@
   box-shadow: -8px 8px 0 -1px #090d1b;
 }
 
-.sidebar-rail-btn:hover .rail-icon-edit::before,
-.sidebar-rail-btn.active .rail-icon-edit::before {
+.page-shell .sidebar-rail-btn:hover .rail-icon-edit::before,
+.page-shell .sidebar-rail-btn.active .rail-icon-edit::before {
   box-shadow: -8px 8px 0 -1px #182034;
 }
 
-.rail-icon-search {
+.page-shell .rail-icon-search {
   width: 17px;
   height: 17px;
   border: 1.8px solid currentColor;
   border-radius: 999px;
 }
 
-.rail-icon-search::after {
+.page-shell .rail-icon-search::after {
   content: "";
   position: absolute;
   width: 7px;
@@ -137,7 +137,7 @@
   transform: rotate(45deg);
 }
 
-.sidebar-rail-user {
+.page-shell .sidebar-rail-user {
   flex: 0 0 32px;
   width: 32px;
   min-width: 32px;
@@ -164,7 +164,7 @@
     0 12px 24px rgba(91, 140, 255, 0.24);
 }
 
-.sidebar-rail-user::after {
+.page-shell .sidebar-rail-user::after {
   content: "";
   position: absolute;
   right: 1px;
@@ -176,13 +176,13 @@
   border: 2px solid #090d1b;
 }
 
-.sidebar-rail-user:hover {
+.page-shell .sidebar-rail-user:hover {
   background: linear-gradient(135deg, #6b9aff 0%, #9b8aff 100%);
   transform: translateY(-1px);
 }
 
-.sidebar-rail-btn:focus-visible,
-.sidebar-rail-user:focus-visible {
+.page-shell .sidebar-rail-btn:focus-visible,
+.page-shell .sidebar-rail-user:focus-visible {
   outline: 2px solid rgba(128, 151, 255, 0.72);
   outline-offset: 2px;
 }

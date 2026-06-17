@@ -88,6 +88,12 @@ export type IndexedFileSummary = {
   visibility?: "private" | "public" | string;
   exists_on_disk?: boolean;
   in_uploads?: boolean;
+  document_id?: string | null;
+  indexing_status?: "pending" | "indexing" | "ready" | "failed" | string;
+  indexing_stage?: string;
+  indexing_error?: string;
+  triplets_written?: number;
+  parser_profile?: string;
 };
 
 export type FileIndexActionResponse = {
@@ -99,6 +105,8 @@ export type FileIndexActionResponse = {
   chunks_indexed?: number;
   triplets_written?: number;
   pages_by_source?: Record<string, number>;
+  skipped?: boolean;
+  reason?: string;
 };
 
 export type UploadResponse = {
@@ -106,10 +114,24 @@ export type UploadResponse = {
   skipped_files?: string[];
   visibility_applied?: "private" | "public" | string;
   assigned_agent_classes?: Record<string, string>;
+  document_ids?: string[];
+  indexing_status?: string;
+  duplicate_files?: string[];
+  reused_document_ids?: string[];
   loaded_documents: number;
   chunks_indexed: number;
   triplets_written: number;
   pages_by_source?: Record<string, number>;
+};
+
+export type IndexHealthResponse = {
+  total_documents: number;
+  ready_documents: number;
+  failed_documents: number;
+  indexing_documents: number;
+  total_chunks: number;
+  total_triplets: number;
+  documents: IndexedFileSummary[];
 };
 
 export type PromptTemplate = {

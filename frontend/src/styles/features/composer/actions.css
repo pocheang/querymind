@@ -2,23 +2,7 @@
    COMPOSER: Actions, Controls and Quick Actions
    ============================================ */
 
-.spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.composer-primary-btn {
+.page-shell .composer-primary-btn {
   min-width: 188px;
   min-height: 58px;
   padding: 0 26px;
@@ -37,7 +21,7 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.composer-primary-btn::before {
+.page-shell .composer-primary-btn::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -46,40 +30,49 @@
   transition: opacity 0.2s ease;
 }
 
-.composer-primary-btn:hover:not(:disabled) {
+.page-shell .composer-primary-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.38);
   box-shadow: 0 20px 48px rgba(91, 140, 255, 0.42), 0 0 42px rgba(139, 122, 255, 0.24);
 }
 
-.composer-primary-btn:hover:not(:disabled)::before {
+.page-shell .composer-primary-btn:hover:not(:disabled)::before {
   opacity: 1;
 }
 
-.composer-primary-btn:disabled {
+.page-shell .composer-primary-btn:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
-.composer-primary-btn .btn-text,
-.composer-primary-btn .btn-shortcut,
-.composer-primary-btn .spinner {
+.page-shell .composer-primary-btn .btn-text,
+.page-shell .composer-primary-btn .btn-shortcut,
+.page-shell .composer-primary-btn .spinner {
   position: relative;
   z-index: 1;
 }
 
-.composer-primary-btn .btn-text {
+.page-shell .composer-primary-btn .spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  animation-duration: 0.6s;
+}
+
+.page-shell .composer-primary-btn .btn-text {
   font-size: 16px;
   font-weight: 820;
 }
 
-.composer-primary-btn .btn-shortcut {
+.page-shell .composer-primary-btn .btn-shortcut {
   font-size: 11px;
   font-weight: 650;
   opacity: 0.78;
 }
 
-.option-group {
+.page-shell .option-group {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -92,27 +85,27 @@
   transition: all 0.22s ease;
 }
 
-.option-group:hover {
+.page-shell .option-group:hover {
   border-color: rgba(111, 132, 189, 0.36);
   background: rgba(18, 28, 48, 0.52);
 }
 
-.option-label {
+.page-shell .option-label {
   color: rgba(184, 199, 255, 0.68);
   font-size: 12px;
   font-weight: 680;
   white-space: nowrap;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
 }
 
-.option-toggle {
+.page-shell .option-toggle {
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
 }
 
-.toggle-track {
+.page-shell .toggle-track {
   display: block;
   width: 44px;
   height: 24px;
@@ -123,7 +116,7 @@
   transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.toggle-thumb {
+.page-shell .toggle-thumb {
   width: 18px;
   height: 18px;
   border-radius: 999px;
@@ -135,19 +128,19 @@
   transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.option-toggle.active .toggle-track {
+.page-shell .option-toggle.active .toggle-track {
   background: linear-gradient(135deg, rgba(91, 140, 255, 0.88), rgba(139, 122, 255, 0.88));
   border-color: rgba(139, 122, 255, 0.42);
   box-shadow: 0 0 16px rgba(91, 140, 255, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.12);
 }
 
-.option-toggle.active .toggle-thumb {
+.page-shell .option-toggle.active .toggle-thumb {
   transform: translateX(20px);
   background: #ffffff;
   box-shadow: 0 3px 12px rgba(91, 140, 255, 0.42);
 }
 
-.option-select {
+.page-shell .option-select {
   min-height: 32px;
   min-width: 138px;
   padding: 6px 32px 6px 12px;
@@ -171,14 +164,14 @@
   background-size: cover, cover;
 }
 
-.option-select:hover {
+.page-shell .option-select:hover {
   border-color: rgba(91, 140, 255, 0.42);
   background:
     linear-gradient(135deg, rgba(24, 36, 58, 0.92), rgba(18, 28, 48, 0.96)),
     radial-gradient(circle at 100% 0%, rgba(139, 122, 255, 0.14), transparent 50%);
 }
 
-.option-select:focus {
+.page-shell .option-select:focus {
   outline: none;
   border-color: rgba(91, 140, 255, 0.68);
   box-shadow:
@@ -189,7 +182,7 @@
     radial-gradient(circle at 100% 0%, rgba(139, 122, 255, 0.18), transparent 50%);
 }
 
-.composer-hint {
+.page-shell .composer-hint {
   margin-top: 12px;
   padding: 10px 12px;
   border-radius: 12px;
@@ -200,7 +193,7 @@
   line-height: 1.55;
 }
 
-.quick-actions {
+.page-shell .quick-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -208,7 +201,7 @@
   margin-top: 16px;
 }
 
-.quick-action-btn {
+.page-shell .quick-action-btn {
   padding: 9px 14px;
   border-radius: 999px;
   border: 1px solid rgba(111, 132, 189, 0.16);
@@ -220,21 +213,21 @@
   transition: all 0.18s ease;
 }
 
-.quick-action-btn:hover {
+.page-shell .quick-action-btn:hover {
   border-color: rgba(91, 140, 255, 0.4);
   background: rgba(91, 140, 255, 0.12);
   color: var(--text-primary);
   transform: translateY(-1px);
 }
 
-.quick-action-btn.danger {
+.page-shell .quick-action-btn.danger {
   color: #ff9b9b;
   border-color: rgba(255, 107, 107, 0.28);
   background: rgba(255, 107, 107, 0.1);
 }
 
 @media (max-width: 980px) {
-  .composer-primary-btn {
+  .page-shell .composer-primary-btn {
     width: 100%;
   }
 }

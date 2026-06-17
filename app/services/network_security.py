@@ -83,11 +83,17 @@ def validate_api_base_url_for_provider(base_url: str, *, provider: str) -> str:
     if not host:
         raise OutboundURLValidationError("base_url host is required")
 
+    provider_lc = normalize_string(provider, lowercase=True)
+    path = str(parsed.path or "").rstrip("/")
+    if provider_lc == "anthropic" and path == "/v1":
+        normalized = normalized[: -len("/v1")]
+    elif provider_lc in {"openai", "deepseek", "custom"} and path in {"", "/"}:
+        normalized = f"{normalized}/v1"
+
     allowlist = _csv_hosts(str(getattr(settings, "api_base_url_allowlist", "") or ""))
     if _host_allowlisted(host, allowlist):
         return normalized
 
-    provider_lc = normalize_string(provider, lowercase=True)
     allow_private = bool(getattr(settings, "api_base_url_allow_private", False))
     if provider_lc == "ollama":
         # Local Ollama deployment is an explicit in-host use case.

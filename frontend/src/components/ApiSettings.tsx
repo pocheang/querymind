@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { appApi } from "@/lib/api";
 import { ApiSettingsFormFields } from "./ApiSettingsFormFields";
 import { ApiSettingsPresets } from "./ApiSettingsPresets";
@@ -20,7 +21,6 @@ import {
   parseApiResponse,
 } from "./apiSettingsUtils";
 
-// Lazy-load modal CSS only when component is used
 let modalStylesLoaded = false;
 async function loadModalStyles() {
   if (!modalStylesLoaded) {
@@ -36,20 +36,13 @@ type Props = {
 };
 
 export function ApiSettings({ isOpen, onClose }: Props) {
+  const { t } = useTranslation();
   const [config, setConfig] = useState<ApiConfig>(DEFAULT_CONFIG);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Load modal CSS when component opens
-  useEffect(() => {
-    if (isOpen) {
-      loadModalStyles();
-      void loadSettings();
-    }
-  }, [isOpen]);
 
   const selectedModels = useMemo(() => PROVIDER_MODELS[config.provider] || [], [config.provider]);
   const needsApiKey = requiresApiKey(config.provider);
@@ -64,11 +57,19 @@ export function ApiSettings({ isOpen, onClose }: Props) {
         setConfig(parseApiResponse(response.settings));
       }
     } catch (error) {
-      setResult({ type: "error", message: error instanceof Error ? error.message : "Failed to load settings" });
+      setResult({ type: "error", message: error instanceof Error ? error.message : t("components.apiSettings.loadFailed") });
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      void loadModalStyles();
+      void loadSettings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const patchConfig = (patch: Partial<ApiConfig>) => {
     setConfig((prev) => ({ ...prev, ...patch }));
@@ -93,19 +94,22 @@ export function ApiSettings({ isOpen, onClose }: Props) {
       const payload = buildApiPayload(config);
       const probe = await appApi.testUserApiSettings(payload);
       if (probe.ok && probe.reachable) {
-        const previewSuffix = probe.preview ? ` | Preview: ${probe.preview}` : "";
+        const previewSuffix = probe.preview ? t("components.apiSettings.preview", { preview: probe.preview }) : "";
         setResult({
           type: "success",
-          message: `Connection succeeded (${probe.latency_ms}ms)${previewSuffix}`,
+          message: t("components.apiSettings.connectionSuccess", {
+            latency: probe.latency_ms,
+            preview: previewSuffix,
+          }),
         });
       } else {
         setResult({
           type: "error",
-          message: probe.message || "Connection failed, check Base URL / API Key / Model",
+          message: probe.message || t("components.apiSettings.connectionFailed"),
         });
       }
     } catch (error) {
-      setResult({ type: "error", message: error instanceof Error ? error.message : "Config check failed" });
+      setResult({ type: "error", message: error instanceof Error ? error.message : t("components.apiSettings.checkFailed") });
     } finally {
       setIsChecking(false);
     }
@@ -124,10 +128,10 @@ export function ApiSettings({ isOpen, onClose }: Props) {
         apiKey: "",
         apiKeyMasked: saved.settings?.api_key_masked || prev.apiKeyMasked,
       }));
-      setResult({ type: "success", message: "Settings saved. New queries will use this model config." });
+      setResult({ type: "success", message: t("components.apiSettings.saveSuccess") });
       window.setTimeout(onClose, 900);
     } catch (error) {
-      setResult({ type: "error", message: error instanceof Error ? error.message : "Save failed" });
+      setResult({ type: "error", message: error instanceof Error ? error.message : t("components.apiSettings.saveFailed") });
     } finally {
       setIsSaving(false);
     }
@@ -137,24 +141,29 @@ export function ApiSettings({ isOpen, onClose }: Props) {
 
   return (
     <>
-      <button type="button" className="api-settings-overlay" onClick={onClose} aria-label="Close settings" />
+      <button
+        type="button"
+        className="api-settings-overlay"
+        onClick={onClose}
+        aria-label={t("components.apiSettings.close")}
+      />
       <aside className="api-settings-panel" role="dialog" aria-modal="true" aria-labelledby="api-settings-title">
         <header className="settings-header">
           <div className="settings-header-content">
             <div className="settings-icon" aria-hidden="true">API</div>
             <div>
-              <h2 id="api-settings-title" className="settings-title">Model API Settings</h2>
-              <p className="settings-subtitle">Chat provider, key, model, and generation params</p>
+              <h2 id="api-settings-title" className="settings-title">{t("components.apiSettings.title")}</h2>
+              <p className="settings-subtitle">{t("components.apiSettings.subtitle")}</p>
             </div>
           </div>
-          <button type="button" className="close-btn" onClick={onClose} aria-label="Close settings">
+          <button type="button" className="close-btn" onClick={onClose} aria-label={t("components.apiSettings.close")}>
             <span aria-hidden="true">x</span>
           </button>
         </header>
 
         <div className="settings-content">
           {isLoading ? (
-            <div className="settings-loading">Loading settings...</div>
+            <div className="settings-loading">{t("components.apiSettings.loading")}</div>
           ) : (
             <>
               <ApiSettingsPresets
@@ -187,10 +196,10 @@ export function ApiSettings({ isOpen, onClose }: Props) {
 
         <footer className="settings-footer">
           <button type="button" className="api-btn secondary" onClick={handleCheck} disabled={isChecking || isSaving}>
-            {isChecking ? "Checking..." : "Check Config"}
+            {isChecking ? t("components.apiSettings.checking") : t("components.apiSettings.check")}
           </button>
           <button type="button" className="api-btn primary" onClick={handleSave} disabled={isSaving || isChecking}>
-            {isSaving ? "Saving..." : "Save Settings"}
+            {isSaving ? t("components.apiSettings.saving") : t("components.apiSettings.save")}
           </button>
         </footer>
       </aside>

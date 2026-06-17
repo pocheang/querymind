@@ -102,7 +102,7 @@
 }
 
 .admin-shell .admin-user-table {
-  min-width: 1860px;
+  min-width: 1320px;
   width: 100%;
   table-layout: fixed;
   border-collapse: separate;
@@ -123,33 +123,21 @@
 
 /* Column Widths */
 .admin-user-table th:nth-child(1),
-.admin-user-table td:nth-child(1) { width: 140px; }
+.admin-user-table td:nth-child(1) { width: 220px; }
 .admin-user-table th:nth-child(2),
-.admin-user-table td:nth-child(2) { width: 110px; }
+.admin-user-table td:nth-child(2) { width: 120px; }
 .admin-user-table th:nth-child(3),
-.admin-user-table td:nth-child(3) { width: 110px; }
+.admin-user-table td:nth-child(3) { width: 150px; }
 .admin-user-table th:nth-child(4),
-.admin-user-table td:nth-child(4) { width: 200px; }
+.admin-user-table td:nth-child(4) { width: 236px; }
 .admin-user-table th:nth-child(5),
-.admin-user-table td:nth-child(5) { width: 90px; }
+.admin-user-table td:nth-child(5) { width: 180px; }
 .admin-user-table th:nth-child(6),
-.admin-user-table td:nth-child(6) { width: 90px; }
+.admin-user-table td:nth-child(6) { width: 180px; }
 .admin-user-table th:nth-child(7),
-.admin-user-table td:nth-child(7) { width: 260px; }
+.admin-user-table td:nth-child(7) { width: 190px; }
 .admin-user-table th:nth-child(8),
-.admin-user-table td:nth-child(8) { width: 140px; }
-.admin-user-table th:nth-child(9),
-.admin-user-table td:nth-child(9) { width: 140px; }
-.admin-user-table th:nth-child(10),
-.admin-user-table td:nth-child(10) { width: 110px; }
-.admin-user-table th:nth-child(11),
-.admin-user-table td:nth-child(11) { width: 110px; }
-.admin-user-table th:nth-child(12),
-.admin-user-table td:nth-child(12) { width: 140px; }
-.admin-user-table th:nth-child(13),
-.admin-user-table td:nth-child(13) { width: 110px; }
-.admin-user-table th:nth-child(14),
-.admin-user-table td:nth-child(14) { width: 110px; }
+.admin-user-table td:nth-child(8) { width: 110px; }
 
 /* Sticky Columns (Username, Role, Status, Operation) */
 .admin-user-table th:nth-child(1),
@@ -169,7 +157,7 @@
 .admin-user-table th:nth-child(2),
 .admin-user-table td:nth-child(2) {
   position: sticky;
-  left: 140px;
+  left: 220px;
   z-index: 2;
   background: var(--admin-sticky-bg);
   box-shadow: 1px 0 0 var(--admin-border);
@@ -183,7 +171,7 @@
 .admin-user-table th:nth-child(3),
 .admin-user-table td:nth-child(3) {
   position: sticky;
-  left: 250px;
+  left: 340px;
   z-index: 2;
   background: var(--admin-sticky-bg);
   box-shadow: 1px 0 0 var(--admin-border);
@@ -197,7 +185,7 @@
 .admin-user-table th:nth-child(4),
 .admin-user-table td:nth-child(4) {
   position: sticky;
-  left: 360px;
+  left: 490px;
   z-index: 2;
   background: var(--admin-sticky-bg);
   box-shadow: 2px 0 0 var(--admin-border-medium);
@@ -224,18 +212,84 @@
 }
 
 .admin-username {
+  display: block;
   font-weight: 700;
   color: var(--admin-text-primary);
 }
 
-.admin-shell .user-row-actions {
-  justify-content: flex-end;
+.admin-user-identity,
+.admin-user-stack,
+.admin-user-status-cell {
+  display: grid;
   gap: 6px;
-  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.admin-user-stack > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-user-subtle {
+  color: var(--admin-text-tertiary);
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+}
+
+.admin-user-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-user-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border-medium);
+  background: var(--admin-surface-hover);
+  color: var(--admin-text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-user-flag.online,
+.admin-user-flag.token-set {
+  border-color: rgba(61, 214, 140, 0.35);
+  background: rgba(61, 214, 140, 0.1);
+  color: var(--admin-success);
+}
+
+.admin-user-flag.active {
+  border-color: rgba(79, 195, 247, 0.35);
+  background: rgba(79, 195, 247, 0.1);
+  color: var(--admin-info);
+}
+
+.admin-user-flag.offline,
+.admin-user-flag.empty {
+  color: var(--admin-text-tertiary);
+}
+
+.admin-shell .user-row-actions {
+  justify-content: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .admin-shell .user-row-actions .tiny-btn {
   min-width: 68px;
+}
+
+.admin-shell .user-table-actions .tiny-btn {
+  min-height: 32px;
+  padding: 0 12px;
 }
 
 /* ============================================
@@ -331,6 +385,46 @@
   min-width: 110px;
 }
 
+.admin-system-log-table {
+  min-width: 1360px;
+}
+
+.admin-system-log-table th:nth-child(1),
+.admin-system-log-table td:nth-child(1) {
+  width: 170px;
+  min-width: 170px;
+}
+
+.admin-system-log-table th:nth-child(2),
+.admin-system-log-table td:nth-child(2) {
+  width: 96px;
+  min-width: 96px;
+}
+
+.admin-system-log-table th:nth-child(3),
+.admin-system-log-table td:nth-child(3) {
+  width: 220px;
+  min-width: 220px;
+}
+
+.admin-system-log-table th:nth-child(4),
+.admin-system-log-table td:nth-child(4) {
+  width: 220px;
+  min-width: 220px;
+}
+
+.admin-system-log-table th:nth-child(5),
+.admin-system-log-table td:nth-child(5) {
+  width: 430px;
+  min-width: 430px;
+}
+
+.admin-system-log-table th:nth-child(6),
+.admin-system-log-table td:nth-child(6) {
+  width: 320px;
+  min-width: 320px;
+}
+
 .audit-time {
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
   font-size: 11px;
@@ -387,6 +481,57 @@
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
+}
+
+.system-log-code {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(91, 140, 255, 0.24);
+  background: rgba(91, 140, 255, 0.1);
+  color: var(--admin-text-primary);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-log-text {
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  line-height: 1.45;
+  font-size: 12px;
+}
+
+.system-log-message {
+  -webkit-line-clamp: 3;
+  color: var(--admin-text-primary);
+}
+
+.system-log-exception {
+  -webkit-line-clamp: 3;
+  color: var(--admin-text-secondary);
+}
+
+.system-log-exception.has-exception {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 107, 107, 0.22);
+  background: rgba(255, 107, 107, 0.06);
+}
+
+.system-log-exception.is-empty {
+  color: var(--admin-text-tertiary);
 }
 
 /* ============================================

@@ -96,6 +96,17 @@ def test_complete_execution(tracker):
     assert trace.total_duration_ms >= 0
 
 
+def test_complete_execution_accepts_final_result_metadata(tracker):
+    execution_id = tracker.start_execution("test query")
+    final_result = {"answer": "ok", "route": "vector"}
+
+    tracker.complete_execution(execution_id, final_result)
+
+    trace = tracker.get_execution_trace(execution_id)
+    assert trace.status == "completed"
+    assert trace.metadata["result"] == final_result
+
+
 def test_fail_execution(tracker):
     execution_id = tracker.start_execution("test query")
     error_msg = "Execution failed"

@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
-from app.api.utils.error_responses import bad_request, forbidden, not_found, conflict, internal_error, payload_too_large
+from app.api.utils.error_responses import bad_request, conflict, forbidden, internal_error, not_found, payload_too_large, rate_limited
 from app.api.utils.string_utils import normalize_string
 from app.api.dependencies import (
     _audit,
@@ -23,11 +23,16 @@ from app.api.dependencies import (
 from app.core.schemas import (
     FileIndexActionResponse,
     IndexedFileSummary,
+    IndexHealthResponse,
     UploadResponse,
 )
 from app.ingestion.loaders import IMAGE_EXTENSIONS
-from app.services.index_manager import delete_file_index, list_indexed_files, rebuild_file_index
-from app.services.ingest_service import ingest_paths
+from app.services.document_dedup import compute_sha256, find_duplicate_for_user
+from app.services.document_registry import create_document_record, delete_document_by_source, list_document_records, update_document_by_source
+from app.services.index_health import build_index_health_report
+from app.services.index_manager import delete_file_index, list_indexed_files, rebuild_file_index, should_skip_reindex
+from app.services.ingest_queue import enqueue_ingest_job
+from app.services.parser_profiles import choose_parser_profile
 from app.services.runtime_ops import append_index_freshness
 
 router = APIRouter(tags=["documents"])
@@ -49,10 +54,55 @@ def _resolve_manageable_source_for_filename(filename: str, user: dict[str, Any])
     return None
 
 
+def _merge_registry_status(indexed_rows: list[dict[str, Any]], user: dict[str, Any]) -> list[dict[str, Any]]:
+    by_source = {str(row.get("source", "") or ""): dict(row) for row in indexed_rows}
+    user_id = str(user.get("user_id", ""))
+    role = str(user.get("role", "viewer")).lower()
+    for record in list_document_records():
+        owner_user_id = str(record.get("owner_user_id", "") or "")
+        visibility = str(record.get("visibility", "private") or "private").lower()
+        if role != "admin" and visibility != "public" and owner_user_id != user_id:
+            continue
+        source = str(record.get("source", "") or "")
+        if not source:
+            continue
+        row = by_source.get(
+            source,
+            {
+                "filename": str(record.get("filename", "") or ""),
+                "source": source,
+                "chunks": 0,
+                "pages": [],
+                "page_count": 0,
+                "in_uploads": Path(source).is_file(),
+                "exists_on_disk": Path(source).is_file(),
+            },
+        )
+        row["document_id"] = record.get("document_id")
+        row["owner_user_id"] = record.get("owner_user_id")
+        row["visibility"] = record.get("visibility", "private")
+        row["agent_class"] = record.get("agent_class", "general")
+        row["indexing_status"] = record.get("status", "pending")
+        row["indexing_stage"] = record.get("stage", "uploaded")
+        row["indexing_error"] = record.get("error", "")
+        row["triplets_written"] = int(record.get("triplets_written", 0) or 0)
+        row["parser_profile"] = str(record.get("parser_profile", "") or "")
+        if int(row.get("chunks", 0) or 0) == 0:
+            row["chunks"] = int(record.get("chunks_indexed", 0) or 0)
+        row["page_count"] = len(list(row.get("pages", []) or []))
+        by_source[source] = row
+    return sorted(by_source.values(), key=lambda x: (str(x.get("filename", "")).lower(), str(x.get("source", "")).lower()))
+
+
+def _sha256_file(path: Path) -> str:
+    return compute_sha256(path)
+
+
 @router.get("/documents", response_model=list[IndexedFileSummary])
 def list_documents(request: Request, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, "document:read", request, "document")
-    return _list_visible_documents_for_user(user)
+    rows = _list_visible_documents_for_user(user)
+    return _merge_registry_status(rows, user)
 
 
 @router.delete("/documents/{filename}", response_model=FileIndexActionResponse)
@@ -72,6 +122,22 @@ def delete_document(
         raise forbidden("source not allowed")
     try:
         result = FileIndexActionResponse(**delete_file_index(filename, remove_physical_file=remove_file, source=source))
+        if remove_file:
+            delete_document_by_source(source)
+        else:
+            try:
+                update_document_by_source(
+                    source,
+                    {
+                        "status": "pending",
+                        "stage": "uploaded",
+                        "error": "",
+                        "chunks_indexed": 0,
+                        "triplets_written": 0,
+                    },
+                )
+            except ValueError:
+                pass
         _audit(request, action="document.delete", resource_type="document", result="success", user=user, resource_id=filename)
         return result
     except ValueError as e:
@@ -90,20 +156,46 @@ def reindex_document(filename: str, request: Request, source: str | None = None,
         raise forbidden("source not allowed")
     try:
         t0 = time.perf_counter()
+        source_path = Path(source)
+        if should_skip_reindex(source_path):
+            return FileIndexActionResponse(
+                ok=True,
+                filename=filename,
+                chunks_indexed=0,
+                triplets_written=0,
+                skipped=True,
+                reason="unchanged_file_hash",
+            )
         visibility = "private"
         owner_user_id = str(user.get("user_id", ""))
         agent_class = "general"
+        parser_profile_name = ""
         for row in list_indexed_files():
             if str(row.get("source", "") or "") == source:
                 visibility = str(row.get("visibility", visibility) or visibility)
                 owner_user_id = str(row.get("owner_user_id", owner_user_id) or owner_user_id)
                 agent_class = str(row.get("agent_class", agent_class) or agent_class)
+                parser_profile_name = str(row.get("parser_profile", "") or parser_profile_name)
                 break
+        try:
+            update_document_by_source(
+                source,
+                {
+                    "status": "indexing",
+                    "stage": "reindexing",
+                    "error": "",
+                    "sha256": _sha256_file(source_path),
+                    "parser_profile": parser_profile_name,
+                },
+            )
+        except ValueError:
+            pass
         metadata_overrides_by_source = {
             source: {
                 "owner_user_id": owner_user_id,
                 "visibility": visibility,
                 "agent_class": agent_class,
+                "parser_profile": parser_profile_name,
             }
         }
         result = FileIndexActionResponse(
@@ -133,6 +225,26 @@ def reindex_document(filename: str, request: Request, source: str | None = None,
         raise not_found(str(e))
 
 
+@router.get("/documents/index-health", response_model=IndexHealthResponse)
+def document_index_health(request: Request, user: dict[str, Any] = Depends(_require_user)):
+    _require_permission(user, "document:read", request, "document")
+    report = build_index_health_report()
+    visible_sources = {str(row.get("source", "") or "") for row in _list_visible_documents_for_user(user)}
+    report["documents"] = [
+        row
+        for row in report["documents"]
+        if str(row.get("source", "") or "") in visible_sources
+        or str(row.get("owner_user_id", "") or "") == str(user.get("user_id", ""))
+    ]
+    report["total_documents"] = len(report["documents"])
+    report["ready_documents"] = len([r for r in report["documents"] if r.get("status") == "ready"])
+    report["failed_documents"] = len([r for r in report["documents"] if r.get("status") == "failed"])
+    report["indexing_documents"] = len([r for r in report["documents"] if r.get("status") in {"pending", "indexing"}])
+    report["total_chunks"] = sum(int(r.get("chunks_indexed", 0) or 0) for r in report["documents"])
+    report["total_triplets"] = sum(int(r.get("triplets_written", 0) or 0) for r in report["documents"])
+    return report
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_files(
     request: Request,
@@ -160,6 +272,10 @@ async def upload_files(
     role = str(user.get("role", "viewer")).lower()
     visibility_applied = requested_visibility if role == "admin" else "private"
     assigned_agent_classes: dict[str, str] = {}
+    file_hashes_by_source: dict[str, str] = {}
+    parser_profiles_by_source: dict[str, dict[str, Any]] = {}
+    duplicate_files: list[str] = []
+    reused_document_ids: list[str] = []
     total_uploaded_bytes = 0
     read_chunk = max(16 * 1024, int(settings.upload_read_chunk_bytes))
     user_upload_root = settings.uploads_path / user["user_id"]
@@ -216,14 +332,42 @@ async def upload_files(
             if target.exists():
                 target.unlink()
             raise bad_request(f"invalid file signature: {safe_filename}")
+        sha256 = compute_sha256(target)
+        duplicate = find_duplicate_for_user(sha256, str(user.get("user_id", "")))
+        if duplicate is not None:
+            duplicate_files.append(safe_filename)
+            if duplicate.get("document_id"):
+                reused_document_ids.append(str(duplicate.get("document_id", "")))
+            if target.exists():
+                target.unlink()
+            continue
         saved_paths.append(target)
         filenames.append(safe_filename)
         assigned_agent_classes[str(target)] = _guess_agent_class_for_upload(safe_filename)
+        file_hashes_by_source[str(target)] = sha256
+        parser_profiles_by_source[str(target)] = choose_parser_profile(target, assigned_agent_classes[str(target)])
 
     if not saved_paths:
+        if duplicate_files and not skipped_files:
+            _audit(request, action="document.upload", resource_type="document", result="success", user=user, detail="duplicates_reused")
+            return UploadResponse(
+                filenames=[],
+                skipped_files=[],
+                visibility_applied=visibility_applied,
+                assigned_agent_classes={},
+                document_ids=[],
+                indexing_status="reused",
+                duplicate_files=duplicate_files,
+                reused_document_ids=[x for x in reused_document_ids if x],
+                loaded_documents=0,
+                chunks_indexed=0,
+                triplets_written=0,
+            )
         detail = "no supported files uploaded"
         if skipped_files:
             detail = f"{detail}; skipped={','.join(skipped_files)}"
+        if duplicate_files:
+            detail = f"{detail}; duplicates={','.join(duplicate_files)}"
         raise bad_request(detail)
 
     try:
@@ -233,42 +377,56 @@ async def upload_files(
         _audit(request, action="document.upload", resource_type="document", result="failed", user=user, detail=f"pre-clean failed: {e}")
         raise internal_error("upload pre-clean failed")
 
-    ingest_started = time.perf_counter()
     try:
-        metadata_overrides_by_source = {
-            str(p): {
+        document_ids: list[str] = []
+        for p in saved_paths:
+            parser_profile = parser_profiles_by_source.get(str(p), {})
+            record = create_document_record(
+                source=str(p),
+                filename=p.name,
+                sha256=file_hashes_by_source[str(p)],
+                owner_user_id=str(user.get("user_id", "")),
+                visibility=visibility_applied,
+                agent_class=assigned_agent_classes.get(str(p), "general"),
+                parser_profile=str(parser_profile.get("name", "") or ""),
+            )
+            document_ids.append(str(record["document_id"]))
+            metadata_overrides = {
                 "owner_user_id": str(user.get("user_id", "")),
                 "visibility": visibility_applied,
                 "agent_class": assigned_agent_classes.get(str(p), "general"),
+                "parser_profile": str(parser_profile.get("name", "") or ""),
             }
-            for p in saved_paths
-        }
-        result = ingest_paths(
-            saved_paths,
-            reset_vector_store=False,
-            metadata_overrides_by_source=metadata_overrides_by_source,
-        )
+            enqueue_ingest_job(
+                document_id=str(record["document_id"]),
+                path=p,
+                metadata_overrides=metadata_overrides,
+                parser_profile=parser_profile,
+            )
+            append_index_freshness(
+                {
+                    "user_id": str(user.get("user_id", "")),
+                    "filename": p.name,
+                    "source": str(p),
+                    "freshness_seconds": 0.0,
+                    "chunks_indexed": 0,
+                    "mode": "queued",
+                }
+            )
     except Exception as e:
         _audit(request, action="document.upload", resource_type="document", result="failed", user=user, detail=str(e))
         raise internal_error("upload ingest failed")
-    ingest_elapsed = (time.perf_counter() - ingest_started)
-    per_file = ingest_elapsed / max(1, len(saved_paths))
-    chunks_by_source = {str(row.get("source", "") or ""): int(row.get("chunks", 0) or 0) for row in list_indexed_files()}
-    for p in saved_paths:
-        append_index_freshness(
-            {
-                "user_id": str(user.get("user_id", "")),
-                "filename": p.name,
-                "source": str(p),
-                "freshness_seconds": round(per_file, 4),
-                "chunks_indexed": int(chunks_by_source.get(str(p), 0) or 0),
-            }
-        )
     _audit(request, action="document.upload", resource_type="document", result="success", user=user, detail=",".join(filenames))
     return UploadResponse(
         filenames=filenames,
         skipped_files=skipped_files,
         visibility_applied=visibility_applied,
         assigned_agent_classes=assigned_agent_classes,
-        **result,
+        document_ids=document_ids,
+        indexing_status="queued",
+        duplicate_files=duplicate_files,
+        reused_document_ids=[x for x in reused_document_ids if x],
+        loaded_documents=len(saved_paths),
+        chunks_indexed=0,
+        triplets_written=0,
     )

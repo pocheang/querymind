@@ -1,15 +1,17 @@
 import { isValidElement } from "react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useCopyToClipboard } from "@/lib/hooks/useCopyToClipboard";
 
 function CodeBlock({ code, className = "" }: { code: string; className?: string }) {
+  const { t } = useTranslation();
   const { copied, copy } = useCopyToClipboard(1200);
 
   return (
     <pre>
       <button type="button" className="copy-code-btn" onClick={() => void copy(code)}>
-        {copied ? "已复制" : "复制"}
+        {copied ? t("components.codeBlock.copied") : t("components.codeBlock.copy")}
       </button>
       <code className={className}>{code}</code>
     </pre>

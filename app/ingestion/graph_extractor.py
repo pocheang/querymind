@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from collections import Counter
+from dataclasses import dataclass
 
 from app.core.config import get_settings
 from app.core.models import get_chat_model
@@ -10,6 +11,15 @@ logger = logging.getLogger(__name__)
 
 ENTITY_PATTERN = re.compile(r"\b([A-Z][A-Za-z0-9_\-]{2,}|[\u4e00-\u9fff]{2,12})\b")
 JSON_PATTERN = re.compile(r"\[.*\]", flags=re.DOTALL)
+
+
+@dataclass(frozen=True)
+class GraphTriplet:
+    head: str
+    relation: str
+    tail: str
+    confidence: float
+    method: str
 
 
 EXTRACTION_PROMPT = """
@@ -98,6 +108,20 @@ def dedupe_triplets(triplets: list[tuple[str, str, str]]) -> list[tuple[str, str
     return out
 
 
+def filter_triplets(triplets: list[GraphTriplet], min_confidence: float = 0.5) -> list[GraphTriplet]:
+    best: dict[tuple[str, str, str], GraphTriplet] = {}
+    for item in triplets:
+        if item.confidence < min_confidence:
+            continue
+        key = (item.head.strip(), item.relation.strip(), item.tail.strip())
+        if not all(key) or key[0] == key[2]:
+            continue
+        current = best.get(key)
+        if current is None or item.confidence > current.confidence:
+            best[key] = item
+    return list(best.values())
+
+
 def extract_triplets(text: str) -> list[tuple[str, str, str]]:
     settings = get_settings()
     if settings.graph_extraction_mode.lower() == "rules":
@@ -112,3 +136,12 @@ def extract_triplets(text: str) -> list[tuple[str, str, str]]:
     except Exception as e:
         logger.warning(f"Unexpected error in LLM triplet extraction, falling back to rules: {e}", exc_info=True)
     return dedupe_triplets(extract_triplets_rules(text))
+
+
+def extract_graph_triplets(text: str, min_confidence: float = 0.5) -> list[GraphTriplet]:
+    raw = extract_triplets(text)
+    rows = [
+        GraphTriplet(head=head, relation=relation, tail=tail, confidence=0.7, method="legacy")
+        for head, relation, tail in raw
+    ]
+    return filter_triplets(rows, min_confidence=min_confidence)

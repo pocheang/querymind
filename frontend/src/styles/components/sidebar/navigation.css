@@ -7,206 +7,44 @@
    Sidebar Groups
    ============================================ */
 
-.sidebar-group-title {
+.page-shell .sidebar-group-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 2px;
 }
 
-.sidebar-group-title span {
+.page-shell .sidebar-group-title span {
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
-.sidebar-group-title-with-action {
+.page-shell .sidebar-group-title-with-action {
   gap: 0.8rem;
-}
-
-.sidebar-group-action {
-  border: 1px solid rgba(121, 169, 255, 0.18);
-  background: rgba(121, 169, 255, 0.04);
-  color: var(--text-secondary);
-  border-radius: 999px;
-  padding: 0.32rem 0.72rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
-}
-
-.sidebar-group-action:hover {
-  background: rgba(121, 169, 255, 0.11);
-  border-color: rgba(121, 169, 255, 0.28);
-  color: var(--text-primary);
-  transform: translateY(-1px);
-}
-
-/* ============================================
-   Sidebar Module Toggle & Content
-   ============================================ */
-
-.sidebar-module-toggle {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px 13px;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  color: var(--text-primary);
-  box-shadow: none;
-}
-
-.sidebar-module-copy {
-  display: grid;
-  gap: 4px;
-  text-align: left;
-}
-
-.sidebar-module-toggle strong {
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-}
-
-.sidebar-module-copy small {
-  color: var(--text-tertiary);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.sidebar-module-meta {
-  display: grid;
-  justify-items: end;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.sidebar-module-meta em {
-  font-style: normal;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--accent);
-  background: rgba(95, 161, 237, 0.12);
-  border: 1px solid rgba(95, 161, 237, 0.14);
-  border-radius: 999px;
-  padding: 3px 8px;
-}
-
-.sidebar-module-toggle span {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-tertiary);
 }
 
 /* ============================================
    Sidebar Section Head
    ============================================ */
 
-.sidebar-section-head {
+.page-shell .sidebar-section-head {
   margin-bottom: 2px;
   padding: 0;
 }
 
-.sidebar-section-head > div {
+.page-shell .sidebar-section-head > div {
   display: grid;
   gap: 2px;
 }
 
-.sidebar-section-head strong {
+.page-shell .sidebar-section-head strong {
   font-size: 15px;
   color: var(--text-primary);
 }
 
-.sidebar-section-head .muted {
+.page-shell .sidebar-section-head .muted {
   font-size: 12px;
-}
-
-/* ============================================
-   Session List
-   ============================================ */
-
-.session-list {
-  gap: 8px;
-}
-
-.session-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px;
-  border-radius: 14px;
-  background: transparent;
-  border: 1px solid transparent;
-}
-
-.session-main-btn {
-  min-width: 0;
-  flex: 1;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding: 13px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(132, 160, 190, 0.12);
-  color: var(--text-primary);
-  box-shadow: none;
-}
-
-.session-main-btn:hover:not(:disabled) {
-  transform: none;
-  background: rgba(95, 161, 237, 0.1);
-  border-color: rgba(95, 161, 237, 0.26);
-  box-shadow: none;
-}
-
-.session-title {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 15px;
-  font-weight: 700;
-  color: inherit;
-}
-
-.session-count {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.session-delete-btn {
-  min-width: 36px;
-  min-height: 36px;
-  padding: 0;
-  border-radius: 10px;
-  opacity: 0;
-  transform: translateX(-4px);
-  transition: opacity 160ms ease, transform 160ms ease, background 160ms ease, border-color 160ms ease;
-}
-
-.session-item:hover .session-delete-btn,
-.session-item.active .session-delete-btn {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.session-item.active {
-  background: rgba(95, 161, 237, 0.08);
-  border-color: rgba(95, 161, 237, 0.16);
-}
-
-.session-item.active .session-main-btn {
-  background: rgba(95, 161, 237, 0.16);
-  border-color: rgba(95, 161, 237, 0.28);
 }

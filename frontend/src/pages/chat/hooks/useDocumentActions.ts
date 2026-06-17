@@ -69,6 +69,12 @@ export function useDocumentActions(params: UseDocumentActionsParams) {
       setUploadProgressText("Upload complete");
 
       const uploadSummary = [];
+      if (data.indexing_status === "queued") {
+        uploadSummary.push("queued for indexing");
+      }
+      if (data.duplicate_files && data.duplicate_files.length > 0) {
+        uploadSummary.push(`reused: ${data.duplicate_files.join(", ")}`);
+      }
       uploadSummary.push(`✓ 已上传 ${data.loaded_documents} 个文件`);
       if (data.chunks_indexed > 0) {
         uploadSummary.push(`索引了 ${data.chunks_indexed} 个文本块`);
@@ -124,6 +130,13 @@ export function useDocumentActions(params: UseDocumentActionsParams) {
   const reindexDocument = async (item: IndexedFileSummary) => {
     try {
       const res = await appApi.documentReindex(item.filename, item.source);
+      if (res.skipped) {
+        const skippedSummary = `${item.filename} skipped: ${res.reason || "unchanged"}`;
+        setUploadInfo(skippedSummary);
+        notify(skippedSummary, "info", 3000);
+        await refreshDocuments();
+        return;
+      }
 
       const reindexSummary = [`✓ ${item.filename} 重新索引完成`];
       if (res.chunks_indexed && res.chunks_indexed > 0) {

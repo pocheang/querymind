@@ -1,376 +1,480 @@
 /* ============================================
-   Architecture Page - Refined Technical Aesthetic
+   Architecture Page
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap');
-
-:root {
-  --arch-primary: #00d9ff;
-  --arch-secondary: #ff006e;
-  --arch-accent: #8338ec;
-  --arch-success: #06ffa5;
-  --arch-grid: rgba(0, 217, 255, 0.08);
-  --arch-glow: rgba(0, 217, 255, 0.3);
-}
-
 .architecture-shell {
+  --arch-primary: #0ea5e9;
+  --arch-primary-strong: #2563eb;
+  --arch-secondary: #7c3aed;
+  --arch-success: #059669;
+  --arch-hero-bg:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.12), transparent 36%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.96));
+  --arch-panel-bg: rgba(255, 255, 255, 0.9);
+  --arch-panel-border: rgba(148, 163, 184, 0.18);
+  --arch-panel-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+  --arch-muted: #5b6b82;
+  --arch-tag-bg: rgba(255, 255, 255, 0.74);
+  --arch-tag-border: rgba(37, 99, 235, 0.16);
+  --arch-grid: rgba(14, 165, 233, 0.08);
   font-size: 14px;
   line-height: 1.6;
   position: relative;
   overflow: hidden;
 }
 
-/* Animated Grid Background */
 .architecture-shell::before {
-  content: '';
+  content: "";
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background-image:
     linear-gradient(var(--arch-grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--arch-grid) 1px, transparent 1px);
-  background-size: 40px 40px;
-  animation: gridScroll 20s linear infinite;
+  background-size: 44px 44px;
+  opacity: 0.32;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.4;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 82%);
 }
 
-@keyframes gridScroll {
-  0% {
-    transform: translate(0, 0);
-  }
-  100% {
-    transform: translate(40px, 40px);
-  }
-}
-
-/* Scan Line Effect */
 .architecture-shell::after {
-  content: '';
+  content: "";
   position: fixed;
-  top: -100%;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg,
-    transparent,
-    var(--arch-primary),
-    transparent
-  );
-  box-shadow: 0 0 20px var(--arch-glow);
-  animation: scanLine 8s ease-in-out infinite;
+  inset: auto -12% -8% auto;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.12), transparent 70%);
   pointer-events: none;
+  z-index: 0;
+}
+
+.architecture-shell > * {
+  position: relative;
   z-index: 1;
 }
 
-@keyframes scanLine {
-  0%, 100% {
-    top: -100%;
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    top: 100%;
-  }
-}
-
-/* Content Layer */
-.architecture-shell > * {
-  position: relative;
-  z-index: 2;
-}
-
-/* Topbar with Glow Effect */
 .architecture-shell .topbar {
-  background: var(--surface);
-  border-bottom: 2px solid var(--arch-primary);
-  box-shadow: 0 0 20px rgba(0, 217, 255, 0.1);
-  animation: fadeInDown 0.6s ease-out;
-}
-
-@keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.architecture-shell .topbar h2 {
-  font-family: 'Space Mono', monospace;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-  margin: 0 0 8px 0;
-  background: linear-gradient(135deg, var(--arch-primary), var(--arch-accent));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.5px;
-}
-
-.architecture-shell .topbar .muted {
-  font-size: 15px;
-  line-height: 1.5;
-  margin: 0;
-  opacity: 0.8;
-  font-weight: 400;
-}
-
-.architecture-shell .topbar button,
-.architecture-shell .topbar .link-btn {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.4;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: all 0.3s ease;
-}
-
-.architecture-shell .topbar button:hover,
-.architecture-shell .topbar .link-btn:hover {
-  box-shadow: 0 0 15px var(--arch-glow);
-  transform: translateY(-1px);
-}
-
-/* Section Headers with Color Coding */
-.architecture-shell .section-head {
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid var(--arch-primary);
-  position: relative;
-}
-
-.architecture-shell .section-head::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 60px;
-  height: 2px;
-  background: var(--arch-secondary);
-  animation: expandWidth 0.8s ease-out;
-}
-
-@keyframes expandWidth {
-  from {
-    width: 0;
-  }
-  to {
-    width: 60px;
-  }
-}
-
-.architecture-shell .section-head strong {
-  font-family: 'Space Mono', monospace;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--arch-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* Panels with Staggered Animation */
-.architecture-shell .panel {
-  margin-bottom: 24px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  transition: all 0.3s ease;
-  animation: fadeInUp 0.6s ease-out backwards;
-  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+  align-items: stretch;
+  gap: 24px;
+  padding: 32px 34px;
+  margin-bottom: 28px;
+  background: var(--arch-hero-bg);
+  border: 1px solid var(--arch-panel-border);
+  border-radius: 28px;
+  box-shadow: var(--arch-panel-shadow);
   overflow: hidden;
 }
 
-.architecture-shell .panel::before {
-  content: '';
+.architecture-shell .topbar::before {
+  content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg,
-    var(--arch-primary),
-    var(--arch-accent),
-    var(--arch-secondary)
-  );
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: linear-gradient(180deg, var(--arch-primary), var(--arch-secondary));
 }
 
-.architecture-shell .panel:hover::before {
-  opacity: 1;
+.architecture-shell .architecture-hero-copy {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
 }
 
-.architecture-shell .panel:hover {
-  border-color: var(--arch-primary);
-  box-shadow: 0 8px 32px rgba(0, 217, 255, 0.15);
-  transform: translateY(-2px);
+.architecture-shell .architecture-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  color: var(--arch-primary-strong);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.architecture-shell .topbar h2 {
+  margin: 0;
+  max-width: 12ch;
+  color: var(--text-primary);
+  font-size: clamp(2.1rem, 4vw, 3.35rem);
+  line-height: 0.98;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-wrap: balance;
 }
 
-/* Stagger animation delays */
-.architecture-grid .panel:nth-child(1) { animation-delay: 0.1s; }
-.architecture-grid .panel:nth-child(2) { animation-delay: 0.2s; }
-.architecture-grid .panel:nth-child(3) { animation-delay: 0.3s; }
-.architecture-grid .panel:nth-child(4) { animation-delay: 0.4s; }
-.architecture-grid .panel:nth-child(5) { animation-delay: 0.5s; }
-.architecture-grid .panel:nth-child(6) { animation-delay: 0.6s; }
-.architecture-grid .panel:nth-child(7) { animation-delay: 0.7s; }
-.architecture-grid .panel:nth-child(8) { animation-delay: 0.8s; }
+.architecture-shell .topbar .muted {
+  margin: 0;
+  max-width: 46rem;
+  color: var(--arch-muted);
+  font-size: 1rem;
+  line-height: 1.72;
+}
 
-/* Enhanced List Items */
+.architecture-shell .architecture-hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.architecture-shell .architecture-hero-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--arch-tag-bg);
+  border: 1px solid var(--arch-tag-border);
+  color: #1e3a5f;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.architecture-shell .architecture-hero-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.architecture-shell .topbar .top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(14px);
+}
+
+.architecture-shell .topbar button,
+.architecture-shell .topbar .link-btn,
+.architecture-shell .topbar .language-toggle {
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.architecture-shell .topbar .link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.architecture-shell .topbar .language-toggle {
+  text-transform: uppercase;
+}
+
+.architecture-shell .topbar button:hover,
+.architecture-shell .topbar .link-btn:hover,
+.architecture-shell .topbar .language-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.34);
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.16);
+}
+
+.architecture-shell .panel {
+  margin-bottom: 24px;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid var(--arch-panel-border);
+  background: var(--arch-panel-bg);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.architecture-shell .section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.architecture-shell .section-head strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.architecture-shell .section-head strong::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--arch-primary), var(--arch-secondary));
+  box-shadow: 0 0 0 6px rgba(14, 165, 233, 0.1);
+}
+
 .architecture-shell .compact-list {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: grid;
+  gap: 10px;
 }
 
 .architecture-shell .compact-list li {
-  font-size: 14px;
-  line-height: 1.8;
-  padding: 10px 0 10px 28px;
   position: relative;
+  margin: 0;
+  padding: 12px 14px 12px 42px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.16);
   color: var(--text-primary);
-  transition: all 0.2s ease;
-  border-left: 2px solid transparent;
-  margin-left: 8px;
-}
-
-.architecture-shell .compact-list li:hover {
-  padding-left: 32px;
-  border-left-color: var(--arch-primary);
-  background: var(--surface-hover);
-  margin-left: 0;
-  padding-right: 8px;
-  border-radius: 4px;
+  line-height: 1.72;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .architecture-shell .compact-list li::before {
-  content: '▸';
+  content: "";
   position: absolute;
-  left: 8px;
-  color: var(--arch-primary);
-  font-weight: 700;
-  font-size: 16px;
-  transition: all 0.2s ease;
+  top: 18px;
+  left: 16px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--arch-primary), var(--arch-secondary));
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
 }
 
-.architecture-shell .compact-list li:hover::before {
-  color: var(--arch-secondary);
-  transform: translateX(2px);
+.architecture-shell .compact-list li:hover {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.26);
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.07);
 }
 
-/* Enhanced Diagram Block */
 .architecture-shell .diagram-block {
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
-  font-size: 13px;
-  line-height: 1.8;
-  padding: 20px;
-  background: var(--surface-hover);
-  border: 1px solid var(--arch-primary);
-  border-radius: 8px;
-  overflow-x: auto;
-  color: var(--text-primary);
-  white-space: pre;
   margin: 0;
-  position: relative;
-  box-shadow: inset 0 0 20px rgba(0, 217, 255, 0.05);
+  overflow-x: auto;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(14, 165, 233, 0.16);
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.95));
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.75;
+  white-space: pre;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
-.architecture-shell .diagram-block::before {
-  content: '// SYSTEM FLOW';
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  font-size: 10px;
-  color: var(--arch-primary);
-  opacity: 0.5;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-/* Grid Layout */
 .architecture-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 24px;
-  margin-top: 32px;
+  margin-top: 28px;
 }
 
-/* Color-coded sections */
-.architecture-grid .panel:nth-child(1) .section-head strong { color: var(--arch-primary); }
-.architecture-grid .panel:nth-child(2) .section-head strong { color: var(--arch-secondary); }
-.architecture-grid .panel:nth-child(3) .section-head strong { color: var(--arch-accent); }
-.architecture-grid .panel:nth-child(4) .section-head strong { color: var(--arch-success); }
-.architecture-grid .panel:nth-child(5) .section-head strong { color: var(--arch-primary); }
-.architecture-grid .panel:nth-child(6) .section-head strong { color: var(--arch-secondary); }
-.architecture-grid .panel:nth-child(7) .section-head strong { color: var(--arch-accent); }
-.architecture-grid .panel:nth-child(8) .section-head strong { color: var(--arch-success); }
+.architecture-grid .panel:nth-child(4) {
+  grid-column: span 2;
+}
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .architecture-grid {
+.architecture-grid .panel:nth-child(1) .section-head strong::before,
+.architecture-grid .panel:nth-child(5) .section-head strong::before {
+  background: linear-gradient(135deg, var(--arch-primary), #38bdf8);
+}
+
+.architecture-grid .panel:nth-child(2) .section-head strong::before,
+.architecture-grid .panel:nth-child(6) .section-head strong::before {
+  background: linear-gradient(135deg, var(--arch-secondary), #a855f7);
+}
+
+.architecture-grid .panel:nth-child(3) .section-head strong::before,
+.architecture-grid .panel:nth-child(7) .section-head strong::before {
+  background: linear-gradient(135deg, var(--arch-success), #34d399);
+}
+
+.architecture-grid .panel:nth-child(4) .section-head strong::before {
+  background: linear-gradient(135deg, #f59e0b, #fb7185);
+}
+
+:root[data-theme="dark"] .architecture-shell {
+  --arch-primary: #38bdf8;
+  --arch-primary-strong: #7dd3fc;
+  --arch-secondary: #a78bfa;
+  --arch-success: #34d399;
+  --arch-hero-bg:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(167, 139, 250, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(10, 15, 25, 0.98), rgba(17, 24, 39, 0.96));
+  --arch-panel-bg: rgba(15, 23, 42, 0.82);
+  --arch-panel-border: rgba(100, 116, 139, 0.24);
+  --arch-panel-shadow: 0 24px 46px rgba(2, 6, 23, 0.46);
+  --arch-muted: #9db0c7;
+  --arch-tag-bg: rgba(15, 23, 42, 0.6);
+  --arch-tag-border: rgba(56, 189, 248, 0.18);
+  --arch-grid: rgba(56, 189, 248, 0.08);
+}
+
+:root[data-theme="dark"] .architecture-shell .topbar .top-actions {
+  background: rgba(15, 23, 42, 0.44);
+  border-color: rgba(100, 116, 139, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+:root[data-theme="dark"] .architecture-shell .topbar h2,
+:root[data-theme="dark"] .architecture-shell .section-head strong {
+  color: #f8fafc;
+}
+
+:root[data-theme="dark"] .architecture-shell .topbar button,
+:root[data-theme="dark"] .architecture-shell .topbar .link-btn,
+:root[data-theme="dark"] .architecture-shell .topbar .language-toggle {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: rgba(100, 116, 139, 0.3);
+  color: #e2e8f0;
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.24);
+}
+
+:root[data-theme="dark"] .architecture-shell .topbar button:hover,
+:root[data-theme="dark"] .architecture-shell .topbar .link-btn:hover,
+:root[data-theme="dark"] .architecture-shell .topbar .language-toggle:hover {
+  background: rgba(15, 23, 42, 0.95);
+  border-color: rgba(56, 189, 248, 0.34);
+  box-shadow: 0 16px 30px rgba(56, 189, 248, 0.12);
+}
+
+:root[data-theme="dark"] .architecture-shell .architecture-hero-tags span {
+  color: #dbeafe;
+}
+
+:root[data-theme="dark"] .architecture-shell .compact-list li,
+:root[data-theme="dark"] .architecture-shell .diagram-block {
+  background: rgba(15, 23, 42, 0.74);
+  border-color: rgba(100, 116, 139, 0.2);
+  color: #e2e8f0;
+}
+
+:root[data-theme="dark"] .architecture-shell .compact-list li:hover {
+  background: rgba(15, 23, 42, 0.92);
+}
+
+@media (max-width: 1100px) {
+  .architecture-shell .topbar {
     grid-template-columns: 1fr;
-    gap: 20px;
   }
 
+  .architecture-shell .architecture-hero-actions {
+    justify-content: flex-start;
+  }
+
+  .architecture-shell .topbar .top-actions {
+    justify-content: flex-start;
+  }
+
+  .architecture-grid .panel:nth-child(4) {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 768px) {
   .architecture-shell {
     font-size: 13px;
   }
 
+  .architecture-shell .topbar {
+    gap: 18px;
+    padding: 24px 20px;
+    border-radius: 22px;
+  }
+
   .architecture-shell .topbar h2 {
-    font-size: 24px;
+    max-width: none;
+    font-size: 2rem;
+  }
+
+  .architecture-shell .topbar .muted {
+    font-size: 0.95rem;
+  }
+
+  .architecture-shell .topbar .top-actions {
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .architecture-shell .topbar button,
+  .architecture-shell .topbar .link-btn,
+  .architecture-shell .topbar .language-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .architecture-shell .architecture-hero-tags span {
+    min-height: 32px;
+    padding: 0 12px;
+    font-size: 11px;
+  }
+
+  .architecture-shell .panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .architecture-shell .section-head {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
   }
 
   .architecture-shell .section-head strong {
-    font-size: 16px;
+    font-size: 0.92rem;
   }
 
   .architecture-shell .compact-list li {
-    font-size: 13px;
-    padding-left: 24px;
+    padding: 11px 12px 11px 38px;
+    border-radius: 14px;
+  }
+
+  .architecture-shell .compact-list li::before {
+    top: 16px;
+    left: 14px;
+    width: 10px;
+    height: 10px;
   }
 
   .architecture-shell .diagram-block {
-    font-size: 11px;
     padding: 16px;
+    font-size: 11px;
   }
 
-  .architecture-shell::before {
-    background-size: 30px 30px;
-  }
-
-  @keyframes gridScroll {
-    0% {
-      transform: translate(0, 0);
-    }
-    100% {
-      transform: translate(30px, 30px);
-    }
+  .architecture-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    margin-top: 22px;
   }
 }

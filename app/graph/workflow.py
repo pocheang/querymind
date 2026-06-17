@@ -35,6 +35,9 @@ def vector_node(state: GraphState) -> GraphState:
     _VECTOR_NODE_MODULE.submit_hybrid = submit_hybrid
     _VECTOR_NODE_MODULE.run_vector_rag = run_vector_rag
     try:
+        execution_id = state.get("execution_id")
+        if execution_id:
+            return _tracked_vector_node(state, execution_id=execution_id)
         return _tracked_vector_node(state)
     finally:
         _VECTOR_NODE_MODULE.submit_hybrid = original_submit

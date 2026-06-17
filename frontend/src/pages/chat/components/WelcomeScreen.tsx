@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import "../../../styles/components/welcome-screen.css";
 
 type Props = {
@@ -13,100 +14,92 @@ export function WelcomeScreen({
   onCreateSession,
   onNavigateToArchitecture
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <div className="welcome-screen">
       <div className="welcome-header">
-        <span className="welcome-badge">Console Ready</span>
-        <h2 className="welcome-title">多智能体 RAG 系统</h2>
-        <p className="welcome-subtitle">
-          基于证据链的智能问答系统，支持多模态文档处理、知识图谱检索和 Web 研究
-        </p>
+        <span className="welcome-badge">{t("components.chat.welcomeBadge")}</span>
+        <h2 className="welcome-title">{t("components.chat.welcomeTitle")}</h2>
+        <p className="welcome-subtitle">{t("components.chat.welcomeSubtitle")}</p>
       </div>
 
       <div className="welcome-stats">
         <div className="stat-card">
-          <div className="stat-icon">📚</div>
+          <div className="stat-icon" aria-hidden="true">▣</div>
           <div className="stat-content">
             <div className="stat-value">{documentsCount}</div>
-            <div className="stat-label">知识库文档</div>
+            <div className="stat-label">{t("components.chat.knowledgeDocs")}</div>
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">💬</div>
+          <div className="stat-icon" aria-hidden="true">◫</div>
           <div className="stat-content">
             <div className="stat-value">{sessionsCount}</div>
-            <div className="stat-label">历史会话</div>
+            <div className="stat-label">{t("components.chat.historySessions")}</div>
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">🤖</div>
+          <div className="stat-icon" aria-hidden="true">◆</div>
           <div className="stat-content">
             <div className="stat-value">4</div>
-            <div className="stat-label">智能体模式</div>
+            <div className="stat-label">{t("components.chat.agentModes")}</div>
           </div>
         </div>
       </div>
 
       <div className="welcome-actions">
-        <button
-          type="button"
-          className="welcome-action-btn primary"
-          onClick={onCreateSession}
-        >
-          <span className="action-icon">✨</span>
-          <span className="action-text">开始新对话</span>
+        <button type="button" className="welcome-action-btn primary" onClick={onCreateSession}>
+          <span className="action-icon" aria-hidden="true">+</span>
+          <span className="action-text">{t("components.chat.startConversation")}</span>
         </button>
 
-        <button
-          type="button"
-          className="welcome-action-btn secondary"
-          onClick={onNavigateToArchitecture}
-        >
-          <span className="action-icon">🏗️</span>
-          <span className="action-text">查看系统架构</span>
+        <button type="button" className="welcome-action-btn secondary" onClick={onNavigateToArchitecture}>
+          <span className="action-icon" aria-hidden="true">▦</span>
+          <span className="action-text">{t("components.chat.viewArchitecture")}</span>
         </button>
       </div>
 
       <div className="welcome-features">
         <div className="feature-card">
-          <div className="feature-icon">🔍</div>
-          <h4 className="feature-title">智能检索</h4>
-          <p className="feature-desc">向量检索、图谱检索、BM25 混合检索，多策略融合</p>
+          <div className="feature-icon" aria-hidden="true">⌁</div>
+          <h4 className="feature-title">{t("components.chat.smartRetrieval")}</h4>
+          <p className="feature-desc">{t("components.chat.smartRetrievalDesc")}</p>
         </div>
 
         <div className="feature-card">
-          <div className="feature-icon">🌐</div>
-          <h4 className="feature-title">Web 研究</h4>
-          <p className="feature-desc">实时网络搜索，获取最新信息和外部知识</p>
+          <div className="feature-icon" aria-hidden="true">◎</div>
+          <h4 className="feature-title">{t("components.chat.webResearch")}</h4>
+          <p className="feature-desc">{t("components.chat.webResearchDesc")}</p>
         </div>
 
         <div className="feature-card">
-          <div className="feature-icon">📄</div>
-          <h4 className="feature-title">多模态处理</h4>
-          <p className="feature-desc">支持 PDF、图片、图表批量提取和流式加载</p>
+          <div className="feature-icon" aria-hidden="true">□</div>
+          <h4 className="feature-title">{t("components.chat.multimodal")}</h4>
+          <p className="feature-desc">{t("components.chat.multimodalDesc")}</p>
         </div>
 
         <div className="feature-card">
-          <div className="feature-icon">🔗</div>
-          <h4 className="feature-title">证据链追踪</h4>
-          <p className="feature-desc">完整展示路由决策、检索来源和推理过程</p>
+          <div className="feature-icon" aria-hidden="true">∞</div>
+          <h4 className="feature-title">{t("components.chat.evidenceTrace")}</h4>
+          <p className="feature-desc">{t("components.chat.evidenceTraceDesc")}</p>
         </div>
       </div>
 
       <div className="welcome-tips">
         <div className="tip-item">
-          <span className="tip-icon">💡</span>
-          <span className="tip-text">使用 <kbd>Ctrl+Enter</kbd> 快速发送消息</span>
+          <span className="tip-icon" aria-hidden="true">i</span>
+          <span className="tip-text">{t("components.chat.tipSend")}</span>
         </div>
         <div className="tip-item">
-          <span className="tip-icon">📎</span>
-          <span className="tip-text">拖拽文件到输入框或侧边栏快速上传</span>
+          <span className="tip-icon" aria-hidden="true">↑</span>
+          <span className="tip-text">{t("components.chat.tipUpload")}</span>
         </div>
         <div className="tip-item">
-          <span className="tip-icon">🎯</span>
-          <span className="tip-text">选择不同的 Agent 模式以获得最佳回答</span>
+          <span className="tip-icon" aria-hidden="true">◎</span>
+          <span className="tip-text">{t("components.chat.tipAgent")}</span>
         </div>
       </div>
     </div>

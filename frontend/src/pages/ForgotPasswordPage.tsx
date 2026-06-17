@@ -1,16 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useFormState } from "@/hooks/useFormState";
 import { AuthInput } from "@/components/AuthInput";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-// Route-specific CSS (code-split by Vite)
-import "@/styles/pages/auth/layout.css";
-import "@/styles/pages/auth/forms.css";
-import "@/styles/pages/auth/social.css";
-import "@/styles/pages/auth/animations.css";
-import "@/styles/themes/light/auth.css";
-import "@/styles/themes/dark/auth.css";
+import "@/styles/pages/auth-entry.css";
 
 type Props = {
   themeLabel: string;
@@ -18,26 +14,29 @@ type Props = {
 };
 
 export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const { status, setStatus, error, setError, loading, setLoading } = useFormState();
   const [submitted, setSubmitted] = useState(false);
+  const securityTips = t("pages.forgotPassword.tips", { returnObjects: true }) as string[];
+  const nextSteps = t("pages.forgotPassword.nextSteps", { returnObjects: true }) as string[];
 
   const handleSubmit = async () => {
     if (!email.trim()) {
-      setError("请输入用户名或邮箱");
+      setError(t("pages.forgotPassword.required"));
       return;
     }
 
     setLoading(true);
     setError("");
-    setStatus("正在处理...");
+    setStatus(t("pages.forgotPassword.processing"));
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
       setSubmitted(true);
-      setStatus("如果该账户存在，我们已将密码重置链接发送到您的邮箱。");
+      setStatus(t("pages.forgotPassword.success"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "请求失败，请稍后重试");
+      setError(e instanceof Error ? e.message : t("pages.forgotPassword.failed"));
     } finally {
       setLoading(false);
     }
@@ -46,51 +45,53 @@ export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
   if (submitted) {
     return (
       <div className="auth-root">
-        <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
+        <div className="auth-toolbar">
+          <LanguageToggle />
+          <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
+        </div>
 
         <main className="auth-card forgot-password-card">
           <section className="auth-intro auth-intro-support">
-            <div className="badge badge-success">邮件已发送</div>
+            <div className="badge badge-success">{t("pages.forgotPassword.sentBadge")}</div>
             <div className="auth-intro-copy">
-              <h1>检查您的邮箱</h1>
-              <p>如果账户存在，我们已经向对应邮箱发送了重置链接。请在邮件中继续完成后续验证。</p>
+              <h1>{t("pages.forgotPassword.sentTitle")}</h1>
+              <p>{t("pages.forgotPassword.sentDescription")}</p>
             </div>
 
             <div className="auth-info-panel">
-              <h3>接下来这样做</h3>
+              <h3>{t("pages.forgotPassword.nextTitle")}</h3>
               <ol className="steps-list">
-                <li>打开收件箱或垃圾邮件文件夹</li>
-                <li>点击邮件中的密码重置链接</li>
-                <li>设置新的安全密码</li>
-                <li>使用新密码重新登录</li>
+                {nextSteps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
               </ol>
             </div>
           </section>
 
           <section className="auth-form">
             <div className="auth-form-header">
-              <h2>仍然没有收到?</h2>
-              <p className="auth-form-subtitle">您可以重新发送邮件，或联系管理员协助处理。</p>
+              <h2>{t("pages.forgotPassword.notReceived")}</h2>
+              <p className="auth-form-subtitle">{t("pages.forgotPassword.notReceivedText")}</p>
             </div>
 
             <div className="help-options">
               <div className="help-option">
                 <div className="help-option-copy">
-                  <h4>重新发送邮件</h4>
-                  <p>如果刚才输错了邮箱，或者邮件稍有延迟，可以重新提交一次找回请求。</p>
+                  <h4>{t("pages.forgotPassword.resendTitle")}</h4>
+                  <p>{t("pages.forgotPassword.resendText")}</p>
                 </div>
                 <button type="button" className="secondary auth-secondary-btn" onClick={() => setSubmitted(false)}>
-                  重新发送
+                  {t("pages.forgotPassword.resend")}
                 </button>
               </div>
 
               <div className="help-option">
                 <div className="help-option-copy">
-                  <h4>联系系统管理员</h4>
-                  <p>如仍无法找回账户，请联系管理员确认账号状态或手动重置登录凭证。</p>
+                  <h4>{t("pages.forgotPassword.contactTitle")}</h4>
+                  <p>{t("pages.forgotPassword.contactText")}</p>
                 </div>
                 <Link to="/app/login" className="link-button">
-                  返回登录页
+                  {t("pages.forgotPassword.loginPage")}
                 </Link>
               </div>
             </div>
@@ -99,7 +100,7 @@ export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
 
             <div className="auth-footer">
               <Link className="text-link" to="/app/login">
-                返回登录
+                {t("pages.forgotPassword.backToLogin")}
               </Link>
             </div>
           </section>
@@ -110,40 +111,43 @@ export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
 
   return (
     <div className="auth-root">
-      <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
+      <div className="auth-toolbar">
+        <LanguageToggle />
+        <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
+      </div>
 
       <main className="auth-card forgot-password-card">
         <section className="auth-intro auth-intro-support">
-          <div className="badge">密码重置</div>
+          <div className="badge">{t("pages.forgotPassword.badge")}</div>
           <div className="auth-intro-copy">
-            <h1>忘记密码?</h1>
-            <p>输入您的用户名或邮箱，我们会发送一封安全重置邮件，帮助您快速恢复访问。</p>
+            <h1>{t("pages.forgotPassword.title")}</h1>
+            <p>{t("pages.forgotPassword.description")}</p>
           </div>
 
           <div className="auth-info-panel">
-            <h3>安全提示</h3>
+            <h3>{t("pages.forgotPassword.securityTitle")}</h3>
             <ul className="security-tips">
-              <li>重置链接会在 24 小时后失效</li>
-              <li>每个重置链接只能使用一次</li>
-              <li>系统不会透露账号是否真实存在</li>
+              {securityTips.map((tip) => (
+                <li key={tip}>{tip}</li>
+              ))}
             </ul>
           </div>
         </section>
 
         <section className="auth-form">
           <div className="auth-form-header">
-            <h2>重置密码</h2>
-            <p className="auth-form-subtitle">输入注册时使用的用户名或邮箱地址</p>
+            <h2>{t("pages.forgotPassword.formTitle")}</h2>
+            <p className="auth-form-subtitle">{t("pages.forgotPassword.formSubtitle")}</p>
           </div>
 
           <div className="input-group">
-            <label htmlFor="email">用户名或邮箱</label>
+            <label htmlFor="email">{t("pages.forgotPassword.identifier")}</label>
             <AuthInput
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="请输入用户名或邮箱"
+              placeholder={t("pages.forgotPassword.identifierPlaceholder")}
               autoComplete="email"
               onKeyDown={(e) => {
                 if (e.key === "Enter") void handleSubmit();
@@ -151,7 +155,7 @@ export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
               icon="email"
             />
             <div className={`hint ${email.trim() ? "ok" : ""}`}>
-              {email.trim() ? "信息已填写，可发送重置链接" : "请填写您注册时使用的用户名或邮箱"}
+              {email.trim() ? t("pages.forgotPassword.identifierReady") : t("pages.forgotPassword.identifierHint")}
             </div>
           </div>
 
@@ -162,10 +166,10 @@ export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
               disabled={!email.trim() || loading}
               onClick={() => void handleSubmit()}
             >
-              {loading ? "发送中..." : "发送重置链接"}
+              {loading ? t("pages.forgotPassword.sending") : t("pages.forgotPassword.send")}
             </button>
             <Link to="/app/login" className="secondary link-button">
-              取消
+              {t("pages.forgotPassword.cancel")}
             </Link>
           </div>
 
@@ -173,9 +177,9 @@ export function ForgotPasswordPage({ themeLabel, onThemeToggle }: Props) {
           {error && <div className="status error">{error}</div>}
 
           <div className="auth-footer">
-            <p className="footer-text">想起密码了？</p>
+            <p className="footer-text">{t("pages.forgotPassword.remembered")}</p>
             <Link className="text-link" to="/app/login">
-              返回登录
+              {t("pages.forgotPassword.backToLogin")}
             </Link>
           </div>
         </section>

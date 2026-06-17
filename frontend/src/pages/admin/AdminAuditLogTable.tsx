@@ -1,4 +1,5 @@
 import type { AuditLogEntry } from "@/types/api";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   logs: AuditLogEntry[];
@@ -6,21 +7,23 @@ type Props = {
 };
 
 export function AdminAuditLogTable({ logs, formatAuditTime }: Props) {
+  const { t } = useTranslation();
+
   return (
     <div className="audit-table-wrap">
       <table className="table admin-audit-table">
         <thead>
           <tr>
-            <th>时间</th>
-            <th>执行者</th>
-            <th>动作</th>
-            <th>分类</th>
-            <th>级别</th>
-            <th>资源</th>
-            <th>结果</th>
+            <th>{t("admin.ui.time")}</th>
+            <th>{t("admin.ui.actor")}</th>
+            <th>{t("admin.ui.action")}</th>
+            <th>{t("admin.ui.category")}</th>
+            <th>{t("admin.ui.severity")}</th>
+            <th>{t("admin.ui.resource")}</th>
+            <th>{t("admin.ui.result")}</th>
             <th>IP</th>
             <th>User-Agent</th>
-            <th>详情</th>
+            <th>{t("admin.ui.detail")}</th>
           </tr>
         </thead>
         <tbody>

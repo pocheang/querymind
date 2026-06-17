@@ -2,7 +2,7 @@
    Modern Sidebar Layout - Cyber Deck
    ============================================ */
 
-.sidebar {
+.page-shell .sidebar {
   width: 292px;
   padding: 0;
   background:
@@ -15,13 +15,13 @@
   flex-direction: column;
 }
 
-.sidebar-shell {
+.page-shell .sidebar-shell {
   padding: 20px 18px 18px;
   gap: 16px;
   min-height: 100vh;
 }
 
-.sidebar-header {
+.page-shell .sidebar-header {
   padding: 0 0 6px;
   border-bottom: 0;
   display: grid;
@@ -30,7 +30,7 @@
   gap: 12px;
 }
 
-.sidebar-brand-mark {
+.page-shell .sidebar-brand-mark {
   width: 42px;
   height: 42px;
   border-radius: 14px;
@@ -42,20 +42,20 @@
   box-shadow: 0 14px 30px rgba(91, 140, 255, 0.34), 0 0 26px rgba(139, 122, 255, 0.24);
 }
 
-.sidebar-brand-mark span {
+.page-shell .sidebar-brand-mark span {
   color: #ffffff;
   font-size: 17px;
   font-weight: 860;
   line-height: 1;
 }
 
-.sidebar-brand-block {
+.page-shell .sidebar-brand-block {
   min-width: 0;
   display: grid;
   gap: 3px;
 }
 
-.sidebar-brand-kicker {
+.page-shell .sidebar-brand-kicker {
   display: inline-flex;
   align-items: center;
   width: fit-content;
@@ -66,11 +66,11 @@
   color: #3d92ff;
   font-size: 9px;
   font-weight: 860;
-  letter-spacing: 0.1em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
-.sidebar-header .brand {
+.page-shell .sidebar-header .brand {
   margin: 0;
   color: var(--text-primary);
   font-size: 20px;
@@ -78,7 +78,7 @@
   letter-spacing: 0;
 }
 
-.sidebar-header .muted {
+.page-shell .sidebar-header .muted {
   display: block;
   max-width: 220px;
   color: var(--text-tertiary);
@@ -86,64 +86,47 @@
   line-height: 1.35;
 }
 
-.sidebar-header .sidebar-collapse-btn {
+.page-shell .sidebar-header .sidebar-collapse-btn {
   display: inline-flex;
 }
 
-.sidebar-history {
+.page-shell .sidebar-history {
   padding: 0;
   max-height: min(52vh, 520px);
 }
 
-.sidebar-history-panel {
+.page-shell .sidebar-history-panel {
   gap: 10px;
 }
 
-.sidebar-history .section-head {
+.page-shell .sidebar-history .section-head {
   padding: 0 1px;
   margin: 0 0 7px;
 }
 
-.sidebar-history .section-head strong {
+.page-shell .sidebar-history .section-head strong {
   color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 850;
-  letter-spacing: 0.11em;
+  letter-spacing: 0;
 }
 
-.sidebar-history .section-head .muted {
+.page-shell .sidebar-history .section-head .muted {
   display: none;
 }
 
-.sidebar-history .section-head button {
+.page-shell .sidebar-history .section-head button {
   display: none;
 }
 
-.sidebar-history .section-head button {
-  min-height: 32px;
-  padding: 7px 11px;
-  border-radius: 10px;
-  border: 1px solid rgba(100, 122, 180, 0.2);
-  background: rgba(31, 42, 70, 0.72);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.sidebar-history .section-head button:hover {
-  background: rgba(61, 83, 137, 0.42);
-  border-color: rgba(91, 140, 255, 0.46);
-  color: var(--text-primary);
-}
-
-.sidebar-tools {
+.page-shell .sidebar-tools {
   margin-top: 0;
   padding: 0 2px 0 0;
   border-top: 0;
   gap: 10px;
 }
 
-.sidebar-group-title {
+.page-shell .sidebar-group-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -152,12 +135,12 @@
   color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 850;
-  letter-spacing: 0.11em;
+  letter-spacing: 0;
   border-top: 1px solid rgba(108, 128, 176, 0.15);
   position: relative;
 }
 
-.sidebar-group-title::before {
+.page-shell .sidebar-group-title::before {
   content: '';
   position: absolute;
   top: -1px;
@@ -167,118 +150,52 @@
   background: linear-gradient(90deg, rgba(91, 140, 255, 0.5), transparent);
 }
 
-.sidebar-group-title:first-child {
+.page-shell .sidebar-group-title:first-child {
   margin-top: 0;
   border-top: none;
 }
 
-.sidebar-group-title:first-child::before {
+.page-shell .sidebar-group-title:first-child::before {
   display: none;
 }
 
-.sidebar-group-action {
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: rgba(31, 42, 70, 0.5);
-  border: 1px solid rgba(100, 122, 180, 0.15);
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 700;
-  transition: all 0.2s ease;
-}
-
-.sidebar-group-action:hover {
-  background: rgba(61, 83, 137, 0.4);
-  border-color: rgba(91, 140, 255, 0.4);
-  color: var(--text-primary);
-  transform: translateY(-1px);
-}
-
-/* Workbench Module Styles */
-.sidebar-module {
-  background: rgba(16, 25, 43, 0.4);
-  border: 1px solid rgba(108, 128, 176, 0.2);
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 8px;
-  transition: all 0.3s ease;
-}
-
-.sidebar-module:hover {
-  background: rgba(16, 25, 43, 0.6);
-  border-color: rgba(108, 128, 176, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.sidebar-module-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  gap: 12px;
-}
-
-.sidebar-module-copy {
-  flex: 1;
-  text-align: left;
-}
-
-.sidebar-module-copy strong {
-  display: block;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 4px;
-  letter-spacing: 0.02em;
-}
-
-.sidebar-module-copy small {
-  display: block;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-.sidebar-module-status {
+.page-shell .sidebar-module-status {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
   background: rgba(91, 140, 255, 0.15);
   border: 1px solid rgba(91, 140, 255, 0.3);
   color: #5b8cff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.sidebar-module-status.status-auto {
+.page-shell .sidebar-module-status.status-auto {
   background: rgba(72, 187, 120, 0.15);
   border-color: rgba(72, 187, 120, 0.3);
   color: #48bb78;
 }
 
-.sidebar-module-status.status-locked {
+.page-shell .sidebar-module-status.status-locked {
   background: rgba(237, 137, 54, 0.15);
   border-color: rgba(237, 137, 54, 0.3);
   color: #ed8936;
 }
 
-.sidebar-module-status.status-files,
-.sidebar-module-status.status-docs,
-.sidebar-module-status.status-saved {
+.page-shell .sidebar-module-status.status-files,
+.page-shell .sidebar-module-status.status-docs,
+.page-shell .sidebar-module-status.status-saved {
   background: rgba(139, 122, 255, 0.15);
   border-color: rgba(139, 122, 255, 0.3);
   color: #8b7aff;
 }
 
-.sidebar-module:hover .sidebar-module-status {
+.page-shell .sidebar-module:hover .sidebar-module-status {
   transform: scale(1.05);
   box-shadow: 0 2px 8px rgba(91, 140, 255, 0.2);
 }

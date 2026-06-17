@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 type Props = {
   quickPrompts: string[];
   question: string;
@@ -15,6 +17,8 @@ export function QuickActions({
   onStop,
   onClearQuestion,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <div className="quick-actions">
       {quickPrompts.map((prompt) => (
@@ -23,13 +27,13 @@ export function QuickActions({
         </button>
       ))}
       {isSending && (
-        <button type="button" className="quick-action-btn danger" onClick={onStop} aria-label="停止当前处理">
-          停止
+        <button type="button" className="quick-action-btn danger" onClick={onStop} aria-label={t("components.chat.stopAria")}>
+          {t("components.chat.stop")}
         </button>
       )}
       {question && !isSending && (
-        <button type="button" className="quick-action-btn" onClick={onClearQuestion} aria-label="清空输入框">
-          清空
+        <button type="button" className="quick-action-btn" onClick={onClearQuestion} aria-label={t("components.chat.clearAria")}>
+          {t("components.chat.clear")}
         </button>
       )}
     </div>

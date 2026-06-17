@@ -162,11 +162,18 @@
 }
 
 .admin-audit-head-actions select {
+  width: auto;
   min-width: 140px;
-  height: 32px;
+  height: 36px;
   margin-top: 0;
+  padding: 0 34px 0 12px;
+  border: 1px solid var(--admin-border-medium);
+  border-radius: 8px;
+  background: var(--admin-input-bg);
+  box-shadow: none;
   font-family: ui-monospace, monospace;
   font-size: var(--text-xs);
+  font-weight: 600;
 }
 
 .admin-audit-quick-actions {

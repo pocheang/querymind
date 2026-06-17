@@ -19,11 +19,11 @@ export const AGENT_MODES: Array<{
   title: string;
   desc: string;
 }> = [
-  { key: "", title: "Auto Router", desc: "Automatically route by user intent and context." },
-  { key: "cybersecurity", title: "Cybersecurity", desc: "Threat analysis, incident response, and hardening." },
-  { key: "artificial_intelligence", title: "AI Research", desc: "LLM, RAG, and model/system design questions." },
-  { key: "pdf_text", title: "PDF Reader", desc: "Focus on PDF/image document Q&A and evidence extraction." },
-  { key: "general", title: "General Analyst", desc: "Cross-domain summaries and executive reporting." },
+  { key: "", title: "Auto Router", desc: "Intelligent routing based on query intent and context." },
+  { key: "cybersecurity", title: "Cybersecurity", desc: "Threat analysis, incident response, and security hardening." },
+  { key: "artificial_intelligence", title: "AI Research", desc: "LLM, RAG, and AI system design expertise." },
+  { key: "pdf_text", title: "PDF Reader", desc: "Document Q&A with evidence extraction and citations." },
+  { key: "general", title: "General Analyst", desc: "Cross-domain analysis and executive summaries." },
 ];
 
 export const EMPTY_METADATA: ChatMetadata = {

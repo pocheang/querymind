@@ -1,16 +1,19 @@
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 export function NotFoundPage({ pathname }: { pathname: string }) {
+  const { t } = useTranslation();
+
   return (
     <div className="not-found">
       <h1>404</h1>
-      <p>未找到页面: {pathname}</p>
+      <p>{t("pages.notFound.message", { pathname })}</p>
       <div className="top-actions">
         <Link className="secondary link-btn" to="/app">
-          返回应用
+          {t("pages.notFound.backToApp")}
         </Link>
         <Link className="secondary link-btn" to="/app/login">
-          去登录
+          {t("pages.notFound.login")}
         </Link>
       </div>
     </div>

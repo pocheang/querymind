@@ -22,10 +22,7 @@ import { KeyboardHelp } from "@/components/KeyboardHelp";
 import { generateSmartPrompts } from "@/pages/chat/utils/smartPrompts";
 
 // Route-specific CSS (code-split by Vite)
-import "@/styles/pages/chat.css";
-import "@/styles/themes/light/chat.css";
-import "@/styles/themes/dark/chat.css";
-import "@/styles/pages/chat-responsive.css";
+import "@/styles/pages/chat-entry.css";
 
 export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
   const {

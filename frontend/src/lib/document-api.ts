@@ -1,4 +1,4 @@
-import type { FileIndexActionResponse, IndexedFileSummary, UploadResponse } from "@/types/api";
+import type { FileIndexActionResponse, IndexedFileSummary, IndexHealthResponse, UploadResponse } from "@/types/api";
 import { authFetch, parseOrThrow, toUrl, getToken, safeParsePayload, ApiError } from "./api-client";
 import { authApi } from "./auth-api";
 import { encodePathParam } from "./api-helpers";
@@ -63,6 +63,9 @@ export const documentApi = {
   },
   documents() {
     return authFetch("/documents").then(parseOrThrow<IndexedFileSummary[]>);
+  },
+  indexHealth() {
+    return authFetch("/documents/index-health").then(parseOrThrow<IndexHealthResponse>);
   },
   async documentDelete(filename: string, source: string, removeFile: boolean) {
     const qs = new URLSearchParams({

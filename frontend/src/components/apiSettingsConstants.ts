@@ -13,7 +13,7 @@ export type ApiConfig = {
 export const PROVIDER_MODELS: Record<Provider, string[]> = {
   local: ["local-evidence"],
   openai: ["gpt-5.4-codex", "gpt-5.2", "gpt-4o", "gpt-4o-mini"],
-  anthropic: ["claude-sonnet-4-6", "claude-opus-4-7", "claude-3-5-sonnet-20241022"],
+  anthropic: ["claude-sonnet-4-6", "claude-opus-4-8", "claude-opus-4-7", "claude-3-5-sonnet-20241022"],
   deepseek: ["deepseek-chat", "deepseek-reasoner"],
   ollama: ["qwen2.5:7b", "qwen2.5:7b-instruct", "llama3.2", "mistral", "phi3"],
   custom: [],
@@ -22,7 +22,7 @@ export const PROVIDER_MODELS: Record<Provider, string[]> = {
 export const PROVIDER_DEFAULTS: Record<Provider, Pick<ApiConfig, "baseUrl" | "model">> = {
   local: { baseUrl: "", model: "local-evidence" },
   openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-5.4-codex" },
-  anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-sonnet-4-6" },
+  anthropic: { baseUrl: "https://api.anthropic.com", model: "claude-sonnet-4-6" },
   deepseek: { baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" },
   ollama: { baseUrl: "http://localhost:11434", model: "qwen2.5:7b-instruct" },
   custom: { baseUrl: "", model: "" },

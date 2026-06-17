@@ -10,12 +10,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
 
 // Route-specific CSS (code-split by Vite)
-import "@/styles/pages/auth/layout.css";
-import "@/styles/pages/auth/forms.css";
-import "@/styles/pages/auth/social.css";
-import "@/styles/pages/auth/animations.css";
-import "@/styles/themes/light/auth.css";
-import "@/styles/themes/dark/auth.css";
+import "@/styles/pages/auth-entry.css";
 
 type Props = {
   onLogin: (user: AuthUser) => void;
@@ -81,21 +76,12 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
 
   const handleGitHubLogin = () => {
     setError("");
-    setStatus("GitHub OAuth 待后端接入后启用");
+    setStatus(t("pages.login.githubUnavailable"));
   };
 
   return (
     <div className="auth-root">
-      <div style={{
-        position: 'absolute',
-        top: '1rem',
-        right: '1rem',
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: '0.5rem',
-        zIndex: 1000
-      }}>
+      <div className="auth-toolbar">
         <LanguageToggle />
         <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
       </div>
@@ -105,9 +91,14 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
           <div className="badge">{t('app.title')}</div>
           <div className="auth-intro-copy">
             <h1>
-              Local RAG
-              <br />
-              Platform
+              {t("pages.login.headline")
+                .split("\n")
+                .map((line) => (
+                  <span key={line}>
+                    {line}
+                    <br />
+                  </span>
+                ))}
             </h1>
             <p>{t('app.subtitle')}</p>
           </div>
@@ -161,10 +152,10 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
             />
             <div className={`hint ${validateUsername(username) ? "ok" : username.length > 0 ? "error" : ""}`}>
               {username.length === 0
-                ? "3-32 characters, letters, numbers or ._-"
+                ? t("pages.login.usernameHint")
                 : validateUsername(username)
-                  ? "✓"
-                  : "Invalid format"}
+                  ? t("pages.login.usernameValid")
+                  : t("pages.login.invalidFormat")}
             </div>
           </div>
 
@@ -184,20 +175,20 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
             />
             <div className={`hint ${validatePassword(password) ? "ok" : password.length > 0 ? "error" : ""}`}>
               {password.length === 0
-                ? "12+ chars with uppercase, lowercase, number & special char"
+                ? t("pages.login.passwordHint")
                 : validatePassword(password)
-                  ? "✓"
-                  : "Weak password"}
+                  ? t("pages.login.passwordValid")
+                  : t("pages.login.weakPassword")}
             </div>
           </div>
 
           <div className="row-actions auth-extra-row">
-            <label className="checkline auth-checkline">
+            <label className="auth-checkline">
               <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-              Remember me
+              {t("pages.login.rememberMe")}
             </label>
             <Link to="/app/forgot-password" className="text-link-btn">
-              Forgot password?
+              {t("pages.login.forgotPassword")}
             </Link>
           </div>
 
@@ -221,7 +212,7 @@ export function LoginPage({ onLogin, themeLabel, onThemeToggle }: Props) {
           </div>
 
           <div className="divider">
-            <span>or use social login</span>
+            <span>{t("pages.login.socialDivider")}</span>
           </div>
 
           <div className="social-grid">

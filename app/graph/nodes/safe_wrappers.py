@@ -34,9 +34,10 @@ def safe_vector_result(
                             question,
                             allowed_sources=allowed_sources,
                             retrieval_strategy=retrieval_strategy,
+                            agent_class=agent_class,
                         )
                         if retrieval_strategy
-                        else run_vector_rag(question, allowed_sources=allowed_sources),
+                        else run_vector_rag(question, allowed_sources=allowed_sources, agent_class=agent_class),
                     ),
                 )
 
@@ -121,7 +122,7 @@ def safe_graph_result(question: str, allowed_sources: list[str] | None = None, a
                 "workflow.graph_rag",
                 lambda: call_with_circuit_breaker(
                     "graph_rag.run",
-                    lambda: run_graph_rag(question, allowed_sources=allowed_sources),
+                    lambda: run_graph_rag(question, allowed_sources=allowed_sources, agent_class=agent_class),
                 ),
             )
 

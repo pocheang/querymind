@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import '../styles/components/keyboard-help.css';
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import "../styles/components/keyboard-help.css";
 
 interface Shortcut {
   keys: string[];
@@ -7,85 +8,68 @@ interface Shortcut {
   category: string;
 }
 
-const shortcuts: Shortcut[] = [
-  // 消息操作
-  { keys: ['Ctrl', 'Enter'], description: '发送消息', category: '消息操作' },
-  { keys: ['Shift', 'Enter'], description: '换行', category: '消息操作' },
-  { keys: ['Esc'], description: '清空输入框', category: '消息操作' },
-
-  // 导航
-  { keys: ['Ctrl', 'K'], description: '聚焦到搜索框', category: '导航' },
-  { keys: ['Ctrl', 'N'], description: '新建会话', category: '导航' },
-  { keys: ['Ctrl', 'B'], description: '切换侧边栏', category: '导航' },
-
-  // 选项切换
-  { keys: ['Ctrl', 'W'], description: '切换联网检索', category: '选项' },
-  { keys: ['Ctrl', 'R'], description: '切换推理增强', category: '选项' },
-
-  // 其他
-  { keys: ['?'], description: '显示快捷键帮助', category: '其他' },
-  { keys: ['Ctrl', '/'], description: '显示快捷键帮助', category: '其他' },
-];
-
 export function KeyboardHelp() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+  const shortcuts = useMemo<Shortcut[]>(
+    () => [
+      { keys: ["Ctrl", "Enter"], description: t("components.keyboard.shortcuts.send"), category: t("components.keyboard.categories.message") },
+      { keys: ["Shift", "Enter"], description: t("components.keyboard.shortcuts.newline"), category: t("components.keyboard.categories.message") },
+      { keys: ["Esc"], description: t("components.keyboard.shortcuts.clear"), category: t("components.keyboard.categories.message") },
+      { keys: ["Ctrl", "K"], description: t("components.keyboard.shortcuts.focusSearch"), category: t("components.keyboard.categories.navigation") },
+      { keys: ["Ctrl", "N"], description: t("components.keyboard.shortcuts.newSession"), category: t("components.keyboard.categories.navigation") },
+      { keys: ["Ctrl", "B"], description: t("components.keyboard.shortcuts.toggleSidebar"), category: t("components.keyboard.categories.navigation") },
+      { keys: ["Ctrl", "W"], description: t("components.keyboard.shortcuts.toggleWeb"), category: t("components.keyboard.categories.options") },
+      { keys: ["Ctrl", "R"], description: t("components.keyboard.shortcuts.toggleReasoning"), category: t("components.keyboard.categories.options") },
+      { keys: ["?"], description: t("components.keyboard.shortcuts.showHelp"), category: t("components.keyboard.categories.other") },
+      { keys: ["Ctrl", "/"], description: t("components.keyboard.shortcuts.showHelp"), category: t("components.keyboard.categories.other") },
+    ],
+    [t],
+  );
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 按 ? 或 Ctrl+/ 打开帮助
-      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-        // 确保不在输入框中
-        const target = e.target as HTMLElement;
-        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
-          e.preventDefault();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "?" && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        const target = event.target as HTMLElement;
+        if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA") {
+          event.preventDefault();
           setIsOpen(true);
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-        e.preventDefault();
+      } else if ((event.ctrlKey || event.metaKey) && event.key === "/") {
+        event.preventDefault();
         setIsOpen(true);
       }
 
-      // 按 Esc 关闭帮助
-      if (e.key === 'Escape' && isOpen) {
+      if (event.key === "Escape" && isOpen) {
         setIsOpen(false);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
+
+  const groupedShortcuts = useMemo(() => {
+    return shortcuts.reduce((acc, shortcut) => {
+      if (!acc[shortcut.category]) acc[shortcut.category] = [];
+      acc[shortcut.category].push(shortcut);
+      return acc;
+    }, {} as Record<string, Shortcut[]>);
+  }, [shortcuts]);
 
   if (!isOpen) return null;
 
-  // 按类别分组
-  const groupedShortcuts = shortcuts.reduce((acc, shortcut) => {
-    if (!acc[shortcut.category]) {
-      acc[shortcut.category] = [];
-    }
-    acc[shortcut.category].push(shortcut);
-    return acc;
-  }, {} as Record<string, Shortcut[]>);
-
   return (
     <>
-      <div
-        className="keyboard-help-backdrop"
-        onClick={() => setIsOpen(false)}
-        aria-hidden="true"
-      />
-      <div
-        className="keyboard-help-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="keyboard-help-title"
-      >
+      <div className="keyboard-help-backdrop" onClick={() => setIsOpen(false)} aria-hidden="true" />
+      <div className="keyboard-help-modal" role="dialog" aria-modal="true" aria-labelledby="keyboard-help-title">
         <div className="keyboard-help-header">
-          <h2 id="keyboard-help-title">键盘快捷键</h2>
+          <h2 id="keyboard-help-title">{t("components.keyboard.title")}</h2>
           <button
             type="button"
             className="keyboard-help-close"
             onClick={() => setIsOpen(false)}
-            aria-label="关闭快捷键帮助"
+            aria-label={t("components.keyboard.close")}
           >
             ×
           </button>
@@ -96,21 +80,17 @@ export function KeyboardHelp() {
             <div key={category} className="keyboard-help-section">
               <h3 className="keyboard-help-category">{category}</h3>
               <div className="keyboard-help-list">
-                {items.map((shortcut, index) => (
-                  <div key={index} className="keyboard-help-item">
+                {items.map((shortcut) => (
+                  <div key={`${category}-${shortcut.keys.join("-")}`} className="keyboard-help-item">
                     <div className="keyboard-help-keys">
-                      {shortcut.keys.map((key, i) => (
-                        <span key={i}>
+                      {shortcut.keys.map((key, index) => (
+                        <span key={key}>
                           <kbd className="keyboard-key">{key}</kbd>
-                          {i < shortcut.keys.length - 1 && (
-                            <span className="keyboard-plus">+</span>
-                          )}
+                          {index < shortcut.keys.length - 1 && <span className="keyboard-plus">+</span>}
                         </span>
                       ))}
                     </div>
-                    <span className="keyboard-help-description">
-                      {shortcut.description}
-                    </span>
+                    <span className="keyboard-help-description">{shortcut.description}</span>
                   </div>
                 ))}
               </div>
@@ -119,9 +99,7 @@ export function KeyboardHelp() {
         </div>
 
         <div className="keyboard-help-footer">
-          <p className="keyboard-help-hint">
-            按 <kbd className="keyboard-key">Esc</kbd> 或点击外部区域关闭
-          </p>
+          <p className="keyboard-help-hint">{t("components.keyboard.footer")}</p>
         </div>
       </div>
     </>

@@ -3,72 +3,72 @@
    ============================================ */
 
 @media (max-width: 1080px) {
-  .main {
+  .page-shell .main {
     min-width: 0;
     padding: 16px;
   }
 
-  .chat-window {
+  .page-shell .chat-window {
     min-height: min(58vh, 620px);
     margin: 14px 0;
     padding: 14px;
     border-radius: 18px;
   }
 
-  .panel {
+  .page-shell .panel {
     border-radius: 18px;
   }
 }
 
 @media (max-width: 860px) {
-  .main {
+  .page-shell .main {
     padding: 12px;
   }
 
-  .chat-window {
+  .page-shell .chat-window {
     min-height: 52vh;
     padding: 12px;
   }
 
-  .bubble {
+  .page-shell .bubble {
     width: 100%;
     margin-top: 14px;
   }
 
-  .message-head {
+  .page-shell .message-head {
     gap: 10px;
   }
 
-  .chips {
+  .page-shell .chips {
     gap: 6px;
   }
 
-  .chip {
+  .page-shell .chip {
     max-width: 100%;
   }
 
-  .composer-controls {
+  .page-shell .composer-controls {
     grid-template-columns: 1fr;
     gap: 14px;
   }
 
-  .composer-options {
+  .page-shell .composer-options {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
-  .option-group {
+  .page-shell .option-group {
     justify-content: space-between;
     width: 100%;
   }
 
-  .option-select {
+  .page-shell .option-select {
     min-width: 0;
     width: 100%;
   }
 
-  .quick-actions {
+  .page-shell .quick-actions {
     max-height: 128px;
     overflow: auto;
     padding-bottom: 2px;
@@ -76,69 +76,69 @@
 }
 
 @media (max-width: 620px) {
-  .main {
+  .page-shell .main {
     padding: 10px;
   }
 
-  .chat-window {
+  .page-shell .chat-window {
     min-height: 50vh;
     padding: 10px;
     border-radius: 16px;
   }
 
-  .bubble {
+  .page-shell .bubble {
     padding: 14px;
   }
 
-  .message-head {
+  .page-shell .message-head {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .row-actions {
+  .page-shell .row-actions {
     width: 100%;
     justify-content: flex-end;
   }
 
-  .composer-options {
+  .page-shell .composer-options {
     grid-template-columns: 1fr;
   }
 
-  .composer-primary-btn {
+  .page-shell .composer-primary-btn {
     min-width: 0;
   }
 
-  .quick-actions {
+  .page-shell .quick-actions {
     gap: 8px;
   }
 
-  .quick-action-btn {
+  .page-shell .quick-action-btn {
     max-width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .empty-chat-state {
+  .page-shell .empty-chat-state {
     min-height: 280px;
     padding: 24px 12px;
   }
 }
 
 @media (max-width: 420px) {
-  .main {
+  .page-shell .main {
     padding: 8px;
   }
 
-  .chat-window {
+  .page-shell .chat-window {
     margin: 10px 0;
   }
 
-  .composer-input-wrapper {
+  .page-shell .composer-input-wrapper {
     padding: 10px;
   }
 
-  .composer-panel textarea {
+  .page-shell .composer-panel textarea {
     min-height: 96px;
     font-size: 15px;
   }

@@ -3,19 +3,19 @@
    Knowledge graph visualization styles
    ============================================ */
 
-.graph-result-panel {
+.page-shell .graph-result-panel {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.graph-section {
+.page-shell .graph-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.graph-section > strong {
+.page-shell .graph-section > strong {
   color: #a5b4fc;
   font-size: 14px;
   font-weight: 600;
@@ -24,13 +24,13 @@
 }
 
 /* Neighbor Relationships */
-.graph-neighbors {
+.page-shell .graph-neighbors {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.graph-neighbor-item {
+.page-shell .graph-neighbor-item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -41,13 +41,13 @@
   transition: all 0.2s ease;
 }
 
-.graph-neighbor-item:hover {
+.page-shell .graph-neighbor-item:hover {
   background: rgba(18, 26, 45, 0.7);
   border-color: rgba(91, 140, 255, 0.3);
   transform: translateX(4px);
 }
 
-.graph-entity {
+.page-shell .graph-entity {
   flex: 0 0 auto;
   max-width: 200px;
   padding: 4px 10px;
@@ -62,7 +62,7 @@
   text-overflow: ellipsis;
 }
 
-.graph-relation {
+.page-shell .graph-relation {
   flex: 1;
   display: flex;
   align-items: center;
@@ -72,7 +72,7 @@
   justify-content: center;
 }
 
-.relation-label {
+.page-shell .relation-label {
   padding: 3px 8px;
   background: rgba(139, 92, 246, 0.15);
   border: 1px solid rgba(139, 92, 246, 0.3);
@@ -83,7 +83,7 @@
   white-space: nowrap;
 }
 
-.graph-target {
+.page-shell .graph-target {
   flex: 0 0 auto;
   max-width: 200px;
   padding: 4px 10px;
@@ -99,13 +99,13 @@
 }
 
 /* Reasoning Paths */
-.graph-paths {
+.page-shell .graph-paths {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.graph-path-item {
+.page-shell .graph-path-item {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -118,19 +118,19 @@
   transition: all 0.2s ease;
 }
 
-.graph-path-item:hover {
+.page-shell .graph-path-item:hover {
   background: rgba(18, 26, 45, 0.7);
   border-color: rgba(91, 140, 255, 0.3);
   border-left-color: rgba(139, 92, 246, 0.8);
 }
 
-.path-segment {
+.page-shell .path-segment {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.path-entity {
+.page-shell .path-entity {
   padding: 4px 10px;
   background: rgba(91, 140, 255, 0.15);
   border: 1px solid rgba(91, 140, 255, 0.3);
@@ -141,7 +141,7 @@
   white-space: nowrap;
 }
 
-.path-arrow {
+.page-shell .path-arrow {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -149,7 +149,7 @@
   font-size: 14px;
 }
 
-.path-relation {
+.page-shell .path-relation {
   padding: 3px 8px;
   background: rgba(139, 92, 246, 0.15);
   border: 1px solid rgba(139, 92, 246, 0.3);
@@ -160,14 +160,14 @@
   white-space: nowrap;
 }
 
-.path-error {
+.page-shell .path-error {
   color: #fca5a5;
   font-size: 13px;
   font-style: italic;
 }
 
 /* Graph Context */
-.graph-context {
+.page-shell .graph-context {
   padding: 12px;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(111, 132, 189, 0.2);
@@ -181,43 +181,43 @@
   overflow-y: auto;
 }
 
-.graph-context::-webkit-scrollbar {
+.page-shell .graph-context::-webkit-scrollbar {
   width: 6px;
 }
 
-.graph-context::-webkit-scrollbar-track {
+.page-shell .graph-context::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
 }
 
-.graph-context::-webkit-scrollbar-thumb {
+.page-shell .graph-context::-webkit-scrollbar-thumb {
   background: rgba(91, 140, 255, 0.3);
   border-radius: 3px;
 }
 
-.graph-context::-webkit-scrollbar-thumb:hover {
+.page-shell .graph-context::-webkit-scrollbar-thumb:hover {
   background: rgba(91, 140, 255, 0.5);
 }
 
 /* Responsive */
 @media (max-width: 860px) {
-  .graph-neighbor-item {
+  .page-shell .graph-neighbor-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
 
-  .graph-relation {
+  .page-shell .graph-relation {
     width: 100%;
     justify-content: flex-start;
   }
 
-  .graph-entity,
-  .graph-target {
+  .page-shell .graph-entity,
+  .page-shell .graph-target {
     max-width: 100%;
   }
 
-  .path-segment {
+  .page-shell .path-segment {
     flex-wrap: wrap;
   }
 }

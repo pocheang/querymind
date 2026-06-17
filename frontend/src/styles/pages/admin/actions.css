@@ -30,6 +30,29 @@
   border-radius: 6px;
 }
 
+.admin-shell .admin-audit-head-actions {
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-hover);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.admin-shell .admin-audit-head-actions select,
+.admin-shell .admin-audit-head-actions button {
+  flex: 0 0 auto;
+}
+
+.admin-shell .admin-audit-head-actions .tiny-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+}
+
 /* ============================================
    Responsive Layout Overrides
    ============================================ */

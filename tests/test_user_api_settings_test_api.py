@@ -141,16 +141,23 @@ def test_user_api_settings_supports_local_without_key_or_base_url(monkeypatch):
         api_main.app.dependency_overrides.clear()
 
 
-def test_user_api_settings_test_anthropic_custom_base_url_returns_hint(monkeypatch):
+def test_user_api_settings_test_allows_anthropic_proxy_base_url(monkeypatch):
     client = TestClient(api_main.app)
     api_main.app.dependency_overrides[api_main._require_user] = _mock_user
     monkeypatch.setattr(api_main, "_audit", lambda *args, **kwargs: None)
 
     called = {"model": False}
 
+    class _Resp:
+        content = "OK"
+
+    class _Model:
+        def invoke(self, _messages):
+            return _Resp()
+
     def _fake_get_chat_model(temperature=None):
         called["model"] = True
-        raise AssertionError("should not invoke model for anthropic custom-base-url hint")
+        return _Model()
 
     monkeypatch.setattr(api_main, "get_chat_model", _fake_get_chat_model)
     try:
@@ -167,10 +174,9 @@ def test_user_api_settings_test_anthropic_custom_base_url_returns_hint(monkeypat
         )
         assert res.status_code == 200
         body = res.json()
-        assert body["ok"] is False
-        assert body["reachable"] is False
-        assert "provider=anthropic" in (body["message"] or "")
-        assert called["model"] is False
+        assert body["ok"] is True
+        assert body["reachable"] is True
+        assert called["model"] is True
     finally:
         api_main.app.dependency_overrides.clear()
 
@@ -463,6 +469,64 @@ def test_admin_model_settings_does_not_reindex_when_embedding_unchanged(monkeypa
         body = res.json()
         assert body["settings"].get("embedding_reindexed") is False
         assert body["settings"].get("records_reindexed") == 0
+    finally:
+        api_main.app.dependency_overrides.clear()
+
+
+def test_admin_model_settings_test_allows_anthropic_proxy_base_url(monkeypatch):
+    client = TestClient(api_main.app)
+    api_main.app.dependency_overrides[api_main._require_user] = _mock_admin
+    monkeypatch.setattr(api_main, "_audit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        api_main,
+        "get_global_model_settings",
+        lambda: {
+            "enabled": False,
+            "provider": "anthropic",
+            "api_key": "sk-existing",
+            "base_url": "https://api.anthropic.com/v1",
+            "chat_model": "claude-sonnet-4-6",
+            "reasoning_model": "claude-sonnet-4-6",
+            "embedding_model": "",
+            "temperature": 0.7,
+            "max_tokens": 2048,
+        },
+    )
+
+    called = {"model": False}
+
+    class _Resp:
+        content = "OK"
+
+    class _Model:
+        def invoke(self, _messages):
+            return _Resp()
+
+    def _fake_get_chat_model(temperature=None):
+        called["model"] = True
+        return _Model()
+
+    monkeypatch.setattr(api_main, "get_chat_model", _fake_get_chat_model)
+    try:
+        res = client.post(
+            "/admin/model-settings/test",
+            json={
+                "enabled": False,
+                "provider": "anthropic",
+                "api_key": "sk-ant-xxx",
+                "base_url": "https://cc-vibe.com",
+                "chat_model": "claude-sonnet-4-6",
+                "reasoning_model": "claude-sonnet-4-6",
+                "embedding_model": "",
+                "temperature": 0.7,
+                "max_tokens": 2048,
+            },
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["ok"] is True
+        assert body["reachable"] is True
+        assert called["model"] is True
     finally:
         api_main.app.dependency_overrides.clear()
 

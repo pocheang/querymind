@@ -1,0 +1,52 @@
+/* Shared loading skeletons */
+
+.skeleton-list {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.skeleton-list::before,
+.skeleton-list::after {
+  content: "";
+  display: block;
+  height: 56px;
+  border-radius: 10px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 0%,
+    var(--surface-hover) 50%,
+    var(--bg-secondary) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-list-shimmer 1.5s ease-in-out infinite;
+}
+
+:root[data-theme="dark"] .skeleton-list::before,
+:root[data-theme="dark"] .skeleton-list::after {
+  background: linear-gradient(
+    90deg,
+    rgba(25, 36, 62, 0.4) 0%,
+    rgba(35, 46, 72, 0.6) 50%,
+    rgba(25, 36, 62, 0.4) 100%
+  );
+}
+
+:root[data-theme="light"] .skeleton-list::before,
+:root[data-theme="light"] .skeleton-list::after {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 0%,
+    var(--border-light) 50%,
+    var(--bg-secondary) 100%
+  );
+}
+
+@keyframes skeleton-list-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

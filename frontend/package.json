@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build --config vite.config.ts",
+    "build": "tsc -b && vite build --config vite.config.mjs",
     "extract-critical": "node scripts/extract-critical-css.js",
     "preview": "vite preview --host 0.0.0.0 --port 4173"
   },

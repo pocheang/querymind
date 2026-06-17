@@ -1,17 +1,15 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
 import { validatePassword } from "@/lib/validation";
 import { useFormState } from "@/hooks/useFormState";
 import { AuthInput } from "@/components/AuthInput";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PasswordRequirements } from "@/components/PasswordRequirements";
 
-// Route-specific CSS (code-split by Vite)
-import "@/styles/pages/auth/layout.css";
-import "@/styles/pages/auth/forms.css";
-import "@/styles/themes/light/auth.css";
-import "@/styles/themes/dark/auth.css";
+import "@/styles/pages/auth-entry.css";
 
 type Props = {
   themeLabel: string;
@@ -19,6 +17,7 @@ type Props = {
 };
 
 export function ChangePasswordPage({ themeLabel, onThemeToggle }: Props) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -36,20 +35,20 @@ export function ChangePasswordPage({ themeLabel, onThemeToggle }: Props) {
 
   const changePassword = async () => {
     if (!formValid) {
-      setError("请先修正输入内容");
+      setError(t("pages.changePassword.fixInputs"));
       return;
     }
     setLoading(true);
     setError("");
-    setStatus("正在更改密码...");
+    setStatus(t("pages.changePassword.changing"));
     try {
       const data = await authApi.changePassword(oldPassword, newPassword);
-      setStatus(data.message || "密码已成功更改");
-      setTimeout(() => {
+      setStatus(data.message || t("pages.changePassword.changed"));
+      window.setTimeout(() => {
         navigate("/app");
       }, 2000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "密码更改失败");
+      setError(e instanceof Error ? e.message : t("pages.changePassword.failed"));
     } finally {
       setLoading(false);
     }
@@ -57,14 +56,17 @@ export function ChangePasswordPage({ themeLabel, onThemeToggle }: Props) {
 
   return (
     <div className="auth-root">
-      <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
+      <div className="auth-toolbar">
+        <LanguageToggle />
+        <ThemeToggle themeLabel={themeLabel} onThemeToggle={onThemeToggle} />
+      </div>
 
       <main className="auth-card change-password-card">
         <section className="auth-intro auth-intro-security">
-          <div className="badge">安全设置</div>
+          <div className="badge">{t("pages.changePassword.badge")}</div>
           <div className="auth-intro-copy">
-            <h1>更改密码</h1>
-            <p>为了保护账号安全，请定期更新密码，并确保新密码与旧密码不同。</p>
+            <h1>{t("pages.changePassword.title")}</h1>
+            <p>{t("pages.changePassword.description")}</p>
           </div>
 
           <PasswordRequirements password={newPassword} />
@@ -72,54 +74,56 @@ export function ChangePasswordPage({ themeLabel, onThemeToggle }: Props) {
 
         <section className="auth-form">
           <div className="auth-form-header">
-            <h2>密码设置</h2>
-            <p className="auth-form-subtitle">更新后，后续登录将使用新的密码凭证。</p>
+            <h2>{t("pages.changePassword.formTitle")}</h2>
+            <p className="auth-form-subtitle">{t("pages.changePassword.formSubtitle")}</p>
           </div>
 
           <div className="input-group">
-            <label htmlFor="old-password">当前密码</label>
+            <label htmlFor="old-password">{t("pages.changePassword.currentPassword")}</label>
             <AuthInput
               id="old-password"
               type="password"
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
-              placeholder="请输入当前密码"
+              placeholder={t("pages.changePassword.currentPlaceholder")}
               autoComplete="current-password"
               icon="lock"
             />
             <div className={`hint ${oldPassword.length > 0 ? "ok" : ""}`}>
-              {oldPassword.length > 0 ? "已输入当前密码" : "请输入当前密码以验证身份"}
+              {oldPassword.length > 0
+                ? t("pages.changePassword.currentReady")
+                : t("pages.changePassword.currentHint")}
             </div>
           </div>
 
           <div className="input-group">
-            <label htmlFor="new-password">新密码</label>
+            <label htmlFor="new-password">{t("pages.changePassword.newPassword")}</label>
             <AuthInput
               id="new-password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="请输入新密码"
+              placeholder={t("pages.changePassword.newPlaceholder")}
               autoComplete="new-password"
               icon="lock"
             />
             <div className={`hint ${validatePassword(newPassword) ? "ok" : newPassword.length > 0 ? "error" : ""}`}>
               {validatePassword(newPassword)
-                ? "密码强度达标"
+                ? t("pages.changePassword.newValid")
                 : newPassword.length > 0
-                  ? "密码不符合要求"
-                  : "请设置符合要求的新密码"}
+                  ? t("pages.changePassword.newInvalid")
+                  : t("pages.changePassword.newHint")}
             </div>
           </div>
 
           <div className="input-group">
-            <label htmlFor="confirm-password">确认新密码</label>
+            <label htmlFor="confirm-password">{t("pages.changePassword.confirmPassword")}</label>
             <AuthInput
               id="confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="请再次输入新密码"
+              placeholder={t("pages.changePassword.confirmPlaceholder")}
               autoComplete="new-password"
               onKeyDown={(e) => {
                 if (e.key === "Enter") void changePassword();
@@ -132,15 +136,15 @@ export function ChangePasswordPage({ themeLabel, onThemeToggle }: Props) {
               }`}
             >
               {confirmPassword.length === 0
-                ? "请再次输入新密码"
+                ? t("pages.changePassword.confirmHint")
                 : newPassword === confirmPassword
-                  ? "两次输入的密码一致"
-                  : "两次输入的密码不一致"}
+                  ? t("pages.changePassword.confirmMatch")
+                  : t("pages.changePassword.confirmMismatch")}
             </div>
           </div>
 
           {oldPassword === newPassword && newPassword.length > 0 && (
-            <div className="alert alert-warning">新密码不能与旧密码相同</div>
+            <div className="alert alert-warning">{t("pages.changePassword.samePassword")}</div>
           )}
 
           <div className="action-grid">
@@ -150,10 +154,10 @@ export function ChangePasswordPage({ themeLabel, onThemeToggle }: Props) {
               disabled={!formValid || loading}
               onClick={() => void changePassword()}
             >
-              {loading ? "更改中..." : "更改密码"}
+              {loading ? t("pages.changePassword.submitting") : t("pages.changePassword.submit")}
             </button>
             <button type="button" className="secondary auth-secondary-btn" onClick={() => navigate("/app")}>
-              取消
+              {t("pages.changePassword.cancel")}
             </button>
           </div>
 

@@ -37,8 +37,14 @@ def vector_node(state: GraphState) -> GraphState:
                 state["question"],
                 state.get("allowed_sources"),
                 state.get("retrieval_strategy"),
+                state.get("agent_class"),
             )
-            fut_graph = submit_hybrid(safe_graph_result, state["question"], state.get("allowed_sources"))
+            fut_graph = submit_hybrid(
+                safe_graph_result,
+                state["question"],
+                state.get("allowed_sources"),
+                state.get("agent_class"),
+            )
         except HybridExecutorRejectedError:
             if fut_vector is not None:
                 fut_vector.cancel()
@@ -94,6 +100,7 @@ def vector_node(state: GraphState) -> GraphState:
                             state["question"],
                             allowed_sources=state.get("allowed_sources"),
                             retrieval_strategy=state.get("retrieval_strategy"),
+                            agent_class=state.get("agent_class"),
                         ),
                     ),
                 )

@@ -1,5 +1,5 @@
 /* ============================================
-   Admin Ops - Controls, Filters, Trends
+   Admin Ops - Controls, Filters, Trends, Diagnostic KPI Cards
    ============================================ */
 
 .ops-wrap {
@@ -16,29 +16,35 @@
 
 .ops-controls-row {
   display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-3);
-  background: var(--surface-hover);
+  background: var(--admin-surface-hover);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--admin-border);
+  backdrop-filter: blur(8px);
 }
 
 .ops-controls-row select {
   flex: 0 0 auto;
-  min-width: 120px;
+  width: auto;
+  min-width: 140px;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--admin-border-medium);
   border-radius: var(--radius-md);
-  background: var(--surface);
-  font-size: var(--text-sm);
-  transition: all 0.2s ease;
+  background: var(--admin-surface);
+  font-size: var(--text-xs);
+  font-family: ui-monospace, monospace;
+  color: var(--admin-text-primary);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
 }
 
 .ops-controls-row select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--admin-info);
+  box-shadow: 0 0 10px var(--admin-info-glow);
 }
 
 .ops-auto-refresh {
@@ -49,24 +55,30 @@
   user-select: none;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .ops-auto-refresh:hover {
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(91, 140, 255, 0.08);
+  border-color: rgba(91, 140, 255, 0.15);
 }
 
 .ops-auto-refresh input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
-  accent-color: var(--accent);
+  accent-color: var(--admin-info);
 }
 
 .ops-auto-refresh span {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  font-weight: 500;
+  font-size: var(--text-xs);
+  color: var(--admin-text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .ops-filter-row {
@@ -79,26 +91,28 @@
   flex: 1;
   min-width: 0;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--admin-border-medium);
   border-radius: var(--radius-md);
-  background: var(--surface);
-  font-size: var(--text-sm);
-  transition: all 0.2s ease;
+  background: var(--admin-surface);
+  font-size: var(--text-xs);
+  color: var(--admin-text-primary);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ops-filter-row input:focus,
 .ops-filter-row select:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--admin-info);
+  box-shadow: 0 0 10px var(--admin-info-glow);
 }
 
 .ops-filter-row input::placeholder {
-  color: var(--text-tertiary);
+  color: var(--admin-text-tertiary);
+  font-family: ui-monospace, monospace;
 }
 
 /* ============================================
-   KPI Grid
+   KPI Grid & Scientific Diagnostics
    ============================================ */
 
 .ops-kpi-grid {
@@ -108,109 +122,163 @@
 }
 
 .ops-kpi-grid-primary {
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .ops-kpi-grid-secondary {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
 
 .ops-kpi-card {
   padding: var(--space-4);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
-  background: var(--surface);
-  transition: all 0.2s ease;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
+/* Sci-fi Corner Brackets for KPI Cards */
 .ops-kpi-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid var(--admin-accent);
+  border-left: 2px solid var(--admin-accent);
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.ops-kpi-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--info));
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  width: 6px;
+  height: 6px;
+  border-bottom: 2px solid var(--admin-accent);
+  border-right: 2px solid var(--admin-accent);
+  pointer-events: none;
+  transition: all 0.2s ease;
 }
 
 .ops-kpi-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  border-color: var(--admin-info);
+  box-shadow: 0 0 14px var(--admin-info-glow);
   transform: translateY(-2px);
+  background: var(--admin-surface-hover);
 }
 
 .ops-kpi-card:hover::before {
-  opacity: 1;
+  border-color: var(--admin-info);
+  width: 10px;
+  height: 10px;
+}
+
+.ops-kpi-card:hover::after {
+  border-color: var(--admin-info);
+  width: 10px;
+  height: 10px;
 }
 
 .ops-kpi-card span {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  color: var(--admin-text-secondary);
   margin-bottom: var(--space-2);
-  font-weight: 500;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
+/* Glowing diagnostic status dot */
 .ops-kpi-card span::before {
   content: '';
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: var(--accent);
-  opacity: 0.6;
+  background: var(--admin-accent);
+  box-shadow: 0 0 6px var(--admin-accent-glow);
+  opacity: 0.85;
+}
+
+.ops-kpi-card:hover span::before {
+  background: var(--admin-info);
+  box-shadow: 0 0 8px var(--admin-info-glow);
 }
 
 .ops-kpi-card strong {
   display: block;
   font-size: var(--text-2xl);
-  font-weight: 700;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
+  font-weight: 800;
+  color: var(--admin-text-primary);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  line-height: 1.1;
+}
+
+/* Specific glowing metrics */
+.ops-kpi-card:nth-child(4n) strong {
+  color: var(--admin-info);
+  text-shadow: 0 0 4px var(--admin-info-glow);
 }
 
 /* ============================================
-   Trend Charts & Visualizations
+   Trend Charts & Segmented Progress Fills
    ============================================ */
 
 .ops-trend-list {
   padding: var(--space-4);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--admin-border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  background: var(--admin-surface);
+  position: relative;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Tech corners on trend lists */
+.ops-trend-list::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--admin-accent);
+  border-left: 2px solid var(--admin-accent);
+  pointer-events: none;
 }
 
 .ops-trend-list > strong {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--admin-text-primary);
   padding-bottom: var(--space-2);
-  border-bottom: 2px solid var(--border-light);
+  border-bottom: 1px dashed var(--admin-border-medium);
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .ops-trend-list > strong::before {
   content: '';
   width: 3px;
-  height: 16px;
-  background: linear-gradient(180deg, var(--accent), var(--info));
-  border-radius: 2px;
+  height: 12px;
+  background: linear-gradient(180deg, var(--admin-accent), var(--admin-info));
+  border-radius: 1px;
 }
 
 .ops-trend-row {
   display: grid;
-  grid-template-columns: 120px 1fr auto;
+  grid-template-columns: 140px 1fr auto;
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-2);
@@ -219,93 +287,112 @@
 }
 
 .ops-trend-row:hover {
-  background: var(--surface-hover);
+  background: var(--admin-surface-hover);
 }
 
 .ops-trend-row > span {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  font-weight: 500;
+  font-size: var(--text-xs);
+  color: var(--admin-text-secondary);
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: ui-monospace, monospace;
 }
 
 .ops-trend-bar {
-  height: 24px;
-  background: var(--surface-hover);
-  border-radius: var(--radius-md);
+  height: 12px;
+  background: rgba(10, 15, 30, 0.4);
+  border-radius: 3px;
   overflow: hidden;
   position: relative;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--admin-border);
 }
 
 .ops-trend-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--info));
-  border-radius: var(--radius-md);
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, var(--admin-accent), var(--admin-info));
+  border-radius: 2px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   min-width: 4px;
 }
 
+/* Digital segmented cells effect for a tactical HUD display */
 .ops-trend-fill::after {
   content: '';
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 30%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3));
+  inset: 0;
+  background-image: linear-gradient(90deg, transparent 85%, var(--bg) 85%);
+  background-size: 6px 100%;
 }
 
 .ops-trend-row > strong {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--admin-text-primary);
   text-align: right;
-  min-width: 50px;
-  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  font-family: ui-monospace, monospace;
 }
 
 .ops-health-card {
   padding: var(--space-4);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--admin-border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
+  background: var(--admin-surface);
+  position: relative;
+  box-shadow: var(--shadow-sm);
+}
+
+.ops-health-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--admin-accent);
+  border-left: 2px solid var(--admin-accent);
+  pointer-events: none;
 }
 
 .ops-health-card strong {
   display: block;
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--admin-text-primary);
   margin-bottom: var(--space-3);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 /* ============================================
-   Tiny Buttons
+   Buttons & Diagnostic Overrides
    ============================================ */
 
-.tiny-btn {
+.admin-shell .tiny-btn {
   padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
-  min-height: 32px;
-  font-weight: 500;
+  font-size: var(--text-xs);
+  min-height: 30px;
+  font-weight: 700;
   border-radius: var(--radius-md);
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: ui-monospace, monospace;
 }
 
-.tiny-btn.secondary {
-  background: var(--surface);
-  border: 1px solid var(--border-medium);
-  color: var(--text-primary);
+.admin-shell .tiny-btn.secondary {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border-medium);
+  color: var(--admin-text-primary);
 }
 
-.tiny-btn.secondary:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-inverse);
+.admin-shell .tiny-btn.secondary:hover {
+  background: var(--admin-surface-hover);
+  border-color: var(--admin-info);
+  color: #ffffff;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 12px var(--admin-info-glow);
 }

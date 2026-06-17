@@ -87,6 +87,15 @@ def test_get_overview_empty():
     assert data["success_rate"] == 0.0
 
 
+def test_get_overview_empty_with_app_base_prefix():
+    """Analytics overview should remain reachable when public deployments prefix APIs with /app."""
+    response = client.get("/app/api/analytics/overview")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_queries"] == 0
+    assert data["success_rate"] == 0.0
+
+
 def test_get_overview(sample_logs):
     """Test overview endpoint with sample logs."""
     response = client.get("/api/analytics/overview")

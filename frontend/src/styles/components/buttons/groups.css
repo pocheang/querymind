@@ -7,7 +7,7 @@
    Row Actions Buttons
    ============================================ */
 
-.row-actions .tiny-btn {
+.page-shell .row-actions .tiny-btn {
   padding: 6px 12px;
   font-size: 11px;
   font-weight: 600;
@@ -17,12 +17,12 @@
   backdrop-filter: blur(8px);
 }
 
-.row-actions .tiny-btn.secondary {
+.page-shell .row-actions .tiny-btn.secondary {
   color: #64748b;
   border-color: rgba(100, 116, 139, 0.2);
 }
 
-.row-actions .tiny-btn.secondary:hover {
+.page-shell .row-actions .tiny-btn.secondary:hover {
   color: #5b8cff;
   border-color: rgba(91, 140, 255, 0.4);
   background: rgba(91, 140, 255, 0.08);
@@ -30,113 +30,15 @@
   box-shadow: 0 2px 8px rgba(91, 140, 255, 0.15);
 }
 
-.row-actions .tiny-btn.danger {
+.page-shell .row-actions .tiny-btn.danger {
   color: #ef4444;
   border-color: rgba(239, 68, 68, 0.2);
 }
 
-.row-actions .tiny-btn.danger:hover {
+.page-shell .row-actions .tiny-btn.danger:hover {
   color: #dc2626;
   border-color: rgba(239, 68, 68, 0.4);
   background: rgba(239, 68, 68, 0.08);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
-}
-
-/* ============================================
-   Composer Actions Buttons
-   ============================================ */
-
-.composer-actions .primary-action {
-  position: relative;
-  overflow: hidden;
-  padding: 12px 32px;
-  font-size: 15px;
-  font-weight: 800;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
-  box-shadow: 0 6px 18px rgba(91, 140, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.1);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-.composer-actions .primary-action::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
-  opacity: 0;
-  transition: opacity 0.25s;
-}
-
-.composer-actions .primary-action:hover::before {
-  opacity: 1;
-}
-
-.composer-actions .primary-action:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(91, 140, 255, 0.5), 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.composer-actions .secondary,
-.composer-actions .link-btn {
-  padding: 11px 22px;
-  font-size: 14px;
-  font-weight: 700;
-  border: 2px solid rgba(0, 0, 0, 0.15);
-  background: #ffffff;
-  color: #475569;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.composer-actions .secondary:hover,
-.composer-actions .link-btn:hover {
-  border-color: rgba(91, 140, 255, 0.4);
-  background: rgba(91, 140, 255, 0.05);
-  color: #5b8cff;
-  box-shadow: 0 2px 8px rgba(91, 140, 255, 0.2);
-}
-
-.composer-actions .danger {
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #dc2626;
-  font-weight: 700;
-}
-
-.composer-actions .danger:hover {
-  border-color: rgba(239, 68, 68, 0.6);
-  background: rgba(239, 68, 68, 0.08);
-  color: #b91c1c;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
-}
-
-/* Dark Mode Override */
-:root[data-theme="dark"] .composer-actions .secondary,
-:root[data-theme="dark"] .composer-actions .link-btn {
-  border-color: rgba(255, 255, 255, 0.15);
-  background: rgba(30, 41, 59, 0.8);
-  color: #cbd5e1;
-}
-
-/* ============================================
-   Quick Prompt Buttons
-   ============================================ */
-
-.quick-prompt-row .tiny-btn {
-  padding: 7px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1.5px solid rgba(91, 140, 255, 0.2);
-  background: rgba(91, 140, 255, 0.05);
-  color: #5b8cff;
-  opacity: 0.9;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.quick-prompt-row .tiny-btn:hover {
-  opacity: 1;
-  border-color: rgba(91, 140, 255, 0.4);
-  background: rgba(91, 140, 255, 0.1);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(91, 140, 255, 0.2);
 }

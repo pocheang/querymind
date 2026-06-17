@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactFlow, {
   Node,
@@ -9,6 +9,7 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   MarkerType,
+  type ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../styles/components/data-flow.css';
@@ -199,6 +200,7 @@ const initialEdges: Edge[] = [
 
 export function DataFlowVisualization() {
   const { i18n } = useTranslation();
+  const flowRef = useRef<ReactFlowInstance | null>(null);
 
   const translatedNodes = useMemo(() => {
     const lang = i18n.language === 'zh' ? 'zh' : 'en';
@@ -211,24 +213,62 @@ export function DataFlowVisualization() {
   const [nodes, setNodes, onNodesChange] = useNodesState(translatedNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
-  // 当语言切换时更新节点
-  useMemo(() => {
+  const fitGraph = useMemo(
+    () => () => {
+      if (typeof window === 'undefined') {
+        return;
+      }
+
+      const padding = window.innerWidth <= 768 ? 0.2 : 0.14;
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          flowRef.current?.fitView({ padding, duration: 300 });
+        });
+      });
+    },
+    []
+  );
+
+  useEffect(() => {
     const lang = i18n.language === 'zh' ? 'zh' : 'en';
     const updatedNodes = initialNodes.map(node => ({
       ...node,
       data: { label: nodeTranslations[node.id][lang] }
     }));
     setNodes(updatedNodes);
-  }, [i18n.language, setNodes]);
+    fitGraph();
+  }, [fitGraph, i18n.language, setNodes]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleResize = () => {
+      fitGraph();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [fitGraph]);
 
   return (
-    <div style={{ width: '100%', height: '800px' }}>
+    <div className="reactflow-wrapper">
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         fitView
+        fitViewOptions={{ padding: 0.14 }}
+        minZoom={0.15}
+        maxZoom={1.5}
+        onInit={(instance) => {
+          flowRef.current = instance;
+          fitGraph();
+        }}
         attributionPosition="bottom-left"
       >
         <Background />

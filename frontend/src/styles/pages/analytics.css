@@ -148,7 +148,7 @@
   color: var(--text-primary);
 }
 
-.refresh-btn {
+.analytics-page .refresh-btn {
   padding: 0.5rem 1rem;
   background: var(--accent);
   color: white;
@@ -160,7 +160,7 @@
   transition: all 0.2s ease;
 }
 
-.refresh-btn:hover {
+.analytics-page .refresh-btn:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px var(--accent-glow);
@@ -213,7 +213,7 @@
   font-weight: 600;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 
 .stat-card-analytics p {
@@ -247,25 +247,25 @@
   margin-bottom: 2rem;
 }
 
-.chart-card {
+.analytics-page .chart-card {
   background: var(--surface);
   padding: 1.5rem;
   border-radius: 12px;
   border: 1px solid var(--border-light);
 }
 
-:root[data-theme="dark"] .chart-card {
+:root[data-theme="dark"] .analytics-page .chart-card {
   background: rgba(7, 12, 24, 0.4);
   border-color: rgba(100, 122, 180, 0.18);
 }
 
-:root[data-theme="light"] .chart-card {
+:root[data-theme="light"] .analytics-page .chart-card {
   background: var(--surface);
   border-color: var(--border-light);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.chart-card h2 {
+.analytics-page .chart-card h2 {
   margin: 0 0 1rem 0;
   font-size: 1.2rem;
   font-weight: 700;
@@ -273,7 +273,7 @@
 }
 
 /* Full Width Chart */
-.chart-card-full {
+.analytics-page .chart-card-full {
   background: var(--surface);
   padding: 1.5rem;
   border-radius: 12px;
@@ -281,18 +281,18 @@
   margin-bottom: 2rem;
 }
 
-:root[data-theme="dark"] .chart-card-full {
+:root[data-theme="dark"] .analytics-page .chart-card-full {
   background: rgba(7, 12, 24, 0.4);
   border-color: rgba(100, 122, 180, 0.18);
 }
 
-:root[data-theme="light"] .chart-card-full {
+:root[data-theme="light"] .analytics-page .chart-card-full {
   background: var(--surface);
   border-color: var(--border-light);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.chart-card-full h2 {
+.analytics-page .chart-card-full h2 {
   margin: 0 0 1rem 0;
   font-size: 1.2rem;
   font-weight: 700;
@@ -306,7 +306,7 @@
   justify-content: center;
 }
 
-.export-btn {
+.analytics-page .export-btn {
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 8px;
@@ -317,21 +317,21 @@
   transition: all 0.2s ease;
 }
 
-.export-btn.json {
+.analytics-page .export-btn.json {
   background: var(--accent);
 }
 
-.export-btn.json:hover {
+.analytics-page .export-btn.json:hover {
   background: var(--accent-hover);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px var(--accent-glow);
 }
 
-.export-btn.csv {
+.analytics-page .export-btn.csv {
   background: #00C49F;
 }
 
-.export-btn.csv:hover {
+.analytics-page .export-btn.csv:hover {
   background: #00d4a8;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 196, 159, 0.3);
@@ -381,7 +381,7 @@
     width: 100%;
   }
 
-  .export-btn {
+  .analytics-page .export-btn {
     width: 100%;
   }
 }

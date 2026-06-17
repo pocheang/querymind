@@ -1,4 +1,5 @@
 import type { ConfirmDialogOptions } from "@/lib/hooks/useConfirmDialog";
+import { useTranslation } from "react-i18next";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ isOpen, options, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   if (!isOpen || !options) return null;
 
   return (
@@ -17,10 +19,10 @@ export function ConfirmDialog({ isOpen, options, onConfirm, onCancel }: ConfirmD
         <p>{options.message}</p>
         <div className="modal-actions">
           <button onClick={onCancel} className="btn-secondary">
-            {options.cancelText || "取消"}
+            {options.cancelText || t("common.cancel")}
           </button>
           <button onClick={onConfirm} className="btn-danger">
-            {options.confirmText || "确认"}
+            {options.confirmText || t("common.confirm")}
           </button>
         </div>
       </div>

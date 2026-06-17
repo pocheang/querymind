@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
 from app.retrievers.corpus_store import read_corpus_records, write_corpus_records
 from app.retrievers.parent_store import read_parent_records, write_parent_records
+from app.services.document_dedup import compute_sha256
+from app.services.document_registry import delete_document_by_source, get_document_by_source, update_document_by_source
+
+logger = logging.getLogger(__name__)
 
 
 def _record_source(record: dict[str, Any]) -> str:
@@ -59,6 +64,11 @@ def list_indexed_files() -> list[dict[str, Any]]:
                 "agent_class": str(meta.get("agent_class", "general") or "general"),
                 "in_uploads": False,
                 "exists_on_disk": False,
+                "indexing_status": "ready",
+                "indexing_stage": "complete",
+                "indexing_error": "",
+                "triplets_written": 0,
+                "parser_profile": str(meta.get("parser_profile", "") or ""),
             },
         )
         entry["chunks"] += 1
@@ -68,6 +78,8 @@ def list_indexed_files() -> list[dict[str, Any]]:
             entry["visibility"] = str(meta.get("visibility"))
         if str(meta.get("agent_class", "")).strip():
             entry["agent_class"] = str(meta.get("agent_class"))
+        if str(meta.get("parser_profile", "")).strip():
+            entry["parser_profile"] = str(meta.get("parser_profile"))
         page = meta.get("page")
         if page is not None:
             try:
@@ -92,6 +104,11 @@ def list_indexed_files() -> list[dict[str, Any]]:
                 "agent_class": "general",
                 "in_uploads": True,
                 "exists_on_disk": True,
+                "indexing_status": "pending",
+                "indexing_stage": "uploaded",
+                "indexing_error": "",
+                "triplets_written": 0,
+                "parser_profile": "",
             },
         )
         entry["in_uploads"] = True
@@ -114,6 +131,11 @@ def list_indexed_files() -> list[dict[str, Any]]:
                 "agent_class": "general",
                 "in_uploads": False,
                 "exists_on_disk": True,
+                "indexing_status": "pending",
+                "indexing_stage": "uploaded",
+                "indexing_error": "",
+                "triplets_written": 0,
+                "parser_profile": "",
             },
         )
         entry["exists_on_disk"] = True
@@ -214,6 +236,7 @@ def delete_file_index(filename: str, remove_physical_file: bool = False, source:
             if candidate.exists() and candidate.is_file():
                 candidate.unlink()
                 file_removed = True
+                delete_document_by_source(str(candidate))
 
     return {
         "ok": True,
@@ -223,6 +246,16 @@ def delete_file_index(filename: str, remove_physical_file: bool = False, source:
         "triplets_removed": triplets_removed,
         "file_removed": file_removed,
     }
+
+
+def should_skip_reindex(path: Path, registry_path: Path | None = None) -> bool:
+    record = get_document_by_source(str(path), path=registry_path)
+    if record is None:
+        return False
+    if not path.exists() or not path.is_file():
+        return False
+    current_hash = compute_sha256(path)
+    return str(record.get("sha256", "")) == current_hash and str(record.get("status", "")) == "ready"
 
 
 def rebuild_file_index(
@@ -255,6 +288,20 @@ def rebuild_file_index(
         reset_vector_store=False,
         metadata_overrides_by_source=metadata_overrides_by_source,
     )
+    try:
+        update_document_by_source(
+            str(path),
+            {
+                "status": "ready",
+                "stage": "complete",
+                "error": "",
+                "chunks_indexed": int(result.get("chunks_indexed", 0) or 0),
+                "triplets_written": int(result.get("triplets_written", 0) or 0),
+                "sha256": compute_sha256(path),
+            },
+        )
+    except ValueError:
+        pass
     result["filename"] = filename
     result["ok"] = True
     return result

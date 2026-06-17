@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 type Provider = "local" | "openai" | "anthropic" | "deepseek" | "ollama" | "custom";
 
 type Props = {
@@ -7,9 +9,11 @@ type Props = {
 };
 
 export function ApiSettingsProviderTabs({ providers, activeProvider, onChangeProvider }: Props) {
+  const { t } = useTranslation();
+
   return (
     <section className="settings-section">
-      <label className="section-label">Provider</label>
+      <label className="section-label">{t("components.apiSettings.provider")}</label>
       <div className="provider-tabs">
         {providers.map((provider) => (
           <button

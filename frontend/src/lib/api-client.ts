@@ -30,7 +30,16 @@ function resolveApiBase() {
   }
 }
 
+function resolveAppBasePrefix() {
+  const raw = String(import.meta.env.BASE_URL || "/").trim();
+  if (!raw || raw === "/") return "";
+  const normalized = raw.replace(/\/+$/, "");
+  if (!normalized || normalized === "/") return "";
+  return normalized.startsWith("/") ? normalized : `/${normalized}`;
+}
+
 const API_BASE = resolveApiBase();
+const APP_BASE_PREFIX = resolveAppBasePrefix();
 const TOKEN_KEY = "auth_token";
 
 export function getToken() {
@@ -40,7 +49,12 @@ export function getToken() {
 }
 
 export function toUrl(path: string) {
-  return `${API_BASE}${path}`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (API_BASE) return `${API_BASE}${normalizedPath}`;
+  if (APP_BASE_PREFIX && (normalizedPath === APP_BASE_PREFIX || normalizedPath.startsWith(`${APP_BASE_PREFIX}/`))) {
+    return normalizedPath;
+  }
+  return `${APP_BASE_PREFIX}${normalizedPath}`;
 }
 
 function sleep(ms: number) {

@@ -1,5 +1,6 @@
 from functools import lru_cache
 import hashlib
+import json
 import math
 import re
 from types import SimpleNamespace
@@ -22,6 +23,14 @@ def _normalize_backend(backend: str) -> str:
     if b not in {"openai", "ollama", "anthropic", "local"}:
         raise ValueError(f"unsupported model backend: {backend}")
     return b
+
+
+def _looks_like_claude_model(model: str) -> bool:
+    return normalize_string(model, lowercase=True).startswith("claude-")
+
+
+def _anthropic_relay_base_url(base_url: str) -> str:
+    return re.sub(r"/v1/?$", "", str(base_url or "").strip().rstrip("/"), flags=re.IGNORECASE)
 
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_\-]{2,}|[\u4e00-\u9fff]")
@@ -138,6 +147,152 @@ class LocalEvidenceChatModel:
         yield SimpleNamespace(content=self.invoke(messages).content)
 
 
+class AnthropicRelayChatModel:
+    """Direct Anthropic Messages client for Claude relay gateways.
+
+    Some relays return JSON that is valid enough for normal clients but trips
+    LangChain/SDK Pydantic parsing with errors such as ``str.model_dump``. This
+    lightweight adapter keeps the app on the Anthropic wire protocol and parses
+    response content defensively.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        api_key: str,
+        base_url: str,
+        temperature: float = 0.0,
+        max_tokens: int = 2048,
+        timeout_seconds: float = 30.0,
+    ):
+        self.model = model
+        self.api_key = api_key
+        self.base_url = str(base_url or "").strip().rstrip("/")
+        self.temperature = temperature
+        self.max_tokens = max(1, int(max_tokens or 2048))
+        self.timeout_seconds = float(timeout_seconds)
+
+    def _message_payload(self, messages) -> dict:
+        system_parts: list[str] = []
+        out_messages: list[dict[str, str]] = []
+        for item in messages or []:
+            if isinstance(item, tuple) and len(item) >= 2:
+                role = str(item[0]).lower()
+                content = str(item[1] or "")
+            else:
+                role = str(getattr(item, "type", getattr(item, "role", "")) or "").lower()
+                content = str(getattr(item, "content", item) or "")
+            if role == "system":
+                if content:
+                    system_parts.append(content)
+                continue
+            mapped_role = "assistant" if role in {"ai", "assistant"} else "user"
+            if content:
+                out_messages.append({"role": mapped_role, "content": content})
+
+        system_text = "\n".join(system_parts).strip()
+        if not out_messages:
+            out_messages.append({"role": "user", "content": system_text or "Reply with OK."})
+            system_text = ""
+
+        payload = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "messages": out_messages,
+        }
+        if system_text:
+            payload["system"] = system_text
+        return payload
+
+    def _endpoint(self) -> str:
+        return f"{self.base_url}/v1/messages"
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+
+    def _extract_content(self, data) -> str:
+        if isinstance(data, str):
+            return data
+        if not isinstance(data, dict):
+            return str(data or "")
+
+        content = data.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts: list[str] = []
+            for block in content:
+                if isinstance(block, str):
+                    parts.append(block)
+                elif isinstance(block, dict):
+                    text = block.get("text")
+                    if text is None and isinstance(block.get("content"), str):
+                        text = block.get("content")
+                    if text is not None:
+                        parts.append(str(text))
+            if parts:
+                return "".join(parts)
+
+        choices = data.get("choices")
+        if isinstance(choices, list) and choices:
+            first = choices[0]
+            if isinstance(first, dict):
+                message = first.get("message")
+                if isinstance(message, dict) and message.get("content") is not None:
+                    return str(message.get("content") or "")
+                if first.get("text") is not None:
+                    return str(first.get("text") or "")
+
+        if isinstance(data.get("completion"), str):
+            return str(data.get("completion") or "")
+        return json.dumps(data, ensure_ascii=False)
+
+    def invoke(self, messages):
+        import httpx
+
+        response = httpx.post(
+            self._endpoint(),
+            headers=self._headers(),
+            json=self._message_payload(messages),
+            timeout=self.timeout_seconds,
+        )
+        try:
+            data = response.json()
+        except ValueError:
+            data = response.text
+        if response.status_code >= 400:
+            detail = self._extract_content(data).strip() or response.text.strip()
+            raise RuntimeError(f"Anthropic relay request failed ({response.status_code}): {detail[:240]}")
+        return SimpleNamespace(content=self._extract_content(data))
+
+    async def ainvoke(self, messages):
+        import httpx
+
+        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+            response = await client.post(
+                self._endpoint(),
+                headers=self._headers(),
+                json=self._message_payload(messages),
+            )
+        try:
+            data = response.json()
+        except ValueError:
+            data = response.text
+        if response.status_code >= 400:
+            detail = self._extract_content(data).strip() or response.text.strip()
+            raise RuntimeError(f"Anthropic relay request failed ({response.status_code}): {detail[:240]}")
+        return SimpleNamespace(content=self._extract_content(data))
+
+    def stream(self, messages):
+        yield self.invoke(messages)
+
+
 def _request_chat_override() -> dict:
     raw = get_request_api_settings() or {}
     provider = str(raw.get("provider", "") or "").strip().lower()
@@ -149,6 +304,9 @@ def _request_chat_override() -> dict:
     base_url = str(raw.get("base_url", "") or "").strip()
     if base_url:
         base_url = validate_api_base_url_for_provider(base_url, provider=provider)
+    if provider == "custom" and _looks_like_claude_model(model):
+        provider = "anthropic"
+        base_url = _anthropic_relay_base_url(base_url)
     return {
         "provider": provider,
         "model": model,
@@ -167,11 +325,15 @@ def _global_chat_override() -> dict:
     model = str(raw.get("chat_model", "") or "").strip()
     if not provider or not model:
         return {}
+    if provider == "custom" and _looks_like_claude_model(model):
+        provider = "anthropic"
     return {
         "provider": provider,
         "model": model,
         "api_key": str(raw.get("api_key", "") or "").strip(),
-        "base_url": str(raw.get("base_url", "") or "").strip(),
+        "base_url": _anthropic_relay_base_url(str(raw.get("base_url", "") or "").strip())
+        if provider == "anthropic"
+        else str(raw.get("base_url", "") or "").strip(),
         "temperature": raw.get("temperature", None),
         "max_tokens": raw.get("max_tokens", None),
     }
@@ -185,11 +347,15 @@ def _global_reasoning_override() -> dict:
     model = str(raw.get("reasoning_model", "") or raw.get("chat_model", "") or "").strip()
     if not provider or not model:
         return {}
+    if provider == "custom" and _looks_like_claude_model(model):
+        provider = "anthropic"
     return {
         "provider": provider,
         "model": model,
         "api_key": str(raw.get("api_key", "") or "").strip(),
-        "base_url": str(raw.get("base_url", "") or "").strip(),
+        "base_url": _anthropic_relay_base_url(str(raw.get("base_url", "") or "").strip())
+        if provider == "anthropic"
+        else str(raw.get("base_url", "") or "").strip(),
         "temperature": raw.get("temperature", None),
         "max_tokens": raw.get("max_tokens", None),
     }
@@ -229,6 +395,7 @@ def _build_chat_model_cached(
     ollama_base_url: str,
     anthropic_model: str,
     anthropic_api_key: str,
+    anthropic_base_url: str,
     max_tokens: int,
 ):
     if backend == "local":
@@ -247,11 +414,22 @@ def _build_chat_model_cached(
         return ChatOpenAI(**kwargs)
 
     if backend == "anthropic":
+        if anthropic_base_url:
+            return AnthropicRelayChatModel(
+                model=anthropic_model,
+                api_key=anthropic_api_key,
+                base_url=anthropic_base_url,
+                temperature=temperature,
+                max_tokens=max_tokens if max_tokens > 0 else 2048,
+            )
+
         from langchain_anthropic import ChatAnthropic
 
         kwargs = {"model": anthropic_model, "temperature": temperature}
         if anthropic_api_key:
             kwargs["api_key"] = anthropic_api_key
+        if anthropic_base_url:
+            kwargs["base_url"] = anthropic_base_url
         if max_tokens > 0:
             kwargs["max_tokens"] = max_tokens
         return ChatAnthropic(**kwargs)
@@ -318,6 +496,7 @@ def get_chat_model(temperature: float | None = None):
             ollama_base_url=base_url if backend == "ollama" else settings.ollama_base_url,
             anthropic_model=model if backend == "anthropic" else settings.anthropic_chat_model,
             anthropic_api_key=api_key if backend == "anthropic" else str(settings.anthropic_api_key or ""),
+            anthropic_base_url=base_url if backend == "anthropic" else "",
             max_tokens=_safe_int(override.get("max_tokens"), 0),
         )
     return _build_chat_model_cached(
@@ -330,6 +509,7 @@ def get_chat_model(temperature: float | None = None):
         ollama_base_url=settings.ollama_base_url,
         anthropic_model=settings.anthropic_chat_model,
         anthropic_api_key=str(settings.anthropic_api_key or ""),
+        anthropic_base_url="",
         max_tokens=0,
     )
 
@@ -378,6 +558,7 @@ def get_reasoning_model(temperature: float | None = None):
             ollama_base_url=base_url if backend == "ollama" else settings.ollama_base_url,
             anthropic_model=model if backend == "anthropic" else (settings.anthropic_reasoning_model or settings.anthropic_chat_model),
             anthropic_api_key=api_key if backend == "anthropic" else str(settings.anthropic_api_key or ""),
+            anthropic_base_url=base_url if backend == "anthropic" else "",
             max_tokens=_safe_int(override.get("max_tokens"), 0),
         )
     backend = _normalize_backend(settings.reasoning_model_backend or settings.model_backend)
@@ -391,6 +572,7 @@ def get_reasoning_model(temperature: float | None = None):
         ollama_base_url=settings.ollama_base_url,
         anthropic_model=(settings.anthropic_reasoning_model or settings.anthropic_chat_model),
         anthropic_api_key=str(settings.anthropic_api_key or ""),
+        anthropic_base_url="",
         max_tokens=0,
     )
 

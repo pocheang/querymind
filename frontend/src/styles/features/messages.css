@@ -3,7 +3,7 @@
    Cyber dashboard conversation surface
    ============================================ */
 
-.bubble {
+.page-shell .bubble {
   margin-top: 18px;
   max-width: 100%;
   border-radius: 18px;
@@ -26,15 +26,15 @@
   }
 }
 
-.bubble:first-of-type {
+.page-shell .bubble:first-of-type {
   margin-top: 0;
 }
 
-.bubble:hover {
+.page-shell .bubble:hover {
   transform: translateY(-1px);
 }
 
-.bubble.user {
+.page-shell .bubble.user {
   width: min(780px, 92%);
   margin-left: auto;
   border: 1px solid rgba(91, 140, 255, 0.35);
@@ -44,7 +44,7 @@
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.bubble.user::before {
+.page-shell .bubble.user::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -55,11 +55,11 @@
   transition: opacity 0.22s ease;
 }
 
-.bubble.user:hover::before {
+.page-shell .bubble.user:hover::before {
   opacity: 1;
 }
 
-.bubble.assistant {
+.page-shell .bubble.assistant {
   width: min(980px, 98%);
   border: 1px solid rgba(111, 132, 189, 0.2);
   background:
@@ -69,7 +69,7 @@
   backdrop-filter: blur(16px);
 }
 
-.bubble.assistant::after {
+.page-shell .bubble.assistant::after {
   content: "";
   position: absolute;
   left: -1px;
@@ -82,12 +82,12 @@
   opacity: 0.8;
 }
 
-.bubble.assistant:hover {
+.page-shell .bubble.assistant:hover {
   border-color: rgba(128, 151, 255, 0.4);
   box-shadow: 0 22px 56px rgba(0, 0, 0, 0.26), 0 0 34px rgba(91, 140, 255, 0.12);
 }
 
-.message-head {
+.page-shell .message-head {
   margin-bottom: 14px;
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(111, 132, 189, 0.14);
@@ -97,14 +97,14 @@
   gap: 12px;
 }
 
-.message-identity {
+.page-shell .message-identity {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
 
-.message-avatar {
+.page-shell .message-avatar {
   width: 32px;
   height: 32px;
   display: inline-flex;
@@ -117,31 +117,31 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.bubble.user .message-avatar {
+.page-shell .bubble.user .message-avatar {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.message-avatar:hover {
+.page-shell .message-avatar:hover {
   background: rgba(255, 255, 255, 0.08);
   transform: translateY(-1px);
 }
 
-.message-role {
+.page-shell .message-role {
   color: rgba(255, 255, 255, 0.6);
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 500;
 }
 
-.bubble.assistant .message-role {
+.page-shell .bubble.assistant .message-role {
   color: rgba(255, 255, 255, 0.65);
 }
 
-.bubble.user .message-role {
+.page-shell .bubble.user .message-role {
   color: rgba(255, 255, 255, 0.65);
 }
 
-.row-actions {
+.page-shell .bubble .row-actions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -149,51 +149,85 @@
   transition: opacity 0.18s ease;
 }
 
-.bubble:hover .row-actions {
+.page-shell .bubble:hover .row-actions {
   opacity: 1;
 }
 
-.markdown {
+.page-shell .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.page-shell .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 25px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(111, 132, 189, 0.18);
+  background: rgba(13, 21, 39, 0.68);
+  color: #aebfff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(10px);
+  transition: all 0.18s ease;
+}
+
+.page-shell .chip:hover {
+  border-color: rgba(91, 140, 255, 0.42);
+  background: rgba(91, 140, 255, 0.14);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18), 0 0 20px rgba(91, 140, 255, 0.12);
+}
+
+.page-shell .markdown {
   color: var(--text-primary);
   font-size: 15px;
   line-height: 1.72;
 }
 
-.markdown p {
+.page-shell .markdown p {
   margin: 0 0 12px;
 }
 
-.markdown p:last-child {
+.page-shell .markdown p:last-child {
   margin-bottom: 0;
 }
 
-.markdown h1,
-.markdown h2,
-.markdown h3,
-.markdown h4 {
+.page-shell .markdown h1,
+.page-shell .markdown h2,
+.page-shell .markdown h3,
+.page-shell .markdown h4 {
   margin: 16px 0 10px;
   color: var(--text-primary);
   font-weight: 720;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
-.markdown h1:first-child,
-.markdown h2:first-child,
-.markdown h3:first-child {
+.page-shell .markdown h1:first-child,
+.page-shell .markdown h2:first-child,
+.page-shell .markdown h3:first-child {
   margin-top: 0;
 }
 
-.markdown ul,
-.markdown ol {
+.page-shell .markdown ul,
+.page-shell .markdown ol {
   margin: 12px 0;
   padding-left: 24px;
 }
 
-.markdown li {
+.page-shell .markdown li {
   margin: 6px 0;
 }
 
-.markdown code {
+.page-shell .markdown code {
   padding: 2px 6px;
   border-radius: 6px;
   background: rgba(139, 122, 255, 0.14);
@@ -202,7 +236,7 @@
   font-size: 13px;
 }
 
-.markdown pre {
+.page-shell .markdown pre {
   margin: 14px 0;
   padding: 16px;
   border-radius: 13px;
@@ -211,13 +245,13 @@
   overflow-x: auto;
 }
 
-.markdown pre code {
+.page-shell .markdown pre code {
   padding: 0;
   background: transparent;
   color: #e2e8f0;
 }
 
-.empty-chat-state {
+.page-shell .empty-chat-state {
   display: grid;
   place-items: center;
   align-content: center;
@@ -231,7 +265,7 @@
   animation: bubbleSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.empty-chat-label {
+.page-shell .empty-chat-label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -244,19 +278,19 @@
   font-size: 11px;
   font-weight: 820;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
 }
 
-.empty-chat-state h3 {
+.page-shell .empty-chat-state h3 {
   margin: 0;
   color: var(--text-primary);
   font-size: clamp(24px, 4vw, 34px);
   font-weight: 780;
   line-height: 1.18;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 }
 
-.empty-chat-state p {
+.page-shell .empty-chat-state p {
   max-width: 580px;
   color: var(--text-secondary);
   font-size: 15px;
@@ -264,21 +298,21 @@
 }
 
 @media (max-width: 860px) {
-  .bubble {
+  .page-shell .bubble {
     padding: 15px 16px;
     border-radius: 15px;
   }
 
-  .bubble.user,
-  .bubble.assistant {
+  .page-shell .bubble.user,
+  .page-shell .bubble.assistant {
     width: 100%;
   }
 
-  .message-head {
+  .page-shell .message-head {
     align-items: flex-start;
   }
 
-  .row-actions .tiny-btn {
+  .page-shell .bubble .row-actions .tiny-btn {
     min-height: 40px;
     min-width: 40px;
   }

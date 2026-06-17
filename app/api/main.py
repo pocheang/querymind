@@ -170,6 +170,30 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app
 app = FastAPI(title="Multi-Agent Local RAG", lifespan=lifespan)
 
+_APP_BASE_API_SEGMENTS = {
+    "admin",
+    "api",
+    "auth",
+    "documents",
+    "prompts",
+    "query",
+    "sessions",
+    "upload",
+    "user",
+}
+
+
+@app.middleware("http")
+async def rewrite_app_prefixed_api_paths(request, call_next):
+    """Support deployments that expose backend routes under the public /app base."""
+    path = str(request.scope.get("path", "") or "")
+    if path.startswith("/app/"):
+        remainder = path[len("/app/"):]
+        first_segment = remainder.split("/", 1)[0]
+        if first_segment in _APP_BASE_API_SEGMENTS:
+            request.scope["path"] = f"/{remainder}"
+    return await call_next(request)
+
 
 def _configure_cors(app_obj: FastAPI, settings_obj) -> None:
     """Attach CORS middleware according to settings, with prod-safety guards.

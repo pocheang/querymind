@@ -1,4 +1,5 @@
 import { AdminFormField } from "@/components/AdminFormField";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   adminUsername: string;
@@ -37,66 +38,68 @@ export function AdminCreateForm({
   onAdminReasonChange,
   onCreateAdmin,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <main className="panel admin-create-panel">
-      <div className="section-head"><strong>创建管理员</strong></div>
-      <p className="muted admin-create-hint">请填写账号信息与审批信息。创建成功后会返回新管理员用户ID。</p>
+      <div className="section-head"><strong>{t("admin.ui.createAdmin")}</strong></div>
+      <p className="muted admin-create-hint">{t("admin.ui.createAdminHint")}</p>
       <div className="ops-two-col admin-create-grid">
         <AdminFormField
-          label="管理员用户名"
+          label={t("admin.ui.adminUsername")}
           value={adminUsername}
           onChange={onAdminUsernameChange}
-          placeholder="例如：sec_admin_01"
+          placeholder={t("admin.ui.usernameExample")}
         />
         <AdminFormField
-          label="管理员密码"
+          label={t("admin.ui.adminPassword")}
           type="password"
           value={adminPassword}
           onChange={onAdminPasswordChange}
-          placeholder="至少 12 位，含大小写、数字和特殊字符"
+          placeholder={t("admin.ui.passwordRules")}
         />
       </div>
       <div className="ops-two-col admin-create-grid">
         <AdminFormField
-          label="确认密码"
+          label={t("admin.ui.confirmPassword")}
           type="password"
           value={adminPassword2}
           onChange={onAdminPassword2Change}
-          placeholder="再次输入密码"
+          placeholder={t("admin.ui.confirmPasswordPlaceholder")}
         />
         <AdminFormField
-          label="我的审批令牌"
+          label={t("admin.ui.myApprovalToken")}
           type="password"
           value={adminApprovalToken}
           onChange={onAdminApprovalTokenChange}
-          placeholder="当前管理员审批令牌"
+          placeholder={t("admin.ui.myApprovalTokenPlaceholder")}
         />
       </div>
       <div className="ops-two-col admin-create-grid">
         <AdminFormField
-          label="新管理员令牌"
+          label={t("admin.ui.newAdminToken")}
           type="password"
           value={newAdminApprovalToken}
           onChange={onNewAdminApprovalTokenChange}
-          placeholder="至少 12 位"
+          placeholder={t("admin.ui.tokenPlaceholder")}
         />
         <AdminFormField
-          label="工单号"
+          label={t("admin.ui.ticketId")}
           value={adminTicketId}
           onChange={onAdminTicketIdChange}
-          placeholder="例如：SEC-2026-001"
+          placeholder={t("admin.ui.ticketExample")}
         />
       </div>
       <div className="ops-two-col admin-create-grid">
         <AdminFormField
-          label="创建原因"
+          label={t("admin.ui.reason")}
           value={adminReason}
           onChange={onAdminReasonChange}
-          placeholder="请输入创建原因（至少 5 个字符）"
+          placeholder={t("admin.ui.reasonPlaceholder")}
         />
         <div className="admin-create-actions">
-          <button type="button" disabled={creatingAdmin} onClick={onCreateAdmin}>
-            {creatingAdmin ? "创建中..." : "创建管理员"}
+          <button type="button" className="primary-action-btn" disabled={creatingAdmin} onClick={onCreateAdmin}>
+            {creatingAdmin ? t("admin.ui.creating") : t("admin.ui.createAdmin")}
           </button>
         </div>
       </div>

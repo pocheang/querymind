@@ -41,11 +41,3 @@ button:focus-visible {
   font-size: var(--text-sm);
   font-weight: 500;
 }
-
-/* ============================================
-   Utility Classes
-   ============================================ */
-
-.help-option button {
-  width: 100%;
-}

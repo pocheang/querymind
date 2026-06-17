@@ -1,18 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { authApi } from "@/lib/api";
 import { applyTheme, getSavedTheme, nextTheme, saveTheme, type ThemeMode } from "@/lib/theme";
-import { LoginPage } from "@/pages/LoginPage";
-import { ChatPage } from "@/pages/ChatPage";
-import { AdminPage } from "@/pages/AdminPage";
-import { AnalyticsPage } from "@/pages/AnalyticsPage";
-import { ArchitecturePage } from "@/pages/ArchitecturePage";
-import { ChangePasswordPage } from "@/pages/ChangePasswordPage";
-import { ProfilePage } from "@/pages/ProfilePage";
-import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
-import { NotFoundPage } from "@/pages/NotFoundPage";
 import type { AuthUser } from "@/types/api";
+
+const LoginPage = lazy(() => import("@/pages/LoginPage").then(({ LoginPage }) => ({ default: LoginPage })));
+const ChatPage = lazy(() => import("@/pages/ChatPage").then(({ ChatPage }) => ({ default: ChatPage })));
+const AdminPage = lazy(() => import("@/pages/AdminPage").then(({ AdminPage }) => ({ default: AdminPage })));
+const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage").then(({ AnalyticsPage }) => ({ default: AnalyticsPage })));
+const ArchitecturePage = lazy(() => import("@/pages/ArchitecturePage").then(({ ArchitecturePage }) => ({ default: ArchitecturePage })));
+const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage").then(({ ChangePasswordPage }) => ({ default: ChangePasswordPage })));
+const ProfilePage = lazy(() => import("@/pages/ProfilePage").then(({ ProfilePage }) => ({ default: ProfilePage })));
+const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(({ ForgotPasswordPage }) => ({ default: ForgotPasswordPage })));
+const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(({ NotFoundPage }) => ({ default: NotFoundPage })));
+
+function RouteFallback() {
+  return <div className="app-loading" aria-live="polite" />;
+}
 
 function Protected({
   user,
@@ -21,7 +26,7 @@ function Protected({
 }: {
   user: AuthUser | null;
   authReady: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   if (!authReady) return null;
   if (!user) return <Navigate to="/app/login" replace />;
@@ -68,101 +73,103 @@ export function App() {
   };
 
   return (
-    <Routes>
-      <Route
-        path="/app/login"
-        element={
-          user ? (
-            <Navigate to="/app" replace />
-          ) : (
-            <LoginPage
-              onLogin={loginSuccess}
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route
+          path="/app/login"
+          element={
+            user ? (
+              <Navigate to="/app" replace />
+            ) : (
+              <LoginPage
+                onLogin={loginSuccess}
+                themeLabel={themeLabel}
+                onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
+              />
+            )
+          }
+        />
+        <Route
+          path="/app/forgot-password"
+          element={
+            user ? (
+              <Navigate to="/app" replace />
+            ) : (
+              <ForgotPasswordPage
+                themeLabel={themeLabel}
+                onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
+              />
+            )
+          }
+        />
+        <Route
+          path="/app"
+          element={
+            <Protected user={user} authReady={authReady}>
+              <ChatPage
+                user={user}
+                onLogout={logout}
+                themeLabel={themeLabel}
+                onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
+              />
+            </Protected>
+          }
+        />
+        <Route
+          path="/app/admin"
+          element={
+            <Protected user={user} authReady={authReady}>
+              <AdminPage
+                user={user}
+                onLogout={logout}
+                themeLabel={themeLabel}
+                onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
+              />
+            </Protected>
+          }
+        />
+        <Route
+          path="/app/analytics"
+          element={
+            <Protected user={user} authReady={authReady}>
+              <AnalyticsPage
+                user={user}
+                onLogout={logout}
+                themeLabel={themeLabel}
+                onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
+              />
+            </Protected>
+          }
+        />
+        <Route
+          path="/app/change-password"
+          element={
+            <Protected user={user} authReady={authReady}>
+              <ChangePasswordPage themeLabel={themeLabel} onThemeToggle={() => setTheme((prev) => nextTheme(prev))} />
+            </Protected>
+          }
+        />
+        <Route
+          path="/app/profile"
+          element={
+            <Protected user={user} authReady={authReady}>
+              <ProfilePage user={user} />
+            </Protected>
+          }
+        />
+        <Route
+          path="/app/architecture"
+          element={
+            <ArchitecturePage
+              isLoggedIn={!!user}
               themeLabel={themeLabel}
               onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
             />
-          )
-        }
-      />
-      <Route
-        path="/app/forgot-password"
-        element={
-          user ? (
-            <Navigate to="/app" replace />
-          ) : (
-            <ForgotPasswordPage
-              themeLabel={themeLabel}
-              onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
-            />
-          )
-        }
-      />
-      <Route
-        path="/app"
-        element={
-          <Protected user={user} authReady={authReady}>
-            <ChatPage
-              user={user}
-              onLogout={logout}
-              themeLabel={themeLabel}
-              onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
-            />
-          </Protected>
-        }
-      />
-      <Route
-        path="/app/admin"
-        element={
-          <Protected user={user} authReady={authReady}>
-            <AdminPage
-              user={user}
-              onLogout={logout}
-              themeLabel={themeLabel}
-              onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
-            />
-          </Protected>
-        }
-      />
-      <Route
-        path="/app/analytics"
-        element={
-          <Protected user={user} authReady={authReady}>
-            <AnalyticsPage
-              user={user}
-              onLogout={logout}
-              themeLabel={themeLabel}
-              onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
-            />
-          </Protected>
-        }
-      />
-      <Route
-        path="/app/change-password"
-        element={
-          <Protected user={user} authReady={authReady}>
-            <ChangePasswordPage themeLabel={themeLabel} onThemeToggle={() => setTheme((prev) => nextTheme(prev))} />
-          </Protected>
-        }
-      />
-      <Route
-        path="/app/profile"
-        element={
-          <Protected user={user} authReady={authReady}>
-            <ProfilePage user={user} />
-          </Protected>
-        }
-      />
-      <Route
-        path="/app/architecture"
-        element={
-          <ArchitecturePage
-            isLoggedIn={!!user}
-            themeLabel={themeLabel}
-            onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
-          />
-        }
-      />
-      <Route path="/" element={<Navigate to={user ? "/app" : "/app/login"} replace />} />
-      <Route path="*" element={<NotFoundPage pathname={location.pathname} />} />
-    </Routes>
+          }
+        />
+        <Route path="/" element={<Navigate to={user ? "/app" : "/app/login"} replace />} />
+        <Route path="*" element={<NotFoundPage pathname={location.pathname} />} />
+      </Routes>
+    </Suspense>
   );
 }

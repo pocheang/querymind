@@ -1,58 +1,6 @@
 /* ============================================
-   Badges and Metadata Chips
+   Shared Status Messages
    ============================================ */
-
-.auth-intro .badge {
-  width: fit-content;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #2563eb;
-  letter-spacing: 0.01em;
-  box-shadow: 0 8px 20px rgba(121, 149, 194, 0.12);
-}
-
-.badge-success {
-  color: #0f766e;
-  background: rgba(240, 253, 250, 0.82);
-}
-
-.chips {
-  display: flex;
-  gap: 7px;
-  flex-wrap: wrap;
-  margin-top: 16px;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 25px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(111, 132, 189, 0.18);
-  background: rgba(13, 21, 39, 0.68);
-  color: #aebfff;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 780;
-  letter-spacing: 0.04em;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  backdrop-filter: blur(10px);
-  transition: all 0.18s ease;
-}
-
-.chip:hover {
-  border-color: rgba(91, 140, 255, 0.42);
-  background: rgba(91, 140, 255, 0.14);
-  color: var(--text-primary);
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18), 0 0 20px rgba(91, 140, 255, 0.12);
-}
 
 .status {
   margin-top: 14px;
@@ -76,48 +24,4 @@
   background: rgba(255, 107, 107, 0.12);
   border-color: rgba(255, 107, 107, 0.3);
   color: var(--danger);
-}
-
-.label-value {
-  padding: 4px 10px;
-  border-radius: 6px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: none;
-}
-
-/* ============================================
-   Light Theme - Chips Override
-   ============================================ */
-
-:root[data-theme="light"] .chip {
-  background: #F1F5F9;
-  border: 1px solid #E2E8F0;
-  color: #475569;
-  font-weight: 600;
-  box-shadow: none;
-}
-
-:root[data-theme="light"] .chip:hover {
-  background: #E2E8F0;
-  border-color: #CBD5E1;
-  color: #334155;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-}
-
-:root[data-theme="light"] .chip.active,
-:root[data-theme="light"] .chip.highlight {
-  background: #EEF2FF;
-  border-color: #C7D2FE;
-  color: #6366F1;
-}
-
-:root[data-theme="dark"] .auth-intro .badge,
-:root[data-theme="dark"] .badge-success {
-  background: rgba(9, 18, 31, 0.46);
-  border-color: rgba(135, 181, 235, 0.18);
-  color: #9fd4ff;
 }

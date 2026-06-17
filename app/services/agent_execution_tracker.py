@@ -161,7 +161,7 @@ class AgentExecutionTracker:
 
             logger.warning(f"Step {step_id} not found in execution {execution_id}")
 
-    def complete_execution(self, execution_id: str) -> None:
+    def complete_execution(self, execution_id: str, final_result: Optional[Dict[str, Any]] = None) -> None:
         with self._traces_lock:
             if execution_id not in self._traces:
                 logger.warning(f"Execution {execution_id} not found")
@@ -173,6 +173,8 @@ class AgentExecutionTracker:
                 (trace.end_time - trace.start_time).total_seconds() * 1000
             )
             trace.status = "completed"
+            if final_result is not None:
+                trace.metadata["result"] = final_result
             logger.info(f"Completed execution trace: {execution_id}")
 
     def fail_execution(self, execution_id: str, error: str) -> None:

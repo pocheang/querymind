@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { OpsOverview } from "@/types/api";
 
 type Props = {
@@ -6,100 +7,98 @@ type Props = {
 };
 
 export function AdminOpsDataTables({ ops, formatAuditTime }: Props) {
+  const { t } = useTranslation();
   const recentFailures = ops?.diagnostics?.recent_failures ?? [];
   const recentErrors = ops?.diagnostics?.recent_errors ?? [];
 
   return (
     <>
-      {/* 最近失败请求 */}
       <div className="section-head" style={{ marginTop: 4 }}>
-        <strong>最近失败请求</strong>
+        <strong>{t("admin.ui.recentFailedRequests")}</strong>
       </div>
       <table className="table">
         <thead>
           <tr>
-            <th>时间</th>
-            <th>路径</th>
-            <th>状态码</th>
-            <th>耗时</th>
-            <th>错误</th>
+            <th>{t("admin.ui.time")}</th>
+            <th>{t("admin.ui.path")}</th>
+            <th>{t("admin.ui.statusCode")}</th>
+            <th>{t("admin.ui.duration")}</th>
+            <th>{t("admin.ui.error")}</th>
           </tr>
         </thead>
         <tbody>
-          {(recentFailures.length > 0 ? recentFailures : []).map((x, idx) => (
-            <tr key={`${x.ts}-${idx}`}>
-              <td>{x.ts}</td>
-              <td>{x.path}</td>
-              <td>{x.status_code}</td>
-              <td>{x.duration_ms}</td>
-              <td>{x.error || "-"}</td>
+          {recentFailures.map((item, index) => (
+            <tr key={`${item.ts}-${index}`}>
+              <td>{item.ts}</td>
+              <td>{item.path}</td>
+              <td>{item.status_code}</td>
+              <td>{item.duration_ms}</td>
+              <td>{item.error || "-"}</td>
             </tr>
           ))}
           {recentFailures.length === 0 && (
             <tr>
-              <td colSpan={5}>暂无失败请求</td>
+              <td colSpan={5}>{t("admin.ui.noFailedRequests")}</td>
             </tr>
           )}
         </tbody>
       </table>
 
-      {/* 最近严重错误 */}
       <div className="section-head" style={{ marginTop: 4 }}>
-        <strong>最近严重错误</strong>
+        <strong>{t("admin.ui.recentCriticalErrors")}</strong>
       </div>
       <table className="table">
         <thead>
           <tr>
-            <th>时间</th>
+            <th>{t("admin.ui.time")}</th>
             <th>Logger</th>
-            <th>消息</th>
-            <th>异常</th>
+            <th>{t("admin.ui.message")}</th>
+            <th>{t("admin.ui.exception")}</th>
           </tr>
         </thead>
         <tbody>
-          {(recentErrors.length > 0 ? recentErrors : []).map((x, idx) => (
-            <tr key={`${x.created_at}-${idx}`}>
-              <td>{formatAuditTime(x.created_at)}</td>
-              <td>{x.logger || "-"}</td>
-              <td>{x.message || "-"}</td>
-              <td title={x.exception || "-"}>{x.exception || "-"}</td>
+          {recentErrors.map((item, index) => (
+            <tr key={`${item.created_at}-${index}`}>
+              <td>{formatAuditTime(item.created_at)}</td>
+              <td>{item.logger || "-"}</td>
+              <td>{item.message || "-"}</td>
+              <td title={item.exception || "-"}>{item.exception || "-"}</td>
             </tr>
           ))}
           {recentErrors.length === 0 && (
             <tr>
-              <td colSpan={4}>暂无严重错误</td>
+              <td colSpan={4}>{t("admin.ui.noCriticalErrors")}</td>
             </tr>
           )}
         </tbody>
       </table>
 
-      {/* 慢请求列表 */}
       <div className="section-head" style={{ marginTop: 4 }}>
-        <strong>慢请求列表</strong>
+        <strong>{t("admin.ui.slowRequests")}</strong>
       </div>
       <p className="muted" style={{ marginTop: -2, marginBottom: 8 }}>
-        展示当前时间窗口内耗时较高的接口请求，用于排查性能瓶颈。时间为服务器记录时间，耗时单位为毫秒（ms）。
+        {t("admin.ui.slowRequestsHint")}
       </p>
       <table className="table">
         <thead>
           <tr>
-            <th>时间</th>
-            <th>方法</th>
-            <th>路径</th>
-            <th>状态码</th>
-            <th>耗时</th>
-            <th>错误</th>
+            <th>{t("admin.ui.time")}</th>
+            <th>{t("admin.ui.method")}</th>
+            <th>{t("admin.ui.path")}</th>
+            <th>{t("admin.ui.statusCode")}</th>
+            <th>{t("admin.ui.duration")}</th>
+            <th>{t("admin.ui.error")}</th>
           </tr>
         </thead>
         <tbody>
-          {ops.slow_requests.map((x, idx) => (
-            <tr key={`${x.ts}-${idx}`}>
-              <td>{x.ts}</td>
-              <td>{x.method}</td>
-              <td>{x.path}</td>
-              <td>{x.status_code}</td>
-              <td>{x.duration_ms}</td>
-              <td>{x.error || "-"}</td>
+          {ops.slow_requests.map((item, index) => (
+            <tr key={`${item.ts}-${index}`}>
+              <td>{item.ts}</td>
+              <td>{item.method}</td>
+              <td>{item.path}</td>
+              <td>{item.status_code}</td>
+              <td>{item.duration_ms}</td>
+              <td>{item.error || "-"}</td>
             </tr>
           ))}
         </tbody>

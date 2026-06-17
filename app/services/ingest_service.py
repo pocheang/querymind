@@ -6,7 +6,7 @@ from langchain_core.documents import Document
 
 from app.graph.neo4j_client import Neo4jClient
 from app.ingestion.chunker import split_documents
-from app.ingestion.graph_extractor import extract_triplets
+from app.ingestion.graph_extractor import extract_graph_triplets
 from app.ingestion import loaders
 from app.retrievers.bm25_retriever import reset_bm25_cache
 from app.retrievers.corpus_store import documents_to_records, read_corpus_records, write_corpus_records
@@ -34,6 +34,7 @@ def ingest_paths(
     paths: list[Path],
     reset_vector_store: bool = False,
     metadata_overrides_by_source: dict[str, dict[str, Any]] | None = None,
+    parser_profiles_by_source: dict[str, dict[str, Any]] | None = None,
 ) -> dict:
     docs = loaders.load_documents(paths=paths)
     if not docs:
@@ -101,8 +102,26 @@ def ingest_paths(
             for chunk in chunks:
                 text = chunk.page_content
                 source = str(chunk.metadata.get("source", "unknown"))
-                for head, relation, tail in extract_triplets(text):
-                    client.upsert_triplet(head=head, relation=relation, tail=tail, source=source)
+                profile = (parser_profiles_by_source or {}).get(source, {})
+                if profile.get("enable_graph") is False:
+                    continue
+                chunk_id = str(chunk.metadata.get("chunk_id", ""))
+                page_raw = chunk.metadata.get("page")
+                try:
+                    page = int(page_raw) if page_raw is not None else None
+                except (TypeError, ValueError):
+                    page = None
+                min_confidence = float(profile.get("graph_min_confidence", 0.5) or 0.5)
+                for triplet in extract_graph_triplets(text, min_confidence=min_confidence):
+                    client.upsert_triplet(
+                        head=triplet.head,
+                        relation=triplet.relation,
+                        tail=triplet.tail,
+                        source=source,
+                        chunk_id=chunk_id,
+                        page=page,
+                        confidence=triplet.confidence,
+                    )
                     count_triplets += 1
         finally:
             client.close()

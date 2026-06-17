@@ -1,9 +1,0 @@
-/* ============================================
-   Light Theme - Component Overrides
-   Buttons, cards, modals, forms, and other components
-   ============================================ */
-
-:root[data-theme="light"] {
-  /* Component-specific light theme styles will be added as needed */
-  /* Currently using default light theme colors from colors.css */
-}

@@ -5,6 +5,12 @@ import zh from './locales/zh.json';
 
 const savedLanguage = localStorage.getItem('language') || 'en';
 
+function applyLanguageAttributes(language: string) {
+  const normalized = language.startsWith('zh') ? 'zh' : 'en';
+  document.documentElement.lang = normalized === 'zh' ? 'zh-CN' : 'en';
+  document.documentElement.dataset.language = normalized;
+}
+
 i18n
   .use(initReactI18next)
   .init({
@@ -18,5 +24,8 @@ i18n
       escapeValue: false,
     },
   });
+
+applyLanguageAttributes(i18n.language);
+i18n.on('languageChanged', applyLanguageAttributes);
 
 export default i18n;

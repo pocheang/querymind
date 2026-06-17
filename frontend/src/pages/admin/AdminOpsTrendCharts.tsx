@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { OpsOverview } from "@/types/api";
 
 type Props = {
@@ -8,79 +9,76 @@ type Props = {
   hourlyMax: number;
 };
 
-export function AdminOpsTrendCharts({
-  ops,
-  actionMax,
-  resourceMax,
-  errorMax,
-  hourlyMax,
-}: Props) {
+export function AdminOpsTrendCharts({ ops, actionMax, resourceMax, errorMax, hourlyMax }: Props) {
+  const { t } = useTranslation();
+
   return (
     <>
-      {/* 高频动作 & 资源类型排行 */}
       <div className="ops-two-col">
         <div className="ops-trend-list">
-          <strong>高频动作</strong>
-          {ops.top_actions.map((x) => (
-            <div key={x.action} className="ops-trend-row">
-              <span>{x.action}</span>
+          <strong>{t("admin.ui.topActions")}</strong>
+          {ops.top_actions.map((item) => (
+            <div key={item.action} className="ops-trend-row">
+              <span>{item.action}</span>
               <div className="ops-trend-bar">
-                <div className="ops-trend-fill" style={{ width: `${Math.max(4, (x.count / actionMax) * 100)}%` }} />
+                <div className="ops-trend-fill" style={{ width: `${Math.max(4, (item.count / actionMax) * 100)}%` }} />
               </div>
-              <strong>{x.count}</strong>
+              <strong>{item.count}</strong>
             </div>
           ))}
         </div>
         <div className="ops-trend-list">
-          <strong>资源类型排行</strong>
-          {ops.top_resource_types.map((x) => (
-            <div key={x.resource_type} className="ops-trend-row">
-              <span>{x.resource_type}</span>
+          <strong>{t("admin.ui.topResources")}</strong>
+          {ops.top_resource_types.map((item) => (
+            <div key={item.resource_type} className="ops-trend-row">
+              <span>{item.resource_type}</span>
               <div className="ops-trend-bar">
-                <div className="ops-trend-fill" style={{ width: `${Math.max(4, (x.count / resourceMax) * 100)}%` }} />
+                <div className="ops-trend-fill" style={{ width: `${Math.max(4, (item.count / resourceMax) * 100)}%` }} />
               </div>
-              <strong>{x.count}</strong>
+              <strong>{item.count}</strong>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 高频错误原因 & 服务健康状态 */}
       <div className="ops-two-col">
         <div className="ops-trend-list">
-          <strong>高频错误原因</strong>
-          {ops.top_error_reasons.map((x) => (
-            <div key={x.reason} className="ops-trend-row">
-              <span title={x.reason}>{x.reason.slice(0, 18)}</span>
+          <strong>{t("admin.ui.topErrors")}</strong>
+          {ops.top_error_reasons.map((item) => (
+            <div key={item.reason} className="ops-trend-row">
+              <span title={item.reason}>{item.reason.slice(0, 18)}</span>
               <div className="ops-trend-bar">
-                <div className="ops-trend-fill" style={{ width: `${Math.max(4, (x.count / errorMax) * 100)}%` }} />
+                <div className="ops-trend-fill" style={{ width: `${Math.max(4, (item.count / errorMax) * 100)}%` }} />
               </div>
-              <strong>{x.count}</strong>
+              <strong>{item.count}</strong>
             </div>
           ))}
         </div>
         <div className="ops-trend-list">
-          <strong>服务健康状态</strong>
-          {Object.entries(ops.services || {}).map(([name, svc]) => (
+          <strong>{t("admin.ui.serviceHealth")}</strong>
+          {Object.entries(ops.services || {}).map(([name, service]) => (
             <div key={name} className="ops-trend-row">
               <span>{name}</span>
-              <strong>{svc.ok ? `正常（${svc.latency_ms ?? 0}ms）` : `异常：${svc.error || "unknown"}`}</strong>
+              <strong>
+                {service.ok
+                  ? t("admin.ui.healthy", { latency: service.latency_ms ?? 0 })
+                  : t("admin.ui.unhealthy", { error: service.error || "unknown" })}
+              </strong>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 按小时趋势 */}
       <div className="ops-trend-list">
-        <strong>按小时趋势</strong>
-        {ops.hourly.map((x) => (
-          <div key={x.bucket} className="ops-trend-row">
-            <span>{x.bucket.slice(11, 16)}</span>
+        <strong>{t("admin.ui.hourlyTrend")}</strong>
+        {ops.hourly.map((item) => (
+          <div key={item.bucket} className="ops-trend-row">
+            <span>{item.bucket.slice(11, 16)}</span>
             <div className="ops-trend-bar">
-              <div className="ops-trend-fill" style={{ width: `${Math.max(4, (x.count / hourlyMax) * 100)}%` }} />
+              <div className="ops-trend-fill" style={{ width: `${Math.max(4, (item.count / hourlyMax) * 100)}%` }} />
             </div>
             <strong>
-              {x.count}/{x.errors}
+              {item.count}/{item.errors}
             </strong>
           </div>
         ))}

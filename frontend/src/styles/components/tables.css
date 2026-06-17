@@ -35,7 +35,7 @@
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   border-bottom: 1.5px solid var(--border-light);
 }
 
@@ -71,24 +71,6 @@
 
 .table tbody tr:last-child td {
   border-bottom: none;
-}
-
-/* ============================================
-   Admin Tables (from admin.css)
-   ============================================ */
-
-.admin-shell .table {
-  margin-top: 16px;
-}
-
-.admin-user-table,
-.admin-audit-table {
-  width: 100%;
-}
-
-.audit-table-wrap {
-  overflow-x: auto;
-  margin-top: 16px;
 }
 
 /* ============================================

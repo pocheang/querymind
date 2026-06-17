@@ -37,7 +37,7 @@ def _default_base_url(provider: str) -> str:
     if provider == "openai":
         return str(settings.openai_base_url or "https://api.openai.com/v1").rstrip("/")
     if provider == "anthropic":
-        return "https://api.anthropic.com/v1"
+        return "https://api.anthropic.com"
     if provider == "deepseek":
         return "https://api.deepseek.com/v1"
     return ""

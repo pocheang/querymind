@@ -160,7 +160,7 @@ def test_stream_execution_with_steps(client, tracker):
 def test_stream_execution_timeout(client, tracker):
     execution_id = tracker.start_execution("test query")
 
-    response = client.get(f"/agent-tracking/stream/{execution_id}", timeout=2)
+    response = client.get(f"/agent-tracking/stream/{execution_id}?max_iterations=1")
 
     assert response.status_code == 200
     content = response.text

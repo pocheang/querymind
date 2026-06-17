@@ -14,22 +14,40 @@ type Props = {
 export function ArchitecturePage({ isLoggedIn, themeLabel, onThemeToggle }: Props) {
   const { t } = useTranslation();
   const themeIcon = getThemeIcon(themeLabel);
+  const heroSectionKeys = [
+    'dataFlow',
+    'coreMethods',
+    'database',
+    'security',
+    'keyEndpoints',
+    'modelBackends',
+    'operations',
+    'frontend',
+  ] as const;
 
   return (
     <div className="admin-shell architecture-shell">
       <header className="topbar">
-        <div>
+        <div className="architecture-hero-copy">
+          <div className="architecture-kicker">{t('nav.dataFlow')}</div>
           <h2>{t('dataFlow.title')}</h2>
           <p className="muted">{t('dataFlow.description')}</p>
+          <div className="architecture-hero-tags" aria-label={t('dataFlow.title')}>
+            {heroSectionKeys.map((key) => (
+              <span key={key}>{t(`architecture.sections.${key}`)}</span>
+            ))}
+          </div>
         </div>
-        <div className="top-actions">
-          <LanguageToggle />
-          <button type="button" className="secondary" onClick={onThemeToggle}>
-            {themeIcon} {themeLabel}
-          </button>
-          <Link className="secondary link-btn" to={isLoggedIn ? "/app" : "/app/login"}>
-            {isLoggedIn ? t('nav.home') : t('auth.login')}
-          </Link>
+        <div className="architecture-hero-actions">
+          <div className="top-actions">
+            <LanguageToggle />
+            <button type="button" className="secondary" onClick={onThemeToggle}>
+              {themeIcon} {themeLabel}
+            </button>
+            <Link className="secondary link-btn" to={isLoggedIn ? "/app" : "/app/login"}>
+              {isLoggedIn ? t('nav.home') : t('auth.login')}
+            </Link>
+          </div>
         </div>
       </header>
 

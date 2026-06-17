@@ -1,4 +1,5 @@
 import type { AdminModelSettingsView } from "@/types/api";
+import { useTranslation } from "react-i18next";
 import { AdminFormField, AdminFormSelect } from "@/components/AdminFormField";
 
 type ModelProvider = "local" | "ollama" | "openai" | "deepseek" | "anthropic" | "custom";
@@ -9,7 +10,7 @@ const MODEL_DEFAULTS: Record<ModelProvider, Pick<AdminModelSettingsView, "base_u
   ollama: { base_url: "http://localhost:11434", chat_model: "qwen2.5:7b-instruct", reasoning_model: "qwen2.5:7b-instruct", embedding_model: "nomic-embed-text" },
   openai: { base_url: "https://api.openai.com/v1", chat_model: "gpt-5.4-codex", reasoning_model: "gpt-5.4-codex", embedding_model: "text-embedding-3-small" },
   deepseek: { base_url: "https://api.deepseek.com/v1", chat_model: "deepseek-chat", reasoning_model: "deepseek-reasoner", embedding_model: "text-embedding-3-small" },
-  anthropic: { base_url: "https://api.anthropic.com/v1", chat_model: "claude-sonnet-4-6", reasoning_model: "claude-sonnet-4-6", embedding_model: "" },
+  anthropic: { base_url: "https://api.anthropic.com", chat_model: "claude-sonnet-4-6", reasoning_model: "claude-sonnet-4-6", embedding_model: "" },
   custom: { base_url: "", chat_model: "", reasoning_model: "", embedding_model: "" },
 };
 
@@ -40,6 +41,8 @@ export function AdminModelSettings({
   modelApiKey,
   onApiKeyChange,
 }: Props) {
+  const { t } = useTranslation();
+
   const changeModelProvider = (provider: ModelProvider) => {
     const defaults = MODEL_DEFAULTS[provider];
     onPatch({
@@ -56,39 +59,37 @@ export function AdminModelSettings({
   return (
     <main className="panel ops-wrap">
       <div className="section-head">
-        <strong>全局模型配置</strong>
+        <strong>{t("admin.ui.globalModelConfig")}</strong>
         <div className="row-actions">
-          <button type="button" className="secondary tiny-btn" onClick={onRefresh}>刷新</button>
+          <button type="button" className="secondary tiny-btn" onClick={onRefresh}>{t("common.refresh")}</button>
           <button type="button" className="secondary tiny-btn" onClick={onTest} disabled={modelTesting || modelSaving}>
-            {modelTesting ? "测试中..." : "连接测试"}
+            {modelTesting ? t("admin.ui.testing") : t("admin.ui.connectionTest")}
           </button>
           <button type="button" className="tiny-btn" onClick={onSave} disabled={modelSaving || modelTesting}>
-            {modelSaving ? "保存中..." : "保存配置"}
+            {modelSaving ? t("admin.ui.saving") : t("admin.ui.saveConfig")}
           </button>
         </div>
       </div>
-      <p className="muted">
-        生效顺序：用户个人模型设置优先，其次使用这里的全局配置，最后回退到后端 .env。Embedding 模型变更后需要重建索引，避免新旧向量维度不一致。
-      </p>
+      <p className="muted">{t("admin.ui.modelConfigHint")}</p>
       {modelLoading && <div className="skeleton-list" />}
       {!modelLoading && modelSettings && <>
         <div className="ops-kpi-grid ops-kpi-grid-secondary">
-          <div className="ops-kpi-card"><span>全局覆盖</span><strong>{modelSettings.enabled ? "启用" : "停用"}</strong></div>
-          <div className="ops-kpi-card"><span>后端</span><strong>{modelSettings.provider}</strong></div>
-          <div className="ops-kpi-card"><span>聊天模型</span><strong>{modelSettings.chat_model || "-"}</strong></div>
-          <div className="ops-kpi-card"><span>Embedding</span><strong>{modelSettings.embedding_model || "沿用 .env"}</strong></div>
+          <div className="ops-kpi-card"><span>{t("admin.ui.globalOverride")}</span><strong>{modelSettings.enabled ? t("admin.ui.enabled") : t("admin.ui.disabled")}</strong></div>
+          <div className="ops-kpi-card"><span>{t("admin.ui.backend")}</span><strong>{modelSettings.provider}</strong></div>
+          <div className="ops-kpi-card"><span>{t("admin.ui.chatModel")}</span><strong>{modelSettings.chat_model || "-"}</strong></div>
+          <div className="ops-kpi-card"><span>{t("admin.ui.embeddingModel")}</span><strong>{modelSettings.embedding_model || t("admin.ui.useEnv")}</strong></div>
         </div>
 
         <div className="section-head" style={{ marginTop: 6 }}>
-          <strong>运行开关</strong>
+          <strong>{t("admin.ui.runtimeSwitch")}</strong>
         </div>
         <div className="ops-two-col">
           <label className="ops-auto-refresh">
             <input type="checkbox" checked={Boolean(modelSettings.enabled)} onChange={(e) => onPatch({ enabled: e.target.checked })} />
-            <span>启用全局模型覆盖</span>
+            <span>{t("admin.ui.enableGlobalModelOverride")}</span>
           </label>
           <AdminFormSelect
-            label="后端类型"
+            label={t("admin.ui.backendType")}
             value={modelSettings.provider}
             onChange={(value) => changeModelProvider(value as ModelProvider)}
             options={MODEL_PROVIDERS}
@@ -107,19 +108,19 @@ export function AdminModelSettings({
             type="password"
             value={modelApiKey}
             onChange={onApiKeyChange}
-            placeholder={modelSettings.api_key_masked ? `已保存：${modelSettings.api_key_masked}` : modelSettings.provider === "ollama" ? "Ollama 通常留空" : "输入后本地加密保存"}
+            placeholder={modelSettings.api_key_masked ? t("admin.ui.apiKeySaved", { value: modelSettings.api_key_masked }) : modelSettings.provider === "ollama" ? t("admin.ui.ollamaBlank") : t("admin.ui.encryptedSave")}
           />
         </div>}
 
         <div className="ops-two-col">
           <AdminFormField
-            label="聊天模型"
+            label={t("admin.ui.chatModel")}
             value={modelSettings.chat_model}
             onChange={(value) => onPatch({ chat_model: value })}
             placeholder="chat model"
           />
           <AdminFormField
-            label="推理模型"
+            label={t("admin.ui.reasoningModel")}
             value={modelSettings.reasoning_model}
             onChange={(value) => onPatch({ reasoning_model: value })}
             placeholder="reasoning model"
@@ -128,10 +129,10 @@ export function AdminModelSettings({
 
         <div className="ops-two-col">
           <AdminFormField
-            label="Embedding 模型"
+            label={t("admin.ui.embeddingModel")}
             value={modelSettings.embedding_model}
             onChange={(value) => onPatch({ embedding_model: value })}
-            placeholder={modelSettings.provider === "anthropic" ? "Anthropic 不提供 Embedding，留空沿用 .env" : "embedding model"}
+            placeholder={modelSettings.provider === "anthropic" ? t("admin.ui.anthropicEmbeddingHint") : "embedding model"}
           />
           <AdminFormField
             label="Max Tokens"
@@ -142,7 +143,7 @@ export function AdminModelSettings({
         </div>
 
         <div className="section-head" style={{ marginTop: 6 }}>
-          <strong>生成参数</strong>
+          <strong>{t("admin.ui.generationParams")}</strong>
         </div>
         <label className="admin-field">
           <span>Temperature：{Number(modelSettings.temperature || 0).toFixed(1)}</span>
@@ -152,11 +153,11 @@ export function AdminModelSettings({
         {modelTestResult && <div className={`status ${modelTestResult.type === "error" ? "error" : ""}`}>{modelTestResult.message}</div>}
 
         <div className="ops-trend-list">
-          <strong>当前安全边界</strong>
+          <strong>{t("admin.ui.securityBoundary")}</strong>
           <div className="ops-diagnostic-list">
-            <div><span>密钥回显</span><code>仅显示掩码，不返回明文</code></div>
-            <div><span>私网 URL</span><code>默认拦截；Ollama 本地地址例外</code></div>
-            <div><span>个人设置</span><code>用户保存的模型配置优先于全局配置</code></div>
+            <div><span>{t("admin.ui.keyEcho")}</span><code>{t("admin.ui.keyEchoDesc")}</code></div>
+            <div><span>{t("admin.ui.privateUrl")}</span><code>{t("admin.ui.privateUrlDesc")}</code></div>
+            <div><span>{t("admin.ui.personalSettings")}</span><code>{t("admin.ui.personalSettingsDesc")}</code></div>
           </div>
         </div>
       </>}

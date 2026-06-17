@@ -36,28 +36,6 @@
 }
 
 /* ============================================
-   Loading State
-   ============================================ */
-
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 20px;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
-.settings-loading {
-  min-height: 240px;
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-/* ============================================
    Dark Mode Overrides
    ============================================ */
 

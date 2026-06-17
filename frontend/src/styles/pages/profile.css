@@ -23,7 +23,7 @@
   color: var(--text-primary);
 }
 
-.back-btn {
+.profile-page .back-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -38,7 +38,7 @@
   transition: all var(--transition-fast);
 }
 
-.back-btn:hover {
+.profile-page .back-btn:hover {
   background: var(--surface-hover);
   border-color: var(--accent);
   transform: translateX(-4px);
@@ -106,7 +106,7 @@
   font-weight: 600;
   color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 
 .profile-section {
@@ -136,12 +136,12 @@
   flex: 1;
 }
 
-.info-grid {
+.profile-page .info-grid {
   display: grid;
   gap: 16px;
 }
 
-.info-item {
+.profile-page .info-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -151,28 +151,28 @@
   border-radius: 8px;
 }
 
-.info-label {
+.profile-page .info-label {
   font-size: 13px;
   font-weight: 600;
   color: var(--muted);
 }
 
-.info-value {
+.profile-page .info-value {
   font-size: 14px;
   font-weight: 500;
   color: var(--text);
 }
 
-.status-active {
-  color: var(--ok) !important;
+.profile-page .status-active {
+  color: var(--ok);
   font-weight: 600;
 }
 
-.form-group {
+.profile-page .form-group {
   margin-bottom: 16px;
 }
 
-.form-group label {
+.profile-page .form-group label {
   display: block;
   margin-bottom: 6px;
   font-size: 14px;
@@ -180,7 +180,7 @@
   color: var(--text);
 }
 
-.form-group input {
+.profile-page .form-group input {
   width: 100%;
   padding: 10px 12px;
   background: var(--bg);
@@ -191,18 +191,18 @@
   transition: border-color 0.2s;
 }
 
-.form-group input:focus {
+.profile-page .form-group input:focus {
   outline: none;
   border-color: var(--primary);
 }
 
-.form-group input.disabled-input {
+.profile-page .form-group input.disabled-input {
   background: var(--panel-strong);
   color: var(--text-muted);
   cursor: not-allowed;
 }
 
-.form-group .hint {
+.profile-page .form-group .hint {
   margin-top: 4px;
   font-size: 12px;
   color: var(--text-muted);
@@ -253,7 +253,7 @@
 }
 
 @media (max-width: 480px) {
-  .back-btn {
+  .profile-page .back-btn {
     padding: 8px 14px;
     font-size: 13px;
   }

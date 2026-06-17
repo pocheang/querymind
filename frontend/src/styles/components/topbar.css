@@ -2,7 +2,7 @@
    Chat Topbar - Cyber SaaS Header
    ============================================ */
 
-.topbar {
+.page-shell .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -20,25 +20,25 @@
   z-index: 5;
 }
 
-.topbar-left {
+.page-shell .topbar-left {
   display: flex;
   align-items: center;
   gap: 16px;
   min-width: 0;
 }
 
-.topbar-rail-toggle {
+.page-shell .topbar-rail-toggle {
   display: none;
 }
 
-.topbar-brand {
+.page-shell .topbar-brand {
   display: flex;
   align-items: center;
   gap: 14px;
   min-width: 0;
 }
 
-.brand-logo {
+.page-shell .brand-logo {
   width: 42px;
   height: 42px;
   display: flex;
@@ -52,47 +52,47 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.brand-logo:hover {
+.page-shell .brand-logo:hover {
   transform: translateY(-1px) scale(1.03);
   box-shadow: 0 0 0 1px rgba(185, 198, 255, 0.36), 0 18px 46px rgba(91, 140, 255, 0.42);
 }
 
-.brand-logo-glyph {
+.page-shell .brand-logo-glyph {
   font-size: 15px;
   font-weight: 900;
   filter: drop-shadow(0 4px 10px rgba(255, 255, 255, 0.25));
 }
 
-.brand-info {
+.page-shell .brand-info {
   min-width: 0;
 }
 
-.brand-info h2 {
+.page-shell .brand-info h2 {
   font-size: 19px;
   font-weight: 760;
   color: var(--text-primary);
   margin: 0;
   line-height: 1.15;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 
-.brand-subtitle {
+.page-shell .brand-subtitle {
   display: block;
   margin-top: 3px;
   font-size: 12px;
   color: var(--text-tertiary);
   font-weight: 650;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
-.top-actions {
+.page-shell .top-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
 }
 
-.topbar-btn {
+.page-shell .topbar-btn {
   min-height: 38px;
   display: inline-flex;
   align-items: center;
@@ -109,7 +109,7 @@
   transition: all 0.2s ease;
 }
 
-.topbar-btn:hover {
+.page-shell .topbar-btn:hover {
   background: rgba(31, 42, 70, 0.86);
   border-color: rgba(105, 151, 255, 0.42);
   color: var(--text-primary);
@@ -117,12 +117,12 @@
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24), 0 0 24px rgba(91, 140, 255, 0.14);
 }
 
-.topbar-btn .btn-icon {
+.page-shell .topbar-btn .btn-icon {
   font-size: 15px;
   color: #9db7ff;
 }
 
-.topbar-divider {
+.page-shell .topbar-divider {
   width: 1px;
   height: 24px;
   background: var(--border-light);

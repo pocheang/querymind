@@ -1,4 +1,5 @@
 import type { AdminUserSummary } from "@/types/api";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   users: AdminUserSummary[];
@@ -21,31 +22,33 @@ export function AdminUserTable({
   onResetPassword,
   onResetApprovalToken,
 }: Props) {
+  const { t } = useTranslation();
+
+  const renderValue = (value?: string | null) => value?.trim() || "-";
+
   return (
     <table className="table admin-user-table">
       <thead>
         <tr>
-          <th>用户ID</th>
-          <th>用户名</th>
-          <th>角色</th>
-          <th>状态</th>
-          <th>在线</th>
-          <th>10分钟</th>
-          <th>业务单元</th>
-          <th>部门</th>
-          <th>类型</th>
-          <th>范围</th>
-          <th>创建人</th>
-          <th>工单</th>
-          <th>令牌</th>
-          <th>操作</th>
+          <th>{t("admin.ui.username")}</th>
+          <th>{t("admin.ui.role")}</th>
+          <th>{t("admin.ui.status")}</th>
+          <th>{t("admin.ui.operation")}</th>
+          <th>{t("admin.ui.businessUnit")}</th>
+          <th>{t("admin.ui.type")}</th>
+          <th>{t("admin.ui.createdBy")}</th>
+          <th>{t("admin.ui.token")}</th>
         </tr>
       </thead>
       <tbody>
         {users.map((row) => (
           <tr key={row.user_id}>
-            <td className="admin-user-id">{row.user_id}</td>
-            <td className="admin-username">{row.username}</td>
+            <td>
+              <div className="admin-user-identity">
+                <span className="admin-username">{row.username}</span>
+                <span className="admin-user-id" title={row.user_id}>{row.user_id}</span>
+              </div>
+            </td>
             <td>
               <select value={row.role} onChange={(e) => void onUpdateRole(row, e.target.value)}>
                 {([...(row.role === "admin" ? ["admin"] : []), ...roleOptions] as string[]).map((x) => (
@@ -56,37 +59,61 @@ export function AdminUserTable({
               </select>
             </td>
             <td>
-              <select value={row.status} onChange={(e) => void onUpdateStatus(row, e.target.value)}>
-                {statusOptions.map((x) => (
-                  <option key={x} value={x}>
-                    {x}
-                  </option>
-                ))}
-              </select>
+              <div className="admin-user-status-cell">
+                <select value={row.status} onChange={(e) => void onUpdateStatus(row, e.target.value)}>
+                  {statusOptions.map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
+                <div className="admin-user-flags">
+                  <span className={`admin-user-flag ${row.is_online ? "online" : "offline"}`}>
+                    {row.is_online ? t("admin.ui.online") : t("admin.ui.offline")}
+                  </span>
+                  <span className={`admin-user-flag ${row.is_online_10m ? "active" : "empty"}`}>
+                    {row.is_online_10m ? t("admin.ui.active10m") : "-"}
+                  </span>
+                </div>
+              </div>
             </td>
-            <td>{row.is_online ? "在线" : "离线"}</td>
-            <td>{row.is_online_10m ? "活跃" : "-"}</td>
-            <td>{row.business_unit || "-"}</td>
-            <td>{row.department || "-"}</td>
-            <td>{row.user_type || "-"}</td>
-            <td>{row.data_scope || "-"}</td>
-            <td>{row.created_by_username || row.created_by_user_id || "-"}</td>
-            <td>{row.admin_ticket_id || "-"}</td>
-            <td>{row.has_admin_approval_token ? "已设置" : "未设置"}</td>
             <td>
-              <div className="row-actions user-row-actions">
+              <div className="row-actions user-row-actions user-table-actions">
                 <button type="button" className="secondary tiny-btn" onClick={() => onOpenClassEditor(row)}>
-                  分类
+                  {t("admin.ui.classify")}
                 </button>
                 <button type="button" className="secondary tiny-btn" onClick={() => void onResetPassword(row)}>
-                  重置密码
+                  {t("admin.ui.resetPassword")}
                 </button>
                 {(row.role || "").toLowerCase() === "admin" ? (
                   <button type="button" className="secondary tiny-btn" onClick={() => void onResetApprovalToken(row)}>
-                    重置令牌
+                    {t("admin.ui.resetToken")}
                   </button>
                 ) : null}
               </div>
+            </td>
+            <td>
+              <div className="admin-user-stack">
+                <span>{renderValue(row.business_unit)}</span>
+                <span className="admin-user-subtle">{renderValue(row.department)}</span>
+              </div>
+            </td>
+            <td>
+              <div className="admin-user-stack">
+                <span>{renderValue(row.user_type)}</span>
+                <span className="admin-user-subtle">{renderValue(row.data_scope)}</span>
+              </div>
+            </td>
+            <td>
+              <div className="admin-user-stack">
+                <span>{renderValue(row.created_by_username || row.created_by_user_id)}</span>
+                <span className="admin-user-subtle">{renderValue(row.admin_ticket_id)}</span>
+              </div>
+            </td>
+            <td>
+              <span className={`admin-user-flag ${row.has_admin_approval_token ? "token-set" : "empty"}`}>
+                {row.has_admin_approval_token ? t("admin.ui.tokenSet") : t("admin.ui.tokenUnset")}
+              </span>
             </td>
           </tr>
         ))}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type React from "react";
 import type { IndexedFileSummary, PromptTemplate } from "@/types/api";
 import { AgentWorkbench } from "@/pages/chat/components/AgentWorkbench";
@@ -101,6 +102,7 @@ export function WorkbenchPanel({
   onEditPrompt,
   onDeletePrompt,
 }: Props) {
+  const { t } = useTranslation();
   const [toolsCollapsed, setToolsCollapsed] = useState({
     agents: false,
     pdf: false,
@@ -110,12 +112,14 @@ export function WorkbenchPanel({
 
   const allToolsCollapsed = Object.values(toolsCollapsed).every(Boolean);
   const indexedCount = documents.length;
-  const pendingCount = pdfNeedingReindex.length;
+  const indexingCount = documents.filter((doc) => ["pending", "indexing"].includes(String(doc.indexing_status || ""))).length;
+  const readyCount = documents.filter((doc) => String(doc.indexing_status || "ready") === "ready").length;
+  const failedCount = documents.filter((doc) => String(doc.indexing_status || "") === "failed").length;
   const moduleStatus = {
-    agents: agentClassHint ? "locked" : "auto",
-    pdf: `${pdfDocuments.length} files`,
-    docs: `${documents.length} docs`,
-    prompts: `${prompts.length} saved`,
+    agents: agentClassHint ? t("components.workbench.locked") : t("components.workbench.auto"),
+    pdf: t("components.workbench.files", { count: pdfDocuments.length }),
+    docs: t("components.workbench.docs", { count: documents.length }),
+    prompts: t("components.workbench.saved", { count: prompts.length }),
   };
 
   const toggleToolSection = (key: keyof typeof toolsCollapsed) => {
@@ -134,19 +138,19 @@ export function WorkbenchPanel({
   return (
     <div className="sidebar-tools">
       <div className="sidebar-group-title sidebar-group-title-with-action">
-        <span>WORKBENCH</span>
+        <span>{t("components.workbench.workbench")}</span>
         <button type="button" className="sidebar-group-action" onClick={toggleAllTools}>
-          {allToolsCollapsed ? "全部展开" : "全部收起"}
+          {allToolsCollapsed ? t("components.workbench.expandAll") : t("components.workbench.collapseAll")}
         </button>
       </div>
 
       <section className="panel sidebar-module">
         <button type="button" className="sidebar-module-toggle" onClick={() => toggleToolSection("agents")}>
           <div className="sidebar-module-copy">
-            <strong>AGENT WORKBENCH</strong>
-            <small>自动路由与执行模式切换</small>
+            <strong>{t("components.workbench.agentWorkbench")}</strong>
+            <small>{t("components.workbench.agentWorkbenchDesc")}</small>
           </div>
-          <span className={`sidebar-module-status ${agentClassHint ? 'status-locked' : 'status-auto'}`}>
+          <span className={`sidebar-module-status ${agentClassHint ? "status-locked" : "status-auto"}`}>
             {moduleStatus.agents}
           </span>
         </button>
@@ -165,12 +169,10 @@ export function WorkbenchPanel({
       <section className="panel sidebar-module">
         <button type="button" className="sidebar-module-toggle" onClick={() => toggleToolSection("pdf")}>
           <div className="sidebar-module-copy">
-            <strong>PDF WORKBENCH</strong>
-            <small>PDF 与图片问答、重建索引</small>
+            <strong>{t("components.workbench.pdfWorkbench")}</strong>
+            <small>{t("components.workbench.pdfWorkbenchDesc")}</small>
           </div>
-          <span className="sidebar-module-status status-files">
-            {moduleStatus.pdf}
-          </span>
+          <span className="sidebar-module-status status-files">{moduleStatus.pdf}</span>
         </button>
         {!toolsCollapsed.pdf && (
           <div className="sidebar-module-body">
@@ -188,23 +190,29 @@ export function WorkbenchPanel({
       <section className="panel sidebar-module">
         <button type="button" className="sidebar-module-toggle" onClick={() => toggleToolSection("docs")}>
           <div className="sidebar-module-copy">
-            <strong>KNOWLEDGE BASE</strong>
-            <small>上传、刷新、重建与删除</small>
+            <strong>{t("components.workbench.knowledgeBase")}</strong>
+            <small>{t("components.workbench.knowledgeBaseDesc")}</small>
           </div>
-          <span className="sidebar-module-status status-docs">
-            {moduleStatus.docs}
-          </span>
+          <span className="sidebar-module-status status-docs">{moduleStatus.docs}</span>
         </button>
         {!toolsCollapsed.docs && (
           <div className="sidebar-module-body">
             <div className="sidebar-kb-metrics">
               <div className="sidebar-kb-card">
-                <span>INDEXED</span>
+                <span>{t("components.workbench.indexed")}</span>
                 <strong>{indexedCount}</strong>
               </div>
               <div className="sidebar-kb-card">
-                <span>PENDING</span>
-                <strong>{pendingCount}</strong>
+                <span>{t("components.workbench.pending")}</span>
+                <strong>{indexingCount}</strong>
+              </div>
+              <div className="sidebar-kb-card">
+                <span>Ready</span>
+                <strong>{readyCount}</strong>
+              </div>
+              <div className="sidebar-kb-card">
+                <span>Failed</span>
+                <strong>{failedCount}</strong>
               </div>
             </div>
             <DocumentsPanel
@@ -235,12 +243,10 @@ export function WorkbenchPanel({
       <section className="panel sidebar-module">
         <button type="button" className="sidebar-module-toggle" onClick={() => toggleToolSection("prompts")}>
           <div className="sidebar-module-copy">
-            <strong>PROMPT LIBRARY</strong>
-            <small>保存与复用常用 Prompt</small>
+            <strong>{t("components.workbench.promptLibrary")}</strong>
+            <small>{t("components.workbench.promptLibraryDesc")}</small>
           </div>
-          <span className="sidebar-module-status status-saved">
-            {moduleStatus.prompts}
-          </span>
+          <span className="sidebar-module-status status-saved">{moduleStatus.prompts}</span>
         </button>
         {!toolsCollapsed.prompts && (
           <div className="sidebar-module-body">

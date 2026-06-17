@@ -15,6 +15,14 @@ html {
   text-rendering: optimizeLegibility;
 }
 
+html[data-language="en"] {
+  --font-sans: var(--font-sans-en);
+}
+
+html[data-language="zh"] {
+  --font-sans: var(--font-sans-zh);
+}
+
 html,
 body,
 #root {
@@ -31,6 +39,14 @@ body {
     radial-gradient(circle at top center, color-mix(in srgb, var(--accent) 9%, transparent), transparent 34%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg-secondary) 100%);
   transition: background-color var(--transition-base), color var(--transition-base);
+}
+
+html[data-language="zh"] body {
+  line-height: 1.68;
+}
+
+html[data-language="en"] body {
+  line-height: 1.58;
 }
 
 h1, h2, h3, h4, h5, h6 {

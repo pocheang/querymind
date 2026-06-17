@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import type { SessionMessage } from "@/types/api";
 import { MessageCard } from "@/pages/chat/components/MessageCard";
 import { WelcomeScreen } from "@/pages/chat/components/WelcomeScreen";
@@ -24,8 +25,10 @@ export function ChatMessages({
   onCreateSession,
   onNavigateToArchitecture
 }: Props) {
+  const { t } = useTranslation();
+
   return (
-    <section className="chat-window panel" ref={containerRef} role="log" aria-live="polite" aria-label="对话消息">
+    <section className="chat-window panel" ref={containerRef} role="log" aria-live="polite" aria-label={t("components.messages.logLabel")}>
       {messages.length === 0 && (
         <WelcomeScreen
           documentsCount={documentsCount}

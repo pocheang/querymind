@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import type React from "react";
 import type { IndexedFileSummary } from "@/types/api";
 import { DocumentItem } from "./DocumentItem";
 
@@ -46,15 +48,16 @@ export function DocumentsPanel({
   onReindexDocument,
   onDeleteDocument,
 }: Props) {
+  const { t } = useTranslation();
   const pdfDocuments = documents.filter((doc) => PDF_FILE_RE.test(doc.filename || ""));
   const nonPdfDocuments = documents.filter((doc) => !PDF_FILE_RE.test(doc.filename || ""));
 
   return (
     <section className="panel">
       <div className="section-head">
-        <strong>Documents</strong>
+        <strong>{t("components.workbench.documents")}</strong>
         <button type="button" className="secondary tiny-btn" onClick={() => void onRefreshDocuments()}>
-          Refresh
+          {t("components.workbench.refresh")}
         </button>
       </div>
 
@@ -63,27 +66,31 @@ export function DocumentsPanel({
           {isAdmin && (
             <select
               value={uploadVisibility}
-              onChange={(e) => onUploadVisibilityChange((e.target.value as "private" | "public") || "private")}
+              onChange={(event) => onUploadVisibilityChange((event.target.value as "private" | "public") || "private")}
             >
-              <option value="private">private</option>
-              <option value="public">public</option>
+              <option value="private">{t("components.workbench.private")}</option>
+              <option value="public">{t("components.workbench.public")}</option>
             </select>
           )}
           <input
             ref={fileInputRef}
             type="file"
             multiple
-            onChange={(evt) => void onMainUploadChange(evt)}
+            onChange={(event) => void onMainUploadChange(event)}
             accept=".md,.txt,.pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp"
           />
-          <div className="muted">{uploading ? "Uploading..." : "Supports .md/.txt/.pdf/images"}</div>
+          <div className="muted">
+            {uploading ? t("components.workbench.uploading") : t("components.workbench.uploadSupport")}
+          </div>
           {uploadInfo && <div className="hint">{uploadInfo}</div>}
           {(uploading || uploadProgress > 0) && (
             <div className="progress-wrap">
               <div className="progress-bar">
                 <div className="progress-fill" style={{ width: `${Math.round(uploadProgress)}%` }} />
               </div>
-              <div className="progress-text">{uploadProgressText || `Uploading ${Math.round(uploadProgress)}%`}</div>
+              <div className="progress-text">
+                {uploadProgressText || t("components.workbench.uploadProgress", { progress: Math.round(uploadProgress) })}
+              </div>
             </div>
           )}
         </div>
@@ -92,30 +99,32 @@ export function DocumentsPanel({
       {canUploadAndManageDocs && (
         <div
           className={`dropzone ${docDropActive ? "dragover" : ""}`}
-          onDragEnter={(evt) => {
-            evt.preventDefault();
-            evt.stopPropagation();
+          onDragEnter={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
             onDocDropActiveChange(true);
           }}
-          onDragOver={(evt) => {
-            evt.preventDefault();
-            evt.stopPropagation();
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
             onDocDropActiveChange(true);
           }}
-          onDragLeave={(evt) => {
-            evt.preventDefault();
-            evt.stopPropagation();
+          onDragLeave={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
             onDocDropActiveChange(false);
           }}
-          onDrop={(evt) => void onDocsDrop(evt)}
+          onDrop={(event) => void onDocsDrop(event)}
         >
-          Drop docs here (.md / .txt / .pdf / images)
+          {t("components.workbench.dropDocs")}
         </div>
       )}
 
       {docsLoading && <div className="skeleton-list" />}
-      {!docsLoading && documents.length === 0 && <div className="muted">No indexed documents</div>}
-      {!docsLoading && pdfDocuments.length > 0 && <div className="doc-subtitle">PDF/Image ({pdfDocuments.length})</div>}
+      {!docsLoading && documents.length === 0 && <div className="muted">{t("components.workbench.noIndexedDocuments")}</div>}
+      {!docsLoading && pdfDocuments.length > 0 && (
+        <div className="doc-subtitle">{t("components.workbench.pdfImageDocs", { count: pdfDocuments.length })}</div>
+      )}
       {!docsLoading &&
         pdfDocuments.map((doc) => (
           <DocumentItem
@@ -128,7 +137,9 @@ export function DocumentsPanel({
             onDeleteDocument={onDeleteDocument}
           />
         ))}
-      {!docsLoading && nonPdfDocuments.length > 0 && <div className="doc-subtitle">Other Docs ({nonPdfDocuments.length})</div>}
+      {!docsLoading && nonPdfDocuments.length > 0 && (
+        <div className="doc-subtitle">{t("components.workbench.otherDocs", { count: nonPdfDocuments.length })}</div>
+      )}
       {!docsLoading &&
         nonPdfDocuments.map((doc) => (
           <DocumentItem

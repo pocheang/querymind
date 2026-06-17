@@ -1,6 +1,6 @@
 /* ============================================
    Modals Component
-   Consolidated from: ApiSettings.css
+   Shared modal surfaces
    ============================================ */
 
 /* ============================================
@@ -94,7 +94,7 @@
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -102,7 +102,7 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .settings-subtitle {
@@ -162,7 +162,7 @@
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
 }
 
 /* ============================================
@@ -185,7 +185,7 @@
   border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   transition: all 0.2s ease;
   cursor: pointer;
 }
@@ -304,7 +304,7 @@
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .api-input-field,
@@ -426,7 +426,7 @@
   font-size: 11px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 
 /* ============================================

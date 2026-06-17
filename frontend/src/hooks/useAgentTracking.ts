@@ -7,15 +7,15 @@
  * - Managing execution history
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
-import {
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import type {
   ExecutionTrace,
-  ExecutionListResponse,
   ExecutionStats,
   TimelineEvent,
 } from '../types/agent-tracking';
+import { authRequest, toUrl } from '@/lib/api-client';
 
-const API_BASE = '/api/agent-tracking';
+const API_BASE = '/agent-tracking';
 
 /**
  * Hook for tracking a single execution in real-time via SSE
@@ -56,16 +56,33 @@ export function useExecutionTracking(executionId: string, enabled: boolean = tru
 
     setIsLoading(true);
     setError(null);
+    let cancelled = false;
+
+    authRequest<ExecutionTrace>(`${API_BASE}/trace/${encodeURIComponent(executionId)}`)
+      .then((initialTrace) => {
+        if (!cancelled) setTrace(initialTrace);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch execution');
+          setIsLoading(false);
+        }
+      });
 
     // Create SSE connection
     const eventSource = new EventSource(
-      `${API_BASE}/executions/${executionId}/stream`
+      toUrl(`${API_BASE}/stream/${encodeURIComponent(executionId)}`),
+      { withCredentials: true },
     );
     eventSourceRef.current = eventSource;
 
-    eventSource.onmessage = (event) => {
+    const readEventData = (event: Event): string => {
+      return event instanceof MessageEvent ? String(event.data) : "{}";
+    };
+
+    const handleComplete = (event: Event) => {
       try {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(readEventData(event)) as ExecutionTrace & { error?: string };
 
         if (data.error) {
           setError(data.error);
@@ -76,17 +93,56 @@ export function useExecutionTracking(executionId: string, enabled: boolean = tru
 
         setTrace(data);
         setIsLoading(false);
-
-        // Close connection when execution completes
-        if (data.status === 'completed' || data.status === 'failed') {
-          eventSource.close();
-        }
+        eventSource.close();
       } catch (err) {
         setError('Failed to parse execution data');
         setIsLoading(false);
         eventSource.close();
       }
     };
+
+    const handleStep = (event: Event) => {
+      try {
+        const step = JSON.parse(readEventData(event)) as ExecutionTrace['steps'][number];
+        setTrace((current) => {
+          if (!current || current.steps.some((item) => item.step_id === step.step_id)) {
+            return current;
+          }
+          return { ...current, steps: [...current.steps, step] };
+        });
+        setIsLoading(false);
+      } catch {
+        setError('Failed to parse execution step');
+        setIsLoading(false);
+      }
+    };
+
+    const handleError = (event: Event) => {
+      try {
+        const data = JSON.parse(readEventData(event)) as { error?: string };
+        setError(data.error || 'Execution stream failed');
+      } catch {
+        setError('Execution stream failed');
+      }
+      setIsLoading(false);
+      eventSource.close();
+    };
+
+    const handleTimeout = (event: Event) => {
+      try {
+        const data = JSON.parse(readEventData(event)) as { message?: string };
+        setError(data.message || 'Execution stream timed out');
+      } catch {
+        setError('Execution stream timed out');
+      }
+      setIsLoading(false);
+      eventSource.close();
+    };
+
+    eventSource.addEventListener('agent_step', handleStep);
+    eventSource.addEventListener('execution_complete', handleComplete);
+    eventSource.addEventListener('error', handleError);
+    eventSource.addEventListener('timeout', handleTimeout);
 
     eventSource.onerror = () => {
       setError('Connection lost');
@@ -96,6 +152,11 @@ export function useExecutionTracking(executionId: string, enabled: boolean = tru
 
     // Cleanup on unmount
     return () => {
+      cancelled = true;
+      eventSource.removeEventListener('agent_step', handleStep);
+      eventSource.removeEventListener('execution_complete', handleComplete);
+      eventSource.removeEventListener('error', handleError);
+      eventSource.removeEventListener('timeout', handleTimeout);
       eventSource.close();
     };
   }, [executionId, enabled]);
@@ -135,16 +196,7 @@ export function useExecutionTrace(executionId: string) {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/executions/${executionId}`);
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Execution not found');
-        }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await authRequest<ExecutionTrace>(`${API_BASE}/trace/${encodeURIComponent(executionId)}`);
       setTrace(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch execution');
@@ -192,14 +244,8 @@ export function useExecutionHistory(limit: number = 10) {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/executions?limit=${limit}`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data: ExecutionListResponse = await response.json();
-      setExecutions(data.executions);
+      const data = await authRequest<ExecutionTrace[]>(`${API_BASE}/history?limit=${limit}`);
+      setExecutions(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch history');
     } finally {
@@ -242,14 +288,7 @@ export function useDeleteExecution() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/executions/${executionId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
+      await authRequest(`${API_BASE}/trace/${encodeURIComponent(executionId)}`, { method: 'DELETE' });
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete execution');
@@ -286,7 +325,7 @@ export function useDeleteExecution() {
  * ```
  */
 export function useExecutionStats(trace: ExecutionTrace | null): ExecutionStats | null {
-  return useState(() => {
+  return useMemo(() => {
     if (!trace) return null;
 
     const completedSteps = trace.steps.filter(s => s.status === 'completed');
@@ -338,7 +377,7 @@ export function useExecutionStats(trace: ExecutionTrace | null): ExecutionStats 
       slowest_step: slowestStep,
       fastest_step: fastestStep,
     };
-  })[0];
+  }, [trace]);
 }
 
 /**
@@ -363,7 +402,7 @@ export function useExecutionStats(trace: ExecutionTrace | null): ExecutionStats 
  * ```
  */
 export function useTimelineEvents(trace: ExecutionTrace | null): TimelineEvent[] {
-  return useState(() => {
+  return useMemo(() => {
     if (!trace) return [];
 
     return trace.steps.map(step => ({
@@ -374,5 +413,5 @@ export function useTimelineEvents(trace: ExecutionTrace | null): TimelineEvent[]
       duration: step.duration_seconds ?? null,
       status: step.status,
     }));
-  })[0];
+  }, [trace]);
 }

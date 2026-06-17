@@ -30,18 +30,18 @@ class ExecutionStatus(BaseModel):
 
 
 @router.get("/stream/{execution_id}")
-async def stream_execution(execution_id: str):
+async def stream_execution(execution_id: str, max_iterations: int = 600):
     """
     Server-Sent Events (SSE) endpoint for real-time execution tracking.
 
     Streams agent steps as they complete during execution.
     """
     tracker = AgentExecutionTracker.get_instance()
+    max_iterations = max(1, min(int(max_iterations or 600), 600))
 
     async def event_generator():
         last_step_count = 0
         heartbeat_counter = 0
-        max_iterations = 600
         iteration = 0
 
         while iteration < max_iterations:
@@ -51,6 +51,9 @@ async def stream_execution(execution_id: str):
             if not trace:
                 yield f"event: error\ndata: {json.dumps({'error': 'Execution not found'})}\n\n"
                 break
+
+            if iteration == 1:
+                yield f"event: heartbeat\ndata: {json.dumps({'timestamp': trace.start_time.isoformat()})}\n\n"
 
             if len(trace.steps) > last_step_count:
                 for step in trace.steps[last_step_count:]:

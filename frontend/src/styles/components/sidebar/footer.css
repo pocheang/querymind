@@ -2,7 +2,7 @@
    Sidebar Footer - Account Dock
    ============================================ */
 
-.sidebar-footer {
+.page-shell .sidebar-footer {
   padding: 12px 0 0;
   border-top: 1px solid rgba(111, 132, 189, 0.14);
   margin-top: auto;
@@ -10,7 +10,7 @@
   gap: 9px;
 }
 
-.sidebar-user-info {
+.page-shell .sidebar-user-info {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -22,7 +22,7 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
-.sidebar-user-avatar {
+.page-shell .sidebar-user-avatar {
   width: 34px;
   height: 34px;
   border-radius: 999px;
@@ -37,12 +37,12 @@
   box-shadow: 0 12px 28px rgba(91, 140, 255, 0.28);
 }
 
-.sidebar-user-details {
+.page-shell .sidebar-user-details {
   flex: 1;
   min-width: 0;
 }
 
-.sidebar-user-name {
+.page-shell .sidebar-user-name {
   color: var(--text-primary);
   font-weight: 760;
   font-size: 12px;
@@ -51,22 +51,22 @@
   text-overflow: ellipsis;
 }
 
-.sidebar-user-role {
+.page-shell .sidebar-user-role {
   margin-top: 2px;
   color: var(--text-tertiary);
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 
-.sidebar-user-actions {
+.page-shell .sidebar-user-actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
 }
 
 /* Base styles (layout only, no colors) */
-.sidebar-user-action-btn {
+.page-shell .sidebar-user-action-btn {
   min-width: 0;
   height: 32px;
   border-radius: 9px;
@@ -81,15 +81,15 @@
 }
 
 /* Dark theme styles (default) */
-:root[data-theme="dark"] .sidebar-user-action-btn,
-:root:not([data-theme]) .sidebar-user-action-btn {
+:root[data-theme="dark"] .page-shell .sidebar-user-action-btn,
+:root:not([data-theme]) .page-shell .sidebar-user-action-btn {
   background: rgba(18, 26, 45, 0.72);
   border: 1px solid rgba(111, 132, 189, 0.16);
   color: var(--text-tertiary);
 }
 
-:root[data-theme="dark"] .sidebar-user-action-btn:hover,
-:root:not([data-theme]) .sidebar-user-action-btn:hover {
+:root[data-theme="dark"] .page-shell .sidebar-user-action-btn:hover,
+:root:not([data-theme]) .page-shell .sidebar-user-action-btn:hover {
   background: rgba(61, 83, 137, 0.42);
   border-color: rgba(91, 140, 255, 0.38);
   color: var(--text-primary);
@@ -97,12 +97,12 @@
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
 }
 
-:root[data-theme="dark"] .sidebar-user-action-admin,
-:root:not([data-theme]) .sidebar-user-action-admin {
+:root[data-theme="dark"] .page-shell .sidebar-user-action-admin,
+:root:not([data-theme]) .page-shell .sidebar-user-action-admin {
   color: #b8c7ff;
 }
 
-.sidebar-collapse-btn-bottom {
+.page-shell .sidebar-collapse-btn-bottom {
   width: 100%;
   min-height: 34px;
   padding: 8px 12px;

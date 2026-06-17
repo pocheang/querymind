@@ -3,7 +3,6 @@ import re
 import time
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Request
 
@@ -374,19 +373,6 @@ def test_user_api_settings(
             base_url = validate_api_base_url_for_provider(base_url, provider=provider)
         except OutboundURLValidationError as e:
             raise bad_request(f"unsafe base_url: {e}")
-    if provider == "anthropic":
-        host = str(urlparse(base_url).hostname or "").lower()
-        if host and ("anthropic.com" not in host):
-            return UserApiSettingsTestResponse(
-                ok=False,
-                reachable=False,
-                provider=provider,
-                model=model_name,
-                latency_ms=0,
-                message="provider=anthropic currently expects official Anthropic endpoint. Use provider=custom for OpenAI-compatible proxy URLs.",
-                preview="",
-            )
-
     started = time.perf_counter()
     api_settings_payload = {
         "provider": provider,

@@ -3,7 +3,7 @@
    Chat page, messages, composer styles
    ============================================ */
 
-:root[data-theme="light"] {
+:root[data-theme="light"] .page-shell {
   /* Chat Page Unified Color System */
   --chat-bg-app: #F6F8FC;
   --chat-bg-surface: #FFFFFF;
@@ -30,13 +30,6 @@
 
   --chat-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
   --chat-shadow-card: 0 12px 32px rgba(15, 23, 42, 0.08);
-}
-
-/* ============================================
-   Light Theme - Page Shell & Background
-   ============================================ */
-
-:root[data-theme="light"] .page-shell {
   background: var(--chat-bg-app);
 }
 
@@ -48,14 +41,14 @@
    Light Theme - Topbar Override
    ============================================ */
 
-:root[data-theme="light"] .topbar {
+:root[data-theme="light"] .page-shell .topbar {
   background: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid var(--chat-border-soft);
   box-shadow: var(--chat-shadow-soft);
   backdrop-filter: blur(12px);
 }
 
-:root[data-theme="light"] .brand-info h2 {
+:root[data-theme="light"] .page-shell .brand-info h2 {
   color: var(--chat-text-primary);
   background: linear-gradient(135deg, var(--chat-brand) 0%, #8B5CF6 100%);
   -webkit-background-clip: text;
@@ -63,17 +56,17 @@
   background-clip: text;
 }
 
-:root[data-theme="light"] .brand-subtitle {
+:root[data-theme="light"] .page-shell .brand-subtitle {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .topbar-btn {
+:root[data-theme="light"] .page-shell .topbar-btn {
   background: var(--chat-bg-surface);
   border: 1px solid var(--chat-border-soft);
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .topbar-btn:hover {
+:root[data-theme="light"] .page-shell .topbar-btn:hover {
   background: var(--chat-brand-soft);
   border-color: var(--chat-brand-border);
   color: var(--chat-brand);
@@ -84,87 +77,87 @@
    Light Theme - Sidebar
    ============================================ */
 
-:root[data-theme="light"] .sidebar {
+:root[data-theme="light"] .page-shell .sidebar {
   background: var(--chat-bg-sidebar);
   border-right-color: var(--chat-border-soft);
 }
 
 /* Sidebar Session Search */
-:root[data-theme="light"] .session-search {
+:root[data-theme="light"] .page-shell .session-search {
   background: #ffffff;
   border-color: rgba(226, 232, 240, 0.8);
 }
 
-:root[data-theme="light"] .session-search:hover {
+:root[data-theme="light"] .page-shell .session-search:hover {
   border-color: rgba(203, 213, 225, 0.9);
   background: #fafbfc;
 }
 
-:root[data-theme="light"] .session-search:focus-within {
+:root[data-theme="light"] .page-shell .session-search:focus-within {
   background: #ffffff;
   border-color: rgba(59, 130, 246, 0.4);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
 }
 
-:root[data-theme="light"] .session-search-icon {
+:root[data-theme="light"] .page-shell .session-search-icon {
   border-color: #94a3b8;
   opacity: 1;
 }
 
-:root[data-theme="light"] .session-search-icon::after {
+:root[data-theme="light"] .page-shell .session-search-icon::after {
   background: #94a3b8;
 }
 
-:root[data-theme="light"] .session-search:focus-within .session-search-icon {
+:root[data-theme="light"] .page-shell .session-search:focus-within .session-search-icon {
   border-color: #3b82f6;
 }
 
-:root[data-theme="light"] .session-search:focus-within .session-search-icon::after {
+:root[data-theme="light"] .page-shell .session-search:focus-within .session-search-icon::after {
   background: #3b82f6;
 }
 
-:root[data-theme="light"] .session-search input {
+:root[data-theme="light"] .page-shell .session-search input {
   color: #1e293b;
 }
 
-:root[data-theme="light"] .session-search input::placeholder {
+:root[data-theme="light"] .page-shell .session-search input::placeholder {
   color: #94a3b8;
 }
 
 /* Sidebar New Session Button */
-:root[data-theme="light"] .session-create-btn {
+:root[data-theme="light"] .page-shell .session-create-btn {
   background: #ffffff;
   border-color: rgba(226, 232, 240, 0.8);
   color: #475569;
 }
 
-:root[data-theme="light"] .session-create-btn:hover:not(:disabled) {
+:root[data-theme="light"] .page-shell .session-create-btn:hover:not(:disabled) {
   background: rgba(241, 245, 249, 0.8);
   border-color: rgba(203, 213, 225, 0.8);
   color: #1e293b;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-:root[data-theme="light"] .session-create-icon {
+:root[data-theme="light"] .page-shell .session-create-icon {
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.2);
   color: #3b82f6;
 }
 
-:root[data-theme="light"] .session-create-btn:hover:not(:disabled) .session-create-icon {
+:root[data-theme="light"] .page-shell .session-create-btn:hover:not(:disabled) .session-create-icon {
   background: rgba(59, 130, 246, 0.15);
   border-color: rgba(59, 130, 246, 0.3);
   color: #2563eb;
 }
 
-:root[data-theme="light"] .session-create-btn small {
+:root[data-theme="light"] .page-shell .session-create-btn small {
   background: #e2e8f0;
   border-color: #cbd5e1;
   color: #1e293b;
   font-weight: 700;
 }
 
-:root[data-theme="light"] .session-create-btn:hover:not(:disabled) small {
+:root[data-theme="light"] .page-shell .session-create-btn:hover:not(:disabled) small {
   background: #475569;
   border-color: #334155;
   color: #ffffff;
@@ -172,69 +165,69 @@
 }
 
 /* Sidebar Session List */
-:root[data-theme="light"] .session-item {
+:root[data-theme="light"] .page-shell .session-item {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .session-item:hover {
+:root[data-theme="light"] .page-shell .session-item:hover {
   background: rgba(241, 245, 249, 0.6);
   border-color: rgba(226, 232, 240, 0.8);
 }
 
-:root[data-theme="light"] .session-item.active {
+:root[data-theme="light"] .page-shell .session-item.active {
   background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(99, 102, 241, 0.06));
   border-color: rgba(59, 130, 246, 0.25);
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
 }
 
-:root[data-theme="light"] .session-item.active::before {
+:root[data-theme="light"] .page-shell .session-item.active::before {
   background: linear-gradient(180deg, #3b82f6, #6366f1);
   box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
 }
 
-:root[data-theme="light"] .session-icon {
+:root[data-theme="light"] .page-shell .session-icon {
   background: rgba(241, 245, 249, 0.8);
   border-color: rgba(226, 232, 240, 0.6);
   color: #64748b;
 }
 
-:root[data-theme="light"] .session-item:hover .session-icon {
+:root[data-theme="light"] .page-shell .session-item:hover .session-icon {
   background: rgba(226, 232, 240, 0.8);
   border-color: rgba(203, 213, 225, 0.8);
 }
 
-:root[data-theme="light"] .session-item.active .session-icon {
+:root[data-theme="light"] .page-shell .session-item.active .session-icon {
   background: linear-gradient(135deg, #3b82f6, #6366f1);
   border-color: rgba(59, 130, 246, 0.3);
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
-:root[data-theme="light"] .session-title {
+:root[data-theme="light"] .page-shell .session-title {
   color: #475569;
 }
 
-:root[data-theme="light"] .session-meta {
+:root[data-theme="light"] .page-shell .session-meta {
   color: #94a3b8;
 }
 
-:root[data-theme="light"] .session-item.active .session-title {
+:root[data-theme="light"] .page-shell .session-item.active .session-title {
   color: #1e293b;
   font-weight: 600;
 }
 
-:root[data-theme="light"] .session-item:hover .session-title {
+:root[data-theme="light"] .page-shell .session-item:hover .session-title {
   color: #334155;
 }
 
-:root[data-theme="light"] .session-count {
+:root[data-theme="light"] .page-shell .session-count {
   background: #e2e8f0;
   border-color: #cbd5e1;
   color: #1e293b;
   font-weight: 700;
 }
 
-:root[data-theme="light"] .session-item:hover .session-count {
+:root[data-theme="light"] .page-shell .session-item:hover .session-count {
   background: #475569;
   border-color: #334155;
   color: #ffffff;
@@ -242,7 +235,7 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
-:root[data-theme="light"] .session-item.active .session-count {
+:root[data-theme="light"] .page-shell .session-item.active .session-count {
   background: #3b82f6;
   border-color: #2563eb;
   color: #ffffff;
@@ -250,20 +243,20 @@
   box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
-:root[data-theme="light"] .session-empty {
+:root[data-theme="light"] .page-shell .session-empty {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
   color: var(--chat-text-muted);
 }
 
 /* Sidebar Collapse Button */
-:root[data-theme="light"] .sidebar-collapse-btn {
+:root[data-theme="light"] .page-shell .sidebar-collapse-btn {
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   color: #475569;
 }
 
-:root[data-theme="light"] .sidebar-collapse-btn:hover {
+:root[data-theme="light"] .page-shell .sidebar-collapse-btn:hover {
   background: #e2e8f0;
   border: 1px solid #cbd5e1;
   color: #1e293b;
@@ -271,61 +264,61 @@
 }
 
 /* Sidebar Footer - User Info */
-:root[data-theme="light"] .sidebar-footer {
+:root[data-theme="light"] .page-shell .sidebar-footer {
   border-top-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .sidebar-user-info {
+:root[data-theme="light"] .page-shell .sidebar-user-info {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
   box-shadow: var(--chat-shadow-soft);
 }
 
-:root[data-theme="light"] .sidebar-user-name {
+:root[data-theme="light"] .page-shell .sidebar-user-name {
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .sidebar-user-role {
+:root[data-theme="light"] .page-shell .sidebar-user-role {
   color: var(--chat-text-muted);
 }
 
 /* Sidebar Footer - Action Buttons */
-:root[data-theme="light"] .sidebar-user-action-btn {
-  background: #f1f5f9 !important;
-  border: 1px solid #e2e8f0 !important;
-  color: #475569 !important;
+:root[data-theme="light"] .page-shell .sidebar-user-action-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
 }
 
-:root[data-theme="light"] .sidebar-user-action-btn span {
-  color: #475569 !important;
+:root[data-theme="light"] .page-shell .sidebar-user-action-btn span {
+  color: #475569;
 }
 
-:root[data-theme="light"] .sidebar-user-action-btn:hover {
-  background: #e2e8f0 !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #1e293b !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
-  transform: translateY(-1px) !important;
+:root[data-theme="light"] .page-shell .sidebar-user-action-btn:hover {
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
 }
 
-:root[data-theme="light"] .sidebar-user-action-btn:hover span {
-  color: #1e293b !important;
+:root[data-theme="light"] .page-shell .sidebar-user-action-btn:hover span {
+  color: #1e293b;
 }
 
-:root[data-theme="light"] .sidebar-user-action-admin {
-  color: #3b82f6 !important;
+:root[data-theme="light"] .page-shell .sidebar-user-action-admin {
+  color: #3b82f6;
 }
 
-:root[data-theme="light"] .sidebar-user-action-admin span {
-  color: #3b82f6 !important;
+:root[data-theme="light"] .page-shell .sidebar-user-action-admin span {
+  color: #3b82f6;
 }
 
-:root[data-theme="light"] .sidebar-collapse-btn-bottom {
-  color: #64748b !important;
+:root[data-theme="light"] .page-shell .sidebar-collapse-btn-bottom {
+  color: #64748b;
 }
 
-:root[data-theme="light"] .sidebar-collapse-btn-bottom:hover {
-  color: #1e293b !important;
+:root[data-theme="light"] .page-shell .sidebar-collapse-btn-bottom:hover {
+  color: #1e293b;
 }
 
 /* ============================================
@@ -333,89 +326,89 @@
    ============================================ */
 
 /* 扩展卡片容器 */
-:root[data-theme="light"] .sidebar-module {
+:root[data-theme="light"] .page-shell .sidebar-module {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-:root[data-theme="light"] .sidebar-module:hover {
+:root[data-theme="light"] .page-shell .sidebar-module:hover {
   border-color: var(--chat-brand);
   box-shadow: 0 2px 4px rgba(99, 102, 241, 0.08);
 }
 
 /* 扩展卡片标题区域 */
-:root[data-theme="light"] .sidebar-module-toggle {
+:root[data-theme="light"] .page-shell .sidebar-module-toggle {
   background: transparent;
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .sidebar-module-toggle:hover {
+:root[data-theme="light"] .page-shell .sidebar-module-toggle:hover {
   background: #F8FAFC;
 }
 
-:root[data-theme="light"] .sidebar-module-toggle strong {
+:root[data-theme="light"] .page-shell .sidebar-module-toggle strong {
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .sidebar-module-toggle span {
+:root[data-theme="light"] .page-shell .sidebar-module-toggle span {
   color: var(--chat-text-secondary);
 }
 
 /* 扩展卡片描述文字 */
-:root[data-theme="light"] .sidebar-module-copy small {
+:root[data-theme="light"] .page-shell .sidebar-module-copy small {
   color: var(--chat-text-secondary);
 }
 
 /* 扩展卡片元信息 */
-:root[data-theme="light"] .sidebar-module-meta {
+:root[data-theme="light"] .page-shell .sidebar-module-meta {
   color: var(--chat-text-tertiary);
 }
 
-:root[data-theme="light"] .sidebar-module-meta em {
+:root[data-theme="light"] .page-shell .sidebar-module-meta em {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .sidebar-module-meta span {
+:root[data-theme="light"] .page-shell .sidebar-module-meta span {
   color: var(--chat-text-tertiary);
 }
 
 /* Knowledge Base 卡片 */
-:root[data-theme="light"] .sidebar-kb-card {
+:root[data-theme="light"] .page-shell .sidebar-kb-card {
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .sidebar-kb-card:hover {
+:root[data-theme="light"] .page-shell .sidebar-kb-card:hover {
   background: #F1F5F9;
   border-color: var(--chat-brand);
 }
 
-:root[data-theme="light"] .sidebar-kb-card span {
+:root[data-theme="light"] .page-shell .sidebar-kb-card span {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .sidebar-kb-card strong {
+:root[data-theme="light"] .page-shell .sidebar-kb-card strong {
   color: var(--chat-text-primary);
 }
 
 /* 扩展卡片内容区域 */
-:root[data-theme="light"] .sidebar-module-body {
+:root[data-theme="light"] .page-shell .sidebar-module-body {
   background: transparent;
 }
 
-:root[data-theme="light"] .sidebar-module-body > .panel {
+:root[data-theme="light"] .page-shell .sidebar-module-body > .panel {
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
 }
 
-:root[data-theme="light"] .sidebar-module-body > .panel:hover {
+:root[data-theme="light"] .page-shell .sidebar-module-body > .panel:hover {
   background: #F1F5F9;
   border-color: var(--chat-brand);
 }
 
-:root[data-theme="light"] .sidebar-module-body > .panel > .section-head {
+:root[data-theme="light"] .page-shell .sidebar-module-body > .panel > .section-head {
   color: var(--chat-text-primary);
   border-bottom: 1px solid #E2E8F0;
 }
@@ -424,23 +417,23 @@
    Light Theme - Composer Panel
    ============================================ */
 
-:root[data-theme="light"] .composer-panel {
+:root[data-theme="light"] .page-shell .composer-panel {
   background: var(--chat-bg-surface);
   border: 1px solid var(--chat-border-soft);
   box-shadow: var(--chat-shadow-soft);
 }
 
-:root[data-theme="light"] .composer-panel::before {
+:root[data-theme="light"] .page-shell .composer-panel::before {
   background: linear-gradient(180deg, rgba(99, 102, 241, 0.02), transparent 28%);
   opacity: 1;
 }
 
-:root[data-theme="light"] .composer-panel:focus-within {
+:root[data-theme="light"] .page-shell .composer-panel:focus-within {
   border-color: var(--chat-brand);
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12), 0 0 0 3px rgba(99, 102, 241, 0.08);
 }
 
-:root[data-theme="light"] .composer-panel.dragover {
+:root[data-theme="light"] .page-shell .composer-panel.dragover {
   border-color: var(--chat-brand);
   outline-color: rgba(99, 102, 241, 0.3);
   background: rgba(99, 102, 241, 0.02);
@@ -450,55 +443,55 @@
    Light Theme - Composer Textarea
    ============================================ */
 
-:root[data-theme="light"] .composer-input-wrapper {
+:root[data-theme="light"] .page-shell .composer-input-wrapper {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .composer-panel textarea {
+:root[data-theme="light"] .page-shell .composer-panel textarea {
   background: transparent;
-  color: var(--chat-text-primary) !important;
+  color: var(--chat-text-primary);
   scrollbar-color: rgba(148, 163, 184, 0.5) rgba(241, 245, 249, 0.5);
 }
 
-:root[data-theme="light"] .composer-panel textarea::-webkit-scrollbar-track {
+:root[data-theme="light"] .page-shell .composer-panel textarea::-webkit-scrollbar-track {
   background: rgba(241, 245, 249, 0.5);
 }
 
-:root[data-theme="light"] .composer-panel textarea::-webkit-scrollbar-thumb {
+:root[data-theme="light"] .page-shell .composer-panel textarea::-webkit-scrollbar-thumb {
   border-color: rgba(241, 245, 249, 0.5);
   background: rgba(148, 163, 184, 0.5);
 }
 
-:root[data-theme="light"] .composer-panel textarea::-webkit-scrollbar-thumb:hover {
+:root[data-theme="light"] .page-shell .composer-panel textarea::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.7);
 }
 
-:root[data-theme="light"] .composer-panel textarea:focus {
+:root[data-theme="light"] .page-shell .composer-panel textarea:focus {
   outline: none;
-  color: var(--chat-text-primary) !important;
+  color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .composer-panel textarea::placeholder {
-  color: var(--chat-text-muted) !important;
+:root[data-theme="light"] .page-shell .composer-panel textarea::placeholder {
+  color: var(--chat-text-muted);
   opacity: 1;
 }
 
-:root[data-theme="light"] .composer-label {
+:root[data-theme="light"] .page-shell .composer-label {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .composer-drop-hint {
+:root[data-theme="light"] .page-shell .composer-drop-hint {
   color: var(--chat-text-muted);
 }
 
-:root[data-theme="light"] .composer-upload-btn {
+:root[data-theme="light"] .page-shell .composer-upload-btn {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .composer-upload-btn:hover {
+:root[data-theme="light"] .page-shell .composer-upload-btn:hover {
   background: var(--chat-bg-muted);
   border-color: var(--chat-border-medium);
   color: var(--chat-text-primary);
@@ -506,162 +499,114 @@
 }
 
 /* ============================================
-   Light Theme - Buttons and Actions
-   ============================================ */
-
-:root[data-theme="light"] .composer-actions .secondary,
-:root[data-theme="light"] .composer-actions .link-btn {
-  background: var(--chat-bg-surface);
-  border-color: var(--chat-border-soft);
-  color: var(--chat-text-primary);
-}
-
-:root[data-theme="light"] .composer-actions .secondary:hover,
-:root[data-theme="light"] .composer-actions .link-btn:hover {
-  background: var(--chat-bg-muted);
-  border-color: var(--chat-border-medium);
-  color: var(--chat-text-primary);
-}
-
-:root[data-theme="light"] .composer-actions .primary-action {
-  background: var(--chat-brand);
-  border-color: var(--chat-brand);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
-}
-
-:root[data-theme="light"] .composer-actions .primary-action:hover {
-  background: var(--chat-brand-hover);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
-}
-
-/* ============================================
    Light Theme - Chat Options
    ============================================ */
 
-:root[data-theme="light"] .chat-options-bar {
+:root[data-theme="light"] .page-shell .chat-options-bar {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-soft);
-}
-
-:root[data-theme="light"] .option-chip {
-  background: var(--chat-bg-surface);
-  border-color: var(--chat-border-soft);
-  color: var(--chat-text-secondary);
-}
-
-:root[data-theme="light"] .option-chip:hover {
-  background: var(--chat-bg-muted);
-  border-color: var(--chat-border-medium);
-}
-
-:root[data-theme="light"] .option-chip.active {
-  background: var(--chat-brand);
-  border-color: var(--chat-brand);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
 }
 
 /* ============================================
    Light Theme - Messages (Bubbles)
    ============================================ */
 
-:root[data-theme="light"] .bubble {
+:root[data-theme="light"] .page-shell .bubble {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
-:root[data-theme="light"] .bubble:hover {
+:root[data-theme="light"] .page-shell .bubble:hover {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
   border-color: var(--chat-border-medium);
 }
 
-:root[data-theme="light"] .bubble.user {
+:root[data-theme="light"] .page-shell .bubble.user {
   background: var(--chat-bg-surface-soft);
   border: 1px solid var(--chat-border-soft);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
-:root[data-theme="light"] .bubble.user::before {
+:root[data-theme="light"] .page-shell .bubble.user::before {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.03), rgba(139, 92, 246, 0.02));
   opacity: 1;
 }
 
-:root[data-theme="light"] .bubble.user:hover {
+:root[data-theme="light"] .page-shell .bubble.user:hover {
   border-color: var(--chat-border-medium);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
-:root[data-theme="light"] .bubble.user:hover::before {
+:root[data-theme="light"] .page-shell .bubble.user:hover::before {
   opacity: 1;
 }
 
-:root[data-theme="light"] .bubble.assistant {
+:root[data-theme="light"] .page-shell .bubble.assistant {
   background: var(--chat-bg-surface);
   border: 1px solid var(--chat-border-soft);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
   backdrop-filter: none;
 }
 
-:root[data-theme="light"] .bubble.assistant::after {
+:root[data-theme="light"] .page-shell .bubble.assistant::after {
   background: linear-gradient(180deg, var(--chat-brand) 0%, #8b5cf6 100%);
   box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
   opacity: 0.4;
 }
 
-:root[data-theme="light"] .bubble.assistant:hover {
+:root[data-theme="light"] .page-shell .bubble.assistant:hover {
   border-color: var(--chat-border-medium);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
-:root[data-theme="light"] .bubble .markdown {
+:root[data-theme="light"] .page-shell .bubble .markdown {
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .bubble.user .markdown {
+:root[data-theme="light"] .page-shell .bubble.user .markdown {
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .bubble.assistant .markdown {
+:root[data-theme="light"] .page-shell .bubble.assistant .markdown {
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .markdown pre {
+:root[data-theme="light"] .page-shell .markdown pre {
   background: var(--chat-bg-muted);
   border: 1px solid var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .markdown pre code {
+:root[data-theme="light"] .page-shell .markdown pre code {
   color: #334155;
 }
 
-:root[data-theme="light"] .markdown code {
+:root[data-theme="light"] .page-shell .markdown code {
   background: #E0E7FF;
   color: #4338CA;
 }
 
-:root[data-theme="light"] .bubble .message-role {
+:root[data-theme="light"] .page-shell .bubble .message-role {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .message-head {
+:root[data-theme="light"] .page-shell .message-head {
   color: var(--chat-text-secondary);
   border-bottom-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .message-avatar {
+:root[data-theme="light"] .page-shell .message-avatar {
   background: var(--chat-bg-muted);
   border: 1px solid var(--chat-border-soft);
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .bubble.user .message-avatar {
+:root[data-theme="light"] .page-shell .bubble.user .message-avatar {
   background: var(--chat-bg-muted);
   border: 1px solid var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .message-avatar:hover {
+:root[data-theme="light"] .page-shell .message-avatar:hover {
   background: var(--chat-border-soft);
 }
 
@@ -669,17 +614,17 @@
    Light Theme - Empty Chat State
    ============================================ */
 
-:root[data-theme="light"] .empty-chat-state {
+:root[data-theme="light"] .page-shell .empty-chat-state {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .empty-chat-label {
+:root[data-theme="light"] .page-shell .empty-chat-label {
   background: var(--chat-brand-soft);
   border: 1px solid var(--chat-brand-border);
   color: var(--chat-brand);
 }
 
-:root[data-theme="light"] .empty-chat-state h3 {
+:root[data-theme="light"] .page-shell .empty-chat-state h3 {
   color: var(--chat-text-primary);
 }
 
@@ -687,26 +632,26 @@
    Light Theme - Process Panel
    ============================================ */
 
-:root[data-theme="light"] .process-panel {
+:root[data-theme="light"] .page-shell .process-panel {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .process-step {
+:root[data-theme="light"] .page-shell .process-step {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .process-step:hover {
+:root[data-theme="light"] .page-shell .process-step:hover {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-medium);
 }
 
-:root[data-theme="light"] .process-detail {
+:root[data-theme="light"] .page-shell .process-detail {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .process-kind {
+:root[data-theme="light"] .page-shell .process-kind {
   background: var(--chat-bg-muted);
   border-color: var(--chat-border-soft);
   color: var(--chat-text-secondary);
@@ -716,12 +661,12 @@
    Light Theme - Citations
    ============================================ */
 
-:root[data-theme="light"] .citation-card {
+:root[data-theme="light"] .page-shell .citation-card {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .citation-card:hover {
+:root[data-theme="light"] .page-shell .citation-card:hover {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-medium);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
@@ -731,130 +676,70 @@
    Light Theme - Details/Accordion
    ============================================ */
 
-:root[data-theme="light"] details {
+:root[data-theme="light"] .page-shell details {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] details:hover {
+:root[data-theme="light"] .page-shell details:hover {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-medium);
 }
 
-:root[data-theme="light"] details summary {
+:root[data-theme="light"] .page-shell details summary {
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] details summary::marker {
+:root[data-theme="light"] .page-shell details summary::marker {
   color: var(--chat-brand);
 }
 
-:root[data-theme="light"] details summary:hover {
+:root[data-theme="light"] .page-shell details summary:hover {
   color: var(--chat-text-primary);
   background: var(--chat-brand-soft);
 }
 
-:root[data-theme="light"] details[open] summary {
+:root[data-theme="light"] .page-shell details[open] summary {
   border-bottom: 1px solid var(--chat-border-soft);
   color: var(--chat-brand);
-}
-
-/* ============================================
-   Light Theme - User Badge & Menu
-   ============================================ */
-
-:root[data-theme="light"] .user-badge {
-  background: var(--chat-brand);
-  border-color: var(--chat-brand);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
-}
-
-:root[data-theme="light"] .user-badge:hover {
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
-}
-
-:root[data-theme="light"] .user-menu-dropdown {
-  background: var(--chat-bg-surface);
-  border-color: var(--chat-border-soft);
-  box-shadow: var(--chat-shadow-card);
-}
-
-:root[data-theme="light"] .user-menu-item {
-  color: var(--chat-text-primary);
-}
-
-:root[data-theme="light"] .user-menu-item:hover {
-  background: var(--chat-bg-surface-soft);
-  color: var(--chat-text-primary);
-}
-
-:root[data-theme="light"] .user-menu-item.logout {
-  color: var(--chat-danger);
-}
-
-:root[data-theme="light"] .user-menu-item.logout:hover {
-  background: var(--chat-danger-soft);
-  color: var(--chat-danger);
 }
 
 /* ============================================
    Light Theme - Panels & Cards
    ============================================ */
 
-:root[data-theme="light"] .panel {
+:root[data-theme="light"] .page-shell .panel {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 
-:root[data-theme="light"] .panel:hover {
+:root[data-theme="light"] .page-shell .panel:hover {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
   border-color: var(--chat-border-medium);
 }
 
-:root[data-theme="light"] .list li {
+:root[data-theme="light"] .page-shell .list li {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .list li:hover {
+:root[data-theme="light"] .page-shell .list li:hover {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-medium);
 }
 
-:root[data-theme="light"] .list li.active {
+:root[data-theme="light"] .page-shell .list li.active {
   background: var(--chat-brand-soft);
   border-color: var(--chat-brand-border);
-}
-
-/* ============================================
-   Light Theme - Agent Mode Cards
-   ============================================ */
-
-:root[data-theme="light"] .agent-mode-card {
-  background: var(--chat-bg-surface);
-  border-color: var(--chat-border-soft);
-}
-
-:root[data-theme="light"] .agent-mode-card:hover {
-  background: var(--chat-bg-surface-soft);
-  border-color: var(--chat-border-medium);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
-}
-
-:root[data-theme="light"] .agent-mode-card.active {
-  background: var(--chat-brand-soft);
-  border-color: var(--chat-brand-border);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
 /* ============================================
    Light Theme - Graph Sections
    ============================================ */
 
-:root[data-theme="light"] .graph-section,
-:root[data-theme="light"] .graph-context {
+:root[data-theme="light"] .page-shell .graph-section,
+:root[data-theme="light"] .page-shell .graph-context {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-soft);
 }
@@ -863,67 +748,82 @@
    Light Theme - Status & Hints
    ============================================ */
 
-:root[data-theme="light"] .composer-hint,
-:root[data-theme="light"] .option-hint,
-:root[data-theme="light"] .footer-text {
+:root[data-theme="light"] .page-shell .composer-hint,
+:root[data-theme="light"] .page-shell .option-hint,
+:root[data-theme="light"] .page-shell .footer-text {
   color: var(--chat-text-secondary);
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .status {
+:root[data-theme="light"] .page-shell .status {
   background: #F0F9FF;
   border-color: #BAE6FD;
   color: #0C4A6E;
 }
 
-:root[data-theme="light"] .status.error {
+:root[data-theme="light"] .page-shell .status.error {
   background: var(--chat-danger-soft);
   border-color: var(--chat-danger-border);
   color: #991B1B;
 }
 
-:root[data-theme="light"] .status.success {
+:root[data-theme="light"] .page-shell .status.success {
   background: #F0FDF4;
   border-color: #BBF7D0;
   color: #166534;
+}
+
+:root[data-theme="light"] .page-shell .chip {
+  background: #F1F5F9;
+  border-color: #E2E8F0;
+  color: #475569;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+:root[data-theme="light"] .page-shell .chip:hover {
+  background: #E2E8F0;
+  border-color: #CBD5E1;
+  color: #334155;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
 /* ============================================
    Light Theme - Sidebar Agent Workbench
    ============================================ */
 
-:root[data-theme="light"] .sidebar .agent-mode-card {
+:root[data-theme="light"] .page-shell .sidebar .agent-mode-card {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
   box-shadow: none;
 }
 
-:root[data-theme="light"] .sidebar .agent-mode-card:hover {
+:root[data-theme="light"] .page-shell .sidebar .agent-mode-card:hover {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-medium);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
-:root[data-theme="light"] .sidebar .agent-mode-card.active {
+:root[data-theme="light"] .page-shell .sidebar .agent-mode-card.active {
   background: var(--chat-brand-soft);
   border-color: var(--chat-brand-border);
   box-shadow: inset 3px 0 0 var(--chat-brand), 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
-:root[data-theme="light"] .sidebar .agent-mode-card strong {
+:root[data-theme="light"] .page-shell .sidebar .agent-mode-card strong {
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .sidebar .agent-mode-card span {
+:root[data-theme="light"] .page-shell .sidebar .agent-mode-card span {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .sidebar .agent-mode-card.active strong {
+:root[data-theme="light"] .page-shell .sidebar .agent-mode-card.active strong {
   color: var(--chat-brand);
 }
 
-:root[data-theme="light"] .sidebar .agent-mode-card.active span {
+:root[data-theme="light"] .page-shell .sidebar .agent-mode-card.active span {
   color: var(--chat-text-secondary);
 }
 
@@ -931,53 +831,53 @@
    Light Theme - Composer Options & Controls
    ============================================ */
 
-:root[data-theme="light"] .option-group {
+:root[data-theme="light"] .page-shell .option-group {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .option-group:hover {
+:root[data-theme="light"] .page-shell .option-group:hover {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-medium);
 }
 
-:root[data-theme="light"] .option-label {
+:root[data-theme="light"] .page-shell .option-label {
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .toggle-track {
+:root[data-theme="light"] .page-shell .toggle-track {
   background: var(--chat-bg-muted);
   border-color: var(--chat-border-soft);
 }
 
-:root[data-theme="light"] .toggle-thumb {
+:root[data-theme="light"] .page-shell .toggle-thumb {
   background: var(--chat-bg-surface);
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1);
 }
 
-:root[data-theme="light"] .option-toggle.active .toggle-track {
+:root[data-theme="light"] .page-shell .option-toggle.active .toggle-track {
   background: var(--chat-brand);
   border-color: var(--chat-brand);
   box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
 }
 
-:root[data-theme="light"] .option-toggle.active .toggle-thumb {
+:root[data-theme="light"] .page-shell .option-toggle.active .toggle-thumb {
   background: #FFFFFF;
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
-:root[data-theme="light"] .option-select {
+:root[data-theme="light"] .page-shell .option-select {
   background: var(--chat-bg-surface);
   border-color: var(--chat-border-soft);
   color: var(--chat-text-primary);
 }
 
-:root[data-theme="light"] .option-select:hover {
+:root[data-theme="light"] .page-shell .option-select:hover {
   background: var(--chat-bg-surface-soft);
   border-color: var(--chat-border-medium);
 }
 
-:root[data-theme="light"] .option-select:focus {
+:root[data-theme="light"] .page-shell .option-select:focus {
   border-color: var(--chat-brand);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   background: var(--chat-bg-surface);
@@ -987,26 +887,26 @@
    Light Theme - Quick Actions
    ============================================ */
 
-:root[data-theme="light"] .quick-action-btn {
+:root[data-theme="light"] .page-shell .quick-action-btn {
   background: var(--chat-bg-muted);
   border-color: var(--chat-border-soft);
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .quick-action-btn:hover {
+:root[data-theme="light"] .page-shell .quick-action-btn:hover {
   background: var(--chat-brand-soft);
   border-color: var(--chat-brand-border);
   color: var(--chat-brand);
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
 }
 
-:root[data-theme="light"] .quick-action-btn.danger {
+:root[data-theme="light"] .page-shell .quick-action-btn.danger {
   background: var(--chat-danger-soft);
   border-color: var(--chat-danger-border);
   color: var(--chat-danger);
 }
 
-:root[data-theme="light"] .quick-action-btn.danger:hover {
+:root[data-theme="light"] .page-shell .quick-action-btn.danger:hover {
   background: #FEE2E2;
   border-color: #FCA5A5;
   color: #DC2626;
@@ -1016,17 +916,17 @@
    Light Theme - Primary Action Button
    ============================================ */
 
-:root[data-theme="light"] .composer-primary-btn {
+:root[data-theme="light"] .page-shell .composer-primary-btn {
   background: var(--chat-brand);
   border-color: var(--chat-brand);
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
 
-:root[data-theme="light"] .composer-primary-btn::before {
+:root[data-theme="light"] .page-shell .composer-primary-btn::before {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent 42%);
 }
 
-:root[data-theme="light"] .composer-primary-btn:hover:not(:disabled) {
+:root[data-theme="light"] .page-shell .composer-primary-btn:hover:not(:disabled) {
   background: var(--chat-brand-hover);
   box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
 }
@@ -1036,13 +936,13 @@
    ============================================ */
 
 /* "全部收起/展开" 按钮 */
-:root[data-theme="light"] .sidebar-group-action {
+:root[data-theme="light"] .page-shell .sidebar-group-action {
   background: var(--chat-bg-muted);
   border-color: var(--chat-border-soft);
   color: var(--chat-text-secondary);
 }
 
-:root[data-theme="light"] .sidebar-group-action:hover {
+:root[data-theme="light"] .page-shell .sidebar-group-action:hover {
   background: var(--chat-brand-soft);
   border-color: var(--chat-brand-border);
   color: var(--chat-brand);

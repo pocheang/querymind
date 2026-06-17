@@ -2,19 +2,10 @@ import { useMemo } from "react";
 import { AdminFormField, AdminFormSelect } from "@/components/AdminFormField";
 import { AdminPagination } from "@/components/AdminPagination";
 import { useTranslation } from "react-i18next";
-
-type SystemLog = {
-  created_at?: string | null;
-  level?: string | null;
-  logger?: string | null;
-  module?: string | null;
-  line?: number | null;
-  message?: string | null;
-  exception?: string | null;
-};
+import type { SystemLogEntry } from "@/types/api";
 
 type Props = {
-  systemLogs: SystemLog[];
+  systemLogs: SystemLogEntry[];
   loadingSystemLogs: boolean;
   systemLogLimit: number;
   systemLogLevel: string;
@@ -53,6 +44,18 @@ export function AdminSystemLogTable({
   onSystemLogPageSizeChange,
 }: Props) {
   const { t } = useTranslation();
+
+  const getSeverityTone = (level?: string | null) => {
+    const normalized = String(level || "").toLowerCase();
+    if (normalized === "critical" || normalized === "error") return "high";
+    if (normalized === "warning" || normalized === "warn") return "warning";
+    return "info";
+  };
+
+  const formatLocation = (entry: SystemLogEntry) => {
+    const parts = [entry.module, entry.func ? `${entry.func}()` : null, entry.line ? `L${entry.line}` : null].filter(Boolean);
+    return parts.length > 0 ? parts.join(" / ") : "-";
+  };
 
   // Client-side pagination
   const paginatedSystemLogs = useMemo(() => {
@@ -121,7 +124,7 @@ export function AdminSystemLogTable({
             pageSizeOptions={[20, 50, 100]}
           />
           <div className="audit-table-wrap">
-            <table className="table admin-audit-table">
+            <table className="table admin-audit-table admin-system-log-table">
               <thead>
                 <tr>
                   <th>{t("admin.ui.time")}</th>
@@ -135,18 +138,37 @@ export function AdminSystemLogTable({
               <tbody>
                 {paginatedSystemLogs.map((x, idx) => (
                   <tr key={`${x.created_at}-${idx}`}>
-                    <td className="audit-time">{formatAuditTime(x.created_at)}</td>
                     <td>
-                      <span className={`audit-badge audit-severity-${String(x.level || "info").toLowerCase() === "error" ? "high" : "info"}`}>
+                      <div className="audit-cell-stack">
+                        <span className="audit-time">{formatAuditTime(x.created_at)}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`audit-badge audit-severity-${getSeverityTone(x.level)}`}>
                         {x.level || "-"}
                       </span>
                     </td>
-                    <td className="audit-code" title={x.logger || "-"}>{x.logger || "-"}</td>
-                    <td className="audit-code" title={`${x.module || "-"}:${x.line || 0}`}>
-                      {(x.module || "-") + ":" + String(x.line || 0)}
+                    <td>
+                      <div className="audit-cell-stack">
+                        <span className="system-log-code" title={x.logger || "-"}>{x.logger || "-"}</span>
+                        {x.thread ? <span className="audit-sub" title={x.thread}>thread: {x.thread}</span> : null}
+                      </div>
                     </td>
-                    <td className="audit-detail" title={x.message || "-"}>{x.message || "-"}</td>
-                    <td className="audit-detail" title={x.exception || "-"}>{x.exception || "-"}</td>
+                    <td>
+                      <div className="audit-cell-stack">
+                        <span className="system-log-code" title={formatLocation(x)}>{formatLocation(x)}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="system-log-text system-log-message" title={x.message || "-"}>
+                        {x.message || "-"}
+                      </div>
+                    </td>
+                    <td>
+                      <div className={`system-log-text system-log-exception ${x.exception ? "has-exception" : "is-empty"}`} title={x.exception || "-"}>
+                        {x.exception || "-"}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

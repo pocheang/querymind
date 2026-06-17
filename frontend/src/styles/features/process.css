@@ -2,8 +2,8 @@
    FEATURE: Process Timeline and Collapsible Panels
    ============================================ */
 
-.process-panel,
-details {
+.page-shell .process-panel,
+.page-shell details {
   margin-top: 14px;
   border: 1px solid rgba(111, 132, 189, 0.18);
   border-radius: 14px;
@@ -15,15 +15,15 @@ details {
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.process-panel:hover,
-details:hover {
+.page-shell .process-panel:hover,
+.page-shell details:hover {
   border-color: rgba(128, 151, 255, 0.36);
   background:
     linear-gradient(180deg, rgba(18, 28, 51, 0.82), rgba(11, 18, 34, 0.68));
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
-details summary {
+.page-shell details summary {
   min-height: 42px;
   padding: 12px 14px;
   cursor: pointer;
@@ -37,30 +37,30 @@ details summary {
   transition: color 0.18s ease, background 0.18s ease;
 }
 
-details summary::marker {
+.page-shell details summary::marker {
   color: #8fa5ff;
 }
 
-details summary:hover {
+.page-shell details summary:hover {
   color: var(--text-primary);
   background: rgba(91, 140, 255, 0.06);
 }
 
-details[open] summary {
+.page-shell details[open] summary {
   border-bottom: 1px solid rgba(111, 132, 189, 0.14);
   color: #c8d4ff;
 }
 
-details > :not(summary) {
+.page-shell details > :not(summary) {
   margin: 12px 14px 14px;
 }
 
-.process-timeline {
+.page-shell .process-timeline {
   display: grid;
   gap: 10px;
 }
 
-.process-step {
+.page-shell .process-step {
   border: 1px solid rgba(111, 132, 189, 0.16);
   border-radius: 12px;
   padding: 12px 13px;
@@ -68,20 +68,20 @@ details > :not(summary) {
   transition: all 0.18s ease;
 }
 
-.process-step:hover {
+.page-shell .process-step:hover {
   border-color: rgba(91, 140, 255, 0.34);
   background: rgba(18, 26, 45, 0.66);
   transform: translateX(2px);
 }
 
-.process-step-head {
+.page-shell .process-step-head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
 }
 
-.process-step-head strong {
+.page-shell .process-step-head strong {
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 720;
@@ -90,7 +90,7 @@ details > :not(summary) {
   white-space: nowrap;
 }
 
-.process-kind {
+.page-shell .process-kind {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -103,17 +103,17 @@ details > :not(summary) {
   font-size: 10px;
   font-weight: 820;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 
-.process-time {
+.page-shell .process-time {
   color: var(--text-tertiary);
   font-size: 11px;
   font-family: var(--font-mono);
   font-weight: 650;
 }
 
-.process-detail {
+.page-shell .process-detail {
   margin-top: 9px;
   padding-left: 12px;
   border-left: 2px solid rgba(91, 140, 255, 0.22);
@@ -123,7 +123,7 @@ details > :not(summary) {
   white-space: pre-wrap;
 }
 
-.compact-list {
+.page-shell .compact-list {
   display: grid;
   gap: 8px;
   margin: 0;
@@ -133,112 +133,68 @@ details > :not(summary) {
   line-height: 1.62;
 }
 
-.graph-result-panel {
-  display: grid;
-  gap: 12px;
-}
-
-.graph-section {
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(111, 132, 189, 0.16);
-  background: rgba(5, 10, 22, 0.34);
-}
-
-.graph-section strong {
-  display: block;
-  margin-bottom: 8px;
-  color: #c8d4ff;
-  font-size: 13px;
-}
-
-.graph-context {
-  margin: 0;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(111, 132, 189, 0.16);
-  background: rgba(4, 8, 18, 0.68);
-  color: var(--text-secondary);
-  overflow: auto;
-}
-
 /* ============================================
    Light Theme - Process Panels Override
    ============================================ */
 
-:root[data-theme="light"] .process-panel,
-:root[data-theme="light"] details {
+:root[data-theme="light"] .page-shell .process-panel,
+:root[data-theme="light"] .page-shell details {
   background: #FBFCFF;
   border: 1px solid #E2E8F0;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
-:root[data-theme="light"] .process-panel:hover,
-:root[data-theme="light"] details:hover {
+:root[data-theme="light"] .page-shell .process-panel:hover,
+:root[data-theme="light"] .page-shell details:hover {
   background: #F8FAFC;
   border-color: #CBD5E1;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
-:root[data-theme="light"] details summary {
+:root[data-theme="light"] .page-shell details summary {
   color: #475569;
   font-weight: 600;
 }
 
-:root[data-theme="light"] details summary::marker {
+:root[data-theme="light"] .page-shell details summary::marker {
   color: #6366F1;
 }
 
-:root[data-theme="light"] details summary:hover {
+:root[data-theme="light"] .page-shell details summary:hover {
   color: #111827;
   background: #EEF2FF;
 }
 
-:root[data-theme="light"] details[open] summary {
+:root[data-theme="light"] .page-shell details[open] summary {
   border-bottom-color: #E2E8F0;
   color: #6366F1;
 }
 
-:root[data-theme="light"] .process-step {
+:root[data-theme="light"] .page-shell .process-step {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
 }
 
-:root[data-theme="light"] .process-step:hover {
+:root[data-theme="light"] .page-shell .process-step:hover {
   background: #FBFCFF;
   border-color: #CBD5E1;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
-:root[data-theme="light"] .process-kind {
+:root[data-theme="light"] .page-shell .process-kind {
   background: #F1F5F9;
   border-color: #E2E8F0;
   color: #475569;
   font-weight: 600;
 }
 
-:root[data-theme="light"] .process-detail {
+:root[data-theme="light"] .page-shell .process-detail {
   border-left-color: #C7D2FE;
   color: #64748B;
 }
 
-:root[data-theme="light"] .graph-section {
-  background: #F8FAFC;
-  border-color: #E2E8F0;
-}
-
-:root[data-theme="light"] .graph-section strong {
-  color: #111827;
-}
-
-:root[data-theme="light"] .graph-context {
-  background: #FFFFFF;
-  border-color: #E2E8F0;
-  color: #64748B;
-}
-
 @media (max-width: 680px) {
-  .process-step-head {
+  .page-shell .process-step-head {
     grid-template-columns: 1fr;
   }
 }

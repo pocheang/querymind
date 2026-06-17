@@ -53,6 +53,7 @@ def synthesis_node(state: GraphState) -> GraphState:
         web_context=web_context,
         use_reasoning=state.get("use_reasoning", True),
         force_language=force_language,
+        session_id=state.get("session_id", ""),
     )
     # Extract answer text from dict response
     answer_text = answer["answer"] if isinstance(answer, dict) else answer

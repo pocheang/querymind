@@ -206,6 +206,10 @@ class UploadResponse(BaseModel):
     skipped_files: list[str] = Field(default_factory=list)
     visibility_applied: str = "private"
     assigned_agent_classes: dict[str, str] = Field(default_factory=dict)
+    document_ids: list[str] = Field(default_factory=list)
+    indexing_status: str = "complete"
+    duplicate_files: list[str] = Field(default_factory=list)
+    reused_document_ids: list[str] = Field(default_factory=list)
     loaded_documents: int = 0
     chunks_indexed: int = 0
     triplets_written: int = 0
@@ -213,6 +217,7 @@ class UploadResponse(BaseModel):
 
 
 class IndexedFileSummary(BaseModel):
+    document_id: str | None = None
     filename: str
     source: str = ""
     chunks: int = 0
@@ -223,6 +228,11 @@ class IndexedFileSummary(BaseModel):
     agent_class: str = "general"
     in_uploads: bool = False
     exists_on_disk: bool = False
+    indexing_status: str = "ready"
+    indexing_stage: str = "complete"
+    indexing_error: str = ""
+    triplets_written: int = 0
+    parser_profile: str = ""
 
 
 class FileIndexActionResponse(BaseModel):
@@ -236,6 +246,18 @@ class FileIndexActionResponse(BaseModel):
     chunks_indexed: int = 0
     triplets_written: int = 0
     pages_by_source: dict[str, int] = Field(default_factory=dict)
+    skipped: bool = False
+    reason: str = ""
+
+
+class IndexHealthResponse(BaseModel):
+    total_documents: int = 0
+    ready_documents: int = 0
+    failed_documents: int = 0
+    indexing_documents: int = 0
+    total_chunks: int = 0
+    total_triplets: int = 0
+    documents: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class UserApiSettings(BaseModel):

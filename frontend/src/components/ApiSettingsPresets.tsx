@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 type Provider = "local" | "openai" | "anthropic" | "deepseek" | "ollama" | "custom";
 
 type Preset = {
@@ -15,9 +17,11 @@ type Props = {
 };
 
 export function ApiSettingsPresets({ presets, activeProvider, activeModel, onApplyPreset }: Props) {
+  const { t } = useTranslation();
+
   return (
     <section className="settings-section">
-      <label className="section-label">Quick Presets</label>
+      <label className="section-label">{t("components.apiSettings.quickPresets")}</label>
       <div className="preset-grid">
         {presets.map((preset) => (
           <button

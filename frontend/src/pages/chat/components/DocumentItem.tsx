@@ -1,4 +1,5 @@
 import type { IndexedFileSummary } from "@/types/api";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   doc: IndexedFileSummary;
@@ -17,27 +18,49 @@ export function DocumentItem({
   onReindexDocument,
   onDeleteDocument,
 }: Props) {
+  const { t } = useTranslation();
   const canManage = canUploadAndManageDocs && (isAdmin || doc.owner_user_id === currentUserId);
+  const indexingStatus = doc.indexing_status || "ready";
+  const statusLabel =
+    indexingStatus === "pending"
+      ? "Queued"
+      : indexingStatus === "indexing"
+        ? "Indexing"
+        : indexingStatus === "failed"
+          ? "Failed"
+          : "Ready";
 
   return (
     <div className="doc-row">
       <div>
-        <div>{doc.filename}</div>
+        <div className="doc-title-row">
+          <span>{doc.filename}</span>
+          <span className={`doc-status-pill doc-status-pill-${indexingStatus}`}>{statusLabel}</span>
+        </div>
         <small className="muted">
-          chunks={doc.chunks} | visibility={doc.visibility || "private"} | disk={doc.exists_on_disk ? "yes" : "no"} |
-          uploads={doc.in_uploads ? "yes" : "no"} | agent={doc.agent_class || "general"}
+          {t("components.workbench.docMeta", {
+            chunks: doc.chunks,
+            visibility: doc.visibility || "private",
+            disk: doc.exists_on_disk ? t("components.workbench.yes") : t("components.workbench.no"),
+            uploads: doc.in_uploads ? t("components.workbench.yes") : t("components.workbench.no"),
+            agent: doc.agent_class || "general",
+          })}
+          {doc.parser_profile ? ` | parser=${doc.parser_profile}` : ""}
+          {typeof doc.triplets_written === "number" ? ` | graph=${doc.triplets_written}` : ""}
+          {doc.indexing_stage ? ` | stage=${doc.indexing_stage}` : ""}
         </small>
+        {doc.indexing_error ? <small className="doc-error">{doc.indexing_error}</small> : null}
       </div>
       {canManage && (
         <div className="row-actions">
           <button type="button" className="secondary tiny-btn" onClick={() => void onReindexDocument(doc)}>
-            Reindex
+            {t("components.workbench.reindex")}
           </button>
           <button type="button" className="danger tiny-btn" onClick={() => void onDeleteDocument(doc, false)}>
-            Del Index
+            {t("components.workbench.deleteIndex")}
           </button>
           <button type="button" className="danger tiny-btn" onClick={() => void onDeleteDocument(doc, true)}>
-            Del File
+            {t("components.workbench.deleteFile")}
           </button>
         </div>
       )}

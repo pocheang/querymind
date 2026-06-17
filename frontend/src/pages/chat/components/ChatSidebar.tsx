@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type React from "react";
 import type { IndexedFileSummary, PromptTemplate, SessionSummary } from "@/types/api";
 import { SessionList } from "@/pages/chat/components/SessionList";
@@ -124,6 +125,7 @@ export function ChatSidebar({
   onDeletePrompt,
   onLogout,
 }: Props) {
+  const { t } = useTranslation();
   const isDesktop = typeof window !== "undefined" ? window.innerWidth > 1080 : true;
   const showCompactRail = sidebarCollapsed && isDesktop;
   const [sessionSearchRequest, setSessionSearchRequest] = useState(0);
@@ -140,20 +142,20 @@ export function ChatSidebar({
 
   if (showCompactRail) {
     return (
-      <aside className="sidebar sidebar-rail" aria-label="收起后的侧边栏">
+      <aside className="sidebar sidebar-rail" aria-label={t("components.chat.railLabel")}>
         <div className="sidebar-rail-actions">
-          <button type="button" className="sidebar-rail-btn active" onClick={onToggleSidebarCollapsed} title="展开侧栏">
+          <button type="button" className="sidebar-rail-btn active" onClick={onToggleSidebarCollapsed} title={t("components.chat.expandRail")}>
             <span className="rail-icon rail-icon-panel" aria-hidden="true" />
           </button>
-          <button type="button" className="sidebar-rail-btn" onClick={() => void handleCreateFromRail()} title="展开并新建会话">
+          <button type="button" className="sidebar-rail-btn" onClick={() => void handleCreateFromRail()} title={t("components.chat.newSessionFromRail")}>
             <span className="rail-icon rail-icon-edit" aria-hidden="true" />
           </button>
-          <button type="button" className="sidebar-rail-btn" onClick={handleSearchFromRail} title="展开并搜索会话">
+          <button type="button" className="sidebar-rail-btn" onClick={handleSearchFromRail} title={t("components.chat.searchFromRail")}>
             <span className="rail-icon rail-icon-search" aria-hidden="true" />
           </button>
         </div>
         <div className="sidebar-rail-footer">
-          <button type="button" className="sidebar-rail-user" onClick={onToggleSidebarCollapsed} title="展开账号信息">
+          <button type="button" className="sidebar-rail-user" onClick={onToggleSidebarCollapsed} title={t("components.chat.accountFromRail")}>
             {user?.username?.charAt(0).toUpperCase() || "U"}
           </button>
         </div>
@@ -169,18 +171,18 @@ export function ChatSidebar({
             <span>R</span>
           </div>
           <div className="sidebar-brand-block">
-            <span className="sidebar-brand-kicker">Operations Deck</span>
+            <span className="sidebar-brand-kicker">{t("components.chat.brandKicker")}</span>
             <div className="brand">Local RAG</div>
-            <p className="muted">多智能体知识库与检索工作台</p>
+            <p className="muted">{t("components.chat.sidebarDescription")}</p>
           </div>
           <button type="button" className="sidebar-collapse-btn" onClick={onToggleSidebarCollapsed}>
-            收起
+            {t("components.chat.collapse")}
           </button>
         </div>
 
         <div className="sidebar-history">
           <div className="sidebar-group-title">
-            <span>SESSIONS</span>
+            <span>{t("components.chat.sessions")}</span>
           </div>
           <SessionList
             sessions={sessions}
@@ -243,24 +245,24 @@ export function ChatSidebar({
           <div className="sidebar-user-info">
             <div className="sidebar-user-avatar">{user?.username?.charAt(0).toUpperCase() || "U"}</div>
             <div className="sidebar-user-details">
-              <div className="sidebar-user-name">{user?.username || "User"}</div>
+              <div className="sidebar-user-name">{user?.username || t("components.chat.userFallback")}</div>
               <div className="sidebar-user-role">{user?.role || "user"}</div>
             </div>
           </div>
           <div className="sidebar-user-actions">
-            <Link to="/app/profile" className="sidebar-user-action-btn" title="个人资料">
-              <span>资料</span>
+            <Link to="/app/profile" className="sidebar-user-action-btn" title={t("components.chat.profile")}>
+              <span>{t("components.chat.profile")}</span>
             </Link>
-            <Link to="/app/change-password" className="sidebar-user-action-btn" title="修改密码">
-              <span>密码</span>
+            <Link to="/app/change-password" className="sidebar-user-action-btn" title={t("components.chat.password")}>
+              <span>{t("components.chat.password")}</span>
             </Link>
             {isAdmin && (
-              <Link to="/app/admin" className="sidebar-user-action-btn sidebar-user-action-admin" title="管理员面板">
-                <span>Admin</span>
+              <Link to="/app/admin" className="sidebar-user-action-btn sidebar-user-action-admin" title={t("components.chat.admin")}>
+                <span>{t("components.chat.admin")}</span>
               </Link>
             )}
-            <button type="button" className="sidebar-user-action-btn" onClick={() => void onLogout()} title="退出登录">
-              <span>退出</span>
+            <button type="button" className="sidebar-user-action-btn" onClick={() => void onLogout()} title={t("components.chat.logout")}>
+              <span>{t("components.chat.logout")}</span>
             </button>
           </div>
         </div>

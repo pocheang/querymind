@@ -1,0 +1,7 @@
+/* Admin route stylesheet entry. */
+
+@import './admin/layout.css';
+@import './admin/ops.css';
+@import './admin/forms.css';
+@import './admin/tables.css';
+@import './admin/actions.css';

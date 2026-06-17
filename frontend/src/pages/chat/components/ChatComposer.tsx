@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { QuickActions } from "@/pages/chat/components/QuickActions";
 import { SelectControl } from "@/pages/chat/components/SelectControl";
 import { ToggleControl } from "@/pages/chat/components/ToggleControl";
@@ -46,17 +47,6 @@ const AGENT_OPTIONS = [
   { value: "general", label: "general" },
 ];
 
-function getModeHint(useWeb: boolean, useReasoning: boolean, retrievalStrategy: string) {
-  const strategyLabel = retrievalStrategy === "baseline" ? "基础" : retrievalStrategy === "safe" ? "安全" : "高级";
-  if (!useWeb && !useReasoning) {
-    return `本地快速模式，${strategyLabel}检索：适合低延迟问答和已入库资料分析。`;
-  }
-  if (useWeb) {
-    return `联网增强已开启，${strategyLabel}检索：适合需要最新资料的问题，响应可能稍慢。`;
-  }
-  return `推理增强已开启，${strategyLabel}检索：适合复杂分析、审计和多步骤归纳。`;
-}
-
 export function ChatComposer({
   composerDropActive,
   question,
@@ -85,7 +75,13 @@ export function ChatComposer({
   onComposerDrop,
   onChatUploadChange,
 }: Props) {
-  const modeHint = getModeHint(useWeb, useReasoning, retrievalStrategy);
+  const { t } = useTranslation();
+  const strategy = t(`components.chat.strategy.${retrievalStrategy || "advanced"}`);
+  const modeHint = useWeb
+    ? t("components.chat.modeHint.web", { strategy })
+    : useReasoning
+      ? t("components.chat.modeHint.reasoning", { strategy })
+      : t("components.chat.modeHint.local", { strategy });
 
   return (
     <section
@@ -97,8 +93,8 @@ export function ChatComposer({
     >
       <div className="composer-main">
         <div className="composer-heading-row">
-          <label className="composer-label">输入问题，或拖拽 / 粘贴文档到这里</label>
-          <span className="composer-drop-hint">支持 PDF / 图片 / 文本</span>
+          <label className="composer-label">{t("components.chat.composerLabel")}</label>
+          <span className="composer-drop-hint">{t("components.chat.composerDropHint")}</span>
         </div>
 
         <div className="composer-input-wrapper">
@@ -106,9 +102,9 @@ export function ChatComposer({
             ref={questionRef}
             value={question}
             onChange={(event) => onQuestionChange(event.target.value)}
-            placeholder="例如：总结最新上传 PDF 的安全风险，并给出证据来源..."
+            placeholder={t("components.chat.composerPlaceholder")}
             rows={3}
-            aria-label="输入问题"
+            aria-label={t("components.chat.questionInput")}
             aria-describedby="composer-hint"
             onKeyDown={(event) => {
               if (event.key === "Escape" && isSending) {
@@ -123,7 +119,7 @@ export function ChatComposer({
             }}
           />
           <div className="composer-input-actions">
-            <label className="composer-upload-btn" title="上传 PDF 或图片">
+            <label className="composer-upload-btn" title={t("components.chat.uploadFiles")}>
               <span aria-hidden="true">+</span>
               <input
                 ref={chatUploadInputRef}
@@ -132,7 +128,7 @@ export function ChatComposer({
                 accept=".pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp"
                 style={{ display: "none" }}
                 onChange={(event) => void onChatUploadChange(event)}
-                aria-label="上传 PDF 或图片文件"
+                aria-label={t("components.chat.uploadFilesAria")}
               />
             </label>
           </div>
@@ -142,32 +138,32 @@ export function ChatComposer({
       <div className="composer-controls">
         <div className="composer-options">
           <ToggleControl
-            label="联网检索"
+            label={t("components.chat.webSearch")}
             active={useWeb}
             onChange={onUseWebChange}
-            ariaLabel="联网检索开关"
-            title="开启后将搜索互联网获取最新信息"
+            ariaLabel={t("components.chat.webSearchAria")}
+            title={t("components.chat.webSearchTitle")}
           />
           <ToggleControl
-            label="推理增强"
+            label={t("components.chat.reasoning")}
             active={useReasoning}
             onChange={onUseReasoningChange}
-            ariaLabel="推理增强开关"
-            title="开启后使用深度推理模式"
+            ariaLabel={t("components.chat.reasoningAria")}
+            title={t("components.chat.reasoningTitle")}
           />
           <SelectControl
-            label="检索策略"
+            label={t("components.chat.retrievalStrategy")}
             value={retrievalStrategy}
             options={RETRIEVAL_OPTIONS}
             onChange={onRetrievalStrategyChange}
-            ariaLabel="选择检索策略"
+            ariaLabel={t("components.chat.retrievalStrategyAria")}
           />
           <SelectControl
             label="Agent"
             value={agentClassHint}
             options={AGENT_OPTIONS}
             onChange={onAgentClassHintChange}
-            ariaLabel="选择 Agent 类型"
+            ariaLabel={t("components.chat.agentTypeAria")}
           />
         </div>
 
@@ -176,10 +172,10 @@ export function ChatComposer({
           className="composer-primary-btn"
           onClick={() => void onAsk()}
           disabled={isSending}
-          aria-label={isSending ? "正在处理问题" : "开始分析问题"}
+          aria-label={isSending ? t("components.chat.processingQuestion") : t("components.chat.startAnalysisAria")}
         >
           {isSending && <span className="spinner" aria-hidden="true"></span>}
-          <span className="btn-text">{isSending ? "分析中..." : "开始分析"}</span>
+          <span className="btn-text">{isSending ? t("components.chat.analyzing") : t("components.chat.startAnalysis")}</span>
           {!isSending && <span className="btn-shortcut">Ctrl / Cmd + Enter</span>}
         </button>
       </div>

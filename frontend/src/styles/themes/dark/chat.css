@@ -2,176 +2,138 @@
    Dark Theme - Chat Page Styles
    ============================================ */
 
-:root[data-theme="dark"] .admin-shell .topbar,
-:root[data-theme="dark"] .topbar {
+:root[data-theme="dark"] .page-shell .topbar {
   background:
     linear-gradient(135deg, rgba(15, 29, 48, 0.98), rgba(9, 18, 31, 0.98)),
     radial-gradient(100% 160% at 0% -30%, rgba(91, 140, 255, 0.14), transparent 52%);
   border-color: rgba(57, 78, 105, 0.74);
 }
 
-:root[data-theme="dark"] .topbar::before {
+:root[data-theme="dark"] .page-shell .topbar::before {
   background: linear-gradient(135deg, rgba(91, 140, 255, 0.16), rgba(79, 195, 247, 0.08));
 }
 
-:root[data-theme="dark"] .brand-info h2 {
+:root[data-theme="dark"] .page-shell .brand-info h2 {
   background: linear-gradient(135deg, #dff1ff 0%, #8ec8ff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-:root[data-theme="dark"] .brand-subtitle,
-:root[data-theme="dark"] .sidebar > .muted,
-:root[data-theme="dark"] .option-hint,
-:root[data-theme="dark"] .process-detail,
-:root[data-theme="dark"] .compact-list,
-:root[data-theme="dark"] .message-head,
-:root[data-theme="dark"] .footer-text {
+:root[data-theme="dark"] .page-shell .brand-subtitle,
+:root[data-theme="dark"] .page-shell .sidebar > .muted,
+:root[data-theme="dark"] .page-shell .option-hint,
+:root[data-theme="dark"] .page-shell .process-detail,
+:root[data-theme="dark"] .page-shell .compact-list,
+:root[data-theme="dark"] .page-shell .message-head {
   color: #9ab0c8;
 }
 
-:root[data-theme="dark"] .topbar-btn,
-:root[data-theme="dark"] .row-actions .tiny-btn.secondary,
-:root[data-theme="dark"] .composer-actions .secondary,
-:root[data-theme="dark"] .composer-actions .link-btn {
+:root[data-theme="dark"] .page-shell .topbar-btn,
+:root[data-theme="dark"] .page-shell .bubble .row-actions .tiny-btn.secondary {
   background: rgba(20, 35, 56, 0.94);
   border-color: rgba(59, 80, 107, 0.82);
   color: #e9f2fb;
 }
 
-:root[data-theme="dark"] .topbar-btn:hover,
-:root[data-theme="dark"] .row-actions .tiny-btn.secondary:hover,
-:root[data-theme="dark"] .composer-actions .secondary:hover,
-:root[data-theme="dark"] .composer-actions .link-btn:hover {
+:root[data-theme="dark"] .page-shell .topbar-btn:hover,
+:root[data-theme="dark"] .page-shell .bubble .row-actions .tiny-btn.secondary:hover {
   background: rgba(26, 44, 69, 0.98);
   border-color: rgba(91, 140, 255, 0.48);
   color: #ffffff;
 }
 
-:root[data-theme="dark"] .topbar-btn.admin-btn,
-:root[data-theme="dark"] .composer-actions .primary-action,
-:root[data-theme="dark"] .option-chip.active {
-  background: linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
-  border-color: rgba(91, 140, 255, 0.72);
-  box-shadow: 0 10px 24px rgba(91, 140, 255, 0.34);
+:root[data-theme="dark"] .page-shell .bubble .row-actions .tiny-btn.danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.9));
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-:root[data-theme="dark"] .user-badge {
-  background: linear-gradient(135deg, rgba(91, 140, 255, 0.94), rgba(139, 122, 255, 0.94));
-  border-color: rgba(255, 255, 255, 0.16);
+:root[data-theme="dark"] .page-shell .bubble .row-actions .tiny-btn.danger:hover {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: rgba(239, 68, 68, 0.8);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
 }
 
-:root[data-theme="dark"] .user-menu-dropdown {
-  background: rgba(12, 23, 39, 0.98);
-  border-color: rgba(57, 78, 105, 0.74);
-}
-
-:root[data-theme="dark"] .user-menu-item {
-  color: #e8f1fb;
-}
-
-:root[data-theme="dark"] .user-menu-item:hover {
-  background: linear-gradient(135deg, rgba(91, 140, 255, 0.16), rgba(79, 195, 247, 0.08));
-  color: #dff1ff;
-}
-
-:root[data-theme="dark"] .composer-panel,
-:root[data-theme="dark"] .chat-options-bar,
-:root[data-theme="dark"] .process-panel,
-:root[data-theme="dark"] details,
-:root[data-theme="dark"] .citation-card,
-:root[data-theme="dark"] .process-step,
-:root[data-theme="dark"] .graph-section,
-:root[data-theme="dark"] .graph-context,
-:root[data-theme="dark"] .profile-card,
-:root[data-theme="dark"] .admin-mini-card,
-:root[data-theme="dark"] .ops-kpi-card,
-:root[data-theme="dark"] .ops-health-card,
-:root[data-theme="dark"] .agent-mode-card,
-:root[data-theme="dark"] .pdf-kpi-card {
+:root[data-theme="dark"] .page-shell .composer-panel,
+:root[data-theme="dark"] .page-shell .chat-options-bar,
+:root[data-theme="dark"] .page-shell .process-panel,
+:root[data-theme="dark"] .page-shell details,
+:root[data-theme="dark"] .page-shell .citation-card,
+:root[data-theme="dark"] .page-shell .process-step,
+:root[data-theme="dark"] .page-shell .graph-section,
+:root[data-theme="dark"] .page-shell .graph-context {
   background: linear-gradient(180deg, rgba(15, 27, 44, 0.94), rgba(10, 19, 33, 0.94));
   border-color: rgba(46, 66, 92, 0.82);
 }
 
-:root[data-theme="dark"] .chat-window.panel:hover,
-:root[data-theme="dark"] .composer-panel:hover,
-:root[data-theme="dark"] .process-panel:hover,
-:root[data-theme="dark"] details:hover,
-:root[data-theme="dark"] .citation-card:hover,
-:root[data-theme="dark"] .process-step:hover,
-:root[data-theme="dark"] .agent-mode-card:hover,
-:root[data-theme="dark"] .pdf-kpi-card:hover {
+:root[data-theme="dark"] .page-shell .chat-window.panel:hover,
+:root[data-theme="dark"] .page-shell .composer-panel:hover,
+:root[data-theme="dark"] .page-shell .process-panel:hover,
+:root[data-theme="dark"] .page-shell details:hover,
+:root[data-theme="dark"] .page-shell .citation-card:hover,
+:root[data-theme="dark"] .page-shell .process-step:hover {
   border-color: rgba(91, 140, 255, 0.4);
 }
 
-:root[data-theme="dark"] .bubble.assistant {
+:root[data-theme="dark"] .page-shell .bubble.assistant {
   background: rgba(18, 31, 50, 0.94);
   border-color: rgba(48, 68, 94, 0.86);
 }
 
-:root[data-theme="dark"] .bubble.user {
+:root[data-theme="dark"] .page-shell .bubble.user {
   background: linear-gradient(135deg, rgba(91, 140, 255, 0.22), rgba(139, 122, 255, 0.2));
   border-color: rgba(91, 140, 255, 0.38);
 }
 
-:root[data-theme="dark"] .bubble.assistant .message-role,
-:root[data-theme="dark"] .bubble.user .message-role,
-:root[data-theme="dark"] .chip,
-:root[data-theme="dark"] .process-kind,
-:root[data-theme="dark"] details summary:hover,
-:root[data-theme="dark"] .quick-prompt-row .tiny-btn,
-:root[data-theme="dark"] .brand-logo,
-:root[data-theme="dark"] .admin-mini-card strong {
+:root[data-theme="dark"] .page-shell .bubble.assistant .message-role,
+:root[data-theme="dark"] .page-shell .bubble.user .message-role,
+:root[data-theme="dark"] .page-shell .chip,
+:root[data-theme="dark"] .page-shell .process-kind,
+:root[data-theme="dark"] .page-shell details summary:hover,
+:root[data-theme="dark"] .page-shell .brand-logo {
   color: #8ec8ff;
 }
 
-:root[data-theme="dark"] .markdown,
-:root[data-theme="dark"] .markdown p,
-:root[data-theme="dark"] .markdown li,
-:root[data-theme="dark"] .markdown h1,
-:root[data-theme="dark"] .markdown h2,
-:root[data-theme="dark"] .markdown h3,
-:root[data-theme="dark"] .section-head strong,
-:root[data-theme="dark"] .help-option h4,
-:root[data-theme="dark"] .profile-header h1,
-:root[data-theme="dark"] .table,
-:root[data-theme="dark"] .table thead th,
-:root[data-theme="dark"] .table tbody td {
+:root[data-theme="dark"] .page-shell .markdown,
+:root[data-theme="dark"] .page-shell .markdown p,
+:root[data-theme="dark"] .page-shell .markdown li,
+:root[data-theme="dark"] .page-shell .markdown h1,
+:root[data-theme="dark"] .page-shell .markdown h2,
+:root[data-theme="dark"] .page-shell .markdown h3,
+:root[data-theme="dark"] .page-shell .section-head strong {
   color: #eaf2fb;
 }
 
-:root[data-theme="dark"] .markdown code {
+:root[data-theme="dark"] .page-shell .markdown code {
   background: rgba(91, 140, 255, 0.12);
   color: #ffd6d6;
 }
 
-:root[data-theme="dark"] .composer-main textarea,
-:root[data-theme="dark"] .option-agent select,
-:root[data-theme="dark"] .chat-options-bar select,
-:root[data-theme="dark"] .admin-shell .ops-two-col input,
-:root[data-theme="dark"] .admin-shell .ops-two-col select,
-:root[data-theme="dark"] .admin-shell .table td select {
+:root[data-theme="dark"] .page-shell .composer-main textarea,
+:root[data-theme="dark"] .page-shell .option-agent select,
+:root[data-theme="dark"] .page-shell .chat-options-bar select {
   background: rgba(11, 21, 35, 0.96);
   border-color: rgba(57, 78, 105, 0.74);
   color: #eaf2fb;
 }
 
-:root[data-theme="dark"] .composer-main textarea::placeholder,
-:root[data-theme="dark"] .option-agent select::placeholder {
+:root[data-theme="dark"] .page-shell .composer-main textarea::placeholder,
+:root[data-theme="dark"] .page-shell .option-agent select::placeholder {
   color: #859bb3;
 }
 
-:root[data-theme="dark"] .option-hint,
-:root[data-theme="dark"] .chip,
-:root[data-theme="dark"] .process-kind,
-:root[data-theme="dark"] details[open] summary,
-:root[data-theme="dark"] .quick-prompt-row .tiny-btn:hover {
+:root[data-theme="dark"] .page-shell .option-hint,
+:root[data-theme="dark"] .page-shell .chip,
+:root[data-theme="dark"] .page-shell .process-kind,
+:root[data-theme="dark"] .page-shell details[open] summary {
   background: rgba(91, 140, 255, 0.1);
   border-color: rgba(91, 140, 255, 0.26);
 }
 
-:root[data-theme="dark"] .chat-window.panel {
+:root[data-theme="dark"] .page-shell .chat-window.panel {
   background: linear-gradient(180deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.6));
   border-color: rgba(71, 85, 105, 0.4);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);

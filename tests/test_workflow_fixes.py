@@ -49,6 +49,111 @@ def test_retrieval_strategy_always_passed():
         assert call_kwargs["allowed_sources"] == ["doc1.md"]
 
 
+def test_vector_node_passes_agent_class_to_vector_rag():
+    """Test that non-streaming vector retrieval honors routed agent class."""
+    from app.graph.workflow import vector_node
+
+    state: GraphState = {
+        "question": "test question",
+        "route": "vector",
+        "retrieval_strategy": "baseline",
+        "allowed_sources": None,
+        "agent_class": "cybersecurity",
+    }
+
+    with patch("app.graph.workflow.run_vector_rag") as mock_rag:
+        mock_rag.return_value = {"context": "", "citations": [], "retrieved_count": 0}
+        vector_node(state)
+
+        mock_rag.assert_called_once()
+        call_kwargs = mock_rag.call_args[1]
+        assert call_kwargs["agent_class"] == "cybersecurity"
+
+
+def test_hybrid_route_passes_agent_class_to_parallel_retrievers():
+    """Test that hybrid retrieval preserves agent class for both retrievers."""
+    from app.graph.workflow import vector_node
+
+    state: GraphState = {
+        "question": "test question",
+        "route": "hybrid",
+        "retrieval_strategy": "baseline",
+        "allowed_sources": ["doc1.md"],
+        "agent_class": "pdf_text",
+    }
+
+    with patch("app.graph.workflow.submit_hybrid") as mock_submit:
+        mock_vector_future = MagicMock()
+        mock_graph_future = MagicMock()
+        mock_vector_future.result.return_value = {"context": "vec", "citations": [], "retrieved_count": 2}
+        mock_graph_future.result.return_value = {"context": "graph", "entities": [], "neighbors": []}
+        mock_submit.side_effect = [mock_vector_future, mock_graph_future]
+
+        vector_node(state)
+
+        vector_args = mock_submit.call_args_list[0].args
+        graph_args = mock_submit.call_args_list[1].args
+        assert vector_args[-1] == "pdf_text"
+        assert graph_args[-1] == "pdf_text"
+
+
+def test_graph_node_passes_agent_class_to_safe_graph_result():
+    """Test that graph node preserves routed agent class."""
+    from app.graph.nodes import graph_node as graph_node_impl
+
+    state: GraphState = {
+        "question": "graph question",
+        "allowed_sources": None,
+        "agent_class": "artificial_intelligence",
+    }
+
+    with patch("app.graph.nodes.graph_node.safe_graph_result") as mock_graph:
+        mock_graph.return_value = {"context": "graph", "entities": [], "neighbors": []}
+        graph_node_impl(state)
+
+        mock_graph.assert_called_once_with(
+            "graph question",
+            allowed_sources=None,
+            agent_class="artificial_intelligence",
+        )
+
+
+def test_synthesis_node_passes_session_id_to_synthesize_answer():
+    """Test that synthesis analytics receive the active session id."""
+    state: GraphState = {
+        "question": "answer this",
+        "skill": "answer_with_citations",
+        "session_id": "session-123",
+        "vector_result": {"context": "", "citations": []},
+        "graph_result": {"context": "", "entities": [], "neighbors": []},
+        "web_result": {"context": "", "citations": [], "used": False},
+    }
+
+    with patch("app.graph.nodes.synthesis_node.synthesize_answer") as mock_synthesize:
+        mock_synthesize.return_value = {"answer": "ok", "detected_language": "en"}
+        result = synthesis_node(state)
+
+        assert result["answer"] == "ok"
+        assert mock_synthesize.call_args[1]["session_id"] == "session-123"
+
+
+def test_workflow_vector_wrapper_passes_execution_id_to_tracker():
+    """Test that the workflow-level vector compatibility wrapper is tracked."""
+    from app.graph.workflow import vector_node
+
+    state: GraphState = {
+        "question": "test question",
+        "route": "vector",
+        "execution_id": "exec-123",
+    }
+
+    with patch("app.graph.workflow._tracked_vector_node") as mock_tracked:
+        mock_tracked.return_value = {"vector_result": {"context": "", "citations": []}}
+        vector_node(state)
+
+        mock_tracked.assert_called_once_with(state, execution_id="exec-123")
+
+
 def test_hybrid_route_executes_both_in_parallel():
     """Test that hybrid route executes vector and graph in parallel without double execution."""
     from app.graph.workflow import vector_node, route_after_vector

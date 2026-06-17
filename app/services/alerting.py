@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import logging
 import threading
 import time
 from typing import Any
@@ -10,6 +11,8 @@ from urllib.parse import urlparse
 import httpx
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 _LOCK = threading.Lock()
 _LAST_SENT: dict[str, float] = {}

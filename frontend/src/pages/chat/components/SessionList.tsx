@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
+import { useTranslation } from "react-i18next";
 import type { SessionSummary } from "@/types/api";
 
 type Props = {
@@ -13,12 +15,12 @@ type Props = {
   onRenameSession?: (sessionId: string, newTitle: string) => Promise<void>;
 };
 
-function formatSessionTime(value?: string) {
-  if (!value) return "最近";
+function formatSessionTime(value: string | undefined, fallback: string, locale: string) {
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "最近";
+  if (Number.isNaN(date.getTime())) return fallback;
 
-  return date.toLocaleTimeString("zh-CN", {
+  return date.toLocaleTimeString(locale === "zh" ? "zh-CN" : "en-US", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -35,6 +37,7 @@ export function SessionList({
   onDeleteSession,
   onRenameSession,
 }: Props) {
+  const { t, i18n } = useTranslation();
   const [sessionQuery, setSessionQuery] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -44,10 +47,10 @@ export function SessionList({
     if (!normalizedQuery) return sessions;
 
     return sessions.filter((session) => {
-      const title = session.title || "Untitled";
+      const title = session.title || t("components.chat.untitled");
       return title.toLowerCase().includes(normalizedQuery);
     });
-  }, [normalizedQuery, sessions]);
+  }, [normalizedQuery, sessions, t]);
 
   useEffect(() => {
     if (searchRequestKey <= 0) return;
@@ -55,7 +58,6 @@ export function SessionList({
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }, [searchRequestKey]);
 
-  // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -84,7 +86,7 @@ export function SessionList({
     event.stopPropagation();
     setOpenMenuId(null);
 
-    const newTitle = window.prompt("重命名会话", currentTitle || "Untitled");
+    const newTitle = window.prompt(t("components.chat.renameSession"), currentTitle || t("components.chat.untitled"));
     if (newTitle !== null && newTitle.trim() !== "" && newTitle !== currentTitle) {
       void onRenameSession?.(sessionId, newTitle.trim());
     }
@@ -92,14 +94,14 @@ export function SessionList({
 
   return (
     <section className="sidebar-history-panel">
-      <label className="session-search" aria-label="搜索会话">
+      <label className="session-search" aria-label={t("components.chat.searchSessions")}>
         <span className="session-search-icon" aria-hidden="true" />
         <input
           ref={searchInputRef}
           type="search"
           value={sessionQuery}
           onChange={(event) => setSessionQuery(event.target.value)}
-          placeholder="搜索会话"
+          placeholder={t("components.chat.searchSessions")}
         />
       </label>
       <button
@@ -109,62 +111,69 @@ export function SessionList({
         disabled={sessionLoading}
       >
         <span className="session-create-icon" aria-hidden="true">+</span>
-        <span>新建会话</span>
+        <span>{t("components.chat.newSession")}</span>
         <small>{sessions.length || 0}</small>
       </button>
       {sessionLoading && <div className="skeleton-list" />}
-      {!sessionLoading && sessions.length === 0 && <div className="muted">还没有会话</div>}
+      {!sessionLoading && sessions.length === 0 && <div className="muted">{t("components.chat.noSessions")}</div>}
       {!sessionLoading && sessions.length > 0 && filteredSessions.length === 0 && (
-        <div className="session-empty">没有匹配的会话</div>
+        <div className="session-empty">{t("components.chat.noSessionMatches")}</div>
       )}
       {!sessionLoading && filteredSessions.length > 0 && (
         <ul className="list session-list">
-          {filteredSessions.map((s) => (
-            <li key={s.session_id} className={`session-item ${s.session_id === currentSessionId ? "active" : ""}`}>
-              <button
-                type="button"
-                className="list-main-btn session-main-btn"
-                onClick={() => void onLoadSession(s.session_id)}
-                disabled={busySessionId === s.session_id}
-              >
-                <span className="session-copy">
-                  <span className="session-title">{s.title || "Untitled"}</span>
-                  <small className="session-meta">{formatSessionTime(s.updated_at)}</small>
-                </span>
-                <small className="session-count">{s.message_count || 0}</small>
-              </button>
-              <div className="session-menu-wrapper">
+          {filteredSessions.map((session) => {
+            const title = session.title || t("components.chat.untitled");
+            return (
+              <li key={session.session_id} className={`session-item ${session.session_id === currentSessionId ? "active" : ""}`}>
                 <button
                   type="button"
-                  className="session-menu-btn"
-                  onClick={(e) => handleMenuToggle(s.session_id, e)}
-                  aria-label={`会话选项 ${s.title || "未命名会话"}`}
+                  className="list-main-btn session-main-btn"
+                  onClick={() => void onLoadSession(session.session_id)}
+                  disabled={busySessionId === session.session_id}
                 >
-                  ⋯
+                  <span className="session-copy">
+                    <span className="session-title">{title}</span>
+                    <small className="session-meta">
+                      {formatSessionTime(session.updated_at, t("components.chat.recent"), i18n.language)}
+                    </small>
+                  </span>
+                  <small className="session-count">{session.message_count || 0}</small>
                 </button>
-                {openMenuId === s.session_id && (
-                  <div ref={menuRef} className="session-dropdown-menu">
-                    <button
-                      type="button"
-                      className="session-menu-item"
-                      onClick={(e) => handleRename(s.session_id, s.title || "", e)}
-                    >
-                      <span className="menu-icon">✏️</span>
-                      重命名
-                    </button>
-                    <button
-                      type="button"
-                      className="session-menu-item danger"
-                      onClick={(e) => handleDelete(s.session_id, e)}
-                    >
-                      <span className="menu-icon">🗑️</span>
-                      删除
-                    </button>
-                  </div>
-                )}
-              </div>
-            </li>
-          ))}
+                <div className="session-menu-wrapper">
+                  <button
+                    type="button"
+                    className="session-menu-btn"
+                    onClick={(event) => handleMenuToggle(session.session_id, event)}
+                    aria-label={t("components.chat.sessionOptions", {
+                      title: session.title || t("components.chat.untitledSession"),
+                    })}
+                  >
+                    ⋯
+                  </button>
+                  {openMenuId === session.session_id && (
+                    <div ref={menuRef} className="session-dropdown-menu">
+                      <button
+                        type="button"
+                        className="session-menu-item"
+                        onClick={(event) => handleRename(session.session_id, session.title || "", event)}
+                      >
+                        <span className="menu-icon" aria-hidden="true">✎</span>
+                        {t("components.chat.rename")}
+                      </button>
+                      <button
+                        type="button"
+                        className="session-menu-item danger"
+                        onClick={(event) => handleDelete(session.session_id, event)}
+                      >
+                        <span className="menu-icon" aria-hidden="true">×</span>
+                        {t("components.chat.delete")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

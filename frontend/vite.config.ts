@@ -3,6 +3,38 @@ import react from "@vitejs/plugin-react-swc";
 // @ts-ignore - JavaScript plugin without type definitions
 import inlineCriticalCSS from './vite-plugin-inline-critical.js';
 
+function isCss(id: string) {
+  return id.endsWith(".css");
+}
+
+function isChatRouteCss(id: string) {
+  return (
+    id.includes('pages/chat-entry.css') ||
+    id.includes('pages/chat.css') ||
+    id.includes('pages/chat-responsive.css') ||
+    id.includes('themes/light/chat.css') ||
+    id.includes('themes/dark/chat.css') ||
+    id.includes('components/topbar') ||
+    id.includes('components/sidebar') ||
+    id.includes('components/welcome-screen.css') ||
+    id.includes('features/messages.css') ||
+    id.includes('features/composer') ||
+    id.includes('features/citations.css') ||
+    id.includes('features/graph.css') ||
+    id.includes('features/process.css')
+  );
+}
+
+function createBackendProxy(rewriteAppBase = false) {
+  return {
+    target: "http://127.0.0.1:8000",
+    changeOrigin: true,
+    timeout: 600000,
+    proxyTimeout: 600000,
+    rewrite: rewriteAppBase ? (path: string) => path.replace(/^\/app/, "") : undefined,
+  };
+}
+
 export default defineConfig({
   plugins: [react(), inlineCriticalCSS()],
   base: "/app/",
@@ -17,27 +49,23 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           // Component-level CSS splitting (Phase 4)
-          if (id.includes('components/modals.css')) {
+          if (isCss(id) && id.includes('components/modals.css')) {
             return 'modal-styles';
           }
-          if (id.includes('components/dropdowns.css')) {
+          if (isCss(id) && id.includes('components/dropdowns.css')) {
             return 'dropdown-styles';
           }
-          if (id.includes('components/tooltips.css')) {
-            return 'tooltip-styles';
-          }
-
           // Route-specific CSS splitting (Phase 3)
-          if (id.includes('pages/auth') || id.includes('themes/light/auth') || id.includes('themes/dark/auth')) {
+          if (isCss(id) && (id.includes('pages/auth-entry.css') || id.includes('pages/auth/'))) {
             return 'auth-styles';
           }
-          if (id.includes('pages/chat') || id.includes('themes/light/chat') || id.includes('themes/dark/chat')) {
+          if (isCss(id) && isChatRouteCss(id)) {
             return 'chat-styles';
           }
-          if (id.includes('pages/admin') || id.includes('themes/light/admin') || id.includes('themes/dark/admin')) {
+          if (isCss(id) && (id.includes('pages/admin-entry.css') || id.includes('pages/admin/'))) {
             return 'admin-styles';
           }
-          if (id.includes('pages/profile')) {
+          if (isCss(id) && id.includes('pages/profile')) {
             return 'profile-styles';
           }
         }
@@ -49,10 +77,8 @@ export default defineConfig({
     host: "127.0.0.1",
     proxy: {
       "/auth": {
-        target: "http://127.0.0.1:8000",
+        ...createBackendProxy(),
         changeOrigin: true,
-        timeout: 600000,
-        proxyTimeout: 600000,
         configure: (proxy, _options) => {
           proxy.on('proxyRes', (proxyRes, _req, _res) => {
             // Remove 'secure' flag from cookies in development
@@ -65,13 +91,23 @@ export default defineConfig({
           });
         }
       },
-      "/sessions": { target: "http://127.0.0.1:8000", changeOrigin: true, timeout: 600000, proxyTimeout: 600000 },
-      "/documents": { target: "http://127.0.0.1:8000", changeOrigin: true, timeout: 600000, proxyTimeout: 600000 },
-      "/upload": { target: "http://127.0.0.1:8000", changeOrigin: true, timeout: 600000, proxyTimeout: 600000 },
-      "/prompts": { target: "http://127.0.0.1:8000", changeOrigin: true, timeout: 600000, proxyTimeout: 600000 },
-      "/query": { target: "http://127.0.0.1:8000", changeOrigin: true, timeout: 600000, proxyTimeout: 600000 },
-      "/admin": { target: "http://127.0.0.1:8000", changeOrigin: true, timeout: 600000, proxyTimeout: 600000 },
-      "/user": { target: "http://127.0.0.1:8000", changeOrigin: true, timeout: 600000, proxyTimeout: 600000 },
+      "/sessions": createBackendProxy(),
+      "/documents": createBackendProxy(),
+      "/upload": createBackendProxy(),
+      "/prompts": createBackendProxy(),
+      "/query": createBackendProxy(),
+      "/admin": createBackendProxy(),
+      "/user": createBackendProxy(),
+      "/api": createBackendProxy(),
+      "/app/auth": createBackendProxy(true),
+      "/app/sessions": createBackendProxy(true),
+      "/app/documents": createBackendProxy(true),
+      "/app/upload": createBackendProxy(true),
+      "/app/prompts": createBackendProxy(true),
+      "/app/query": createBackendProxy(true),
+      "/app/admin": createBackendProxy(true),
+      "/app/user": createBackendProxy(true),
+      "/app/api": createBackendProxy(true),
     },
   },
 });
