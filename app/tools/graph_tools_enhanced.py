@@ -7,96 +7,83 @@ Key improvements:
 3. Semantic similarity for entity matching
 4. PDF-aware relationship weighting
 5. Multi-hop path exploration with relevance ranking
+
+OPTIMIZATIONS:
+- Uses centralized configuration from graph_tools_config
+- Precompiled regex patterns
+- Improved type hints
+- Better error handling and logging
 """
 
-import re
 import logging
+import re
 from typing import Optional
 
 from app.api.utils.string_utils import normalize_string
 from app.graph.neo4j_client import Neo4jClient
 from app.services.bulkhead import bulkhead
 from app.services.resilience import call_with_circuit_breaker
+from app.tools.graph_tools_config import (
+    CONFIDENCE_HIGH_ENTITIES,
+    CONFIDENCE_HIGH_NEIGHBORS,
+    CONFIDENCE_HIGH_PATHS,
+    CONFIDENCE_HIGH_SIGNAL,
+    CONFIDENCE_MEDIUM_ENTITIES,
+    CONFIDENCE_MEDIUM_NEIGHBORS,
+    CONFIDENCE_MEDIUM_SIGNAL,
+    ENTITY_ALIASES,
+    ENTITY_COUNT_OPTIMAL,
+    ENTITY_RETRIEVAL_MULTIPLIER,
+    HIGH_VALUE_RELATIONS,
+    NEIGHBOR_QUALITY_BOOST,
+    NEIGHBOR_RETRIEVAL_MULTIPLIER,
+    NOISY_RELATIONS,
+    PATH_RETRIEVAL_MULTIPLIER,
+    PATH_WEIGHT_BOOST,
+    QUALITY_BOOST_MAX,
+    QUALITY_BOOST_THRESHOLD,
+    RELATION_WEIGHT_HIGH,
+    RELATION_WEIGHT_LOW,
+    RELATION_WEIGHT_MEDIUM,
+    SIGNAL_WEIGHT_ENTITY,
+    SIGNAL_WEIGHT_NEIGHBOR,
+    SIGNAL_WEIGHT_PATH,
+    TOKEN_PATTERN_STRING,
+)
 
 logger = logging.getLogger(__name__)
 
-# Enhanced token pattern with better Unicode support
-TOKEN_PATTERN = re.compile(
-    r"[A-Za-z0-9_\-]{2,}|"  # English words/acronyms (min 2 chars)
-    r"[一-鿿]{2,}|"  # Chinese (min 2 chars)
-    r"[A-Z]{2,}"  # Acronyms in caps
-)
-
-# Expanded noisy relations
-_NOISY_RELATIONS = {
-    "related", "关联", "相关", "link", "links", "linked_to",
-    "unknown", "其他", "other", "misc", "general", "通用"
-}
-
-# Comprehensive entity aliases for better matching
-_ENTITY_ALIASES = {
-    # AI/ML terms
-    "ai": "artificial intelligence",
-    "a.i.": "artificial intelligence",
-    "llm": "large language model",
-    "大模型": "large language model",
-    "大语言模型": "large language model",
-    "ml": "machine learning",
-    "机器学习": "machine learning",
-    "dl": "deep learning",
-    "深度学习": "deep learning",
-    "nlp": "natural language processing",
-    "自然语言处理": "natural language processing",
-
-    # RAG specific
-    "rag": "retrieval augmented generation",
-    "检索增强生成": "retrieval augmented generation",
-    "向量检索": "vector retrieval",
-    "vector search": "vector retrieval",
-
-    # Security
-    "网络安全": "cybersecurity",
-    "资安": "cybersecurity",
-    "信息安全": "information security",
-    "infosec": "information security",
-
-    # Database
-    "数据库": "database",
-    "db": "database",
-    "图数据库": "graph database",
-    "neo4j": "graph database",
-
-    # Common tech
-    "api": "application programming interface",
-    "rest": "representational state transfer",
-    "gpu": "graphics processing unit",
-    "cpu": "central processing unit",
-}
-
-# High-value relation keywords (weighted higher)
-_HIGH_VALUE_RELATIONS = {
-    "causes", "导致", "leads_to", "引起",
-    "depends", "依赖", "requires", "需要",
-    "uses", "利用", "employs", "采用",
-    "targets", "攻击", "affects", "影响",
-    "mitigates", "缓解", "prevents", "防止",
-    "implements", "实现", "contains", "包含",
-    "produces", "产生", "generates", "生成",
-    "improves", "改进", "enhances", "增强",
-}
+# Precompiled token pattern
+TOKEN_PATTERN = re.compile(TOKEN_PATTERN_STRING)
 
 
 def _normalize_token(token: str) -> str:
-    """Normalize a token with alias expansion."""
-    t = normalize_string(token, lowercase=True)
-    if not t:
+    """
+    Normalize a token with alias expansion.
+
+    Args:
+        token: Raw token string
+
+    Returns:
+        Normalized token (with alias expansion if applicable)
+    """
+    normalized = normalize_string(token, lowercase=True)
+    if not normalized:
         return ""
-    return _ENTITY_ALIASES.get(t, t)
+    return ENTITY_ALIASES.get(normalized, normalized)
 
 
 def _normalize_entity_name(name: str) -> str:
-    """Normalize entity name with smart handling of multi-token entities."""
-    # Try full name first
+    """
+    Normalize entity name with smart handling of multi-token entities.
+
+    Args:
+        name: Entity name to normalize
+
+    Returns:
+        Normalized entity name
+    """
+    # Try full name first for alias match
     normalized_full = _normalize_token(name)
     if normalized_full != normalize_string(name, lowercase=True):
         # Found an alias
@@ -117,23 +104,26 @@ def _relation_weight(rel: str, context_quality: float = 0.5) -> float:
     Returns:
         Weight score (0-1)
     """
-    r = normalize_string(rel, lowercase=True)
-    if not r:
+    normalized = normalize_string(rel, lowercase=True)
+    if not normalized:
         return 0.0
 
     # Filter noise
-    if r in _NOISY_RELATIONS:
+    if normalized in NOISY_RELATIONS:
         return 0.0
 
-    # High-value relations
-    if any(k in r for k in _HIGH_VALUE_RELATIONS):
-        base_weight = 1.0
+    # Determine base weight
+    if any(keyword in normalized for keyword in HIGH_VALUE_RELATIONS):
+        base_weight = RELATION_WEIGHT_HIGH
     else:
-        base_weight = 0.6
+        base_weight = RELATION_WEIGHT_MEDIUM
 
-    # Boost based on context quality
+    # Apply context quality boost
     # High-quality PDFs with good structure → higher confidence in relations
-    quality_boost = 1.0 + (context_quality * 0.3)  # Up to 30% boost
+    if context_quality >= QUALITY_BOOST_THRESHOLD:
+        quality_boost = 1.0 + QUALITY_BOOST_MAX
+    else:
+        quality_boost = 1.0 + (context_quality * QUALITY_BOOST_MAX)
 
     return min(1.0, base_weight * quality_boost)
 
@@ -157,16 +147,16 @@ def _calculate_semantic_similarity(query_tokens: list[str], entity_name: str) ->
         return 0.0
 
     # Exact matches
-    matches = sum(1 for t in query_tokens if t in entity_tokens)
+    exact_matches = sum(1 for token in query_tokens if token in entity_tokens)
 
     # Partial matches (substring)
-    partial = sum(
-        0.5 for qt in query_tokens
-        for et in entity_tokens
-        if qt in et or et in qt
+    partial_matches = sum(
+        0.5 for query_token in query_tokens
+        for entity_token in entity_tokens
+        if query_token in entity_token or entity_token in query_token
     )
 
-    similarity = (matches + partial) / max(len(query_tokens), len(entity_tokens))
+    similarity = (exact_matches + partial_matches) / max(len(query_tokens), len(entity_tokens))
     return min(1.0, similarity)
 
 
@@ -200,7 +190,7 @@ def graph_lookup_enhanced(
     """
     # Extract and normalize tokens
     raw_tokens = TOKEN_PATTERN.findall(question)
-    tokens = [_normalize_token(t) for t in raw_tokens if _normalize_token(t)]
+    tokens = [_normalize_token(token) for token in raw_tokens if _normalize_token(token)]
 
     if not tokens:
         logger.warning(f"No valid tokens extracted from question: {question}")
@@ -220,7 +210,7 @@ def graph_lookup_enhanced(
                 "neo4j.search_entities",
                 lambda: client.search_entities(
                     tokens,
-                    limit=max_entities * 2,  # Retrieve more, then rank
+                    limit=max_entities * ENTITY_RETRIEVAL_MULTIPLIER,
                     allowed_sources=allowed_sources
                 ),
             )
@@ -280,7 +270,7 @@ def graph_lookup_enhanced(
                     "neo4j.entity_neighbors",
                     lambda n=current_name: client.entity_neighbors(
                         n,
-                        limit=max_neighbors * 2,
+                        limit=max_neighbors * NEIGHBOR_RETRIEVAL_MULTIPLIER,
                         allowed_sources=allowed_sources
                     ),
                 )
@@ -320,17 +310,17 @@ def graph_lookup_enhanced(
                     "neo4j.entity_paths_2hop",
                     lambda n=current_name: client.entity_paths_2hop(
                         n,
-                        limit=max_paths * 2,
+                        limit=max_paths * PATH_RETRIEVAL_MULTIPLIER,
                         allowed_sources=allowed_sources
                     ),
                 )
 
-                for p in paths:
-                    source = _normalize_entity_name(str(p.get("source", "")).strip())
-                    middle = _normalize_entity_name(str(p.get("middle", "")).strip())
-                    target = _normalize_entity_name(str(p.get("target", "")).strip())
-                    rel1 = str(p.get("rel1", "")).strip()
-                    rel2 = str(p.get("rel2", "")).strip()
+                for path in paths:
+                    source = _normalize_entity_name(str(path.get("source", "")).strip())
+                    middle = _normalize_entity_name(str(path.get("middle", "")).strip())
+                    target = _normalize_entity_name(str(path.get("target", "")).strip())
+                    rel1 = str(path.get("rel1", "")).strip()
+                    rel2 = str(path.get("rel2", "")).strip()
 
                     w1 = _relation_weight(rel1, context_quality)
                     w2 = _relation_weight(rel2, context_quality)
@@ -374,8 +364,8 @@ def graph_lookup_enhanced(
 
             # Remove internal scoring fields from output
             clean_entities = [
-                {"entity": e["entity"], "relations": e["relations"]}
-                for e in top_entities
+                {"entity": entity["entity"], "relations": entity["relations"]}
+                for entity in top_entities
             ]
 
             return {
@@ -391,6 +381,9 @@ def graph_lookup_enhanced(
                 },
             }
 
+        except Exception as e:
+            logger.exception("Enhanced graph lookup failed")
+            raise
         finally:
             client.close()
 
@@ -415,28 +408,28 @@ def _calculate_enhanced_signal_score(
     """
     # Entity score: count + relevance
     if entities:
-        count_score = min(1.0, len(entities) / 5.0)
-        avg_relevance = sum(e["relevance"] for e in entities) / len(entities)
+        count_score = min(1.0, len(entities) / ENTITY_COUNT_OPTIMAL)
+        avg_relevance = sum(entity["relevance"] for entity in entities) / len(entities)
         entity_score = (count_score + avg_relevance) / 2.0
     else:
         entity_score = 0.0
 
     # Neighbor score: weighted average with quality boost
     if neighbors:
-        weights = [float(n.get("weight", 0.0)) for n in neighbors]
+        weights = [float(neighbor.get("weight", 0.0)) for neighbor in neighbors]
         neighbor_score = sum(weights) / len(weights)
         # High-quality neighbors from good context get a boost
-        if context_quality >= 0.7:
-            neighbor_score = min(1.0, neighbor_score * 1.15)
+        if context_quality >= QUALITY_BOOST_THRESHOLD:
+            neighbor_score = min(1.0, neighbor_score * NEIGHBOR_QUALITY_BOOST)
     else:
         neighbor_score = 0.0
 
     # Path score: multi-hop reasoning bonus
     if paths:
-        weights = [float(p.get("weight", 0.0)) for p in paths]
+        weights = [float(path.get("weight", 0.0)) for path in paths]
         path_score = sum(weights) / len(weights)
         # Multi-hop paths are valuable, give them a boost
-        path_score = min(1.0, path_score * 1.2)
+        path_score = min(1.0, path_score * PATH_WEIGHT_BOOST)
     else:
         path_score = 0.0
 
@@ -446,25 +439,25 @@ def _calculate_enhanced_signal_score(
 
     if entities:
         components.append(entity_score)
-        weights.append(0.35)  # Higher weight than before
+        weights.append(SIGNAL_WEIGHT_ENTITY)
 
     if neighbors:
         components.append(neighbor_score)
-        weights.append(0.40)
+        weights.append(SIGNAL_WEIGHT_NEIGHBOR)
 
     if paths:
         components.append(path_score)
-        weights.append(0.25)
+        weights.append(SIGNAL_WEIGHT_PATH)
 
     if not components:
         return 0.0
 
     # Normalize weights
     total_weight = sum(weights)
-    normalized_weights = [w / total_weight for w in weights]
+    normalized_weights = [weight / total_weight for weight in weights]
 
     # Calculate weighted score
-    score = sum(c * w for c, w in zip(components, normalized_weights))
+    score = sum(component * weight for component, weight in zip(components, normalized_weights))
 
     # Apply context quality multiplier (subtle)
     score = score * (0.9 + context_quality * 0.1)
@@ -491,11 +484,14 @@ def _determine_confidence(
         Confidence level: "high", "medium", or "low"
     """
     # High confidence: strong signal + good coverage
-    if signal_score >= 0.7 and entity_count >= 3 and (neighbor_count >= 5 or path_count >= 3):
+    if (signal_score >= CONFIDENCE_HIGH_SIGNAL and
+        entity_count >= CONFIDENCE_HIGH_ENTITIES and
+        (neighbor_count >= CONFIDENCE_HIGH_NEIGHBORS or path_count >= CONFIDENCE_HIGH_PATHS)):
         return "high"
 
     # Medium confidence: decent signal or coverage
-    if signal_score >= 0.5 or (entity_count >= 2 and neighbor_count >= 3):
+    if (signal_score >= CONFIDENCE_MEDIUM_SIGNAL or
+        (entity_count >= CONFIDENCE_MEDIUM_ENTITIES and neighbor_count >= CONFIDENCE_MEDIUM_NEIGHBORS)):
         return "medium"
 
     # Low confidence: weak signal and poor coverage

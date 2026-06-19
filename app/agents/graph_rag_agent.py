@@ -1,7 +1,16 @@
+"""
+Graph RAG Agent - Unified implementation with optional enhancements.
+
+This module provides graph-based retrieval augmented generation with:
+- Basic graph lookup (legacy mode)
+- Enhanced PDF-aware optimization (default when documents provided)
+- Adaptive parameters based on document quality
+"""
+
 import logging
+from typing import Optional
 
 from app.core.config import get_settings
-from app.tools.graph_tools import graph_lookup
 from app.services.agent_document_filter import get_sources_by_agent_class
 
 logger = logging.getLogger(__name__)
@@ -12,91 +21,211 @@ def run_graph_rag(
     allowed_sources: list[str] | None = None,
     agent_class: str | None = None,
     retrieved_docs: list[dict] | None = None,
+    enable_enhancements: bool | None = None,
 ) -> dict:
-    # 自动应用 agent 文档过滤
+    """
+    Run Graph RAG with optional PDF-aware enhancements.
+
+    Args:
+        question: User query
+        allowed_sources: Optional list of allowed document sources
+        agent_class: Agent class for automatic document filtering
+        retrieved_docs: Retrieved documents for quality analysis (enables enhancements)
+        enable_enhancements: Force enable/disable enhancements (default: auto based on config)
+
+    Returns:
+        Dictionary containing:
+        - context: Formatted graph context string
+        - entities: List of matched entity names
+        - neighbors: List of neighbor relationships
+        - paths: List of 2-hop paths
+        - graph_signal_score: Relevance score (0-1)
+        - confidence: Confidence level (high/medium/low) if enhanced
+        - pdf_context: PDF analysis results if enhanced
+    """
+    settings = get_settings()
+
+    # Auto-apply agent document filtering
     if allowed_sources is None and agent_class:
         allowed_sources = get_sources_by_agent_class(agent_class)
 
-    settings = get_settings()
-    if settings.graph_rag_enhanced:
-        from app.agents.graph_rag_agent_enhanced import (
-            get_document_context_for_query,
-            run_graph_rag_with_pdf_context,
-        )
+    # Determine whether to use enhancements
+    should_enhance = (
+        enable_enhancements
+        if enable_enhancements is not None
+        else settings.graph_rag_enhanced
+    )
 
-        pdf_context = None
-        if retrieved_docs:
-            pdf_context = get_document_context_for_query(question, retrieved_docs)
-            if pdf_context["quality_score"] < settings.graph_rag_min_pdf_quality:
-                return {
-                    "context": "",
-                    "entities": [],
-                    "neighbors": [],
-                    "paths": [],
-                    "graph_signal_score": 0.0,
-                    "confidence": "low",
-                    "pdf_context": pdf_context,
-                    "skipped_reason": "low_quality_documents",
-                }
-
-        result = run_graph_rag_with_pdf_context(
-            question,
-            retrieved_docs=retrieved_docs,
+    # Use enhanced version when explicitly requested or when documents are provided
+    if should_enhance and retrieved_docs:
+        return _run_enhanced_graph_rag(
+            question=question,
             allowed_sources=allowed_sources,
-            agent_class=agent_class,
+            retrieved_docs=retrieved_docs,
         )
-        if pdf_context is not None and "pdf_context" not in result:
-            result["pdf_context"] = pdf_context
-        return result
+
+    # Fallback to basic implementation
+    return _run_basic_graph_rag(
+        question=question,
+        allowed_sources=allowed_sources,
+    )
+
+
+def _run_basic_graph_rag(
+    question: str,
+    allowed_sources: list[str] | None = None,
+) -> dict:
+    """
+    Basic graph RAG implementation without enhancements.
+
+    This is the legacy implementation using basic graph_lookup.
+    """
+    from app.tools.graph_tools import graph_lookup
 
     try:
         graph_result = graph_lookup(question, allowed_sources=allowed_sources)
     except Exception as e:
-        if type(e).__name__ in {"ServiceUnavailable", "ConnectionError"}:
-            logger.warning("Graph lookup unavailable for question '%s': %s", question, type(e).__name__)
+        error_type = type(e).__name__
+
+        # Log differently based on error type
+        if error_type in {"ServiceUnavailable", "ConnectionError"}:
+            logger.warning(
+                "Graph lookup unavailable for question '%s': %s",
+                question,
+                error_type
+            )
         else:
-            logger.exception(f"Graph lookup failed for question: {question}")
+            logger.exception("Graph lookup failed for question: %s", question)
+
         return {
             "context": "",
             "entities": [],
             "neighbors": [],
             "paths": [],
             "graph_signal_score": 0.0,
-            "error": f"graph_lookup_error:{type(e).__name__}",
+            "error": f"graph_lookup_error:{error_type}",
         }
 
+    # Extract results
     entities = graph_result.get("entities", [])
     neighbors = graph_result.get("neighbors", [])
     paths = graph_result.get("paths", [])
     graph_signal_score = float(graph_result.get("graph_signal_score", 0.0) or 0.0)
 
-    lines = []
-    for item in entities:
-        name = item.get("entity", "")
-        if not name:
-            continue
-        lines.append(f"Entity: {name}")
-        for rel in item.get("relations", []):
-            if rel.get("other"):
-                lines.append(f"  - {rel.get('relation')} ({rel.get('weight', 0):.2f}) -> {rel.get('other')}")
-
-    for row in neighbors:
-        if row.get("entity") and row.get("relation") and row.get("other"):
-            lines.append(
-                f"Neighbor: {row['entity']} -[{row['relation']}|{float(row.get('weight', 0)):.2f}]- {row['other']}"
-            )
-    for row in paths:
-        if row.get("source") and row.get("middle") and row.get("target"):
-            lines.append(
-                "Path2Hop: "
-                f"{row['source']} -[{row.get('rel1', '')}]- {row['middle']} -[{row.get('rel2', '')}]- {row['target']}"
-                f" | w={float(row.get('weight', 0)):.2f}"
-            )
+    # Format context string
+    context = _format_graph_context(entities, neighbors, paths)
 
     return {
-        "context": "\n".join(lines),
+        "context": context,
         "entities": [x.get("entity") for x in entities if x.get("entity")],
         "neighbors": neighbors,
         "paths": paths,
         "graph_signal_score": graph_signal_score,
     }
+
+
+def _run_enhanced_graph_rag(
+    question: str,
+    allowed_sources: list[str] | None = None,
+    retrieved_docs: list[dict] | None = None,
+) -> dict:
+    """
+    Enhanced graph RAG with PDF-aware optimizations.
+
+    Applies document quality analysis and adaptive parameters for better accuracy.
+    """
+    from app.agents.graph_rag_agent_enhanced import (
+        get_document_context_for_query,
+        run_graph_rag_with_pdf_context,
+    )
+
+    settings = get_settings()
+
+    # Analyze document quality if documents provided
+    pdf_context = None
+    if retrieved_docs:
+        pdf_context = get_document_context_for_query(question, retrieved_docs)
+
+        # Skip graph lookup if document quality is too low
+        if pdf_context["quality_score"] < settings.graph_rag_min_pdf_quality:
+            logger.info(
+                "Skipping graph RAG for question '%s' due to low PDF quality: %.2f < %.2f",
+                question,
+                pdf_context["quality_score"],
+                settings.graph_rag_min_pdf_quality,
+            )
+            return {
+                "context": "",
+                "entities": [],
+                "neighbors": [],
+                "paths": [],
+                "graph_signal_score": 0.0,
+                "confidence": "low",
+                "pdf_context": pdf_context,
+                "skipped_reason": "low_quality_documents",
+            }
+
+    # Run enhanced graph RAG
+    result = run_graph_rag_with_pdf_context(
+        question=question,
+        retrieved_docs=retrieved_docs,
+        allowed_sources=allowed_sources,
+    )
+
+    # Attach PDF context if analyzed
+    if pdf_context is not None and "pdf_context" not in result:
+        result["pdf_context"] = pdf_context
+
+    return result
+
+
+def _format_graph_context(
+    entities: list[dict],
+    neighbors: list[dict],
+    paths: list[dict],
+) -> str:
+    """
+    Format graph results into a readable context string.
+
+    Args:
+        entities: List of entities with relations
+        neighbors: List of neighbor relationships
+        paths: List of 2-hop paths
+
+    Returns:
+        Formatted multi-line context string
+    """
+    lines = []
+
+    # Format entities and their relations
+    for item in entities:
+        name = item.get("entity", "")
+        if not name:
+            continue
+
+        lines.append(f"Entity: {name}")
+        for rel in item.get("relations", []):
+            if rel.get("other"):
+                weight = rel.get("weight", 0)
+                lines.append(
+                    f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}"
+                )
+
+    # Format neighbor relationships
+    for row in neighbors:
+        if row.get("entity") and row.get("relation") and row.get("other"):
+            weight = float(row.get("weight", 0))
+            lines.append(
+                f"Neighbor: {row['entity']} -[{row['relation']}|{weight:.2f}]- {row['other']}"
+            )
+
+    # Format 2-hop paths
+    for row in paths:
+        if row.get("source") and row.get("middle") and row.get("target"):
+            weight = float(row.get("weight", 0))
+            lines.append(
+                f"Path2Hop: {row['source']} -[{row.get('rel1', '')}]- {row['middle']} "
+                f"-[{row.get('rel2', '')}]- {row['target']} | w={weight:.2f}"
+            )
+
+    return "\n".join(lines)

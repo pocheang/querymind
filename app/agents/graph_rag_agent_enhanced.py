@@ -8,164 +8,117 @@ This module bridges PDF processing and Graph RAG to improve accuracy by:
 """
 
 import logging
-import re
 
+from app.agents.graph_rag_cache import (
+    cached_document_context,
+    cached_entity_extraction,
+    cached_pdf_quality,
+)
+from app.agents.graph_rag_config import (
+    CHINESE_NOISE_PATTERNS,
+    CHINESE_NOISE_TERMS,
+    CHINESE_SUFFIX_NOISE,
+    CHINESE_TERM_KEYWORDS,
+    DEFAULT_ENTITY_LIMIT,
+    DEFAULT_TOP_K_DOCS,
+    DENSITY_ACCEPTABLE_MAX,
+    DENSITY_ACCEPTABLE_MIN,
+    DENSITY_OPTIMAL_MAX,
+    DENSITY_OPTIMAL_MIN,
+    ENGLISH_NOISE_TERMS,
+    ENGLISH_SINGLE_TERM_KEYWORDS,
+    GRAPH_PARAMS_HIGH_QUALITY,
+    GRAPH_PARAMS_LOW_QUALITY,
+    GRAPH_PARAMS_MEDIUM_QUALITY,
+    MIN_ENTITIES_FOR_HIGH_CONFIDENCE,
+    MIN_ENTITIES_FOR_MEDIUM_CONFIDENCE,
+    MIN_ENTITY_LENGTH,
+    MAX_ENTITY_LENGTH,
+    MAX_ENTITY_WORDS,
+    PAGE_COUNT_HIGH,
+    PAGE_COUNT_MEDIUM,
+    PATTERN_ACRONYMS,
+    PATTERN_CAMEL_CASE,
+    PATTERN_CHINESE_TERMS,
+    PATTERN_HEADERS,
+    PATTERN_LISTS,
+    PATTERN_PROPER_NOUNS,
+    PATTERN_QUERY_ENTITIES,
+    PATTERN_REFERENCES,
+    PATTERN_RELATION_KEYWORDS,
+    PATTERN_TABLES,
+    PATTERN_TECHNICAL_PHRASES_EN,
+    PATTERN_TECHNICAL_PHRASES_ZH,
+    PATTERN_TECH_TERMS,
+    QUALITY_THRESHOLD_HIGH,
+    QUALITY_THRESHOLD_LOW,
+    QUALITY_WEIGHT_CONTENT,
+    QUALITY_WEIGHT_METADATA,
+    QUALITY_WEIGHT_STRUCTURE,
+    TECH_TERM_COUNT_HIGH,
+    TECH_TERM_COUNT_MEDIUM,
+    WORD_COUNT_HIGH,
+    WORD_COUNT_MEDIUM,
+)
 from app.tools.graph_tools_enhanced import graph_lookup_enhanced
 
 logger = logging.getLogger(__name__)
 
-_ENGLISH_NOISE_TERMS = {
-    "introduction",
-    "overview",
-    "description",
-    "component",
-    "components",
-    "question",
-    "translation",
-    "modern",
-    "these",
-    "allows",
-    "self",
-    "references",
-    "applications",
-    "challenges",
-}
-
-_CHINESE_NOISE_TERMS = {
-    "\u4e3b\u8981\u7279\u70b9\u5305\u62ec",
-    "\u57fa\u672c\u6982\u5ff5",
-    "\u5173\u952e\u6280\u672f",
-    "\u5e94\u7528\u573a\u666f",
-    "\u53c2\u8003\u6587\u732e",
-}
-
-_CHINESE_NOISE_PATTERNS = (
-    "\u662f\u4e00\u79cd",
-    "\u5305\u62ec",
-    "\u901a\u8fc7",
-    "\u5141\u8bb8",
-    "\u80fd\u591f",
-    "\u4ece\u800c",
-    "\u8fdb\u884c",
-    "\u63d0\u9ad8",
-    "\u51cf\u5c11",
-    "\u652f\u6301",
-    "\u7ed3\u5408",
-    "\u5e94\u7528\u4e8e",
-)
-
-_TECHNICAL_PHRASE_PATTERN = re.compile(
-    r"\b(?:"
-    r"large language models?|"
-    r"retrieval[- ]augmented generation|"
-    r"natural language processing|"
-    r"machine learning|"
-    r"deep learning|"
-    r"artificial intelligence|"
-    r"knowledge graph|"
-    r"transformer architecture|"
-    r"intelligent customer service systems?"
-    r")\b",
-    re.IGNORECASE,
-)
-
-_CHINESE_TECHNICAL_PHRASE_PATTERN = re.compile(
-    r"(?:"
-    r"\u5927\u8bed\u8a00\u6a21\u578b|"
-    r"\u81ea\u7136\u8bed\u8a00\u5904\u7406|"
-    r"\u68c0\u7d22\u589e\u5f3a\u751f\u6210|"
-    r"\u667a\u80fd\u5ba2\u670d\u7cfb\u7edf|"
-    r"\u673a\u5668\u7ffb\u8bd1|"
-    r"\u77e5\u8bc6\u56fe\u8c31|"
-    r"\u6ce8\u610f\u529b\u673a\u5236|"
-    r"\u6587\u6863\u7406\u89e3\u4e0e\u5206\u6790|"
-    r"\u4fe1\u606f\u68c0\u7d22"
-    r")"
-)
-
-_ENGLISH_SINGLE_TERM_KEYWORDS = (
-    "model",
-    "models",
-    "system",
-    "systems",
-    "framework",
-    "retrieval",
-    "generation",
-    "language",
-    "processing",
-    "learning",
-    "attention",
-    "graph",
-    "transformer",
-    "chatgpt",
-    "claude",
-    "copilot",
-    "docker",
-    "kubernetes",
-    "redis",
-    "mongodb",
-    "postgresql",
-    "mysql",
-    "neo4j",
-)
-
-_CHINESE_TERM_KEYWORDS = (
-    "\u6a21\u578b",
-    "\u7cfb\u7edf",
-    "\u67b6\u6784",
-    "\u673a\u5236",
-    "\u751f\u6210",
-    "\u68c0\u7d22",
-    "\u5b66\u4e60",
-    "\u8bed\u8a00",
-    "\u5904\u7406",
-    "\u6587\u6863",
-    "\u5206\u6790",
-    "\u7ffb\u8bd1",
-    "\u6570\u636e\u5e93",
-    "\u5b89\u5168",
-    "\u667a\u80fd",
-    "\u5ba2\u670d",
-    "\u77e5\u8bc6\u56fe\u8c31",
-)
-
 
 def _is_english_entity_candidate(term: str) -> bool:
+    """
+    Check if an English term is a valid entity candidate.
+
+    Args:
+        term: Term to check
+
+    Returns:
+        True if valid entity candidate
+    """
     normalized = " ".join(term.split()).strip()
-    if len(normalized) < 2:
+    if len(normalized) < MIN_ENTITY_LENGTH:
         return False
 
     lowered = normalized.lower()
-    if lowered in _ENGLISH_NOISE_TERMS:
+    if lowered in ENGLISH_NOISE_TERMS:
         return False
 
     words = normalized.split()
-    if len(words) > 4:
+    if len(words) > MAX_ENTITY_WORDS:
         return False
 
     if len(words) == 1:
         if normalized.isupper():
             return True
-        return any(keyword in lowered for keyword in _ENGLISH_SINGLE_TERM_KEYWORDS)
+        return any(keyword in lowered for keyword in ENGLISH_SINGLE_TERM_KEYWORDS)
 
     return True
 
 
 def _is_chinese_entity_candidate(term: str) -> bool:
+    """
+    Check if a Chinese term is a valid entity candidate.
+
+    Args:
+        term: Term to check
+
+    Returns:
+        True if valid entity candidate
+    """
     normalized = term.strip()
-    if not normalized or len(normalized) < 2 or len(normalized) > 12:
+    if not normalized or len(normalized) < MIN_ENTITY_LENGTH or len(normalized) > MAX_ENTITY_LENGTH:
         return False
 
-    if normalized in _CHINESE_NOISE_TERMS:
+    if normalized in CHINESE_NOISE_TERMS:
         return False
 
-    if any(marker in normalized for marker in _CHINESE_NOISE_PATTERNS):
+    if any(marker in normalized for marker in CHINESE_NOISE_PATTERNS):
         return False
 
-    if normalized.endswith(("\u7684", "\u4e86", "\u4eec", "\u53ca\u5176")):
+    if normalized.endswith(CHINESE_SUFFIX_NOISE):
         return False
 
-    return any(keyword in normalized for keyword in _CHINESE_TERM_KEYWORDS)
+    return any(keyword in normalized for keyword in CHINESE_TERM_KEYWORDS)
 
 
 def _append_unique_entity(
@@ -174,6 +127,15 @@ def _append_unique_entity(
     term: str,
     limit: int,
 ) -> None:
+    """
+    Append entity to list if unique and under limit.
+
+    Args:
+        entities: List to append to
+        seen: Set of seen entities (case-insensitive)
+        term: Entity term to add
+        limit: Maximum list size
+    """
     normalized = " ".join(term.split()).strip(" ,.;:()[]{}<>-_")
     if not normalized:
         return
@@ -187,6 +149,7 @@ def _append_unique_entity(
         entities.append(normalized)
 
 
+@cached_pdf_quality
 def analyze_pdf_quality(text: str, metadata: dict) -> float:
     """
     Analyze PDF content quality for graph extraction confidence.
@@ -206,64 +169,62 @@ def analyze_pdf_quality(text: str, metadata: dict) -> float:
     """
     score = 0.0
 
+    # Structure score (40%)
     structure_score = 0.0
-    if re.search(r"^#+\s+.+$|^\d+\.\s+[A-Z][^.]+$", text, re.MULTILINE):
+    if PATTERN_HEADERS.search(text):
         structure_score += 0.15
-    if re.search(r"\|.+\|.+\||\t.+\t.+\t", text):
+    if PATTERN_TABLES.search(text):
         structure_score += 0.10
-    if re.search(r"^[-*\u2022]\s+.+$|^\d+\.\s+.+$", text, re.MULTILINE):
+    if PATTERN_LISTS.search(text):
         structure_score += 0.10
-    if re.search(r"(?i)(references?|bibliography|citations?|\u53c2\u8003\u6587\u732e)", text):
+    if PATTERN_REFERENCES.search(text):
         structure_score += 0.05
-    score += min(0.4, structure_score)
+    score += min(QUALITY_WEIGHT_STRUCTURE, structure_score)
 
+    # Content score (40%)
     content_score = 0.0
     words = text.split()
     word_count = len(words)
     char_count = len(text)
+
     if char_count > 0:
         density = word_count / (char_count / 100)
-        if 3 <= density <= 20:
+        if DENSITY_OPTIMAL_MIN <= density <= DENSITY_OPTIMAL_MAX:
             content_score += 0.15
-        elif 2 <= density <= 25:
+        elif DENSITY_ACCEPTABLE_MIN <= density <= DENSITY_ACCEPTABLE_MAX:
             content_score += 0.08
 
-    if word_count >= 500:
+    if word_count >= WORD_COUNT_HIGH:
         content_score += 0.15
-    elif word_count >= 200:
+    elif word_count >= WORD_COUNT_MEDIUM:
         content_score += 0.08
 
-    tech_terms = len(
-        re.findall(
-            r"\b(?:AI|ML|API|system|process|data|algorithm|model|method|approach|"
-            r"analysis|implementation|framework|architecture|optimization)\b",
-            text,
-            re.IGNORECASE,
-        )
-    )
-    if tech_terms >= 10:
+    tech_terms = len(PATTERN_TECH_TERMS.findall(text))
+    if tech_terms >= TECH_TERM_COUNT_HIGH:
         content_score += 0.10
-    elif tech_terms >= 5:
+    elif tech_terms >= TECH_TERM_COUNT_MEDIUM:
         content_score += 0.05
-    score += min(0.4, content_score)
+    score += min(QUALITY_WEIGHT_CONTENT, content_score)
 
+    # Metadata score (20%)
     metadata_score = 0.0
     page_count = metadata.get("page", 0) if isinstance(metadata.get("page"), int) else 1
     total_pages = metadata.get("total_pages", page_count)
-    if total_pages >= 10:
+    if total_pages >= PAGE_COUNT_HIGH:
         metadata_score += 0.10
-    elif total_pages >= 5:
+    elif total_pages >= PAGE_COUNT_MEDIUM:
         metadata_score += 0.05
     if metadata.get("format") == "markdown":
         metadata_score += 0.05
     if metadata.get("enhanced") or metadata.get("converter") == "docling":
         metadata_score += 0.05
-    score += min(0.2, metadata_score)
+    score += min(QUALITY_WEIGHT_METADATA, metadata_score)
 
     return min(1.0, score)
 
 
-def extract_document_entities(text: str, limit: int = 20) -> list[str]:
+@cached_entity_extraction
+def extract_document_entities(text: str, limit: int = DEFAULT_ENTITY_LIMIT) -> list[str]:
     """
     Extract potential entities from document text for query enrichment.
 
@@ -277,40 +238,40 @@ def extract_document_entities(text: str, limit: int = 20) -> list[str]:
     entities: list[str] = []
     seen: set[str] = set()
 
-    for term in _TECHNICAL_PHRASE_PATTERN.findall(text):
+    # Extract technical phrases (English)
+    for term in PATTERN_TECHNICAL_PHRASES_EN.findall(text):
         _append_unique_entity(entities, seen, term.title(), limit)
 
-    proper_nouns = re.findall(r"\b[A-Z][a-z]+(?: [A-Z][a-z]+){0,3}\b", text)
-    for term in proper_nouns:
+    # Extract proper nouns
+    for term in PATTERN_PROPER_NOUNS.findall(text):
         if _is_english_entity_candidate(term):
             _append_unique_entity(entities, seen, term, limit)
 
-    acronyms = re.findall(r"\b[A-Z]{2,6}s?\b", text)
-    for term in acronyms:
+    # Extract acronyms
+    for term in PATTERN_ACRONYMS.findall(text):
         _append_unique_entity(entities, seen, term, limit)
 
-    camel_case_terms = re.findall(r"\b[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]+)+\b", text)
-    for term in camel_case_terms:
+    # Extract CamelCase terms
+    for term in PATTERN_CAMEL_CASE.findall(text):
         _append_unique_entity(entities, seen, term, limit)
 
-    for term in _CHINESE_TECHNICAL_PHRASE_PATTERN.findall(text):
+    # Extract technical phrases (Chinese)
+    for term in PATTERN_TECHNICAL_PHRASES_ZH.findall(text):
         _append_unique_entity(entities, seen, term, limit)
 
-    chinese_terms = re.findall(
-        r"[\u4e00-\u9fff]{2,10}(?:\u6a21\u578b|\u7cfb\u7edf|\u673a\u5236|\u67b6\u6784|\u7ffb\u8bd1|\u5206\u6790|\u5904\u7406)",
-        text,
-    )
-    for term in chinese_terms:
+    # Extract Chinese technical terms
+    for term in PATTERN_CHINESE_TERMS.findall(text):
         if _is_chinese_entity_candidate(term):
             _append_unique_entity(entities, seen, term, limit)
 
     return entities[:limit]
 
 
+@cached_document_context
 def get_document_context_for_query(
     question: str,
     retrieved_docs: list[dict],
-    top_k: int = 3,
+    top_k: int = DEFAULT_TOP_K_DOCS,
 ) -> dict:
     """
     Analyze retrieved documents to build context for graph queries.
@@ -340,9 +301,11 @@ def get_document_context_for_query(
         all_entities.update(extract_document_entities(content, limit=10))
 
     avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 0.5
-    if avg_quality >= 0.7 and len(all_entities) >= 5:
+
+    # Determine confidence level
+    if avg_quality >= QUALITY_THRESHOLD_HIGH and len(all_entities) >= MIN_ENTITIES_FOR_HIGH_CONFIDENCE:
         confidence = "high"
-    elif avg_quality >= 0.5 or len(all_entities) >= 3:
+    elif avg_quality >= 0.5 or len(all_entities) >= MIN_ENTITIES_FOR_MEDIUM_CONFIDENCE:
         confidence = "medium"
     else:
         confidence = "low"
@@ -381,6 +344,7 @@ def run_graph_rag_with_pdf_context(
     if allowed_sources is None and agent_class:
         allowed_sources = get_sources_by_agent_class(agent_class)
 
+    # Analyze document context
     if retrieved_docs:
         context = get_document_context_for_query(question, retrieved_docs)
         context_quality = context["quality_score"]
@@ -394,37 +358,35 @@ def run_graph_rag_with_pdf_context(
         context_quality = 0.5
         context = {"quality_score": 0.5, "entities": [], "confidence": "medium"}
 
-    if context_quality >= 0.7:
-        max_entities = 12
-        max_neighbors = 20
-        max_paths = 12
+    # Select adaptive parameters based on quality
+    if context_quality >= QUALITY_THRESHOLD_HIGH:
+        params = GRAPH_PARAMS_HIGH_QUALITY
     elif context_quality >= 0.5:
-        max_entities = 10
-        max_neighbors = 15
-        max_paths = 10
+        params = GRAPH_PARAMS_MEDIUM_QUALITY
     else:
-        max_entities = 8
-        max_neighbors = 12
-        max_paths = 8
+        params = GRAPH_PARAMS_LOW_QUALITY
 
     try:
         graph_result = graph_lookup_enhanced(
             question=question,
             allowed_sources=allowed_sources,
             context_quality=context_quality,
-            max_entities=max_entities,
-            max_neighbors=max_neighbors,
-            max_paths=max_paths,
+            max_entities=params["max_entities"],
+            max_neighbors=params["max_neighbors"],
+            max_paths=params["max_paths"],
         )
     except Exception as e:
-        if type(e).__name__ in {"ServiceUnavailable", "ConnectionError"}:
+        error_type = type(e).__name__
+
+        if error_type in {"ServiceUnavailable", "ConnectionError"}:
             logger.warning(
                 "Enhanced graph lookup unavailable for question '%s': %s",
                 question,
-                type(e).__name__,
+                error_type,
             )
         else:
             logger.exception("Enhanced graph lookup failed for question: %s", question)
+
         return {
             "context": "",
             "entities": [],
@@ -432,7 +394,7 @@ def run_graph_rag_with_pdf_context(
             "paths": [],
             "graph_signal_score": 0.0,
             "confidence": "low",
-            "error": f"graph_lookup_error:{type(e).__name__}",
+            "error": f"graph_lookup_error:{error_type}",
         }
 
     entities = graph_result.get("entities", [])
@@ -441,6 +403,7 @@ def run_graph_rag_with_pdf_context(
     graph_signal_score = float(graph_result.get("graph_signal_score", 0.0) or 0.0)
     confidence = graph_result.get("confidence", "medium")
 
+    # Format context string
     lines = []
     for item in entities:
         name = item.get("entity", "")
@@ -498,44 +461,24 @@ def should_use_graph_rag(
     Returns:
         Tuple of (should_use, reason)
     """
+    # Strong graph signal → use
     if graph_signal_score is not None and graph_signal_score >= 0.6:
         return True, f"strong_graph_signal:{graph_signal_score:.2f}"
 
+    # Check document quality
     if retrieved_docs:
         context = get_document_context_for_query(question, retrieved_docs)
-        if context["quality_score"] >= 0.7 and len(context["entities"]) >= 5:
+        if context["quality_score"] >= QUALITY_THRESHOLD_HIGH and len(context["entities"]) >= MIN_ENTITIES_FOR_HIGH_CONFIDENCE:
             return True, "high_quality_documents_with_entities"
-        if context["quality_score"] < 0.3:
+        if context["quality_score"] < QUALITY_THRESHOLD_LOW:
             return False, "low_quality_documents"
 
-    potential_entities = len(
-        re.findall(
-            r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b|[A-Z]{2,5}\b|[\u4e00-\u9fff]{2,}",
-            question,
-        )
-    )
+    # Check query characteristics
+    potential_entities = len(PATTERN_QUERY_ENTITIES.findall(question))
     if potential_entities >= 3:
         return True, f"multi_entity_query:{potential_entities}_entities"
 
-    relation_keywords = [
-        "relationship",
-        "\u5173\u7cfb",
-        "connect",
-        "\u8fde\u63a5",
-        "relate",
-        "\u5173\u8054",
-        "between",
-        "\u4e4b\u95f4",
-        "link",
-        "\u94fe\u63a5",
-        "impact",
-        "\u5f71\u54cd",
-        "cause",
-        "\u5bfc\u81f4",
-        "depend",
-        "\u4f9d\u8d56",
-    ]
-    if any(keyword in question.lower() for keyword in relation_keywords):
+    if PATTERN_RELATION_KEYWORDS.search(question):
         return True, "relationship_query"
 
     return True, "default_strategy"
