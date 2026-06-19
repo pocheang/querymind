@@ -13,9 +13,9 @@ PROVIDERS = {"local", "ollama", "openai", "anthropic", "deepseek", "custom"}
 
 def default_global_model_settings() -> dict[str, Any]:
     settings = get_settings()
-    provider = str(settings.model_backend or "ollama").strip().lower()
+    provider = str(settings.model_backend or "local").strip().lower()
     if provider not in PROVIDERS:
-        provider = "ollama"
+        provider = "local"
     return {
         "enabled": False,
         "provider": provider,

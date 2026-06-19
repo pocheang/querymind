@@ -1,8 +1,13 @@
 """Vision API utilities for image captioning."""
 
 import base64
+import logging
 
 import httpx
+
+from app.services.outbound_redaction import redact_messages_for_provider
+
+logger = logging.getLogger(__name__)
 
 
 def vision_prompt() -> str:
@@ -41,6 +46,7 @@ def _describe_image_openai(img_bytes: bytes, settings) -> dict:
             },
         ],
     }
+    payload["messages"] = redact_messages_for_provider(payload["messages"], provider="openai")
     try:
         with httpx.Client(timeout=45.0) as client:
             resp = client.post(
@@ -107,8 +113,8 @@ def describe_image_with_vision(img_bytes: bytes, settings) -> dict:
 
     backends = []
     if backend == "auto":
-        preferred = str(getattr(settings, "model_backend", "ollama") or "ollama").lower()
-        if preferred == "openai":
+        preferred = str(getattr(settings, "model_backend", "local") or "local").lower()
+        if preferred in {"openai", "anthropic", "deepseek", "custom"}:
             backends = ["openai", "ollama"]
         else:
             backends = ["ollama", "openai"]

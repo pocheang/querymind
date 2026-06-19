@@ -244,6 +244,22 @@ def test_get_user_api_settings_masks_api_key(monkeypatch):
         api_main.app.dependency_overrides.clear()
 
 
+def test_get_user_api_settings_defaults_to_local_when_empty(monkeypatch):
+    client = TestClient(api_main.app)
+    api_main.app.dependency_overrides[api_main._require_user] = _mock_user
+    monkeypatch.setattr(api_main.auth_service, "get_user_metadata", lambda *_args, **_kwargs: None)
+    try:
+        res = client.get("/user/api-settings")
+        assert res.status_code == 200
+        body = res.json()
+        settings = body.get("settings") or {}
+        assert settings.get("provider") == "local"
+        assert settings.get("base_url") == ""
+        assert settings.get("model") == "local-evidence"
+    finally:
+        api_main.app.dependency_overrides.clear()
+
+
 def test_save_user_api_settings_response_does_not_return_plain_api_key(monkeypatch):
     client = TestClient(api_main.app)
     api_main.app.dependency_overrides[api_main._require_user] = _mock_user

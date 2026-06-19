@@ -111,12 +111,24 @@ def cache_lookup(cache_key: str, settings, traced_span_fn):
     return None
 
 
-def cache_store(cache_key: str, results: list, diagnostics: dict, settings):
-    """Store results in cache (memory and optionally Redis)."""
+def cache_store(cache_key: str, results: list, diagnostics: dict, settings, ttl_override: int = None):
+    """
+    Store results in cache (memory and optionally Redis).
+
+    Args:
+        cache_key: Cache key
+        results: Results to cache
+        diagnostics: Diagnostic information
+        settings: Settings object
+        ttl_override: Optional TTL override (seconds). If None, uses settings default.
+    """
     backend = cache_backend(settings)
     use_cache = bool(getattr(settings, "retrieval_cache_enabled", True)) and backend != "off"
     if not use_cache:
         return
+
+    # Use adaptive TTL if provided, otherwise fall back to settings
+    ttl_seconds = ttl_override if ttl_override is not None else int(getattr(settings, "retrieval_cache_ttl_seconds", 45) or 45)
 
     cache = get_retrieval_cache(settings)
     cache.set(cache_key, (list(results), dict(diagnostics)))
@@ -126,10 +138,11 @@ def cache_store(cache_key: str, results: list, diagnostics: dict, settings):
             try:
                 client.setex(
                     f"retrieval:{cache_key}",
-                    int(getattr(settings, "retrieval_cache_ttl_seconds", 45) or 45),
+                    ttl_seconds,
                     json.dumps({"results": results, "diagnostics": diagnostics}, ensure_ascii=False),
                 )
                 diagnostics["cache_backend"] = "redis"
+                diagnostics["cache_ttl"] = ttl_seconds
             except (json.JSONEncodeError, TypeError) as e:
                 logger.debug(f"Redis cache store failed (serialization): {e}")
                 diagnostics["cache_backend"] = "memory"

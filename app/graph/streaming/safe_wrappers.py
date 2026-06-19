@@ -178,7 +178,12 @@ def safe_vector_result(
         return {"context": "", "citations": [], "retrieved_count": 0, "error": f"vector_error:{type(e).__name__}"}
 
 
-def safe_graph_result(question: str, allowed_sources: list[str] | None = None, agent_class: str | None = None) -> dict[str, Any]:
+def safe_graph_result(
+    question: str,
+    allowed_sources: list[str] | None = None,
+    agent_class: str | None = None,
+    retrieved_docs: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Execute graph RAG with resilience patterns."""
     start_time = time.time()
     try:
@@ -188,7 +193,13 @@ def safe_graph_result(question: str, allowed_sources: list[str] | None = None, a
                 "stream.graph_rag",
                 lambda: call_with_circuit_breaker(
                     "graph_rag.run",
-                    lambda: _call_with_supported_kwargs(run_graph_rag, question, allowed_sources=allowed_sources, agent_class=agent_class),
+                    lambda: _call_with_supported_kwargs(
+                        run_graph_rag,
+                        question,
+                        allowed_sources=allowed_sources,
+                        agent_class=agent_class,
+                        retrieved_docs=retrieved_docs,
+                    ),
                 ),
             )
         retrieval_time_ms = (time.time() - start_time) * 1000
@@ -215,7 +226,13 @@ def safe_graph_result(question: str, allowed_sources: list[str] | None = None, a
         return result
     except CircuitBreakerOpenError:
         run_graph_rag = _agent_func("app.agents.graph_rag_agent", "run_graph_rag")
-        result = _call_with_supported_kwargs(run_graph_rag, question, allowed_sources=allowed_sources, agent_class=agent_class)
+        result = _call_with_supported_kwargs(
+            run_graph_rag,
+            question,
+            allowed_sources=allowed_sources,
+            agent_class=agent_class,
+            retrieved_docs=retrieved_docs,
+        )
         retrieval_time_ms = (time.time() - start_time) * 1000
         entities = result.get("entities", [])
         neighbors = result.get("neighbors", [])

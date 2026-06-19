@@ -220,3 +220,79 @@ def test_streaming_detected_language_defaults_to_zh():
         # Verify detected_language defaults to 'zh'
         assert "detected_language" in final_payload, "Final payload must include detected_language"
         assert final_payload["detected_language"] == "zh", "Should default to 'zh' when not detected"
+
+
+def test_streaming_hybrid_enhanced_forwards_vector_context_to_graph():
+    """Test that enhanced hybrid streaming runs graph with vector-derived document context."""
+    from app.graph.streaming.stream_processor import run_query_stream
+
+    with patch("app.graph.streaming.stream_processor.decide_route") as mock_route, \
+         patch("app.graph.streaming.stream_processor._sync_agent_patchpoints") as mock_sync, \
+         patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan, \
+         patch("app.graph.streaming.stream_processor.get_settings") as mock_settings, \
+         patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual, \
+         patch("app.graph.streaming.stream_processor.safe_vector_result") as mock_vector, \
+         patch("app.graph.streaming.stream_processor.safe_graph_result") as mock_graph, \
+         patch("app.graph.streaming.stream_processor.stream_synthesize_answer") as mock_stream_synth, \
+         patch("app.graph.streaming.stream_processor.apply_sentence_grounding") as mock_grounding, \
+         patch("app.graph.streaming.stream_processor.sanitize_answer") as mock_sanitize, \
+         patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain:
+
+        mock_route.return_value = MagicMock(
+            route="hybrid",
+            reason="test_reason",
+            skill="answer_with_citations",
+            agent_class="general",
+        )
+        mock_sync.return_value = None
+        mock_plan.return_value = MagicMock(
+            route="hybrid",
+            reason="test_plan",
+            level="L2",
+            min_vector_hits=2,
+            prefer_graph=False,
+            prefer_web=False,
+        )
+        mock_settings.return_value = MagicMock(graph_rag_enhanced=True)
+        mock_casual.return_value = False
+        mock_vector.return_value = {
+            "context": "vec",
+            "citations": [
+                {
+                    "content": "Graph RAG uses retrieved PDF context.",
+                    "metadata": {"source": "doc.pdf", "format": "markdown"},
+                }
+            ],
+            "retrieved_count": 1,
+        }
+        mock_graph.return_value = {
+            "context": "graph",
+            "entities": [],
+            "neighbors": [],
+            "paths": [],
+        }
+
+        def mock_stream_gen(*args, **kwargs):
+            yield {"type": "metadata", "detected_language": "zh"}
+            yield {"type": "chunk", "content": "答案"}
+
+        mock_stream_synth.return_value = mock_stream_gen()
+        mock_grounding.return_value = ("答案", {"support_ratio": 1.0})
+        mock_sanitize.return_value = ("答案", {})
+        mock_explain.return_value = {}
+
+        events = list(run_query_stream("测试问题", use_web_fallback=False, use_reasoning=False))
+
+        mock_graph.assert_called_once_with(
+            "测试问题",
+            allowed_sources=None,
+            agent_class="general",
+            retrieved_docs=[
+                {
+                    "content": "Graph RAG uses retrieved PDF context.",
+                    "metadata": {"source": "doc.pdf", "format": "markdown"},
+                }
+            ],
+        )
+        statuses = [e.get("message") for e in events if e.get("type") == "status"]
+        assert "retrieving_hybrid_contextual" in statuses

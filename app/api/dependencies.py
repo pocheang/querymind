@@ -377,7 +377,7 @@ def _api_settings_view(settings_data: UserApiSettings) -> UserApiSettingsView:
     """Convert API settings to view model."""
     from app.core.schemas import UserApiSettingsView
     return UserApiSettingsView(
-        provider=normalize_string(settings_data.provider, lowercase=True) or "ollama",
+        provider=normalize_string(settings_data.provider, lowercase=True) or "local",
         api_key_masked=_mask_api_key(settings_data.api_key),
         base_url=str(settings_data.base_url or "").strip(),
         model=str(settings_data.model or "").strip(),

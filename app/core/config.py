@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: str = Field(default="dev", alias="APP_ENV")
-    model_backend: str = Field(default="openai", alias="MODEL_BACKEND")
+    model_backend: str = Field(default="local", alias="MODEL_BACKEND")
     reasoning_model_backend: str = Field(default="", alias="REASONING_MODEL_BACKEND")
 
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     retrieval_cache_enabled: bool = Field(default=True, alias="RETRIEVAL_CACHE_ENABLED")
     retrieval_cache_ttl_seconds: int = Field(default=45, alias="RETRIEVAL_CACHE_TTL_SECONDS")
     retrieval_cache_max_items: int = Field(default=256, alias="RETRIEVAL_CACHE_MAX_ITEMS")
+    # Adaptive cache TTL settings (tier-based and query-specific)
+    cache_ttl_fast_tier: int = Field(default=300, alias="CACHE_TTL_FAST_TIER")
+    cache_ttl_balanced_tier: int = Field(default=120, alias="CACHE_TTL_BALANCED_TIER")
+    cache_ttl_deep_tier: int = Field(default=60, alias="CACHE_TTL_DEEP_TIER")
+    cache_ttl_user_query: int = Field(default=180, alias="CACHE_TTL_USER_QUERY")
     circuit_breaker_enabled: bool = Field(default=True, alias="CIRCUIT_BREAKER_ENABLED")
     circuit_breaker_fail_threshold: int = Field(default=3, alias="CIRCUIT_BREAKER_FAIL_THRESHOLD")
     circuit_breaker_cooldown_seconds: int = Field(default=30, alias="CIRCUIT_BREAKER_COOLDOWN_SECONDS")
@@ -96,6 +101,8 @@ class Settings(BaseSettings):
 
     graph_extraction_mode: str = Field(default="llm", alias="GRAPH_EXTRACTION_MODE")
     graph_triplet_batch_chars: int = Field(default=2200, alias="GRAPH_TRIPLET_BATCH_CHARS")
+    graph_rag_enhanced: bool = Field(default=False, alias="GRAPH_RAG_ENHANCED")
+    graph_rag_min_pdf_quality: float = Field(default=0.3, alias="GRAPH_RAG_MIN_PDF_QUALITY")
 
     pdf_loader_mode: str = Field(default="pypdf", alias="PDF_LOADER_MODE")  # pypdf|docling|docling_enhanced|docling_advanced|hybrid
     pdf_enable_cleaning: bool = Field(default=True, alias="PDF_ENABLE_CLEANING")  # Remove headers/footers
@@ -136,6 +143,10 @@ class Settings(BaseSettings):
 
     query_rate_limit_max_attempts: int = Field(default=30, alias="QUERY_RATE_LIMIT_MAX_ATTEMPTS")
     query_rate_limit_window_seconds: int = Field(default=60, alias="QUERY_RATE_LIMIT_WINDOW_SECONDS")
+    # Role-based rate limiting (v0.4.5+)
+    query_rate_limit_admin: int = Field(default=100, alias="QUERY_RATE_LIMIT_ADMIN")
+    query_rate_limit_premium: int = Field(default=60, alias="QUERY_RATE_LIMIT_PREMIUM")
+    query_rate_limit_user: int = Field(default=30, alias="QUERY_RATE_LIMIT_USER")
     query_guard_backend: str = Field(default="auto", alias="QUERY_GUARD_BACKEND")  # auto|memory|redis
     query_max_concurrent: int = Field(default=24, alias="QUERY_MAX_CONCURRENT")
     query_max_waiting: int = Field(default=120, alias="QUERY_MAX_WAITING")
@@ -175,6 +186,10 @@ class Settings(BaseSettings):
     api_base_url_allowlist: str = Field(default="", alias="API_BASE_URL_ALLOWLIST")  # csv host suffixes
     api_base_url_allow_private: bool = Field(default=False, alias="API_BASE_URL_ALLOW_PRIVATE")
     api_base_url_dns_check: bool = Field(default=True, alias="API_BASE_URL_DNS_CHECK")
+    outbound_llm_redaction_enabled: bool = Field(default=True, alias="OUTBOUND_LLM_REDACTION_ENABLED")
+    outbound_embedding_redaction_enabled: bool = Field(default=True, alias="OUTBOUND_EMBEDDING_REDACTION_ENABLED")
+    outbound_redaction_custom_terms: str = Field(default="", alias="OUTBOUND_REDACTION_CUSTOM_TERMS")
+    outbound_redaction_custom_regexes: str = Field(default="", alias="OUTBOUND_REDACTION_CUSTOM_REGEXES")
     quota_enabled: bool = Field(default=False, alias="QUOTA_ENABLED")
     quota_query_max_per_minute: int = Field(default=120, alias="QUOTA_QUERY_MAX_PER_MINUTE")
     quota_web_max_per_minute: int = Field(default=30, alias="QUOTA_WEB_MAX_PER_MINUTE")

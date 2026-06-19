@@ -47,7 +47,7 @@ export function applyProviderDefaults(provider: Provider): Partial<ApiConfig> {
 
 export function parseApiResponse(response: any): ApiConfig {
   return {
-    provider: (response.provider || "ollama") as Provider,
+    provider: (response.provider || "local") as Provider,
     apiKey: "",
     apiKeyMasked: response.api_key_masked || "",
     baseUrl: response.base_url || "",

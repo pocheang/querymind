@@ -38,12 +38,12 @@ export function createModelActions(params: AdminActionsParams, errorHandler: Err
   const patchModelSettings = (patch: Partial<AdminModelSettingsView>) => {
     setModelSettings((prev) => ({ ...(prev || {
       enabled: false,
-      provider: "ollama",
+      provider: "local",
       api_key_masked: "",
-      base_url: "http://localhost:11434",
-      chat_model: "qwen2.5:7b-instruct",
-      reasoning_model: "qwen2.5:7b-instruct",
-      embedding_model: "nomic-embed-text",
+      base_url: "",
+      chat_model: "local-evidence",
+      reasoning_model: "local-evidence",
+      embedding_model: "local-hash-384",
       temperature: 0.7,
       max_tokens: 2048,
     }), ...patch }));
@@ -53,12 +53,12 @@ export function createModelActions(params: AdminActionsParams, errorHandler: Err
   const modelPayload = () => {
     const settings = modelSettings || {
       enabled: false,
-      provider: "ollama",
+      provider: "local",
       api_key_masked: "",
-      base_url: "http://localhost:11434",
-      chat_model: "qwen2.5:7b-instruct",
-      reasoning_model: "qwen2.5:7b-instruct",
-      embedding_model: "nomic-embed-text",
+      base_url: "",
+      chat_model: "local-evidence",
+      reasoning_model: "local-evidence",
+      embedding_model: "local-hash-384",
       temperature: 0.7,
       max_tokens: 2048,
     };

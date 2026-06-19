@@ -1,20 +1,61 @@
 import logging
 
+from app.core.config import get_settings
 from app.tools.graph_tools import graph_lookup
 from app.services.agent_document_filter import get_sources_by_agent_class
 
 logger = logging.getLogger(__name__)
 
 
-def run_graph_rag(question: str, allowed_sources: list[str] | None = None, agent_class: str | None = None) -> dict:
+def run_graph_rag(
+    question: str,
+    allowed_sources: list[str] | None = None,
+    agent_class: str | None = None,
+    retrieved_docs: list[dict] | None = None,
+) -> dict:
     # 自动应用 agent 文档过滤
     if allowed_sources is None and agent_class:
         allowed_sources = get_sources_by_agent_class(agent_class)
 
+    settings = get_settings()
+    if settings.graph_rag_enhanced:
+        from app.agents.graph_rag_agent_enhanced import (
+            get_document_context_for_query,
+            run_graph_rag_with_pdf_context,
+        )
+
+        pdf_context = None
+        if retrieved_docs:
+            pdf_context = get_document_context_for_query(question, retrieved_docs)
+            if pdf_context["quality_score"] < settings.graph_rag_min_pdf_quality:
+                return {
+                    "context": "",
+                    "entities": [],
+                    "neighbors": [],
+                    "paths": [],
+                    "graph_signal_score": 0.0,
+                    "confidence": "low",
+                    "pdf_context": pdf_context,
+                    "skipped_reason": "low_quality_documents",
+                }
+
+        result = run_graph_rag_with_pdf_context(
+            question,
+            retrieved_docs=retrieved_docs,
+            allowed_sources=allowed_sources,
+            agent_class=agent_class,
+        )
+        if pdf_context is not None and "pdf_context" not in result:
+            result["pdf_context"] = pdf_context
+        return result
+
     try:
         graph_result = graph_lookup(question, allowed_sources=allowed_sources)
     except Exception as e:
-        logger.exception(f"Graph lookup failed for question: {question}")
+        if type(e).__name__ in {"ServiceUnavailable", "ConnectionError"}:
+            logger.warning("Graph lookup unavailable for question '%s': %s", question, type(e).__name__)
+        else:
+            logger.exception(f"Graph lookup failed for question: {question}")
         return {
             "context": "",
             "entities": [],

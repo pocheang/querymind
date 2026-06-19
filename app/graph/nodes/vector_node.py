@@ -3,6 +3,7 @@ import time
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
 from app.agents.vector_rag_agent import run_vector_rag
+from app.core.config import get_settings
 from app.graph.nodes.safe_wrappers import safe_vector_result, safe_graph_result
 from app.graph.state import GraphState
 from app.services.bulkhead import bulkhead
@@ -15,11 +16,45 @@ from app.services.tracing import traced_span
 logger = logging.getLogger(__name__)
 
 
+def _retrieved_docs_from_vector_result(vector_result: dict | None) -> list[dict]:
+    docs = []
+    for citation in (vector_result or {}).get("citations", []) or []:
+        docs.append(
+            {
+                "content": citation.get("content", ""),
+                "metadata": citation.get("metadata", {}) or {},
+            }
+        )
+    return docs
+
+
 def vector_node(state: GraphState) -> GraphState:
     if deadline_exceeded():
         return {**state, "vector_result": {"context": "", "citations": [], "retrieved_count": 0, "timeout": True}}
     route = state.get("route", "vector")
     if route == "hybrid":
+        settings = get_settings()
+        if settings.graph_rag_enhanced:
+            vector_result = safe_vector_result(
+                state["question"],
+                state.get("allowed_sources"),
+                state.get("retrieval_strategy"),
+                state.get("agent_class"),
+            )
+            graph_result = {"context": "", "entities": [], "neighbors": [], "error": "graph_error:Timeout"}
+            if deadline_exceeded():
+                graph_result["timeout"] = True
+            else:
+                graph_result = safe_graph_result(
+                    state["question"],
+                    state.get("allowed_sources"),
+                    state.get("agent_class"),
+                    retrieved_docs=_retrieved_docs_from_vector_result(vector_result) or None,
+                )
+            vector_result["hybrid_execution_success"] = not vector_result.get("error")
+            graph_result["hybrid_execution_success"] = not graph_result.get("error") and not graph_result.get("timeout")
+            graph_result["hybrid_execution_mode"] = "vector_graph_serial"
+            return {**state, "vector_result": vector_result, "graph_result": graph_result}
         timeout_s = remaining_seconds()
         if timeout_s is None:
             timeout_s = 15.0

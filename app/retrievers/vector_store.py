@@ -31,7 +31,7 @@ def _get_vector_store_cached(
 
 def get_vector_store() -> Chroma:
     settings = get_settings()
-    backend = str(getattr(settings, "model_backend", "ollama") or "ollama").strip().lower()
+    backend = str(getattr(settings, "model_backend", "local") or "local").strip().lower()
     if backend == "openai":
         embed_model = str(getattr(settings, "openai_embed_model", "") or "")
         embed_base_url = str(getattr(settings, "openai_base_url", "") or "")

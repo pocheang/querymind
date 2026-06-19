@@ -114,7 +114,12 @@ def safe_vector_result(
         return {"context": "", "citations": [], "retrieved_count": 0, "error": f"vector_error:{type(e).__name__}"}
 
 
-def safe_graph_result(question: str, allowed_sources: list[str] | None = None, agent_class: str | None = None) -> dict[str, Any]:
+def safe_graph_result(
+    question: str,
+    allowed_sources: list[str] | None = None,
+    agent_class: str | None = None,
+    retrieved_docs: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     start_time = time.time()
     try:
         with bulkhead("neo4j"):
@@ -122,7 +127,12 @@ def safe_graph_result(question: str, allowed_sources: list[str] | None = None, a
                 "workflow.graph_rag",
                 lambda: call_with_circuit_breaker(
                     "graph_rag.run",
-                    lambda: run_graph_rag(question, allowed_sources=allowed_sources, agent_class=agent_class),
+                    lambda: run_graph_rag(
+                        question,
+                        allowed_sources=allowed_sources,
+                        agent_class=agent_class,
+                        retrieved_docs=retrieved_docs,
+                    ),
                 ),
             )
 

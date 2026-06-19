@@ -286,10 +286,10 @@ def get_user_api_settings(user: dict[str, Any] = Depends(_require_user)):
     else:
         # Return default settings
         user_settings = UserApiSettings(
-            provider="ollama",
+            provider="local",
             api_key="",
-            base_url="http://localhost:11434",
-            model="qwen2.5:7b",
+            base_url="",
+            model="local-evidence",
             temperature=0.7,
             max_tokens=2048
         )

@@ -9,6 +9,11 @@ from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 from app.services.model_config_store import get_global_model_settings
 from app.services.network_security import validate_api_base_url_for_provider
+from app.services.outbound_redaction import (
+    is_external_provider,
+    redact_messages_for_provider,
+    redact_texts_for_provider,
+)
 from app.services.request_context import get_request_api_settings
 
 
@@ -293,6 +298,62 @@ class AnthropicRelayChatModel:
         yield self.invoke(messages)
 
 
+class OutboundRedactedChatModel:
+    """Proxy that redacts prompt content before external model calls."""
+
+    def __init__(self, inner, *, provider: str):
+        self._inner = inner
+        self.provider = str(provider or "").strip().lower()
+
+    def invoke(self, messages):
+        return self._inner.invoke(redact_messages_for_provider(messages, provider=self.provider))
+
+    async def ainvoke(self, messages):
+        payload = redact_messages_for_provider(messages, provider=self.provider)
+        if hasattr(self._inner, "ainvoke"):
+            return await self._inner.ainvoke(payload)
+        return self._inner.invoke(payload)
+
+    def stream(self, messages):
+        payload = redact_messages_for_provider(messages, provider=self.provider)
+        yield from self._inner.stream(payload)
+
+    def __getattr__(self, name: str):
+        return getattr(self._inner, name)
+
+
+class OutboundRedactedEmbeddings:
+    """Proxy that redacts embedding input text before external model calls."""
+
+    def __init__(self, inner, *, provider: str):
+        self._inner = inner
+        self.provider = str(provider or "").strip().lower()
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._inner.embed_documents(
+            redact_texts_for_provider(list(texts or []), provider=self.provider, for_embeddings=True)
+        )
+
+    def embed_query(self, text: str) -> list[float]:
+        safe_text = redact_texts_for_provider([str(text or "")], provider=self.provider, for_embeddings=True)[0]
+        return self._inner.embed_query(safe_text)
+
+    def __getattr__(self, name: str):
+        return getattr(self._inner, name)
+
+
+def _wrap_chat_model_for_provider(model, *, provider: str):
+    if is_external_provider(provider):
+        return OutboundRedactedChatModel(model, provider=provider)
+    return model
+
+
+def _wrap_embedding_model_for_provider(model, *, provider: str):
+    if is_external_provider(provider):
+        return OutboundRedactedEmbeddings(model, provider=provider)
+    return model
+
+
 def _request_chat_override() -> dict:
     raw = get_request_api_settings() or {}
     provider = str(raw.get("provider", "") or "").strip().lower()
@@ -386,6 +447,7 @@ def _safe_int(value, default: int = 0) -> int:
 
 @lru_cache(maxsize=16)
 def _build_chat_model_cached(
+    provider: str,
     backend: str,
     temperature: float,
     openai_model: str,
@@ -411,16 +473,19 @@ def _build_chat_model_cached(
             kwargs["base_url"] = openai_base_url
         if max_tokens > 0:
             kwargs["max_tokens"] = max_tokens
-        return ChatOpenAI(**kwargs)
+        return _wrap_chat_model_for_provider(ChatOpenAI(**kwargs), provider=provider)
 
     if backend == "anthropic":
         if anthropic_base_url:
-            return AnthropicRelayChatModel(
+            return _wrap_chat_model_for_provider(
+                AnthropicRelayChatModel(
                 model=anthropic_model,
                 api_key=anthropic_api_key,
                 base_url=anthropic_base_url,
                 temperature=temperature,
                 max_tokens=max_tokens if max_tokens > 0 else 2048,
+                ),
+                provider=provider,
             )
 
         from langchain_anthropic import ChatAnthropic
@@ -432,7 +497,7 @@ def _build_chat_model_cached(
             kwargs["base_url"] = anthropic_base_url
         if max_tokens > 0:
             kwargs["max_tokens"] = max_tokens
-        return ChatAnthropic(**kwargs)
+        return _wrap_chat_model_for_provider(ChatAnthropic(**kwargs), provider=provider)
 
     from langchain_ollama import ChatOllama
 
@@ -448,6 +513,7 @@ def _build_chat_model_cached(
 
 @lru_cache(maxsize=4)
 def _build_embedding_model_cached(
+    provider: str,
     backend: str,
     openai_model: str,
     openai_api_key: str,
@@ -466,7 +532,7 @@ def _build_embedding_model_cached(
             kwargs["api_key"] = openai_api_key
         if openai_base_url:
             kwargs["base_url"] = openai_base_url
-        return OpenAIEmbeddings(**kwargs)
+        return _wrap_embedding_model_for_provider(OpenAIEmbeddings(**kwargs), provider=provider)
 
     from langchain_ollama import OllamaEmbeddings
 
@@ -487,6 +553,7 @@ def get_chat_model(temperature: float | None = None):
         api_key = str(override.get("api_key", "") or "")
         base_url = str(override.get("base_url", "") or "")
         return _build_chat_model_cached(
+            provider=provider,
             backend=backend,
             temperature=_norm_temp(effective_temperature),
             openai_model=model if backend == "openai" else settings.openai_chat_model,
@@ -500,6 +567,7 @@ def get_chat_model(temperature: float | None = None):
             max_tokens=_safe_int(override.get("max_tokens"), 0),
         )
     return _build_chat_model_cached(
+        provider=str(settings.model_backend or ""),
         backend=_normalize_backend(settings.model_backend),
         temperature=_norm_temp(temperature),
         openai_model=settings.openai_chat_model,
@@ -521,6 +589,7 @@ def get_embedding_model():
         provider = str(override["provider"])
         backend = _normalize_backend(provider)
         return _build_embedding_model_cached(
+            provider=provider,
             backend=backend,
             openai_model=str(override["model"]) if backend == "openai" else settings.openai_embed_model,
             openai_api_key=str(override.get("api_key", "") or "") if backend == "openai" else str(settings.openai_api_key or ""),
@@ -529,6 +598,7 @@ def get_embedding_model():
             ollama_base_url=str(override.get("base_url", "") or "") if backend == "ollama" else settings.ollama_base_url,
         )
     return _build_embedding_model_cached(
+        provider=str(settings.model_backend or ""),
         backend=_normalize_backend(settings.model_backend),
         openai_model=settings.openai_embed_model,
         openai_api_key=str(settings.openai_api_key or ""),
@@ -549,6 +619,7 @@ def get_reasoning_model(temperature: float | None = None):
         api_key = str(override.get("api_key", "") or "")
         base_url = str(override.get("base_url", "") or "")
         return _build_chat_model_cached(
+            provider=provider,
             backend=backend,
             temperature=_norm_temp(effective_temperature),
             openai_model=model if backend == "openai" else (settings.openai_reasoning_model or settings.openai_chat_model),
@@ -563,6 +634,7 @@ def get_reasoning_model(temperature: float | None = None):
         )
     backend = _normalize_backend(settings.reasoning_model_backend or settings.model_backend)
     return _build_chat_model_cached(
+        provider=str(settings.reasoning_model_backend or settings.model_backend or ""),
         backend=backend,
         temperature=_norm_temp(temperature),
         openai_model=(settings.openai_reasoning_model or settings.openai_chat_model),

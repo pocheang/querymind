@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import logging
 
+from app.services.outbound_redaction import redact_messages_for_provider
+
 logger = logging.getLogger(__name__)
 
 # Configuration
@@ -226,9 +228,8 @@ Format your response as JSON:
 }"""
 
         # Use latest model
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        messages = redact_messages_for_provider(
+            [
                 {
                     "role": "user",
                     "content": [
@@ -242,6 +243,12 @@ Format your response as JSON:
                     ]
                 }
             ],
+            provider="openai",
+        )
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
             max_tokens=1000
         )
 
@@ -290,10 +297,8 @@ Please provide:
 
 Format your response as JSON."""
 
-        message = client.messages.create(
-            model=model,
-            max_tokens=1000,
-            messages=[
+        messages = redact_messages_for_provider(
+            [
                 {
                     "role": "user",
                     "content": [
@@ -311,7 +316,14 @@ Format your response as JSON."""
                         }
                     ]
                 }
-            ]
+            ],
+            provider="anthropic",
+        )
+
+        message = client.messages.create(
+            model=model,
+            max_tokens=1000,
+            messages=messages
         )
 
         # Parse response

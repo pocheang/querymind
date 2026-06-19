@@ -115,6 +115,42 @@ def test_graph_node_passes_agent_class_to_safe_graph_result():
             "graph question",
             allowed_sources=None,
             agent_class="artificial_intelligence",
+            retrieved_docs=None,
+        )
+
+
+def test_graph_node_passes_vector_citations_as_retrieved_docs():
+    """Test that graph node forwards vector citations for enhanced graph context."""
+    from app.graph.nodes import graph_node as graph_node_impl
+
+    state: GraphState = {
+        "question": "graph question",
+        "allowed_sources": ["doc.md"],
+        "agent_class": "artificial_intelligence",
+        "vector_result": {
+            "citations": [
+                {
+                    "content": "Large Language Models use retrieval.",
+                    "metadata": {"source": "doc.md", "format": "markdown"},
+                }
+            ]
+        },
+    }
+
+    with patch("app.graph.nodes.graph_node.safe_graph_result") as mock_graph:
+        mock_graph.return_value = {"context": "graph", "entities": [], "neighbors": []}
+        graph_node_impl(state)
+
+        mock_graph.assert_called_once_with(
+            "graph question",
+            allowed_sources=["doc.md"],
+            agent_class="artificial_intelligence",
+            retrieved_docs=[
+                {
+                    "content": "Large Language Models use retrieval.",
+                    "metadata": {"source": "doc.md", "format": "markdown"},
+                }
+            ],
         )
 
 
@@ -246,6 +282,52 @@ def test_route_after_vector_no_circular_dependency():
 
     next_route2 = route_after_vector(state2)
     assert next_route2 == "graph"
+
+
+def test_hybrid_route_uses_vector_context_for_graph_when_enhanced():
+    """Test that enhanced hybrid mode runs vector first and forwards citations to graph."""
+    from app.graph.workflow import vector_node
+
+    state: GraphState = {
+        "question": "test question",
+        "route": "hybrid",
+        "allowed_sources": ["doc1.md"],
+        "retrieval_strategy": "advanced",
+        "agent_class": "pdf_text",
+    }
+
+    with patch("app.graph.nodes.vector_node.get_settings") as mock_settings, \
+         patch("app.graph.nodes.vector_node.safe_vector_result") as mock_vector, \
+         patch("app.graph.nodes.vector_node.safe_graph_result") as mock_graph, \
+         patch("app.graph.nodes.vector_node.submit_hybrid") as mock_submit:
+        mock_settings.return_value = MagicMock(graph_rag_enhanced=True)
+        mock_vector.return_value = {
+            "context": "vec",
+            "citations": [
+                {
+                    "content": "Large Language Models use retrieval.",
+                    "metadata": {"source": "doc1.md", "format": "markdown"},
+                }
+            ],
+            "retrieved_count": 1,
+        }
+        mock_graph.return_value = {"context": "graph", "entities": [], "neighbors": []}
+
+        result = vector_node(state)
+
+        mock_submit.assert_not_called()
+        mock_graph.assert_called_once_with(
+            "test question",
+            ["doc1.md"],
+            "pdf_text",
+            retrieved_docs=[
+                {
+                    "content": "Large Language Models use retrieval.",
+                    "metadata": {"source": "doc1.md", "format": "markdown"},
+                }
+            ],
+        )
+        assert result["graph_result"]["hybrid_execution_mode"] == "vector_graph_serial"
 
 
 def test_route_after_graph_no_hybrid_check():

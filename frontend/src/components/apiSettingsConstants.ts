@@ -39,11 +39,11 @@ export const QUICK_PRESETS = [
 export const PROVIDERS: Provider[] = ["local", "ollama", "openai", "deepseek", "anthropic", "custom"];
 
 export const DEFAULT_CONFIG: ApiConfig = {
-  provider: "ollama",
+  provider: "local",
   apiKey: "",
   apiKeyMasked: "",
-  baseUrl: "http://localhost:11434",
-  model: "qwen2.5:7b-instruct",
+  baseUrl: "",
+  model: "local-evidence",
   temperature: 0.7,
   maxTokens: 2048,
 };

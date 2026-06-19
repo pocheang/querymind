@@ -261,7 +261,7 @@ class IndexHealthResponse(BaseModel):
 
 
 class UserApiSettings(BaseModel):
-    provider: str = Field(default="ollama", description="API provider: local, openai, anthropic, deepseek, ollama, custom")
+    provider: str = Field(default="local", description="API provider: local, openai, anthropic, deepseek, ollama, custom")
     api_key: str = Field(default="", description="API key (encrypted in storage)")
     base_url: str = Field(default="", description="Base URL for API")
     model: str = Field(default="", description="Model name")
@@ -270,7 +270,7 @@ class UserApiSettings(BaseModel):
 
 
 class UserApiSettingsView(BaseModel):
-    provider: str = Field(default="ollama", description="API provider: local, openai, anthropic, deepseek, ollama, custom")
+    provider: str = Field(default="local", description="API provider: local, openai, anthropic, deepseek, ollama, custom")
     api_key_masked: str = Field(default="", description="Masked API key")
     base_url: str = Field(default="", description="Base URL for API")
     model: str = Field(default="", description="Model name")
@@ -295,7 +295,7 @@ class UserApiSettingsTestResponse(BaseModel):
 
 class AdminModelSettings(BaseModel):
     enabled: bool = Field(default=False, description="Apply this global model config to users without personal overrides")
-    provider: str = Field(default="ollama", description="API provider: local, openai, anthropic, deepseek, ollama, custom")
+    provider: str = Field(default="local", description="API provider: local, openai, anthropic, deepseek, ollama, custom")
     api_key: str = Field(default="", description="API key (encrypted in storage)")
     base_url: str = Field(default="", description="Base URL for API")
     chat_model: str = Field(default="", description="Chat model name")
@@ -307,7 +307,7 @@ class AdminModelSettings(BaseModel):
 
 class AdminModelSettingsView(BaseModel):
     enabled: bool = False
-    provider: str = "ollama"
+    provider: str = "local"
     api_key_masked: str = ""
     base_url: str = ""
     chat_model: str = ""

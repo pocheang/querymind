@@ -8,6 +8,7 @@ from typing import Any, Generator
 
 from app.agents.router_agent import decide_route
 from app.agents.synthesis_agent import stream_synthesize_answer, synthesize_answer
+from app.core.config import get_settings
 from app.graph.streaming.safe_wrappers import safe_graph_result, safe_vector_result, safe_web_result
 from app.services.adaptive_rag_policy import build_adaptive_plan
 from app.services.answer_safety import sanitize_answer
@@ -21,6 +22,18 @@ from app.services.session_language import update_language_history
 from app.services.tracing import traced_span
 
 logger = logging.getLogger(__name__)
+
+
+def _retrieved_docs_from_vector_result(vector_result: dict | None) -> list[dict]:
+    docs = []
+    for citation in (vector_result or {}).get("citations", []) or []:
+        docs.append(
+            {
+                "content": citation.get("content", ""),
+                "metadata": citation.get("metadata", {}) or {},
+            }
+        )
+    return docs
 
 
 def _sync_agent_patchpoints() -> None:
@@ -159,56 +172,82 @@ def run_query_stream(
         return final_payload
 
     if (not casual_chat) and route == "hybrid" and (not deadline_exceeded()):
-        did_parallel_hybrid = True
-        yield {"type": "status", "message": "retrieving_hybrid_parallel"}
-        timeout_s = remaining_seconds()
-        if timeout_s is None:
-            timeout_s = 15.0
-        timeout_s = max(0.1, float(timeout_s))
-        deadline = time.monotonic() + timeout_s
-        fut_vector = None
-        fut_graph = None
-        vector_result = {"context": "", "citations": [], "retrieved_count": 0, "error": "vector_error:Timeout"}
-        graph_result = {"context": "", "entities": [], "neighbors": [], "error": "graph_error:Timeout"}
-        try:
-            agent_class = state.get("agent_class")
-            fut_vector = submit_hybrid(safe_vector_result, question, allowed_sources, retrieval_strategy, agent_class)
-            fut_graph = submit_hybrid(safe_graph_result, question, allowed_sources, agent_class)
+        if get_settings().graph_rag_enhanced:
+            did_parallel_hybrid = True
+            yield {"type": "status", "message": "retrieving_hybrid_contextual"}
+            state["vector_result"] = safe_vector_result(
+                question,
+                allowed_sources=allowed_sources,
+                retrieval_strategy=retrieval_strategy,
+                agent_class=state.get("agent_class"),
+            )
+            if deadline_exceeded():
+                state["graph_result"] = {
+                    "context": "",
+                    "entities": [],
+                    "neighbors": [],
+                    "error": "graph_error:Timeout",
+                    "timeout": True,
+                }
+            else:
+                state["graph_result"] = safe_graph_result(
+                    question,
+                    allowed_sources=allowed_sources,
+                    agent_class=state.get("agent_class"),
+                    retrieved_docs=_retrieved_docs_from_vector_result(state.get("vector_result")) or None,
+                )
+            state["graph_result"]["hybrid_execution_mode"] = "vector_graph_serial"
+        else:
+            did_parallel_hybrid = True
+            yield {"type": "status", "message": "retrieving_hybrid_parallel"}
+            timeout_s = remaining_seconds()
+            if timeout_s is None:
+                timeout_s = 15.0
+            timeout_s = max(0.1, float(timeout_s))
+            deadline = time.monotonic() + timeout_s
+            fut_vector = None
+            fut_graph = None
+            vector_result = {"context": "", "citations": [], "retrieved_count": 0, "error": "vector_error:Timeout"}
+            graph_result = {"context": "", "entities": [], "neighbors": [], "error": "graph_error:Timeout"}
             try:
-                left = max(0.1, deadline - time.monotonic())
-                vector_result = fut_vector.result(timeout=left)
-            except FutureTimeoutError:
-                fut_vector.cancel()
-            except Exception as e:
-                logger.exception(f"Vector RAG failed in streaming for question: {question}")
-                vector_result = {"context": "", "citations": [], "retrieved_count": 0, "error": f"vector_error:{type(e).__name__}"}
-            state["vector_result"] = vector_result
-            try:
-                left = max(0.1, deadline - time.monotonic())
-                graph_result = fut_graph.result(timeout=left)
-            except FutureTimeoutError:
-                fut_graph.cancel()
-            except Exception as e:
-                logger.exception(f"Graph RAG failed in streaming for question: {question}")
-                graph_result = {"context": "", "entities": [], "neighbors": [], "error": f"graph_error:{type(e).__name__}"}
-            state["graph_result"] = graph_result
-        except HybridExecutorRejectedError:
-            if fut_vector is not None:
-                fut_vector.cancel()
-            if fut_graph is not None:
-                fut_graph.cancel()
-            state["vector_result"] = {
-                "context": "",
-                "citations": [],
-                "retrieved_count": 0,
-                "error": "vector_error:Overloaded",
-            }
-            state["graph_result"] = {
-                "context": "",
-                "entities": [],
-                "neighbors": [],
-                "error": "graph_error:Overloaded",
-            }
+                agent_class = state.get("agent_class")
+                fut_vector = submit_hybrid(safe_vector_result, question, allowed_sources, retrieval_strategy, agent_class)
+                fut_graph = submit_hybrid(safe_graph_result, question, allowed_sources, agent_class)
+                try:
+                    left = max(0.1, deadline - time.monotonic())
+                    vector_result = fut_vector.result(timeout=left)
+                except FutureTimeoutError:
+                    fut_vector.cancel()
+                except Exception as e:
+                    logger.exception(f"Vector RAG failed in streaming for question: {question}")
+                    vector_result = {"context": "", "citations": [], "retrieved_count": 0, "error": f"vector_error:{type(e).__name__}"}
+                state["vector_result"] = vector_result
+                try:
+                    left = max(0.1, deadline - time.monotonic())
+                    graph_result = fut_graph.result(timeout=left)
+                except FutureTimeoutError:
+                    fut_graph.cancel()
+                except Exception as e:
+                    logger.exception(f"Graph RAG failed in streaming for question: {question}")
+                    graph_result = {"context": "", "entities": [], "neighbors": [], "error": f"graph_error:{type(e).__name__}"}
+                state["graph_result"] = graph_result
+            except HybridExecutorRejectedError:
+                if fut_vector is not None:
+                    fut_vector.cancel()
+                if fut_graph is not None:
+                    fut_graph.cancel()
+                state["vector_result"] = {
+                    "context": "",
+                    "citations": [],
+                    "retrieved_count": 0,
+                    "error": "vector_error:Overloaded",
+                }
+                state["graph_result"] = {
+                    "context": "",
+                    "entities": [],
+                    "neighbors": [],
+                    "error": "graph_error:Overloaded",
+                }
 
         if state["vector_result"].get("error"):
             thoughts.append(f"本地向量检索异常，已降级继续: {state['vector_result']['error']}")
@@ -280,7 +319,12 @@ def run_query_stream(
 
     if (not casual_chat) and route in {"graph", "hybrid"} and (not did_parallel_hybrid) and (not deadline_exceeded()):
         yield {"type": "status", "message": "retrieving_graph"}
-        state["graph_result"] = safe_graph_result(question, allowed_sources=allowed_sources, agent_class=state.get("agent_class"))
+        state["graph_result"] = safe_graph_result(
+            question,
+            allowed_sources=allowed_sources,
+            agent_class=state.get("agent_class"),
+            retrieved_docs=_retrieved_docs_from_vector_result(state.get("vector_result")) or None,
+        )
         if state["graph_result"].get("error"):
             thoughts.append(f"本地图谱检索异常，已降级继续: {state['graph_result']['error']}")
             yield {"type": "thought", "content": thoughts[-1]}
