@@ -314,3 +314,14 @@ docs/dashboard.html
 docs/structure_*.txt
 docs/structure_*.html
 docs/visualizations/
+
+# ============================================
+# GitHub Release Creation Tools (Temporary)
+# ============================================
+# Release creation guides and scripts (one-time use)
+CREATE_RELEASES_INSTRUCTIONS.md
+HOW_TO_CREATE_RELEASES.md
+GITHUB_RELEASE_*.md
+create_github_releases*.ps1
+create_releases_*.ps1
+fix_*_tag.ps1
