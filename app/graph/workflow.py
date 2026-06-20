@@ -1,5 +1,4 @@
 import threading
-import importlib
 from typing import Optional
 
 from langgraph.graph import END, START, StateGraph
@@ -25,23 +24,14 @@ from app.services.agent_execution_tracker import get_tracker, track_agent_execut
 
 _WORKFLOW_LOCK = threading.Lock()
 _WORKFLOW_APP = None
-_VECTOR_NODE_MODULE = importlib.import_module("app.graph.nodes.vector_node")
 
 
 def vector_node(state: GraphState) -> GraphState:
-    """Compatibility wrapper that keeps old workflow-level patch points working."""
-    original_submit = _VECTOR_NODE_MODULE.submit_hybrid
-    original_run_vector = _VECTOR_NODE_MODULE.run_vector_rag
-    _VECTOR_NODE_MODULE.submit_hybrid = submit_hybrid
-    _VECTOR_NODE_MODULE.run_vector_rag = run_vector_rag
-    try:
-        execution_id = state.get("execution_id")
-        if execution_id:
-            return _tracked_vector_node(state, execution_id=execution_id)
-        return _tracked_vector_node(state)
-    finally:
-        _VECTOR_NODE_MODULE.submit_hybrid = original_submit
-        _VECTOR_NODE_MODULE.run_vector_rag = original_run_vector
+    """Vector node wrapper - passes through to implementation."""
+    execution_id = state.get("execution_id")
+    if execution_id:
+        return _tracked_vector_node(state, execution_id=execution_id)
+    return _tracked_vector_node(state)
 
 
 @track_agent_execution(agent_name="router")

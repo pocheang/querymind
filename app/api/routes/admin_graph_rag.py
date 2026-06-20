@@ -11,9 +11,9 @@ Provides endpoints to:
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
-from app.api.dependencies import _require_permission
+from app.api.dependencies import _require_permission, _require_user
 from app.agents.graph_rag_cache import (
     clear_all_caches,
     get_cache_stats,
@@ -26,7 +26,8 @@ router = APIRouter(prefix="/admin/graph-rag", tags=["admin", "graph-rag"])
 
 @router.get("/cache/stats")
 async def get_graph_rag_cache_stats(
-    _permission: None = Depends(_require_permission("admin")),
+    request: Request,
+    user: dict = Depends(_require_user),
 ) -> dict[str, Any]:
     """
     Get Graph RAG cache statistics.
@@ -38,6 +39,7 @@ async def get_graph_rag_cache_stats(
 
     Requires admin permission.
     """
+    _require_permission(user, "admin:audit_read", request, "admin")
     stats = get_cache_stats()
 
     # Calculate aggregate stats
@@ -59,7 +61,8 @@ async def get_graph_rag_cache_stats(
 
 @router.post("/cache/clear")
 async def clear_graph_rag_caches(
-    _permission: None = Depends(_require_permission("admin")),
+    request: Request,
+    user: dict = Depends(_require_user),
 ) -> dict[str, str]:
     """
     Clear all Graph RAG caches.
@@ -76,6 +79,7 @@ async def clear_graph_rag_caches(
 
     Requires admin permission.
     """
+    _require_permission(user, "admin:ops_manage", request, "admin")
     clear_all_caches()
     logger.info("Graph RAG caches cleared by admin")
 
@@ -87,7 +91,8 @@ async def clear_graph_rag_caches(
 
 @router.get("/config")
 async def get_graph_rag_config(
-    _permission: None = Depends(_require_permission("admin")),
+    request: Request,
+    user: dict = Depends(_require_user),
 ) -> dict[str, Any]:
     """
     Get current Graph RAG configuration.
@@ -96,6 +101,7 @@ async def get_graph_rag_config(
 
     Requires admin permission.
     """
+    _require_permission(user, "admin:audit_read", request, "admin")
     from app.agents.graph_rag_config import (
         DENSITY_ACCEPTABLE_MAX,
         DENSITY_ACCEPTABLE_MIN,
@@ -138,7 +144,8 @@ async def get_graph_rag_config(
 
 @router.get("/health")
 async def graph_rag_health_check(
-    _permission: None = Depends(_require_permission("admin")),
+    request: Request,
+    user: dict = Depends(_require_user),
 ) -> dict[str, Any]:
     """
     Health check for Graph RAG system.
@@ -150,6 +157,7 @@ async def graph_rag_health_check(
 
     Requires admin permission.
     """
+    _require_permission(user, "admin:audit_read", request, "admin")
     from app.graph.neo4j_client import Neo4jClient
 
     health = {

@@ -38,9 +38,8 @@ class QuotaGuard:
             return
         key = self._scope_key(user)
         with self._lock:
-            if self._query_limiter.is_limited(key):
+            if not self._query_limiter.try_acquire(key):
                 raise QuotaExceededError("query quota exceeded")
-            self._query_limiter.record(key)
 
     def enforce_web_quota(self, user: dict) -> None:
         settings = get_settings()
@@ -48,6 +47,5 @@ class QuotaGuard:
             return
         key = f"web:{self._scope_key(user)}"
         with self._lock:
-            if self._web_limiter.is_limited(key):
+            if not self._web_limiter.try_acquire(key):
                 raise QuotaExceededError("web quota exceeded")
-            self._web_limiter.record(key)

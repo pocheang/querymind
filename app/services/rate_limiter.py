@@ -36,6 +36,19 @@ class SlidingWindowLimiter:
             self._trim(queue, now)
             queue.append(now)
 
+    def try_acquire(self, key: str) -> bool:
+        """Atomically check and record an attempt. Returns True if allowed, False if rate limited."""
+        if not key:
+            return True
+        now = _utcnow()
+        with self._lock:
+            queue = self._events[key]
+            self._trim(queue, now)
+            if len(queue) >= self.max_attempts:
+                return False
+            queue.append(now)
+            return True
+
     def reset(self, key: str) -> None:
         if not key:
             return

@@ -33,8 +33,6 @@ class AuthDBService:
         return self.db_path.parent / ".api_settings.key"
 
     def _api_settings_data_key(self) -> bytes:
-        if self._api_settings_key is not None:
-            return self._api_settings_key
         with self._api_settings_key_lock:
             if self._api_settings_key is not None:
                 return self._api_settings_key
@@ -58,10 +56,21 @@ class AuthDBService:
 
     def _connect(self) -> sqlite3.Connection:
         settings = get_settings()
-        timeout_s = max(1.0, float(getattr(settings, "sqlite_busy_timeout_seconds", 10) or 10))
-        conn = sqlite3.connect(self.db_path, timeout=timeout_s)
+        # Safely parse timeout with proper error handling
+        try:
+            timeout_s = float(getattr(settings, "sqlite_busy_timeout_seconds", 10) or 10)
+            timeout_s = max(1.0, timeout_s)
+            # Validate range to prevent SQL issues
+            if not (0 < timeout_s < 3600):
+                timeout_s = 10.0
+        except (ValueError, TypeError):
+            # Invalid config value, use safe default
+            timeout_s = 10.0
+
+        timeout_ms = int(timeout_s * 1000)
+        conn = sqlite3.connect(self.db_path, timeout=timeout_s, check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        conn.execute(f"PRAGMA busy_timeout = {int(timeout_s * 1000)}")
+        conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
         conn.execute("PRAGMA journal_mode=WAL")
         return conn
 

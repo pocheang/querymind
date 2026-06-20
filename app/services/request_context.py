@@ -23,7 +23,7 @@ def remaining_seconds() -> float | None:
 
 def deadline_exceeded() -> bool:
     deadline = get_deadline_ts()
-    return bool(deadline > 0 and time.monotonic() >= deadline)
+    return bool(deadline > 0 and time.monotonic() > deadline)
 
 
 def overload_mode_enabled() -> bool:
@@ -40,7 +40,8 @@ def request_context(*, timeout_ms: int, overload_mode: bool, api_settings: dict 
     deadline = time.monotonic() + (max(1, int(timeout_ms)) / 1000.0)
     token_deadline: Token = _REQUEST_DEADLINE_TS.set(deadline)
     token_overload: Token = _REQUEST_OVERLOAD.set(bool(overload_mode))
-    token_api_settings: Token = _REQUEST_API_SETTINGS.set(dict(api_settings) if isinstance(api_settings, dict) else None)
+    # Avoid unnecessary dict copy if api_settings is read-only in the context
+    token_api_settings: Token = _REQUEST_API_SETTINGS.set(api_settings if api_settings is None else dict(api_settings))
     try:
         yield
     finally:

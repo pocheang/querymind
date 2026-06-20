@@ -145,76 +145,29 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         )
 
     if effective_agent_class == "pdf_text":
-        pdf_names = _list_visible_pdf_names_for_user(user)
-        if not pdf_names:
-            answer = build_upload_pdf_hint()
-            _audit(request, action="query.run", resource_type="query", result="success", user=user, detail="pdf_agent_no_pdf")
-            if req.session_id:
-                history_store = _history_store_for_user(user)
-                history_store.append_message(req.session_id, "user", normalized_question)
-                history_store.append_message(
-                    req.session_id,
-                    "assistant",
-                    answer,
-                    metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
-                )
+        from app.api.utils.query_helpers import handle_pdf_agent_routing
+
+        modified_question, pdf_allowed_sources, early_response = handle_pdf_agent_routing(
+            normalized_question, user, req.session_id, request, action_name="query.run"
+        )
+
+        if early_response is not None:
             return QueryResponse(
-                answer=answer,
-                route="pdf_text",
+                answer=early_response["answer"],
+                route=early_response["route"],
                 citations=[],
                 graph_entities=[],
                 web_used=False,
-                debug={"reason": "pdf_agent_no_pdf", "skill": "pdf_text_reader", "agent_class": "pdf_text", "use_reasoning": req.use_reasoning},
+                debug={
+                    "reason": early_response["reason"],
+                    "skill": early_response["skill"],
+                    "agent_class": early_response["agent_class"],
+                    "use_reasoning": req.use_reasoning
+                },
             )
-        selected_pdfs = choose_pdf_targets(normalized_question, pdf_names)
-        if len(pdf_names) > 1 and not selected_pdfs:
-            answer = build_choose_pdf_hint(pdf_names)
-            _audit(request, action="query.run", resource_type="query", result="success", user=user, detail="pdf_agent_need_selection")
-            if req.session_id:
-                history_store = _history_store_for_user(user)
-                history_store.append_message(req.session_id, "user", normalized_question)
-                history_store.append_message(
-                    req.session_id,
-                    "assistant",
-                    answer,
-                    metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
-                )
-            return QueryResponse(
-                answer=answer,
-                route="pdf_text",
-                citations=[],
-                graph_entities=[],
-                web_used=False,
-                debug={"reason": "pdf_agent_need_selection", "skill": "pdf_text_reader", "agent_class": "pdf_text", "use_reasoning": req.use_reasoning},
-            )
-        if selected_pdfs:
-            chunks_map = _visible_doc_chunks_by_filename_for_user(user)
-            selected_with_chunks = [x for x in selected_pdfs if chunks_map.get(x, 0) > 0]
-            if not selected_with_chunks:
-                answer = (
-                    "The selected document exists, but its index is empty (chunks=0), so I cannot read detailed content yet.\n"
-                    "Please click Reindex for this file, then ask again."
-                )
-                _audit(request, action="query.run", resource_type="query", result="success", user=user, detail="pdf_agent_chunks_zero")
-                if req.session_id:
-                    history_store = _history_store_for_user(user)
-                    history_store.append_message(req.session_id, "user", original_question)
-                    history_store.append_message(
-                        req.session_id,
-                        "assistant",
-                        answer,
-                        metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
-                    )
-                return QueryResponse(
-                    answer=answer,
-                    route="pdf_text",
-                    citations=[],
-                    graph_entities=[],
-                    web_used=False,
-                    debug={"reason": "pdf_agent_chunks_zero", "skill": "pdf_text_reader", "agent_class": "pdf_text", "use_reasoning": req.use_reasoning},
-                )
-            normalized_question = apply_pdf_focus_to_question(normalized_question, selected_with_chunks)
-            pdf_allowed_sources = _allowed_sources_for_visible_filenames(user, selected_with_chunks)
+
+        if modified_question:
+            normalized_question = modified_question
 
     is_fast_smalltalk = is_casual_chat_query(normalized_question)
     effective_question = normalized_question if is_fast_smalltalk else enhance_user_question_for_completion(normalized_question)
@@ -525,23 +478,26 @@ async def stream_query(
         return _sse_response(event_gen_file_inventory())
 
     if effective_agent_class == "pdf_text":
-        pdf_names = _list_visible_pdf_names_for_user(user)
-        selected_pdfs = choose_pdf_targets(normalized_question, pdf_names) if pdf_names else []
-        if not pdf_names:
-            answer = build_upload_pdf_hint()
-            _audit(request, action="query.stream", resource_type="query", result="success", user=user, detail="pdf_agent_no_pdf")
-            if session_id:
-                history_store = _history_store_for_user(user)
-                history_store.append_message(session_id, "user", normalized_question)
-                history_store.append_message(
-                    session_id,
-                    "assistant",
-                    answer,
-                    metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
-                )
+        from app.api.utils.query_helpers import handle_pdf_agent_routing
 
-            def event_gen_pdf_upload_needed():
-                yield encode_sse({"type": "status", "message": "pdf_upload_required"})
+        modified_question, pdf_allowed_sources, early_response = handle_pdf_agent_routing(
+            normalized_question, user, session_id, request, action_name="query.stream"
+        )
+
+        if early_response is not None:
+            answer = early_response["answer"]
+            reason = early_response["reason"]
+
+            # Map reason to SSE status message
+            status_map = {
+                "pdf_agent_no_pdf": "pdf_upload_required",
+                "pdf_agent_need_selection": "pdf_selection_required",
+                "pdf_agent_chunks_zero": "pdf_reindex_required",
+            }
+            status_msg = status_map.get(reason, "pdf_routing")
+
+            def event_gen_pdf_early():
+                yield encode_sse({"type": "status", "message": status_msg})
                 yield encode_sse({"type": "answer_chunk", "content": answer})
                 yield encode_sse(
                     {
@@ -549,7 +505,7 @@ async def stream_query(
                         "result": {
                             "answer": answer,
                             "route": "pdf_text",
-                            "reason": "pdf_agent_no_pdf",
+                            "reason": reason,
                             "skill": "pdf_text_reader",
                             "agent_class": "pdf_text",
                             "vector_result": {},
@@ -559,81 +515,10 @@ async def stream_query(
                     }
                 )
 
-            return _sse_response(event_gen_pdf_upload_needed())
-        if len(pdf_names) > 1 and not selected_pdfs:
-            answer = build_choose_pdf_hint(pdf_names)
-            _audit(request, action="query.stream", resource_type="query", result="success", user=user, detail="pdf_agent_need_selection")
-            if session_id:
-                history_store = _history_store_for_user(user)
-                history_store.append_message(session_id, "user", normalized_question)
-                history_store.append_message(
-                    session_id,
-                    "assistant",
-                    answer,
-                    metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
-                )
+            return _sse_response(event_gen_pdf_early())
 
-            def event_gen_pdf_select_needed():
-                yield encode_sse({"type": "status", "message": "pdf_selection_required"})
-                yield encode_sse({"type": "answer_chunk", "content": answer})
-                yield encode_sse(
-                    {
-                        "type": "done",
-                        "result": {
-                            "answer": answer,
-                            "route": "pdf_text",
-                            "reason": "pdf_agent_need_selection",
-                            "skill": "pdf_text_reader",
-                            "agent_class": "pdf_text",
-                            "vector_result": {},
-                            "graph_result": {},
-                            "web_result": {"used": False, "citations": [], "context": ""},
-                        },
-                    }
-                )
-
-            return _sse_response(event_gen_pdf_select_needed())
-        if selected_pdfs:
-            chunks_map = _visible_doc_chunks_by_filename_for_user(user)
-            selected_with_chunks = [x for x in selected_pdfs if chunks_map.get(x, 0) > 0]
-            if not selected_with_chunks:
-                answer = (
-                    "The selected document exists, but its index is empty (chunks=0), so I cannot read detailed content yet.\n"
-                    "Please click Reindex for this file, then ask again."
-                )
-                _audit(request, action="query.stream", resource_type="query", result="success", user=user, detail="pdf_agent_chunks_zero")
-                if session_id:
-                    history_store = _history_store_for_user(user)
-                    history_store.append_message(session_id, "user", original_question)
-                    history_store.append_message(
-                        session_id,
-                        "assistant",
-                        answer,
-                        metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
-                    )
-
-                def event_gen_pdf_chunks_zero():
-                    yield encode_sse({"type": "status", "message": "pdf_reindex_required"})
-                    yield encode_sse({"type": "answer_chunk", "content": answer})
-                    yield encode_sse(
-                        {
-                            "type": "done",
-                            "result": {
-                                "answer": answer,
-                                "route": "pdf_text",
-                                "reason": "pdf_agent_chunks_zero",
-                                "skill": "pdf_text_reader",
-                                "agent_class": "pdf_text",
-                                "vector_result": {},
-                                "graph_result": {},
-                                "web_result": {"used": False, "citations": [], "context": ""},
-                            },
-                        }
-                    )
-
-                return _sse_response(event_gen_pdf_chunks_zero())
-            normalized_question = apply_pdf_focus_to_question(normalized_question, selected_with_chunks)
-            pdf_allowed_sources = _allowed_sources_for_visible_filenames(user, selected_with_chunks)
+        if modified_question:
+            normalized_question = modified_question
 
     is_fast_smalltalk = is_casual_chat_query(normalized_question)
     effective_question = normalized_question if is_fast_smalltalk else enhance_user_question_for_completion(normalized_question)

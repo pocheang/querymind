@@ -36,7 +36,7 @@ def test_retrieval_strategy_always_passed():
         "allowed_sources": ["doc1.md"],
     }
 
-    with patch("app.graph.workflow.run_vector_rag") as mock_rag:
+    with patch("app.graph.nodes.vector_node.run_vector_rag") as mock_rag:
         mock_rag.return_value = {"context": "", "citations": [], "retrieved_count": 0}
         vector_node(state)
 
@@ -61,7 +61,7 @@ def test_vector_node_passes_agent_class_to_vector_rag():
         "agent_class": "cybersecurity",
     }
 
-    with patch("app.graph.workflow.run_vector_rag") as mock_rag:
+    with patch("app.graph.nodes.vector_node.run_vector_rag") as mock_rag:
         mock_rag.return_value = {"context": "", "citations": [], "retrieved_count": 0}
         vector_node(state)
 
@@ -82,7 +82,7 @@ def test_hybrid_route_passes_agent_class_to_parallel_retrievers():
         "agent_class": "pdf_text",
     }
 
-    with patch("app.graph.workflow.submit_hybrid") as mock_submit:
+    with patch("app.graph.nodes.vector_node.submit_hybrid") as mock_submit:
         mock_vector_future = MagicMock()
         mock_graph_future = MagicMock()
         mock_vector_future.result.return_value = {"context": "vec", "citations": [], "retrieved_count": 2}
@@ -91,10 +91,16 @@ def test_hybrid_route_passes_agent_class_to_parallel_retrievers():
 
         vector_node(state)
 
-        vector_args = mock_submit.call_args_list[0].args
-        graph_args = mock_submit.call_args_list[1].args
-        assert vector_args[-1] == "pdf_text"
-        assert graph_args[-1] == "pdf_text"
+        # Verify submit_hybrid was called twice (once for vector, once for graph)
+        assert mock_submit.call_count == 2
+
+        # Check first call (vector) - last arg should be agent_class
+        vector_call_args = mock_submit.call_args_list[0].args
+        assert vector_call_args[-1] == "pdf_text"
+
+        # Check second call (graph) - last arg should be agent_class
+        graph_call_args = mock_submit.call_args_list[1].args
+        assert graph_call_args[-1] == "pdf_text"
 
 
 def test_graph_node_passes_agent_class_to_safe_graph_result():
@@ -200,7 +206,7 @@ def test_hybrid_route_executes_both_in_parallel():
         "adaptive_min_vector_hits": 2,
     }
 
-    with patch("app.graph.workflow.submit_hybrid") as mock_submit:
+    with patch("app.graph.nodes.vector_node.submit_hybrid") as mock_submit:
         # Mock futures
         mock_vector_future = MagicMock()
         mock_graph_future = MagicMock()

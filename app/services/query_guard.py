@@ -51,17 +51,29 @@ def _get_redis_client():
                 socket_connect_timeout=0.2,
                 socket_timeout=0.2,
                 retry_on_timeout=False,
+                max_connections=50,  # Add connection pool
+                health_check_interval=30,
             )
             _REDIS_CLIENT.ping()
             _REDIS_UNAVAILABLE_UNTIL = 0.0
             return _REDIS_CLIENT
         except (ImportError, AttributeError) as e:
             logger.debug(f"Redis not available for query guard: {e}")
+            if _REDIS_CLIENT is not None:
+                try:
+                    _REDIS_CLIENT.close()
+                except Exception:
+                    pass
             _REDIS_CLIENT = None
             _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
             return None
         except Exception as e:
             logger.warning(f"Redis connection failed for query guard: {e}")
+            if _REDIS_CLIENT is not None:
+                try:
+                    _REDIS_CLIENT.close()
+                except Exception:
+                    pass
             _REDIS_CLIENT = None
             _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
             return None
@@ -246,14 +258,30 @@ class QueryLoadGuard:
             if queued:
                 try:
                     client.decr(waiting_key)
-                except (ValueError, TypeError, OSError):
+                except (ValueError, TypeError, OSError) as e:
                     logger.warning(
-                        "query_guard_waiting_decr_failed user_key=%s", user_key, exc_info=True
+                        "query_guard_waiting_decr_failed user_key=%s error=%s", user_key, str(e), exc_info=True
                     )
+                    # Attempt to reset the counter if decrement fails repeatedly
+                    try:
+                        current_waiting = int(client.get(waiting_key) or 0)
+                        if current_waiting > self._max_waiting * 2:
+                            logger.error(f"Resetting corrupted waiting counter: {current_waiting}")
+                            client.set(waiting_key, 0, ex=max(5, self._window_seconds))
+                    except Exception:
+                        pass
             if acquired:
                 try:
                     client.decr(inflight_key)
-                except (ValueError, TypeError, OSError):
+                except (ValueError, TypeError, OSError) as e:
                     logger.warning(
-                        "query_guard_inflight_decr_failed user_key=%s", user_key, exc_info=True
+                        "query_guard_inflight_decr_failed user_key=%s error=%s", user_key, str(e), exc_info=True
                     )
+                    # Attempt to reset the counter if decrement fails repeatedly
+                    try:
+                        current_inflight = int(client.get(inflight_key) or 0)
+                        if current_inflight > self._max_concurrent * 2:
+                            logger.error(f"Resetting corrupted inflight counter: {current_inflight}")
+                            client.set(inflight_key, 0, ex=max(5, self._window_seconds))
+                    except Exception:
+                        pass

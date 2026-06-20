@@ -45,13 +45,15 @@ def bulkhead(name: str) -> Iterator[None]:
         return
     timeout_s = max(1, int(getattr(settings, "bulkhead_acquire_timeout_ms", 1500) or 1500)) / 1000.0
     sem = _semaphore(name)
-    ok = sem.acquire(timeout=timeout_s)
-    if not ok:
-        raise BulkheadRejectedError(f"bulkhead_rejected:{name}")
+    acquired = False
     try:
+        acquired = sem.acquire(timeout=timeout_s)
+        if not acquired:
+            raise BulkheadRejectedError(f"bulkhead_rejected:{name}")
         yield
     finally:
-        sem.release()
+        if acquired:
+            sem.release()
 
 
 def reset_bulkheads() -> None:

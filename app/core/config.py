@@ -19,9 +19,9 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_base_url: str | None = Field(default=None, alias="OPENAI_BASE_URL")
-    openai_chat_model: str = Field(default="gpt-5.4-codex", alias="OPENAI_CHAT_MODEL")
+    openai_chat_model: str = Field(default="gpt-4o", alias="OPENAI_CHAT_MODEL")
     openai_embed_model: str = Field(default="text-embedding-3-small", alias="OPENAI_EMBED_MODEL")
-    openai_reasoning_model: str = Field(default="gpt-5.4-codex", alias="OPENAI_REASONING_MODEL")
+    openai_reasoning_model: str = Field(default="o1-preview", alias="OPENAI_REASONING_MODEL")
 
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_chat_model: str = Field(default="claude-sonnet-4-6", alias="ANTHROPIC_CHAT_MODEL")

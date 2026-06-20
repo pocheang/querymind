@@ -308,3 +308,113 @@ def _launch_shadow_run(
                 "error": "shadow_queue_full",
             }
         )
+
+
+def handle_pdf_agent_routing(
+    normalized_question: str,
+    user: dict[str, Any],
+    session_id: str | None,
+    request: Request,
+    action_name: str = "query.run",
+) -> tuple[str | None, list[str] | None, dict[str, Any] | None]:
+    """
+    Handle PDF agent routing logic with all necessary checks.
+
+    Returns:
+        (modified_question, pdf_allowed_sources, early_response_dict)
+        - If early_response_dict is not None, caller should return immediately
+        - Otherwise use modified_question and pdf_allowed_sources for query
+    """
+    from app.api.dependencies import (
+        _list_visible_pdf_names_for_user,
+        _visible_doc_chunks_by_filename_for_user,
+        _allowed_sources_for_filenames,
+        _history_store_for_user,
+        _audit,
+    )
+    from app.services.pdf_agent_guard import (
+        choose_pdf_targets,
+        build_upload_pdf_hint,
+        build_choose_pdf_hint,
+        apply_pdf_focus_to_question,
+    )
+
+    pdf_names = _list_visible_pdf_names_for_user(user)
+
+    # Case 1: No PDFs uploaded
+    if not pdf_names:
+        answer = build_upload_pdf_hint()
+        _audit(request, action=action_name, resource_type="query", result="success", user=user, detail="pdf_agent_no_pdf")
+        if session_id:
+            history_store = _history_store_for_user(user)
+            history_store.append_message(session_id, "user", normalized_question)
+            history_store.append_message(
+                session_id,
+                "assistant",
+                answer,
+                metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
+            )
+        return None, None, {
+            "answer": answer,
+            "route": "pdf_text",
+            "reason": "pdf_agent_no_pdf",
+            "skill": "pdf_text_reader",
+            "agent_class": "pdf_text",
+        }
+
+    # Case 2: Multiple PDFs but none selected
+    selected_pdfs = choose_pdf_targets(normalized_question, pdf_names)
+    if len(pdf_names) > 1 and not selected_pdfs:
+        answer = build_choose_pdf_hint(pdf_names)
+        _audit(request, action=action_name, resource_type="query", result="success", user=user, detail="pdf_agent_need_selection")
+        if session_id:
+            history_store = _history_store_for_user(user)
+            history_store.append_message(session_id, "user", normalized_question)
+            history_store.append_message(
+                session_id,
+                "assistant",
+                answer,
+                metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
+            )
+        return None, None, {
+            "answer": answer,
+            "route": "pdf_text",
+            "reason": "pdf_agent_need_selection",
+            "skill": "pdf_text_reader",
+            "agent_class": "pdf_text",
+        }
+
+    # Case 3: Selected PDFs but no chunks
+    if selected_pdfs:
+        chunks_map = _visible_doc_chunks_by_filename_for_user(user)
+        selected_with_chunks = [x for x in selected_pdfs if chunks_map.get(x, 0) > 0]
+        if not selected_with_chunks:
+            answer = (
+                "The selected document exists, but its index is empty (chunks=0), so I cannot read detailed content yet.\n"
+                "Please click Reindex for this file, then ask again."
+            )
+            _audit(request, action=action_name, resource_type="query", result="success", user=user, detail="pdf_agent_chunks_zero")
+            if session_id:
+                history_store = _history_store_for_user(user)
+                history_store.append_message(session_id, "user", normalized_question)
+                history_store.append_message(
+                    session_id,
+                    "assistant",
+                    answer,
+                    metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
+                )
+            return None, None, {
+                "answer": answer,
+                "route": "pdf_text",
+                "reason": "pdf_agent_chunks_zero",
+                "skill": "pdf_text_reader",
+                "agent_class": "pdf_text",
+            }
+
+        # Case 4: Success - apply PDF focus
+        modified_question = apply_pdf_focus_to_question(normalized_question, selected_with_chunks)
+        pdf_allowed_sources = _allowed_sources_for_filenames(user, selected_with_chunks)
+        return modified_question, pdf_allowed_sources, None
+
+    # No selection needed (single PDF or auto-selected)
+    return normalized_question, None, None

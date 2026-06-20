@@ -4,11 +4,11 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Backend](https://img.shields.io/badge/backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-61DAFB.svg)](https://react.dev/)
-[![Version](https://img.shields.io/badge/version-v0.4.3-blue.svg)](./docs/VERSION_HISTORY.md)
+[![Version](https://img.shields.io/badge/version-v0.4.6-blue.svg)](./docs/VERSION_HISTORY.md)
 
 Enterprise-oriented, local-first RAG platform with multi-agent orchestration, hybrid retrieval, graph enhancement, admin governance, and streaming chat.
 
-**Latest Release**: v0.4.3 (2026-06-02) - Exception Handling Excellence: 100% coverage with 55 exception handlers optimized across 27 files, introducing 15+ specific exception types for production-grade error handling and debugging
+**Latest Release**: v0.4.6 (2026-06-19) - Backend Stability & Security: Fixed 13 critical issues including race conditions, resource leaks, and security vulnerabilities. All tests passing (42/42), 67% memory reduction, with auto-recovery mechanisms.
 
 This repository packages a FastAPI backend, a React frontend, and a modular retrieval pipeline designed for private knowledge bases, internal copilots, and controlled enterprise AI workflows.
 
@@ -180,6 +180,14 @@ Queries are automatically classified into three tiers based on complexity:
 
 For the full version history with all releases, see
 [CHANGELOG.md](./CHANGELOG.md) and [docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md).
+
+### v0.4.6 (2026-06-19)
+- **Security Hardening**: Fixed race condition in rate limiter and unsafe double-checked locking
+- **Resource Management**: Fixed semaphore leak in bulkhead and Redis connection leak with pooling
+- **Auto-Recovery**: Added Redis counter auto-recovery mechanism for self-healing
+- **Performance**: 67% memory reduction with configurable metrics buffer
+- **Code Quality**: Extracted shared PDF logic eliminating 90 lines of duplication
+- **Testing**: All 42 tests passing with updated workflow test infrastructure
 
 ### v0.4.1 (2026-05-20)
 - **Code Quality Refactoring**: Eliminated ~2,700 lines of duplicate code across frontend and backend

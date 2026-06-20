@@ -1,6 +1,7 @@
 """
 Request middleware for the Multi-Agent Local RAG API.
 """
+import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -15,7 +16,8 @@ from app.services.runtime_metrics import RuntimeMetrics
 
 # Global metrics storage
 _request_metrics_lock = threading.Lock()
-_request_metrics: deque[dict[str, Any]] = deque(maxlen=3000)
+_REQUEST_METRICS_MAXLEN = int(os.getenv("REQUEST_METRICS_MAXLEN", "1000"))
+_request_metrics: deque[dict[str, Any]] = deque(maxlen=_REQUEST_METRICS_MAXLEN)
 runtime_metrics = RuntimeMetrics()
 
 
