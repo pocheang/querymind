@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "多智能体RAG系统",
-    "subtitle": "本地大语言模型与高级检索"
+    "title": "智询 QueryMind",
+    "subtitle": "企业级智能问答引擎"
   },
   "nav": {
     "home": "首页",
@@ -322,8 +322,35 @@
     "enterpriseSecurity": "企业级安全"
   },
   "pages": {
+    "landing": {
+      "heroTitle": "智询 QueryMind",
+      "heroSubtitle": "企业级、本地优先的智能问答引擎，支持多智能体编排、混合检索、图谱增强与流式对话",
+      "enterApp": "进入控制台",
+      "login": "登录系统",
+      "register": "注册账户",
+      "architecture": "查看系统架构",
+      "learnMore": "了解更多",
+      "featuresTitle": "核心功能特性",
+      "featuresSubtitle": "深度解析赋能企业级智能检索引擎的生产级核心组件",
+      "feature1Title": "多智能体编排",
+      "feature1Desc": "基于 LangGraph 工作流编排。在路由、向量检索、图谱检索、网络研究与合成代理间智能分发，实现精准答复。",
+      "feature2Title": "混合检索引擎",
+      "feature2Desc": "融合 ChromaDB 密集向量与 BM25 稀疏检索，通过倒数排名融合（RRF）与 BGE 重排模型（BGE-reranker）提升检索精度。",
+      "feature3Title": "知识图谱增强",
+      "feature3Desc": "集成 Neo4j 图数据库，匹配实体并获取多跳邻居关系，发掘深层关联信息，为复杂问答提供图谱增强上下文。",
+      "feature4Title": "高级文档处理 & OCR",
+      "feature4Desc": "支持真实流式 PDF 加载与解析，内存消耗直降 70%；内置 Tesseract 双语 OCR，支持并行图表提取与图像字幕生成。",
+      "feature5Title": "精细化运维与治理",
+      "feature5Desc": "支持 Fast/Balanced/Deep 检索档位、金丝雀灰度分流、提示词版本审批与回滚、历史查询重放及端到端延迟剖析。",
+      "feature6Title": "企业级安全隔离",
+      "feature6Desc": "实行角色访问控制（RBAC）与敏感操作全量审计，使用 AES 加密 API 凭证，并通过多维度沙箱实现会话数据强隔离。",
+      "workflowTitle": "查询请求流转图",
+      "workflowSubtitle": "全链路了解查询如何被安全审查、意图解析、多路检索并最终合成答复。",
+      "ctaTitle": "准备好释放本地知识库的潜力了吗？",
+      "ctaSubtitle": "在数分钟内，快速部署安全、高效、私密的多智能体知识库助手。"
+    },
     "login": {
-      "headline": "本地 RAG\n平台",
+      "headline": "QueryMind\n智询平台",
       "usernameHint": "3-32 个字符，可使用字母、数字或 ._-",
       "usernameValid": "格式正确",
       "invalidFormat": "格式不正确",
@@ -333,7 +360,10 @@
       "rememberMe": "记住我",
       "forgotPassword": "忘记密码？",
       "socialDivider": "或使用第三方登录",
-      "githubUnavailable": "GitHub OAuth 待后端接入后启用"
+      "googleLogin": "使用 Google 登录",
+      "githubLogin": "使用 GitHub 登录",
+      "githubUnavailable": "GitHub OAuth 待配置后启用",
+      "googleUnavailable": "Google OAuth 待配置后启用（请参考 GOOGLE_OAUTH_SETUP.md）"
     },
     "forgotPassword": {
       "badge": "密码重置",
@@ -531,6 +561,7 @@
       "chunks": "块={{count}}",
       "forcePdfText": "强制 pdf_text",
       "returnAuto": "返回自动",
+      "draftQuestion": "起草问题",
       "reindexHint": "部分 PDF 文档块数为 0，请在提问前重建索引。",
       "promptTemplates": "Prompt 模板",
       "templateTitle": "模板标题",
@@ -625,7 +656,9 @@
       "maxTokens": "最大 Token 数",
       "stable": "稳定",
       "balanced": "均衡",
-      "creative": "创意"
+      "creative": "创意",
+      "adminOnlyMessage": "仅管理员可配置模型",
+      "adminOnlyDetails": "模型配置功能仅对管理员开放。如需修改模型设置，请联系系统管理员。"
     },
     "chat": {
       "menu": "菜单",
@@ -652,8 +685,8 @@
       "logout": "退出",
       "userFallback": "用户",
       "welcomeBadge": "控制台就绪",
-      "welcomeTitle": "多智能体 RAG 系统",
-      "welcomeSubtitle": "基于证据链的智能问答系统，支持多模态文档处理、知识图谱检索和 Web 研究。",
+      "welcomeTitle": "QueryMind 智询",
+      "welcomeSubtitle": "基于证据链的智能问答引擎，支持多模态文档处理、知识图谱检索和 Web 研究。",
       "knowledgeDocs": "知识库文档",
       "historySessions": "历史会话",
       "agentModes": "智能体模式",

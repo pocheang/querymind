@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "Multi-Agent RAG System",
-    "subtitle": "Local LLM with Advanced Retrieval"
+    "title": "QueryMind",
+    "subtitle": "Enterprise Intelligent Q&A Engine"
   },
   "nav": {
     "home": "Home",
@@ -322,8 +322,35 @@
     "enterpriseSecurity": "Enterprise Security"
   },
   "pages": {
+    "landing": {
+      "heroTitle": "QueryMind",
+      "heroSubtitle": "Enterprise-grade, local-first intelligent Q&A engine with multi-agent orchestration, hybrid retrieval, graph enhancement, and streaming chat.",
+      "enterApp": "Enter Console",
+      "login": "Log In",
+      "register": "Register",
+      "architecture": "System Architecture",
+      "learnMore": "Learn More",
+      "featuresTitle": "Key Capabilities",
+      "featuresSubtitle": "A look at the production-ready components that power our enterprise intelligent search engine.",
+      "feature1Title": "Multi-Agent Orchestration",
+      "feature1Desc": "Built on LangGraph. Intelligently routes queries across Router, Vector RAG, Graph RAG, Web Research, and Synthesis agents for precise answers.",
+      "feature2Title": "Hybrid Retrieval Engine",
+      "feature2Desc": "Blends dense vector search (ChromaDB) and sparse BM25 retrieval using Reciprocal Rank Fusion (RRF), followed by BGE-reranker cross-encoding.",
+      "feature3Title": "Knowledge Graph Enrichment",
+      "feature3Desc": "Queries Neo4j knowledge graphs to match entities and retrieve multi-hop relationships, unlocking deep relational reasoning and context.",
+      "feature4Title": "Document Processing & OCR",
+      "feature4Desc": "True streaming PDF processing with 70% memory reduction, OCR (Tesseract) for scanned documents, and parallel chart/image captioning.",
+      "feature5Title": "Operations & Governance",
+      "feature5Desc": "Controls query profiles (Fast/Balanced/Deep), Canary routing for A/B testing, prompt version control/rollback, and query replay.",
+      "feature6Title": "Enterprise Security & Isolation",
+      "feature6Desc": "RBAC permissions, audit logging, constant-time token comparison, rate limiting, and strictly isolated user-scoped session databases.",
+      "workflowTitle": "Request Execution Flow",
+      "workflowSubtitle": "How queries are processed securely, analyzed, routed, retrieved, and synthesized.",
+      "ctaTitle": "Ready to Unlock Your Local Knowledge?",
+      "ctaSubtitle": "Deploy a secure, powerful, and private multi-agent copilot in minutes."
+    },
     "login": {
-      "headline": "Local RAG\nPlatform",
+      "headline": "QueryMind\nPlatform",
       "usernameHint": "3-32 characters, letters, numbers or ._-",
       "usernameValid": "Looks good",
       "invalidFormat": "Invalid format",
@@ -333,7 +360,10 @@
       "rememberMe": "Remember me",
       "forgotPassword": "Forgot password?",
       "socialDivider": "or use social login",
-      "githubUnavailable": "GitHub OAuth will be enabled after backend integration"
+      "googleLogin": "Login with Google",
+      "githubLogin": "Login with GitHub",
+      "githubUnavailable": "GitHub OAuth will be enabled after configuration",
+      "googleUnavailable": "Google OAuth will be enabled after configuration (see GOOGLE_OAUTH_SETUP.md)"
     },
     "forgotPassword": {
       "badge": "Password Reset",
@@ -531,6 +561,7 @@
       "chunks": "chunks={{count}}",
       "forcePdfText": "Force pdf_text",
       "returnAuto": "Return to auto",
+      "draftQuestion": "Draft Question",
       "reindexHint": "Some PDF document chunks are 0. Rebuild the index before asking questions.",
       "promptTemplates": "Prompt Templates",
       "templateTitle": "Template title",
@@ -625,7 +656,9 @@
       "maxTokens": "Max Tokens",
       "stable": "Stable",
       "balanced": "Balanced",
-      "creative": "Creative"
+      "creative": "Creative",
+      "adminOnlyMessage": "Admin-only feature",
+      "adminOnlyDetails": "Model configuration is restricted to administrators. Please contact your system admin to modify model settings."
     },
     "chat": {
       "menu": "Menu",
@@ -652,8 +685,8 @@
       "logout": "Logout",
       "userFallback": "User",
       "welcomeBadge": "Console Ready",
-      "welcomeTitle": "Multi-Agent RAG System",
-      "welcomeSubtitle": "Evidence-based intelligent Q&A with multimodal document processing, knowledge graph retrieval, and web research.",
+      "welcomeTitle": "QueryMind",
+      "welcomeSubtitle": "Evidence-based intelligent Q&A engine with multimodal document processing, knowledge graph retrieval, and web research.",
       "knowledgeDocs": "Knowledge docs",
       "historySessions": "History sessions",
       "agentModes": "Agent modes",
