@@ -764,6 +764,7 @@
         "Hybrid Retrieval: Vector + BM25 + RRF + Rerank (BGE-reranker-v2-m3)",
         "Graph Retrieval: Entity matching + neighbor relations + APOC plugin",
         "Multi-Agent Orchestration: LangGraph workflow + conditional routing",
+        "ReAct Agent: Reasoning + Acting pattern with iterative tool use (max 5 Think-Act-Observe cycles)",
         "Tiered Execution: Fast/Balanced/Deep modes + load degradation",
         "Parent-Child Chunking: Balance precision and context (parent 1500 / child 600 tokens)",
         "Query Rewrite: Dedup optimization reduces 10-30% redundant LLM calls",

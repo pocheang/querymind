@@ -764,6 +764,7 @@
         "混合检索：Vector + BM25 + RRF + Rerank (BGE-reranker-v2-m3)",
         "图谱检索：实体匹配 + 邻居关系 + APOC 插件",
         "多智能体编排：LangGraph 工作流 + 条件路由",
+        "ReAct Agent：推理 + 行动模式，迭代工具调用 (最多5轮Think-Act-Observe)",
         "分层执行：Fast/Balanced/Deep 三档 + 负载降级",
         "父子分块策略：平衡精度与上下文 (parent 1500 / child 600 tokens)",
         "查询重写：去重优化减少 10-30% 冗余 LLM 调用",
