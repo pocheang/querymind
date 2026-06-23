@@ -45,12 +45,44 @@ async def main():
         await asyncio.sleep(2)  # 等待动画完成
         await take_screenshot(page, "login", full_page=True)
 
-        # 尝试登录（如果有默认账号）
+        # 尝试注册新账号并登录
         try:
-            # 填写登录表单
-            await page.fill('input[type="text"]', 'admin')
-            await page.fill('input[type="password"]', 'admin123')
-            await page.click('button[type="submit"]')
+            print("\n🔐 注册测试账号...")
+            # 切换到注册模式
+            register_button = page.locator('text=注册, text=Register, text=Sign Up').first
+            if await register_button.count() > 0:
+                await register_button.click()
+                await asyncio.sleep(1)
+
+            # 填写注册表单
+            username = "demo_user"
+            password = "Demo123456"
+
+            # 尝试多种选择器
+            username_input = page.locator('input[placeholder*="用户名"], input[placeholder*="username"], input[name="username"], input[id="username"]').first
+            password_input = page.locator('input[type="password"]').first
+            confirm_input = page.locator('input[placeholder*="确认"], input[placeholder*="confirm"]').first
+
+            await username_input.fill(username)
+            await password_input.fill(password)
+
+            # 如果有确认密码框
+            if await confirm_input.count() > 0:
+                await confirm_input.fill(password)
+
+            # 提交注册
+            submit_button = page.locator('button[type="submit"], button:has-text("注册"), button:has-text("Register")').first
+            await submit_button.click()
+            await asyncio.sleep(3)
+
+            # 如果注册成功，可能需要重新登录
+            # 检查是否还在登录页面
+            if "login" in page.url.lower() or await page.locator('input[type="password"]').count() > 0:
+                print("🔐 使用新账号登录...")
+                await username_input.fill(username)
+                await password_input.fill(password)
+                await submit_button.click()
+
             await page.wait_for_load_state("networkidle")
             await asyncio.sleep(2)
 
