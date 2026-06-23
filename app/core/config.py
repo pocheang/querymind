@@ -13,15 +13,15 @@ class Settings(BaseSettings):
     reasoning_model_backend: str = Field(default="", alias="REASONING_MODEL_BACKEND")
 
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
-    ollama_chat_model: str = Field(default="qwen2.5:14b", alias="OLLAMA_CHAT_MODEL")
+    ollama_chat_model: str = Field(default="qwen3:14b", alias="OLLAMA_CHAT_MODEL")
     ollama_embed_model: str = Field(default="nomic-embed-text", alias="OLLAMA_EMBED_MODEL")
     ollama_reasoning_model: str = Field(default="deepseek-r1:32b", alias="OLLAMA_REASONING_MODEL")
 
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_base_url: str | None = Field(default=None, alias="OPENAI_BASE_URL")
-    openai_chat_model: str = Field(default="gpt-4-turbo", alias="OPENAI_CHAT_MODEL")
+    openai_chat_model: str = Field(default="gpt-5.5", alias="OPENAI_CHAT_MODEL")
     openai_embed_model: str = Field(default="text-embedding-3-small", alias="OPENAI_EMBED_MODEL")
-    openai_reasoning_model: str = Field(default="gpt-4-turbo", alias="OPENAI_REASONING_MODEL")
+    openai_reasoning_model: str = Field(default="gpt-5.5-thinking", alias="OPENAI_REASONING_MODEL")
 
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_chat_model: str = Field(default="claude-opus-4-8", alias="ANTHROPIC_CHAT_MODEL")
