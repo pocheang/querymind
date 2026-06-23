@@ -31,56 +31,18 @@
 - 📊 **实时监控** - 代理执行可视化、检索分析、性能指标
 - 🚀 **本地优先** - 支持 Ollama、OpenAI、Anthropic 等多种模型
 
-### 🖼️ 界面预览
+### 🎯 主要功能
 
-> **注意**: 项目截图将在未来版本中添加到 GitHub。以下为界面预览占位。
+QueryMind 提供以下核心功能模块：
 
-<table>
-  <tr>
-    <td width="50%">
-      <img src="./docs/images/screenshots/login.png" alt="登录界面" onerror="this.src='https://via.placeholder.com/800x600/667eea/ffffff?text=Login+Interface'">
-      <p align="center"><b>🔐 登录界面</b><br/>用户认证与会话管理</p>
-    </td>
-    <td width="50%">
-      <img src="./docs/images/screenshots/chat.png" alt="聊天界面" onerror="this.src='https://via.placeholder.com/800x600/764ba2/ffffff?text=Chat+Interface'">
-      <p align="center"><b>💬 智能问答</b><br/>多轮对话与实时响应</p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="./docs/images/screenshots/agent-tracking.png" alt="代理追踪" onerror="this.src='https://via.placeholder.com/800x600/f093fb/ffffff?text=Agent+Tracking'">
-      <p align="center"><b>🤖 代理执行追踪</b><br/>实时可视化智能体工作流</p>
-    </td>
-    <td width="50%">
-      <img src="./docs/images/screenshots/knowledge-graph.png" alt="知识图谱" onerror="this.src='https://via.placeholder.com/800x600/4facfe/ffffff?text=Knowledge+Graph'">
-      <p align="center"><b>🕸️ 知识图谱</b><br/>实体关系可视化探索</p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="./docs/images/screenshots/documents.png" alt="文档管理" onerror="this.src='https://via.placeholder.com/800x600/00f2fe/ffffff?text=Document+Management'">
-      <p align="center"><b>📄 文档管理</b><br/>上传、处理与索引管理</p>
-    </td>
-    <td width="50%">
-      <img src="./docs/images/screenshots/admin-console.png" alt="管理控制台" onerror="this.src='https://via.placeholder.com/800x600/43e97b/ffffff?text=Admin+Console'">
-      <p align="center"><b>👨‍💼 管理控制台</b><br/>用户管理与系统配置</p>
-    </td>
-  </tr>
-</table>
-
-### 🎬 功能演示
-
-> **计划中**: 功能演示视频和 GIF 动图将在后续版本发布
-
-**主要功能展示**：
-- ✅ **智能问答演示** - 多轮对话、上下文理解、引用溯源
-- ✅ **文档上传处理** - 支持多格式、批量上传、实时进度
-- ✅ **知识图谱交互** - 实体查询、关系探索、可视化导航
-- ✅ **代理执行追踪** - 实时流式更新、执行路径可视化
-- ✅ **混合检索演示** - 向量检索、BM25、重排序融合
-- ✅ **多语言支持** - 中英文无缝切换、智能语言检测
-
-**截图获取指南**: 参考 [截图指南](./docs/images/SCREENSHOT_GUIDE.md)
+- 🔐 **用户认证与管理** - JWT 认证、RBAC 权限控制
+- 💬 **智能问答** - 多轮对话、上下文理解、引用溯源
+- 📄 **文档管理** - 支持多格式上传、批量处理、实时进度
+- 🕸️ **知识图谱** - 实体查询、关系探索、可视化导航
+- 🤖 **代理追踪** - 实时流式更新、执行路径可视化
+- 🔍 **混合检索** - 向量检索、BM25、重排序融合
+- 📊 **性能分析** - 检索统计、响应时间、命中率分析
+- 🌏 **多语言支持** - 中英文无缝切换、智能语言检测
 
 ---
 
