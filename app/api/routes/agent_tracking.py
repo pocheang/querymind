@@ -1,13 +1,14 @@
 import asyncio
 import json
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.api.utils.error_responses import not_found, bad_request
+from app.api.dependencies import _require_user, _require_permission
+from app.api.utils.error_responses import not_found, bad_request, forbidden
 
 from app.services.agent_execution_tracker import (
     AgentExecutionTracker,
@@ -17,6 +18,27 @@ from app.services.agent_execution_tracker import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent-tracking", tags=["agent-tracking"])
+
+
+def _verify_trace_ownership(trace: ExecutionTrace, user: dict[str, Any]) -> None:
+    """
+    Verify that the user has permission to access this trace.
+
+    Regular users can only access their own traces.
+    Admins can access all traces.
+
+    Raises:
+        HTTPException: If user doesn't have permission to access the trace.
+    """
+    role = str(user.get("role", "viewer")).lower()
+    if role == "admin":
+        return
+
+    user_id = str(user.get("user_id", ""))
+    trace_user_id = str(trace.user_id or "")
+
+    if user_id != trace_user_id:
+        raise forbidden("You do not have permission to access this execution trace")
 
 
 class ExecutionStatus(BaseModel):
@@ -30,14 +52,22 @@ class ExecutionStatus(BaseModel):
 
 
 @router.get("/stream/{execution_id}")
-async def stream_execution(execution_id: str, max_iterations: int = 600):
+async def stream_execution(execution_id: str, request: Request, user: dict[str, Any] = Depends(_require_user), max_iterations: int = 600):
     """
     Server-Sent Events (SSE) endpoint for real-time execution tracking.
 
     Streams agent steps as they complete during execution.
+    User can only stream their own executions unless they are admin.
     """
+    _require_permission(user, "query:run", request, "agent-tracking")
     tracker = AgentExecutionTracker.get_instance()
     max_iterations = max(1, min(int(max_iterations or 600), 600))
+
+    # Verify ownership before streaming
+    trace = tracker.get_execution_trace(execution_id)
+    if not trace:
+        raise not_found("Execution not found")
+    _verify_trace_ownership(trace, user)
 
     async def event_generator():
         last_step_count = 0
@@ -88,41 +118,61 @@ async def stream_execution(execution_id: str, max_iterations: int = 600):
 
 
 @router.get("/trace/{execution_id}", response_model=ExecutionTrace)
-async def get_execution_trace(execution_id: str):
+async def get_execution_trace(execution_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     """
     Get the complete execution trace for a given execution ID.
+    User can only view their own executions unless they are admin.
     """
+    _require_permission(user, "query:run", request, "agent-tracking")
     tracker = AgentExecutionTracker.get_instance()
     trace = tracker.get_execution_trace(execution_id)
 
     if not trace:
         raise not_found("Execution not found")
 
+    _verify_trace_ownership(trace, user)
     return trace
 
 
 @router.get("/history", response_model=List[ExecutionTrace])
-async def get_execution_history(limit: int = 20):
+async def get_execution_history(request: Request, user: dict[str, Any] = Depends(_require_user), limit: int = 20):
     """
     Get recent execution traces.
+    Users see only their own executions; admins see all.
     """
+    _require_permission(user, "query:run", request, "agent-tracking")
     if limit < 1 or limit > 100:
         raise bad_request("Limit must be between 1 and 100")
 
     tracker = AgentExecutionTracker.get_instance()
-    return tracker.get_recent_executions(limit=limit)
+    all_traces = tracker.get_recent_executions(limit=limit * 2)  # Get more to filter
+
+    # Filter by user unless admin
+    role = str(user.get("role", "viewer")).lower()
+    if role != "admin":
+        user_id = str(user.get("user_id", ""))
+        # Note: This assumes ExecutionTrace has a user_id field.
+        # If not, all users will see all traces. Need to verify the model.
+        filtered_traces = [t for t in all_traces if getattr(t, "user_id", None) == user_id]
+        return filtered_traces[:limit]
+
+    return all_traces[:limit]
 
 
 @router.get("/status/{execution_id}", response_model=ExecutionStatus)
-async def get_execution_status(execution_id: str):
+async def get_execution_status(execution_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     """
     Get the current status of an execution.
+    User can only view their own executions unless they are admin.
     """
+    _require_permission(user, "query:run", request, "agent-tracking")
     tracker = AgentExecutionTracker.get_instance()
     trace = tracker.get_execution_trace(execution_id)
 
     if not trace:
         raise not_found("Execution not found")
+
+    _verify_trace_ownership(trace, user)
 
     return ExecutionStatus(
         execution_id=trace.execution_id,
@@ -136,15 +186,19 @@ async def get_execution_status(execution_id: str):
 
 
 @router.delete("/trace/{execution_id}")
-async def delete_execution_trace(execution_id: str):
+async def delete_execution_trace(execution_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     """
     Delete a specific execution trace.
+    User can only delete their own executions unless they are admin.
     """
+    _require_permission(user, "query:run", request, "agent-tracking")
     tracker = AgentExecutionTracker.get_instance()
     trace = tracker.get_execution_trace(execution_id)
 
     if not trace:
         raise not_found("Execution not found")
+
+    _verify_trace_ownership(trace, user)
 
     with tracker._traces_lock:
         del tracker._traces[execution_id]
@@ -153,10 +207,11 @@ async def delete_execution_trace(execution_id: str):
 
 
 @router.post("/cleanup")
-async def cleanup_old_traces():
+async def cleanup_old_traces(request: Request, user: dict[str, Any] = Depends(_require_user)):
     """
-    Manually trigger cleanup of old execution traces.
+    Manually trigger cleanup of old execution traces - Admin only.
     """
+    _require_permission(user, "admin:ops_manage", request, "admin")
     tracker = AgentExecutionTracker.get_instance()
     removed_count = tracker.cleanup_old_traces()
 

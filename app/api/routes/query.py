@@ -208,6 +208,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         "allowed_sources": allowed_sources,
         "force_language": req.force_language,
         "session_id": req.session_id,
+        "user_id": str(user.get("user_id", "")),  # 添加 user_id 用于执行追踪
     }
     hinted = _normalize_agent_class_hint(req.agent_class_hint)
     if hinted:
@@ -225,7 +226,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         request_id=req.request_id,
         mode="query",
     )
-    cached_response = None if is_fast_smalltalk else query_result_cache.get(cache_key, session_id=req.session_id)
+    cached_response = None if is_fast_smalltalk else query_result_cache.get(cache_key, session_id=req.session_id, user_id=str(user.get("user_id", "")))
     if isinstance(cached_response, dict) and cached_response:
         try:
             cached = QueryResponse.model_validate(cached_response)
@@ -244,7 +245,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
             return cached
     if not query_result_cache.mark_inflight(cache_key):
         runtime_metrics.inc("query_duplicate_total")
-        hot_cached = None if is_fast_smalltalk else query_result_cache.get(cache_key, session_id=req.session_id)
+        hot_cached = None if is_fast_smalltalk else query_result_cache.get(cache_key, session_id=req.session_id, user_id=str(user.get("user_id", "")))
         if isinstance(hot_cached, dict) and hot_cached:
             try:
                 return QueryResponse.model_validate(hot_cached)
@@ -353,6 +354,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         "graph_entities": result.get("graph_result", {}).get("entities", []),
         "web_used": result.get("web_result", {}).get("used", False),
         "detected_language": result.get("detected_language", "zh"),
+        "execution_id": result.get("execution_id"),  # 添加 execution_id
         "debug": {
             "reason": result.get("reason", ""),
             "skill": result.get("skill", ""),
@@ -406,7 +408,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         question=effective_question,
         primary_result=result,
     )
-    query_result_cache.set(cache_key, response.model_dump(), session_id=req.session_id)
+    query_result_cache.set(cache_key, response.model_dump(), session_id=req.session_id, user_id=str(user.get("user_id", "")))
     runtime_metrics.inc("query_success_total")
     return response
 
@@ -594,7 +596,7 @@ async def stream_query(
                     yield encode_sse({"type": "status", "message": "replay_partial", "trace_id": _trace_id(request)})
             return _sse_response(event_gen_replay())
 
-    cached_stream = None if is_fast_smalltalk else query_result_cache.get(stream_cache_key, session_id=session_id)
+    cached_stream = None if is_fast_smalltalk else query_result_cache.get(stream_cache_key, session_id=session_id, user_id=str(user.get("user_id", "")))
     if isinstance(cached_stream, dict) and cached_stream.get("result"):
         runtime_metrics.inc("query_stream_cache_hit_total")
         done_result = dict(cached_stream.get("result", {}) or {})
@@ -641,6 +643,8 @@ async def stream_query(
             "allowed_sources": allowed_sources,
             "force_language": force_language,
             "session_id": session_id,
+            "user_id": str(user.get("user_id", "")),
+            "enable_tracking": True,
         }
         if hinted:
             stream_kwargs["agent_class_hint"] = hinted
@@ -785,7 +789,7 @@ async def stream_query(
                 primary_result=final_result,
             )
         if final_result is not None:
-            query_result_cache.set(stream_cache_key, {"result": final_result}, session_id=session_id)
+            query_result_cache.set(stream_cache_key, {"result": final_result}, session_id=session_id, user_id=str(user.get("user_id", "")))
             runtime_metrics.inc("query_stream_success_total")
 
     return _sse_response(event_gen())

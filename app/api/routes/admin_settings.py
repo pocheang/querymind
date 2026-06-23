@@ -300,9 +300,11 @@ def get_user_api_settings(user: dict[str, Any] = Depends(_require_user)):
 @router.post("/user/api-settings", response_model=UserApiSettingsResponse)
 def save_user_api_settings(
     req_settings: UserApiSettings,
+    request: Request,
     user: dict[str, Any] = Depends(_require_user)
 ):
-    """Save user's API settings"""
+    """Save user's API settings - admin only"""
+    _require_permission(user, "admin:ops_manage", request, "admin")
     user_id = user["user_id"]
 
     provider = normalize_string(req_settings.provider, lowercase=True)
@@ -351,6 +353,8 @@ def test_user_api_settings(
     request: Request,
     user: dict[str, Any] = Depends(_require_user),
 ):
+    """Test user's API settings - admin only"""
+    _require_permission(user, "admin:ops_manage", request, "admin")
     provider = normalize_string(req.provider, lowercase=True)
     model_name = str(req.model or "").strip()
     base_url = str(req.base_url or "").strip().rstrip("/")

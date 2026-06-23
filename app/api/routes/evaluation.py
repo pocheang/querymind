@@ -4,12 +4,13 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from app.api.dependencies import _require_user, _require_permission
 from app.api.utils.error_responses import not_found, bad_request, internal_error, not_implemented
 from app.core.config import get_settings
 from app.retrievers.hybrid_retriever import hybrid_search_with_diagnostics
@@ -183,13 +184,15 @@ def get_retriever(system_name: str):
 
 @router.get("/queries", response_model=List[TestQuery])
 async def list_queries(
+    request: Request,
+    user: dict[str, Any] = Depends(_require_user),
     query_file: str = "data/evaluation/demo_queries.json",
     category: Optional[str] = None,
     difficulty: Optional[str] = None
 ):
     """
-    List all test queries.
-    
+    List all test queries - Admin only.
+
     Args:
         query_file: Path to test query JSON file
         category: Optional category filter
@@ -198,6 +201,7 @@ async def list_queries(
     Returns:
         List of test queries
     """
+    _require_permission(user, "admin:ops_manage", request, "admin")
     try:
         queries = load_test_queries(query_file)
         
@@ -216,37 +220,38 @@ async def list_queries(
 
 
 @router.post("/run", response_model=RunEvaluationResponse)
-async def run_evaluation(request: RunEvaluationRequest):
+async def run_evaluation(request_data: RunEvaluationRequest, request: Request, user: dict[str, Any] = Depends(_require_user)):
     """
-    Run evaluation on a specified system.
+    Run evaluation on a specified system - Admin only.
 
     Args:
-        request: RunEvaluationRequest with system name and optional query IDs
+        request_data: RunEvaluationRequest with system name and optional query IDs
 
     Returns:
         RunEvaluationResponse with metrics and run ID
-        
+
     Note: This endpoint requires retriever implementation to be completed.
     """
+    _require_permission(user, "admin:ops_manage", request, "admin")
     try:
         # Load test queries
-        all_queries = load_test_queries(request.query_file)
+        all_queries = load_test_queries(request_data.query_file)
 
         # Filter queries if specific IDs provided
-        if request.queries:
-            queries = [q for q in all_queries if q.id in request.queries]
+        if request_data.queries:
+            queries = [q for q in all_queries if q.id in request_data.queries]
             if not queries:
                 raise bad_request("No matching queries found")
         else:
             queries = all_queries
 
         # Get retriever (currently not implemented)
-        retriever = get_retriever(request.system)
+        retriever = get_retriever(request_data.system)
 
         # Run evaluation
-        logger.info(f"Running evaluation for {request.system} on {len(queries)} queries")
+        logger.info(f"Running evaluation for {request_data.system} on {len(queries)} queries")
         service = EvaluationService()
-        eval_run = service.evaluate_system(retriever, queries, request.system)
+        eval_run = service.evaluate_system(retriever, queries, request_data.system)
 
         # Save results
         results_dir = Path("data/evaluation/results")
@@ -258,7 +263,7 @@ async def run_evaluation(request: RunEvaluationRequest):
 
         return RunEvaluationResponse(
             run_id=eval_run.run_id,
-            system=request.system,
+            system=request_data.system,
             status="completed",
             metrics=eval_run.metrics,
             message=f"Evaluation completed successfully on {len(queries)} queries"
@@ -274,9 +279,9 @@ async def run_evaluation(request: RunEvaluationRequest):
 
 
 @router.get("/results/{run_id}")
-async def get_results(run_id: str):
+async def get_results(run_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     """
-    Get evaluation results by run ID.
+    Get evaluation results by run ID - Admin only.
 
     Args:
         run_id: Run ID from previous evaluation
@@ -284,6 +289,7 @@ async def get_results(run_id: str):
     Returns:
         Evaluation results
     """
+    _require_permission(user, "admin:ops_manage", request, "admin")
     results_path = Path(f"data/evaluation/results/{run_id}.json")
 
     if not results_path.exists():
@@ -294,25 +300,26 @@ async def get_results(run_id: str):
 
 
 @router.post("/compare", response_model=List[SystemComparisonResponse])
-async def compare_systems(request: CompareSystemsRequest):
+async def compare_systems(request_data: CompareSystemsRequest, request: Request, user: dict[str, Any] = Depends(_require_user)):
     """
-    Compare multiple systems.
+    Compare multiple systems - Admin only.
 
     Args:
-        request: CompareSystemsRequest with list of system names
+        request_data: CompareSystemsRequest with list of system names
 
     Returns:
         List of SystemComparison with comparative metrics
-        
+
     Note: This endpoint requires retriever implementation to be completed.
     """
+    _require_permission(user, "admin:ops_manage", request, "admin")
     try:
         # Load test queries
-        queries = load_test_queries(request.query_file)
+        queries = load_test_queries(request_data.query_file)
 
         # Get retrievers for each system
         retrievers = {}
-        for system_name in request.systems:
+        for system_name in request_data.systems:
             logger.info(f"Loading retriever for {system_name}...")
             retrievers[system_name] = get_retriever(system_name)
 
@@ -337,13 +344,14 @@ async def compare_systems(request: CompareSystemsRequest):
 
 
 @router.get("/systems")
-async def list_systems():
+async def list_systems(request: Request, user: dict[str, Any] = Depends(_require_user)):
     """
-    List available retrieval systems for evaluation.
+    List available retrieval systems for evaluation - Admin only.
 
     Returns:
         Dictionary of available system names
     """
+    _require_permission(user, "admin:ops_manage", request, "admin")
     return {
         "systems": ["vector_only", "hybrid", "rerank"],
         "count": 3,

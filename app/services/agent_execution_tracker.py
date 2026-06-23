@@ -41,6 +41,7 @@ class ExecutionTrace(BaseModel):
 
     execution_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     query: str
+    user_id: Optional[str] = None  # 添加用户ID字段用于数据隔离
     steps: List[AgentStep] = Field(default_factory=list)
     status: str = "running"
     start_time: datetime = Field(default_factory=utcnow)
@@ -68,20 +69,21 @@ class AgentExecutionTracker:
                     cls._instance = cls()
         return cls._instance
 
-    def start_execution(self, query: str, execution_id: Optional[str] = None) -> str:
+    def start_execution(self, query: str, execution_id: Optional[str] = None, user_id: Optional[str] = None) -> str:
         if execution_id is None:
             execution_id = str(uuid.uuid4())
 
         trace = ExecutionTrace(
             execution_id=execution_id,
             query=query,
+            user_id=user_id,
             status="running",
         )
 
         with self._traces_lock:
             self._traces[execution_id] = trace
 
-        logger.info(f"Started execution trace: {execution_id}")
+        logger.info(f"Started execution trace: {execution_id} for user: {user_id}")
         return execution_id
 
     def record_agent_step(

@@ -227,21 +227,8 @@ def reindex_document(filename: str, request: Request, source: str | None = None,
 
 @router.get("/documents/index-health", response_model=IndexHealthResponse)
 def document_index_health(request: Request, user: dict[str, Any] = Depends(_require_user)):
-    _require_permission(user, "document:read", request, "document")
+    _require_permission(user, "admin:ops_manage", request, "admin")
     report = build_index_health_report()
-    visible_sources = {str(row.get("source", "") or "") for row in _list_visible_documents_for_user(user)}
-    report["documents"] = [
-        row
-        for row in report["documents"]
-        if str(row.get("source", "") or "") in visible_sources
-        or str(row.get("owner_user_id", "") or "") == str(user.get("user_id", ""))
-    ]
-    report["total_documents"] = len(report["documents"])
-    report["ready_documents"] = len([r for r in report["documents"] if r.get("status") == "ready"])
-    report["failed_documents"] = len([r for r in report["documents"] if r.get("status") == "failed"])
-    report["indexing_documents"] = len([r for r in report["documents"] if r.get("status") in {"pending", "indexing"}])
-    report["total_chunks"] = sum(int(r.get("chunks_indexed", 0) or 0) for r in report["documents"])
-    report["total_triplets"] = sum(int(r.get("triplets_written", 0) or 0) for r in report["documents"])
     return report
 
 

@@ -6,11 +6,13 @@ import time
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any, Generator
 
+from app.agents.react_agent import run_react_agent
 from app.agents.router_agent import decide_route
 from app.agents.synthesis_agent import stream_synthesize_answer, synthesize_answer
 from app.core.config import get_settings
 from app.graph.streaming.safe_wrappers import safe_graph_result, safe_vector_result, safe_web_result
 from app.services.adaptive_rag_policy import build_adaptive_plan
+from app.services.agent_execution_tracker import AgentExecutionTracker
 from app.services.answer_safety import sanitize_answer
 from app.services.citation_grounding import apply_sentence_grounding
 from app.services.evidence_scoring import evidence_is_sufficient
@@ -38,10 +40,13 @@ def _retrieved_docs_from_vector_result(vector_result: dict | None) -> list[dict]
 
 def _sync_agent_patchpoints() -> None:
     """Honor tests and legacy callers that replace agent modules in sys.modules."""
-    global decide_route, stream_synthesize_answer, synthesize_answer
+    global decide_route, run_react_agent, stream_synthesize_answer, synthesize_answer
     router_module = sys.modules.get("app.agents.router_agent")
     if router_module is not None and hasattr(router_module, "decide_route"):
         decide_route = router_module.decide_route
+    react_module = sys.modules.get("app.agents.react_agent")
+    if react_module is not None and hasattr(react_module, "run_react_agent"):
+        run_react_agent = react_module.run_react_agent
     synthesis_module = sys.modules.get("app.agents.synthesis_agent")
     if synthesis_module is not None:
         if hasattr(synthesis_module, "stream_synthesize_answer"):
@@ -60,9 +65,18 @@ def run_query_stream(
     retrieval_strategy: str | None = None,
     force_language: str = "",
     session_id: str = "",
+    user_id: str | None = None,
+    execution_id: str | None = None,
+    enable_tracking: bool = True,
 ) -> Generator[dict[str, Any], None, dict[str, Any]]:
     """Stream query processing with real-time events."""
     _sync_agent_patchpoints()
+
+    # Initialize execution tracking
+    tracker = AgentExecutionTracker.get_instance() if enable_tracking else None
+    if tracker and enable_tracking:
+        execution_id = tracker.start_execution(question, execution_id, user_id=user_id)
+
     state: dict[str, Any] = {
         "question": question,
         "session_id": session_id,
@@ -71,6 +85,7 @@ def run_query_stream(
         "use_reasoning": use_reasoning,
         "retrieval_strategy": retrieval_strategy,
         "force_language": force_language,
+        "execution_id": execution_id,
     }
     thoughts: list[str] = []
 
@@ -89,7 +104,10 @@ def run_query_stream(
             "explainability": {},
             "thoughts": ["执行前已超出请求超时预算。"],
             "detected_language": state.get("force_language") or "zh",
+            "execution_id": execution_id,
         }
+        if tracker and enable_tracking:
+            tracker.fail_execution(execution_id, "deadline_exceeded_before_start")
         yield {"type": "done", "result": timeout_payload}
         return timeout_payload
 
@@ -167,7 +185,82 @@ def run_query_stream(
             "explainability": explainability,
             "thoughts": thoughts,
             "detected_language": state.get("force_language") or "zh",
+            "execution_id": execution_id,
         }
+        if tracker and enable_tracking:
+            tracker.complete_execution(execution_id, final_payload)
+        yield {"type": "done", "result": final_payload}
+        return final_payload
+
+    if route == "react":
+        yield {"type": "status", "message": "react_reasoning"}
+        thoughts.append("[\u6267\u884c\u9636\u6bb5] \u8fdb\u5165 ReAct \u591a\u6b65\u63a8\u7406\u6d41\u7a0b\u3002")
+        yield {"type": "thought", "content": thoughts[-1]}
+
+        react_result = run_react_agent(
+            question=question,
+            memory_context=state.get("memory_context", ""),
+            allowed_sources=allowed_sources,
+            agent_class=state.get("agent_class"),  # \u8865\u4f20 agent_class
+            retrieval_strategy=retrieval_strategy,
+            use_reasoning=use_reasoning,
+            max_iterations=5,
+            force_language=state.get("force_language", ""),
+            session_id=state.get("session_id", ""),
+        )
+        state["detected_language"] = react_result.get("detected_language", state.get("force_language") or "zh")
+        state["vector_result"] = react_result.get("vector_result") or {"context": "", "citations": [], "retrieved_count": 0, "effective_hit_count": 0}
+        state["graph_result"] = react_result.get("graph_result") or {"context": "", "entities": [], "neighbors": [], "paths": []}
+        state["web_result"] = react_result.get("web_result") or {"used": False, "citations": [], "context": ""}
+        state["react_result"] = {
+            "history": react_result.get("react_history", []),
+            "iterations_used": react_result.get("iterations_used", 0),
+            "contexts": react_result.get("contexts", {}),
+        }
+
+        answer = str(react_result.get("answer", "") or "")
+        yield {"type": "answer_chunk", "content": answer}
+
+        evidence_texts = []
+        for c in state.get("vector_result", {}).get("citations", []) or []:
+            evidence_texts.append(str(c.get("content", "")))
+        for c in state.get("web_result", {}).get("citations", []) or []:
+            evidence_texts.append(str(c.get("content", "")))
+        evidence_texts.append(state.get("graph_result", {}).get("context", ""))
+        grounded_answer, grounding_report = apply_sentence_grounding(answer=answer, evidence_texts=evidence_texts)
+        safe_answer, safety_report = sanitize_answer(grounded_answer)
+        if safe_answer != answer:
+            yield {"type": "answer_reset", "content": safe_answer}
+
+        state["answer"] = safe_answer
+        state["grounding"] = grounding_report
+        state["answer_safety"] = safety_report
+
+        detected_language = state.get("detected_language", "zh")
+        session_id = state.get("session_id", "")
+        if session_id and detected_language:
+            update_language_history(session_id, detected_language)
+
+        explainability = build_explainability_report(state)
+        final_payload = {
+            "answer": safe_answer,
+            "route": state.get("route", "react"),
+            "reason": state.get("reason", ""),
+            "skill": state.get("skill", ""),
+            "agent_class": state.get("agent_class", "general"),
+            "vector_result": state.get("vector_result", {}),
+            "graph_result": state.get("graph_result", {}),
+            "web_result": state.get("web_result", {}),
+            "react_result": state.get("react_result", {}),
+            "grounding": grounding_report,
+            "answer_safety": safety_report,
+            "explainability": explainability,
+            "thoughts": thoughts,
+            "detected_language": detected_language,
+            "execution_id": execution_id,
+        }
+        if tracker and enable_tracking:
+            tracker.complete_execution(execution_id, final_payload)
         yield {"type": "done", "result": final_payload}
         return final_payload
 
@@ -531,6 +624,9 @@ def run_query_stream(
         "explainability": explainability,
         "thoughts": thoughts,
         "detected_language": state.get("detected_language", "zh"),
+        "execution_id": execution_id,
     }
+    if tracker and enable_tracking:
+        tracker.complete_execution(execution_id, final_payload)
     yield {"type": "done", "result": final_payload}
     return final_payload

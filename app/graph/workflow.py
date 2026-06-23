@@ -9,6 +9,7 @@ from app.graph.nodes import (
     entry_decider_node,
     graph_decider_node,
     graph_node,
+    react_node,
     route_by_next_step,
     router_node,
     synthesis_node,
@@ -79,6 +80,11 @@ def _tracked_synthesis_node(state: GraphState, execution_id: Optional[str] = Non
     return synthesis_node(state)
 
 
+@track_agent_execution(agent_name="react")
+def _tracked_react_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+    return react_node(state)
+
+
 def _wrap_node_with_tracking(node_fn, node_name: str):
     """Wrapper that extracts execution_id from state and passes it to tracked node."""
     def wrapper(state: GraphState) -> GraphState:
@@ -100,6 +106,7 @@ def build_workflow():
     graph.add_node("graph_decider", _wrap_node_with_tracking(_tracked_graph_decider_node, "graph_decider"))
     graph.add_node("web", _wrap_node_with_tracking(_tracked_web_node, "web"))
     graph.add_node("synthesis", _wrap_node_with_tracking(_tracked_synthesis_node, "synthesis"))
+    graph.add_node("react", _wrap_node_with_tracking(_tracked_react_node, "react"))
 
     graph.add_edge(START, "router")
     graph.add_edge("router", "adaptive_planner")
@@ -112,6 +119,7 @@ def build_workflow():
             "graph": "graph",
             "web": "web",
             "synthesis": "synthesis",
+            "react": "react",
         },
     )
     graph.add_edge("vector", "vector_decider")
@@ -124,6 +132,7 @@ def build_workflow():
     graph.add_conditional_edges("graph_decider", route_by_next_step, {"web": "web", "synthesis": "synthesis"})
     graph.add_edge("web", "synthesis")
     graph.add_edge("synthesis", END)
+    graph.add_edge("react", END)
 
     return graph.compile()
 
@@ -140,6 +149,7 @@ def run_query(
     session_id: str = "",
     execution_id: Optional[str] = None,
     enable_tracking: bool = True,
+    user_id: Optional[str] = None,  # 添加 user_id 参数用于追踪
 ) -> GraphState:
     global _WORKFLOW_APP
     if _WORKFLOW_APP is None:
@@ -153,7 +163,7 @@ def run_query(
 
     tracker = get_tracker() if enable_tracking else None
     if tracker and enable_tracking:
-        execution_id = tracker.start_execution(question, execution_id)
+        execution_id = tracker.start_execution(question, execution_id, user_id=user_id)
 
     try:
         with traced_span("workflow.run_query", {"strategy": str(retrieval_strategy or "default")}):
