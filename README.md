@@ -1,4 +1,4 @@
-# Multi-Agent Local RAG
+# QueryMind（智询）
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,7 @@
 [![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-61DAFB.svg)](https://react.dev/)
 [![Version](https://img.shields.io/badge/version-v0.5.0-blue.svg)](./docs/VERSION_HISTORY.md)
 
-Enterprise-oriented, local-first RAG platform with multi-agent orchestration, hybrid retrieval, graph enhancement, admin governance, and streaming chat.
+**QueryMind（智询）** - 企业级智能问答引擎，支持多智能体协作、混合检索、知识图谱增强和本地部署。
 
 **Latest Release**: v0.5.0 (2026-06-23) - Permission System & Code Quality: Implemented comprehensive RBAC with Viewer/Analyst roles, frontend permission integration, project cleanup, and enhanced documentation standards. 100% test pass rate with improved security and maintainability.
 
