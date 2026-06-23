@@ -35,13 +35,13 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 @router.get("", response_model=list[SessionSummary])
 def list_sessions(request: Request, user: dict[str, Any] = Depends(_require_user)):
-    _require_permission(user, "session:manage", request, "session")
+    _require_permission(user, "session:read", request, "session")
     return _history_store_for_user(user).list_sessions()
 
 
 @router.post("", response_model=SessionDetail)
 def create_session(request: Request, user: dict[str, Any] = Depends(_require_user)):
-    _require_permission(user, "session:manage", request, "session")
+    _require_permission(user, "session:create", request, "session")
     session = _history_store_for_user(user).create_session()
     _audit(request, action="session.create", resource_type="session", result="success", user=user, resource_id=session["session_id"])
     return session
@@ -50,7 +50,7 @@ def create_session(request: Request, user: dict[str, Any] = Depends(_require_use
 @router.get("/{session_id}", response_model=SessionDetail)
 def get_session(session_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     session_id = _require_valid_session_id(session_id)
-    _require_permission(user, "session:manage", request, "session", resource_id=session_id)
+    _require_permission(user, "session:read", request, "session", resource_id=session_id)
     data = _history_store_for_user(user).get_session(session_id)
     if data is None:
         raise not_found("Session")
@@ -60,7 +60,7 @@ def get_session(session_id: str, request: Request, user: dict[str, Any] = Depend
 @router.get("/{session_id}/strategy-lock")
 def get_session_strategy_lock(session_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     session_id = _require_valid_session_id(session_id)
-    _require_permission(user, "session:manage", request, "session", resource_id=session_id)
+    _require_permission(user, "session:read", request, "session", resource_id=session_id)
     store = _history_store_for_user(user)
     data = store.get_session(session_id)
     if data is None:
@@ -76,7 +76,7 @@ def set_session_strategy_lock(
     user: dict[str, Any] = Depends(_require_user),
 ):
     session_id = _require_valid_session_id(session_id)
-    _require_permission(user, "session:manage", request, "session", resource_id=session_id)
+    _require_permission(user, "session:lock_strategy", request, "session", resource_id=session_id)
     strategy_raw = payload.get("strategy_lock")
     strategy = normalize_retrieval_profile(str(strategy_raw)) if strategy_raw else None
     store = _history_store_for_user(user)
@@ -98,7 +98,7 @@ def set_session_strategy_lock(
 @router.delete("/{session_id}")
 def delete_session(session_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     session_id = _require_valid_session_id(session_id)
-    _require_permission(user, "session:manage", request, "session", resource_id=session_id)
+    _require_permission(user, "session:delete", request, "session", resource_id=session_id)
     ok = _history_store_for_user(user).delete_session(session_id)
     if not ok:
         raise not_found("Session")
@@ -109,7 +109,7 @@ def delete_session(session_id: str, request: Request, user: dict[str, Any] = Dep
 @router.get("/{session_id}/memories/long", response_model=list[LongTermMemoryItem])
 def list_long_term_memories(session_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     session_id = _require_valid_session_id(session_id)
-    _require_permission(user, "session:manage", request, "session", resource_id=session_id)
+    _require_permission(user, "session:read", request, "session", resource_id=session_id)
     rows = _memory_store_for_user(user).list_long_term(session_id)
     return [LongTermMemoryItem(**x) for x in rows]
 
@@ -117,7 +117,7 @@ def list_long_term_memories(session_id: str, request: Request, user: dict[str, A
 @router.delete("/{session_id}/memories/long/{memory_id}")
 def delete_long_term_memory(session_id: str, memory_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     session_id = _require_valid_session_id(session_id)
-    _require_permission(user, "session:manage", request, "session", resource_id=session_id)
+    _require_permission(user, "session:delete", request, "session", resource_id=session_id)
     ok = _memory_store_for_user(user).delete_long_term(session_id=session_id, candidate_id=memory_id)
     if not ok:
         raise not_found("Memory")
@@ -137,7 +137,7 @@ def update_session_message(
     user: dict[str, Any] = Depends(_require_user),
 ):
     session_id = _require_valid_session_id(session_id)
-    _require_permission(user, "message:manage", request, "message", resource_id=message_id)
+    _require_permission(user, "message:edit", request, "message", resource_id=message_id)
     history_store = _history_store_for_user(user)
     current = history_store.get_message(session_id=session_id, message_id=message_id)
     if current is None:
@@ -188,7 +188,7 @@ def update_session_message(
 @router.delete("/{session_id}/messages/{message_id}", response_model=SessionDetail)
 def delete_session_message(session_id: str, message_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
     session_id = _require_valid_session_id(session_id)
-    _require_permission(user, "message:manage", request, "message", resource_id=message_id)
+    _require_permission(user, "message:delete", request, "message", resource_id=message_id)
     data = _history_store_for_user(user).delete_message(session_id=session_id, message_id=message_id)
     if data is None:
         raise not_found("Message")

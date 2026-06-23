@@ -3,25 +3,40 @@ from typing import Any
 
 _ROLE_ACTIONS: dict[str, set[str]] = {
     "admin": {
-        "*",
+        "*",  # Admin has all permissions
     },
     "analyst": {
+        # Analysts can create and manage content
         "query:run",
-        "session:manage",
-        "message:manage",
-        "prompt:manage",
+        "session:read",
+        "session:create",
+        "session:delete",
+        "session:manage",  # Backward compatibility
+        "session:lock_strategy",
+        "message:read",
+        "message:edit",
+        "message:delete",
+        "message:manage",  # Backward compatibility
+        "prompt:read",
+        "prompt:create",
+        "prompt:edit",
+        "prompt:delete",
+        "prompt:manage",  # Backward compatibility
         "document:read",
         "document:manage_own",
+        "document:delete_own",
+        "document:reindex_own",
         "upload:create",
     },
     "viewer": {
-        "query:run",
-        "session:manage",
-        "message:manage",
-        "prompt:manage",
-        "document:read",
-        "document:manage_own",
-        "upload:create",
+        # Viewers have read-only access with limited actions
+        "query:run",            # Can run queries
+        "session:read",         # Can view sessions
+        "session:create",       # Can create new sessions
+        "message:read",         # Can read messages
+        "prompt:read",          # Can view prompt templates
+        "document:read",        # Can view documents
+        # Viewers CANNOT: upload, edit, delete, manage prompts/documents
     },
 }
 
