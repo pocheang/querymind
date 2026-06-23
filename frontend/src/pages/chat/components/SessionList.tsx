@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import type { SessionSummary } from "@/types/api";
+import { usePermissions, type User } from "@/hooks/usePermissions";
 
 type Props = {
   sessions: SessionSummary[];
@@ -9,6 +10,7 @@ type Props = {
   currentSessionId: string | null;
   busySessionId: string | null;
   searchRequestKey?: number;
+  user: User | null;
   onCreateSession: () => Promise<void>;
   onLoadSession: (sessionId: string) => Promise<void>;
   onDeleteSession: (sessionId: string) => Promise<void>;
@@ -32,12 +34,14 @@ export function SessionList({
   currentSessionId,
   busySessionId,
   searchRequestKey = 0,
+  user,
   onCreateSession,
   onLoadSession,
   onDeleteSession,
   onRenameSession,
 }: Props) {
   const { t, i18n } = useTranslation();
+  const permissions = usePermissions(user);
   const [sessionQuery, setSessionQuery] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -160,14 +164,16 @@ export function SessionList({
                         <span className="menu-icon" aria-hidden="true">✎</span>
                         {t("components.chat.rename")}
                       </button>
-                      <button
-                        type="button"
-                        className="session-menu-item danger"
-                        onClick={(event) => handleDelete(session.session_id, event)}
-                      >
-                        <span className="menu-icon" aria-hidden="true">×</span>
-                        {t("components.chat.delete")}
-                      </button>
+                      {permissions.canDeleteSession && (
+                        <button
+                          type="button"
+                          className="session-menu-item danger"
+                          onClick={(event) => handleDelete(session.session_id, event)}
+                        >
+                          <span className="menu-icon" aria-hidden="true">×</span>
+                          {t("components.chat.delete")}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

@@ -2,10 +2,12 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { getThemeIcon } from "@/lib/theme";
+import { usePermissions, RoleBadge, type User } from "@/hooks/usePermissions";
 
 type Props = {
   themeLabel: string;
   sidebarCollapsed: boolean;
+  user: User | null;
   onToggleSidebar: () => void;
   onOpenSettings: () => void;
   onThemeToggle: () => void;
@@ -14,12 +16,14 @@ type Props = {
 export function ChatTopbar({
   themeLabel,
   sidebarCollapsed,
+  user,
   onToggleSidebar,
   onOpenSettings,
   onThemeToggle,
 }: Props) {
   const { t } = useTranslation();
   const themeIcon = getThemeIcon(themeLabel);
+  const permissions = usePermissions(user);
 
   return (
     <header className="topbar">
@@ -38,18 +42,26 @@ export function ChatTopbar({
             <span className="brand-logo-glyph">▶</span>
           </div>
           <div className="brand-info">
-            <h2>Local RAG</h2>
+            <h2>QueryMind</h2>
             <span className="brand-subtitle">{t("components.chat.brandSubtitle")}</span>
           </div>
         </div>
       </div>
 
       <div className="top-actions">
+        {user && (
+          <div className="topbar-user-info" style={{ marginRight: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', color: '#666' }}>{user.username}</span>
+            <RoleBadge role={user.role} />
+          </div>
+        )}
         <LanguageToggle />
-        <button type="button" className="topbar-btn" onClick={onOpenSettings} aria-label={t("components.chat.openSettings")}>
-          <span className="btn-icon" aria-hidden="true">⚙</span>
-          <span className="btn-label">{t("components.chat.settings")}</span>
-        </button>
+        {permissions.canConfigureSystem && (
+          <button type="button" className="topbar-btn" onClick={onOpenSettings} aria-label={t("components.chat.openSettings")}>
+            <span className="btn-icon" aria-hidden="true">⚙</span>
+            <span className="btn-label">{t("components.chat.settings")}</span>
+          </button>
+        )}
         <button
           type="button"
           className="topbar-btn"
