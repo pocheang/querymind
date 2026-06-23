@@ -13,19 +13,20 @@
 ## 用户文档
 
 ### 快速入门指南
-- [🚀 5分钟快速开始](../guides/startup-guide.md) - 快速体验 QueryMind
-- [📦 安装部署指南](../guides/CONFIGURATION_GUIDE.md) - 系统安装与配置
-- [🔧 API 配置指南](../guides/API_SETTINGS_GUIDE.md) - 模型 API 配置
-- [🐛 故障排查手册](../guides/troubleshooting-black-screen.md) - 常见问题解决
+- [🚀 5分钟快速开始](./guides/quick-start.md) - 快速体验 QueryMind
+- [📦 安装部署指南](./guides/configuration.md) - 系统安装与配置
+- [🔧 API 配置指南](./guides/configuration.md#llm-模型配置) - 模型 API 配置
+- [🐛 故障排查手册](./guides/troubleshooting.md) - 常见问题解决
 
 ### 用户手册
-- [📖 系统概览](../guides/business/SYSTEM_OVERVIEW.md) - QueryMind 功能概述
-- [✨ 核心功能](../guides/business/FEATURES.md) - 详细功能说明
+- [📖 完整用户手册](./guides/user-manual.md) - QueryMind 使用指南
+- [✨ 系统概览](../guides/business/SYSTEM_OVERVIEW.md) - 功能概述
 - [⚙️ 工作原理](../guides/business/HOW_IT_WORKS.md) - 系统运行机制
 - [📚 术语表](../guides/business/GLOSSARY.md) - 专业术语解释
 
 ### 配置说明
-- [🔧 配置参考](../guides/development/CONFIGURATION_REFERENCE.md) - 完整配置项
+- [⚙️ 完整配置指南](./guides/configuration.md) - 系统配置详解
+- [🔧 配置参考](../guides/development/CONFIGURATION_REFERENCE.md) - 配置项说明
 - [⚡ 性能优化](../guides/PDF_PERFORMANCE_TUNING.md) - 性能调优技巧
 - [💾 数据存储](../guides/development/DATA_STORAGE.md) - 数据管理与备份
 
@@ -34,17 +35,18 @@
 ## 开发文档
 
 ### 架构设计
-- [🏗️ 系统架构](../guides/development/ARCHITECTURE.md) - 整体架构设计
+- [🏗️ 系统架构](./guides/architecture.md) - 整体架构设计
 - [🤖 多智能体系统](../guides/development/MULTI_AGENT_SYSTEM.md) - Agent 协作机制
 - [🔍 检索系统](../guides/development/RETRIEVAL_SYSTEM.md) - 混合检索架构
 - [📊 LangGraph 状态图](../it_ops_langgraph_stategraph_design.md) - 工作流引擎
 
 ### API 文档
-- [📡 API 开发指南](../guides/development/API_DEVELOPMENT.md) - 后端 API 开发
+- [📡 API 开发指南](./guides/api-guide.md) - 后端 API 完整文档
 - [🎨 前端开发指南](../guides/development/FRONTEND_DEVELOPMENT.md) - React 前端开发
 - [📝 在线 API 文档](http://127.0.0.1:8000/docs) - Swagger 接口文档
 
 ### 开发指南
+- [💻 开发者指南](./guides/development.md) - 完整开发指南
 - [🛠️ 环境搭建](../guides/development/SETUP_GUIDE.md) - 开发环境配置
 - [📋 开发工作流](../guides/development/DEVELOPMENT_WORKFLOW.md) - 开发流程规范
 - [✅ 代码规范](../guides/development/CODE_STANDARDS.md) - 编码标准
@@ -81,12 +83,13 @@
 ### 快速查找
 | 需求 | 文档 |
 |------|------|
-| 🚀 **快速上手** | [快速开始指南](../guides/startup-guide.md) |
-| ⚙️ **系统配置** | [配置指南](../guides/CONFIGURATION_GUIDE.md) |
-| 🏗️ **了解架构** | [系统架构](../guides/development/ARCHITECTURE.md) |
-| 🤖 **开发 Agent** | [Agent 集成指南](../AGENT_INTEGRATION_GUIDE.md) |
-| 📄 **处理 PDF** | [PDF 功能说明](../features/pdf/README.md) |
-| 🐛 **遇到问题** | [故障排查](../guides/troubleshooting-black-screen.md) |
+| 🚀 **快速上手** | [快速开始指南](./guides/quick-start.md) |
+| ⚙️ **系统配置** | [配置指南](./guides/configuration.md) |
+| 🏗️ **了解架构** | [系统架构](./guides/architecture.md) |
+| 💻 **开始开发** | [开发者指南](./guides/development.md) |
+| 📡 **API 接口** | [API 开发指南](./guides/api-guide.md) |
+| 📘 **功能使用** | [用户手册](./guides/user-manual.md) |
+| 🐛 **遇到问题** | [故障排查](./guides/troubleshooting.md) |
 
 ### 技术支持
 - 📋 **问题反馈**: [GitHub Issues](https://github.com/pocheang/querymind/issues)
