@@ -1,521 +1,369 @@
+<div align="center">
+
 # QueryMind（智询）
+
+### 企业级智能问答引擎
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Backend](https://img.shields.io/badge/backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-61DAFB.svg)](https://react.dev/)
-[![Version](https://img.shields.io/badge/version-v0.5.0-blue.svg)](./docs/VERSION_HISTORY.md)
+[![Version](https://img.shields.io/badge/version-v0.5.0-blue.svg)](./docs/history/VERSION_HISTORY.md)
 
-**QueryMind（智询）** - 企业级智能问答引擎，支持多智能体协作、混合检索、知识图谱增强和本地部署。
+**多智能体协作 · 混合检索 · 知识图谱增强 · 本地部署**
 
-**Latest Release**: v0.5.0 (2026-06-23) - Permission System & Code Quality: Implemented comprehensive RBAC with Viewer/Analyst roles, frontend permission integration, project cleanup, and enhanced documentation standards. 100% test pass rate with improved security and maintainability.
+[功能特性](#-核心特性) · [快速开始](#-快速开始) · [架构说明](#-系统架构) · [文档](#-文档) · [更新日志](./CHANGELOG.md)
 
-This repository packages a FastAPI backend, a React frontend, and a modular retrieval pipeline designed for private knowledge bases, internal copilots, and controlled enterprise AI workflows.
+</div>
 
-## Executive Summary
+---
 
-- Multi-agent query orchestration built on LangGraph with intelligent routing
-- Hybrid retrieval with vector search, BM25, reciprocal rank fusion, and reranking
-- **Performance comparison framework** with baseline systems and comprehensive evaluation metrics
-- **Agent execution visualization** with real-time tracking and SSE streaming
-- **Chinese NLP optimization** with tokenization, synonym expansion, and query preprocessing
-- **Advanced RAG techniques** including query decomposition and Self-RAG evaluation
-- **Streaming PDF processing** with true streaming and 70% memory reduction for large documents
-- **Batch chart extraction** with parallel processing for improved throughput
-- **Modern UI design** with welcome screen, interactive architecture visualization, and optimized settings modal
-- **Multilingual response support** with automatic language detection and session preferences
-- **Retrieval analytics and monitoring** with visualization dashboard and statistics export
-- Optional Neo4j knowledge graph enrichment for entity relationships
-- Local-first document ingestion with OCR support (Tesseract) and image captioning
-- Role-based access control (RBAC), session isolation, and comprehensive admin operations
-- Runtime controls for retrieval profiles, canary routing, rollback, benchmarking, and replay
-- Streaming chat UX with session history, prompt versioning, and memory management
-- CI/CD quality gates with automated RAG evaluation and performance benchmarking
-- Frontend performance optimization with critical CSS extraction and code splitting
+## 📖 项目简介
 
-## Target Use Cases
+**QueryMind（智询）** 是一个企业级智能问答引擎，专为私有知识库、内部知识助手和受控企业 AI 工作流设计。通过多智能体协作、混合检索策略和知识图谱增强，提供高质量的问答体验。
 
-- Internal knowledge assistant for enterprise teams with secure document access
-- Private document Q&A over PDF, image, and text corpora with OCR support
-- RAG evaluation and retrieval strategy experimentation with benchmarking tools
-- Controlled AI operations with auditability, rollback, and canary deployment
-- Hybrid local and hosted model deployments (Ollama, OpenAI, Anthropic)
-- Multi-hop reasoning with knowledge graph integration for complex queries
-- Session-based conversational AI with memory and context management
+### 🎯 核心优势
 
-## System Overview
+- 🤖 **多智能体协作** - 基于 LangGraph 的智能路由和任务分配
+- 🔍 **混合检索** - 向量检索 + BM25 + 重排序 + 知识图谱
+- 🔐 **企业级安全** - RBAC 权限控制、数据隔离、审计日志
+- 🌏 **多语言支持** - 中英文 NLP 优化、自动语言检测
+- 📊 **实时监控** - 代理执行可视化、检索分析、性能指标
+- 🚀 **本地优先** - 支持 Ollama、OpenAI、Anthropic 等多种模型
 
-### Core Components
+### 🎬 功能演示
 
-- `app/api/`: FastAPI application with 10+ route modules, middleware, and dependencies
-- `app/graph/`: LangGraph workflow orchestration, routing logic, and streaming helpers
-- `app/agents/`: Router, retrieval, graph, web research, and synthesis agents
-- `app/retrievers/`: Hybrid retrieval pipeline with vector, BM25, fusion, and reranking
-- `app/services/`: Auth, runtime governance, caching, resilience, memory, and prompt management
-- `app/ingestion/`: Document loaders, chunking strategies, OCR processing, and indexing
-- `frontend/`: React + Vite user interface with TypeScript and modern CSS architecture
-- `tests/`: Backend and workflow regression coverage (50+ test modules)
-- `scripts/`: Operational tooling for ingestion, benchmarking, evaluation, and CI/CD
-- `scripts/dev/`: Manual smoke and developer-driven verification scripts
+> 📸 **截图占位符** - 待添加以下截图：
+> - 登录界面
+> - 聊天界面（展示多轮对话）
+> - 知识图谱可视化
+> - 代理执行追踪
+> - 管理控制台
 
-### Request Flow
+---
 
-1. User authenticates via JWT-based auth system and starts or resumes a session.
-2. Query enters the FastAPI layer where shared dependencies initialize request context.
-3. LangGraph orchestrates the multi-agent workflow through specialized nodes:
-   - **Router Agent**: Analyzes query intent and determines execution strategy
-   - **Vector RAG Agent**: Performs hybrid retrieval (vector + BM25 + reranking)
-   - **Graph RAG Agent**: Queries Neo4j for entity relationships and knowledge enrichment
-   - **Web Research Agent**: Conducts web search when local knowledge is insufficient
-   - **Synthesis Agent**: Generates final answer with grounding and safety checks
-4. Hybrid retrieval gathers evidence from ChromaDB, BM25 index, and optional graph context.
-5. Tiered execution system automatically adjusts retrieval depth based on query complexity.
-6. Safety guards, grounding logic, and citation extraction shape the final answer.
-7. Frontend receives streamed or non-streamed output with citations, metadata, and tier information.
+## ✨ 核心特性
 
-## API Surface
+### 🤖 智能体系统
 
-The main backend entry point is `app.api.main:app`.
+| 智能体 | 功能 | 特点 |
+|--------|------|------|
+| **Router Agent** | 查询意图分析与路由 | 智能判断查询类型，选择最优执行策略 |
+| **Vector RAG Agent** | 混合检索与重排序 | 向量检索 + BM25 + Reranking，多策略融合 |
+| **Graph RAG Agent** | 知识图谱查询 | Neo4j 实体关系查询，多跳推理 |
+| **Web Research Agent** | 网络搜索 | 本地知识不足时，自动触发网络搜索 |
+| **Synthesis Agent** | 答案生成与安全检查 | 引用溯源、安全防护、答案合成 |
+| **React Agent** | 推理与行动循环 | 支持复杂任务的分步推理 |
 
-### Major Route Groups
+### 🔍 检索能力
 
-- `/auth`: User registration, login, logout, token refresh, and current user info
-- `/query`: Synchronous and streaming query endpoints with tier-based execution
-- `/sessions`: Session CRUD, strategy lock, memory operations, and history management
-- `/documents`: Document inventory, deletion, reindex, upload, and metadata retrieval
-- `/prompts`: Prompt templates, validation, versioning, approval workflow, and rollback
-- `/admin/users`: User lifecycle management, role/status updates, and audit operations
-- `/admin/ops`: Retrieval profile management, canary routing, rollback, benchmark, replay, and operational reports
-- `/admin/model-settings` and `/user/api-settings`: Runtime model configuration and API key management
-- `/api/evaluation`: Performance comparison, baseline systems, and evaluation metrics
-- `/api/agent-tracking`: Real-time agent execution tracking with SSE streaming
-- `/api/advanced-rag`: Query decomposition and Self-RAG evaluation endpoints
-- `/api/analytics`: Retrieval analytics, monitoring statistics, and visualization data
-- `/health`, `/ready`, `/metrics`: Health checks, readiness probes, and system metrics
+- **向量检索**: ChromaDB 密集检索，支持多种嵌入模型
+- **BM25 检索**: 词频倒排索引，精确关键词匹配
+- **混合融合**: Reciprocal Rank Fusion (RRF) 结果融合
+- **重排序**: 基于 Cross-Encoder 的相关性重排序
+- **知识图谱**: Neo4j 实体关系查询和多跳推理
+- **中文优化**: Jieba 分词、同义词扩展、查询预处理
 
-## Architecture Characteristics
+### 🔐 权限与安全
 
-### Retrieval
+- **RBAC 系统**: Viewer（只读）和 Analyst（完全访问）角色
+- **数据隔离**: 用户级数据隔离，多租户支持
+- **会话管理**: JWT 认证，会话隔离，自动过期
+- **审计日志**: 管理员操作追踪，安全事件记录
+- **权限集成**: 前后端统一的权限检查机制
 
-- **Dense retrieval** through ChromaDB with configurable embedding models
-- **Sparse retrieval** through BM25 with document filtering and source allowlists
-- **Reciprocal Rank Fusion** for intelligent candidate blending from multiple sources
-- **Optional reranking** with `BAAI/bge-reranker-v2-m3` for precision improvement
-- **Parent-child chunk strategy** for balancing precision and answer context
-- **Query rewriting** with deduplication to reduce redundant LLM calls (10-30% savings)
-- **Tier-based retrieval** with adaptive top_k and rerank parameters (fast/balanced/deep)
+### 📊 监控与分析
 
-### Orchestration
+- **实时追踪**: 代理执行可视化，SSE 流式更新
+- **检索分析**: 检索统计、性能指标、可视化仪表板
+- **性能对比**: 基线系统对比，全面评估指标（Precision, Recall, F1, MRR, NDCG）
+- **运行时控制**: 检索配置热更新、金丝雀路由、回滚机制
 
-- **LangGraph-based** multi-agent workflow with conditional routing
-- **Five specialized agents**: Router, Vector RAG, Graph RAG, Web Research, and Synthesis
-- **Streaming support** for progressive answer delivery with real-time updates
-- **Runtime-safe wrappers** with timeout controls and fallback handling
-- **Concurrent execution** for vector and graph retrieval in hybrid mode
-- **Tier-based execution** with automatic complexity classification and load-based degradation
-- **State management** with comprehensive parameter validation and error recovery
+### 🌏 多语言与国际化
 
-### Governance and Safety
+- **自动语言检测**: 查询和文档的智能语言识别
+- **会话语言偏好**: 用户级语言设置持久化
+- **中文 NLP**: Jieba 分词、中文评估指标、查询预处理
+- **界面国际化**: 中英文 UI，i18next 支持
 
-- **RBAC** with user-scoped data access and role-based permissions (admin/user)
-- **Approval-token flow** for privileged admin creation with single-use enforcement
-- **Comprehensive audit logging** for sensitive operations with failure tracking
-- **Retrieval profiles** (baseline/advanced/safe) with canary routing and rollback support
-- **Query guards** with quota controls, rate limiting, and input validation
-- **Resilience utilities** including circuit breakers, bulkhead isolation, and retry logic
-- **Security hardening** with constant-time token comparison, HTTPS-only cookies, and CSRF protection
-- **Password policy** enforcement (12-128 chars, special characters required)
-- **Session isolation** with user-scoped document access and memory management
+### 📄 文档处理
 
-## Repository Layout
+- **多格式支持**: PDF, 图片, 文本, Office 文档
+- **OCR 识别**: Tesseract OCR，图片文字提取
+- **流式处理**: 大文件流式加载，减少 70% 内存使用
+- **批量提取**: 并行图表提取，提升处理效率
+- **增强分块**: 智能分块策略，保持语义完整性
 
-```text
-.
-├── app/                  # Backend code
-│   ├── agents/           # Specialized agent implementations
-│   ├── api/              # FastAPI app, routes, middleware
-│   ├── core/             # Settings, logging, shared utilities
-│   ├── graph/            # LangGraph orchestration and streaming
-│   ├── ingestion/        # Loaders, chunking, OCR, indexing
-│   ├── retrievers/       # Vector, BM25, fusion, reranking
-│   ├── services/         # Auth, governance, memory, prompts
-│   └── tools/            # Tool integrations
-├── configs/              # Runtime profile and config files
-├── data/                 # Local runtime data (mostly gitignored)
-├── docs/                 # Public documentation (see docs/README.md)
-├── frontend/             # React + Vite UI
-├── scripts/              # Operational tooling
-│   └── dev/              # Manual smoke / developer scripts
-├── tests/                # Backend and workflow regression tests
-└── examples/             # Usage examples
+---
+
+## 🏗️ 系统架构
+
+### 技术栈
+
+**后端**:
+- FastAPI - 高性能异步 Web 框架
+- LangGraph - 多智能体工作流编排
+- LangChain - LLM 应用开发框架
+- ChromaDB - 向量数据库
+- Neo4j - 知识图谱数据库（可选）
+- Redis - 缓存和会话存储（可选）
+
+**前端**:
+- React 18 + TypeScript
+- Vite - 快速构建工具
+- Ant Design - UI 组件库
+- i18next - 国际化
+
+**模型支持**:
+- Ollama（本地部署）
+- OpenAI（GPT-4, GPT-3.5）
+- Anthropic（Claude）
+
+### 架构图
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         Frontend (React)                     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ 聊天界面  │  │ 文档管理  │  │ 管理控制台 │  │ 分析仪表板 │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+└────────────────────────┬────────────────────────────────────┘
+                         │ REST API / SSE
+┌────────────────────────▼────────────────────────────────────┐
+│                    Backend (FastAPI)                         │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │              LangGraph Workflow                         │ │
+│  │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐   │ │
+│  │  │Router│→ │Vector│→ │Graph │→ │Web   │→ │Synth │   │ │
+│  │  │Agent │  │Agent │  │Agent │  │Agent │  │Agent │   │ │
+│  │  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘   │ │
+│  └────────────────────────────────────────────────────────┘ │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ Auth     │  │ RBAC     │  │ Caching  │  │ Monitoring│   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+└────────────────────────┬────────────────────────────────────┘
+                         │
+    ┌────────────────────┼────────────────────┐
+    │                    │                    │
+┌───▼────┐          ┌───▼────┐          ┌───▼────┐
+│ChromaDB│          │Neo4j   │          │Redis   │
+│向量库   │          │图数据库 │          │缓存     │
+└────────┘          └────────┘          └────────┘
 ```
 
-Internal records (audits, plans, fix logs, AI assistant configs) live under
-`internal_docs/` and are excluded from the public repository per
-[DOCUMENTATION_POLICY.md](./DOCUMENTATION_POLICY.md).
+### 请求流程
 
-## Multi-Agent Workflow
+1. **认证**: 用户通过 JWT 认证，启动或恢复会话
+2. **路由**: Router Agent 分析查询意图，确定执行策略
+3. **检索**: Vector/Graph/Web Agent 并行或串行执行检索
+4. **融合**: 混合检索结果融合和重排序
+5. **生成**: Synthesis Agent 生成答案，添加引用和安全检查
+6. **流式返回**: 前端接收 SSE 流式输出或完整响应
 
-The system uses **LangGraph** to orchestrate a sophisticated multi-agent workflow:
+---
 
-1. **Router Agent** - Analyzes query intent and determines routing strategy
-2. **Vector RAG Agent** - Performs hybrid retrieval (vector + BM25 + reranking)
-3. **Graph RAG Agent** - Queries Neo4j knowledge graph for entity relationships
-4. **Web Research Agent** - Conducts web search when local knowledge is insufficient
-5. **Synthesis Agent** - Synthesizes final answer with grounding and safety checks
+## 🚀 快速开始
 
-### Tiered Execution System
-
-Queries are automatically classified into three tiers based on complexity:
-
-| Tier | Use Case | Retrieval | Max Time | Tokens | Web Fallback |
-|------|----------|-----------|----------|--------|--------------|
-| **Fast** | Simple factual queries, single-entity lookup | top_k=5, rerank=3 | 800ms | 300 | Disabled |
-| **Balanced** | Default for most queries, moderate complexity | top_k=10, rerank=5 | 2000ms | 800 | Conditional |
-| **Deep** | Multi-hop reasoning, comprehensive answers | top_k=20, rerank=10 | 5000ms | 1500 | Enabled |
-
-**Load-Based Degradation**: System automatically downgrades tiers when load >80% for stability.
-
-## Recent Improvements
-
-For the full version history with all releases, see
-[CHANGELOG.md](./CHANGELOG.md) and [docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md).
-
-### v0.4.6 (2026-06-19)
-- **Security Hardening**: Fixed race condition in rate limiter and unsafe double-checked locking
-- **Resource Management**: Fixed semaphore leak in bulkhead and Redis connection leak with pooling
-- **Auto-Recovery**: Added Redis counter auto-recovery mechanism for self-healing
-- **Performance**: 67% memory reduction with configurable metrics buffer
-- **Code Quality**: Extracted shared PDF logic eliminating 90 lines of duplication
-- **Testing**: All 42 tests passing with updated workflow test infrastructure
-
-### v0.4.1 (2026-05-20)
-- **Code Quality Refactoring**: Eliminated ~2,700 lines of duplicate code across frontend and backend
-- **Reusable Modules**: Created 19 new utility modules and components for better maintainability
-- **Error Handling**: Standardized error responses across all API routes with dedicated utilities
-- **Multilingual Support**: Automatic language detection with 20% Chinese threshold and session preferences
-- **Analytics Dashboard**: Retrieval monitoring with statistics, visualization, and export capabilities
-
-### v0.4.0 (2026-05-16)
-- **Performance Comparison Framework**: Baseline systems with comprehensive evaluation metrics
-- **Agent Execution Visualization**: Real-time tracking with SSE streaming and interactive display
-- **Chinese NLP Optimization**: Tokenization, synonym expansion, and query preprocessing
-- **Advanced RAG Techniques**: Query decomposition and Self-RAG evaluation endpoints
-
-## Prerequisites
+### 前置要求
 
 - Python 3.11+
 - Node.js 18+
-- Docker and Docker Compose for Neo4j
-- One model backend:
-  - Ollama
-  - OpenAI
-  - Anthropic
+- Conda（推荐）或 venv
 
-## Quick Start
+### 安装步骤
 
-### 1. Backend Setup
+1. **克隆仓库**
 
-**Conda (recommended)**:
 ```bash
-conda create -n rag-local python=3.11
-conda activate rag-local
-pip install -U pip
-pip install -e .
-cp .env.example .env   # Windows: copy .env.example .env
+git clone https://github.com/pocheang/querymind.git
+cd querymind
 ```
 
-**venv**:
+2. **后端安装**
+
 ```bash
-# macOS/Linux
-python -m venv .venv
-source .venv/bin/activate
-pip install -U pip
+# 创建虚拟环境
+conda create -n querymind python=3.11
+conda activate querymind
+
+# 安装依赖
 pip install -e .
+
+# 配置环境变量
 cp .env.example .env
-
-# Windows (PowerShell)
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -U pip
-pip install -e .
-copy .env.example .env
+# 编辑 .env 文件，设置模型 API Key
 ```
 
-**Optional extras** (install only what you need):
-
-```bash
-# Tesseract-based OCR for scanned PDFs / images
-pip install -e ".[ocr]"
-
-# Cross-encoder reranker (BAAI/bge-reranker-v2-m3 by default)
-pip install -e ".[reranker]"
-
-# Docling for advanced PDF / DOCX / PPTX structured extraction
-pip install -e ".[docling]"
-
-# PaddleOCR for layout-aware Chinese OCR (~500MB native libs)
-pip install -e ".[paddle]"
-
-# All optional features at once (matches the historical "full" install)
-pip install -e ".[full]"
-
-# Development tooling (pytest, ruff, etc.)
-pip install -e ".[dev]"
-```
-
-The minimal `pip install -e .` boots the FastAPI backend, hybrid retriever
-(vector + BM25), graph integration, and basic PDF/text ingestion. OCR, the
-reranker, Docling, and PaddleOCR are loaded on-demand and degrade gracefully
-when their packages are absent.
-
-### 2. Configure Environment
-
-Edit `.env` and set the backend you want to use.
-
-**Example for OpenAI**:
-
-```bash
-MODEL_BACKEND=openai
-OPENAI_API_KEY=your_api_key
-OPENAI_CHAT_MODEL=gpt-4-turbo
-OPENAI_EMBED_MODEL=text-embedding-3-small
-```
-
-**Example for Ollama (Local)**:
-
-```bash
-MODEL_BACKEND=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_CHAT_MODEL=qwen2.5:7b-instruct
-OLLAMA_EMBED_MODEL=nomic-embed-text
-```
-
-**Example for Anthropic**:
-
-```bash
-MODEL_BACKEND=anthropic
-ANTHROPIC_API_KEY=your_api_key
-ANTHROPIC_CHAT_MODEL=claude-3-5-sonnet-20241022
-# Note: Anthropic uses OpenAI embeddings
-OPENAI_API_KEY=your_openai_key
-OPENAI_EMBED_MODEL=text-embedding-3-small
-```
-
-### 3. Start Neo4j
-
-```bash
-docker compose up -d neo4j
-```
-
-### 4. Run the Backend
-
-```bash
-uvicorn app.api.main:app --host 127.0.0.1 --port 8000 --reload --reload-dir app --reload-include "*.py" --reload-exclude "data/*" --reload-exclude "artifacts/*" --reload-exclude "frontend/*"
-```
-
-### 5. Run the Frontend
+3. **前端安装**
 
 ```bash
 cd frontend
 npm install
-npm run dev
-```
-
-Open `http://127.0.0.1:5173/app`.
-
-## Document Ingestion
-
-- Put source files under `data/docs`
-- Or upload through the web UI / API
-- Run manual ingestion when needed:
-
-```bash
-python scripts/ingest.py
-```
-
-Useful related settings:
-
-- `AUTO_INGEST_ENABLED`
-- `DATA_DIR`
-- `CHROMA_PERSIST_DIR`
-- `CORPUS_STORE_PATH`
-- `PARENT_STORE_PATH`
-
-## Key Configuration Domains
-
-### Model and Runtime
-
-- `MODEL_BACKEND`
-- `OPENAI_*`
-- `ANTHROPIC_*`
-- `OLLAMA_*`
-- `QUERY_REQUEST_TIMEOUT_MS`
-
-### Retrieval
-
-- `TOP_K`
-- `VECTOR_TOP_K`
-- `BM25_TOP_K`
-- `ENABLE_RERANKER`
-- `RERANKER_MODEL_NAME`
-- `RETRIEVAL_PROFILE`
-
-### Storage
-
-- `CHROMA_PERSIST_DIR`
-- `DATA_DIR`
-- `APP_DB_PATH`
-- `SESSIONS_DIR`
-- `UPLOADS_DIR`
-
-### Security
-
-- `AUTH_TOKEN_TTL_HOURS` - JWT token expiration time
-- `ADMIN_CREATE_APPROVAL_TOKEN_HASH` - Hashed approval token for admin creation
-- `API_SETTINGS_ENCRYPTION_KEY` - Encryption key for API credentials storage
-- `API_BASE_URL_ALLOWLIST` - Comma-separated list of allowed API base URLs
-- `AUTH_COOKIE_SECURE` - Enable HTTPS-only cookies (default: true)
-- `AUTH_COOKIE_SAMESITE` - CSRF protection mode (default: strict)
-- `AUTH_COOKIE_HTTPONLY` - Prevent JavaScript access to cookies (default: true)
-
-### OCR and Media
-
-- `TESSERACT_CMD` - Path to Tesseract OCR executable
-- `TESSERACT_LANG` - OCR language (default: eng+chi_sim for English and Chinese)
-- `OCR_PREPROCESS_ENABLED` - Enable image preprocessing for better OCR accuracy
-- `IMAGE_CAPTION_ENABLED` - Enable AI-powered image captioning for visual content
-- `OCR_DPI` - DPI setting for OCR processing (default: 300)
-- `IMAGE_MAX_SIZE` - Maximum image dimension for processing
-
-## Operations
-
-### Backend Tests
-
-```bash
-# Run all tests
-pytest -q
-
-# Run with coverage
-pytest --cov=app --cov-report=html
-
-# Run specific test modules
-pytest tests/test_routing_logic.py -v
-
-# Run tests allowing runtime unavailable (for CI environments)
-pytest --allow-runtime-unavailable
-```
-
-### Manual Smoke Scripts
-
-Developer-driven verification scripts live under `scripts/dev/`. These are CLI
-tools meant to be run interactively against a real environment, not automated
-tests. See [scripts/dev/README.md](./scripts/dev/README.md) for the catalog.
-
-### CI/CD Quality Gate
-
-```bash
-# Run comprehensive quality checks (includes backend tests, RAG evaluation, benchmarks)
-python scripts/ci_quality_gate.py
-
-# Components:
-# - Backend tests (29+ tests with workflow regression coverage)
-# - RAG evaluation (precision/recall/F1 metrics)
-# - Performance benchmarks (latency and throughput)
-# - Code quality checks
-
-# Exit codes:
-# 0 = All checks passed
-# 1 = Backend tests failed
-# 2 = Precision below threshold
-# 3 = F1 score below threshold
-# 4 = Recall below threshold (non-blocking in CI)
-```
-
-### Frontend Build
-
-```bash
-cd frontend
 npm run build
-
-# Development mode with hot reload
-npm run dev
-
-# Type checking
-npm run type-check
-
-# Linting
-npm run lint
 ```
 
-### Example Operational Scripts
+4. **启动服务**
 
-- `scripts/benchmark_pipeline.py` - Retrieval pipeline performance benchmarking with latency analysis
-- `scripts/load_test_query.py` - Concurrent query load testing with throughput metrics
-- `scripts/eval_retrieval.py` - RAG evaluation with precision/recall/F1 metrics
-- `scripts/chaos_probe.py` - Chaos engineering and resilience testing for failure scenarios
-- `scripts/ingest.py` - Manual document ingestion and indexing with OCR support
-- `scripts/ci_quality_gate.py` - Comprehensive CI/CD quality gate with automated checks
+```bash
+# 后端（开发模式）
+uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 
-## Security Notes
+# 前端（开发模式）
+cd frontend
+npm run dev
+```
 
-- **Never commit `.env` files** - Use `.env.example` as a template
-- **Use hashed approval tokens** - Prefer `ADMIN_CREATE_APPROVAL_TOKEN_HASH` over plaintext
-- **Review upload limits** - Configure `MAX_UPLOAD_SIZE_MB` and file type restrictions
-- **Validate API allowlists** - Set `API_BASE_URL_ALLOWLIST` before production deployment
-- **Enable HTTPS in production** - Set `AUTH_COOKIE_SECURE=true` for secure cookie transmission
-- **Enforce strong passwords** - System requires 12+ characters with special characters
-- **Monitor audit logs** - Review admin operations and authentication events regularly
-- **Validate cross-user isolation** - Test user-scoped data access in every release
-- **Protect model credentials** - Treat API keys as environment-scoped secrets
-- **Rate limit admin endpoints** - Built-in rate limiting prevents abuse (configurable)
-- **Single-use approval tokens** - Tokens are tracked and can only be used once
-- **Constant-time comparisons** - Prevents timing attacks on sensitive operations
+5. **访问应用**
 
-## Documentation
+打开浏览器访问: http://localhost:5173
 
-Start with the documentation hub: [docs/README.md](./docs/README.md)
+默认管理员账号: `admin` / 密码在首次启动时生成
 
-### Recommended Reading Order
+### Docker 部署（推荐）
 
-1. **[docs/README.md](./docs/README.md)** - Documentation hub and navigation guide
-2. **[CHANGELOG.md](./CHANGELOG.md)** - Detailed version history and changes
-3. **[docs/VERSION_HISTORY.md](./docs/VERSION_HISTORY.md)** - Complete version timeline
-4. **[DOCUMENTATION_POLICY.md](./DOCUMENTATION_POLICY.md)** - Public/internal classification policy
+```bash
+# 构建镜像
+docker-compose build
 
-### Documentation Structure
+# 启动服务
+docker-compose up -d
 
-- **[docs/](./docs/)** - Public documentation directory
-  - **[releases/](./docs/releases/)** - Release notes and version announcements
-  - **[design/](./docs/design/)** - Feature design specifications and technical proposals
-  - **[archive/](./docs/archive/)** - Historical reports and investigations
-    - `refactoring/` - Refactoring reports and technical debt cleanup
-    - `ui/` - UI modernization and CSS cleanup reports
-    - `investigations/` - Technical investigation reports
-  - **[development/](./docs/development/)** - Development guides and workflows
-  - **[operations/](./docs/operations/)** - Deployment and operational guides
-  - **[project/](./docs/project/)** - Project planning and readiness checklists
-  - **[templates/](./docs/templates/)** - Documentation templates
-  - **[images/](./docs/images/)** - Architecture diagrams and screenshots
-
-### Additional Resources
-
-- **API Documentation** - Available at `/docs` when backend is running
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-
-- All tests pass before submitting PRs
-- Follow the existing code style and architecture patterns
-- Update documentation for new features
-- Add tests for new functionality
-- Run the CI quality gate locally before pushing
-
-## License
-
-MIT. See [LICENSE](./LICENSE).
+# 查看日志
+docker-compose logs -f
+```
 
 ---
 
-**Made with ❤️ by the Bronit Team**
+## 📚 文档
+
+### 用户文档
+- [快速入门指南](./docs/guides/QUICKSTART.md)
+- [用户手册](./docs/guides/USER_GUIDE.md)
+- [配置说明](./docs/guides/CONFIGURATION.md)
+
+### 开发文档
+- [架构设计](./docs/architecture/ARCHITECTURE.md)
+- [API 文档](./docs/api/API_REFERENCE.md)
+- [开发指南](./docs/development/DEVELOPMENT_GUIDE.md)
+- [贡献指南](./CONTRIBUTING.md)
+
+### 版本信息
+- [更新日志](./CHANGELOG.md)
+- [版本历史](./docs/history/VERSION_HISTORY.md)
+- [发布说明](./docs/releases/)
+
+---
+
+## 🔧 配置说明
+
+### 环境变量
+
+关键配置项（`.env` 文件）:
+
+```bash
+# 模型配置
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+DEFAULT_MODEL_PROVIDER=openai
+DEFAULT_MODEL_NAME=gpt-4
+
+# 数据库配置
+CHROMA_PERSIST_DIR=./data/chroma
+NEO4J_URI=bolt://localhost:7687
+
+# Redis 配置（可选）
+REDIS_URL=redis://localhost:6379
+
+# 安全配置
+SECRET_KEY=your-secret-key
+JWT_EXPIRE_MINUTES=1440
+
+# 服务配置
+BACKEND_PORT=8000
+FRONTEND_PORT=5173
+```
+
+### 模型支持
+
+**本地模型（Ollama）**:
+```bash
+# 安装 Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# 下载模型
+ollama pull qwen2.5:7b
+ollama pull nomic-embed-text
+
+# 配置 .env
+DEFAULT_MODEL_PROVIDER=ollama
+DEFAULT_MODEL_NAME=qwen2.5:7b
+```
+
+**云端模型**:
+- OpenAI: GPT-4, GPT-3.5-Turbo
+- Anthropic: Claude 3 Opus, Sonnet, Haiku
+
+---
+
+## 📊 功能对比
+
+| 功能 | QueryMind | 传统 RAG | ChatGPT |
+|------|-----------|----------|---------|
+| 多智能体协作 | ✅ | ❌ | ❌ |
+| 混合检索 | ✅ | 部分 | ❌ |
+| 知识图谱 | ✅ | ❌ | ❌ |
+| 本地部署 | ✅ | ✅ | ❌ |
+| 权限控制 | ✅ | 部分 | ❌ |
+| 数据隔离 | ✅ | ❌ | ❌ |
+| 中文优化 | ✅ | 部分 | ✅ |
+| 实时监控 | ✅ | ❌ | ❌ |
+| 可扩展性 | ✅ | 部分 | ❌ |
+
+---
+
+## 🤝 贡献
+
+欢迎贡献！请阅读 [贡献指南](./CONTRIBUTING.md) 了解详情。
+
+### 开发流程
+
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+---
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 详见 [LICENSE](./LICENSE) 文件
+
+---
+
+## 🙏 致谢
+
+感谢以下开源项目:
+- [LangChain](https://github.com/langchain-ai/langchain) - LLM 应用框架
+- [LangGraph](https://github.com/langchain-ai/langgraph) - 工作流编排
+- [ChromaDB](https://github.com/chroma-core/chroma) - 向量数据库
+- [FastAPI](https://github.com/tiangolo/fastapi) - Web 框架
+- [React](https://github.com/facebook/react) - 前端框架
+
+---
+
+## 📞 联系方式
+
+- 项目主页: https://github.com/pocheang/querymind
+- 问题反馈: https://github.com/pocheang/querymind/issues
+- 讨论区: https://github.com/pocheang/querymind/discussions
+
+---
+
+<div align="center">
+
+**⭐ 如果这个项目对你有帮助，请给一个星标支持！**
+
+Made with ❤️ by QueryMind Team
+
+</div>
