@@ -18,11 +18,13 @@ async def take_screenshot(page, name: str, selector: str = None, full_page: bool
     """截取页面或元素截图"""
     screenshot_path = SCREENSHOT_DIR / f"{name}.png"
 
+    # 标准截图，不使用 full_page，避免超长截图
     if selector:
         element = await page.locator(selector).first
         await element.screenshot(path=str(screenshot_path))
     else:
-        await page.screenshot(path=str(screenshot_path), full_page=full_page)
+        # 只截取可见视口，不滚动整个页面
+        await page.screenshot(path=str(screenshot_path), full_page=False)
 
     print(f"✓ 已保存截图: {screenshot_path}")
 
