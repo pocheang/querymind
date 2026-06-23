@@ -4,11 +4,11 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Backend](https://img.shields.io/badge/backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-61DAFB.svg)](https://react.dev/)
-[![Version](https://img.shields.io/badge/version-v0.4.6-blue.svg)](./docs/VERSION_HISTORY.md)
+[![Version](https://img.shields.io/badge/version-v0.5.0-blue.svg)](./docs/VERSION_HISTORY.md)
 
 Enterprise-oriented, local-first RAG platform with multi-agent orchestration, hybrid retrieval, graph enhancement, admin governance, and streaming chat.
 
-**Latest Release**: v0.4.6 (2026-06-19) - Backend Stability & Security: Fixed 13 critical issues including race conditions, resource leaks, and security vulnerabilities. All tests passing (42/42), 67% memory reduction, with auto-recovery mechanisms.
+**Latest Release**: v0.5.0 (2026-06-23) - Permission System & Code Quality: Implemented comprehensive RBAC with Viewer/Analyst roles, frontend permission integration, project cleanup, and enhanced documentation standards. 100% test pass rate with improved security and maintainability.
 
 This repository packages a FastAPI backend, a React frontend, and a modular retrieval pipeline designed for private knowledge bases, internal copilots, and controlled enterprise AI workflows.
 

@@ -1,6 +1,6 @@
 {
   "name": "multi-agent-rag-frontend",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,9 @@
     "preview": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.2.5",
+    "@uiw/react-md-editor": "^4.1.1",
+    "antd": "^6.4.5",
     "clsx": "^2.1.1",
     "i18next": "^26.3.1",
     "react": "^18.3.1",

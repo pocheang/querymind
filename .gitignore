@@ -71,6 +71,9 @@ build/
 .pytest_tmp/
 .pytest_*/
 pytest_tmp*/
+.pytest_basetemp/
+.pytest_tmp_run_*/
+pytest_tmp_run_*/
 .venv/
 venv/
 env/
@@ -178,6 +181,8 @@ tests/.tmp/
 artifacts/
 !artifacts/.gitkeep
 .tmp/
+.tmp_testdata/
+.deprecated_prompts/
 
 # Screenshots and captures
 capture_*.py
@@ -187,6 +192,12 @@ capture_*.py
 # Test scripts
 test_web_functionality.py
 test_*.temp.py
+fix_*.py
+test_*.sh
+
+# Code quality reports
+code_quality_report.txt
+*_report.txt
 
 # ============================================
 # LOGS
@@ -254,6 +265,7 @@ README-STARTUP.md
 # Internal project management and audit reports
 /project_audit/
 /internal_docs/
+internal_docs/
 docs/VALIDATION_REPORT.json
 docs/security/
 docs/plans/
@@ -275,6 +287,25 @@ VERSION_DOCUMENTATION_QUICK_OVERVIEW.md
 VERSION_DOCUMENTATION_SYSTEM_COMPLETION_REPORT.md
 VERSION_DOCUMENTATION_SYSTEM_SUMMARY.md
 
+# Internal development reports and temporary docs
+*_REPORT.md
+*_EXECUTION*.md
+*_FIXES*.md
+*_PLAN.md
+*_CHECKLIST.md
+*_COMPLETION*.md
+*_SUMMARY.md
+*_GUIDE.md
+ARCHITECTURE_*.md
+CODE_QUALITY_*.md
+COMPREHENSIVE_*.md
+FINAL_*.md
+HIGH_PRIORITY_*.md
+PERFORMANCE_*.md
+QUICK_*.md
+REMAINING_*.md
+ULTIMATE_*.md
+
 # Internal documentation maintenance files
 docs/ARCHIVE_REFERENCE.md
 docs/DOCUMENTATION_MAINTENANCE.md
@@ -294,6 +325,9 @@ docs/archive/DOCUMENTATION_COMPLETENESS_REPORT.md
 docs/archive/FIXES_*.md
 docs/archive/*.md
 !docs/archive/INDEX.md
+
+# Internal project audit and reports
+docs/project/
 
 # ============================================
 # Public Documentation (Visible on GitHub)
