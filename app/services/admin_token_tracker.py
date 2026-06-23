@@ -2,11 +2,11 @@
 
 Tracks approval token usage to implement single-use and expiration mechanisms.
 """
+
 import hashlib
 import hmac
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 
 def _utcnow() -> datetime:
@@ -15,7 +15,8 @@ def _utcnow() -> datetime:
     ``datetime.utcnow`` is deprecated since Python 3.12. Internal storage stays
     naive so existing comparisons in this module remain valid.
     """
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
+
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +72,7 @@ class AdminTokenTracker:
             token_hash: SHA256 hash of the token
             user_id: User ID who used the token
         """
-        self._used_tokens[token_hash] = {
-            "used_at": _utcnow(),
-            "used_by": user_id
-        }
+        self._used_tokens[token_hash] = {"used_at": _utcnow(), "used_by": user_id}
         logger.info(f"Token marked as used: hash={token_hash[:8]}..., user={user_id}")
 
     def cleanup_expired(self) -> int:
@@ -86,7 +84,8 @@ class AdminTokenTracker:
         """
         now = _utcnow()
         expired = [
-            token_hash for token_hash, info in self._used_tokens.items()
+            token_hash
+            for token_hash, info in self._used_tokens.items()
             if (now - info["used_at"]).total_seconds() >= self._expiry_hours * 3600
         ]
 
@@ -105,17 +104,11 @@ class AdminTokenTracker:
         Returns:
             Statistics dictionary
         """
-        return {
-            "total_used_tokens": len(self._used_tokens),
-            "expiry_hours": self._expiry_hours
-        }
+        return {"total_used_tokens": len(self._used_tokens), "expiry_hours": self._expiry_hours}
 
 
 def validate_admin_approval_token(
-    token: str,
-    configured_hash: str,
-    actor_user_id: str,
-    tracker: AdminTokenTracker
+    token: str, configured_hash: str, actor_user_id: str, tracker: AdminTokenTracker
 ) -> tuple[bool, str]:
     """
     Validate admin approval token (timing-attack resistant, single-use).
@@ -165,7 +158,7 @@ def validate_admin_approval_token(
 
 
 # Global token tracker instance
-_global_tracker: Optional[AdminTokenTracker] = None
+_global_tracker: AdminTokenTracker | None = None
 
 
 def get_token_tracker() -> AdminTokenTracker:

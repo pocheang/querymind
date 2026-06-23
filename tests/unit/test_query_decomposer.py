@@ -2,10 +2,12 @@
 Unit tests for query decomposer service.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.services.query_decomposer import QueryDecomposer
+
+import pytest
+
 from app.models.advanced_rag_models import DecomposedQuery
+from app.services.query_decomposer import QueryDecomposer
 
 
 @pytest.fixture

@@ -1,4 +1,3 @@
-import pytest
 from app.services.language_detector import (
     detect_language,
     get_language_name,

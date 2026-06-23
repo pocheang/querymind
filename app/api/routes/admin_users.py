@@ -7,20 +7,21 @@ This module provides secure admin operations with:
 - Comprehensive audit logging
 - Input validation
 """
+
 import hashlib
 import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
-from app.api.utils.error_responses import not_found, forbidden, bad_request
 from app.api.dependencies import (
-    auth_service,
     _audit,
-    _require_user,
     _require_permission,
-    settings,
+    _require_user,
+    auth_service,
 )
+from app.api.utils.admin_helpers import handle_service_exception
+from app.api.utils.error_responses import bad_request, not_found
 from app.core.schemas import (
     AdminCreateAdminRequest,
     AdminResetApprovalTokenRequest,
@@ -31,17 +32,16 @@ from app.core.schemas import (
     AdminUserSummary,
     AuditLogEntry,
 )
-from app.services.log_buffer import list_captured_logs
-from app.services.admin_security import (
-    check_self_modification,
-    check_admin_role_change,
-    validate_ticket_id,
-    validate_reason,
-    validate_approval_token_length,
-    validate_and_check_approval_token,
-)
 from app.services.admin_rate_limit import get_limiter, get_rate_limit
-from app.api.utils.admin_helpers import handle_service_exception
+from app.services.admin_security import (
+    check_admin_role_change,
+    check_self_modification,
+    validate_and_check_approval_token,
+    validate_approval_token_length,
+    validate_reason,
+    validate_ticket_id,
+)
+from app.services.log_buffer import list_captured_logs
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 limiter = get_limiter()
@@ -85,10 +85,7 @@ def admin_page(request: Request, user: dict[str, Any] = Depends(_require_user)):
 @router.patch("/users/{user_id}/role", response_model=AdminUserSummary)
 @limiter.limit(get_rate_limit("role_update"))
 def admin_update_user_role(
-    user_id: str,
-    req: AdminRoleUpdateRequest,
-    request: Request,
-    user: dict[str, Any] = Depends(_require_user)
+    user_id: str, req: AdminRoleUpdateRequest, request: Request, user: dict[str, Any] = Depends(_require_user)
 ):
     """Update user role with security checks."""
     _require_permission(user, "admin:user_manage", request, "admin", resource_id=user_id)
@@ -122,9 +119,7 @@ def admin_update_user_role(
 @router.post("/users/create-admin", response_model=AdminUserSummary)
 @limiter.limit(get_rate_limit("admin_create"))
 def admin_create_user_as_admin(
-    req: AdminCreateAdminRequest,
-    request: Request,
-    user: dict[str, Any] = Depends(_require_user)
+    req: AdminCreateAdminRequest, request: Request, user: dict[str, Any] = Depends(_require_user)
 ):
     """Create new admin user with approval token validation."""
     _require_permission(user, "admin:user_manage", request, "admin")
@@ -134,12 +129,7 @@ def admin_create_user_as_admin(
 
     # Security: Validate approval token (single-use, timing-attack resistant)
     token_ok, token_mode = validate_and_check_approval_token(
-        approval_token,
-        actor_user_id,
-        "admin.user.create_admin",
-        _audit,
-        request,
-        user
+        approval_token, actor_user_id, "admin.user.create_admin", _audit, request, user
     )
 
     ticket_id = (req.ticket_id or "").strip()
@@ -208,13 +198,7 @@ def admin_reset_user_approval_token(
 
     # Security: Validate approval token
     token_ok, token_mode = validate_and_check_approval_token(
-        approval_token,
-        actor_user_id,
-        "admin.user.reset_approval_token",
-        _audit,
-        request,
-        user,
-        user_id
+        approval_token, actor_user_id, "admin.user.reset_approval_token", _audit, request, user, user_id
     )
 
     ticket_id = (req.ticket_id or "").strip()
@@ -272,13 +256,7 @@ def admin_reset_user_password(
 
     # Security: Validate approval token
     token_ok, token_mode = validate_and_check_approval_token(
-        approval_token,
-        actor_user_id,
-        "admin.user.reset_password",
-        _audit,
-        request,
-        user,
-        user_id
+        approval_token, actor_user_id, "admin.user.reset_password", _audit, request, user, user_id
     )
 
     ticket_id = (req.ticket_id or "").strip()
@@ -317,10 +295,7 @@ def admin_reset_user_password(
 @router.patch("/users/{user_id}/status", response_model=AdminUserSummary)
 @limiter.limit(get_rate_limit("status_update"))
 def admin_update_user_status(
-    user_id: str,
-    req: AdminStatusUpdateRequest,
-    request: Request,
-    user: dict[str, Any] = Depends(_require_user)
+    user_id: str, req: AdminStatusUpdateRequest, request: Request, user: dict[str, Any] = Depends(_require_user)
 ):
     """Update user status with self-modification check."""
     _require_permission(user, "admin:user_manage", request, "admin", resource_id=user_id)

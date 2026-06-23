@@ -1,11 +1,15 @@
+import logging
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from app.core.config import Settings
+
+logger = logging.getLogger(__name__)
+
 try:
     from app.ingestion.loaders import SUPPORTED_EXTENSIONS
-except ImportError as e:
+except ImportError:
     # Fallback to default extensions if loaders module not available
     SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf", ".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
 
@@ -58,7 +62,7 @@ class AutoIngestWatcher:
         try:
             st = path.stat()
             return (int(st.st_mtime_ns), int(st.st_size))
-        except (OSError, ValueError) as e:
+        except (OSError, ValueError):
             # File access error or invalid stat values
             return None
 
@@ -76,7 +80,7 @@ class AutoIngestWatcher:
     def _ingest_file(self, path: Path, sig: tuple[int, int]) -> bool:
         try:
             self._resolve_delete_index_fn()(path.name, remove_physical_file=False, source=str(path))
-        except (FileNotFoundError, ValueError) as e:
+        except (FileNotFoundError, ValueError):
             # Not indexed yet or cannot delete old index: keep going.
             pass
         except Exception as e:

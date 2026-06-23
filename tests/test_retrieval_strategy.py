@@ -13,7 +13,9 @@ def test_query_rewrite_generates_multiple_variants():
 
 
 def test_query_rewrite_decomposes_compound_question():
-    variants = build_rewrite_queries("分析A风险，并且给出B的缓解建议；再比较C和D", enable_llm=False, enable_decompose=True)
+    variants = build_rewrite_queries(
+        "分析A风险，并且给出B的缓解建议；再比较C和D", enable_llm=False, enable_decompose=True
+    )
     assert any("分析a风险" in v.lower() for v in variants)
     assert any("缓解建议" in v for v in variants)
 
@@ -58,7 +60,11 @@ def test_explainability_report_contains_core_fields():
         {
             "route": "vector",
             "reason": "test",
-            "vector_result": {"retrieved_count": 2, "effective_hit_count": 1, "retrieval_diagnostics": {"rewrites": ["q"]}},
+            "vector_result": {
+                "retrieved_count": 2,
+                "effective_hit_count": 1,
+                "retrieval_diagnostics": {"rewrites": ["q"]},
+            },
             "graph_result": {"entities": [], "neighbors": []},
             "web_result": {"used": False},
             "grounding": {"support_ratio": 0.8},

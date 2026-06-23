@@ -16,11 +16,12 @@ from pydantic import BaseModel
 
 from app.agents.agent_config import (
     AGENT_CLASS_GENERAL,
-    CLASSIFICATION_HIGH_CONFIDENCE,
-    CLASSIFICATION_MEDIUM_CONFIDENCE,
     ROUTE_VECTOR,
+    ROUTE_WEB,
     SKILL_DEFAULT,
     VALID_AGENT_CLASSES,
+    VALID_ROUTES,
+    VALID_SKILLS,
 )
 from app.agents.shared_cache import cached_router_decision
 from app.api.utils.string_utils import normalize_string
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 class RouteDecision(BaseModel):
     """Router decision with route, skill, and agent class."""
+
     route: str
     reason: str
     skill: str
@@ -47,6 +49,7 @@ Choose one route:
 - vector: best for finding answers from text chunks
 - graph: best for entity relations, dependencies, and topology
 - hybrid: needs both text evidence and relation graph
+- react: complex multi-step queries requiring iterative reasoning and tool use
 
 Choose one skill from:
 - answer_with_citations
@@ -59,6 +62,12 @@ Choose one skill from:
 - ai_knowledge_assistant
 - pdf_text_reader
 
+ReAct route hints:
+- Multi-step reasoning: "compare X and Y, then analyze Z"
+- Complex questions requiring multiple information sources
+- Questions needing sequential tool calls: search, verify, synthesize
+- Investigative queries: "find X, check if Y, recommend Z"
+
 Cyber skill hints:
 - exploitation, attack chain, lateral movement, privilege escalation, C2 => cyber_attack_analysis
 - defense architecture, detection rules, hardening checklist, zero trust => cyber_defense_hardening
@@ -68,7 +77,7 @@ PDF skill hints:
 - reading PDF content, extracting text from PDF => pdf_text_reader
 
 Output JSON only:
-{"route":"vector|graph|hybrid","reason":"...","skill":"..."}
+{"route":"vector|graph|hybrid|react","reason":"...","skill":"..."}
 """
 
 
@@ -77,20 +86,12 @@ def _extract_json(text: str) -> dict:
     match = re.search(r"\{.*\}", text, flags=re.DOTALL)
     if not match:
         logger.warning("No JSON found in router response, using fallback")
-        return {
-            "route": ROUTE_VECTOR,
-            "reason": "fallback",
-            "skill": SKILL_DEFAULT
-        }
+        return {"route": ROUTE_VECTOR, "reason": "fallback", "skill": SKILL_DEFAULT}
     try:
         return json.loads(match.group(0))
     except json.JSONDecodeError as e:
         logger.warning(f"JSON decode error in router response: {e}")
-        return {
-            "route": ROUTE_VECTOR,
-            "reason": "fallback_json_error",
-            "skill": SKILL_DEFAULT
-        }
+        return {"route": ROUTE_VECTOR, "reason": "fallback_json_error", "skill": SKILL_DEFAULT}
 
 
 def _normalize_agent_class_hint(agent_class_hint: str | None) -> str | None:
@@ -106,12 +107,16 @@ def _normalize_agent_class_hint(agent_class_hint: str | None) -> str | None:
     return None
 
 
+def _append_reason(base_reason: str, *tags: str) -> str:
+    """Join a base reason with optional diagnostic tags."""
+    parts = [normalize_string(base_reason)]
+    parts.extend(normalize_string(tag) for tag in tags if normalize_string(tag))
+    return "|".join(part for part in parts if part)
+
+
 @cached_router_decision
 def decide_route(
-    question: str,
-    use_reasoning: bool = False,
-    agent_class_hint: str | None = None,
-    use_llm_intent: bool = True
+    question: str, use_reasoning: bool = False, agent_class_hint: str | None = None, use_llm_intent: bool = True
 ) -> RouteDecision:
     """
     Decide query route and skill.
@@ -129,6 +134,17 @@ def decide_route(
     """
     forced = _normalize_agent_class_hint(agent_class_hint)
 
+    if is_smalltalk_query(question):
+        return RouteDecision(
+            route=ROUTE_VECTOR,
+            reason=_append_reason(
+                "smalltalk_local_only",
+                f"forced_agent_class={forced}" if forced else "",
+            ),
+            skill=SKILL_DEFAULT,
+            agent_class=forced or AGENT_CLASS_GENERAL,
+        )
+
     # Select intent classification method
     if forced:
         agent_class = forced
@@ -140,14 +156,9 @@ def decide_route(
             agent_class = intent_result["agent_class"]
             confidence = intent_result.get("confidence", 0.5)
             classification_method = f"llm(confidence={confidence:.2f})"
-            logger.info(
-                f"LLM intent classification: {agent_class} "
-                f"(confidence={confidence:.2f})"
-            )
+            logger.info(f"LLM intent classification: {agent_class} (confidence={confidence:.2f})")
         except Exception as e:
-            logger.warning(
-                f"LLM intent classification failed, fallback to rule-based: {e}"
-            )
+            logger.warning(f"LLM intent classification failed, fallback to rule-based: {e}")
             agent_class = classify_agent_class(question)
             confidence = 0.5
             classification_method = "rule_fallback"
@@ -168,34 +179,53 @@ def decide_route(
     else:
         skill = SKILL_DEFAULT
 
-    # Select model based on settings
-    model = get_reasoning_model() if use_reasoning else get_chat_model()
+    forced_reason = f"forced_agent_class={forced}" if forced else ""
 
     # Get route decision from LLM
     try:
-        prompt = f"{ROUTER_PROMPT}\n\nQuestion: {question}\nAgent class: {agent_class}\nSuggested skill: {skill}"
+        model = get_reasoning_model() if use_reasoning else get_chat_model()
+        prompt = f"""{ROUTER_PROMPT}
+
+Question: {question}
+Agent class: {agent_class}
+Suggested skill: {skill}"""
         response = model.invoke(prompt)
         response_text = response.content if hasattr(response, "content") else str(response)
 
         route_data = _extract_json(response_text)
 
-        route = route_data.get("route", ROUTE_VECTOR)
-        reason = route_data.get("reason", "llm_decision")
-        llm_skill = route_data.get("skill", skill)
+        raw_route = normalize_string(route_data.get("route", ROUTE_VECTOR), lowercase=True)
+        route = raw_route if raw_route in VALID_ROUTES else ROUTE_VECTOR
 
-        # Use LLM skill if it looks valid
+        reason = normalize_string(route_data.get("reason", "llm_decision")) or "llm_decision"
+        if raw_route and raw_route not in VALID_ROUTES:
+            reason = _append_reason(reason, f"invalid_route={raw_route}")
+
+        llm_skill = normalize_string(route_data.get("skill", skill), lowercase=True)
         if llm_skill and llm_skill != "...":
-            skill = llm_skill
+            if llm_skill in VALID_SKILLS:
+                skill = llm_skill
+            else:
+                reason = _append_reason(reason, f"invalid_skill={llm_skill}")
+                # Keep the pre-determined skill (don't override with invalid value)
+
+        if route == ROUTE_WEB:
+            route = ROUTE_VECTOR
+            reason = _append_reason(reason, "web_downgraded_to_local_first")
+
+        if forced_reason:
+            reason = _append_reason(reason, forced_reason)
 
         logger.info(
             f"Route decision: route={route}, skill={skill}, "
-            f"agent_class={agent_class}, method={classification_method}"
+            f"agent_class={agent_class}, method={classification_method}, "
+            f"confidence={confidence:.2f}"
         )
 
     except Exception as e:
         logger.exception(f"Router LLM call failed: {e}")
         route = ROUTE_VECTOR
-        reason = f"llm_error:{type(e).__name__}"
+        reason = _append_reason(f"router_invoke_error:{type(e).__name__}", forced_reason)
 
     return RouteDecision(
         route=route,
@@ -217,4 +247,3 @@ def decide_route_simple(question: str) -> str:
     """
     decision = decide_route(question, use_llm_intent=False)
     return decision.route
-

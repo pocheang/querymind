@@ -1,6 +1,7 @@
 """
 Main FastAPI application for Multi-Agent Local RAG.
 """
+
 import logging
 import os
 import sys
@@ -13,29 +14,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.utils.error_responses import not_found
-from app.core.config import get_settings
-from app.services.log_buffer import setup_log_capture
-from app.graph.neo4j_client import Neo4jClient
-
 # Import dependencies to initialize services
 from app.api import dependencies as api_dependencies
 from app.api.dependencies import (
-    auto_ingest_watcher,
-    auth_service,
-    login_limiter,
-    query_result_cache,
-    register_limiter,
-    shadow_queue,
-    settings,
-    _audit,
     _auto_ingest_stop_event,
-    _history_store_for_user,
-    _memory_store_for_user,
-    _require_user,
-    _enforce_result_source_scope,
-    _query_cache_key,
-    _allowed_sources_for_user,
+    auth_service,
+    auto_ingest_watcher,
+    settings,
+    shadow_queue,
+)
+
+# Import middleware
+from app.api.middleware import request_timing_middleware
+
+# Import route modules
+from app.api.routes import (
+    admin_graph_rag,
+    admin_language_stats,
+    admin_ops,
+    admin_settings,
+    admin_users,
+    advanced_rag,
+    agent_tracking,
+    analytics,
+    auth,
+    documents,
+    evaluation,
+    health,
+    prompts,
+    query,
+    sessions,
 )
 from app.api.utils import (
     admin_helpers,
@@ -46,38 +54,9 @@ from app.api.utils import (
     query_helpers,
     session_helpers,
 )
-from app.api.utils.admin_helpers import _check_chroma_ready, _check_ollama_ready, _load_benchmark_queries
-from app.api.utils.document_helpers import (
-    _allowed_sources_for_visible_filenames,
-    _list_visible_documents_for_user,
-    _resynthesize_after_source_scope,
-    _source_mtime_ns,
-    _visible_index_fingerprint_for_user,
-)
-from app.agents.synthesis_agent import synthesize_answer
-from app.core.models import clear_model_caches, get_chat_model
-from app.services.index_manager import rebuild_all_vector_index
-from app.retrievers.vector_store import clear_vector_store_cache
-from app.services.input_normalizer import enhance_user_question_for_completion, normalize_and_validate_user_question
-from app.services.input_normalizer import normalize_user_question
-from app.services.index_manager import list_indexed_files
-from app.services.agent_classifier import classify_agent_class
-from app.services.model_config_store import get_global_model_settings, save_global_model_settings
-from app.services.query_intent import is_casual_chat_query
-from app.graph.streaming import run_query_stream
-from app.graph.workflow import run_query
-from app.services.runtime_ops import append_benchmark_trend, apply_rollback_profile, read_benchmark_trends
-
-
-# Import middleware
-from app.api.middleware import request_timing_middleware
-
-# Import route modules
-from app.api.routes import health, auth, query, sessions, documents, prompts
-from app.api.routes import admin_users, admin_ops, admin_settings, admin_language_stats
-from app.api.routes import agent_tracking, evaluation
-from app.api.routes import advanced_rag, analytics, admin_graph_rag
-from app.api.routes.health import _check_neo4j_ready
+from app.api.utils.error_responses import not_found
+from app.graph.neo4j_client import Neo4jClient
+from app.services.log_buffer import setup_log_capture
 
 auth_dependencies.auth_service = auth_service
 auth_helpers.auth_service = auth_service
@@ -135,12 +114,11 @@ async def lifespan(app: FastAPI):
 
     # Start agent execution tracker periodic cleanup
     from app.services.agent_execution_tracker import get_tracker
+
     tracker = get_tracker()
     await tracker.start_periodic_cleanup(interval_seconds=300)  # 5 minutes
 
-    if settings.auto_ingest_enabled and (
-        _auto_ingest_thread is None or not _auto_ingest_thread.is_alive()
-    ):
+    if settings.auto_ingest_enabled and (_auto_ingest_thread is None or not _auto_ingest_thread.is_alive()):
         _auto_ingest_stop_event.clear()
         _auto_ingest_thread = threading.Thread(
             target=auto_ingest_watcher.run_loop,
@@ -188,7 +166,7 @@ async def rewrite_app_prefixed_api_paths(request, call_next):
     """Support deployments that expose backend routes under the public /app base."""
     path = str(request.scope.get("path", "") or "")
     if path.startswith("/app/"):
-        remainder = path[len("/app/"):]
+        remainder = path[len("/app/") :]
         first_segment = remainder.split("/", 1)[0]
         if first_segment in _APP_BASE_API_SEGMENTS:
             request.scope["path"] = f"/{remainder}"
@@ -222,8 +200,7 @@ def _configure_cors(app_obj: FastAPI, settings_obj) -> None:
     app_obj.add_middleware(
         CORSMiddleware,
         allow_origins=["*"] if allow_all else cors_origins,
-        allow_credentials=bool(getattr(settings_obj, "cors_allow_credentials", True))
-        and (not allow_all),
+        allow_credentials=bool(getattr(settings_obj, "cors_allow_credentials", True)) and (not allow_all),
         allow_methods=settings_obj.cors_methods,
         allow_headers=settings_obj.cors_headers,
     )

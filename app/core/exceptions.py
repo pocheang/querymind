@@ -66,8 +66,10 @@ class RAGBaseException(Exception):
 # Retrieval Layer Exceptions
 # ============================================================================
 
+
 class RetrievalException(RAGBaseException):
     """Base class for all retrieval-related exceptions."""
+
     pass
 
 
@@ -80,6 +82,7 @@ class VectorStoreException(RetrievalException):
         - Collection not found
         - Embedding dimension mismatch
     """
+
     pass
 
 
@@ -92,6 +95,7 @@ class BM25Exception(RetrievalException):
         - Index rebuild required
         - Tokenization error
     """
+
     pass
 
 
@@ -104,6 +108,7 @@ class RerankerException(RetrievalException):
         - Input exceeds max sequence length
         - CUDA out of memory
     """
+
     pass
 
 
@@ -116,6 +121,7 @@ class GraphRetrievalException(RetrievalException):
         - Cypher query syntax error
         - Graph database timeout
     """
+
     pass
 
 
@@ -123,8 +129,10 @@ class GraphRetrievalException(RetrievalException):
 # Agent Layer Exceptions
 # ============================================================================
 
+
 class AgentException(RAGBaseException):
     """Base class for all agent execution exceptions."""
+
     pass
 
 
@@ -137,6 +145,7 @@ class RouterAgentException(AgentException):
         - Invalid classification output
         - Ambiguous routing decision
     """
+
     pass
 
 
@@ -149,6 +158,7 @@ class SynthesisAgentException(AgentException):
         - Citation grounding failure
         - Output format invalid
     """
+
     pass
 
 
@@ -161,6 +171,7 @@ class WebResearchException(AgentException):
         - All URLs in blocked domain list
         - Network connection failure
     """
+
     pass
 
 
@@ -168,8 +179,10 @@ class WebResearchException(AgentException):
 # Authentication & Authorization Exceptions
 # ============================================================================
 
+
 class AuthException(RAGBaseException):
     """Base class for authentication and authorization errors."""
+
     pass
 
 
@@ -182,6 +195,7 @@ class InvalidCredentialsException(AuthException):
         - User not found
         - Token signature mismatch
     """
+
     pass
 
 
@@ -194,6 +208,7 @@ class SessionExpiredException(AuthException):
         - Session file deleted
         - Forced logout by admin
     """
+
     pass
 
 
@@ -206,6 +221,7 @@ class InsufficientPermissionsException(AuthException):
         - User trying to access another user's documents
         - Role-based access control (RBAC) denial
     """
+
     pass
 
 
@@ -213,8 +229,10 @@ class InsufficientPermissionsException(AuthException):
 # Document Ingestion Exceptions
 # ============================================================================
 
+
 class IngestionException(RAGBaseException):
     """Base class for document processing exceptions."""
+
     pass
 
 
@@ -227,6 +245,7 @@ class OCRException(IngestionException):
         - Image format unsupported
         - OCR confidence too low
     """
+
     pass
 
 
@@ -239,6 +258,7 @@ class PDFProcessingException(IngestionException):
         - Corrupted PDF structure
         - PyPDF extraction error
     """
+
     pass
 
 
@@ -251,12 +271,14 @@ class ChunkingException(IngestionException):
         - Parent-child relationship invalid
         - Chunk size exceeds embedding model limit
     """
+
     pass
 
 
 # ============================================================================
 # System & Resource Exceptions
 # ============================================================================
+
 
 class ConfigurationException(RAGBaseException):
     """
@@ -267,6 +289,7 @@ class ConfigurationException(RAGBaseException):
         - Invalid model backend selection
         - Conflicting settings (e.g., reranker enabled but no model)
     """
+
     pass
 
 
@@ -279,6 +302,7 @@ class ResourceUnavailableException(RAGBaseException):
         - Neo4j database offline
         - LLM API endpoint unreachable
     """
+
     pass
 
 
@@ -291,6 +315,7 @@ class QuotaExceededException(RAGBaseException):
         - Max queries per day reached
         - Storage quota full
     """
+
     pass
 
 
@@ -298,11 +323,9 @@ class QuotaExceededException(RAGBaseException):
 # Utility Functions
 # ============================================================================
 
+
 def wrap_external_exception(
-    exc: Exception,
-    custom_exc_class: type[RAGBaseException],
-    message: str,
-    **details
+    exc: Exception, custom_exc_class: type[RAGBaseException], message: str, **details
 ) -> RAGBaseException:
     """
     Convert a generic exception into a custom RAG exception.

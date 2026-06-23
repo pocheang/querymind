@@ -1,6 +1,5 @@
 import re
 
-
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")
 
 

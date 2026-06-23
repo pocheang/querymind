@@ -1,6 +1,7 @@
-from app.services.history import HistoryStore
-from pathlib import Path
 import uuid
+from pathlib import Path
+
+from app.services.history import HistoryStore
 
 
 def test_session_strategy_lock_roundtrip():

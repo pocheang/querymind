@@ -4,17 +4,14 @@ Tests end-to-end batch processing with real image data, concurrent execution,
 error recovery, and performance verification.
 """
 
-import pytest
-import asyncio
 import time
 from io import BytesIO
-from unittest.mock import patch, Mock
-from PIL import Image, ImageDraw, ImageFont
+from unittest.mock import patch
 
-from app.ingestion.utils.batch_chart_extractor import (
-    BatchChartExtractor,
-    extract_charts_batch_simple
-)
+import pytest
+from PIL import Image, ImageDraw
+
+from app.ingestion.utils.batch_chart_extractor import BatchChartExtractor, extract_charts_batch_simple
 
 
 def create_test_chart_image(chart_type: str = "bar", width: int = 400, height: int = 300) -> bytes:
@@ -29,7 +26,7 @@ def create_test_chart_image(chart_type: str = "bar", width: int = 400, height: i
         Image bytes in PNG format
     """
     # Create a new image with white background
-    img = Image.new('RGB', (width, height), color='white')
+    img = Image.new("RGB", (width, height), color="white")
     draw = ImageDraw.Draw(img)
 
     # Draw a simple chart based on type
@@ -37,10 +34,10 @@ def create_test_chart_image(chart_type: str = "bar", width: int = 400, height: i
         # Draw simple bar chart
         bar_width = 60
         bar_spacing = 20
-        colors = ['red', 'blue', 'green', 'orange']
+        colors = ["red", "blue", "green", "orange"]
         heights = [150, 200, 120, 180]
 
-        for i, (color, bar_height) in enumerate(zip(colors, heights)):
+        for i, (color, bar_height) in enumerate(zip(colors, heights, strict=False)):
             x = 50 + i * (bar_width + bar_spacing)
             y = height - 50 - bar_height
             draw.rectangle([x, y, x + bar_width, height - 50], fill=color)
@@ -48,30 +45,35 @@ def create_test_chart_image(chart_type: str = "bar", width: int = 400, height: i
     elif chart_type == "line":
         # Draw simple line chart
         points = [(50, 200), (150, 150), (250, 180), (350, 100)]
-        draw.line(points, fill='blue', width=3)
+        draw.line(points, fill="blue", width=3)
         for point in points:
-            draw.ellipse([point[0]-5, point[1]-5, point[0]+5, point[1]+5], fill='red')
+            draw.ellipse([point[0] - 5, point[1] - 5, point[0] + 5, point[1] + 5], fill="red")
 
     elif chart_type == "pie":
         # Draw simple pie chart
         center_x, center_y = width // 2, height // 2
         radius = 100
-        draw.ellipse([center_x - radius, center_y - radius,
-                     center_x + radius, center_y + radius],
-                    fill='lightblue', outline='black')
-        draw.pieslice([center_x - radius, center_y - radius,
-                      center_x + radius, center_y + radius],
-                     start=0, end=120, fill='red')
-        draw.pieslice([center_x - radius, center_y - radius,
-                      center_x + radius, center_y + radius],
-                     start=120, end=240, fill='green')
+        draw.ellipse(
+            [center_x - radius, center_y - radius, center_x + radius, center_y + radius],
+            fill="lightblue",
+            outline="black",
+        )
+        draw.pieslice(
+            [center_x - radius, center_y - radius, center_x + radius, center_y + radius], start=0, end=120, fill="red"
+        )
+        draw.pieslice(
+            [center_x - radius, center_y - radius, center_x + radius, center_y + radius],
+            start=120,
+            end=240,
+            fill="green",
+        )
 
     # Add title
-    draw.text((width // 2 - 50, 20), f"{chart_type.upper()} Chart", fill='black')
+    draw.text((width // 2 - 50, 20), f"{chart_type.upper()} Chart", fill="black")
 
     # Convert to bytes
     buffer = BytesIO()
-    img.save(buffer, format='PNG')
+    img.save(buffer, format="PNG")
     return buffer.getvalue()
 
 
@@ -97,25 +99,21 @@ async def test_batch_extraction_with_real_images():
         assert len(img_bytes) > 0
         # Verify it's a valid PNG
         img = Image.open(BytesIO(img_bytes))
-        assert img.format == 'PNG'
+        assert img.format == "PNG"
 
     # Mock the API call but test real async execution
     mock_chart_data = {
         "chart_type": "bar",
         "title": "Test Chart",
         "data": [{"label": "A", "value": 10}],
-        "description": "A test chart"
+        "description": "A test chart",
     }
 
-    with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+    with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
         mock_extract.return_value = mock_chart_data
 
         extractor = BatchChartExtractor(batch_size=3)
-        results = await extractor.extract_charts_batch(
-            images,
-            model="gpt-4o",
-            api_key="test_key"
-        )
+        results = await extractor.extract_charts_batch(images, model="gpt-4o", api_key="test_key")
 
     # Verify results
     assert len(results) == 5
@@ -142,18 +140,14 @@ async def test_batch_extraction_performance():
         time.sleep(0.1)  # 100ms per call
         return {"chart_type": "test", "title": "Chart"}
 
-    with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+    with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
         mock_extract.side_effect = slow_extract
 
         # Test with batch_size=5 (concurrent)
         extractor = BatchChartExtractor(batch_size=5)
 
         start_time = time.time()
-        results = await extractor.extract_charts_batch(
-            images,
-            model="gpt-4o",
-            api_key="test_key"
-        )
+        results = await extractor.extract_charts_batch(images, model="gpt-4o", api_key="test_key")
         concurrent_duration = time.time() - start_time
 
     # Verify results
@@ -167,12 +161,12 @@ async def test_batch_extraction_performance():
 
     # Concurrent should be at least 2x faster than sequential
     sequential_estimate = 15 * 0.1  # 1.5 seconds
-    assert concurrent_duration < sequential_estimate / 2, \
+    assert concurrent_duration < sequential_estimate / 2, (
         f"Concurrent ({concurrent_duration:.2f}s) not faster than sequential (~{sequential_estimate}s)"
+    )
 
     # Should complete in reasonable time (< 1 second with overhead)
-    assert concurrent_duration < 1.0, \
-        f"Concurrent execution took {concurrent_duration:.2f}s, expected < 1.0s"
+    assert concurrent_duration < 1.0, f"Concurrent execution took {concurrent_duration:.2f}s, expected < 1.0s"
 
 
 @pytest.mark.integration
@@ -201,21 +195,13 @@ async def test_batch_extraction_with_mixed_results():
         # Fail on images 2 and 5 (indices 1 and 4)
         if call_count[0] in [2, 5]:
             raise ValueError(f"Extraction failed for image {call_count[0]}")
-        return {
-            "chart_type": "success",
-            "title": f"Chart {call_count[0]}",
-            "data": []
-        }
+        return {"chart_type": "success", "title": f"Chart {call_count[0]}", "data": []}
 
-    with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+    with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
         mock_extract.side_effect = mixed_results
 
         extractor = BatchChartExtractor(batch_size=3)
-        results = await extractor.extract_charts_batch(
-            images,
-            model="gpt-4o",
-            api_key="test_key"
-        )
+        results = await extractor.extract_charts_batch(images, model="gpt-4o", api_key="test_key")
 
     # Verify all images were processed
     assert len(results) == 6
@@ -247,10 +233,7 @@ async def test_batch_extraction_with_large_batch():
     and maintains stability with many concurrent operations.
     """
     # Create 25 real test images
-    images = [
-        create_test_chart_image(chart_type)
-        for chart_type in ["bar", "line", "pie"] * 8 + ["bar"]
-    ]
+    images = [create_test_chart_image(chart_type) for chart_type in ["bar", "line", "pie"] * 8 + ["bar"]]
 
     assert len(images) == 25
 
@@ -259,23 +242,15 @@ async def test_batch_extraction_with_large_batch():
     def track_calls(image_bytes, model, api_key):
         """Track calls and return mock data."""
         call_count[0] += 1
-        return {
-            "chart_type": "test",
-            "title": f"Chart {call_count[0]}",
-            "data": [{"value": call_count[0]}]
-        }
+        return {"chart_type": "test", "title": f"Chart {call_count[0]}", "data": [{"value": call_count[0]}]}
 
-    with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+    with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
         mock_extract.side_effect = track_calls
 
         extractor = BatchChartExtractor(batch_size=5)
 
         start_time = time.time()
-        results = await extractor.extract_charts_batch(
-            images,
-            model="gpt-4o",
-            api_key="test_key"
-        )
+        results = await extractor.extract_charts_batch(images, model="gpt-4o", api_key="test_key")
         duration = time.time() - start_time
 
     # Verify all images were processed
@@ -315,21 +290,13 @@ async def test_batch_extraction_error_recovery():
         # Fail on images 3, 6, and 9
         if call_count[0] in [3, 6, 9]:
             raise ConnectionError(f"Network error for image {call_count[0]}")
-        return {
-            "chart_type": "bar",
-            "title": f"Success {call_count[0]}",
-            "data": []
-        }
+        return {"chart_type": "bar", "title": f"Success {call_count[0]}", "data": []}
 
-    with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+    with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
         mock_extract.side_effect = intermittent_failures
 
         extractor = BatchChartExtractor(batch_size=4)
-        results = await extractor.extract_charts_batch(
-            images,
-            model="gpt-4o",
-            api_key="test_key"
-        )
+        results = await extractor.extract_charts_batch(images, model="gpt-4o", api_key="test_key")
 
     # Verify all images were attempted
     assert len(results) == 10
@@ -388,18 +355,14 @@ async def test_batch_extraction_with_different_models():
                 "title": f"Chart from {provider}",
                 "model": model_name,
                 "provider": provider,
-                "image_num": call_count[0]
+                "image_num": call_count[0],
             }
 
-        with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+        with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
             mock_extract.side_effect = model_specific_response
 
             extractor = BatchChartExtractor(batch_size=2)
-            results = await extractor.extract_charts_batch(
-                images,
-                model=model,
-                api_key=f"test_key_{provider}"
-            )
+            results = await extractor.extract_charts_batch(images, model=model, api_key=f"test_key_{provider}")
 
         # Verify results for this model
         assert len(results) == 3
@@ -429,21 +392,14 @@ async def test_batch_extraction_convenience_function():
         create_test_chart_image("bar"),
     ]
 
-    mock_data = {
-        "chart_type": "mixed",
-        "title": "Test Chart",
-        "data": []
-    }
+    mock_data = {"chart_type": "mixed", "title": "Test Chart", "data": []}
 
-    with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+    with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
         mock_extract.return_value = mock_data
 
         # Use convenience function
         results = await extract_charts_batch_simple(
-            images,
-            model="claude-3-5-sonnet-20241022",
-            api_key="test_key",
-            batch_size=2
+            images, model="claude-3-5-sonnet-20241022", api_key="test_key", batch_size=2
         )
 
     # Verify results
@@ -471,21 +427,13 @@ async def test_batch_extraction_with_timeout_errors():
         call_count[0] += 1
         if call_count[0] in [2, 5, 7]:
             raise TimeoutError(f"Request timeout for image {call_count[0]}")
-        return {
-            "chart_type": "bar",
-            "title": f"Chart {call_count[0]}",
-            "data": []
-        }
+        return {"chart_type": "bar", "title": f"Chart {call_count[0]}", "data": []}
 
-    with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+    with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
         mock_extract.side_effect = timeout_on_some
 
         extractor = BatchChartExtractor(batch_size=3)
-        results = await extractor.extract_charts_batch(
-            images,
-            model="gpt-4o",
-            api_key="test_key"
-        )
+        results = await extractor.extract_charts_batch(images, model="gpt-4o", api_key="test_key")
 
     # Verify all images were attempted
     assert len(results) == 8
@@ -514,24 +462,16 @@ async def test_batch_extraction_empty_and_edge_cases():
     extractor = BatchChartExtractor(batch_size=5)
 
     # Test 1: Empty list
-    results = await extractor.extract_charts_batch(
-        [],
-        model="gpt-4o",
-        api_key="test_key"
-    )
+    results = await extractor.extract_charts_batch([], model="gpt-4o", api_key="test_key")
     assert results == []
 
     # Test 2: Single image
     single_image = [create_test_chart_image("bar")]
 
-    with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+    with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
         mock_extract.return_value = {"chart_type": "bar", "title": "Single"}
 
-        results = await extractor.extract_charts_batch(
-            single_image,
-            model="gpt-4o",
-            api_key="test_key"
-        )
+        results = await extractor.extract_charts_batch(single_image, model="gpt-4o", api_key="test_key")
 
     assert len(results) == 1
     assert results[0]["chart_type"] == "bar"
@@ -539,15 +479,11 @@ async def test_batch_extraction_empty_and_edge_cases():
     # Test 3: Batch size larger than image count
     images = [create_test_chart_image("bar") for _ in range(3)]
 
-    with patch('app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision') as mock_extract:
+    with patch("app.ingestion.utils.batch_chart_extractor.extract_chart_data_with_vision") as mock_extract:
         mock_extract.return_value = {"chart_type": "bar", "title": "Test"}
 
         extractor_large = BatchChartExtractor(batch_size=10)
-        results = await extractor_large.extract_charts_batch(
-            images,
-            model="gpt-4o",
-            api_key="test_key"
-        )
+        results = await extractor_large.extract_charts_batch(images, model="gpt-4o", api_key="test_key")
 
     assert len(results) == 3
     assert all("error" not in r for r in results)

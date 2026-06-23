@@ -2,12 +2,12 @@
 
 import hashlib
 import json
-import time
-from datetime import datetime
-from pathlib import Path
-from typing import List, Optional, Callable, Any, Dict
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import logging
+import time
+from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +23,13 @@ def compute_file_hash(file_path: Path) -> str:
         Hex digest of file hash
     """
     sha256 = hashlib.sha256()
-    with open(file_path, 'rb') as f:
+    with open(file_path, "rb") as f:
         while chunk := f.read(8192):
             sha256.update(chunk)
     return sha256.hexdigest()
 
 
-def compute_config_hash(config_dict: Dict) -> str:
+def compute_config_hash(config_dict: dict) -> str:
     """
     Compute hash of configuration parameters.
 
@@ -63,7 +63,7 @@ class PDFProcessingCache:
         self.ttl_days = ttl_days
         self.ttl_seconds = ttl_days * 24 * 3600
 
-    def get_cache_path(self, file_path: Path, operation: str, config: Optional[Dict] = None) -> Path:
+    def get_cache_path(self, file_path: Path, operation: str, config: dict | None = None) -> Path:
         """
         Get cache file path for a PDF, operation, and configuration.
 
@@ -106,7 +106,7 @@ class PDFProcessingCache:
             logger.warning(f"Failed to check cache validity: {e}")
             return False
 
-    def get(self, file_path: Path, operation: str, config: Optional[Dict] = None) -> Optional[Any]:
+    def get(self, file_path: Path, operation: str, config: dict | None = None) -> Any | None:
         """
         Get cached result.
 
@@ -132,7 +132,7 @@ class PDFProcessingCache:
             return None
 
         try:
-            with open(cache_path, 'r', encoding='utf-8') as f:
+            with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
                 logger.info(f"Cache hit for {file_path.name} - {operation}")
                 return data
@@ -140,7 +140,7 @@ class PDFProcessingCache:
             logger.warning(f"Cache read failed for {file_path.name}: {e}")
             return None
 
-    def set(self, file_path: Path, operation: str, result: Any, config: Optional[Dict] = None) -> None:
+    def set(self, file_path: Path, operation: str, result: Any, config: dict | None = None) -> None:
         """
         Cache result with atomic write to prevent corruption.
 
@@ -154,9 +154,9 @@ class PDFProcessingCache:
 
         try:
             # Use temporary file + atomic rename to prevent corruption
-            temp_path = cache_path.with_suffix('.tmp')
+            temp_path = cache_path.with_suffix(".tmp")
 
-            with open(temp_path, 'w', encoding='utf-8') as f:
+            with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
 
             # Atomic operation - replaces existing file safely
@@ -172,7 +172,7 @@ class PDFProcessingCache:
                 except OSError:
                     pass
 
-    def clear(self, file_path: Optional[Path] = None, operation: Optional[str] = None) -> None:
+    def clear(self, file_path: Path | None = None, operation: str | None = None) -> None:
         """
         Clear cache.
 
@@ -235,19 +235,14 @@ class PDFProcessingCache:
 
         return cleaned
 
-    def get_cache_stats(self) -> Dict:
+    def get_cache_stats(self) -> dict:
         """
         Get cache statistics.
 
         Returns:
             Dictionary with keys: total_files, total_size_mb, expired_files, valid_files
         """
-        stats = {
-            "total_files": 0,
-            "total_size_mb": 0.0,
-            "expired_files": 0,
-            "valid_files": 0
-        }
+        stats = {"total_files": 0, "total_size_mb": 0.0, "expired_files": 0, "valid_files": 0}
 
         try:
             total_size = 0
@@ -275,11 +270,8 @@ class PDFProcessingCache:
 
 
 def process_pdfs_parallel(
-    pdf_paths: List[Path],
-    process_func: Callable[[Path], Any],
-    max_workers: int = 4,
-    use_processes: bool = False
-) -> List[Any]:
+    pdf_paths: list[Path], process_func: Callable[[Path], Any], max_workers: int = 4, use_processes: bool = False
+) -> list[Any]:
     """
     Process multiple PDFs in parallel.
 
@@ -302,10 +294,7 @@ def process_pdfs_parallel(
 
     with executor_class(max_workers=max_workers) as executor:
         # Submit all tasks
-        future_to_index = {
-            executor.submit(process_func, pdf_path): i
-            for i, pdf_path in enumerate(pdf_paths)
-        }
+        future_to_index = {executor.submit(process_func, pdf_path): i for i, pdf_path in enumerate(pdf_paths)}
 
         # Collect results as they complete
         for future in as_completed(future_to_index):
@@ -322,10 +311,8 @@ def process_pdfs_parallel(
 
 
 def process_pages_parallel(
-    pages_data: List[Any],
-    process_func: Callable[[Any], Any],
-    max_workers: int = 4
-) -> List[Any]:
+    pages_data: list[Any], process_func: Callable[[Any], Any], max_workers: int = 4
+) -> list[Any]:
     """
     Process multiple pages in parallel.
 
@@ -343,10 +330,7 @@ def process_pages_parallel(
     results = [None] * len(pages_data)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_index = {
-            executor.submit(process_func, page): i
-            for i, page in enumerate(pages_data)
-        }
+        future_to_index = {executor.submit(process_func, page): i for i, page in enumerate(pages_data)}
 
         for future in as_completed(future_to_index):
             index = future_to_index[future]
@@ -359,10 +343,7 @@ def process_pages_parallel(
     return results
 
 
-def estimate_processing_time(
-    file_path: Path,
-    mode: str = "docling_enhanced"
-) -> float:
+def estimate_processing_time(file_path: Path, mode: str = "docling_enhanced") -> float:
     """
     Estimate processing time for a PDF.
 
@@ -375,6 +356,7 @@ def estimate_processing_time(
     """
     try:
         from pypdf import PdfReader
+
         reader = PdfReader(str(file_path))
         num_pages = len(reader.pages)
     except (ImportError, OSError, ValueError) as e:
@@ -384,12 +366,7 @@ def estimate_processing_time(
         num_pages = int(file_size_mb * 2)  # Rough estimate
 
     # Time estimates per page (seconds)
-    time_per_page = {
-        "pypdf": 0.5,
-        "docling": 3.0,
-        "docling_enhanced": 4.0,
-        "hybrid": 5.0
-    }
+    time_per_page = {"pypdf": 0.5, "docling": 3.0, "docling_enhanced": 4.0, "hybrid": 5.0}
 
     base_time = num_pages * time_per_page.get(mode, 3.0)
 
@@ -399,7 +376,7 @@ def estimate_processing_time(
     return base_time + overhead
 
 
-def should_use_parallel(pdf_paths: List[Path], threshold: int = 3) -> bool:
+def should_use_parallel(pdf_paths: list[Path], threshold: int = 3) -> bool:
     """
     Determine if parallel processing is beneficial.
 

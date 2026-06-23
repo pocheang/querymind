@@ -145,7 +145,9 @@ def run_ocr_with_candidates(image, settings, pytesseract_module, pil_imageops):
     return "", "", "", last_error
 
 
-def ocr_image_bytes(img_bytes: bytes, source: Path, page: int | None = None, image_index: int | None = None) -> list[Document]:
+def ocr_image_bytes(
+    img_bytes: bytes, source: Path, page: int | None = None, image_index: int | None = None
+) -> list[Document]:
     """OCR image bytes and return Document with metadata."""
     try:
         from PIL import Image, ImageOps

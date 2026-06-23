@@ -2,6 +2,7 @@
 基于 Agent 类别的文档过滤器
 根据 agent_class 自动过滤相关文档，提高检索准确性
 """
+
 from app.retrievers.corpus_store import read_corpus_records
 
 
@@ -34,7 +35,8 @@ def get_sources_by_agent_class(agent_class: str) -> list[str] | None:
             if source:
                 sources.add(source)
 
-    return list(sources) if sources else None
+    # Specialist agents should stay scoped to their labeled corpus even when empty.
+    return list(sources)
 
 
 def get_agent_filter_stats() -> dict:
@@ -53,10 +55,7 @@ def get_agent_filter_stats() -> dict:
         source = metadata.get("source", "")
 
         if agent not in stats:
-            stats[agent] = {
-                "sources": set(),
-                "chunks": 0
-            }
+            stats[agent] = {"sources": set(), "chunks": 0}
 
         stats[agent]["chunks"] += 1
         if source:
@@ -68,7 +67,7 @@ def get_agent_filter_stats() -> dict:
         result[agent] = {
             "document_count": len(data["sources"]),
             "chunk_count": data["chunks"],
-            "sources": sorted(list(data["sources"]))
+            "sources": sorted(list(data["sources"])),
         }
 
     return result

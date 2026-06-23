@@ -88,9 +88,7 @@ def test_chart_extractor_openai_preserves_inline_image_data(monkeypatch):
     class FakeCompletions:
         def create(self, **kwargs):
             seen.update(kwargs)
-            return SimpleNamespace(
-                choices=[SimpleNamespace(message=SimpleNamespace(content='{"chart_type":"bar"}'))]
-            )
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content='{"chart_type":"bar"}'))])
 
     class FakeOpenAI:
         def __init__(self, api_key):

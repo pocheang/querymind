@@ -3,11 +3,11 @@
 Tracks the last 5 detected languages per session to determine user's language preference.
 Uses in-memory storage for MVP implementation.
 """
+
 from collections import Counter
-from typing import Dict, List
 
 # In-memory storage: {session_id: [list of last 5 detected languages]}
-_session_history: Dict[str, List[str]] = {}
+_session_history: dict[str, list[str]] = {}
 
 
 def update_language_history(session_id: str, detected_language: str) -> None:
@@ -51,7 +51,7 @@ def get_language_preference(session_id: str) -> str:
     return counts.most_common(1)[0][0]
 
 
-def get_language_history(session_id: str) -> List[str]:
+def get_language_history(session_id: str) -> list[str]:
     """Get the full language history for a session.
 
     Args:

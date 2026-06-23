@@ -12,14 +12,13 @@ Features:
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
-from datetime import datetime, timedelta, timezone
 import threading
-from typing import Optional
+from collections import defaultdict, deque
+from datetime import UTC, datetime, timedelta
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class RoleBasedRateLimiter:
@@ -49,7 +48,7 @@ class RoleBasedRateLimiter:
         self,
         default_max_attempts: int = 30,
         default_window_seconds: int = 60,
-        role_limits: dict[str, tuple[int, int]] | None = None
+        role_limits: dict[str, tuple[int, int]] | None = None,
     ):
         """
         Initialize role-based rate limiter.
@@ -66,21 +65,18 @@ class RoleBasedRateLimiter:
         self.role_limits: dict[str, tuple[int, timedelta]] = {}
         if role_limits:
             for role, (attempts, window_secs) in role_limits.items():
-                self.role_limits[role] = (
-                    max(1, int(attempts)),
-                    timedelta(seconds=max(1, int(window_secs)))
-                )
+                self.role_limits[role] = (max(1, int(attempts)), timedelta(seconds=max(1, int(window_secs))))
 
         self._events: dict[str, deque[datetime]] = defaultdict(deque)
         self._lock = threading.Lock()
 
-    def _get_limits(self, role: Optional[str]) -> tuple[int, timedelta]:
+    def _get_limits(self, role: str | None) -> tuple[int, timedelta]:
         """Get rate limits for a specific role."""
         if role and role in self.role_limits:
             return self.role_limits[role]
         return self.default_max_attempts, self.default_window
 
-    def is_limited(self, key: str, role: Optional[str] = None) -> bool:
+    def is_limited(self, key: str, role: str | None = None) -> bool:
         """
         Check if key is rate limited.
 
@@ -105,7 +101,7 @@ class RoleBasedRateLimiter:
                 return True
             return False
 
-    def record(self, key: str, role: Optional[str] = None) -> None:
+    def record(self, key: str, role: str | None = None) -> None:
         """
         Record a request.
 
@@ -131,7 +127,7 @@ class RoleBasedRateLimiter:
         with self._lock:
             self._events.pop(key, None)
 
-    def get_remaining(self, key: str, role: Optional[str] = None) -> int:
+    def get_remaining(self, key: str, role: str | None = None) -> int:
         """
         Get remaining requests for a key.
 
@@ -153,7 +149,7 @@ class RoleBasedRateLimiter:
             self._trim(queue, now, window)
             return max(0, max_attempts - len(queue))
 
-    def get_reset_time(self, key: str, role: Optional[str] = None) -> Optional[datetime]:
+    def get_reset_time(self, key: str, role: str | None = None) -> datetime | None:
         """
         Get when rate limit will reset for a key.
 
@@ -197,10 +193,7 @@ class SlidingWindowLimiter:
     """
 
     def __init__(self, max_attempts: int, window_seconds: int):
-        self._limiter = RoleBasedRateLimiter(
-            default_max_attempts=max_attempts,
-            default_window_seconds=window_seconds
-        )
+        self._limiter = RoleBasedRateLimiter(default_max_attempts=max_attempts, default_window_seconds=window_seconds)
 
     def is_limited(self, key: str) -> bool:
         return self._limiter.is_limited(key)

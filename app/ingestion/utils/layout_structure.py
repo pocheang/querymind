@@ -7,6 +7,7 @@ from typing import Literal
 @dataclass
 class OCRBox:
     """OCR 识别的文本框."""
+
     text: str
     bbox: list[list[float]]  # [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
     confidence: float
@@ -47,6 +48,7 @@ class OCRBox:
 @dataclass
 class StructuredOCRBlock:
     """基于位置的结构化文本块."""
+
     type: Literal["title", "heading", "paragraph", "list_item", "table_cell"]
     text: str
     level: int = 0
@@ -77,29 +79,20 @@ class LayoutBasedStructurer:
         blocks = []
 
         for i, box in enumerate(sorted_boxes):
-            block_type = self._detect_block_type(
-                box, sorted_boxes, i, avg_font_size, max_font_size
-            )
+            block_type = self._detect_block_type(box, sorted_boxes, i, avg_font_size, max_font_size)
 
             level = self._calculate_level(box, avg_font_size, max_font_size)
 
-            blocks.append(StructuredOCRBlock(
-                type=block_type,
-                text=box.text,
-                level=level,
-                confidence=box.confidence,
-                bbox=box.bbox
-            ))
+            blocks.append(
+                StructuredOCRBlock(
+                    type=block_type, text=box.text, level=level, confidence=box.confidence, bbox=box.bbox
+                )
+            )
 
         return blocks
 
     def _detect_block_type(
-        self,
-        box: OCRBox,
-        all_boxes: list[OCRBox],
-        index: int,
-        avg_font_size: float,
-        max_font_size: float
+        self, box: OCRBox, all_boxes: list[OCRBox], index: int, avg_font_size: float, max_font_size: float
     ) -> str:
         """根据位置和大小判断文本类型."""
 
@@ -146,12 +139,13 @@ class LayoutBasedStructurer:
     def _is_list_item(self, box: OCRBox, all_boxes: list[OCRBox], index: int) -> bool:
         """判断是否为列表项."""
         # 检查是否有项目符号
-        if box.text.strip().startswith(('•', '·', '○', '■', '□')):
+        if box.text.strip().startswith(("•", "·", "○", "■", "□")):
             return True
 
         # 检查是否有数字前缀
         import re
-        if re.match(r'^\d+[.、)]', box.text.strip()):
+
+        if re.match(r"^\d+[.、)]", box.text.strip()):
             return True
 
         # 检查左侧缩进
@@ -167,7 +161,8 @@ class LayoutBasedStructurer:
         """判断是否为表格单元格."""
         # 检查同一行是否有多个文本框（表格列）
         same_row_boxes = [
-            b for b in all_boxes
+            b
+            for b in all_boxes
             if abs(b.y_min - box.y_min) < 10  # Y 坐标接近
             and b != box
         ]
@@ -202,11 +197,7 @@ def integrate_with_paddleocr(ocr_result, image_width: int, image_height: int) ->
     boxes = []
     for line in ocr_result:
         bbox, (text, confidence) = line
-        boxes.append(OCRBox(
-            text=text,
-            bbox=bbox,
-            confidence=confidence
-        ))
+        boxes.append(OCRBox(text=text, bbox=bbox, confidence=confidence))
 
     # 结构化
     structurer = LayoutBasedStructurer(image_width, image_height)

@@ -1,18 +1,16 @@
-import hmac
-import secrets
 import sqlite3
 import uuid
 from datetime import timedelta
 from typing import Any
 
-from app.services.auth.password_utils import hash_password, verify_password, generate_salt
-from app.services.auth.utils import now, iso
+from app.services.auth.password_utils import generate_salt, hash_password, verify_password
+from app.services.auth.utils import iso, now
 from app.services.auth.validation import (
-    validate_username,
+    normalize_classification_value,
     validate_password,
     validate_role,
     validate_status,
-    normalize_classification_value,
+    validate_username,
 )
 
 
@@ -307,7 +305,9 @@ class UserManager:
         now_ts = iso(now())
         recent_10m = iso(now() - timedelta(minutes=10))
         with self.conn_factory() as conn:
-            result = conn.execute("UPDATE users SET salt=?, password_hash=? WHERE user_id=?", (salt_hex, password_hash, user_id))
+            result = conn.execute(
+                "UPDATE users SET salt=?, password_hash=? WHERE user_id=?", (salt_hex, password_hash, user_id)
+            )
             if result.rowcount <= 0:
                 return None
             conn.execute("DELETE FROM auth_sessions WHERE user_id=?", (user_id,))

@@ -1,5 +1,6 @@
 """增强的 OCR 工具，支持基于位置的结构识别 - 重构版."""
 
+import logging
 import os
 from io import BytesIO
 from pathlib import Path
@@ -7,6 +8,8 @@ from pathlib import Path
 from langchain_core.documents import Document
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def _build_base_metadata(image, source: Path, page: int | None, image_index: int | None) -> tuple[dict, str]:
@@ -72,11 +75,12 @@ def _try_paddleocr(img_bytes: bytes, width: int, height: int, metadata: dict) ->
     """尝试使用 PaddleOCR 进行结构识别."""
     try:
         from paddleocr import PaddleOCR
+
         from app.ingestion.utils.layout_structure import integrate_with_paddleocr
         from app.ingestion.utils.text_structure import blocks_to_markdown
 
         # 初始化 PaddleOCR
-        ocr = PaddleOCR(use_angle_cls=True, lang='ch', show_log=False)
+        ocr = PaddleOCR(use_angle_cls=True, lang="ch", show_log=False)
 
         # 执行 OCR
         result = ocr.ocr(img_bytes, cls=True)
@@ -148,7 +152,7 @@ def _try_tesseract(image, settings, metadata: dict) -> tuple[str | None, dict, s
         return None, metadata, reason
 
     # Tesseract 成功，应用文本结构识别
-    from app.ingestion.utils.text_structure import structure_ocr_text, blocks_to_markdown
+    from app.ingestion.utils.text_structure import blocks_to_markdown, structure_ocr_text
 
     structured_blocks = structure_ocr_text(ocr_text)
     structured_text = blocks_to_markdown(structured_blocks)
@@ -164,11 +168,7 @@ def _try_tesseract(image, settings, metadata: dict) -> tuple[str | None, dict, s
 
 
 def ocr_image_bytes_with_structure(
-    img_bytes: bytes,
-    source: Path,
-    page: int | None = None,
-    image_index: int | None = None,
-    use_layout: bool = True
+    img_bytes: bytes, source: Path, page: int | None = None, image_index: int | None = None, use_layout: bool = True
 ) -> list[Document]:
     """OCR image bytes with optional layout-based structure recognition.
 

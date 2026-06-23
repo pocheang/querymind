@@ -407,7 +407,11 @@ def test_admin_model_settings_save_masks_api_key_and_clears_caches(monkeypatch):
     monkeypatch.setattr(api_main, "save_global_model_settings", _fake_save)
     monkeypatch.setattr(api_main, "clear_model_caches", lambda: saved.setdefault("model_cache_cleared", True))
     monkeypatch.setattr(api_main, "clear_vector_store_cache", lambda: saved.setdefault("vector_cache_cleared", True))
-    monkeypatch.setattr(api_main, "rebuild_all_vector_index", lambda: saved.setdefault("reindex_result", {"ok": True, "records_reindexed": 7}))
+    monkeypatch.setattr(
+        api_main,
+        "rebuild_all_vector_index",
+        lambda: saved.setdefault("reindex_result", {"ok": True, "records_reindexed": 7}),
+    )
     try:
         res = client.post(
             "/admin/model-settings",
@@ -451,7 +455,6 @@ def test_admin_model_settings_does_not_reindex_when_embedding_unchanged(monkeypa
         "max_tokens": 2048,
     }
     monkeypatch.setattr(api_main, "get_global_model_settings", lambda: dict(current))
-    saved: dict[str, object] = {}
 
     def _fake_save(payload):
         out = dict(current)

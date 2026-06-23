@@ -1,5 +1,6 @@
-from neo4j import GraphDatabase
 import threading
+
+from neo4j import GraphDatabase
 
 from app.core.config import get_settings
 
@@ -120,7 +121,9 @@ class Neo4jClient:
                 confidence=float(confidence),
             )
 
-    def search_entities(self, keywords: list[str], limit: int = 10, allowed_sources: list[str] | None = None) -> list[dict]:
+    def search_entities(
+        self, keywords: list[str], limit: int = 10, allowed_sources: list[str] | None = None
+    ) -> list[dict]:
         if allowed_sources is not None:
             if not allowed_sources:
                 return []
@@ -190,7 +193,6 @@ class Neo4jClient:
             params = {"entity": entity, "limit": limit}
         with self.driver.session() as session:
             return [dict(r) for r in session.run(cypher, **params)]
-
 
     def delete_by_source(self, source: str) -> int:
         count_cypher = """

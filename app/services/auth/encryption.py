@@ -1,8 +1,12 @@
 import base64
 import hashlib
 import hmac
+import logging
 import secrets
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
 
 API_KEY_ENC_PREFIX = "enc:v1:"
 
@@ -14,7 +18,7 @@ def stream_xor(data: bytes, key: bytes, nonce: bytes) -> bytes:
         block = hmac.new(key, nonce + counter.to_bytes(8, "big"), hashlib.sha256).digest()
         out.extend(block)
         counter += 1
-    return bytes(a ^ b for a, b in zip(data, out[: len(data)]))
+    return bytes(a ^ b for a, b in zip(data, out[: len(data)], strict=False))
 
 
 def encrypt_secret_text(plaintext: str, key: bytes) -> str:
@@ -59,7 +63,18 @@ def encrypt_api_settings_payload(payload: dict[str, Any], key: bytes) -> dict[st
     return out
 
 
-def decrypt_api_settings_payload(payload: dict[str, Any], key: bytes) -> dict[str, Any]:
+def decrypt_api_settings_payload(payload: dict[str, Any], key: bytes, audit_logger=None) -> dict[str, Any]:
+    """
+    解密API设置中的敏感字段
+
+    Args:
+        payload: 要解密的payload
+        key: 加密密钥
+        audit_logger: 可选的审计日志记录器（用于记录解密失败事件）
+
+    Returns:
+        解密后的payload
+    """
     out = dict(payload)
     raw_key = str(out.get("api_key", "") or "")
     if not raw_key:
@@ -68,11 +83,31 @@ def decrypt_api_settings_payload(payload: dict[str, Any], key: bytes) -> dict[st
     try:
         out["api_key"] = decrypt_secret_text(raw_key, key)
     except (ValueError, TypeError) as e:
-        # Decryption failed, return empty key
+        # 安全修复：记录解密失败事件到审计日志（可能表示攻击）
         logger.warning(f"Failed to decrypt API key: {e}")
+        if audit_logger:
+            try:
+                audit_logger.log(
+                    action="api_key.decryption_failed",
+                    resource_type="api_settings",
+                    result="failed",
+                    detail=f"decryption_error: {type(e).__name__}",
+                )
+            except Exception:
+                pass  # 不因审计日志失败而中断
         out["api_key"] = ""
     except Exception as e:
         # Unexpected decryption error
         logger.error(f"Unexpected error decrypting API key: {e}")
+        if audit_logger:
+            try:
+                audit_logger.log(
+                    action="api_key.decryption_error",
+                    resource_type="api_settings",
+                    result="failed",
+                    detail=f"unexpected_error: {type(e).__name__}",
+                )
+            except Exception:
+                pass
         out["api_key"] = ""
     return out

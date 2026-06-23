@@ -2,12 +2,15 @@
 
 Provides rate limiting for sensitive admin operations to prevent brute-force attacks and abuse.
 """
-from typing import Optional, Callable, Any
+
+from collections.abc import Callable
 from functools import wraps
+from typing import Any
 
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address
+
     SLOWAPI_AVAILABLE = True
 except ImportError:
     SLOWAPI_AVAILABLE = False
@@ -19,11 +22,14 @@ class NoOpLimiter:
 
     def limit(self, limit_value: str) -> Callable:
         """Return a no-op decorator that passes through the function unchanged."""
+
         def decorator(func: Callable) -> Callable:
             @wraps(func)
             def wrapper(*args: Any, **kwargs: Any) -> Any:
                 return func(*args, **kwargs)
+
             return wrapper
+
         return decorator
 
 
@@ -43,22 +49,16 @@ def get_limiter() -> object:
 RATE_LIMITS = {
     # Admin creation - very strict
     "admin_create": "1/hour",  # Max 1 admin creation per hour
-
     # Approval token reset - strict
     "approval_token_reset": "3/hour",  # Max 3 token resets per hour
-
     # Password reset - moderate
     "password_reset": "5/hour",  # Max 5 password resets per hour
-
     # Role update - moderate
     "role_update": "10/hour",  # Max 10 role updates per hour
-
     # Status update - lenient
     "status_update": "20/hour",  # Max 20 status updates per hour
-
     # List queries - lenient
     "list_users": "100/minute",  # Max 100 user list queries per minute
-
     # Audit log queries - lenient
     "audit_logs": "50/minute",  # Max 50 audit log queries per minute
 }

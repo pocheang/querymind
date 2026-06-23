@@ -1,12 +1,15 @@
+import logging
 from collections import defaultdict
 
 from app.retrievers.bm25_retriever import bm25_search
 from app.retrievers.hybrid.adaptive_params import adaptive_retrieval_params
-from app.retrievers.hybrid.fusion import rrf_score, hybrid_weights
+from app.retrievers.hybrid.fusion import hybrid_weights, rrf_score
 from app.retrievers.hybrid.rank_features import rank_feature_score
 from app.retrievers.hybrid.strategy import strategy_flags
 from app.retrievers.vector_store import similarity_search
 from app.services.query_rewrite import build_rewrite_queries
+
+logger = logging.getLogger(__name__)
 
 
 def safe_similarity_search(
@@ -54,7 +57,11 @@ def collect_candidates(
 
     variants = build_rewrite_queries(
         query,
-        enable_llm=bool(flags["rewrite"] and getattr(settings, "query_rewrite_enabled", True) and getattr(settings, "query_rewrite_with_llm", False)),
+        enable_llm=bool(
+            flags["rewrite"]
+            and getattr(settings, "query_rewrite_enabled", True)
+            and getattr(settings, "query_rewrite_with_llm", False)
+        ),
         use_reasoning=False,
         enable_decompose=bool(flags["decompose"] and getattr(settings, "query_decompose_enabled", True)),
         max_variants=int(getattr(settings, "query_rewrite_max_variants", 6) or 6),
@@ -89,7 +96,9 @@ def collect_candidates(
         if precomputed_vector_results and variant in precomputed_vector_results:
             vector_results = precomputed_vector_results[variant]
         elif precomputed_raw_vector_results and variant in precomputed_raw_vector_results:
-            vector_results = filter_vector_results(precomputed_raw_vector_results[variant], score_threshold=vector_threshold)
+            vector_results = filter_vector_results(
+                precomputed_raw_vector_results[variant], score_threshold=vector_threshold
+            )
         else:
             vector_results = safe_similarity_search(variant, k=vector_top_k, allowed_sources=allowed_sources)
             vector_results = filter_vector_results(vector_results, score_threshold=vector_threshold)
@@ -111,7 +120,7 @@ def collect_candidates(
                 },
             )
             existing_dense = merged[item_id].get("dense_score")
-            if not isinstance(existing_dense, (int, float)) or float(score) > float(existing_dense):
+            if not isinstance(existing_dense, int | float) or float(score) > float(existing_dense):
                 merged[item_id]["dense_score"] = float(score)
             scores[item_id] += vector_weight * rrf_score(idx, rrf_k)
 

@@ -1,16 +1,17 @@
 """Pytest tests for performance benchmarking."""
 
-import pytest
+import sys
 import tempfile
-import os
-from pathlib import Path
 from io import BytesIO
+from pathlib import Path
+
+import pytest
 from PIL import Image
-from tests.performance.benchmark_pdf_processing import (
-    PDFBenchmark,
-    run_cache_benchmark,
-    run_chart_extraction_benchmark
-)
+
+# Add tests/performance to path for local imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+from benchmark_pdf_processing import PDFBenchmark, run_cache_benchmark, run_chart_extraction_benchmark
 
 
 @pytest.fixture
@@ -21,6 +22,7 @@ def temp_dir():
     yield temp_path
     # Cleanup
     import shutil
+
     if temp_path.exists():
         shutil.rmtree(temp_path, ignore_errors=True)
 
@@ -78,22 +80,19 @@ def benchmark_instance(temp_dir):
 @pytest.fixture
 def test_image_bytes():
     """Create test image bytes."""
-    img = Image.new('RGB', (1000, 800), color='white')
+    img = Image.new("RGB", (1000, 800), color="white")
     buffer = BytesIO()
-    img.save(buffer, format='PNG')
+    img.save(buffer, format="PNG")
     return buffer.getvalue()
 
 
 def test_benchmark_loader_success(benchmark_instance, sample_pdf):
     """Test benchmarking a successful PDF loader."""
+
     def mock_loader(pdf_path):
         return ["doc1", "doc2", "doc3"]
 
-    result = benchmark_instance.benchmark_loader(
-        sample_pdf,
-        mock_loader,
-        "test_mode"
-    )
+    result = benchmark_instance.benchmark_loader(sample_pdf, mock_loader, "test_mode")
 
     assert result["mode"] == "test_mode"
     assert result["file_name"] == "test_sample.pdf"
@@ -107,14 +106,11 @@ def test_benchmark_loader_success(benchmark_instance, sample_pdf):
 
 def test_benchmark_loader_failure(benchmark_instance, sample_pdf):
     """Test benchmarking a failing PDF loader."""
+
     def failing_loader(pdf_path):
         raise ValueError("Test error")
 
-    result = benchmark_instance.benchmark_loader(
-        sample_pdf,
-        failing_loader,
-        "failing_mode"
-    )
+    result = benchmark_instance.benchmark_loader(sample_pdf, failing_loader, "failing_mode")
 
     assert result["mode"] == "failing_mode"
     assert result["success"] is False
@@ -130,11 +126,7 @@ def test_benchmark_cache_operations(benchmark_instance, sample_pdf):
     with tempfile.TemporaryDirectory() as tmpdir:
         cache = PDFProcessingCache(cache_dir=Path(tmpdir))
 
-        result = benchmark_instance.benchmark_cache_operations(
-            cache,
-            sample_pdf,
-            num_iterations=10
-        )
+        result = benchmark_instance.benchmark_cache_operations(cache, sample_pdf, num_iterations=10)
 
         assert result["operation"] == "cache_operations"
         assert result["iterations"] == 10
@@ -146,10 +138,7 @@ def test_benchmark_cache_operations(benchmark_instance, sample_pdf):
 
 def test_benchmark_chart_extraction(benchmark_instance, test_image_bytes):
     """Test chart extraction benchmarking."""
-    result = benchmark_instance.benchmark_chart_extraction(
-        test_image_bytes,
-        num_iterations=3
-    )
+    result = benchmark_instance.benchmark_chart_extraction(test_image_bytes, num_iterations=3)
 
     assert result["operation"] == "chart_extraction"
     assert result["iterations"] == 3
@@ -160,22 +149,15 @@ def test_benchmark_chart_extraction(benchmark_instance, test_image_bytes):
 
 def test_save_results(benchmark_instance, temp_dir):
     """Test saving benchmark results to JSON."""
-    results = [
-        {
-            "mode": "test",
-            "file_name": "test.pdf",
-            "time_seconds": 1.5,
-            "memory_mb": 10.0,
-            "success": True
-        }
-    ]
+    results = [{"mode": "test", "file_name": "test.pdf", "time_seconds": 1.5, "memory_mb": 10.0, "success": True}]
 
     benchmark_instance.save_results(results)
 
     assert benchmark_instance.results_file.exists()
 
     import json
-    with open(benchmark_instance.results_file, 'r') as f:
+
+    with open(benchmark_instance.results_file) as f:
         data = json.load(f)
 
     assert "timestamp" in data
@@ -206,21 +188,17 @@ def test_run_chart_extraction_benchmark():
 
 def test_benchmark_memory_tracking(benchmark_instance, sample_pdf):
     """Test that memory tracking works."""
+
     def memory_intensive_loader(pdf_path):
         # Allocate some memory
-        data = [0] * 1000000
         return [f"doc_{i}" for i in range(10)]
 
-    result = benchmark_instance.benchmark_loader(
-        sample_pdf,
-        memory_intensive_loader,
-        "memory_test"
-    )
+    result = benchmark_instance.benchmark_loader(sample_pdf, memory_intensive_loader, "memory_test")
 
     assert result["success"] is True
     assert "memory_mb" in result
     # Memory should be tracked (may be positive or negative depending on GC)
-    assert isinstance(result["memory_mb"], (int, float))
+    assert isinstance(result["memory_mb"], int | float)
 
 
 def test_benchmark_timing_accuracy(benchmark_instance, sample_pdf):
@@ -231,11 +209,7 @@ def test_benchmark_timing_accuracy(benchmark_instance, sample_pdf):
         time.sleep(0.1)  # Sleep for 100ms
         return ["doc"]
 
-    result = benchmark_instance.benchmark_loader(
-        sample_pdf,
-        slow_loader,
-        "slow_mode"
-    )
+    result = benchmark_instance.benchmark_loader(sample_pdf, slow_loader, "slow_mode")
 
     # Should measure at least 100ms (0.1s)
     assert result["time_seconds"] >= 0.1
@@ -244,20 +218,14 @@ def test_benchmark_timing_accuracy(benchmark_instance, sample_pdf):
 
 def test_benchmark_results_format(benchmark_instance, sample_pdf):
     """Test that benchmark results have correct format."""
+
     def simple_loader(pdf_path):
         return ["doc1", "doc2"]
 
-    result = benchmark_instance.benchmark_loader(
-        sample_pdf,
-        simple_loader,
-        "format_test"
-    )
+    result = benchmark_instance.benchmark_loader(sample_pdf, simple_loader, "format_test")
 
     # Check all required fields
-    required_fields = [
-        "mode", "file_name", "file_size_mb", "time_seconds",
-        "memory_mb", "num_docs", "success", "error"
-    ]
+    required_fields = ["mode", "file_name", "file_size_mb", "time_seconds", "memory_mb", "num_docs", "success", "error"]
 
     for field in required_fields:
         assert field in result, f"Missing field: {field}"
@@ -265,9 +233,9 @@ def test_benchmark_results_format(benchmark_instance, sample_pdf):
     # Check types
     assert isinstance(result["mode"], str)
     assert isinstance(result["file_name"], str)
-    assert isinstance(result["file_size_mb"], (int, float))
-    assert isinstance(result["time_seconds"], (int, float))
-    assert isinstance(result["memory_mb"], (int, float))
+    assert isinstance(result["file_size_mb"], int | float)
+    assert isinstance(result["time_seconds"], int | float)
+    assert isinstance(result["memory_mb"], int | float)
     assert isinstance(result["num_docs"], int)
     assert isinstance(result["success"], bool)
     assert result["error"] is None or isinstance(result["error"], str)

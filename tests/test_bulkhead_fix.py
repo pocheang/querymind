@@ -1,6 +1,8 @@
 """Tests for bulkhead semaphore fix."""
+
 import pytest
-from app.services.bulkhead import bulkhead, BulkheadRejectedError, reset_bulkheads
+
+from app.services.bulkhead import BulkheadRejectedError, bulkhead, reset_bulkheads
 
 
 def test_bulkhead_release_on_success():
@@ -32,12 +34,12 @@ def test_bulkhead_release_on_exception():
 
 def test_bulkhead_no_release_on_timeout():
     """Test that bulkhead doesn't release when acquire fails."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     reset_bulkheads()
 
     # Mock semaphore to always timeout
-    with patch('app.services.bulkhead._semaphore') as mock_sem_fn:
+    with patch("app.services.bulkhead._semaphore") as mock_sem_fn:
         mock_sem = MagicMock()
         mock_sem.acquire.return_value = False  # Simulate timeout
         mock_sem_fn.return_value = mock_sem
@@ -57,7 +59,7 @@ def test_bulkhead_disabled():
     reset_bulkheads()
 
     # Mock settings to disable bulkhead
-    with patch('app.services.bulkhead.get_settings') as mock_settings:
+    with patch("app.services.bulkhead.get_settings") as mock_settings:
         mock_settings.return_value.bulkhead_enabled = False
 
         # Should pass through without acquiring semaphore

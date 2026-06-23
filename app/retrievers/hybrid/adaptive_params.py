@@ -1,6 +1,5 @@
 import re
 
-
 _COMPLEX_HINT_RE = re.compile(
     r"(对比|比较|trade[- ]?off|architecture|timeline|root cause|复盘|多阶段|attack chain)",
     flags=re.IGNORECASE,

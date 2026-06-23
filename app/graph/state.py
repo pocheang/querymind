@@ -18,6 +18,7 @@ class GraphState(TypedDict, total=False):
     vector_result: dict[str, Any]
     graph_result: dict[str, Any]
     web_result: dict[str, Any]
+    react_result: dict[str, Any]
     answer: str
     grounding: dict[str, Any]
     answer_safety: dict[str, Any]

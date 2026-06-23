@@ -35,11 +35,17 @@ export interface AgentStep {
   /** Output data returned by the agent (null if not completed) */
   output_data?: Record<string, any> | null;
 
+  /** Decision rationale for this step */
+  decision_rationale?: string | null;
+
   /** Error message if step failed */
   error?: string | null;
 
-  /** Duration in seconds (null if not completed) */
-  duration_seconds?: number | null;
+  /** Duration in milliseconds (null if not completed) */
+  duration_ms?: number | null;
+
+  /** Additional metadata for the step */
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -51,6 +57,9 @@ export interface ExecutionTrace {
 
   /** The original user query */
   query: string;
+
+  /** User ID who initiated this execution (for data isolation) */
+  user_id?: string | null;
 
   /** ISO 8601 timestamp when execution started */
   start_time: string;
@@ -64,8 +73,11 @@ export interface ExecutionTrace {
   /** List of agent steps in execution order */
   steps: AgentStep[];
 
-  /** Final result from the workflow (null if not completed) */
-  result?: any | null;
+  /** Total duration in milliseconds (null if not completed) */
+  total_duration_ms?: number | null;
+
+  /** Additional metadata including final result */
+  metadata?: Record<string, any>;
 
   /** Error message if execution failed */
   error?: string | null;
@@ -85,8 +97,11 @@ export interface ExecutionListResponse {
 export interface ExecutionStatusResponse {
   execution_id: string;
   status: ExecutionStatus;
+  query: string;
   step_count: number;
-  current_step?: string | null;
+  start_time: string;
+  end_time?: string | null;
+  total_duration_ms?: number | null;
 }
 
 /**

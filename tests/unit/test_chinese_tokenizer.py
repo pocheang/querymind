@@ -1,6 +1,5 @@
 """Unit tests for Chinese tokenizer service."""
 
-import pytest
 from app.services.chinese_tokenizer import ChineseTokenizer, get_tokenizer
 
 

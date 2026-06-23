@@ -3,9 +3,10 @@ import logging
 import threading
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class AgentStep(BaseModel):
@@ -24,14 +25,14 @@ class AgentStep(BaseModel):
     step_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     agent_name: str
     start_time: datetime = Field(default_factory=utcnow)
-    end_time: Optional[datetime] = None
-    duration_ms: Optional[float] = None
-    input_data: Dict[str, Any] = Field(default_factory=dict)
-    output_data: Optional[Dict[str, Any]] = None
-    decision_rationale: Optional[str] = None
+    end_time: datetime | None = None
+    duration_ms: float | None = None
+    input_data: dict[str, Any] = Field(default_factory=dict)
+    output_data: dict[str, Any] | None = None
+    decision_rationale: str | None = None
     status: str = "running"
-    error: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ExecutionTrace(BaseModel):
@@ -41,13 +42,13 @@ class ExecutionTrace(BaseModel):
 
     execution_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     query: str
-    user_id: Optional[str] = None  # 添加用户ID字段用于数据隔离
-    steps: List[AgentStep] = Field(default_factory=list)
+    user_id: str | None = None  # 添加用户ID字段用于数据隔离
+    steps: list[AgentStep] = Field(default_factory=list)
     status: str = "running"
     start_time: datetime = Field(default_factory=utcnow)
-    end_time: Optional[datetime] = None
-    total_duration_ms: Optional[float] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    end_time: datetime | None = None
+    total_duration_ms: float | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class AgentExecutionTracker:
@@ -55,11 +56,11 @@ class AgentExecutionTracker:
     _lock = threading.Lock()
 
     def __init__(self):
-        self._traces: Dict[str, ExecutionTrace] = {}
+        self._traces: dict[str, ExecutionTrace] = {}
         self._traces_lock = threading.RLock()  # Use RLock for reentrant locking
-        self._trace_locks: Dict[str, threading.RLock] = defaultdict(threading.RLock)  # Per-trace fine-grained locks
+        self._trace_locks: dict[str, threading.RLock] = defaultdict(threading.RLock)  # Per-trace fine-grained locks
         self._ttl_hours = 1
-        self._cleanup_task: Optional[asyncio.Task] = None
+        self._cleanup_task: asyncio.Task | None = None
 
     @classmethod
     def get_instance(cls) -> "AgentExecutionTracker":
@@ -69,7 +70,7 @@ class AgentExecutionTracker:
                     cls._instance = cls()
         return cls._instance
 
-    def start_execution(self, query: str, execution_id: Optional[str] = None, user_id: Optional[str] = None) -> str:
+    def start_execution(self, query: str, execution_id: str | None = None, user_id: str | None = None) -> str:
         if execution_id is None:
             execution_id = str(uuid.uuid4())
 
@@ -90,7 +91,7 @@ class AgentExecutionTracker:
         self,
         execution_id: str,
         agent_name: str,
-        input_data: Optional[Dict[str, Any]] = None,
+        input_data: dict[str, Any] | None = None,
     ) -> str:
         step = AgentStep(
             agent_name=agent_name,
@@ -115,8 +116,8 @@ class AgentExecutionTracker:
         self,
         execution_id: str,
         step_id: str,
-        output_data: Optional[Dict[str, Any]] = None,
-        decision_rationale: Optional[str] = None,
+        output_data: dict[str, Any] | None = None,
+        decision_rationale: str | None = None,
     ) -> None:
         with self._traces_lock:
             if execution_id not in self._traces:
@@ -127,9 +128,7 @@ class AgentExecutionTracker:
             for step in trace.steps:
                 if step.step_id == step_id:
                     step.end_time = utcnow()
-                    step.duration_ms = (
-                        (step.end_time - step.start_time).total_seconds() * 1000
-                    )
+                    step.duration_ms = (step.end_time - step.start_time).total_seconds() * 1000
                     step.output_data = output_data
                     step.decision_rationale = decision_rationale
                     step.status = "completed"
@@ -153,9 +152,7 @@ class AgentExecutionTracker:
             for step in trace.steps:
                 if step.step_id == step_id:
                     step.end_time = utcnow()
-                    step.duration_ms = (
-                        (step.end_time - step.start_time).total_seconds() * 1000
-                    )
+                    step.duration_ms = (step.end_time - step.start_time).total_seconds() * 1000
                     step.status = "failed"
                     step.error = error
                     logger.debug(f"Failed agent step: {step.agent_name} in {execution_id}")
@@ -163,7 +160,7 @@ class AgentExecutionTracker:
 
             logger.warning(f"Step {step_id} not found in execution {execution_id}")
 
-    def complete_execution(self, execution_id: str, final_result: Optional[Dict[str, Any]] = None) -> None:
+    def complete_execution(self, execution_id: str, final_result: dict[str, Any] | None = None) -> None:
         with self._traces_lock:
             if execution_id not in self._traces:
                 logger.warning(f"Execution {execution_id} not found")
@@ -171,9 +168,7 @@ class AgentExecutionTracker:
 
             trace = self._traces[execution_id]
             trace.end_time = utcnow()
-            trace.total_duration_ms = (
-                (trace.end_time - trace.start_time).total_seconds() * 1000
-            )
+            trace.total_duration_ms = (trace.end_time - trace.start_time).total_seconds() * 1000
             trace.status = "completed"
             if final_result is not None:
                 trace.metadata["result"] = final_result
@@ -187,18 +182,16 @@ class AgentExecutionTracker:
 
             trace = self._traces[execution_id]
             trace.end_time = utcnow()
-            trace.total_duration_ms = (
-                (trace.end_time - trace.start_time).total_seconds() * 1000
-            )
+            trace.total_duration_ms = (trace.end_time - trace.start_time).total_seconds() * 1000
             trace.status = "failed"
             trace.metadata["error"] = error
             logger.info(f"Failed execution trace: {execution_id}")
 
-    def get_execution_trace(self, execution_id: str) -> Optional[ExecutionTrace]:
+    def get_execution_trace(self, execution_id: str) -> ExecutionTrace | None:
         with self._traces_lock:
             return self._traces.get(execution_id)
 
-    def get_recent_executions(self, limit: int = 20) -> List[ExecutionTrace]:
+    def get_recent_executions(self, limit: int = 20) -> list[ExecutionTrace]:
         with self._traces_lock:
             traces = list(self._traces.values())
             traces.sort(key=lambda t: t.start_time, reverse=True)
@@ -210,9 +203,7 @@ class AgentExecutionTracker:
 
         with self._traces_lock:
             execution_ids_to_remove = [
-                execution_id
-                for execution_id, trace in self._traces.items()
-                if trace.start_time < cutoff_time
+                execution_id for execution_id, trace in self._traces.items() if trace.start_time < cutoff_time
             ]
 
             for execution_id in execution_ids_to_remove:
@@ -293,10 +284,7 @@ def track_agent_execution(agent_name: str) -> Callable:
                 logger.warning(f"No execution_id provided for {agent_name}, skipping tracking")
                 return await func(*args, **kwargs)
 
-            input_data = {
-                k: v for k, v in kwargs.items()
-                if k != "execution_id" and not k.startswith("_")
-            }
+            input_data = {k: v for k, v in kwargs.items() if k != "execution_id" and not k.startswith("_")}
 
             step_id = tracker.record_agent_step(
                 execution_id=execution_id,
@@ -344,10 +332,7 @@ def track_agent_execution(agent_name: str) -> Callable:
                 logger.warning(f"No execution_id provided for {agent_name}, skipping tracking")
                 return func(*args, **kwargs)
 
-            input_data = {
-                k: v for k, v in kwargs.items()
-                if k != "execution_id" and not k.startswith("_")
-            }
+            input_data = {k: v for k, v in kwargs.items() if k != "execution_id" and not k.startswith("_")}
 
             step_id = tracker.record_agent_step(
                 execution_id=execution_id,

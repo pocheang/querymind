@@ -1,30 +1,26 @@
 """Admin settings and configuration routes for the Multi-Agent Local RAG API."""
+
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
-from app.api.utils.error_responses import bad_request
-from app.api.utils.string_utils import normalize_string
 from app.api.dependencies import (
     _admin_model_settings_view,
     _api_settings_view,
     _audit,
-    _require_user,
     _require_permission,
+    _require_user,
     _trace_id,
     auth_service,
-    query_guard,
-    query_result_cache,
-    quota_guard,
     runtime_metrics,
-    settings,
     shadow_queue,
 )
 from app.api.utils.error_responses import bad_request, internal_error
 from app.api.utils.request_helpers import get_string_param
+from app.api.utils.string_utils import normalize_string
 from app.core.config import reload_settings
 from app.core.models import clear_model_caches, get_chat_model
 from app.core.schemas import (
@@ -46,11 +42,11 @@ from app.services.model_config_store import (
     public_global_model_settings,
     save_global_model_settings,
 )
-from app.services.rag_runtime_scope import embedding_settings_signature
 from app.services.network_security import OutboundURLValidationError, validate_api_base_url_for_provider
 from app.services.query_guard import QueryLoadGuard
 from app.services.query_result_cache import QueryResultCache
 from app.services.quota_guard import QuotaGuard
+from app.services.rag_runtime_scope import embedding_settings_signature
 from app.services.request_context import request_context
 from app.services.runtime_ops import apply_rollback_profile
 
@@ -207,6 +203,7 @@ def admin_reload_config(request: Request, user: dict[str, Any] = Depends(_requir
     _require_permission(user, "admin:ops_manage", request, "admin")
     global settings, query_guard, query_result_cache, quota_guard, shadow_queue
     from app.api.dependencies import auto_ingest_watcher
+
     settings = reload_settings()
     clear_model_caches()
     clear_vector_store_cache()
@@ -245,7 +242,7 @@ def admin_reload_config(request: Request, user: dict[str, Any] = Depends(_requir
     )
     return {
         "ok": True,
-        "reloaded_at": datetime.now(timezone.utc).isoformat(),
+        "reloaded_at": datetime.now(UTC).isoformat(),
         "snapshot": {
             "retrieval_profile": settings.retrieval_profile,
             "top_k": settings.top_k,
@@ -286,12 +283,7 @@ def get_user_api_settings(user: dict[str, Any] = Depends(_require_user)):
     else:
         # Return default settings
         user_settings = UserApiSettings(
-            provider="local",
-            api_key="",
-            base_url="",
-            model="local-evidence",
-            temperature=0.7,
-            max_tokens=2048
+            provider="local", api_key="", base_url="", model="local-evidence", temperature=0.7, max_tokens=2048
         )
 
     return UserApiSettingsResponse(ok=True, settings=_api_settings_view(user_settings))
@@ -299,9 +291,7 @@ def get_user_api_settings(user: dict[str, Any] = Depends(_require_user)):
 
 @router.post("/user/api-settings", response_model=UserApiSettingsResponse)
 def save_user_api_settings(
-    req_settings: UserApiSettings,
-    request: Request,
-    user: dict[str, Any] = Depends(_require_user)
+    req_settings: UserApiSettings, request: Request, user: dict[str, Any] = Depends(_require_user)
 ):
     """Save user's API settings - admin only"""
     _require_permission(user, "admin:ops_manage", request, "admin")

@@ -3,7 +3,7 @@ API routes for advanced RAG functionality.
 """
 
 import logging
-from typing import Any, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
@@ -31,11 +31,11 @@ class AdvancedRAGRequest(BaseModel):
         default=False,
         description="Enable Self-RAG evaluation",
     )
-    allowed_sources: Optional[List[str]] = Field(
+    allowed_sources: list[str] | None = Field(
         default=None,
         description="Optional list of allowed sources",
     )
-    retrieval_strategy: Optional[str] = Field(
+    retrieval_strategy: str | None = Field(
         default=None,
         description="Optional retrieval strategy",
     )
@@ -43,17 +43,13 @@ class AdvancedRAGRequest(BaseModel):
 
 def _resolve_advanced_allowed_sources(
     user: dict[str, Any],
-    requested_sources: Optional[List[str]],
+    requested_sources: list[str] | None,
 ) -> list[str]:
     visible_sources = _allowed_sources_for_user(user)
     if requested_sources is None:
         return visible_sources
 
-    requested = {
-        str(source or "").strip()
-        for source in requested_sources
-        if str(source or "").strip()
-    }
+    requested = {str(source or "").strip() for source in requested_sources if str(source or "").strip()}
     if not requested:
         return []
     return [source for source in visible_sources if source in requested]

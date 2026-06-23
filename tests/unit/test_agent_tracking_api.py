@@ -1,23 +1,25 @@
 import asyncio
-import json
+
 import pytest
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from starlette.testclient import TestClient
 
 from app.api.routes.agent_tracking import router
 from app.services.agent_execution_tracker import AgentExecutionTracker
 
 
 @pytest.fixture
-def app():
-    test_app = FastAPI()
-    test_app.include_router(router)
-    return test_app
+def test_app():
+    """Create a test FastAPI application."""
+    app = FastAPI()
+    app.include_router(router)
+    return app
 
 
 @pytest.fixture
-def client(app):
-    return TestClient(app)
+def client(test_app):
+    """Create a test client with the app."""
+    return TestClient(test_app)
 
 
 @pytest.fixture
@@ -112,7 +114,9 @@ def test_cleanup_old_traces(client, tracker):
         execution_id = tracker.start_execution(f"old query {i}")
         trace = tracker._traces[execution_id]
         from datetime import timedelta
+
         from app.services.agent_execution_tracker import utcnow
+
         trace.start_time = utcnow() - timedelta(hours=2)
 
     response = client.post("/agent-tracking/cleanup")
@@ -143,6 +147,7 @@ def test_stream_execution_with_steps(client, tracker):
         tracker.complete_execution(execution_id)
 
     import threading
+
     thread = threading.Thread(target=lambda: asyncio.run(add_steps()))
     thread.start()
 

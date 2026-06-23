@@ -1,18 +1,18 @@
 """
 Request middleware for the Multi-Agent Local RAG API.
 """
+
 import os
+import threading
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Any
 from collections import deque
-import threading
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import Request
 
 from app.services.runtime_metrics import RuntimeMetrics
-
 
 # Global metrics storage
 _request_metrics_lock = threading.Lock()
@@ -67,7 +67,7 @@ async def request_timing_middleware(request: Request, call_next):
     finally:
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         metric = {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
             "method": request.method,
             "path": request.url.path,
             "status_code": status_code,

@@ -1,8 +1,7 @@
 import json
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional
 from datetime import datetime, timedelta
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ class PDFProcessingMetrics:
         cache_hit: bool,
         api_calls: int = 0,
         num_pages: int = 0,
-        error: Optional[str] = None
+        error: str | None = None,
     ) -> None:
         """Record a single PDF processing operation.
 
@@ -54,16 +53,16 @@ class PDFProcessingMetrics:
             "cache_hit": cache_hit,
             "api_calls": api_calls,
             "num_pages": num_pages,
-            "error": error
+            "error": error,
         }
 
         try:
-            with open(self.metrics_file, 'a', encoding='utf-8') as f:
-                f.write(json.dumps(metric, ensure_ascii=False) + '\n')
-        except IOError as e:
+            with open(self.metrics_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(metric, ensure_ascii=False) + "\n")
+        except OSError as e:
             logger.warning(f"Failed to write metrics: {e}")
 
-    def get_summary(self, days: int = 7) -> Dict:
+    def get_summary(self, days: int = 7) -> dict:
         """Get summary statistics for metrics within the specified time window.
 
         Args:
@@ -79,7 +78,7 @@ class PDFProcessingMetrics:
         metrics = []
 
         try:
-            with open(self.metrics_file, 'r', encoding='utf-8') as f:
+            with open(self.metrics_file, encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         metric = json.loads(line)
@@ -89,7 +88,7 @@ class PDFProcessingMetrics:
         except json.JSONDecodeError as e:
             logger.warning(f"Corrupted metrics file: {e}")
             return {}
-        except IOError as e:
+        except OSError as e:
             logger.warning(f"Failed to read metrics file: {e}")
             return {}
 
@@ -113,5 +112,5 @@ class PDFProcessingMetrics:
             "cache_hit_rate": cache_hit_rate,
             "total_api_calls": total_api_calls,
             "estimated_cost_usd": estimated_cost_usd,
-            "error_rate": error_rate
+            "error_rate": error_rate,
         }

@@ -13,8 +13,6 @@ Target: 50ms compression, 75-85% information retention
 import logging
 import re
 import time
-from typing import Optional
-from collections import Counter
 
 from app.services.tracing import traced_span
 
@@ -60,17 +58,48 @@ class RuleBasedCompressor:
 
         # Stopwords for filtering (basic set)
         self.stopwords = {
-            "the", "is", "are", "a", "an", "to", "of", "in", "on",
-            "for", "and", "or", "but", "with", "at", "by", "from",
-            "的", "了", "在", "是", "我", "有", "和", "就", "不",
-            "人", "都", "一", "上", "也", "很", "到", "说", "要",
+            "the",
+            "is",
+            "are",
+            "a",
+            "an",
+            "to",
+            "of",
+            "in",
+            "on",
+            "for",
+            "and",
+            "or",
+            "but",
+            "with",
+            "at",
+            "by",
+            "from",
+            "的",
+            "了",
+            "在",
+            "是",
+            "我",
+            "有",
+            "和",
+            "就",
+            "不",
+            "人",
+            "都",
+            "一",
+            "上",
+            "也",
+            "很",
+            "到",
+            "说",
+            "要",
         }
 
     def compress(
         self,
         query: str,
         documents: list[dict],
-        max_length: Optional[int] = None,
+        max_length: int | None = None,
     ) -> tuple[list[dict], dict]:
         """
         Compress context using rule-based approach.
@@ -136,9 +165,9 @@ class RuleBasedCompressor:
                 "compressed_docs": len(compressed_docs),
                 "original_chars": total_original_chars,
                 "compressed_chars": total_compressed_chars,
-                "overall_compression_ratio": round(
-                    total_compressed_chars / total_original_chars, 2
-                ) if total_original_chars > 0 else 0,
+                "overall_compression_ratio": round(total_compressed_chars / total_original_chars, 2)
+                if total_original_chars > 0
+                else 0,
                 "info_retention_estimate": round(self.keep_ratio * 100, 1),  # Based on keep_ratio
             }
 
@@ -198,7 +227,7 @@ class RuleBasedCompressor:
         compressed_parts = []
         current_len = 0
 
-        for sentence, score, pos in kept_sentences:
+        for sentence, score, _pos in kept_sentences:
             sentence_len = len(sentence)
             if current_len + sentence_len > remaining_budget:
                 break
@@ -224,7 +253,7 @@ class RuleBasedCompressor:
         """
         # Split on common sentence terminators
         # Handle both English and Chinese punctuation
-        sentences = re.split(r'[.!?。！？\n]+', text)
+        sentences = re.split(r"[.!?。！？\n]+", text)
 
         # Clean and filter
         cleaned = []
@@ -286,11 +315,7 @@ class RuleBasedCompressor:
             position_score = 0.8
 
         # Weighted combination
-        final_score = (
-            overlap_score * 0.70 +
-            length_score * 0.15 +
-            position_score * 0.15
-        )
+        final_score = overlap_score * 0.70 + length_score * 0.15 + position_score * 0.15
 
         return final_score
 
@@ -305,19 +330,16 @@ class RuleBasedCompressor:
             Set of lowercase terms
         """
         # Tokenize: extract words (English) and Chinese characters
-        tokens = re.findall(r'[a-zA-Z0-9_]+|[一-鿿]', text.lower())
+        tokens = re.findall(r"[a-zA-Z0-9_]+|[一-鿿]", text.lower())
 
         # Filter stopwords and short tokens
-        terms = {
-            token for token in tokens
-            if len(token) >= 2 and token not in self.stopwords
-        }
+        terms = {token for token in tokens if len(token) >= 2 and token not in self.stopwords}
 
         return terms
 
 
 # Global instance
-_compressor: Optional[RuleBasedCompressor] = None
+_compressor: RuleBasedCompressor | None = None
 
 
 def get_rule_compressor(

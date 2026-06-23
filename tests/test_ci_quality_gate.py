@@ -1,6 +1,6 @@
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 
 def test_ci_quality_gate_emits_rollback_profile_when_runtime_required():

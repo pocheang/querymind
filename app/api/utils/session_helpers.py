@@ -1,6 +1,7 @@
 """
 Session-related helper functions for the Multi-Agent Local RAG API.
 """
+
 from typing import Any
 
 from app.api.utils.error_responses import bad_request, not_found

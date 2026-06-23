@@ -1,4 +1,4 @@
-from app.graph.routing.route_logic import route_after_router, route_after_vector, route_after_graph
+from app.graph.routing.route_logic import route_after_graph, route_after_router, route_after_vector
 from app.graph.state import GraphState
 
 
@@ -16,6 +16,6 @@ def graph_decider_node(state: GraphState) -> GraphState:
 
 def route_by_next_step(state: GraphState):
     step = str(state.get("next_step", "") or "").strip().lower()
-    if step in {"vector", "graph", "web", "synthesis"}:
+    if step in {"vector", "graph", "web", "synthesis", "react"}:
         return step
     return "synthesis"

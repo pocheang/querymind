@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
-from queue import Empty, Full, Queue
 import threading
 import time
+from collections.abc import Callable
+from queue import Empty, Full, Queue
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 
 class BackgroundTaskQueue:
     def __init__(self, *, maxsize: int, workers: int, name: str = "background"):
-        self._queue: Queue[tuple[Callable[..., Any], tuple[Any, ...], dict[str, Any]]] = Queue(maxsize=max(1, int(maxsize)))
+        self._queue: Queue[tuple[Callable[..., Any], tuple[Any, ...], dict[str, Any]]] = Queue(
+            maxsize=max(1, int(maxsize))
+        )
         self._workers: list[threading.Thread] = []
         self._stop_event = threading.Event()
         self._worker_count = max(1, int(workers))

@@ -88,23 +88,13 @@ GRAPH_SIGNAL_THRESHOLD_LOW: Final[float] = 0.3
 # ============================================================================
 
 # Structure detection patterns
-PATTERN_HEADERS = re.compile(
-    r"^#+\s+.+$|^\d+\.\s+[A-Z][^.]+$",
-    re.MULTILINE
-)
+PATTERN_HEADERS = re.compile(r"^#+\s+.+$|^\d+\.\s+[A-Z][^.]+$", re.MULTILINE)
 
-PATTERN_TABLES = re.compile(
-    r"\|.+\|.+\||\t.+\t.+\t"
-)
+PATTERN_TABLES = re.compile(r"\|.+\|.+\||\t.+\t.+\t")
 
-PATTERN_LISTS = re.compile(
-    r"^[-*•]\s+.+$|^\d+\.\s+.+$",
-    re.MULTILINE
-)
+PATTERN_LISTS = re.compile(r"^[-*•]\s+.+$|^\d+\.\s+.+$", re.MULTILINE)
 
-PATTERN_REFERENCES = re.compile(
-    r"(?i)(references?|bibliography|citations?|参考文献)"
-)
+PATTERN_REFERENCES = re.compile(r"(?i)(references?|bibliography|citations?|参考文献)")
 
 # Technical phrase patterns
 PATTERN_TECHNICAL_PHRASES_EN = re.compile(
@@ -137,21 +127,13 @@ PATTERN_TECHNICAL_PHRASES_ZH = re.compile(
 )
 
 # Entity extraction patterns
-PATTERN_PROPER_NOUNS = re.compile(
-    r"\b[A-Z][a-z]+(?: [A-Z][a-z]+){0,3}\b"
-)
+PATTERN_PROPER_NOUNS = re.compile(r"\b[A-Z][a-z]+(?: [A-Z][a-z]+){0,3}\b")
 
-PATTERN_ACRONYMS = re.compile(
-    r"\b[A-Z]{2,6}s?\b"
-)
+PATTERN_ACRONYMS = re.compile(r"\b[A-Z]{2,6}s?\b")
 
-PATTERN_CAMEL_CASE = re.compile(
-    r"\b[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]+)+\b"
-)
+PATTERN_CAMEL_CASE = re.compile(r"\b[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]+)+\b")
 
-PATTERN_CHINESE_TERMS = re.compile(
-    r"[一-鿿]{2,10}(?:模型|系统|机制|架构|翻译|分析|处理)"
-)
+PATTERN_CHINESE_TERMS = re.compile(r"[一-鿿]{2,10}(?:模型|系统|机制|架构|翻译|分析|处理)")
 
 # Technical terms for content quality
 PATTERN_TECH_TERMS = re.compile(
@@ -168,40 +150,42 @@ PATTERN_RELATION_KEYWORDS = re.compile(
 )
 
 # Potential entities in query
-PATTERN_QUERY_ENTITIES = re.compile(
-    r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b|[A-Z]{2,5}\b|[一-鿿]{2,}"
-)
+PATTERN_QUERY_ENTITIES = re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b|[A-Z]{2,5}\b|[一-鿿]{2,}")
 
 # ============================================================================
 # Term Lists
 # ============================================================================
 
 # English noise terms to filter out
-ENGLISH_NOISE_TERMS: Final[frozenset[str]] = frozenset({
-    "introduction",
-    "overview",
-    "description",
-    "component",
-    "components",
-    "question",
-    "translation",
-    "modern",
-    "these",
-    "allows",
-    "self",
-    "references",
-    "applications",
-    "challenges",
-})
+ENGLISH_NOISE_TERMS: Final[frozenset[str]] = frozenset(
+    {
+        "introduction",
+        "overview",
+        "description",
+        "component",
+        "components",
+        "question",
+        "translation",
+        "modern",
+        "these",
+        "allows",
+        "self",
+        "references",
+        "applications",
+        "challenges",
+    }
+)
 
 # Chinese noise terms
-CHINESE_NOISE_TERMS: Final[frozenset[str]] = frozenset({
-    "主要特点包括",
-    "基本概念",
-    "关键技术",
-    "应用场景",
-    "参考文献",
-})
+CHINESE_NOISE_TERMS: Final[frozenset[str]] = frozenset(
+    {
+        "主要特点包括",
+        "基本概念",
+        "关键技术",
+        "应用场景",
+        "参考文献",
+    }
+)
 
 # Chinese noise patterns (partial matches)
 CHINESE_NOISE_PATTERNS: Final[tuple[str, ...]] = (

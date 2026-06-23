@@ -1,11 +1,10 @@
 """Rerank baseline retriever (Hybrid + Cross-encoder)."""
 
 import time
-from typing import List, Dict, Any
 
 from app.evaluation.baselines.hybrid import HybridRetriever
-from app.retrievers.reranker import rerank
 from app.evaluation.models import RetrievalResult
+from app.retrievers.reranker import rerank
 
 
 class RerankRetriever:
@@ -45,11 +44,13 @@ class RerankRetriever:
         # Prepare candidates for reranking
         candidates = []
         for doc in hybrid_result.retrieved_docs:
-            candidates.append({
-                "text": doc["content"],
-                "metadata": doc["metadata"],
-                "hybrid_score": 0.0  # Not used by reranker
-            })
+            candidates.append(
+                {
+                    "text": doc["content"],
+                    "metadata": doc["metadata"],
+                    "hybrid_score": 0.0,  # Not used by reranker
+                }
+            )
 
         # Stage 2: Rerank with cross-encoder
         rerank_start = time.time()
@@ -63,12 +64,14 @@ class RerankRetriever:
         scores = []
 
         for item in reranked:
-            retrieved_docs.append({
-                "id": item["metadata"].get("id", ""),
-                "content": item["text"],
-                "metadata": item["metadata"],
-                "source": item["metadata"].get("source", "")
-            })
+            retrieved_docs.append(
+                {
+                    "id": item["metadata"].get("id", ""),
+                    "content": item["text"],
+                    "metadata": item["metadata"],
+                    "source": item["metadata"].get("source", ""),
+                }
+            )
             scores.append(float(item.get("rerank_score", 0.0)))
 
         return RetrievalResult(
@@ -82,6 +85,6 @@ class RerankRetriever:
                 "stage1_latency_ms": stage1_time,
                 "stage2_latency_ms": stage2_time,
                 "candidate_k": candidate_k,
-                "top_k": top_k
-            }
+                "top_k": top_k,
+            },
         )

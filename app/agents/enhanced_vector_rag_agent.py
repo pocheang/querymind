@@ -2,9 +2,10 @@
 Enhanced vector RAG agent with Self-RAG evaluation support.
 """
 
-import os
 import logging
-from typing import Optional, Dict, Any, List
+import os
+from typing import Any
+
 from app.agents.vector_rag_agent import run_vector_rag
 from app.services.self_rag_evaluator import SelfRAGEvaluator
 
@@ -36,9 +37,10 @@ class EnhancedVectorRAGAgent:
     async def retrieve_with_evaluation(
         self,
         question: str,
-        allowed_sources: Optional[List[str]] = None,
-        retrieval_strategy: Optional[str] = None
-    ) -> Dict[str, Any]:
+        allowed_sources: list[str] | None = None,
+        retrieval_strategy: str | None = None,
+        agent_class: str | None = None,
+    ) -> dict[str, Any]:
         """
         Retrieve documents with optional Self-RAG evaluation.
 
@@ -51,7 +53,12 @@ class EnhancedVectorRAGAgent:
             Dictionary with retrieval results and optional evaluation
         """
         # Run standard vector RAG retrieval
-        rag_result = run_vector_rag(question, allowed_sources, retrieval_strategy)
+        rag_result = run_vector_rag(
+            question,
+            allowed_sources,
+            retrieval_strategy,
+            agent_class=agent_class,
+        )
 
         result = {
             "question": question,
@@ -71,15 +78,11 @@ class EnhancedVectorRAGAgent:
                 documents = self._citations_to_documents(rag_result["citations"])
 
                 # Evaluate relevance
-                relevance_scores = await self.self_rag_evaluator.evaluate_retrieval_relevance(
-                    question, documents
-                )
+                relevance_scores = await self.self_rag_evaluator.evaluate_retrieval_relevance(question, documents)
                 result["relevance_scores"] = [score.model_dump() for score in relevance_scores]
 
                 # Filter documents based on relevance
-                filtered_docs = self.self_rag_evaluator.filter_relevant_documents(
-                    documents, relevance_scores
-                )
+                filtered_docs = self.self_rag_evaluator.filter_relevant_documents(documents, relevance_scores)
 
                 # Convert back to citations format
                 filtered_citations = self._documents_to_citations(filtered_docs)
@@ -93,11 +96,7 @@ class EnhancedVectorRAGAgent:
                         src = citation["source"]
                         chunk = citation["content"]
                         retrieval_sources = citation["metadata"].get("retrieval_sources", [])
-                        context_blocks.append(
-                            f"[SOURCE: {src}]\n"
-                            f"[RETRIEVAL: {','.join(retrieval_sources)}]\n"
-                            f"{chunk}"
-                        )
+                        context_blocks.append(f"[SOURCE: {src}]\n[RETRIEVAL: {','.join(retrieval_sources)}]\n{chunk}")
                     result["filtered_context"] = "\n\n".join(context_blocks)
 
                 logger.info(
@@ -112,11 +111,8 @@ class EnhancedVectorRAGAgent:
         return result
 
     async def evaluate_answer_quality(
-        self,
-        question: str,
-        answer: str,
-        citations: List[Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+        self, question: str, answer: str, citations: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
         """
         Evaluate quality of generated answer.
 
@@ -136,9 +132,7 @@ class EnhancedVectorRAGAgent:
             documents = self._citations_to_documents(citations)
 
             # Evaluate answer quality
-            quality = await self.self_rag_evaluator.evaluate_answer_quality(
-                question, answer, documents
-            )
+            quality = await self.self_rag_evaluator.evaluate_answer_quality(question, answer, documents)
 
             return quality.model_dump()
 
@@ -146,7 +140,7 @@ class EnhancedVectorRAGAgent:
             logger.error(f"Error evaluating answer quality: {e}")
             return None
 
-    def _citations_to_documents(self, citations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _citations_to_documents(self, citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Convert citations to document format for evaluation."""
         documents = []
         for i, citation in enumerate(citations):
@@ -158,7 +152,7 @@ class EnhancedVectorRAGAgent:
             documents.append(doc)
         return documents
 
-    def _documents_to_citations(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _documents_to_citations(self, documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Convert documents back to citations format."""
         citations = []
         for doc in documents:
@@ -173,9 +167,10 @@ class EnhancedVectorRAGAgent:
 
 def run_vector_rag_with_evaluation(
     question: str,
-    allowed_sources: Optional[List[str]] = None,
-    retrieval_strategy: Optional[str] = None
-) -> Dict[str, Any]:
+    allowed_sources: list[str] | None = None,
+    retrieval_strategy: str | None = None,
+    agent_class: str | None = None,
+) -> dict[str, Any]:
     """
     Synchronous wrapper for backward compatibility.
 
@@ -189,4 +184,9 @@ def run_vector_rag_with_evaluation(
     Returns:
         Dictionary with retrieval results
     """
-    return run_vector_rag(question, allowed_sources, retrieval_strategy)
+    return run_vector_rag(
+        question,
+        allowed_sources,
+        retrieval_strategy,
+        agent_class=agent_class,
+    )

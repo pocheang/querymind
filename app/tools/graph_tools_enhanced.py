@@ -17,7 +17,6 @@ OPTIMIZATIONS:
 
 import logging
 import re
-from typing import Optional
 
 from app.api.utils.string_utils import normalize_string
 from app.graph.neo4j_client import Neo4jClient
@@ -43,7 +42,6 @@ from app.tools.graph_tools_config import (
     QUALITY_BOOST_MAX,
     QUALITY_BOOST_THRESHOLD,
     RELATION_WEIGHT_HIGH,
-    RELATION_WEIGHT_LOW,
     RELATION_WEIGHT_MEDIUM,
     SIGNAL_WEIGHT_ENTITY,
     SIGNAL_WEIGHT_NEIGHBOR,
@@ -151,7 +149,8 @@ def _calculate_semantic_similarity(query_tokens: list[str], entity_name: str) ->
 
     # Partial matches (substring)
     partial_matches = sum(
-        0.5 for query_token in query_tokens
+        0.5
+        for query_token in query_tokens
         for entity_token in entity_tokens
         if query_token in entity_token or entity_token in query_token
     )
@@ -209,9 +208,7 @@ def graph_lookup_enhanced(
             entities = call_with_circuit_breaker(
                 "neo4j.search_entities",
                 lambda: client.search_entities(
-                    tokens,
-                    limit=max_entities * ENTITY_RETRIEVAL_MULTIPLIER,
-                    allowed_sources=allowed_sources
+                    tokens, limit=max_entities * ENTITY_RETRIEVAL_MULTIPLIER, allowed_sources=allowed_sources
                 ),
             )
 
@@ -239,18 +236,22 @@ def graph_lookup_enhanced(
                     if not other or weight <= 0:
                         continue
 
-                    normalized_rels.append({
-                        "relation": relation,
-                        "other": other,
-                        "weight": weight,
-                    })
+                    normalized_rels.append(
+                        {
+                            "relation": relation,
+                            "other": other,
+                            "weight": weight,
+                        }
+                    )
 
-                scored_entities.append({
-                    "entity": entity_name,
-                    "relations": normalized_rels,
-                    "relevance": relevance,
-                    "raw_name": raw_entity_name,
-                })
+                scored_entities.append(
+                    {
+                        "entity": entity_name,
+                        "relations": normalized_rels,
+                        "relevance": relevance,
+                        "raw_name": raw_entity_name,
+                    }
+                )
 
             # Sort by relevance and limit
             scored_entities.sort(key=lambda x: x["relevance"], reverse=True)
@@ -269,9 +270,7 @@ def graph_lookup_enhanced(
                 rows = call_with_circuit_breaker(
                     "neo4j.entity_neighbors",
                     lambda n=current_name: client.entity_neighbors(
-                        n,
-                        limit=max_neighbors * NEIGHBOR_RETRIEVAL_MULTIPLIER,
-                        allowed_sources=allowed_sources
+                        n, limit=max_neighbors * NEIGHBOR_RETRIEVAL_MULTIPLIER, allowed_sources=allowed_sources
                     ),
                 )
 
@@ -289,12 +288,14 @@ def graph_lookup_enhanced(
                         continue
 
                     seen_neighbor.add(key)
-                    neighbor_rows.append({
-                        "entity": entity,
-                        "relation": relation,
-                        "other": other,
-                        "weight": weight,
-                    })
+                    neighbor_rows.append(
+                        {
+                            "entity": entity,
+                            "relation": relation,
+                            "other": other,
+                            "weight": weight,
+                        }
+                    )
 
             # Sort neighbors by weight and limit
             neighbor_rows.sort(key=lambda x: x["weight"], reverse=True)
@@ -309,9 +310,7 @@ def graph_lookup_enhanced(
                 paths = call_with_circuit_breaker(
                     "neo4j.entity_paths_2hop",
                     lambda n=current_name: client.entity_paths_2hop(
-                        n,
-                        limit=max_paths * PATH_RETRIEVAL_MULTIPLIER,
-                        allowed_sources=allowed_sources
+                        n, limit=max_paths * PATH_RETRIEVAL_MULTIPLIER, allowed_sources=allowed_sources
                     ),
                 )
 
@@ -333,14 +332,16 @@ def graph_lookup_enhanced(
                         continue
 
                     seen_path.add(pkey)
-                    path_rows.append({
-                        "source": source,
-                        "rel1": rel1,
-                        "middle": middle,
-                        "rel2": rel2,
-                        "target": target,
-                        "weight": (w1 + w2) / 2.0,
-                    })
+                    path_rows.append(
+                        {
+                            "source": source,
+                            "rel1": rel1,
+                            "middle": middle,
+                            "rel2": rel2,
+                            "target": target,
+                            "weight": (w1 + w2) / 2.0,
+                        }
+                    )
 
             # Sort paths by weight and limit
             path_rows.sort(key=lambda x: x["weight"], reverse=True)
@@ -363,10 +364,7 @@ def graph_lookup_enhanced(
             )
 
             # Remove internal scoring fields from output
-            clean_entities = [
-                {"entity": entity["entity"], "relations": entity["relations"]}
-                for entity in top_entities
-            ]
+            clean_entities = [{"entity": entity["entity"], "relations": entity["relations"]} for entity in top_entities]
 
             return {
                 "entities": clean_entities,
@@ -381,7 +379,7 @@ def graph_lookup_enhanced(
                 },
             }
 
-        except Exception as e:
+        except Exception:
             logger.exception("Enhanced graph lookup failed")
             raise
         finally:
@@ -457,7 +455,7 @@ def _calculate_enhanced_signal_score(
     normalized_weights = [weight / total_weight for weight in weights]
 
     # Calculate weighted score
-    score = sum(component * weight for component, weight in zip(components, normalized_weights))
+    score = sum(component * weight for component, weight in zip(components, normalized_weights, strict=False))
 
     # Apply context quality multiplier (subtle)
     score = score * (0.9 + context_quality * 0.1)
@@ -484,14 +482,17 @@ def _determine_confidence(
         Confidence level: "high", "medium", or "low"
     """
     # High confidence: strong signal + good coverage
-    if (signal_score >= CONFIDENCE_HIGH_SIGNAL and
-        entity_count >= CONFIDENCE_HIGH_ENTITIES and
-        (neighbor_count >= CONFIDENCE_HIGH_NEIGHBORS or path_count >= CONFIDENCE_HIGH_PATHS)):
+    if (
+        signal_score >= CONFIDENCE_HIGH_SIGNAL
+        and entity_count >= CONFIDENCE_HIGH_ENTITIES
+        and (neighbor_count >= CONFIDENCE_HIGH_NEIGHBORS or path_count >= CONFIDENCE_HIGH_PATHS)
+    ):
         return "high"
 
     # Medium confidence: decent signal or coverage
-    if (signal_score >= CONFIDENCE_MEDIUM_SIGNAL or
-        (entity_count >= CONFIDENCE_MEDIUM_ENTITIES and neighbor_count >= CONFIDENCE_MEDIUM_NEIGHBORS)):
+    if signal_score >= CONFIDENCE_MEDIUM_SIGNAL or (
+        entity_count >= CONFIDENCE_MEDIUM_ENTITIES and neighbor_count >= CONFIDENCE_MEDIUM_NEIGHBORS
+    ):
         return "medium"
 
     # Low confidence: weak signal and poor coverage

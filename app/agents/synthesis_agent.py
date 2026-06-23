@@ -1,13 +1,13 @@
-from collections.abc import Iterable
 import json
 import logging
 import re
+from collections.abc import Iterable
 
 from app.core.config import get_settings
 from app.core.models import get_chat_model, get_reasoning_model
 from app.services.bulkhead import bulkhead
-from app.services.language_detector import detect_language
 from app.services.language_analytics import LanguageAnalytics
+from app.services.language_detector import detect_language
 from app.services.query_intent import is_casual_chat_query
 from app.services.request_context import deadline_exceeded, overload_mode_enabled
 
@@ -427,6 +427,6 @@ def stream_synthesize_answer(
 
         # Yield detected language metadata
         yield {"type": "metadata", "detected_language": detected_language}
-    except Exception as e:
+    except Exception:
         logger.exception(f"Stream synthesis failed for question: {question}")
         yield SYNTHESIS_FALLBACK_MESSAGE

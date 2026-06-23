@@ -1,10 +1,11 @@
 """Chinese query preprocessing service."""
 
-import re
-from typing import List, Optional, Dict, Any
 import logging
-from app.services.chinese_tokenizer import get_tokenizer, ChineseTokenizer
-from app.services.synonym_expander import get_expander, SynonymExpander
+import re
+from typing import Any
+
+from app.services.chinese_tokenizer import ChineseTokenizer, get_tokenizer
+from app.services.synonym_expander import SynonymExpander, get_expander
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +15,10 @@ class ChineseQueryPreprocessor:
 
     def __init__(
         self,
-        tokenizer: Optional[ChineseTokenizer] = None,
-        expander: Optional[SynonymExpander] = None,
+        tokenizer: ChineseTokenizer | None = None,
+        expander: SynonymExpander | None = None,
         enable_synonym_expansion: bool = True,
-        enable_stopword_removal: bool = True
+        enable_stopword_removal: bool = True,
     ):
         """Initialize the preprocessor.
 
@@ -39,22 +40,83 @@ class ChineseQueryPreprocessor:
         """Load default Chinese stopwords."""
         stopwords = {
             # Common particles
-            "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一",
-            "一个", "上", "也", "很", "到", "说", "要", "去", "你", "会", "着", "没有",
-            "看", "好", "自己", "这", "那", "里", "就是", "还", "为", "能", "他",
-
+            "的",
+            "了",
+            "在",
+            "是",
+            "我",
+            "有",
+            "和",
+            "就",
+            "不",
+            "人",
+            "都",
+            "一",
+            "一个",
+            "上",
+            "也",
+            "很",
+            "到",
+            "说",
+            "要",
+            "去",
+            "你",
+            "会",
+            "着",
+            "没有",
+            "看",
+            "好",
+            "自己",
+            "这",
+            "那",
+            "里",
+            "就是",
+            "还",
+            "为",
+            "能",
+            "他",
             # Question words
-            "什么", "怎么", "如何", "哪里", "哪个", "为什么", "多少",
-
+            "什么",
+            "怎么",
+            "如何",
+            "哪里",
+            "哪个",
+            "为什么",
+            "多少",
             # Conjunctions
-            "但是", "因为", "所以", "如果", "虽然", "然而", "而且", "或者",
-
+            "但是",
+            "因为",
+            "所以",
+            "如果",
+            "虽然",
+            "然而",
+            "而且",
+            "或者",
             # Common verbs (low semantic value)
-            "可以", "需要", "应该", "必须", "想要", "希望",
-
+            "可以",
+            "需要",
+            "应该",
+            "必须",
+            "想要",
+            "希望",
             # Punctuation and symbols
-            "，", "。", "！", "？", "；", "：", "、", """, """, "'", "'",
-            "（", "）", "【", "】", "《", "》", "…", "—",
+            "，",
+            "。",
+            "！",
+            "？",
+            "；",
+            "：",
+            "、",
+            """, """,
+            "'",
+            "（",
+            "）",
+            "【",
+            "】",
+            "《",
+            "》",
+            "…",
+            "—",
         }
         return stopwords
 
@@ -70,8 +132,8 @@ class ChineseQueryPreprocessor:
         if not text:
             return "unknown"
 
-        chinese_chars = len(re.findall(r'[一-鿿]', text))
-        english_chars = len(re.findall(r'[a-zA-Z]', text))
+        chinese_chars = len(re.findall(r"[一-鿿]", text))
+        english_chars = len(re.findall(r"[a-zA-Z]", text))
         total_chars = chinese_chars + english_chars
 
         if total_chars == 0:
@@ -96,18 +158,18 @@ class ChineseQueryPreprocessor:
             Normalized text
         """
         # Convert full-width to half-width
-        text = text.replace('　', ' ')  # Full-width space to half-width
+        text = text.replace("　", " ")  # Full-width space to half-width
 
         # Normalize quotes
         text = text.replace('"', '"').replace('"', '"')
-        text = text.replace(''', "'").replace(''', "'")
+        text = text.replace(""", "'").replace(""", "'")
 
         # Remove extra whitespace
-        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub(r"\s+", " ", text).strip()
 
         return text
 
-    def remove_stopwords(self, tokens: List[str]) -> List[str]:
+    def remove_stopwords(self, tokens: list[str]) -> list[str]:
         """Remove stopwords from token list.
 
         Args:
@@ -128,11 +190,8 @@ class ChineseQueryPreprocessor:
         return filtered
 
     def preprocess(
-        self,
-        query: str,
-        expand_synonyms: bool = True,
-        return_metadata: bool = False
-    ) -> str | Dict[str, Any]:
+        self, query: str, expand_synonyms: bool = True, return_metadata: bool = False
+    ) -> str | dict[str, Any]:
         """Preprocess a Chinese query.
 
         Args:
@@ -144,12 +203,11 @@ class ChineseQueryPreprocessor:
             Preprocessed query string or dict with metadata
         """
         if not query or not query.strip():
-            return "" if not return_metadata else {
-                "processed_query": "",
-                "original_query": query,
-                "tokens": [],
-                "language": "unknown"
-            }
+            return (
+                ""
+                if not return_metadata
+                else {"processed_query": "", "original_query": query, "tokens": [], "language": "unknown"}
+            )
 
         # Detect language
         language = self.detect_language(query)
@@ -186,12 +244,12 @@ class ChineseQueryPreprocessor:
                 "expanded_tokens": expanded_tokens,
                 "language": language,
                 "stopwords_removed": len(tokens) - len(filtered_tokens),
-                "synonyms_added": len(expanded_tokens) - len(filtered_tokens)
+                "synonyms_added": len(expanded_tokens) - len(filtered_tokens),
             }
 
         return processed_query
 
-    def extract_keywords(self, query: str, topK: int = 5) -> List[str]:
+    def extract_keywords(self, query: str, topK: int = 5) -> list[str]:
         """Extract key terms from query.
 
         Args:
@@ -233,12 +291,11 @@ class ChineseQueryPreprocessor:
 
 
 # Global preprocessor instance
-_preprocessor: Optional[ChineseQueryPreprocessor] = None
+_preprocessor: ChineseQueryPreprocessor | None = None
 
 
 def get_preprocessor(
-    enable_synonym_expansion: bool = True,
-    enable_stopword_removal: bool = True
+    enable_synonym_expansion: bool = True, enable_stopword_removal: bool = True
 ) -> ChineseQueryPreprocessor:
     """Get or create the global preprocessor instance.
 
@@ -252,7 +309,6 @@ def get_preprocessor(
     global _preprocessor
     if _preprocessor is None:
         _preprocessor = ChineseQueryPreprocessor(
-            enable_synonym_expansion=enable_synonym_expansion,
-            enable_stopword_removal=enable_stopword_removal
+            enable_synonym_expansion=enable_synonym_expansion, enable_stopword_removal=enable_stopword_removal
         )
     return _preprocessor

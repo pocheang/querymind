@@ -11,9 +11,10 @@ Provides centralized caching for:
 import hashlib
 import logging
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Callable, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ DEFAULT_TTL_SECONDS = 1800  # 30 minutes
 @dataclass
 class CacheEntry:
     """Cache entry with value and metadata."""
+
     value: Any
     created_at: datetime
     hits: int = 0
@@ -46,7 +48,7 @@ class SimpleCache:
         self._hits = 0
         self._misses = 0
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """Get value from cache."""
         if key not in self._cache:
             self._misses += 1
@@ -102,19 +104,13 @@ class SimpleCache:
 
 
 # Global cache instances
-_vector_search_cache = SimpleCache(
-    max_size=DEFAULT_VECTOR_CACHE_SIZE,
-    ttl_seconds=DEFAULT_TTL_SECONDS
-)
+_vector_search_cache = SimpleCache(max_size=DEFAULT_VECTOR_CACHE_SIZE, ttl_seconds=DEFAULT_TTL_SECONDS)
 
-_router_decision_cache = SimpleCache(
-    max_size=DEFAULT_ROUTER_CACHE_SIZE,
-    ttl_seconds=DEFAULT_TTL_SECONDS
-)
+_router_decision_cache = SimpleCache(max_size=DEFAULT_ROUTER_CACHE_SIZE, ttl_seconds=DEFAULT_TTL_SECONDS)
 
 _synthesis_cache = SimpleCache(
     max_size=DEFAULT_SYNTHESIS_CACHE_SIZE,
-    ttl_seconds=3600  # Longer TTL for synthesis
+    ttl_seconds=3600,  # Longer TTL for synthesis
 )
 
 
@@ -125,7 +121,7 @@ def _make_cache_key(*args, **kwargs) -> str:
     for arg in args:
         if isinstance(arg, str):
             key_parts.append(arg[:100])  # Truncate long strings
-        elif isinstance(arg, (list, tuple)):
+        elif isinstance(arg, list | tuple):
             key_parts.append(str(sorted(arg))[:100])
         else:
             key_parts.append(str(arg)[:50])
@@ -135,7 +131,7 @@ def _make_cache_key(*args, **kwargs) -> str:
             key_parts.append(f"{k}={str(v)[:50]}")
 
     key_string = "|".join(key_parts)
-    return hashlib.md5(key_string.encode('utf-8')).hexdigest()
+    return hashlib.md5(key_string.encode("utf-8")).hexdigest()
 
 
 def cached_vector_search(func: Callable) -> Callable:
@@ -147,14 +143,10 @@ def cached_vector_search(func: Callable) -> Callable:
         def hybrid_search(question: str, ...) -> tuple:
             ...
     """
+
     def wrapper(question: str, *args, **kwargs):
         # Create cache key
-        cache_key = _make_cache_key(
-            "vector",
-            question,
-            kwargs.get("allowed_sources"),
-            kwargs.get("retrieval_strategy")
-        )
+        cache_key = _make_cache_key("vector", question, kwargs.get("allowed_sources"), kwargs.get("retrieval_strategy"))
 
         # Try cache first
         cached_result = _vector_search_cache.get(cache_key)
@@ -183,14 +175,10 @@ def cached_router_decision(func: Callable) -> Callable:
         def decide_route(question: str, ...) -> RouteDecision:
             ...
     """
+
     def wrapper(question: str, *args, **kwargs):
         # Create cache key
-        cache_key = _make_cache_key(
-            "router",
-            question,
-            kwargs.get("agent_class_hint"),
-            kwargs.get("use_reasoning")
-        )
+        cache_key = _make_cache_key("router", question, kwargs.get("agent_class_hint"), kwargs.get("use_reasoning"))
 
         # Try cache first
         cached_result = _router_decision_cache.get(cache_key)

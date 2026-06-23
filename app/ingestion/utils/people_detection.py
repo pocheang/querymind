@@ -1,6 +1,9 @@
 """People detection utilities using OpenCV."""
 
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def detect_people_in_image(image, settings) -> dict:
@@ -11,6 +14,7 @@ def detect_people_in_image(image, settings) -> dict:
     try:
         import cv2  # type: ignore
         import numpy as np
+
     except ImportError:
         logger.debug("OpenCV not available for people detection")
         return {"status": "unavailable", "person_count": 0, "face_count": 0, "human_present": False}

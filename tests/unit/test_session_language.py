@@ -1,11 +1,13 @@
 """Tests for session language tracking service."""
+
 import pytest
+
 from app.services.session_language import (
-    update_language_history,
-    get_language_preference,
-    get_language_history,
-    clear_session_history,
     clear_all_history,
+    clear_session_history,
+    get_language_history,
+    get_language_preference,
+    update_language_history,
 )
 
 

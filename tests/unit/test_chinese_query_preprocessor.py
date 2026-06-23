@@ -1,6 +1,5 @@
 """Unit tests for Chinese query preprocessor."""
 
-import pytest
 from app.services.chinese_query_preprocessor import ChineseQueryPreprocessor, get_preprocessor
 
 

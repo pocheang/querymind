@@ -1,7 +1,5 @@
 """Tests for OCR text structure extraction."""
 
-import pytest
-
 from app.ingestion.utils.text_structure import (
     OCRTextStructurer,
     TextBlock,

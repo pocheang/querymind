@@ -1,4 +1,5 @@
 """Document management routes for the Multi-Agent Local RAG API."""
+
 import logging
 import time
 from pathlib import Path
@@ -6,8 +7,6 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
-from app.api.utils.error_responses import bad_request, conflict, forbidden, internal_error, not_found, payload_too_large, rate_limited
-from app.api.utils.string_utils import normalize_string
 from app.api.dependencies import (
     _audit,
     _client_ip,
@@ -15,11 +14,21 @@ from app.api.dependencies import (
     _is_probably_valid_upload_signature,
     _is_source_manageable_for_user,
     _list_visible_documents_for_user,
-    _require_user,
     _require_permission,
+    _require_user,
     settings,
     upload_limiter,
 )
+from app.api.utils.error_responses import (
+    bad_request,
+    conflict,
+    forbidden,
+    internal_error,
+    not_found,
+    payload_too_large,
+    rate_limited,
+)
+from app.api.utils.string_utils import normalize_string
 from app.core.schemas import (
     FileIndexActionResponse,
     IndexedFileSummary,
@@ -28,7 +37,12 @@ from app.core.schemas import (
 )
 from app.ingestion.loaders import IMAGE_EXTENSIONS
 from app.services.document_dedup import compute_sha256, find_duplicate_for_user
-from app.services.document_registry import create_document_record, delete_document_by_source, list_document_records, update_document_by_source
+from app.services.document_registry import (
+    create_document_record,
+    delete_document_by_source,
+    list_document_records,
+    update_document_by_source,
+)
 from app.services.index_health import build_index_health_report
 from app.services.index_manager import delete_file_index, list_indexed_files, rebuild_file_index, should_skip_reindex
 from app.services.ingest_queue import enqueue_ingest_job
@@ -91,7 +105,9 @@ def _merge_registry_status(indexed_rows: list[dict[str, Any]], user: dict[str, A
             row["chunks"] = int(record.get("chunks_indexed", 0) or 0)
         row["page_count"] = len(list(row.get("pages", []) or []))
         by_source[source] = row
-    return sorted(by_source.values(), key=lambda x: (str(x.get("filename", "")).lower(), str(x.get("source", "")).lower()))
+    return sorted(
+        by_source.values(), key=lambda x: (str(x.get("filename", "")).lower(), str(x.get("source", "")).lower())
+    )
 
 
 def _sha256_file(path: Path) -> str:
@@ -118,7 +134,14 @@ def delete_document(
     if source is None:
         raise bad_request("source is required")
     if not _is_source_manageable_for_user(source, user):
-        _audit(request, action="document.delete", resource_type="document", result="denied", user=user, resource_id=filename)
+        _audit(
+            request,
+            action="document.delete",
+            resource_type="document",
+            result="denied",
+            user=user,
+            resource_id=filename,
+        )
         raise forbidden("source not allowed")
     try:
         result = FileIndexActionResponse(**delete_file_index(filename, remove_physical_file=remove_file, source=source))
@@ -138,21 +161,45 @@ def delete_document(
                 )
             except ValueError:
                 pass
-        _audit(request, action="document.delete", resource_type="document", result="success", user=user, resource_id=filename)
+        _audit(
+            request,
+            action="document.delete",
+            resource_type="document",
+            result="success",
+            user=user,
+            resource_id=filename,
+        )
         return result
     except ValueError as e:
-        _audit(request, action="document.delete", resource_type="document", result="failed", user=user, resource_id=filename, detail=str(e))
+        _audit(
+            request,
+            action="document.delete",
+            resource_type="document",
+            result="failed",
+            user=user,
+            resource_id=filename,
+            detail=str(e),
+        )
         raise conflict(str(e))
 
 
 @router.post("/documents/{filename}/reindex", response_model=FileIndexActionResponse)
-def reindex_document(filename: str, request: Request, source: str | None = None, user: dict[str, Any] = Depends(_require_user)):
+def reindex_document(
+    filename: str, request: Request, source: str | None = None, user: dict[str, Any] = Depends(_require_user)
+):
     _require_permission(user, "document:manage_own", request, "document", resource_id=filename)
     source = normalize_string(source) or _resolve_manageable_source_for_filename(filename, user)
     if source is None:
         raise bad_request("source is required")
     if not _is_source_manageable_for_user(source, user):
-        _audit(request, action="document.reindex", resource_type="document", result="denied", user=user, resource_id=filename)
+        _audit(
+            request,
+            action="document.reindex",
+            resource_type="document",
+            result="denied",
+            user=user,
+            resource_id=filename,
+        )
         raise forbidden("source not allowed")
     try:
         t0 = time.perf_counter()
@@ -215,13 +262,36 @@ def reindex_document(filename: str, request: Request, source: str | None = None,
                 "mode": "reindex",
             }
         )
-        _audit(request, action="document.reindex", resource_type="document", result="success", user=user, resource_id=filename)
+        _audit(
+            request,
+            action="document.reindex",
+            resource_type="document",
+            result="success",
+            user=user,
+            resource_id=filename,
+        )
         return result
     except ValueError as e:
-        _audit(request, action="document.reindex", resource_type="document", result="failed", user=user, resource_id=filename, detail=str(e))
+        _audit(
+            request,
+            action="document.reindex",
+            resource_type="document",
+            result="failed",
+            user=user,
+            resource_id=filename,
+            detail=str(e),
+        )
         raise conflict(str(e))
     except FileNotFoundError as e:
-        _audit(request, action="document.reindex", resource_type="document", result="failed", user=user, resource_id=filename, detail=str(e))
+        _audit(
+            request,
+            action="document.reindex",
+            resource_type="document",
+            result="failed",
+            user=user,
+            resource_id=filename,
+            detail=str(e),
+        )
         raise not_found(str(e))
 
 
@@ -274,10 +344,10 @@ async def upload_files(
 
         # Security: Sanitize filename to prevent path traversal
         raw_filename = Path(f.filename).name
-        safe_filename = raw_filename.replace('/', '').replace('\\', '').replace('..', '')
+        safe_filename = raw_filename.replace("/", "").replace("\\", "").replace("..", "")
 
         # Reject hidden files and invalid filenames
-        if not safe_filename or safe_filename.startswith('.') or safe_filename.startswith('_'):
+        if not safe_filename or safe_filename.startswith(".") or safe_filename.startswith("_"):
             skipped_files.append(raw_filename)
             continue
 
@@ -336,7 +406,14 @@ async def upload_files(
 
     if not saved_paths:
         if duplicate_files and not skipped_files:
-            _audit(request, action="document.upload", resource_type="document", result="success", user=user, detail="duplicates_reused")
+            _audit(
+                request,
+                action="document.upload",
+                resource_type="document",
+                result="success",
+                user=user,
+                detail="duplicates_reused",
+            )
             return UploadResponse(
                 filenames=[],
                 skipped_files=[],
@@ -361,7 +438,14 @@ async def upload_files(
         for target in saved_paths:
             delete_file_index(target.name, remove_physical_file=False, source=str(target))
     except Exception as e:
-        _audit(request, action="document.upload", resource_type="document", result="failed", user=user, detail=f"pre-clean failed: {e}")
+        _audit(
+            request,
+            action="document.upload",
+            resource_type="document",
+            result="failed",
+            user=user,
+            detail=f"pre-clean failed: {e}",
+        )
         raise internal_error("upload pre-clean failed")
 
     try:
@@ -403,7 +487,14 @@ async def upload_files(
     except Exception as e:
         _audit(request, action="document.upload", resource_type="document", result="failed", user=user, detail=str(e))
         raise internal_error("upload ingest failed")
-    _audit(request, action="document.upload", resource_type="document", result="success", user=user, detail=",".join(filenames))
+    _audit(
+        request,
+        action="document.upload",
+        resource_type="document",
+        result="success",
+        user=user,
+        detail=",".join(filenames),
+    )
     return UploadResponse(
         filenames=filenames,
         skipped_files=skipped_files,

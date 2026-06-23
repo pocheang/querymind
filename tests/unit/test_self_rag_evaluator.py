@@ -2,10 +2,12 @@
 Unit tests for Self-RAG evaluator service.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from app.models.advanced_rag_models import AnswerQuality, RelevanceScore
 from app.services.self_rag_evaluator import SelfRAGEvaluator
-from app.models.advanced_rag_models import RelevanceScore, AnswerQuality
 
 
 @pytest.fixture
@@ -29,18 +31,18 @@ def sample_documents():
         {
             "id": "doc1",
             "content": "FastAPI is a modern web framework for building APIs with Python.",
-            "metadata": {"source": "fastapi_docs.md"}
+            "metadata": {"source": "fastapi_docs.md"},
         },
         {
             "id": "doc2",
             "content": "Flask is a lightweight WSGI web application framework.",
-            "metadata": {"source": "flask_docs.md"}
+            "metadata": {"source": "flask_docs.md"},
         },
         {
             "id": "doc3",
             "content": "Django is a high-level Python web framework.",
-            "metadata": {"source": "django_docs.md"}
-        }
+            "metadata": {"source": "django_docs.md"},
+        },
     ]
 
 
@@ -102,10 +104,11 @@ Relevance: 0.7"""
 
         # Mock LLM responses - ainvoke returns objects with content attribute
         from types import SimpleNamespace
+
         mock_llm_client.ainvoke.side_effect = [
             SimpleNamespace(content="Score: 9/10\nReasoning: Directly answers the question"),
             SimpleNamespace(content="Score: 3/10\nReasoning: About Flask, not FastAPI"),
-            SimpleNamespace(content="Score: 2/10\nReasoning: About Django, not relevant")
+            SimpleNamespace(content="Score: 2/10\nReasoning: About Django, not relevant"),
         ]
 
         scores = await evaluator.evaluate_retrieval_relevance(query, sample_documents)
@@ -117,9 +120,7 @@ Relevance: 0.7"""
         assert scores[2].score == 0.2
 
     @pytest.mark.asyncio
-    async def test_evaluate_retrieval_relevance_handles_error(
-        self, evaluator, mock_llm_client, sample_documents
-    ):
+    async def test_evaluate_retrieval_relevance_handles_error(self, evaluator, mock_llm_client, sample_documents):
         """Test that evaluation handles errors gracefully."""
         query = "What is FastAPI?"
 
@@ -137,7 +138,7 @@ Relevance: 0.7"""
         relevance_scores = [
             RelevanceScore(document_id="doc1", score=0.9, reasoning="Highly relevant"),
             RelevanceScore(document_id="doc2", score=0.4, reasoning="Not very relevant"),
-            RelevanceScore(document_id="doc3", score=0.7, reasoning="Somewhat relevant")
+            RelevanceScore(document_id="doc3", score=0.7, reasoning="Somewhat relevant"),
         ]
 
         # Default threshold is 0.6
@@ -155,11 +156,14 @@ Relevance: 0.7"""
 
         # Mock LLM response
         from types import SimpleNamespace
-        mock_llm_client.ainvoke.return_value = SimpleNamespace(content="""Completeness: 0.9
+
+        mock_llm_client.ainvoke.return_value = SimpleNamespace(
+            content="""Completeness: 0.9
 Accuracy: 1.0
 Relevance: 0.95
 Overall Score: 0.95
-Feedback: Excellent answer, directly addresses the question""")
+Feedback: Excellent answer, directly addresses the question"""
+        )
 
         quality = await evaluator.evaluate_answer_quality(query, answer, sample_documents)
 
@@ -178,11 +182,14 @@ Feedback: Excellent answer, directly addresses the question""")
 
         # Mock LLM response with low scores
         from types import SimpleNamespace
-        mock_llm_client.ainvoke.return_value = SimpleNamespace(content="""Completeness: 0.3
+
+        mock_llm_client.ainvoke.return_value = SimpleNamespace(
+            content="""Completeness: 0.3
 Accuracy: 0.5
 Relevance: 0.4
 Overall Score: 0.4
-Feedback: Answer is too brief and lacks detail""")
+Feedback: Answer is too brief and lacks detail"""
+        )
 
         quality = await evaluator.evaluate_answer_quality(query, answer, sample_documents)
 
@@ -190,9 +197,7 @@ Feedback: Answer is too brief and lacks detail""")
         assert quality.needs_refinement is True
 
     @pytest.mark.asyncio
-    async def test_evaluate_answer_quality_handles_error(
-        self, evaluator, mock_llm_client, sample_documents
-    ):
+    async def test_evaluate_answer_quality_handles_error(self, evaluator, mock_llm_client, sample_documents):
         """Test that answer quality evaluation handles errors gracefully."""
         query = "What is FastAPI?"
         answer = "FastAPI is a framework."

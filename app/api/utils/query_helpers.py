@@ -1,6 +1,7 @@
 """
 Query-related helper functions for the Multi-Agent Local RAG API.
 """
+
 import hashlib
 import inspect
 import json
@@ -10,9 +11,10 @@ from typing import Any
 
 from fastapi import Request
 
-from app.api.utils.error_responses import bad_request, rate_limited, internal_error
+from app.api.utils.error_responses import bad_request, internal_error, rate_limited
 from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
+from app.graph.workflow import run_query
 from app.services.agent_classifier import classify_agent_class
 from app.services.alerting import emit_alert
 from app.services.consistency_guard import text_similarity
@@ -23,8 +25,7 @@ from app.services.rag_runtime_scope import query_model_fingerprint
 from app.services.request_context import request_context
 from app.services.retrieval_profiles import normalize_retrieval_profile
 from app.services.retry_policy import call_with_retry
-from app.services.runtime_ops import resolve_profile_for_request, choose_shadow, append_shadow_run
-from app.graph.workflow import run_query
+from app.services.runtime_ops import append_shadow_run, choose_shadow, resolve_profile_for_request
 
 settings = get_settings()
 
@@ -284,7 +285,9 @@ def _launch_shadow_run(
                     "strategy": strategy,
                     "latency_ms": round(latency_ms, 2),
                     "answer_similarity": round(float(sim), 4),
-                    "primary_grounding": float((primary_result.get("grounding", {}) or {}).get("support_ratio", 0.0) or 0.0),
+                    "primary_grounding": float(
+                        (primary_result.get("grounding", {}) or {}).get("support_ratio", 0.0) or 0.0
+                    ),
                     "shadow_grounding": float((shadow.get("grounding", {}) or {}).get("support_ratio", 0.0) or 0.0),
                 }
             )
@@ -326,17 +329,17 @@ def handle_pdf_agent_routing(
         - Otherwise use modified_question and pdf_allowed_sources for query
     """
     from app.api.dependencies import (
+        _allowed_sources_for_filenames,
+        _audit,
+        _history_store_for_user,
         _list_visible_pdf_names_for_user,
         _visible_doc_chunks_by_filename_for_user,
-        _allowed_sources_for_filenames,
-        _history_store_for_user,
-        _audit,
     )
     from app.services.pdf_agent_guard import (
-        choose_pdf_targets,
-        build_upload_pdf_hint,
-        build_choose_pdf_hint,
         apply_pdf_focus_to_question,
+        build_choose_pdf_hint,
+        build_upload_pdf_hint,
+        choose_pdf_targets,
     )
 
     pdf_names = _list_visible_pdf_names_for_user(user)
@@ -344,7 +347,9 @@ def handle_pdf_agent_routing(
     # Case 1: No PDFs uploaded
     if not pdf_names:
         answer = build_upload_pdf_hint()
-        _audit(request, action=action_name, resource_type="query", result="success", user=user, detail="pdf_agent_no_pdf")
+        _audit(
+            request, action=action_name, resource_type="query", result="success", user=user, detail="pdf_agent_no_pdf"
+        )
         if session_id:
             history_store = _history_store_for_user(user)
             history_store.append_message(session_id, "user", normalized_question)
@@ -352,21 +357,38 @@ def handle_pdf_agent_routing(
                 session_id,
                 "assistant",
                 answer,
-                metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
+                metadata={
+                    "route": "pdf_text",
+                    "agent_class": "pdf_text",
+                    "web_used": False,
+                    "graph_entities": [],
+                    "citations": [],
+                },
             )
-        return None, None, {
-            "answer": answer,
-            "route": "pdf_text",
-            "reason": "pdf_agent_no_pdf",
-            "skill": "pdf_text_reader",
-            "agent_class": "pdf_text",
-        }
+        return (
+            None,
+            None,
+            {
+                "answer": answer,
+                "route": "pdf_text",
+                "reason": "pdf_agent_no_pdf",
+                "skill": "pdf_text_reader",
+                "agent_class": "pdf_text",
+            },
+        )
 
     # Case 2: Multiple PDFs but none selected
     selected_pdfs = choose_pdf_targets(normalized_question, pdf_names)
     if len(pdf_names) > 1 and not selected_pdfs:
         answer = build_choose_pdf_hint(pdf_names)
-        _audit(request, action=action_name, resource_type="query", result="success", user=user, detail="pdf_agent_need_selection")
+        _audit(
+            request,
+            action=action_name,
+            resource_type="query",
+            result="success",
+            user=user,
+            detail="pdf_agent_need_selection",
+        )
         if session_id:
             history_store = _history_store_for_user(user)
             history_store.append_message(session_id, "user", normalized_question)
@@ -374,15 +396,25 @@ def handle_pdf_agent_routing(
                 session_id,
                 "assistant",
                 answer,
-                metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
+                metadata={
+                    "route": "pdf_text",
+                    "agent_class": "pdf_text",
+                    "web_used": False,
+                    "graph_entities": [],
+                    "citations": [],
+                },
             )
-        return None, None, {
-            "answer": answer,
-            "route": "pdf_text",
-            "reason": "pdf_agent_need_selection",
-            "skill": "pdf_text_reader",
-            "agent_class": "pdf_text",
-        }
+        return (
+            None,
+            None,
+            {
+                "answer": answer,
+                "route": "pdf_text",
+                "reason": "pdf_agent_need_selection",
+                "skill": "pdf_text_reader",
+                "agent_class": "pdf_text",
+            },
+        )
 
     # Case 3: Selected PDFs but no chunks
     if selected_pdfs:
@@ -393,7 +425,14 @@ def handle_pdf_agent_routing(
                 "The selected document exists, but its index is empty (chunks=0), so I cannot read detailed content yet.\n"
                 "Please click Reindex for this file, then ask again."
             )
-            _audit(request, action=action_name, resource_type="query", result="success", user=user, detail="pdf_agent_chunks_zero")
+            _audit(
+                request,
+                action=action_name,
+                resource_type="query",
+                result="success",
+                user=user,
+                detail="pdf_agent_chunks_zero",
+            )
             if session_id:
                 history_store = _history_store_for_user(user)
                 history_store.append_message(session_id, "user", normalized_question)
@@ -401,15 +440,25 @@ def handle_pdf_agent_routing(
                     session_id,
                     "assistant",
                     answer,
-                    metadata={"route": "pdf_text", "agent_class": "pdf_text", "web_used": False, "graph_entities": [], "citations": []},
+                    metadata={
+                        "route": "pdf_text",
+                        "agent_class": "pdf_text",
+                        "web_used": False,
+                        "graph_entities": [],
+                        "citations": [],
+                    },
                 )
-            return None, None, {
-                "answer": answer,
-                "route": "pdf_text",
-                "reason": "pdf_agent_chunks_zero",
-                "skill": "pdf_text_reader",
-                "agent_class": "pdf_text",
-            }
+            return (
+                None,
+                None,
+                {
+                    "answer": answer,
+                    "route": "pdf_text",
+                    "reason": "pdf_agent_chunks_zero",
+                    "skill": "pdf_text_reader",
+                    "agent_class": "pdf_text",
+                },
+            )
 
         # Case 4: Success - apply PDF focus
         modified_question = apply_pdf_focus_to_question(normalized_question, selected_with_chunks)

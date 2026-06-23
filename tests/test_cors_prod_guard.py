@@ -1,4 +1,5 @@
 """Unit tests for production CORS hardening in app.api.main._configure_cors."""
+
 from types import SimpleNamespace
 
 import pytest

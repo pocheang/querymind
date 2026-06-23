@@ -1,9 +1,9 @@
 """Session management routes for the Multi-Agent Local RAG API."""
+
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
-from app.api.utils.error_responses import not_found, bad_request
 from app.api.dependencies import (
     _allowed_sources_for_user,
     _audit,
@@ -15,19 +15,20 @@ from app.api.dependencies import (
     _require_user,
     _require_valid_session_id,
 )
+from app.api.utils.error_responses import bad_request, not_found
 from app.core.schemas import (
     LongTermMemoryItem,
     MessageUpdateRequest,
     SessionDetail,
     SessionSummary,
 )
+from app.graph.workflow import run_query
 from app.services.input_normalizer import (
     enhance_user_question_for_completion,
     normalize_and_validate_user_question,
     normalize_user_question,
 )
 from app.services.query_intent import is_casual_chat_query
-from app.graph.workflow import run_query
 from app.services.retrieval_profiles import normalize_retrieval_profile
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -43,7 +44,14 @@ def list_sessions(request: Request, user: dict[str, Any] = Depends(_require_user
 def create_session(request: Request, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, "session:create", request, "session")
     session = _history_store_for_user(user).create_session()
-    _audit(request, action="session.create", resource_type="session", result="success", user=user, resource_id=session["session_id"])
+    _audit(
+        request,
+        action="session.create",
+        resource_type="session",
+        result="success",
+        user=user,
+        resource_id=session["session_id"],
+    )
     return session
 
 
@@ -102,7 +110,9 @@ def delete_session(session_id: str, request: Request, user: dict[str, Any] = Dep
     ok = _history_store_for_user(user).delete_session(session_id)
     if not ok:
         raise not_found("Session")
-    _audit(request, action="session.delete", resource_type="session", result="success", user=user, resource_id=session_id)
+    _audit(
+        request, action="session.delete", resource_type="session", result="success", user=user, resource_id=session_id
+    )
     return {"ok": True, "session_id": session_id}
 
 
@@ -115,13 +125,17 @@ def list_long_term_memories(session_id: str, request: Request, user: dict[str, A
 
 
 @router.delete("/{session_id}/memories/long/{memory_id}")
-def delete_long_term_memory(session_id: str, memory_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
+def delete_long_term_memory(
+    session_id: str, memory_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)
+):
     session_id = _require_valid_session_id(session_id)
     _require_permission(user, "session:delete", request, "session", resource_id=session_id)
     ok = _memory_store_for_user(user).delete_long_term(session_id=session_id, candidate_id=memory_id)
     if not ok:
         raise not_found("Memory")
-    _audit(request, action="memory.long.delete", resource_type="memory", result="success", user=user, resource_id=memory_id)
+    _audit(
+        request, action="memory.long.delete", resource_type="memory", result="success", user=user, resource_id=memory_id
+    )
     return {"ok": True, "memory_id": memory_id}
 
 
@@ -157,7 +171,9 @@ def update_session_message(
 
     if rerun and current.get("role") == "user":
         effective_question = content if is_casual_chat_query(content) else enhance_user_question_for_completion(content)
-        memory_context = _build_memory_context_for_session(user=user, session_id=session_id, question=effective_question)
+        memory_context = _build_memory_context_for_session(
+            user=user, session_id=session_id, question=effective_question
+        )
         result = run_query(
             effective_question,
             use_web_fallback=use_web_fallback,
@@ -175,22 +191,29 @@ def update_session_message(
                 "web_used": result.get("web_result", {}).get("used", False),
                 "thoughts": result.get("thoughts", []),
                 "graph_entities": result.get("graph_result", {}).get("entities", []),
-                "citations": result.get("vector_result", {}).get("citations", []) + result.get("web_result", {}).get("citations", []),
+                "citations": result.get("vector_result", {}).get("citations", [])
+                + result.get("web_result", {}).get("citations", []),
             },
         )
         if data is None:
             raise not_found("Message")
         _promote_long_term_memory(user=user, session_id=session_id, question=content, result=result)
-    _audit(request, action="message.update", resource_type="message", result="success", user=user, resource_id=message_id)
+    _audit(
+        request, action="message.update", resource_type="message", result="success", user=user, resource_id=message_id
+    )
     return data
 
 
 @router.delete("/{session_id}/messages/{message_id}", response_model=SessionDetail)
-def delete_session_message(session_id: str, message_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
+def delete_session_message(
+    session_id: str, message_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)
+):
     session_id = _require_valid_session_id(session_id)
     _require_permission(user, "message:delete", request, "message", resource_id=message_id)
     data = _history_store_for_user(user).delete_message(session_id=session_id, message_id=message_id)
     if data is None:
         raise not_found("Message")
-    _audit(request, action="message.delete", resource_type="message", result="success", user=user, resource_id=message_id)
+    _audit(
+        request, action="message.delete", resource_type="message", result="success", user=user, resource_id=message_id
+    )
     return data

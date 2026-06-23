@@ -4,7 +4,7 @@ from concurrent.futures import TimeoutError as FutureTimeoutError
 
 from app.agents.vector_rag_agent import run_vector_rag
 from app.core.config import get_settings
-from app.graph.nodes.safe_wrappers import safe_vector_result, safe_graph_result
+from app.graph.nodes.safe_wrappers import safe_graph_result, safe_vector_result
 from app.graph.state import GraphState
 from app.services.bulkhead import bulkhead
 from app.services.hybrid_executor import HybridExecutorRejectedError, submit_hybrid
@@ -109,7 +109,12 @@ def vector_node(state: GraphState) -> GraphState:
             vector_result["timeout"] = True
         except Exception as e:
             logger.exception(f"Vector RAG failed for question: {state.get('question', '')}")
-            vector_result = {"context": "", "citations": [], "retrieved_count": 0, "error": f"vector_error:{type(e).__name__}"}
+            vector_result = {
+                "context": "",
+                "citations": [],
+                "retrieved_count": 0,
+                "error": f"vector_error:{type(e).__name__}",
+            }
         try:
             left = max(0.1, deadline - time.monotonic())
             graph_result = fut_graph.result(timeout=left)

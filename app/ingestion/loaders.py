@@ -4,14 +4,14 @@ This module provides a unified interface for loading documents from different fi
 Supported formats: PDF, images (PNG, JPG, etc.), and text files.
 """
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from langchain_core.documents import Document
 
 from app.core.config import get_settings
 from app.ingestion.loaders.image_loader import load_image_file
-from app.ingestion.loaders.pdf_loader import load_pdf_image_ocr, load_pdf_text, load_pdf_with_docling, load_pdf_enhanced
+from app.ingestion.loaders.pdf_loader import load_pdf_enhanced, load_pdf_image_ocr, load_pdf_text, load_pdf_with_docling
 from app.ingestion.loaders.text_loader import load_text_file
 
 logger = logging.getLogger(__name__)
@@ -37,11 +37,7 @@ def _extract_charts_once(path: Path, settings) -> list[Document]:
     try:
         from app.ingestion.loaders.pdf_chart_loader import extract_charts_from_pdf
 
-        chart_docs = extract_charts_from_pdf(
-            path,
-            use_vision=True,
-            vision_model=settings.pdf_chart_vision_model
-        )
+        chart_docs = extract_charts_from_pdf(path, use_vision=True, vision_model=settings.pdf_chart_vision_model)
 
         if chart_docs:
             logger.info(f"Extracted {len(chart_docs)} charts from {path.name}")
@@ -111,7 +107,7 @@ def _load_pdf_with_mode(path: Path, pdf_mode: str, settings) -> list[Document]:
             by_page=True,
             enable_cleaning=settings.pdf_enable_cleaning,
             enable_table_merging=settings.pdf_enable_table_merging,
-            enable_nested_table_handling=True  # Always enabled for enhanced mode
+            enable_nested_table_handling=True,  # Always enabled for enhanced mode
         )
         if enhanced_docs:
             logger.info(f"Loaded {path.name} with enhanced processing")

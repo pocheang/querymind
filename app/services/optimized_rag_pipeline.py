@@ -11,15 +11,13 @@ Integrates all speed-optimized components:
 Target: 25-35% accuracy improvement with <1.5s response time
 """
 
-import asyncio
 import logging
 import time
-from typing import Optional
 
-from app.retrievers.multi_path_retriever import MultiPathRetriever
 from app.retrievers.fast_reranker import FastReranker
-from app.services.rule_compressor import RuleBasedCompressor
+from app.retrievers.multi_path_retriever import MultiPathRetriever
 from app.services.adaptive_strategy import AdaptiveStrategyRouter
+from app.services.rule_compressor import RuleBasedCompressor
 from app.services.tracing import traced_span
 
 logger = logging.getLogger(__name__)
@@ -76,7 +74,7 @@ class OptimizedRAGPipeline:
     async def query(
         self,
         query: str,
-        allowed_sources: Optional[list[str]] = None,
+        allowed_sources: list[str] | None = None,
         strategy: str = "auto",
         top_k: int = 10,
     ) -> dict:
@@ -128,6 +126,7 @@ class OptimizedRAGPipeline:
             else:
                 # Fallback to hybrid search
                 from app.retrievers.hybrid_retriever import hybrid_search_with_diagnostics
+
                 retrieved_docs, retrieval_diag = hybrid_search_with_diagnostics(
                     query,
                     allowed_sources=allowed_sources,
@@ -220,7 +219,7 @@ class OptimizedRAGPipeline:
 
             return result
 
-    def _get_cache_key(self, query: str, allowed_sources: Optional[list[str]], strategy: str) -> str:
+    def _get_cache_key(self, query: str, allowed_sources: list[str] | None, strategy: str) -> str:
         """Generate cache key for query."""
         sources_key = ",".join(sorted(allowed_sources)) if allowed_sources else "all"
         return f"{query}|{sources_key}|{strategy}"
@@ -273,7 +272,7 @@ class OptimizedRAGPipeline:
 
 
 # Global pipeline instance
-_pipeline: Optional[OptimizedRAGPipeline] = None
+_pipeline: OptimizedRAGPipeline | None = None
 
 
 def get_optimized_pipeline(
@@ -312,7 +311,7 @@ def get_optimized_pipeline(
 
 async def optimized_query(
     query: str,
-    allowed_sources: Optional[list[str]] = None,
+    allowed_sources: list[str] | None = None,
     strategy: str = "auto",
     top_k: int = 10,
 ) -> dict:

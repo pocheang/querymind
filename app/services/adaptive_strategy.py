@@ -10,7 +10,6 @@ Optimizes average response time while maintaining quality.
 """
 
 import logging
-import re
 from typing import Literal
 
 from app.services.tracing import traced_span
@@ -36,21 +35,59 @@ class QueryComplexityAnalyzer:
 
     def __init__(self):
         self.question_words_en = {
-            "what", "how", "why", "when", "where", "who", "which",
-            "can", "could", "would", "should", "does", "do", "is", "are",
+            "what",
+            "how",
+            "why",
+            "when",
+            "where",
+            "who",
+            "which",
+            "can",
+            "could",
+            "would",
+            "should",
+            "does",
+            "do",
+            "is",
+            "are",
         }
 
         self.question_words_zh = {
-            "什么", "如何", "为什么", "怎么", "哪里", "谁", "哪个",
-            "怎样", "为何", "何时", "何地", "是否", "能否",
+            "什么",
+            "如何",
+            "为什么",
+            "怎么",
+            "哪里",
+            "谁",
+            "哪个",
+            "怎样",
+            "为何",
+            "何时",
+            "何地",
+            "是否",
+            "能否",
         }
 
         self.connectors = {
             # English
-            "and", "or", "also", "as well as", "in addition", "furthermore",
-            "moreover", "besides", "plus",
+            "and",
+            "or",
+            "also",
+            "as well as",
+            "in addition",
+            "furthermore",
+            "moreover",
+            "besides",
+            "plus",
             # Chinese
-            "和", "与", "以及", "还有", "另外", "并且", "同时", "而且",
+            "和",
+            "与",
+            "以及",
+            "还有",
+            "另外",
+            "并且",
+            "同时",
+            "而且",
         }
 
         self.complexity_indicators = {
@@ -280,8 +317,7 @@ class AdaptiveStrategyRouter:
         strategy_config = self.strategies[strategy_name]
 
         logger.info(
-            f"Routing query to '{strategy_name}' strategy "
-            f"(complexity: {complexity}, score: {analysis['score']:.1f})"
+            f"Routing query to '{strategy_name}' strategy (complexity: {complexity}, score: {analysis['score']:.1f})"
         )
 
         return strategy_name, {

@@ -1,12 +1,15 @@
 """Integration tests for session language tracking."""
+
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import MagicMock, patch
+
 from app.graph.nodes.synthesis_node import synthesis_node
 from app.graph.state import GraphState
 from app.services.session_language import (
-    get_language_preference,
-    get_language_history,
     clear_all_history,
+    get_language_history,
+    get_language_preference,
 )
 
 
@@ -18,13 +21,11 @@ def clean_history():
     clear_all_history()
 
 
-@patch('app.agents.synthesis_agent.synthesize_answer')
-@patch('app.services.citation_grounding.apply_sentence_grounding')
-@patch('app.services.answer_safety.sanitize_answer')
-@patch('app.services.explainability.build_explainability_report')
-def test_synthesis_node_updates_language_history(
-    mock_explainability, mock_sanitize, mock_grounding, mock_synthesize
-):
+@patch("app.agents.synthesis_agent.synthesize_answer")
+@patch("app.services.citation_grounding.apply_sentence_grounding")
+@patch("app.services.answer_safety.sanitize_answer")
+@patch("app.services.explainability.build_explainability_report")
+def test_synthesis_node_updates_language_history(mock_explainability, mock_sanitize, mock_grounding, mock_synthesize):
     """Test that synthesis_node updates session language history."""
     # Mock the synthesize_answer to return a controlled response
     mock_synthesize.return_value = {
@@ -55,13 +56,11 @@ def test_synthesis_node_updates_language_history(
     assert result["detected_language"] == "zh"
 
 
-@patch('app.agents.synthesis_agent.synthesize_answer')
-@patch('app.services.citation_grounding.apply_sentence_grounding')
-@patch('app.services.answer_safety.sanitize_answer')
-@patch('app.services.explainability.build_explainability_report')
-def test_synthesis_node_tracks_multiple_queries(
-    mock_explainability, mock_sanitize, mock_grounding, mock_synthesize
-):
+@patch("app.agents.synthesis_agent.synthesize_answer")
+@patch("app.services.citation_grounding.apply_sentence_grounding")
+@patch("app.services.answer_safety.sanitize_answer")
+@patch("app.services.explainability.build_explainability_report")
+def test_synthesis_node_tracks_multiple_queries(mock_explainability, mock_sanitize, mock_grounding, mock_synthesize):
     """Test that synthesis_node tracks language across multiple queries."""
     mock_grounding.return_value = ("answer", {})
     mock_sanitize.return_value = ("answer", {})
@@ -108,13 +107,11 @@ def test_synthesis_node_tracks_multiple_queries(
     assert get_language_preference(session_id) == "zh"  # Majority is Chinese
 
 
-@patch('app.agents.synthesis_agent.synthesize_answer')
-@patch('app.services.citation_grounding.apply_sentence_grounding')
-@patch('app.services.answer_safety.sanitize_answer')
-@patch('app.services.explainability.build_explainability_report')
-def test_synthesis_node_no_session_id(
-    mock_explainability, mock_sanitize, mock_grounding, mock_synthesize
-):
+@patch("app.agents.synthesis_agent.synthesize_answer")
+@patch("app.services.citation_grounding.apply_sentence_grounding")
+@patch("app.services.answer_safety.sanitize_answer")
+@patch("app.services.explainability.build_explainability_report")
+def test_synthesis_node_no_session_id(mock_explainability, mock_sanitize, mock_grounding, mock_synthesize):
     """Test that synthesis_node handles missing session_id gracefully."""
     mock_synthesize.return_value = {
         "answer": "答案",
@@ -137,10 +134,10 @@ def test_synthesis_node_no_session_id(
     assert result["detected_language"] == "zh"
 
 
-@patch('app.agents.synthesis_agent.synthesize_answer')
-@patch('app.services.citation_grounding.apply_sentence_grounding')
-@patch('app.services.answer_safety.sanitize_answer')
-@patch('app.services.explainability.build_explainability_report')
+@patch("app.agents.synthesis_agent.synthesize_answer")
+@patch("app.services.citation_grounding.apply_sentence_grounding")
+@patch("app.services.answer_safety.sanitize_answer")
+@patch("app.services.explainability.build_explainability_report")
 def test_synthesis_node_different_sessions_isolated(
     mock_explainability, mock_sanitize, mock_grounding, mock_synthesize
 ):
@@ -183,12 +180,10 @@ def test_synthesis_node_different_sessions_isolated(
     assert get_language_history(session_2) == ["en", "en"]
 
 
-@patch('app.services.query_intent.is_casual_chat_query')
-@patch('app.services.query_intent.quick_smalltalk_reply')
-@patch('app.services.explainability.build_explainability_report')
-def test_synthesis_node_fast_path_smalltalk(
-    mock_explainability, mock_smalltalk, mock_is_casual
-):
+@patch("app.services.query_intent.is_casual_chat_query")
+@patch("app.services.query_intent.quick_smalltalk_reply")
+@patch("app.services.explainability.build_explainability_report")
+def test_synthesis_node_fast_path_smalltalk(mock_explainability, mock_smalltalk, mock_is_casual):
     """Test that fast path smalltalk doesn't break language tracking."""
     mock_is_casual.return_value = True
     mock_smalltalk.return_value = "你好"

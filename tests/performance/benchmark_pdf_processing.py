@@ -1,12 +1,12 @@
 """Performance benchmarking for PDF processing."""
 
-import time
 import json
-import psutil
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List
 import logging
+import time
+from datetime import datetime
+from pathlib import Path
+
+import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +19,7 @@ class PDFBenchmark:
         self.results_file.parent.mkdir(parents=True, exist_ok=True)
         self.process = psutil.Process()
 
-    def benchmark_loader(
-        self,
-        pdf_path: Path,
-        loader_func,
-        mode: str
-    ) -> Dict:
+    def benchmark_loader(self, pdf_path: Path, loader_func, mode: str) -> dict:
         """
         Benchmark a single PDF loader.
 
@@ -64,10 +59,10 @@ class PDFBenchmark:
             "memory_mb": round(mem_peak, 2),
             "num_docs": len(docs),
             "success": success,
-            "error": error
+            "error": error,
         }
 
-    def benchmark_cache_operations(self, cache, pdf_path: Path, num_iterations: int = 100) -> Dict:
+    def benchmark_cache_operations(self, cache, pdf_path: Path, num_iterations: int = 100) -> dict:
         """
         Benchmark cache set/get operations.
 
@@ -99,10 +94,10 @@ class PDFBenchmark:
             "set_time_seconds": round(set_duration, 3),
             "get_time_seconds": round(get_duration, 3),
             "avg_set_ms": round((set_duration / num_iterations) * 1000, 2),
-            "avg_get_ms": round((get_duration / num_iterations) * 1000, 2)
+            "avg_get_ms": round((get_duration / num_iterations) * 1000, 2),
         }
 
-    def benchmark_chart_extraction(self, image_bytes: bytes, num_iterations: int = 10) -> Dict:
+    def benchmark_chart_extraction(self, image_bytes: bytes, num_iterations: int = 10) -> dict:
         """
         Benchmark chart extraction operations.
 
@@ -130,15 +125,12 @@ class PDFBenchmark:
             "iterations": num_iterations,
             "total_time_seconds": round(duration, 2),
             "avg_time_ms": round((duration / num_iterations) * 1000, 2),
-            "memory_mb": round(mem_peak, 2)
+            "memory_mb": round(mem_peak, 2),
         }
 
     def benchmark_sequential_chart_extraction(
-        self,
-        images: List[bytes],
-        mock_api_delay: float = 0.1,
-        warmup_runs: int = 1
-    ) -> Dict:
+        self, images: list[bytes], mock_api_delay: float = 0.1, warmup_runs: int = 1
+    ) -> dict:
         """
         Benchmark sequential chart extraction (baseline).
 
@@ -161,12 +153,14 @@ class PDFBenchmark:
                 "chart_type": "bar",
                 "title": "Test Chart",
                 "data": [{"label": "A", "value": 10}],
-                "description": "Mock chart data"
+                "description": "Mock chart data",
             }
 
         # Patch both the internal functions to avoid actual API calls
-        with patch('app.ingestion.utils.chart_extractor._extract_with_openai', side_effect=mock_extract), \
-             patch('app.ingestion.utils.chart_extractor._extract_with_anthropic', side_effect=mock_extract):
+        with (
+            patch("app.ingestion.utils.chart_extractor._extract_with_openai", side_effect=mock_extract),
+            patch("app.ingestion.utils.chart_extractor._extract_with_anthropic", side_effect=mock_extract),
+        ):
             from app.ingestion.utils.chart_extractor import extract_chart_data_with_vision
 
             # Warmup runs to eliminate first-run overhead
@@ -193,16 +187,12 @@ class PDFBenchmark:
             "total_time_seconds": round(duration, 3),
             "avg_time_per_image_ms": round((duration / num_images) * 1000, 2),
             "memory_mb": round(mem_peak, 2),
-            "success_count": len([r for r in results if "error" not in r])
+            "success_count": len([r for r in results if "error" not in r]),
         }
 
     def benchmark_batch_chart_extraction(
-        self,
-        images: List[bytes],
-        batch_size: int = 5,
-        mock_api_delay: float = 0.1,
-        warmup_runs: int = 1
-    ) -> Dict:
+        self, images: list[bytes], batch_size: int = 5, mock_api_delay: float = 0.1, warmup_runs: int = 1
+    ) -> dict:
         """
         Benchmark batch chart extraction (optimized).
 
@@ -227,22 +217,20 @@ class PDFBenchmark:
                 "chart_type": "bar",
                 "title": "Test Chart",
                 "data": [{"label": "A", "value": 10}],
-                "description": "Mock chart data"
+                "description": "Mock chart data",
             }
 
         # Patch both the internal functions to avoid actual API calls
-        with patch('app.ingestion.utils.chart_extractor._extract_with_openai', side_effect=mock_extract), \
-             patch('app.ingestion.utils.chart_extractor._extract_with_anthropic', side_effect=mock_extract):
+        with (
+            patch("app.ingestion.utils.chart_extractor._extract_with_openai", side_effect=mock_extract),
+            patch("app.ingestion.utils.chart_extractor._extract_with_anthropic", side_effect=mock_extract),
+        ):
             from app.ingestion.utils.batch_chart_extractor import BatchChartExtractor
 
             # Warmup runs to eliminate first-run overhead
             for _ in range(warmup_runs):
                 extractor = BatchChartExtractor(batch_size=batch_size)
-                asyncio.run(extractor.extract_charts_batch(
-                    images,
-                    model="gpt-4o",
-                    api_key="mock_key"
-                ))
+                asyncio.run(extractor.extract_charts_batch(images, model="gpt-4o", api_key="mock_key"))
                 extractor._executor.shutdown(wait=True)
 
             # Actual timed run
@@ -250,11 +238,7 @@ class PDFBenchmark:
             start = time.time()
 
             extractor = BatchChartExtractor(batch_size=batch_size)
-            results = asyncio.run(extractor.extract_charts_batch(
-                images,
-                model="gpt-4o",
-                api_key="mock_key"
-            ))
+            results = asyncio.run(extractor.extract_charts_batch(images, model="gpt-4o", api_key="mock_key"))
             extractor._executor.shutdown(wait=True)
 
             duration = time.time() - start
@@ -268,15 +252,12 @@ class PDFBenchmark:
             "total_time_seconds": round(duration, 3),
             "avg_time_per_image_ms": round((duration / num_images) * 1000, 2),
             "memory_mb": round(mem_peak, 2),
-            "success_count": len([r for r in results if "error" not in r])
+            "success_count": len([r for r in results if "error" not in r]),
         }
 
     def benchmark_chart_extraction_comparison(
-        self,
-        num_images: int = 10,
-        batch_size: int = 5,
-        mock_api_delay: float = 0.1
-    ) -> Dict:
+        self, num_images: int = 10, batch_size: int = 5, mock_api_delay: float = 0.1
+    ) -> dict:
         """
         Compare sequential vs batch chart extraction performance.
 
@@ -289,14 +270,15 @@ class PDFBenchmark:
             Comparison results dict with speedup metrics
         """
         from io import BytesIO
+
         from PIL import Image
 
         # Create test images
         images = []
         for i in range(num_images):
-            img = Image.new('RGB', (800, 600), color=(i * 10 % 255, 100, 150))
+            img = Image.new("RGB", (800, 600), color=(i * 10 % 255, 100, 150))
             buffer = BytesIO()
-            img.save(buffer, format='PNG')
+            img.save(buffer, format="PNG")
             images.append(buffer.getvalue())
 
         logger.info(f"Benchmarking chart extraction: {num_images} images, batch_size={batch_size}")
@@ -327,23 +309,20 @@ class PDFBenchmark:
             "time_saved_seconds": round(time_saved, 3),
             "time_saved_percent": round(time_saved_percent, 1),
             "meets_40_percent_target": meets_target,
-            "target_speedup": 1.67
+            "target_speedup": 1.67,
         }
 
-    def save_results(self, results: List[Dict]):
+    def save_results(self, results: list[dict]):
         """Save benchmark results to JSON file."""
-        output = {
-            "timestamp": datetime.now().isoformat(),
-            "benchmarks": results
-        }
+        output = {"timestamp": datetime.now().isoformat(), "benchmarks": results}
 
-        with open(self.results_file, 'w', encoding='utf-8') as f:
+        with open(self.results_file, "w", encoding="utf-8") as f:
             json.dump(output, f, indent=2, ensure_ascii=False)
 
         logger.info(f"Benchmark results saved to {self.results_file}")
 
 
-def run_benchmarks(pdf_files: List[Path]) -> List[Dict]:
+def run_benchmarks(pdf_files: list[Path]) -> list[dict]:
     """
     Run benchmarks on multiple PDF files.
 
@@ -367,19 +346,11 @@ def run_benchmarks(pdf_files: List[Path]) -> List[Dict]:
         logger.info(f"Benchmarking {pdf_path.name}...")
 
         # Benchmark pypdf (basic)
-        result = benchmark.benchmark_loader(
-            pdf_path,
-            load_pdf_text,
-            "pypdf"
-        )
+        result = benchmark.benchmark_loader(pdf_path, load_pdf_text, "pypdf")
         results.append(result)
 
         # Benchmark docling_enhanced
-        result = benchmark.benchmark_loader(
-            pdf_path,
-            lambda p: load_pdf_enhanced(p, by_page=True),
-            "docling_enhanced"
-        )
+        result = benchmark.benchmark_loader(pdf_path, lambda p: load_pdf_enhanced(p, by_page=True), "docling_enhanced")
         results.append(result)
 
     # Save results
@@ -388,7 +359,7 @@ def run_benchmarks(pdf_files: List[Path]) -> List[Dict]:
     return results
 
 
-def run_cache_benchmark(pdf_path: Path, num_iterations: int = 100) -> Dict:
+def run_cache_benchmark(pdf_path: Path, num_iterations: int = 100) -> dict:
     """
     Run cache performance benchmark.
 
@@ -399,8 +370,9 @@ def run_cache_benchmark(pdf_path: Path, num_iterations: int = 100) -> Dict:
     Returns:
         Benchmark results dict
     """
-    from app.ingestion.utils.performance import PDFProcessingCache
     import tempfile
+
+    from app.ingestion.utils.performance import PDFProcessingCache
 
     with tempfile.TemporaryDirectory() as tmpdir:
         cache = PDFProcessingCache(cache_dir=Path(tmpdir))
@@ -408,7 +380,7 @@ def run_cache_benchmark(pdf_path: Path, num_iterations: int = 100) -> Dict:
         return benchmark.benchmark_cache_operations(cache, pdf_path, num_iterations)
 
 
-def run_chart_extraction_benchmark(num_iterations: int = 10) -> Dict:
+def run_chart_extraction_benchmark(num_iterations: int = 10) -> dict:
     """
     Run chart extraction performance benchmark.
 
@@ -419,12 +391,13 @@ def run_chart_extraction_benchmark(num_iterations: int = 10) -> Dict:
         Benchmark results dict
     """
     from io import BytesIO
+
     from PIL import Image
 
     # Create test image
-    img = Image.new('RGB', (1000, 800), color='white')
+    img = Image.new("RGB", (1000, 800), color="white")
     buffer = BytesIO()
-    img.save(buffer, format='PNG')
+    img.save(buffer, format="PNG")
     image_bytes = buffer.getvalue()
 
     benchmark = PDFBenchmark()
@@ -432,10 +405,8 @@ def run_chart_extraction_benchmark(num_iterations: int = 10) -> Dict:
 
 
 def run_batch_chart_extraction_benchmark(
-    num_images: int = 10,
-    batch_size: int = 5,
-    mock_api_delay: float = 0.1
-) -> Dict:
+    num_images: int = 10, batch_size: int = 5, mock_api_delay: float = 0.1
+) -> dict:
     """
     Run batch chart extraction comparison benchmark.
 
@@ -449,17 +420,13 @@ def run_batch_chart_extraction_benchmark(
     """
     benchmark = PDFBenchmark()
     return benchmark.benchmark_chart_extraction_comparison(
-        num_images=num_images,
-        batch_size=batch_size,
-        mock_api_delay=mock_api_delay
+        num_images=num_images, batch_size=batch_size, mock_api_delay=mock_api_delay
     )
 
 
 def run_batch_size_comparison(
-    num_images: int = 20,
-    batch_sizes: List[int] = None,
-    mock_api_delay: float = 0.1
-) -> List[Dict]:
+    num_images: int = 20, batch_sizes: list[int] = None, mock_api_delay: float = 0.1
+) -> list[dict]:
     """
     Compare performance across different batch sizes.
 
@@ -480,42 +447,40 @@ def run_batch_size_comparison(
     for batch_size in batch_sizes:
         logger.info(f"\nTesting batch_size={batch_size}")
         result = benchmark.benchmark_chart_extraction_comparison(
-            num_images=num_images,
-            batch_size=batch_size,
-            mock_api_delay=mock_api_delay
+            num_images=num_images, batch_size=batch_size, mock_api_delay=mock_api_delay
         )
         results.append(result)
 
     return results
 
 
-def print_summary(results: List[Dict]):
+def print_summary(results: list[dict]):
     """Print benchmark summary."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("PDF Processing Benchmark Results")
-    print("="*60)
+    print("=" * 60)
 
     for result in results:
         if "operation" in result:
-            operation = result['operation']
+            operation = result["operation"]
 
             if operation == "chart_extraction_comparison":
                 # Special formatting for comparison results
                 print(f"\n{operation.upper().replace('_', ' ')}")
                 print(f"  Images: {result['num_images']}")
                 print(f"  Batch Size: {result['batch_size']}")
-                print(f"\n  Sequential Processing:")
+                print("\n  Sequential Processing:")
                 print(f"    Time: {result['sequential']['total_time_seconds']}s")
                 print(f"    Avg per image: {result['sequential']['avg_time_per_image_ms']}ms")
                 print(f"    Memory: {result['sequential']['memory_mb']}MB")
-                print(f"\n  Batch Processing:")
+                print("\n  Batch Processing:")
                 print(f"    Time: {result['batch']['total_time_seconds']}s")
                 print(f"    Avg per image: {result['batch']['avg_time_per_image_ms']}ms")
                 print(f"    Memory: {result['batch']['memory_mb']}MB")
-                print(f"\n  Performance Improvement:")
+                print("\n  Performance Improvement:")
                 print(f"    Speedup Factor: {result['speedup_factor']}x")
                 print(f"    Time Saved: {result['time_saved_seconds']}s ({result['time_saved_percent']}%)")
-                target_status = "✓ PASS" if result['meets_40_percent_target'] else "✗ FAIL"
+                target_status = "✓ PASS" if result["meets_40_percent_target"] else "✗ FAIL"
                 print(f"    Meets 40% Target: {target_status}")
             else:
                 # Cache or other chart extraction benchmark
@@ -530,10 +495,10 @@ def print_summary(results: List[Dict]):
             print(f"  Time: {result['time_seconds']}s")
             print(f"  Memory: {result['memory_mb']}MB")
             print(f"  Docs: {result['num_docs']}")
-            if result['error']:
+            if result["error"]:
                 print(f"  Error: {result['error']}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import json
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,7 @@ TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_\\-]+|[\\u4e00-\\u9fff]")
 def tokenize(text: str) -> list[str]:
     return TOKEN_PATTERN.findall((text or "").lower())
 
+
 SHORT_TERM_ROUNDS = 3
 LONG_TERM_WINDOW_SIZE = 20
 LONG_TERM_TOP_N = 5
@@ -27,7 +28,7 @@ LONG_TERM_FALLBACK_K = 2
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _normalize_int(value: Any) -> int:
@@ -164,11 +165,7 @@ def build_long_term_memory_context(
     blocks: list[str] = []
     for idx, item in enumerate(selected, start=1):
         score = float(item.get("score", 0.0) or 0.0)
-        blocks.append(
-            f"[Memory {idx}] score={score:.3f}\n"
-            f"Q: {item.get('question', '')}\n"
-            f"A: {item.get('answer', '')}"
-        )
+        blocks.append(f"[Memory {idx}] score={score:.3f}\nQ: {item.get('question', '')}\nA: {item.get('answer', '')}")
     return "Long-term memory (selected):\n" + "\n\n".join(blocks)
 
 
@@ -221,7 +218,9 @@ class MemoryStore:
                 out.append(item)
         return out
 
-    def add_candidate(self, session_id: str, question: str, answer: str, signals: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    def add_candidate(
+        self, session_id: str, question: str, answer: str, signals: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         session_id = validate_session_id(session_id)
         if not _is_candidate_answer_usable(answer, signals):
             return None
@@ -290,4 +289,6 @@ class MemoryStore:
             key=lambda x: (float(x.get("score", 0.0) or 0.0), x.get("created_at", "")),
             reverse=True,
         )
-        payload["long_term_ids"] = [str(item.get("candidate_id")) for item in ranked[:LONG_TERM_TOP_N] if item.get("candidate_id")]
+        payload["long_term_ids"] = [
+            str(item.get("candidate_id")) for item in ranked[:LONG_TERM_TOP_N] if item.get("candidate_id")
+        ]

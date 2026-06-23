@@ -1,4 +1,5 @@
 """Admin operations routes used by the frontend admin console."""
+
 from __future__ import annotations
 
 import csv
@@ -6,14 +7,13 @@ import io
 import statistics
 import time
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 
-from app.api.utils.error_responses import bad_request
 from app.api.dependencies import (
     _audit,
     _check_chroma_ready,
@@ -31,6 +31,7 @@ from app.api.dependencies import (
     settings,
 )
 from app.api.middleware import get_request_metrics
+from app.api.utils.error_responses import bad_request
 from app.graph.workflow import run_query
 from app.services.consistency_guard import text_similarity
 from app.services.retrieval_profiles import normalize_retrieval_profile, profile_force_local_only
@@ -55,7 +56,7 @@ def _overview_payload(
     action_keyword: str | None,
 ) -> dict[str, Any]:
     window_hours = max(1, min(int(hours or 24), 24 * 7))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff = now - timedelta(hours=window_hours)
 
     audit_rows = auth_service.list_audit_logs(limit=2000)
@@ -83,10 +84,14 @@ def _overview_payload(
     users = auth_service.list_users()
     active_sessions = auth_service.count_active_sessions()
     login_success = sum(
-        1 for row in window_rows if str(row.get("action", "")) == "auth.login" and str(row.get("result", "")).lower() == "success"
+        1
+        for row in window_rows
+        if str(row.get("action", "")) == "auth.login" and str(row.get("result", "")).lower() == "success"
     )
     login_failed = sum(
-        1 for row in window_rows if str(row.get("action", "")) == "auth.login" and str(row.get("result", "")).lower() != "success"
+        1
+        for row in window_rows
+        if str(row.get("action", "")) == "auth.login" and str(row.get("result", "")).lower() != "success"
     )
     query_requests = sum(1 for row in window_rows if str(row.get("action", "")).startswith("query."))
     upload_requests = sum(
@@ -153,7 +158,9 @@ def _overview_payload(
             "admin": sum(1 for row in users if str(row.get("role", "")).lower() == "admin"),
         },
         "top_actions": [{"action": key, "count": value} for key, value in action_counter.most_common(8)],
-        "top_resource_types": [{"resource_type": key, "count": value} for key, value in resource_counter.most_common(8)],
+        "top_resource_types": [
+            {"resource_type": key, "count": value} for key, value in resource_counter.most_common(8)
+        ],
         "top_error_reasons": [{"reason": key, "count": value} for key, value in error_reason_counter.most_common(8)],
         "slow_requests": slow_requests_view,
         "hourly": hourly,
@@ -168,7 +175,7 @@ def _overview_payload(
 
 def _alerts_payload(*, hours: int) -> dict[str, Any]:
     window_hours = max(1, min(int(hours or 24), 24 * 7))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff = now - timedelta(hours=window_hours)
 
     audit_rows = auth_service.list_audit_logs(limit=2000)
@@ -254,8 +261,10 @@ def admin_ops_export_csv(
     user: dict[str, Any] = Depends(_require_user),
 ):
     _require_permission(user, "admin:audit_read", request, "admin")
-    overview = _overview_payload(request=request, hours=hours, actor_user_id=actor_user_id, action_keyword=action_keyword)
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=max(1, min(int(hours or 24), 24 * 7)))
+    overview = _overview_payload(
+        request=request, hours=hours, actor_user_id=actor_user_id, action_keyword=action_keyword
+    )
+    cutoff = datetime.now(UTC) - timedelta(hours=max(1, min(int(hours or 24), 24 * 7)))
     window_rows = _filter_audit_rows(
         rows=auth_service.list_audit_logs(limit=2000),
         cutoff=cutoff,
@@ -275,7 +284,18 @@ def admin_ops_export_csv(
     writer.writerow(["summary", "requests_error", overview["kpi"]["requests_error"]])
     writer.writerow(["summary", "error_rate_percent", overview["kpi"]["error_rate_percent"]])
     writer.writerow([])
-    writer.writerow(["audit_created_at", "actor_user_id", "actor_role", "action", "resource_type", "resource_id", "result", "detail"])
+    writer.writerow(
+        [
+            "audit_created_at",
+            "actor_user_id",
+            "actor_role",
+            "action",
+            "resource_type",
+            "resource_id",
+            "result",
+            "detail",
+        ]
+    )
     for row in window_rows:
         writer.writerow(
             [
@@ -289,7 +309,7 @@ def admin_ops_export_csv(
                 str(row.get("detail", "")),
             ]
         )
-    filename = f"ops_report_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"ops_report_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv"
     return Response(
         content=out.getvalue(),
         media_type="text/csv; charset=utf-8",
@@ -414,7 +434,7 @@ def admin_ops_benchmark_run(
         )
 
     entry = {
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "num_queries": len(queries),
         "strategy": used_profile,
         "latency_ms": {
@@ -455,7 +475,7 @@ def admin_ops_audit_report_md(
     lines = [
         "# Ops Audit Report",
         "",
-        f"- generated_at: {datetime.now(timezone.utc).isoformat()}",
+        f"- generated_at: {datetime.now(UTC).isoformat()}",
         f"- window_hours: {hours}",
         f"- status: {overview.get('status', 'unknown')}",
         "",
@@ -487,7 +507,7 @@ def admin_ops_audit_report_md(
                 f"value={row.get('value')} threshold={row.get('threshold')}"
             )
     text = "\n".join(lines) + "\n"
-    filename = f"ops_audit_report_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.md"
+    filename = f"ops_audit_report_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.md"
     return Response(
         content=text,
         media_type="text/markdown; charset=utf-8",
@@ -513,7 +533,9 @@ def admin_ops_ab_compare(payload: dict[str, Any], request: Request, user: dict[s
     if not question:
         raise bad_request("question is required")
     raw_strategies = payload.get("strategies")
-    strategies = raw_strategies if isinstance(raw_strategies, list) and raw_strategies else ["baseline", "advanced", "safe"]
+    strategies = (
+        raw_strategies if isinstance(raw_strategies, list) and raw_strategies else ["baseline", "advanced", "safe"]
+    )
     normalized = [normalize_retrieval_profile(str(item)) for item in strategies]
     runs: dict[str, Any] = {}
     for strategy in normalized:
@@ -535,8 +557,12 @@ def admin_ops_ab_compare(payload: dict[str, Any], request: Request, user: dict[s
     diff = {}
     for strategy, row in runs.items():
         diff[strategy] = {
-            "answer_similarity_vs_advanced": round(text_similarity(str(base.get("answer", "")), str(row.get("answer", ""))), 4),
-            "latency_delta_ms_vs_advanced": round(float(row.get("latency_ms", 0.0)) - float(base.get("latency_ms", 0.0)), 2),
+            "answer_similarity_vs_advanced": round(
+                text_similarity(str(base.get("answer", "")), str(row.get("answer", ""))), 4
+            ),
+            "latency_delta_ms_vs_advanced": round(
+                float(row.get("latency_ms", 0.0)) - float(base.get("latency_ms", 0.0)), 2
+            ),
             "grounding_delta_vs_advanced": round(
                 float(row.get("grounding_support_ratio", 0.0)) - float(base.get("grounding_support_ratio", 0.0)),
                 4,
@@ -554,8 +580,8 @@ def admin_ops_autotune(payload: dict[str, Any], request: Request, user: dict[str
     if not trends:
         raise bad_request("no replay trends found; run replay first")
     latest = trends[-1]
-    latest_p95 = float(((latest.get("latency_ms", {}) or {}).get("p95", 0.0) or 0.0))
-    latest_grounding = float(((latest.get("grounding_support_ratio", {}) or {}).get("avg", 0.0) or 0.0))
+    latest_p95 = float((latest.get("latency_ms", {}) or {}).get("p95", 0.0) or 0.0)
+    latest_grounding = float((latest.get("grounding_support_ratio", {}) or {}).get("avg", 0.0) or 0.0)
     patch: dict[str, Any] = {}
     if latest_p95 > target_p95:
         patch["TOP_K"] = max(2, int(settings.top_k) - 1)
@@ -618,7 +644,7 @@ def admin_ops_replay_run(
     return {
         "ok": True,
         "summary": {
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "strategy": strategy,
             "num_questions": len(questions),
         },

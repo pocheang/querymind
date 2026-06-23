@@ -1,9 +1,7 @@
 import threading
-from typing import Optional
 
 from langgraph.graph import END, START, StateGraph
 
-from app.agents.vector_rag_agent import run_vector_rag
 from app.graph.nodes import (
     adaptive_planner_node,
     entry_decider_node,
@@ -14,14 +12,14 @@ from app.graph.nodes import (
     router_node,
     synthesis_node,
     vector_decider_node,
-    vector_node as _vector_node_impl,
     web_node,
 )
-from app.graph.routing.route_logic import route_after_graph, route_after_router, route_after_vector
+from app.graph.nodes import (
+    vector_node as _vector_node_impl,
+)
 from app.graph.state import GraphState
-from app.services.hybrid_executor import submit_hybrid
-from app.services.tracing import traced_span
 from app.services.agent_execution_tracker import get_tracker, track_agent_execution
+from app.services.tracing import traced_span
 
 _WORKFLOW_LOCK = threading.Lock()
 _WORKFLOW_APP = None
@@ -36,62 +34,64 @@ def vector_node(state: GraphState) -> GraphState:
 
 
 @track_agent_execution(agent_name="router")
-def _tracked_router_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_router_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return router_node(state)
 
 
 @track_agent_execution(agent_name="adaptive_planner")
-def _tracked_adaptive_planner_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_adaptive_planner_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return adaptive_planner_node(state)
 
 
 @track_agent_execution(agent_name="entry_decider")
-def _tracked_entry_decider_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_entry_decider_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return entry_decider_node(state)
 
 
 @track_agent_execution(agent_name="vector")
-def _tracked_vector_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_vector_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return _vector_node_impl(state)
 
 
 @track_agent_execution(agent_name="vector_decider")
-def _tracked_vector_decider_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_vector_decider_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return vector_decider_node(state)
 
 
 @track_agent_execution(agent_name="graph")
-def _tracked_graph_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_graph_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return graph_node(state)
 
 
 @track_agent_execution(agent_name="graph_decider")
-def _tracked_graph_decider_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_graph_decider_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return graph_decider_node(state)
 
 
 @track_agent_execution(agent_name="web")
-def _tracked_web_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_web_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return web_node(state)
 
 
 @track_agent_execution(agent_name="synthesis")
-def _tracked_synthesis_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_synthesis_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return synthesis_node(state)
 
 
 @track_agent_execution(agent_name="react")
-def _tracked_react_node(state: GraphState, execution_id: Optional[str] = None) -> GraphState:
+def _tracked_react_node(state: GraphState, execution_id: str | None = None) -> GraphState:
     return react_node(state)
 
 
 def _wrap_node_with_tracking(node_fn, node_name: str):
     """Wrapper that extracts execution_id from state and passes it to tracked node."""
+
     def wrapper(state: GraphState) -> GraphState:
         execution_id = state.get("execution_id")
         if execution_id:
             return node_fn(state, execution_id=execution_id)
         return node_fn(state)
+
     return wrapper
 
 
@@ -147,9 +147,9 @@ def run_query(
     retrieval_strategy: str | None = None,
     force_language: str = "",
     session_id: str = "",
-    execution_id: Optional[str] = None,
+    execution_id: str | None = None,
     enable_tracking: bool = True,
-    user_id: Optional[str] = None,  # 添加 user_id 参数用于追踪
+    user_id: str | None = None,  # 添加 user_id 参数用于追踪
 ) -> GraphState:
     global _WORKFLOW_APP
     if _WORKFLOW_APP is None:

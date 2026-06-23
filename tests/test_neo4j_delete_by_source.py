@@ -1,5 +1,5 @@
-import types
 import sys
+import types
 
 sys.modules.setdefault("neo4j", types.SimpleNamespace(GraphDatabase=types.SimpleNamespace(driver=lambda *a, **k: None)))
 import app.graph.neo4j_client as neo4j_client

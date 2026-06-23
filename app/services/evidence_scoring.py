@@ -12,7 +12,7 @@ def graph_evidence_score(graph_result: dict[str, Any]) -> float:
     if not isinstance(graph_result, dict):
         return 0.0
     explicit_signal = graph_result.get("graph_signal_score")
-    if isinstance(explicit_signal, (int, float)):
+    if isinstance(explicit_signal, int | float):
         return min(1.0, max(0.0, float(explicit_signal)))
     entity_count = len(graph_result.get("entities", []) or [])
     neighbor_count = len(graph_result.get("neighbors", []) or [])
@@ -60,9 +60,9 @@ def evidence_is_sufficient(
     elif min_hits == 2:
         threshold = 0.67  # ~2.0 effective hits
     elif min_hits == 3:
-        threshold = 1.0   # ~3.0 effective hits
+        threshold = 1.0  # ~3.0 effective hits
     else:
-        threshold = 1.0   # ~3.0+ effective hits (capped at 1.0)
+        threshold = 1.0  # ~3.0+ effective hits (capped at 1.0)
 
     # For hybrid route, be more lenient if either vector or graph has strong signal
     if route == "hybrid":

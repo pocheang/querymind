@@ -58,7 +58,9 @@ class Settings(BaseSettings):
     rank_feature_enabled: bool = Field(default=True, alias="RANK_FEATURE_ENABLED")
     rank_feature_source_weight: float = Field(default=0.08, alias="RANK_FEATURE_SOURCE_WEIGHT")
     rank_feature_freshness_weight: float = Field(default=0.07, alias="RANK_FEATURE_FRESHNESS_WEIGHT")
-    rank_feature_retrieval_diversity_weight: float = Field(default=0.05, alias="RANK_FEATURE_RETRIEVAL_DIVERSITY_WEIGHT")
+    rank_feature_retrieval_diversity_weight: float = Field(
+        default=0.05, alias="RANK_FEATURE_RETRIEVAL_DIVERSITY_WEIGHT"
+    )
     dynamic_retrieval_enabled: bool = Field(default=True, alias="DYNAMIC_RETRIEVAL_ENABLED")
     dynamic_vector_top_k_cap: int = Field(default=16, alias="DYNAMIC_VECTOR_TOP_K_CAP")
     dynamic_bm25_top_k_cap: int = Field(default=16, alias="DYNAMIC_BM25_TOP_K_CAP")
@@ -104,14 +106,22 @@ class Settings(BaseSettings):
     graph_rag_enhanced: bool = Field(default=False, alias="GRAPH_RAG_ENHANCED")
     graph_rag_min_pdf_quality: float = Field(default=0.3, alias="GRAPH_RAG_MIN_PDF_QUALITY")
 
-    pdf_loader_mode: str = Field(default="pypdf", alias="PDF_LOADER_MODE")  # pypdf|docling|docling_enhanced|docling_advanced|hybrid
+    pdf_loader_mode: str = Field(
+        default="pypdf", alias="PDF_LOADER_MODE"
+    )  # pypdf|docling|docling_enhanced|docling_advanced|hybrid
     pdf_enable_cleaning: bool = Field(default=True, alias="PDF_ENABLE_CLEANING")  # Remove headers/footers
     pdf_enable_table_merging: bool = Field(default=True, alias="PDF_ENABLE_TABLE_MERGING")  # Merge cross-page tables
-    pdf_enable_chart_extraction: bool = Field(default=False, alias="PDF_ENABLE_CHART_EXTRACTION")  # Extract charts with vision
+    pdf_enable_chart_extraction: bool = Field(
+        default=False, alias="PDF_ENABLE_CHART_EXTRACTION"
+    )  # Extract charts with vision
     pdf_chart_vision_model: str = Field(default="gpt-4-vision", alias="PDF_CHART_VISION_MODEL")  # gpt-4-vision|claude-3
-    pdf_enable_structure_analysis: bool = Field(default=False, alias="PDF_ENABLE_STRUCTURE_ANALYSIS")  # Document structure
+    pdf_enable_structure_analysis: bool = Field(
+        default=False, alias="PDF_ENABLE_STRUCTURE_ANALYSIS"
+    )  # Document structure
     pdf_enable_coreference: bool = Field(default=False, alias="PDF_ENABLE_COREFERENCE")  # Pronoun resolution
-    pdf_enable_formula_enrichment: bool = Field(default=False, alias="PDF_ENABLE_FORMULA_ENRICHMENT")  # Formula semantics
+    pdf_enable_formula_enrichment: bool = Field(
+        default=False, alias="PDF_ENABLE_FORMULA_ENRICHMENT"
+    )  # Formula semantics
     pdf_enable_caching: bool = Field(default=True, alias="PDF_ENABLE_CACHING")  # Cache processing results
     pdf_parallel_workers: int = Field(default=4, alias="PDF_PARALLEL_WORKERS")  # Parallel processing workers
 
@@ -139,7 +149,9 @@ class Settings(BaseSettings):
     # OAuth Configuration
     google_client_id: str = Field(default="", alias="GOOGLE_CLIENT_ID")
     google_client_secret: str = Field(default="", alias="GOOGLE_CLIENT_SECRET")
-    google_redirect_uri: str = Field(default="http://localhost:8000/api/auth/google/callback", alias="OAUTH_REDIRECT_URI")
+    google_redirect_uri: str = Field(
+        default="http://localhost:8000/api/auth/google/callback", alias="OAUTH_REDIRECT_URI"
+    )
 
     query_rate_limit_max_attempts: int = Field(default=30, alias="QUERY_RATE_LIMIT_MAX_ATTEMPTS")
     query_rate_limit_window_seconds: int = Field(default=60, alias="QUERY_RATE_LIMIT_WINDOW_SECONDS")

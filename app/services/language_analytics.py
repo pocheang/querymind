@@ -1,8 +1,9 @@
 """Language usage analytics service for multilingual response system."""
+
 import logging
 import threading
-from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from collections import Counter
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ class LanguageAnalytics:
             session_id: Session identifier
         """
         event = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "query": query[:100],  # Truncate for privacy/storage
             "detected_language": detected_language,
             "force_language": force_language,
@@ -65,8 +66,7 @@ class LanguageAnalytics:
                 self._events = self._events[-10000:]
 
         logger.debug(
-            f"Logged language detection: {detected_language} "
-            f"(forced={bool(force_language)}, session={session_id})"
+            f"Logged language detection: {detected_language} (forced={bool(force_language)}, session={session_id})"
         )
 
     def get_statistics(self) -> dict[str, Any]:

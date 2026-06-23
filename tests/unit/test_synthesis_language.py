@@ -1,6 +1,6 @@
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from app.agents.synthesis_agent import synthesize_answer, _build_prompt_with_language
+from unittest.mock import MagicMock, Mock, patch
+
+from app.agents.synthesis_agent import _build_prompt_with_language, synthesize_answer
 
 
 def test_build_prompt_with_language_chinese():
@@ -9,7 +9,7 @@ def test_build_prompt_with_language_chinese():
         question="什么是RAG？",
         detected_language="zh",
         skill_name="answer_with_citations",
-        vector_context="RAG是检索增强生成..."
+        vector_context="RAG是检索增强生成...",
     )
 
     assert "[Language: zh]" in prompt
@@ -23,7 +23,7 @@ def test_build_prompt_with_language_english():
         question="What is RAG?",
         detected_language="en",
         skill_name="answer_with_citations",
-        vector_context="RAG is Retrieval-Augmented Generation..."
+        vector_context="RAG is Retrieval-Augmented Generation...",
     )
 
     assert "[Language: en]" in prompt
@@ -45,9 +45,7 @@ def test_synthesize_answer_detects_chinese(mock_bulkhead, mock_get_chat_model, m
 
     # Call synthesize_answer
     result = synthesize_answer(
-        question="什么是RAG？",
-        skill_name="answer_with_citations",
-        vector_context="RAG是检索增强生成..."
+        question="什么是RAG？", skill_name="answer_with_citations", vector_context="RAG是检索增强生成..."
     )
 
     # Verify language detection was called
@@ -78,7 +76,7 @@ def test_synthesize_answer_detects_english(mock_bulkhead, mock_get_chat_model, m
     result = synthesize_answer(
         question="What is RAG?",
         skill_name="answer_with_citations",
-        vector_context="RAG is Retrieval-Augmented Generation..."
+        vector_context="RAG is Retrieval-Augmented Generation...",
     )
 
     # Verify language detection was called
@@ -104,11 +102,7 @@ def test_synthesize_answer_force_language_override(mock_bulkhead, mock_get_chat_
     mock_bulkhead.return_value.__exit__ = Mock()
 
     # Call with force_language='en' on Chinese question
-    result = synthesize_answer(
-        question="什么是RAG？",
-        skill_name="answer_with_citations",
-        force_language="en"
-    )
+    result = synthesize_answer(question="什么是RAG？", skill_name="answer_with_citations", force_language="en")
 
     # Verify detect_language was NOT called (force_language overrides)
     mock_detect_language.assert_not_called()
@@ -127,10 +121,7 @@ def test_synthesize_answer_returns_fallback_on_error(mock_bulkhead, mock_get_cha
     mock_get_chat_model.side_effect = Exception("LLM service unavailable")
 
     # Call synthesize_answer
-    result = synthesize_answer(
-        question="什么是RAG？",
-        skill_name="answer_with_citations"
-    )
+    result = synthesize_answer(question="什么是RAG？", skill_name="answer_with_citations")
 
     # Verify fallback message is returned
     assert isinstance(result, dict)

@@ -59,7 +59,7 @@ class RuntimeMetrics:
                 lines.append(f'{name}_seconds{{quantile="{q}"}} {arr[idx]:.6f}')
             lines.append(f"{name}_seconds_sum {total:.6f}")
             lines.append(f"{name}_seconds_count {count}")
-        lines.append(f'process_time_seconds {time.time():.6f}')
+        lines.append(f"process_time_seconds {time.time():.6f}")
         return "\n".join(lines) + "\n"
 
 

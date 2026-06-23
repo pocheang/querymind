@@ -1,14 +1,13 @@
 """Advanced PDF loader with all enhancements integrated."""
 
-from pathlib import Path
-from typing import List
 import logging
+from pathlib import Path
 
 from langchain_core.documents import Document
 
 from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced
-from app.ingestion.utils.document_structure import extract_document_structure, add_section_metadata
 from app.ingestion.utils.coreference import simple_coreference_resolution
+from app.ingestion.utils.document_structure import add_section_metadata, extract_document_structure
 from app.ingestion.utils.formula_extractor import enrich_text_with_formulas
 
 logger = logging.getLogger(__name__)
@@ -21,8 +20,8 @@ def load_pdf_advanced(
     enable_coreference: bool = True,
     enable_formula_enrichment: bool = True,
     enable_cleaning: bool = True,
-    enable_table_merging: bool = True
-) -> List[Document]:
+    enable_table_merging: bool = True,
+) -> list[Document]:
     """
     Load PDF with all advanced processing features.
 
@@ -50,7 +49,7 @@ def load_pdf_advanced(
         by_page=by_page,
         enable_cleaning=enable_cleaning,
         enable_table_merging=enable_table_merging,
-        enable_nested_table_handling=True
+        enable_nested_table_handling=True,
     )
 
     if not docs:
@@ -68,26 +67,23 @@ def load_pdf_advanced(
             # Step 1: Formula enrichment (optional)
             if enable_formula_enrichment:
                 content = enrich_text_with_formulas(content)
-                metadata['formula_enrichment'] = True
+                metadata["formula_enrichment"] = True
 
             # Step 2: Coreference resolution (optional)
             if enable_coreference:
                 content = simple_coreference_resolution(content)
-                metadata['coreference_resolved'] = True
+                metadata["coreference_resolved"] = True
 
             # Step 3: Document structure (optional)
             if enable_structure:
-                sections = extract_document_structure(content, page=metadata.get('page'))
+                sections = extract_document_structure(content, page=metadata.get("page"))
                 if sections:
                     content = add_section_metadata(content, sections)
-                    metadata['sections_count'] = len(sections)
-                    metadata['has_structure'] = True
+                    metadata["sections_count"] = len(sections)
+                    metadata["has_structure"] = True
 
             # Create processed document
-            processed_doc = Document(
-                page_content=content,
-                metadata=metadata
-            )
+            processed_doc = Document(page_content=content, metadata=metadata)
             processed_docs.append(processed_doc)
 
         except Exception as e:

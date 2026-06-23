@@ -1,10 +1,10 @@
 import json
-import pytest
-from pathlib import Path
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
-import tempfile
 import shutil
+import tempfile
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
 
 from app.ingestion.utils.monitoring import PDFProcessingMetrics
 
@@ -68,12 +68,12 @@ class TestRecordProcessing:
             cache_hit=True,
             api_calls=3,
             num_pages=10,
-            error=None
+            error=None,
         )
 
         assert monitoring.metrics_file.exists()
 
-        with open(monitoring.metrics_file, 'r', encoding='utf-8') as f:
+        with open(monitoring.metrics_file, encoding="utf-8") as f:
             line = f.readline()
             metric = json.loads(line)
 
@@ -96,10 +96,10 @@ class TestRecordProcessing:
             cache_hit=False,
             api_calls=0,
             num_pages=0,
-            error="PDF parsing failed"
+            error="PDF parsing failed",
         )
 
-        with open(monitoring.metrics_file, 'r', encoding='utf-8') as f:
+        with open(monitoring.metrics_file, encoding="utf-8") as f:
             line = f.readline()
             metric = json.loads(line)
 
@@ -115,11 +115,11 @@ class TestRecordProcessing:
             memory_mb=100.0,
             cache_hit=True,
             api_calls=1,
-            num_pages=5
+            num_pages=5,
         )
 
-        content = monitoring.metrics_file.read_text(encoding='utf-8')
-        lines = content.strip().split('\n')
+        content = monitoring.metrics_file.read_text(encoding="utf-8")
+        lines = content.strip().split("\n")
 
         assert len(lines) == 1
         metric = json.loads(lines[0])
@@ -135,10 +135,10 @@ class TestRecordProcessing:
                 memory_mb=100.0 + i,
                 cache_hit=i % 2 == 0,
                 api_calls=i,
-                num_pages=5 + i
+                num_pages=5 + i,
             )
 
-        with open(monitoring.metrics_file, 'r', encoding='utf-8') as f:
+        with open(monitoring.metrics_file, encoding="utf-8") as f:
             lines = f.readlines()
 
         assert len(lines) == 3
@@ -160,10 +160,10 @@ class TestRecordProcessing:
             memory_mb=100.0,
             cache_hit=True,
             api_calls=1,
-            num_pages=5
+            num_pages=5,
         )
 
-        with open(monitoring.metrics_file, 'r', encoding='utf-8') as f:
+        with open(monitoring.metrics_file, encoding="utf-8") as f:
             metric = json.loads(f.readline())
 
         assert abs(metric["file_size_mb"] - expected_size_mb) < 0.0001
@@ -179,12 +179,12 @@ class TestRecordProcessing:
             memory_mb=100.0,
             cache_hit=True,
             api_calls=1,
-            num_pages=5
+            num_pages=5,
         )
 
         after = datetime.now()
 
-        with open(monitoring.metrics_file, 'r', encoding='utf-8') as f:
+        with open(monitoring.metrics_file, encoding="utf-8") as f:
             metric = json.loads(f.readline())
 
         timestamp = datetime.fromisoformat(metric["timestamp"])
@@ -215,11 +215,11 @@ class TestGetSummary:
             "cache_hit": True,
             "api_calls": 1,
             "num_pages": 5,
-            "error": None
+            "error": None,
         }
 
-        with open(monitoring.metrics_file, 'w', encoding='utf-8') as f:
-            f.write(json.dumps(metric, ensure_ascii=False) + '\n')
+        with open(monitoring.metrics_file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(metric, ensure_ascii=False) + "\n")
 
         result = monitoring.get_summary(days=7)
 
@@ -243,7 +243,7 @@ class TestGetSummary:
                 cache_hit=data["cache_hit"],
                 api_calls=data["api_calls"],
                 num_pages=5,
-                error=data["error"]
+                error=data["error"],
             )
 
         result = monitoring.get_summary(days=7)
@@ -253,7 +253,7 @@ class TestGetSummary:
         assert result["avg_time_seconds"] == 2.0  # (1 + 2 + 3) / 3
         assert result["total_api_calls"] == 6  # 2 + 3 + 1
         assert result["estimated_cost_usd"] == 0.06  # 6 * 0.01
-        assert result["cache_hit_rate"] == pytest.approx(2/3)  # 2 hits out of 3
+        assert result["cache_hit_rate"] == pytest.approx(2 / 3)  # 2 hits out of 3
 
     def test_get_summary_cache_hit_rate(self, monitoring, temp_pdf_file):
         """Verify cache hit rate calculation."""
@@ -265,7 +265,7 @@ class TestGetSummary:
                 memory_mb=100.0,
                 cache_hit=i < 3,  # 3 hits, 1 miss
                 api_calls=1,
-                num_pages=5
+                num_pages=5,
             )
 
         result = monitoring.get_summary(days=7)
@@ -283,7 +283,7 @@ class TestGetSummary:
                 cache_hit=True,
                 api_calls=1,
                 num_pages=5,
-                error="Error occurred" if i >= 3 else None  # 2 errors, 3 successes
+                error="Error occurred" if i >= 3 else None,  # 2 errors, 3 successes
             )
 
         result = monitoring.get_summary(days=7)
@@ -305,7 +305,7 @@ class TestGetSummary:
             "cache_hit": True,
             "api_calls": 1,
             "num_pages": 5,
-            "error": None
+            "error": None,
         }
 
         # Record recent metrics (2 days ago and now)
@@ -320,7 +320,7 @@ class TestGetSummary:
                 "cache_hit": True,
                 "api_calls": 2,
                 "num_pages": 5,
-                "error": None
+                "error": None,
             },
             {
                 "timestamp": now.isoformat(),
@@ -332,14 +332,14 @@ class TestGetSummary:
                 "cache_hit": False,
                 "api_calls": 1,
                 "num_pages": 5,
-                "error": None
-            }
+                "error": None,
+            },
         ]
 
-        with open(monitoring.metrics_file, 'w', encoding='utf-8') as f:
-            f.write(json.dumps(old_metric, ensure_ascii=False) + '\n')
+        with open(monitoring.metrics_file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(old_metric, ensure_ascii=False) + "\n")
             for metric in recent_metrics:
-                f.write(json.dumps(metric, ensure_ascii=False) + '\n')
+                f.write(json.dumps(metric, ensure_ascii=False) + "\n")
 
         result = monitoring.get_summary(days=7)
 
@@ -363,7 +363,7 @@ class TestGetSummary:
             cache_hit=True,
             api_calls=10,
             num_pages=20,
-            error=None
+            error=None,
         )
 
         result = monitoring.get_summary(days=7)
@@ -386,7 +386,7 @@ class TestGetSummary:
                 cache_hit=False,
                 api_calls=0,
                 num_pages=0,
-                error=f"Error {i}"
+                error=f"Error {i}",
             )
 
         result = monitoring.get_summary(days=7)

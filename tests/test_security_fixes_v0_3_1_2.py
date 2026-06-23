@@ -2,6 +2,7 @@
 Security fixes verification for v0.3.1.2
 Tests password policy, cookie security, and login error messages.
 """
+
 import pytest
 
 
@@ -54,12 +55,12 @@ def test_password_policy_valid():
 
 def test_cookie_security_defaults():
     """Test cookie security defaults are hardened in code."""
+
     from app.core.config import Settings
-    from pydantic import Field
 
     # Check the Field default values (not runtime .env overrides)
-    secure_field = Settings.model_fields['auth_cookie_secure']
-    samesite_field = Settings.model_fields['auth_cookie_samesite']
+    secure_field = Settings.model_fields["auth_cookie_secure"]
+    samesite_field = Settings.model_fields["auth_cookie_samesite"]
 
     # Should default to secure=true (HTTPS-only)
     assert secure_field.default is True, "auth_cookie_secure should default to True"
@@ -78,16 +79,10 @@ def test_login_error_message_unified():
     client = TestClient(api_main.app)
 
     # Test with non-existent user
-    res1 = client.post("/auth/login", json={
-        "username": "nonexistent_user_12345",
-        "password": "WrongPassword123!"
-    })
+    res1 = client.post("/auth/login", json={"username": "nonexistent_user_12345", "password": "WrongPassword123!"})
 
     # Test with existing user but wrong password (if default admin exists)
-    res2 = client.post("/auth/login", json={
-        "username": "admin",
-        "password": "WrongPassword123!"
-    })
+    res2 = client.post("/auth/login", json={"username": "admin", "password": "WrongPassword123!"})
 
     # Both should return same generic error message
     assert res1.status_code == 401

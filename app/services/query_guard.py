@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 
 from app.core.config import get_settings
 from app.services.rate_limiter import SlidingWindowLimiter

@@ -13,11 +13,7 @@ def hybrid_weights(settings) -> tuple[float, float]:
     return vector_weight / total, bm25_weight / total
 
 
-def reciprocal_rank_fusion(
-    vector_results: list[dict],
-    bm25_results: list[dict],
-    k: int = 60
-) -> list[dict]:
+def reciprocal_rank_fusion(vector_results: list[dict], bm25_results: list[dict], k: int = 60) -> list[dict]:
     """
     Reciprocal Rank Fusion for combining vector and BM25 results.
 
@@ -52,24 +48,24 @@ def reciprocal_rank_fusion(
     fused = []
     for doc_id, score in scores.items():
         doc = dict(doc_map[doc_id])
-        doc['hybrid_score'] = score
+        doc["hybrid_score"] = score
         fused.append(doc)
 
     # Sort by RRF score descending
-    fused.sort(key=lambda x: x.get('hybrid_score', 0), reverse=True)
+    fused.sort(key=lambda x: x.get("hybrid_score", 0), reverse=True)
 
     return fused
 
 
 def _get_doc_id(doc: dict) -> str:
     """Get unique document ID for deduplication."""
-    metadata = doc.get('metadata', {})
-    source = metadata.get('source', '')
-    chunk_idx = metadata.get('chunk_index', '')
+    metadata = doc.get("metadata", {})
+    source = metadata.get("source", "")
+    chunk_idx = metadata.get("chunk_index", "")
 
     if source:
         return f"{source}_{chunk_idx}"
 
     # Fallback to text hash
-    text = doc.get('text', '') or doc.get('content', '')
+    text = doc.get("text", "") or doc.get("content", "")
     return f"text_{hash(text)}"

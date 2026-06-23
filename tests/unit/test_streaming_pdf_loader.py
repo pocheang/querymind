@@ -61,7 +61,7 @@ def test_load_pdf_streaming_yields_documents_in_chunks():
     mock_docling_module = Mock()
     mock_docling_module.DocumentConverter = Mock(return_value=mock_converter)
 
-    with patch.dict('sys.modules', {'docling.document_converter': mock_docling_module}):
+    with patch.dict("sys.modules", {"docling.document_converter": mock_docling_module}):
         # Create a fake PDF path
         pdf_path = Path("test.pdf")
 
@@ -123,7 +123,7 @@ def test_load_pdf_streaming_skips_empty_pages():
     mock_docling_module = Mock()
     mock_docling_module.DocumentConverter = Mock(return_value=mock_converter)
 
-    with patch.dict('sys.modules', {'docling.document_converter': mock_docling_module}):
+    with patch.dict("sys.modules", {"docling.document_converter": mock_docling_module}):
         pdf_path = Path("test.pdf")
         with patch.object(Path, "exists", return_value=True):
             docs = list(load_pdf_streaming(pdf_path, chunk_pages=1))
@@ -141,7 +141,7 @@ def test_load_pdf_streaming_handles_missing_file():
     mock_docling_module = Mock()
     mock_docling_module.DocumentConverter = Mock()
 
-    with patch.dict('sys.modules', {'docling.document_converter': mock_docling_module}):
+    with patch.dict("sys.modules", {"docling.document_converter": mock_docling_module}):
         pdf_path = Path("/nonexistent/file.pdf")
         docs = list(load_pdf_streaming(pdf_path))
 
@@ -152,8 +152,8 @@ def test_load_pdf_streaming_handles_missing_file():
 def test_load_pdf_streaming_handles_docling_import_error():
     """Test that missing docling dependency is handled."""
     # We need to test this by mocking sys.modules before import
-    import sys
     import importlib
+    import sys
 
     # Save original modules
     original_docling = sys.modules.get("docling")
@@ -172,6 +172,7 @@ def test_load_pdf_streaming_handles_docling_import_error():
 
         # Force reimport of the streaming_pdf_loader module
         from app.ingestion.utils import streaming_pdf_loader
+
         importlib.reload(streaming_pdf_loader)
 
         pdf_path = Path("test.pdf")
@@ -194,6 +195,7 @@ def test_load_pdf_streaming_handles_docling_import_error():
 
         # Reload the module again to restore normal state
         from app.ingestion.utils import streaming_pdf_loader
+
         importlib.reload(streaming_pdf_loader)
 
 
@@ -236,7 +238,7 @@ def test_load_pdf_streaming_continues_on_page_error():
     mock_docling_module = Mock()
     mock_docling_module.DocumentConverter = Mock(return_value=mock_converter)
 
-    with patch.dict('sys.modules', {'docling.document_converter': mock_docling_module}):
+    with patch.dict("sys.modules", {"docling.document_converter": mock_docling_module}):
         pdf_path = Path("test.pdf")
         with patch.object(Path, "exists", return_value=True):
             docs = list(load_pdf_streaming(pdf_path, chunk_pages=1))
@@ -267,7 +269,7 @@ def test_load_pdf_streaming_is_iterator():
     mock_docling_module = Mock()
     mock_docling_module.DocumentConverter = Mock(return_value=mock_converter)
 
-    with patch.dict('sys.modules', {'docling.document_converter': mock_docling_module}):
+    with patch.dict("sys.modules", {"docling.document_converter": mock_docling_module}):
         pdf_path = Path("test.pdf")
         with patch.object(Path, "exists", return_value=True):
             result = load_pdf_streaming(pdf_path)

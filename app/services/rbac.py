@@ -1,6 +1,5 @@
 from typing import Any
 
-
 _ROLE_ACTIONS: dict[str, set[str]] = {
     "admin": {
         "*",  # Admin has all permissions
@@ -30,12 +29,12 @@ _ROLE_ACTIONS: dict[str, set[str]] = {
     },
     "viewer": {
         # Viewers have read-only access with limited actions
-        "query:run",            # Can run queries
-        "session:read",         # Can view sessions
-        "session:create",       # Can create new sessions
-        "message:read",         # Can read messages
-        "prompt:read",          # Can view prompt templates
-        "document:read",        # Can view documents
+        "query:run",  # Can run queries
+        "session:read",  # Can view sessions
+        "session:create",  # Can create new sessions
+        "message:read",  # Can read messages
+        "prompt:read",  # Can view prompt templates
+        "document:read",  # Can view documents
         # Viewers CANNOT: upload, edit, delete, manage prompts/documents
     },
 }

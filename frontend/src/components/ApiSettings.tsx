@@ -33,9 +33,10 @@ async function loadModalStyles() {
 type Props = {
   isOpen: boolean;
   onClose: () => void;
+  isAdmin?: boolean;
 };
 
-export function ApiSettings({ isOpen, onClose }: Props) {
+export function ApiSettings({ isOpen, onClose, isAdmin = false }: Props) {
   const { t } = useTranslation();
   const [config, setConfig] = useState<ApiConfig>(DEFAULT_CONFIG);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -138,6 +139,46 @@ export function ApiSettings({ isOpen, onClose }: Props) {
   };
 
   if (!isOpen) return null;
+
+  // Non-admin users cannot modify settings
+  if (!isAdmin) {
+    return (
+      <>
+        <button
+          type="button"
+          className="api-settings-overlay"
+          onClick={onClose}
+          aria-label={t("components.apiSettings.close")}
+        />
+        <aside className="api-settings-panel" role="dialog" aria-modal="true" aria-labelledby="api-settings-title">
+          <header className="settings-header">
+            <div className="settings-header-content">
+              <div className="settings-icon" aria-hidden="true">API</div>
+              <div>
+                <h2 id="api-settings-title" className="settings-title">{t("components.apiSettings.title")}</h2>
+                <p className="settings-subtitle">{t("components.apiSettings.adminOnlyMessage")}</p>
+              </div>
+            </div>
+            <button type="button" className="close-btn" onClick={onClose} aria-label={t("components.apiSettings.close")}>
+              <span aria-hidden="true">x</span>
+            </button>
+          </header>
+
+          <div className="settings-content">
+            <div className="test-result error" style={{ marginTop: "1rem" }}>
+              {t("components.apiSettings.adminOnlyDetails")}
+            </div>
+          </div>
+
+          <footer className="settings-footer">
+            <button type="button" className="api-btn secondary" onClick={onClose}>
+              {t("components.apiSettings.close")}
+            </button>
+          </footer>
+        </aside>
+      </>
+    );
+  }
 
   return (
     <>

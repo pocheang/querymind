@@ -7,7 +7,11 @@ _NEGATIVE = {"not", "no", "never", "cannot", "can't", "without", "未", "不", "
 
 
 def detect_evidence_conflict(citations: list[dict[str, Any]]) -> dict[str, Any]:
-    texts = [str((c or {}).get("content", "") or "").strip() for c in citations if str((c or {}).get("content", "") or "").strip()]
+    texts = [
+        str((c or {}).get("content", "") or "").strip()
+        for c in citations
+        if str((c or {}).get("content", "") or "").strip()
+    ]
     if len(texts) < 2:
         return {"conflict": False, "score": 0.0, "pairs_checked": 0}
     pairs = 0

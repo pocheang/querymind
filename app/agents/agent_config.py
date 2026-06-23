@@ -88,13 +88,15 @@ AGENT_CLASS_AI: Final[str] = "artificial_intelligence"
 AGENT_CLASS_PDF: Final[str] = "pdf_text"
 AGENT_CLASS_POLICY: Final[str] = "policy"
 
-VALID_AGENT_CLASSES: Final[frozenset[str]] = frozenset({
-    AGENT_CLASS_GENERAL,
-    AGENT_CLASS_CYBERSECURITY,
-    AGENT_CLASS_AI,
-    AGENT_CLASS_PDF,
-    AGENT_CLASS_POLICY,
-})
+VALID_AGENT_CLASSES: Final[frozenset[str]] = frozenset(
+    {
+        AGENT_CLASS_GENERAL,
+        AGENT_CLASS_CYBERSECURITY,
+        AGENT_CLASS_AI,
+        AGENT_CLASS_PDF,
+        AGENT_CLASS_POLICY,
+    }
+)
 
 # ============================================================================
 # Route Types
@@ -103,14 +105,18 @@ VALID_AGENT_CLASSES: Final[frozenset[str]] = frozenset({
 ROUTE_VECTOR: Final[str] = "vector"
 ROUTE_GRAPH: Final[str] = "graph"
 ROUTE_HYBRID: Final[str] = "hybrid"
+ROUTE_REACT: Final[str] = "react"
 ROUTE_WEB: Final[str] = "web"
 
-VALID_ROUTES: Final[frozenset[str]] = frozenset({
-    ROUTE_VECTOR,
-    ROUTE_GRAPH,
-    ROUTE_HYBRID,
-    ROUTE_WEB,
-})
+VALID_ROUTES: Final[frozenset[str]] = frozenset(
+    {
+        ROUTE_VECTOR,
+        ROUTE_GRAPH,
+        ROUTE_HYBRID,
+        ROUTE_REACT,
+        ROUTE_WEB,
+    }
+)
 
 # ============================================================================
 # Skills
@@ -126,17 +132,19 @@ SKILL_INCIDENT_RESPONSE_PLAYBOOK: Final[str] = "incident_response_playbook"
 SKILL_AI_KNOWLEDGE_ASSISTANT: Final[str] = "ai_knowledge_assistant"
 SKILL_PDF_TEXT_READER: Final[str] = "pdf_text_reader"
 
-VALID_SKILLS: Final[frozenset[str]] = frozenset({
-    SKILL_ANSWER_WITH_CITATIONS,
-    SKILL_COMPARE_ENTITIES,
-    SKILL_TIMELINE_BUILDER,
-    SKILL_WEB_FACT_CHECK,
-    SKILL_CYBER_ATTACK_ANALYSIS,
-    SKILL_CYBER_DEFENSE_HARDENING,
-    SKILL_INCIDENT_RESPONSE_PLAYBOOK,
-    SKILL_AI_KNOWLEDGE_ASSISTANT,
-    SKILL_PDF_TEXT_READER,
-})
+VALID_SKILLS: Final[frozenset[str]] = frozenset(
+    {
+        SKILL_ANSWER_WITH_CITATIONS,
+        SKILL_COMPARE_ENTITIES,
+        SKILL_TIMELINE_BUILDER,
+        SKILL_WEB_FACT_CHECK,
+        SKILL_CYBER_ATTACK_ANALYSIS,
+        SKILL_CYBER_DEFENSE_HARDENING,
+        SKILL_INCIDENT_RESPONSE_PLAYBOOK,
+        SKILL_AI_KNOWLEDGE_ASSISTANT,
+        SKILL_PDF_TEXT_READER,
+    }
+)
 
 # Default skill
 SKILL_DEFAULT: Final[str] = SKILL_ANSWER_WITH_CITATIONS

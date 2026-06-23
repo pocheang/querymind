@@ -43,9 +43,18 @@ def _source_score(url: str, allowlist: list[str]) -> float:
         return 0.7
     # Known security/tech domains (could be expanded with a curated list)
     trusted_domains = {
-        "github.com", "stackoverflow.com", "microsoft.com", "apple.com",
-        "mozilla.org", "w3.org", "ietf.org", "owasp.org", "cve.org",
-        "nvd.nist.gov", "cisa.gov", "cert.org"
+        "github.com",
+        "stackoverflow.com",
+        "microsoft.com",
+        "apple.com",
+        "mozilla.org",
+        "w3.org",
+        "ietf.org",
+        "owasp.org",
+        "cve.org",
+        "nvd.nist.gov",
+        "cisa.gov",
+        "cert.org",
     }
     if host in trusted_domains or any(host.endswith(f".{d}") for d in trusted_domains):
         return 0.8

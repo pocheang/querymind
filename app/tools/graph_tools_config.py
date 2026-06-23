@@ -25,21 +25,18 @@ ENTITY_ALIASES: Final[dict[str, str]] = {
     "深度学习": "deep learning",
     "nlp": "natural language processing",
     "自然语言处理": "natural language processing",
-
     # RAG specific
     "rag": "retrieval augmented generation",
     "检索增强生成": "retrieval augmented generation",
     "向量检索": "vector retrieval",
     "vector search": "vector retrieval",
     "向量搜索": "vector retrieval",
-
     # Security
     "网络安全": "cybersecurity",
     "资安": "cybersecurity",
     "信息安全": "information security",
     "infosec": "information security",
     "资讯安全": "information security",
-
     # Database
     "数据库": "database",
     "db": "database",
@@ -47,7 +44,6 @@ ENTITY_ALIASES: Final[dict[str, str]] = {
     "neo4j": "graph database",
     "关系数据库": "relational database",
     "nosql": "nosql database",
-
     # Common tech
     "api": "application programming interface",
     "rest": "representational state transfer",
@@ -56,7 +52,6 @@ ENTITY_ALIASES: Final[dict[str, str]] = {
     "cpu": "central processing unit",
     "显卡": "graphics processing unit",
     "处理器": "central processing unit",
-
     # Cloud & DevOps
     "k8s": "kubernetes",
     "docker": "container",
@@ -70,40 +65,85 @@ ENTITY_ALIASES: Final[dict[str, str]] = {
 # ============================================================================
 
 # Noisy relations to filter out
-NOISY_RELATIONS: Final[frozenset[str]] = frozenset({
-    "related", "关联", "相关",
-    "link", "links", "linked_to",
-    "unknown", "其他", "other",
-    "misc", "general", "通用",
-    "associated", "connected",
-})
+NOISY_RELATIONS: Final[frozenset[str]] = frozenset(
+    {
+        "related",
+        "关联",
+        "相关",
+        "link",
+        "links",
+        "linked_to",
+        "unknown",
+        "其他",
+        "other",
+        "misc",
+        "general",
+        "通用",
+        "associated",
+        "connected",
+    }
+)
 
 # High-value relations (semantic meaning, weighted higher)
-HIGH_VALUE_RELATIONS: Final[frozenset[str]] = frozenset({
-    # Causality
-    "causes", "导致", "leads_to", "引起", "results_in", "产生",
-
-    # Dependency
-    "depends", "依赖", "requires", "需要", "relies_on", "基于",
-
-    # Usage
-    "uses", "利用", "employs", "采用", "applies", "应用",
-
-    # Impact
-    "targets", "攻击", "affects", "影响", "impacts", "作用于",
-
-    # Mitigation
-    "mitigates", "缓解", "prevents", "防止", "protects", "保护",
-
-    # Implementation
-    "implements", "实现", "contains", "包含", "provides", "提供",
-
-    # Transformation
-    "produces", "产生", "generates", "生成", "creates", "创建",
-
-    # Enhancement
-    "improves", "改进", "enhances", "增强", "optimizes", "优化",
-})
+HIGH_VALUE_RELATIONS: Final[frozenset[str]] = frozenset(
+    {
+        # Causality
+        "causes",
+        "导致",
+        "leads_to",
+        "引起",
+        "results_in",
+        "产生",
+        # Dependency
+        "depends",
+        "依赖",
+        "requires",
+        "需要",
+        "relies_on",
+        "基于",
+        # Usage
+        "uses",
+        "利用",
+        "employs",
+        "采用",
+        "applies",
+        "应用",
+        # Impact
+        "targets",
+        "攻击",
+        "affects",
+        "影响",
+        "impacts",
+        "作用于",
+        # Mitigation
+        "mitigates",
+        "缓解",
+        "prevents",
+        "防止",
+        "protects",
+        "保护",
+        # Implementation
+        "implements",
+        "实现",
+        "contains",
+        "包含",
+        "provides",
+        "提供",
+        # Transformation
+        "produces",
+        "generates",
+        "生成",
+        "creates",
+        "创建",
+        # Enhancement
+        "improves",
+        "改进",
+        "enhances",
+        "增强",
+        "optimizes",
+        "优化",
+    }
+)
 
 # ============================================================================
 # Scoring and Ranking Parameters

@@ -1,6 +1,7 @@
 """Tests for rate limiter atomicity fix."""
+
 import threading
-import time
+
 from app.services.rate_limiter import SlidingWindowLimiter
 
 
@@ -14,7 +15,7 @@ def test_rate_limiter_atomic_operation():
 
     # Should be able to acquire 5 times
     for i in range(5):
-        assert limiter.try_acquire(key), f"Attempt {i+1} should succeed"
+        assert limiter.try_acquire(key), f"Attempt {i + 1} should succeed"
 
     # 6th attempt should fail
     assert not limiter.try_acquire(key), "6th attempt should fail"

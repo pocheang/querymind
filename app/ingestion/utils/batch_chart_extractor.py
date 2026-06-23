@@ -1,7 +1,6 @@
 """Batch chart extraction with async concurrency for improved performance."""
 
 import asyncio
-from typing import List, Dict, Optional
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
@@ -27,12 +26,7 @@ class BatchChartExtractor:
         self.batch_size = batch_size
         self._executor = ThreadPoolExecutor(max_workers=batch_size)
 
-    async def extract_charts_batch(
-        self,
-        images: List[bytes],
-        model: str,
-        api_key: str
-    ) -> List[Dict]:
+    async def extract_charts_batch(self, images: list[bytes], model: str, api_key: str) -> list[dict]:
         """
         批量提取图表数据，并发调用API
 
@@ -52,25 +46,20 @@ class BatchChartExtractor:
             return []
 
         total_images = len(images)
-        logger.info(f"Starting batch chart extraction for {total_images} images "
-                   f"(batch_size={self.batch_size})")
+        logger.info(f"Starting batch chart extraction for {total_images} images (batch_size={self.batch_size})")
 
         results = []
 
         # Process in batches to control concurrency
         for batch_idx in range(0, total_images, self.batch_size):
-            batch = images[batch_idx:batch_idx + self.batch_size]
+            batch = images[batch_idx : batch_idx + self.batch_size]
             batch_num = (batch_idx // self.batch_size) + 1
             total_batches = (total_images + self.batch_size - 1) // self.batch_size
 
-            logger.info(f"Processing batch {batch_num}/{total_batches} "
-                       f"({len(batch)} images)")
+            logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} images)")
 
             # Create async tasks for concurrent execution
-            tasks = [
-                self._extract_single_async(img, model, api_key)
-                for img in batch
-            ]
+            tasks = [self._extract_single_async(img, model, api_key) for img in batch]
 
             # Execute concurrently, capturing exceptions
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -80,10 +69,7 @@ class BatchChartExtractor:
             for idx, result in enumerate(batch_results):
                 if isinstance(result, Exception):
                     logger.error(f"Batch {batch_num}, image {idx + 1} failed: {result}")
-                    processed_results.append({
-                        "error": str(result),
-                        "error_type": type(result).__name__
-                    })
+                    processed_results.append({"error": str(result), "error_type": type(result).__name__})
                 else:
                     processed_results.append(result)
 
@@ -94,17 +80,13 @@ class BatchChartExtractor:
         # Log summary
         success_count = sum(1 for r in results if "error" not in r)
         error_count = total_images - success_count
-        logger.info(f"Batch extraction complete: {success_count} succeeded, "
-                   f"{error_count} failed out of {total_images} total")
+        logger.info(
+            f"Batch extraction complete: {success_count} succeeded, {error_count} failed out of {total_images} total"
+        )
 
         return results
 
-    async def _extract_single_async(
-        self,
-        image_bytes: bytes,
-        model: str,
-        api_key: str
-    ) -> Dict:
+    async def _extract_single_async(self, image_bytes: bytes, model: str, api_key: str) -> dict:
         """
         异步提取单个图表
 
@@ -123,11 +105,7 @@ class BatchChartExtractor:
 
         try:
             result = await loop.run_in_executor(
-                self._executor,
-                extract_chart_data_with_vision,
-                image_bytes,
-                model,
-                api_key
+                self._executor, extract_chart_data_with_vision, image_bytes, model, api_key
             )
             return result
         except Exception as e:
@@ -146,16 +124,11 @@ class BatchChartExtractor:
 
     def __del__(self):
         """Cleanup thread pool executor."""
-        if hasattr(self, '_executor'):
+        if hasattr(self, "_executor"):
             self._executor.shutdown(wait=False)
 
 
-async def extract_charts_batch_simple(
-    images: List[bytes],
-    model: str,
-    api_key: str,
-    batch_size: int = 5
-) -> List[Dict]:
+async def extract_charts_batch_simple(images: list[bytes], model: str, api_key: str, batch_size: int = 5) -> list[dict]:
     """
     Convenience function for batch chart extraction.
 

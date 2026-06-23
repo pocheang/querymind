@@ -1,17 +1,14 @@
 """Unit tests for PDF processing cache system."""
 
-import pytest
-import json
-import threading
-import tempfile
 import shutil
+import tempfile
+import threading
 import time
 from pathlib import Path
-from app.ingestion.utils.performance import (
-    PDFProcessingCache,
-    compute_file_hash,
-    compute_config_hash
-)
+
+import pytest
+
+from app.ingestion.utils.performance import PDFProcessingCache, compute_config_hash, compute_file_hash
 
 
 @pytest.fixture

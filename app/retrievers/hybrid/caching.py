@@ -58,6 +58,7 @@ def clear_retrieval_cache() -> None:
     _RETRIEVAL_CACHE = None
     try:
         from app.core.config import get_settings
+
         settings = get_settings()
         backend = cache_backend(settings)
         if backend not in {"redis", "auto"}:
@@ -99,7 +100,10 @@ def cache_lookup(cache_key: str, settings, traced_span_fn):
                     return list(payload.get("results", [])), out_diag
             except Exception as e:
                 import logging
-                logging.getLogger(__name__).debug(f"Redis cache lookup failed, falling back to memory: {type(e).__name__}")
+
+                logging.getLogger(__name__).debug(
+                    f"Redis cache lookup failed, falling back to memory: {type(e).__name__}"
+                )
         cache = get_retrieval_cache(settings)
         cached = cache.get(cache_key)
         if cached:
@@ -128,7 +132,9 @@ def cache_store(cache_key: str, results: list, diagnostics: dict, settings, ttl_
         return
 
     # Use adaptive TTL if provided, otherwise fall back to settings
-    ttl_seconds = ttl_override if ttl_override is not None else int(getattr(settings, "retrieval_cache_ttl_seconds", 45) or 45)
+    ttl_seconds = (
+        ttl_override if ttl_override is not None else int(getattr(settings, "retrieval_cache_ttl_seconds", 45) or 45)
+    )
 
     cache = get_retrieval_cache(settings)
     cache.set(cache_key, (list(results), dict(diagnostics)))

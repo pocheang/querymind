@@ -159,13 +159,12 @@ def split_wide_table(text: str, max_columns: int = 6) -> list[str]:
 
     # Find header line
     header_line = None
-    separator_line = None
 
     for i, line in enumerate(lines):
         if "|" in line:
             header_line = line
             if i + 1 < len(lines) and re.match(r"^\|[\s\-:]+\|", lines[i + 1].strip()):
-                separator_line = lines[i + 1]
+                lines[i + 1]
                 break
 
     if not header_line:

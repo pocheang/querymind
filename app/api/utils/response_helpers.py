@@ -1,6 +1,7 @@
 """
 Query helper functions for the Multi-Agent Local RAG API.
 """
+
 from typing import Any
 
 from fastapi.responses import StreamingResponse

@@ -1,25 +1,20 @@
-import json
 import csv
 import io
+import json
 import threading
-import time
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 import pytest
 
 from app.services.retrieval_logger import (
     RetrievalLog,
-    AnalyticsOverview,
-    AgentStats,
-    DocumentStats,
     RetrievalLogger,
 )
 
 
 def utcnow():
     """Helper to get current UTC time."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TestRetrievalLogModel:

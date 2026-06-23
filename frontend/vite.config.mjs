@@ -36,7 +36,7 @@ function createBackendProxy(rewriteAppBase = false) {
 
 export default defineConfig({
   plugins: [react(), inlineCriticalCSS()],
-  base: "/app/",
+  base: "/",
   resolve: {
     alias: {
       "@": "/src",

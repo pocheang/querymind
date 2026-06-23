@@ -1,4 +1,5 @@
 """Tests for admin language statistics API endpoints."""
+
 import pytest
 
 pytest.importorskip("fastapi")
@@ -194,4 +195,3 @@ class TestLanguageStatsAuthentication:
 
         response = client.delete("/admin/language/stats")
         assert response.status_code == 401
-

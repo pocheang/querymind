@@ -9,24 +9,25 @@ Validates:
 """
 
 import pytest
+
 from app.core.exceptions import (
-    RAGBaseException,
-    VectorStoreException,
     BM25Exception,
-    RerankerException,
-    GraphRetrievalException,
-    RouterAgentException,
-    SynthesisAgentException,
-    WebResearchException,
-    InvalidCredentialsException,
-    SessionExpiredException,
-    InsufficientPermissionsException,
-    OCRException,
-    PDFProcessingException,
     ChunkingException,
     ConfigurationException,
-    ResourceUnavailableException,
+    GraphRetrievalException,
+    InsufficientPermissionsException,
+    InvalidCredentialsException,
+    OCRException,
+    PDFProcessingException,
     QuotaExceededException,
+    RAGBaseException,
+    RerankerException,
+    ResourceUnavailableException,
+    RouterAgentException,
+    SessionExpiredException,
+    SynthesisAgentException,
+    VectorStoreException,
+    WebResearchException,
     wrap_external_exception,
 )
 
@@ -76,10 +77,7 @@ class TestExceptionMessages:
 
     def test_message_with_details(self):
         """Exception with message and details."""
-        exc = VectorStoreException(
-            "Connection failed",
-            details={"host": "localhost", "port": 8000}
-        )
+        exc = VectorStoreException("Connection failed", details={"host": "localhost", "port": 8000})
         assert "Connection failed" in str(exc)
         assert "host=localhost" in str(exc)
         assert "port=8000" in str(exc)
@@ -87,11 +85,7 @@ class TestExceptionMessages:
 
     def test_details_preservation(self):
         """Exception details should be preserved."""
-        details = {
-            "user_id": "user123",
-            "query": "test query",
-            "error_code": 500
-        }
+        details = {"user_id": "user123", "query": "test query", "error_code": 500}
         exc = RouterAgentException("Routing failed", details=details)
 
         assert exc.details["user_id"] == "user123"
@@ -108,11 +102,7 @@ class TestExceptionWrapping:
             raise ValueError("Invalid value")
         except ValueError as e:
             wrapped = wrap_external_exception(
-                e,
-                ConfigurationException,
-                "Configuration validation failed",
-                setting="MODEL_BACKEND",
-                value="invalid"
+                e, ConfigurationException, "Configuration validation failed", setting="MODEL_BACKEND", value="invalid"
             )
 
             assert isinstance(wrapped, ConfigurationException)
@@ -125,11 +115,7 @@ class TestExceptionWrapping:
         original_error = ConnectionError("Connection refused")
 
         wrapped = wrap_external_exception(
-            original_error,
-            ResourceUnavailableException,
-            "Redis connection failed",
-            host="localhost",
-            port=6379
+            original_error, ResourceUnavailableException, "Redis connection failed", host="localhost", port=6379
         )
 
         assert isinstance(wrapped, ResourceUnavailableException)
@@ -181,7 +167,7 @@ class TestRealWorldScenarios:
                 VectorStoreException,
                 "Failed to connect to vector store",
                 collection="local_rag_collection",
-                operation="get"
+                operation="get",
             )
 
             assert isinstance(exc, VectorStoreException)
@@ -191,8 +177,7 @@ class TestRealWorldScenarios:
     def test_authentication_failure_scenario(self):
         """Simulate authentication failure."""
         exc = InvalidCredentialsException(
-            "Invalid username or password",
-            details={"username": "testuser", "ip": "192.168.1.1"}
+            "Invalid username or password", details={"username": "testuser", "ip": "192.168.1.1"}
         )
 
         assert "password" in exc.message.lower()
@@ -202,12 +187,7 @@ class TestRealWorldScenarios:
         """Simulate quota exceeded."""
         exc = QuotaExceededException(
             "Daily query limit exceeded",
-            details={
-                "user_id": "user123",
-                "limit": 100,
-                "current": 105,
-                "reset_time": "2026-06-18T00:00:00Z"
-            }
+            details={"user_id": "user123", "limit": 100, "current": 105, "reset_time": "2026-06-18T00:00:00Z"},
         )
 
         assert exc.details["limit"] == 100

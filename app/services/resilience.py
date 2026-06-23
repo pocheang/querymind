@@ -1,8 +1,9 @@
+import threading
 import time
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
-import threading
-from typing import Any, Callable
+from typing import Any
 
 from app.core.config import get_settings
 
@@ -44,7 +45,7 @@ def call_with_circuit_breaker(name: str, fn: Callable[[], Any]) -> Any:
                 state.fails = 0
                 state.opened_until = 0.0
         return result
-    except Exception as e:
+    except Exception:
         # Failure: increment counter and potentially open circuit
         with _BREAKERS_LOCK:
             state = _BREAKERS.get(name)

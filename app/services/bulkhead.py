@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
 import threading
-from typing import Iterator
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from app.core.config import get_settings
 from app.services.runtime_ops import feature_enabled

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import hashlib
 import json
-from pathlib import Path
 import threading
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from app.api.utils.string_utils import normalize_string
@@ -27,12 +27,12 @@ _STATE: dict[str, Any] = {
         "seed": "shadow",
     },
     "feature_flags": {},
-    "updated_at": datetime.now(timezone.utc).isoformat(),
+    "updated_at": datetime.now(UTC).isoformat(),
 }
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _default_profile() -> str:
@@ -53,7 +53,9 @@ def get_runtime_state() -> dict[str, Any]:
         active = _STATE.get("active_profile")
         updated = str(_STATE.get("updated_at", "") or "")
     return {
-        "active_profile": normalize_retrieval_profile(active if isinstance(active, str) and active else _default_profile()),
+        "active_profile": normalize_retrieval_profile(
+            active if isinstance(active, str) and active else _default_profile()
+        ),
         "config_default_profile": _default_profile(),
         "follow_config_default": not bool(active),
         "canary": {
@@ -117,7 +119,9 @@ def apply_rollback_profile() -> dict[str, Any]:
     return get_runtime_state()
 
 
-def set_shadow(enabled: bool, strategy: str = "baseline", sample_percent: int = 10, seed: str = "shadow") -> dict[str, Any]:
+def set_shadow(
+    enabled: bool, strategy: str = "baseline", sample_percent: int = 10, seed: str = "shadow"
+) -> dict[str, Any]:
     with _LOCK:
         _STATE["shadow"] = {
             "enabled": bool(enabled),

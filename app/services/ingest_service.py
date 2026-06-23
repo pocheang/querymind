@@ -1,13 +1,11 @@
-from pathlib import Path
 import logging
+from pathlib import Path
 from typing import Any
 
-from langchain_core.documents import Document
-
 from app.graph.neo4j_client import Neo4jClient
+from app.ingestion import loaders
 from app.ingestion.chunker import split_documents
 from app.ingestion.graph_extractor import extract_graph_triplets
-from app.ingestion import loaders
 from app.retrievers.bm25_retriever import reset_bm25_cache
 from app.retrievers.corpus_store import documents_to_records, read_corpus_records, write_corpus_records
 from app.retrievers.hybrid_retriever import clear_retrieval_cache
@@ -65,7 +63,7 @@ def ingest_paths(
 
     chunks, parent_records = split_documents(docs)
     records = documents_to_records(chunks)
-    for chunk, record in zip(chunks, records):
+    for chunk, record in zip(chunks, records, strict=False):
         chunk.metadata = record["metadata"]
 
     existing = [] if reset_vector_store else read_corpus_records()

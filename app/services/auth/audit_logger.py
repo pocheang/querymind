@@ -3,7 +3,7 @@ import uuid
 from typing import Any
 
 from app.services.alerting import resolve_signing_secret, sign_payload
-from app.services.auth.utils import now, iso
+from app.services.auth.utils import iso, now
 
 
 def classify_audit_event(action: str, result: str) -> tuple[str, str]:

@@ -2,7 +2,7 @@ import secrets
 from datetime import timedelta
 from typing import Any
 
-from app.services.auth.utils import now, iso, parse_iso
+from app.services.auth.utils import iso, now, parse_iso
 
 
 class SessionManager:
@@ -65,6 +65,18 @@ class SessionManager:
     def touch_session(self, token: str) -> None:
         with self.conn_factory() as conn:
             conn.execute("UPDATE auth_sessions SET last_seen_at=? WHERE token=?", (iso(now()), token))
+
+    def rotate_session_token(
+        self, old_token: str, user_id: str, username: str, role: str, status: str
+    ) -> dict[str, Any]:
+        """
+        安全修复：轮换会话令牌（用于密码更改、角色提升等敏感操作）
+        删除旧令牌，生成新令牌
+        """
+        # 删除旧会话
+        self.delete_session(old_token)
+        # 创建新会话
+        return self.create_session(user_id, username, role, status)
 
     def count_active_sessions(self) -> int:
         now_ts = iso(now())

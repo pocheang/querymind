@@ -4,19 +4,36 @@ _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[一-鿿]")
 
 # Improved sentence splitting that handles common abbreviations and edge cases
 _SENTENCE_SPLIT_RE = re.compile(
-    r'(?<=[。！？])'  # After Chinese punctuation
-    r'|(?<=[.!?])'   # After English punctuation
-    r'(?![.!?])'     # Not followed by more punctuation (handles ellipsis)
+    r"(?<=[。！？])"  # After Chinese punctuation
+    r"|(?<=[.!?])"  # After English punctuation
+    r"(?![.!?])"  # Not followed by more punctuation (handles ellipsis)
     r'(?!\s*["\'])'  # Not followed by closing quote
-    r'(?!\s*\))'     # Not followed by closing parenthesis
-    r'(?!\s+[a-z])'  # Not followed by lowercase (handles abbreviations like "Dr. Smith")
+    r"(?!\s*\))"  # Not followed by closing parenthesis
+    r"(?!\s+[a-z])"  # Not followed by lowercase (handles abbreviations like "Dr. Smith")
 )
 
 # Common abbreviations that should not trigger sentence breaks
 _ABBREVIATIONS = {
-    'dr.', 'mr.', 'mrs.', 'ms.', 'prof.', 'sr.', 'jr.',
-    'e.g.', 'i.e.', 'etc.', 'vs.', 'inc.', 'ltd.', 'corp.',
-    'fig.', 'vol.', 'no.', 'p.', 'pp.', 'ed.',
+    "dr.",
+    "mr.",
+    "mrs.",
+    "ms.",
+    "prof.",
+    "sr.",
+    "jr.",
+    "e.g.",
+    "i.e.",
+    "etc.",
+    "vs.",
+    "inc.",
+    "ltd.",
+    "corp.",
+    "fig.",
+    "vol.",
+    "no.",
+    "p.",
+    "pp.",
+    "ed.",
 }
 
 _HEDGE_MARKERS = ("可能", "或许", "大概率", "根据现有信息", "目前无法确认", "insufficient evidence", "likely")
@@ -38,8 +55,8 @@ def _split_sentences(text: str) -> list[str]:
     protected_text = raw_text
     for abbr in _ABBREVIATIONS:
         # Replace "Dr." with "Dr<ABBR>" temporarily
-        protected_text = protected_text.replace(abbr, abbr.replace('.', '<ABBR>'))
-        protected_text = protected_text.replace(abbr.upper(), abbr.upper().replace('.', '<ABBR>'))
+        protected_text = protected_text.replace(abbr, abbr.replace(".", "<ABBR>"))
+        protected_text = protected_text.replace(abbr.upper(), abbr.upper().replace(".", "<ABBR>"))
 
     # Split sentences
     raw_sentences = _SENTENCE_SPLIT_RE.split(protected_text)
@@ -48,7 +65,7 @@ def _split_sentences(text: str) -> list[str]:
     sentences = []
     for sent in raw_sentences:
         # Restore abbreviations
-        restored = sent.replace('<ABBR>', '.')
+        restored = sent.replace("<ABBR>", ".")
         cleaned = restored.strip()
 
         # Skip empty or very short fragments
@@ -57,8 +74,8 @@ def _split_sentences(text: str) -> list[str]:
 
         # Merge fragments that don't end with proper punctuation back to previous sentence
         # But only if previous sentence exists and current fragment is not too long
-        if sentences and cleaned and cleaned[-1] not in '。！？.!?' and len(cleaned) < 100:
-            sentences[-1] = sentences[-1] + ' ' + cleaned
+        if sentences and cleaned and cleaned[-1] not in "。！？.!?" and len(cleaned) < 100:
+            sentences[-1] = sentences[-1] + " " + cleaned
         else:
             sentences.append(cleaned)
 

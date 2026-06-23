@@ -1,6 +1,8 @@
 """Test schema validation for QueryRequest."""
+
 import pytest
 from pydantic import ValidationError
+
 from app.core.schemas import QueryRequest
 
 

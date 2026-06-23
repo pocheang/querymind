@@ -1,12 +1,13 @@
 """Unit tests for PDF processing cache TTL (Time-To-Live) functionality."""
 
-import pytest
-import json
-import tempfile
 import shutil
+import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from app.ingestion.utils.performance import PDFProcessingCache
 
 
@@ -91,7 +92,7 @@ def test_is_cache_valid_expired_cache(cache_short_ttl, sample_pdf):
     # Mock the file's modification time to be older than TTL
     old_mtime = time.time() - (2 * 24 * 3600)  # 2 days ago
 
-    with patch('pathlib.Path.stat') as mock_stat:
+    with patch("pathlib.Path.stat") as mock_stat:
         mock_stat_result = MagicMock()
         mock_stat_result.st_mtime = old_mtime
         mock_stat.return_value = mock_stat_result
@@ -117,7 +118,7 @@ def test_is_cache_valid_boundary_case(cache_short_ttl, sample_pdf):
     # Mock the file's modification time to be exactly at TTL boundary
     boundary_mtime = time.time() - cache_short_ttl.ttl_seconds
 
-    with patch('pathlib.Path.stat') as mock_stat:
+    with patch("pathlib.Path.stat") as mock_stat:
         mock_stat_result = MagicMock()
         mock_stat_result.st_mtime = boundary_mtime
         mock_stat.return_value = mock_stat_result
@@ -138,7 +139,7 @@ def test_get_with_expired_cache(cache_short_ttl, sample_pdf):
     # Mock the file's modification time to be older than TTL
     old_mtime = time.time() - (2 * 24 * 3600)  # 2 days ago
 
-    with patch('pathlib.Path.stat') as mock_stat:
+    with patch("pathlib.Path.stat") as mock_stat:
         mock_stat_result = MagicMock()
         mock_stat_result.st_mtime = old_mtime
         mock_stat.return_value = mock_stat_result
@@ -183,7 +184,7 @@ def test_cleanup_expired_removes_old_files(cache_short_ttl, sample_pdf):
     assert cache_path2.exists()
 
     # Mock the file's modification time for both to be expired
-    old_mtime = time.time() - (2 * 24 * 3600)  # 2 days ago
+    time.time() - (2 * 24 * 3600)  # 2 days ago
 
     # Patch is_cache_valid instead of stat to avoid breaking glob()
     original_is_cache_valid = cache_short_ttl.is_cache_valid
@@ -194,7 +195,7 @@ def test_cleanup_expired_removes_old_files(cache_short_ttl, sample_pdf):
             return False
         return original_is_cache_valid(path)
 
-    with patch.object(cache_short_ttl, 'is_cache_valid', side_effect=mock_is_cache_valid):
+    with patch.object(cache_short_ttl, "is_cache_valid", side_effect=mock_is_cache_valid):
         # cleanup_expired should remove expired files
         cleaned = cache_short_ttl.cleanup_expired()
         assert cleaned == 2  # Both files are expired in this mock
@@ -234,7 +235,7 @@ def test_cleanup_expired_returns_count(cache_short_ttl, sample_pdf):
             return False
         return original_is_cache_valid(path)
 
-    with patch.object(cache_short_ttl, 'is_cache_valid', side_effect=mock_is_cache_valid):
+    with patch.object(cache_short_ttl, "is_cache_valid", side_effect=mock_is_cache_valid):
         cleaned = cache_short_ttl.cleanup_expired()
         assert cleaned == 3
 
@@ -251,7 +252,7 @@ def test_cleanup_expired_handles_exceptions(cache_with_ttl, sample_pdf):
     cache_with_ttl.set(sample_pdf, "op1", {"data": 1})
 
     # Mock stat to raise an exception
-    with patch('pathlib.Path.stat', side_effect=OSError("Permission denied")):
+    with patch("pathlib.Path.stat", side_effect=OSError("Permission denied")):
         # Should not raise, should handle gracefully
         cleaned = cache_with_ttl.cleanup_expired()
         assert cleaned == 0
@@ -285,7 +286,7 @@ def test_get_cache_stats_with_expired_files(cache_short_ttl, sample_pdf):
 
     # Get the actual cache paths
     cache_path1 = cache_short_ttl.get_cache_path(sample_pdf, "op1")
-    cache_path2 = cache_short_ttl.get_cache_path(sample_pdf, "op2")
+    cache_short_ttl.get_cache_path(sample_pdf, "op2")
 
     # Mock one file as expired by patching is_cache_valid
     original_is_cache_valid = cache_short_ttl.is_cache_valid
@@ -295,7 +296,7 @@ def test_get_cache_stats_with_expired_files(cache_short_ttl, sample_pdf):
             return False  # op1 is expired
         return original_is_cache_valid(path)
 
-    with patch.object(cache_short_ttl, 'is_cache_valid', side_effect=mock_is_cache_valid):
+    with patch.object(cache_short_ttl, "is_cache_valid", side_effect=mock_is_cache_valid):
         stats = cache_short_ttl.get_cache_stats()
 
         assert stats["total_files"] == 2
@@ -332,7 +333,7 @@ def test_get_cache_stats_handles_exceptions(cache_with_ttl, sample_pdf):
     cache_with_ttl.set(sample_pdf, "op1", {"data": 1})
 
     # Mock stat to raise an exception
-    with patch('pathlib.Path.stat', side_effect=OSError("Permission denied")):
+    with patch("pathlib.Path.stat", side_effect=OSError("Permission denied")):
         # Should not raise, should handle gracefully
         stats = cache_with_ttl.get_cache_stats()
         assert isinstance(stats, dict)

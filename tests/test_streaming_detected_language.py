@@ -1,6 +1,6 @@
 """Test that streaming responses include detected_language field."""
-import pytest
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import MagicMock, patch
 
 
 def test_streaming_final_payload_includes_detected_language():
@@ -8,38 +8,27 @@ def test_streaming_final_payload_includes_detected_language():
     from app.graph.streaming.stream_processor import run_query_stream
 
     # Mock all the dependencies
-    with patch("app.graph.streaming.stream_processor.decide_route") as mock_route, \
-         patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan, \
-         patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual, \
-         patch("app.graph.streaming.stream_processor.stream_synthesize_answer") as mock_stream_synth, \
-         patch("app.graph.streaming.stream_processor.apply_sentence_grounding") as mock_grounding, \
-         patch("app.graph.streaming.stream_processor.sanitize_answer") as mock_sanitize, \
-         patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain, \
-         patch("app.graph.streaming.stream_processor.safe_vector_result") as mock_vector:
-
+    with (
+        patch("app.graph.streaming.stream_processor.decide_route") as mock_route,
+        patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan,
+        patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual,
+        patch("app.graph.streaming.stream_processor.stream_synthesize_answer") as mock_stream_synth,
+        patch("app.graph.streaming.stream_processor.apply_sentence_grounding") as mock_grounding,
+        patch("app.graph.streaming.stream_processor.sanitize_answer") as mock_sanitize,
+        patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain,
+        patch("app.graph.streaming.stream_processor.safe_vector_result") as mock_vector,
+    ):
         # Setup mocks
         mock_route.return_value = MagicMock(
-            route="vector",
-            reason="test_reason",
-            skill="answer_with_citations",
-            agent_class="general"
+            route="vector", reason="test_reason", skill="answer_with_citations", agent_class="general"
         )
         mock_plan.return_value = MagicMock(
-            route="vector",
-            reason="test_plan",
-            level="L1",
-            min_vector_hits=2,
-            prefer_graph=False,
-            prefer_web=False
+            route="vector", reason="test_plan", level="L1", min_vector_hits=2, prefer_graph=False, prefer_web=False
         )
         mock_casual.return_value = False
 
         # Mock vector result
-        mock_vector.return_value = {
-            "context": "test context",
-            "citations": [],
-            "retrieved_count": 3
-        }
+        mock_vector.return_value = {"context": "test context", "citations": [], "retrieved_count": 3}
 
         # Mock streaming synthesis to emit metadata with detected_language
         def mock_stream_gen(*args, **kwargs):
@@ -58,12 +47,9 @@ def test_streaming_final_payload_includes_detected_language():
         mock_explain.return_value = {}
 
         # Run the streaming query
-        events = list(run_query_stream(
-            question="测试问题",
-            use_web_fallback=False,
-            use_reasoning=False,
-            force_language=""
-        ))
+        events = list(
+            run_query_stream(question="测试问题", use_web_fallback=False, use_reasoning=False, force_language="")
+        )
 
         # Find the final "done" event
         done_events = [e for e in events if e.get("type") == "done"]
@@ -85,12 +71,9 @@ def test_streaming_timeout_payload_includes_detected_language():
         mock_deadline.return_value = True
 
         # Run the streaming query
-        events = list(run_query_stream(
-            question="测试问题",
-            use_web_fallback=False,
-            use_reasoning=False,
-            force_language="en"
-        ))
+        events = list(
+            run_query_stream(question="测试问题", use_web_fallback=False, use_reasoning=False, force_language="en")
+        )
 
         # Find the final "done" event
         done_events = [e for e in events if e.get("type") == "done"]
@@ -108,38 +91,26 @@ def test_streaming_smalltalk_includes_detected_language():
     from app.graph.streaming.stream_processor import run_query_stream
 
     # Mock dependencies
-    with patch("app.graph.streaming.stream_processor.decide_route") as mock_route, \
-         patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan, \
-         patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual, \
-         patch("app.graph.streaming.stream_processor.quick_smalltalk_reply") as mock_smalltalk, \
-         patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain:
-
+    with (
+        patch("app.graph.streaming.stream_processor.decide_route") as mock_route,
+        patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan,
+        patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual,
+        patch("app.graph.streaming.stream_processor.quick_smalltalk_reply") as mock_smalltalk,
+        patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain,
+    ):
         # Setup mocks
         mock_route.return_value = MagicMock(
-            route="vector",
-            reason="test_reason",
-            skill="smalltalk",
-            agent_class="general"
+            route="vector", reason="test_reason", skill="smalltalk", agent_class="general"
         )
         mock_plan.return_value = MagicMock(
-            route="vector",
-            reason="test_plan",
-            level="L1",
-            min_vector_hits=2,
-            prefer_graph=False,
-            prefer_web=False
+            route="vector", reason="test_plan", level="L1", min_vector_hits=2, prefer_graph=False, prefer_web=False
         )
         mock_casual.return_value = True
         mock_smalltalk.return_value = "你好！"
         mock_explain.return_value = {}
 
         # Run the streaming query
-        events = list(run_query_stream(
-            question="你好",
-            use_web_fallback=False,
-            use_reasoning=False,
-            force_language=""
-        ))
+        events = list(run_query_stream(question="你好", use_web_fallback=False, use_reasoning=False, force_language=""))
 
         # Find the final "done" event
         done_events = [e for e in events if e.get("type") == "done"]
@@ -157,38 +128,27 @@ def test_streaming_detected_language_defaults_to_zh():
     from app.graph.streaming.stream_processor import run_query_stream
 
     # Mock all the dependencies
-    with patch("app.graph.streaming.stream_processor.decide_route") as mock_route, \
-         patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan, \
-         patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual, \
-         patch("app.graph.streaming.stream_processor.stream_synthesize_answer") as mock_stream_synth, \
-         patch("app.graph.streaming.stream_processor.apply_sentence_grounding") as mock_grounding, \
-         patch("app.graph.streaming.stream_processor.sanitize_answer") as mock_sanitize, \
-         patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain, \
-         patch("app.graph.streaming.stream_processor.safe_vector_result") as mock_vector:
-
+    with (
+        patch("app.graph.streaming.stream_processor.decide_route") as mock_route,
+        patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan,
+        patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual,
+        patch("app.graph.streaming.stream_processor.stream_synthesize_answer") as mock_stream_synth,
+        patch("app.graph.streaming.stream_processor.apply_sentence_grounding") as mock_grounding,
+        patch("app.graph.streaming.stream_processor.sanitize_answer") as mock_sanitize,
+        patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain,
+        patch("app.graph.streaming.stream_processor.safe_vector_result") as mock_vector,
+    ):
         # Setup mocks
         mock_route.return_value = MagicMock(
-            route="vector",
-            reason="test_reason",
-            skill="answer_with_citations",
-            agent_class="general"
+            route="vector", reason="test_reason", skill="answer_with_citations", agent_class="general"
         )
         mock_plan.return_value = MagicMock(
-            route="vector",
-            reason="test_plan",
-            level="L1",
-            min_vector_hits=2,
-            prefer_graph=False,
-            prefer_web=False
+            route="vector", reason="test_plan", level="L1", min_vector_hits=2, prefer_graph=False, prefer_web=False
         )
         mock_casual.return_value = False
 
         # Mock vector result
-        mock_vector.return_value = {
-            "context": "test context",
-            "citations": [],
-            "retrieved_count": 3
-        }
+        mock_vector.return_value = {"context": "test context", "citations": [], "retrieved_count": 3}
 
         # Mock streaming synthesis WITHOUT detected_language metadata
         def mock_stream_gen(*args, **kwargs):
@@ -204,12 +164,9 @@ def test_streaming_detected_language_defaults_to_zh():
         mock_explain.return_value = {}
 
         # Run the streaming query with Chinese question
-        events = list(run_query_stream(
-            question="什么是RAG？",
-            use_web_fallback=False,
-            use_reasoning=False,
-            force_language=""
-        ))
+        events = list(
+            run_query_stream(question="什么是RAG？", use_web_fallback=False, use_reasoning=False, force_language="")
+        )
 
         # Find the final "done" event
         done_events = [e for e in events if e.get("type") == "done"]
@@ -226,18 +183,19 @@ def test_streaming_hybrid_enhanced_forwards_vector_context_to_graph():
     """Test that enhanced hybrid streaming runs graph with vector-derived document context."""
     from app.graph.streaming.stream_processor import run_query_stream
 
-    with patch("app.graph.streaming.stream_processor.decide_route") as mock_route, \
-         patch("app.graph.streaming.stream_processor._sync_agent_patchpoints") as mock_sync, \
-         patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan, \
-         patch("app.graph.streaming.stream_processor.get_settings") as mock_settings, \
-         patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual, \
-         patch("app.graph.streaming.stream_processor.safe_vector_result") as mock_vector, \
-         patch("app.graph.streaming.stream_processor.safe_graph_result") as mock_graph, \
-         patch("app.graph.streaming.stream_processor.stream_synthesize_answer") as mock_stream_synth, \
-         patch("app.graph.streaming.stream_processor.apply_sentence_grounding") as mock_grounding, \
-         patch("app.graph.streaming.stream_processor.sanitize_answer") as mock_sanitize, \
-         patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain:
-
+    with (
+        patch("app.graph.streaming.stream_processor.decide_route") as mock_route,
+        patch("app.graph.streaming.stream_processor._sync_agent_patchpoints") as mock_sync,
+        patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan,
+        patch("app.graph.streaming.stream_processor.get_settings") as mock_settings,
+        patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual,
+        patch("app.graph.streaming.stream_processor.safe_vector_result") as mock_vector,
+        patch("app.graph.streaming.stream_processor.safe_graph_result") as mock_graph,
+        patch("app.graph.streaming.stream_processor.stream_synthesize_answer") as mock_stream_synth,
+        patch("app.graph.streaming.stream_processor.apply_sentence_grounding") as mock_grounding,
+        patch("app.graph.streaming.stream_processor.sanitize_answer") as mock_sanitize,
+        patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain,
+    ):
         mock_route.return_value = MagicMock(
             route="hybrid",
             reason="test_reason",
@@ -296,3 +254,63 @@ def test_streaming_hybrid_enhanced_forwards_vector_context_to_graph():
         )
         statuses = [e.get("message") for e in events if e.get("type") == "status"]
         assert "retrieving_hybrid_contextual" in statuses
+
+
+def test_streaming_react_route_preserved_and_returns_answer():
+    """Test that streaming preserves the ReAct route and returns the direct ReAct answer."""
+    from app.graph.streaming.stream_processor import run_query_stream
+
+    with (
+        patch("app.graph.streaming.stream_processor.decide_route") as mock_route,
+        patch("app.graph.streaming.stream_processor._sync_agent_patchpoints") as mock_sync,
+        patch("app.graph.streaming.stream_processor.build_adaptive_plan") as mock_plan,
+        patch("app.graph.streaming.stream_processor.is_casual_chat_query") as mock_casual,
+        patch("app.graph.streaming.stream_processor.run_react_agent") as mock_react,
+        patch("app.graph.streaming.stream_processor.stream_synthesize_answer") as mock_stream_synth,
+        patch("app.graph.streaming.stream_processor.apply_sentence_grounding") as mock_grounding,
+        patch("app.graph.streaming.stream_processor.sanitize_answer") as mock_sanitize,
+        patch("app.graph.streaming.stream_processor.build_explainability_report") as mock_explain,
+    ):
+        mock_route.return_value = MagicMock(
+            route="react",
+            reason="react_reason",
+            skill="answer_with_citations",
+            agent_class="general",
+        )
+        mock_sync.return_value = None
+        mock_plan.return_value = MagicMock(
+            route="react",
+            reason="react_plan",
+            level="L3",
+            min_vector_hits=2,
+            prefer_graph=False,
+            prefer_web=False,
+        )
+        mock_casual.return_value = False
+        mock_react.return_value = {
+            "answer": "react stream answer",
+            "detected_language": "en",
+            "react_history": [{"iteration": 1}, {"iteration": 2}],
+            "iterations_used": 2,
+            "contexts": {"vector": "vec", "graph": "", "web": ""},
+            "vector_result": {"context": "vec", "citations": [], "retrieved_count": 1, "effective_hit_count": 1},
+            "graph_result": {"context": "", "entities": [], "neighbors": [], "paths": []},
+            "web_result": {"context": "", "citations": [], "used": False},
+        }
+        mock_grounding.return_value = ("react stream answer", {"support_ratio": 1.0})
+        mock_sanitize.return_value = ("react stream answer", {})
+        mock_explain.return_value = {"mode": "react"}
+
+        events = list(
+            run_query_stream("react question", use_web_fallback=False, use_reasoning=True, force_language="en")
+        )
+
+        done_events = [e for e in events if e.get("type") == "done"]
+        assert len(done_events) == 1
+
+        final_payload = done_events[0]["result"]
+        assert final_payload["route"] == "react"
+        assert final_payload["answer"] == "react stream answer"
+        assert final_payload["detected_language"] == "en"
+        assert final_payload["react_result"]["iterations_used"] == 2
+        mock_stream_synth.assert_not_called()

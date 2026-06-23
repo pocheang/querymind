@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-import time
-from typing import Iterator
 
 _REQUEST_DEADLINE_TS: ContextVar[float] = ContextVar("request_deadline_ts", default=0.0)
 _REQUEST_OVERLOAD: ContextVar[bool] = ContextVar("request_overload_mode", default=False)

@@ -331,13 +331,17 @@ export function useExecutionStats(trace: ExecutionTrace | null): ExecutionStats 
     const completedSteps = trace.steps.filter(s => s.status === 'completed');
     const failedSteps = trace.steps.filter(s => s.status === 'failed');
 
+    // Convert duration_ms to seconds for display
     const durations = completedSteps
-      .map(s => s.duration_seconds)
+      .map(s => s.duration_ms ? s.duration_ms / 1000 : null)
       .filter((d): d is number => d !== null && d !== undefined);
 
-    const totalDuration = trace.end_time && trace.start_time
-      ? (new Date(trace.end_time).getTime() - new Date(trace.start_time).getTime()) / 1000
-      : 0;
+    // Use total_duration_ms if available, otherwise calculate from timestamps
+    const totalDuration = trace.total_duration_ms
+      ? trace.total_duration_ms / 1000
+      : (trace.end_time && trace.start_time
+        ? (new Date(trace.end_time).getTime() - new Date(trace.start_time).getTime()) / 1000
+        : 0);
 
     const averageDuration = durations.length > 0
       ? durations.reduce((sum, d) => sum + d, 0) / durations.length
@@ -350,19 +354,19 @@ export function useExecutionStats(trace: ExecutionTrace | null): ExecutionStats 
       const maxDuration = Math.max(...durations);
       const minDuration = Math.min(...durations);
 
-      const slowest = completedSteps.find(s => s.duration_seconds === maxDuration);
-      const fastest = completedSteps.find(s => s.duration_seconds === minDuration);
+      const slowestIndex = durations.indexOf(maxDuration);
+      const fastestIndex = durations.indexOf(minDuration);
 
-      if (slowest) {
+      if (slowestIndex !== -1) {
         slowestStep = {
-          agent_name: slowest.agent_name,
+          agent_name: completedSteps[slowestIndex].agent_name,
           duration: maxDuration,
         };
       }
 
-      if (fastest) {
+      if (fastestIndex !== -1) {
         fastestStep = {
-          agent_name: fastest.agent_name,
+          agent_name: completedSteps[fastestIndex].agent_name,
           duration: minDuration,
         };
       }
@@ -410,7 +414,7 @@ export function useTimelineEvents(trace: ExecutionTrace | null): TimelineEvent[]
       agent_name: step.agent_name,
       start_time: new Date(step.start_time),
       end_time: step.end_time ? new Date(step.end_time) : null,
-      duration: step.duration_seconds ?? null,
+      duration: step.duration_ms ? step.duration_ms / 1000 : null,
       status: step.status,
     }));
   }, [trace]);

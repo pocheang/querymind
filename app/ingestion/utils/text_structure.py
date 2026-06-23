@@ -8,6 +8,7 @@ from typing import Literal
 @dataclass
 class TextBlock:
     """Structured text block with type and content."""
+
     type: Literal["title", "heading", "paragraph", "list_item", "table_row", "code", "unknown"]
     content: str
     level: int = 0  # For headings: 1-6, for lists: indent level
@@ -21,29 +22,29 @@ class OCRTextStructurer:
     def __init__(self):
         # 编译正则表达式（性能优化）
         self.title_patterns = [
-            re.compile(r'^[A-Z\s]{3,30}$'),
-            re.compile(r'^第[一二三四五六七八九十\d]+[章节部分]'),
-            re.compile(r'^Chapter\s+\d+', re.IGNORECASE),
-            re.compile(r'^\d+\.\s*[A-Z]'),
+            re.compile(r"^[A-Z\s]{3,30}$"),
+            re.compile(r"^第[一二三四五六七八九十\d]+[章节部分]"),
+            re.compile(r"^Chapter\s+\d+", re.IGNORECASE),
+            re.compile(r"^\d+\.\s*[A-Z]"),
         ]
 
         # 列表模式
         self.list_patterns = [
-            re.compile(r'^[\s]*[•·●○■□▪▫]\s+'),  # 项目符号
-            re.compile(r'^[\s]*[\d]+[.、)]\s+'),  # 数字列表
-            re.compile(r'^[\s]*[a-zA-Z][.、)]\s+'),  # 字母列表
-            re.compile(r'^[\s]*[(（][一二三四五六七八九十\d]+[)）]\s+'),  # 括号列表
-            re.compile(r'^[\s]*[一二三四五六七八九十]+[、]\s*'),  # 中文顿号列表
+            re.compile(r"^[\s]*[•·●○■□▪▫]\s+"),  # 项目符号
+            re.compile(r"^[\s]*[\d]+[.、)]\s+"),  # 数字列表
+            re.compile(r"^[\s]*[a-zA-Z][.、)]\s+"),  # 字母列表
+            re.compile(r"^[\s]*[(（][一二三四五六七八九十\d]+[)）]\s+"),  # 括号列表
+            re.compile(r"^[\s]*[一二三四五六七八九十]+[、]\s*"),  # 中文顿号列表
         ]
 
         # 表格模式
         self.table_patterns = [
-            re.compile(r'[|｜]\s*.+\s*[|｜]'),
-            re.compile(r'\t.+\t'),
+            re.compile(r"[|｜]\s*.+\s*[|｜]"),
+            re.compile(r"\t.+\t"),
         ]
 
         # CJK 标点符号
-        self.cjk_punctuation = '。，、；：！？""''（）【】《》'
+        self.cjk_punctuation = '。，、；：！？""（）【】《》'
 
     def structure_text(self, text: str) -> list[TextBlock]:
         """将 OCR 文本转换为结构化块."""
@@ -64,12 +65,9 @@ class OCRTextStructurer:
 
             # 检测标题
             if self._is_title(line):
-                blocks.append(TextBlock(
-                    type="title",
-                    content=line.strip(),
-                    level=self._get_heading_level(line),
-                    confidence=0.8
-                ))
+                blocks.append(
+                    TextBlock(type="title", content=line.strip(), level=self._get_heading_level(line), confidence=0.8)
+                )
                 i += 1
                 continue
 
@@ -79,23 +77,21 @@ class OCRTextStructurer:
                 indent_level = len(line) - len(line.lstrip())
                 # 移除列表前缀，只保留内容
                 clean_content = self._remove_list_prefix(line.strip())
-                blocks.append(TextBlock(
-                    type="list_item",
-                    content=clean_content,
-                    level=indent_level // 2,  # 假设每级缩进2个空格
-                    confidence=0.9,
-                    metadata={"raw": line.strip()}
-                ))
+                blocks.append(
+                    TextBlock(
+                        type="list_item",
+                        content=clean_content,
+                        level=indent_level // 2,  # 假设每级缩进2个空格
+                        confidence=0.9,
+                        metadata={"raw": line.strip()},
+                    )
+                )
                 i += 1
                 continue
 
             # 检测表格行
             if self._is_table_row(line):
-                blocks.append(TextBlock(
-                    type="table_row",
-                    content=line.strip(),
-                    confidence=0.7
-                ))
+                blocks.append(TextBlock(type="table_row", content=line.strip(), confidence=0.7))
                 i += 1
                 continue
 
@@ -106,11 +102,7 @@ class OCRTextStructurer:
                 while i < len(lines) and self._is_code_line(lines[i]):
                     code_lines.append(lines[i])
                     i += 1
-                blocks.append(TextBlock(
-                    type="code",
-                    content="\n".join(code_lines),
-                    confidence=0.6
-                ))
+                blocks.append(TextBlock(type="code", content="\n".join(code_lines), confidence=0.6))
                 continue
 
             # 合并段落（连续的普通行）
@@ -120,20 +112,14 @@ class OCRTextStructurer:
                 next_line = lines[i].rstrip()
                 if not next_line.strip():
                     break
-                if (self._is_title(next_line) or
-                    self._match_list(next_line) or
-                    self._is_table_row(next_line)):
+                if self._is_title(next_line) or self._match_list(next_line) or self._is_table_row(next_line):
                     break
                 para_lines.append(next_line)
                 i += 1
 
             # 智能合并段落
             content = self._merge_paragraph_lines(para_lines)
-            blocks.append(TextBlock(
-                type="paragraph",
-                content=content,
-                confidence=1.0
-            ))
+            blocks.append(TextBlock(type="paragraph", content=content, confidence=1.0))
 
         return blocks
 
@@ -149,7 +135,7 @@ class OCRTextStructurer:
 
         # 短行 + 全大写/数字开头
         if len(stripped) < 50:
-            if stripped.isupper() or re.match(r'^\d+\.?\s+[A-Z]', stripped):
+            if stripped.isupper() or re.match(r"^\d+\.?\s+[A-Z]", stripped):
                 return True
 
         return False
@@ -159,19 +145,19 @@ class OCRTextStructurer:
         stripped = line.strip()
 
         # Markdown 风格
-        if stripped.startswith('#'):
-            return min(6, stripped.count('#'))
+        if stripped.startswith("#"):
+            return min(6, stripped.count("#"))
 
         # 中文章节
-        if re.match(r'^第[一二三四五六七八九十]章', stripped):
+        if re.match(r"^第[一二三四五六七八九十]章", stripped):
             return 1
-        if re.match(r'^第[一二三四五六七八九十]节', stripped):
+        if re.match(r"^第[一二三四五六七八九十]节", stripped):
             return 2
 
         # 数字层级
-        if re.match(r'^\d+\.\s', stripped):
+        if re.match(r"^\d+\.\s", stripped):
             return 2
-        if re.match(r'^\d+\.\d+\.\s', stripped):
+        if re.match(r"^\d+\.\d+\.\s", stripped):
             return 3
 
         # 默认
@@ -190,7 +176,7 @@ class OCRTextStructurer:
         match = self._match_list(line)
         if match:
             # 移除匹配的前缀部分
-            return line[match.end():].strip()
+            return line[match.end() :].strip()
         return line
 
     def _is_table_row(self, line: str) -> bool:
@@ -210,7 +196,7 @@ class OCRTextStructurer:
         indent = len(line) - len(line.lstrip())
         if indent >= 4:
             # 包含代码特征字符
-            code_chars = ['{', '}', '(', ')', ';', '=', '<', '>', '[', ']']
+            code_chars = ["{", "}", "(", ")", ";", "=", "<", ">", "[", "]"]
             if any(ch in stripped for ch in code_chars):
                 return True
 
@@ -257,9 +243,11 @@ class OCRTextStructurer:
         if not char:
             return False
         code = ord(char)
-        return (0x4E00 <= code <= 0x9FFF or  # CJK 统一汉字
-                0x3400 <= code <= 0x4DBF or  # CJK 扩展 A
-                0x20000 <= code <= 0x2A6DF)  # CJK 扩展 B
+        return (
+            0x4E00 <= code <= 0x9FFF  # CJK 统一汉字
+            or 0x3400 <= code <= 0x4DBF  # CJK 扩展 A
+            or 0x20000 <= code <= 0x2A6DF
+        )  # CJK 扩展 B
 
 
 def structure_ocr_text(text: str) -> list[TextBlock]:

@@ -1,24 +1,31 @@
 """Prompt management routes for the Multi-Agent Local RAG API."""
+
 from typing import Any
+
 from fastapi import APIRouter, Depends, Request
 
-from app.api.utils.error_responses import not_found
 from app.api.dependencies import (
-    prompt_store,
     _audit,
     _normalize_prompt_fields,
-    _resolve_effective_agent_class,
-    _require_user,
     _require_permission,
+    _require_user,
+    _resolve_effective_agent_class,
+    prompt_store,
 )
-from app.core.schemas import (    PromptCheckRequest,    PromptCheckResponse,    PromptTemplate,    PromptTemplateCreateRequest,    PromptTemplateUpdateRequest,)
+from app.api.utils.error_responses import not_found
+from app.core.schemas import (
+    PromptCheckRequest,
+    PromptCheckResponse,
+    PromptTemplate,
+    PromptTemplateCreateRequest,
+    PromptTemplateUpdateRequest,
+)
 from app.services.prompt_checker import check_and_enhance_prompt
 
 router = APIRouter(prefix="/prompts", tags=["prompts"])
 
+
 @router.get("", response_model=list[PromptTemplate])
-
-
 def list_prompts(request: Request, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, "prompt:read", request, "prompt")
     rows = prompt_store.list_prompts(user["user_id"])
@@ -31,7 +38,14 @@ def create_prompt(req: PromptTemplateCreateRequest, request: Request, user: dict
     title, content = _normalize_prompt_fields(req.title, req.content)
     agent_class = _resolve_effective_agent_class(f"{title}\n{content}", None)
     row = prompt_store.create_prompt(user_id=user["user_id"], title=title, content=content, agent_class=agent_class)
-    _audit(request, action="prompt.create", resource_type="prompt", result="success", user=user, resource_id=row["prompt_id"])
+    _audit(
+        request,
+        action="prompt.create",
+        resource_type="prompt",
+        result="success",
+        user=user,
+        resource_id=row["prompt_id"],
+    )
     return PromptTemplate(**row)
 
 
@@ -45,7 +59,9 @@ def check_prompt(req: PromptCheckRequest, request: Request, user: dict[str, Any]
 
 
 @router.patch("/{prompt_id}", response_model=PromptTemplate)
-def update_prompt(prompt_id: str, req: PromptTemplateUpdateRequest, request: Request, user: dict[str, Any] = Depends(_require_user)):
+def update_prompt(
+    prompt_id: str, req: PromptTemplateUpdateRequest, request: Request, user: dict[str, Any] = Depends(_require_user)
+):
     _require_permission(user, "prompt:edit", request, "prompt", resource_id=prompt_id)
     title, content = _normalize_prompt_fields(req.title, req.content)
     agent_class = _resolve_effective_agent_class(f"{title}\n{content}", None)
@@ -63,14 +79,18 @@ def update_prompt(prompt_id: str, req: PromptTemplateUpdateRequest, request: Req
 
 
 @router.get("/{prompt_id}/versions")
-def list_prompt_versions(prompt_id: str, request: Request, limit: int = 20, user: dict[str, Any] = Depends(_require_user)):
+def list_prompt_versions(
+    prompt_id: str, request: Request, limit: int = 20, user: dict[str, Any] = Depends(_require_user)
+):
     _require_permission(user, "prompt:read", request, "prompt", resource_id=prompt_id)
     rows = prompt_store.list_versions(user_id=user["user_id"], prompt_id=prompt_id, limit=limit)
     return {"items": rows, "count": len(rows)}
 
 
 @router.post("/{prompt_id}/versions/{version_id}/approve")
-def approve_prompt_version(prompt_id: str, version_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
+def approve_prompt_version(
+    prompt_id: str, version_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)
+):
     _require_permission(user, "prompt:edit", request, "prompt", resource_id=prompt_id)
     row = prompt_store.approve_version(
         user_id=user["user_id"],
@@ -80,17 +100,33 @@ def approve_prompt_version(prompt_id: str, version_id: str, request: Request, us
     )
     if row is None:
         raise not_found("Prompt version")
-    _audit(request, action="prompt.version.approve", resource_type="prompt", result="success", user=user, resource_id=prompt_id)
+    _audit(
+        request,
+        action="prompt.version.approve",
+        resource_type="prompt",
+        result="success",
+        user=user,
+        resource_id=prompt_id,
+    )
     return row
 
 
 @router.post("/{prompt_id}/versions/{version_id}/rollback", response_model=PromptTemplate)
-def rollback_prompt_version(prompt_id: str, version_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
+def rollback_prompt_version(
+    prompt_id: str, version_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)
+):
     _require_permission(user, "prompt:edit", request, "prompt", resource_id=prompt_id)
     row = prompt_store.rollback_to_version(user_id=user["user_id"], prompt_id=prompt_id, version_id=version_id)
     if row is None:
         raise not_found("Prompt version")
-    _audit(request, action="prompt.version.rollback", resource_type="prompt", result="success", user=user, resource_id=prompt_id)
+    _audit(
+        request,
+        action="prompt.version.rollback",
+        resource_type="prompt",
+        result="success",
+        user=user,
+        resource_id=prompt_id,
+    )
     return PromptTemplate(**row)
 
 

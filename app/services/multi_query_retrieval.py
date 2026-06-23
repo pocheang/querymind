@@ -1,6 +1,7 @@
 """
 多查询检索服务 - 对多个查询分别检索并合并结果。
 """
+
 import logging
 from collections import defaultdict
 
@@ -52,7 +53,7 @@ def multi_query_retrieval(
             )
 
             # 记录每个查询的结果数
-            query_diagnostics[f"query_{i+1}"] = {
+            query_diagnostics[f"query_{i + 1}"] = {
                 "query": query,
                 "results_count": len(results),
                 "diagnostics": diagnostics,
@@ -67,7 +68,7 @@ def multi_query_retrieval(
 
         except Exception as e:
             logger.error(f"Query retrieval failed for '{query}': {e}")
-            query_diagnostics[f"query_{i+1}"] = {
+            query_diagnostics[f"query_{i + 1}"] = {
                 "query": query,
                 "error": str(e),
             }

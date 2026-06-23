@@ -3,27 +3,25 @@
 import json
 import logging
 import time
-from pathlib import Path
-from typing import Any, List, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from app.api.dependencies import _require_user, _require_permission
-from app.api.utils.error_responses import not_found, bad_request, internal_error, not_implemented
+from app.api.dependencies import _require_permission, _require_user
+from app.api.utils.error_responses import bad_request, internal_error, not_found
 from app.core.config import get_settings
-from app.retrievers.hybrid_retriever import hybrid_search_with_diagnostics
-from app.retrievers.vector_store import similarity_search
-from app.evaluation.models import RetrievalResult
-
 from app.evaluation import (
-    TestQuery,
     EvaluationMetrics,
-    SystemComparison,
     EvaluationService,
+    TestQuery,
     load_test_queries,
 )
+from app.evaluation.models import RetrievalResult
+from app.retrievers.hybrid_retriever import hybrid_search_with_diagnostics
+from app.retrievers.vector_store import similarity_search
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +31,7 @@ router = APIRouter(prefix="/api/evaluation", tags=["evaluation"])
 # Request/Response models
 class RunEvaluationRequest(BaseModel):
     system: str  # "vector_only", "hybrid", "rerank"
-    queries: Optional[List[str]] = None  # Optional: specific query IDs
+    queries: list[str] | None = None  # Optional: specific query IDs
     query_file: str = "data/evaluation/demo_queries.json"
 
 
@@ -41,12 +39,12 @@ class RunEvaluationResponse(BaseModel):
     run_id: str
     system: str
     status: str
-    metrics: Optional[EvaluationMetrics] = None
+    metrics: EvaluationMetrics | None = None
     message: str
 
 
 class CompareSystemsRequest(BaseModel):
-    systems: List[str]  # List of system names to compare
+    systems: list[str]  # List of system names to compare
     query_file: str = "data/evaluation/demo_queries.json"
 
 
@@ -92,11 +90,7 @@ class SimpleRetriever:
         try:
             if self.system_name == "vector_only":
                 # Pure vector search
-                results = similarity_search(
-                    query=query,
-                    top_k=self.settings.vector_top_k or 10,
-                    allowed_sources=None
-                )
+                results = similarity_search(query=query, top_k=self.settings.vector_top_k or 10, allowed_sources=None)
                 retrieved_docs = [doc.get("source", "") for doc in results]
 
             elif self.system_name == "hybrid":
@@ -104,7 +98,7 @@ class SimpleRetriever:
                 results, _ = hybrid_search_with_diagnostics(
                     query=query,
                     allowed_sources=None,
-                    retrieval_strategy="baseline"  # No reranking
+                    retrieval_strategy="baseline",  # No reranking
                 )
                 retrieved_docs = [doc.get("source", "") for doc in results]
 
@@ -113,7 +107,7 @@ class SimpleRetriever:
                 results, _ = hybrid_search_with_diagnostics(
                     query=query,
                     allowed_sources=None,
-                    retrieval_strategy="advanced"  # With reranking
+                    retrieval_strategy="advanced",  # With reranking
                 )
                 retrieved_docs = [doc.get("source", "") for doc in results]
 
@@ -122,28 +116,15 @@ class SimpleRetriever:
 
             latency_ms = (time.time() - start_time) * 1000
 
-            return RetrievalResult(
-                query_id=query_id,
-                query=query,
-                retrieved_docs=retrieved_docs,
-                latency_ms=latency_ms
-            )
+            return RetrievalResult(query_id=query_id, query=query, retrieved_docs=retrieved_docs, latency_ms=latency_ms)
 
         except Exception as e:
             logger.error(f"Retrieval failed for query '{query}': {e}")
             # Return empty result on error
             latency_ms = (time.time() - start_time) * 1000
-            return RetrievalResult(
-                query_id=query_id,
-                query=query,
-                retrieved_docs=[],
-                latency_ms=latency_ms
-            )
+            return RetrievalResult(query_id=query_id, query=query, retrieved_docs=[], latency_ms=latency_ms)
 
-    def batch_retrieve(
-        self,
-        queries: List[tuple[str, str]]
-    ) -> List[RetrievalResult]:
+    def batch_retrieve(self, queries: list[tuple[str, str]]) -> list[RetrievalResult]:
         """Retrieve documents for multiple queries.
 
         Args:
@@ -174,21 +155,18 @@ def get_retriever(system_name: str):
     valid_systems = ["vector_only", "hybrid", "rerank"]
 
     if system_name not in valid_systems:
-        raise bad_request(
-            f"Unknown system: {system_name}. "
-            f"Available systems: {', '.join(valid_systems)}"
-        )
+        raise bad_request(f"Unknown system: {system_name}. Available systems: {', '.join(valid_systems)}")
 
     return SimpleRetriever(system_name)
 
 
-@router.get("/queries", response_model=List[TestQuery])
+@router.get("/queries", response_model=list[TestQuery])
 async def list_queries(
     request: Request,
     user: dict[str, Any] = Depends(_require_user),
     query_file: str = "data/evaluation/demo_queries.json",
-    category: Optional[str] = None,
-    difficulty: Optional[str] = None
+    category: str | None = None,
+    difficulty: str | None = None,
 ):
     """
     List all test queries - Admin only.
@@ -204,13 +182,13 @@ async def list_queries(
     _require_permission(user, "admin:ops_manage", request, "admin")
     try:
         queries = load_test_queries(query_file)
-        
+
         if category:
             queries = [q for q in queries if q.category == category]
-        
+
         if difficulty:
             queries = [q for q in queries if q.difficulty == difficulty]
-        
+
         return queries
     except FileNotFoundError as e:
         raise not_found(str(e))
@@ -220,7 +198,9 @@ async def list_queries(
 
 
 @router.post("/run", response_model=RunEvaluationResponse)
-async def run_evaluation(request_data: RunEvaluationRequest, request: Request, user: dict[str, Any] = Depends(_require_user)):
+async def run_evaluation(
+    request_data: RunEvaluationRequest, request: Request, user: dict[str, Any] = Depends(_require_user)
+):
     """
     Run evaluation on a specified system - Admin only.
 
@@ -258,7 +238,7 @@ async def run_evaluation(request_data: RunEvaluationRequest, request: Request, u
         results_dir.mkdir(parents=True, exist_ok=True)
         results_path = results_dir / f"{eval_run.run_id}.json"
 
-        with open(results_path, 'w', encoding='utf-8') as f:
+        with open(results_path, "w", encoding="utf-8") as f:
             json.dump(eval_run.model_dump(), f, indent=2)
 
         return RunEvaluationResponse(
@@ -266,7 +246,7 @@ async def run_evaluation(request_data: RunEvaluationRequest, request: Request, u
             system=request_data.system,
             status="completed",
             metrics=eval_run.metrics,
-            message=f"Evaluation completed successfully on {len(queries)} queries"
+            message=f"Evaluation completed successfully on {len(queries)} queries",
         )
 
     except FileNotFoundError as e:
@@ -295,12 +275,14 @@ async def get_results(run_id: str, request: Request, user: dict[str, Any] = Depe
     if not results_path.exists():
         raise not_found(f"Results not found for run_id: {run_id}")
 
-    with open(results_path, 'r', encoding='utf-8') as f:
+    with open(results_path, encoding="utf-8") as f:
         return json.load(f)
 
 
-@router.post("/compare", response_model=List[SystemComparisonResponse])
-async def compare_systems(request_data: CompareSystemsRequest, request: Request, user: dict[str, Any] = Depends(_require_user)):
+@router.post("/compare", response_model=list[SystemComparisonResponse])
+async def compare_systems(
+    request_data: CompareSystemsRequest, request: Request, user: dict[str, Any] = Depends(_require_user)
+):
     """
     Compare multiple systems - Admin only.
 
@@ -330,8 +312,7 @@ async def compare_systems(request_data: CompareSystemsRequest, request: Request,
         # Convert to response format
         return [
             SystemComparisonResponse(
-                system_name=comp.system_name,
-                metrics=EvaluationMetricsResponse(**comp.metrics.model_dump())
+                system_name=comp.system_name, metrics=EvaluationMetricsResponse(**comp.metrics.model_dump())
             )
             for comp in comparisons
         ]
@@ -355,15 +336,11 @@ async def list_systems(request: Request, user: dict[str, Any] = Depends(_require
     return {
         "systems": ["vector_only", "hybrid", "rerank"],
         "count": 3,
-        "note": "Retriever instantiation not yet implemented. Use evaluation module directly."
+        "note": "Retriever instantiation not yet implemented. Use evaluation module directly.",
     }
 
 
 @router.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "service": "evaluation",
-        "timestamp": datetime.now().isoformat()
-    }
+    return {"status": "healthy", "service": "evaluation", "timestamp": datetime.now().isoformat()}

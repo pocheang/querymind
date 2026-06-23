@@ -1,4 +1,5 @@
 """Common error response helpers for FastAPI routes."""
+
 from fastapi import HTTPException
 
 
@@ -45,4 +46,3 @@ def not_implemented(detail: str = "Not implemented") -> HTTPException:
 def payload_too_large(detail: str = "Payload too large") -> HTTPException:
     """Return a 413 Payload Too Large error."""
     return HTTPException(status_code=413, detail=detail)
-

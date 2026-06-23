@@ -2,9 +2,9 @@
 Query decomposition service for breaking down complex queries.
 """
 
-import re
 import logging
-from typing import List
+import re
+
 from app.models.advanced_rag_models import DecomposedQuery
 
 logger = logging.getLogger(__name__)
@@ -57,11 +57,7 @@ Output format:
         # Check if query needs decomposition
         if not self._needs_decomposition(query):
             logger.info(f"Query does not need decomposition: {query}")
-            return DecomposedQuery(
-                original_query=query,
-                sub_queries=[query],
-                decomposition_strategy="none"
-            )
+            return DecomposedQuery(original_query=query, sub_queries=[query], decomposition_strategy="none")
 
         # Detect decomposition strategy
         strategy = self._detect_strategy(query)
@@ -70,11 +66,7 @@ Output format:
         # Decompose using LLM
         sub_queries = await self._decompose_with_llm(query, strategy)
 
-        return DecomposedQuery(
-            original_query=query,
-            sub_queries=sub_queries,
-            decomposition_strategy=strategy
-        )
+        return DecomposedQuery(original_query=query, sub_queries=sub_queries, decomposition_strategy=strategy)
 
     def _needs_decomposition(self, query: str) -> bool:
         """
@@ -88,7 +80,8 @@ Output format:
         """
         indicators = [
             # Comparison indicators
-            ("和" in query or "与" in query) and any(word in query for word in ["区别", "对比", "比较", "difference", "compare"]),
+            ("和" in query or "与" in query)
+            and any(word in query for word in ["区别", "对比", "比较", "difference", "compare"]),
             # Multiple aspects
             any(word in query for word in ["以及", "还有", "另外", "and also", "as well as"]),
             # Long query
@@ -96,7 +89,8 @@ Output format:
             # Multiple questions
             query.count("?") > 1 or query.count("？") > 1,
             # Sequential indicators
-            any(word in query for word in ["步骤", "如何", "怎么", "流程", "how to", "steps", "process"]) and len(query) > 30,
+            any(word in query for word in ["步骤", "如何", "怎么", "流程", "how to", "steps", "process"])
+            and len(query) > 30,
         ]
         return any(indicators)
 
@@ -124,7 +118,7 @@ Output format:
 
         return "general"
 
-    async def _decompose_with_llm(self, query: str, strategy: str) -> List[str]:
+    async def _decompose_with_llm(self, query: str, strategy: str) -> list[str]:
         """
         Use LLM to decompose query into sub-queries.
 
@@ -135,23 +129,16 @@ Output format:
         Returns:
             List of sub-queries
         """
-        prompt = self.decomposition_prompt.format(
-            query=query,
-            strategy=strategy
-        )
+        prompt = self.decomposition_prompt.format(query=query, strategy=strategy)
 
         try:
-            response = await self.llm.generate(
-                prompt=prompt,
-                max_tokens=300,
-                temperature=0.3
-            )
+            response = await self.llm.generate(prompt=prompt, max_tokens=300, temperature=0.3)
 
             # Parse sub-queries from response
             sub_queries = self._parse_sub_queries(response)
 
             # Limit to max sub-queries
-            sub_queries = sub_queries[:self.max_sub_queries]
+            sub_queries = sub_queries[: self.max_sub_queries]
 
             # If parsing failed or no sub-queries, return original query
             if not sub_queries:
@@ -165,7 +152,7 @@ Output format:
             logger.error(f"Error decomposing query: {e}")
             return [query]
 
-    def _parse_sub_queries(self, response: str) -> List[str]:
+    def _parse_sub_queries(self, response: str) -> list[str]:
         """
         Parse sub-queries from LLM response.
 

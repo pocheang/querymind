@@ -1,7 +1,7 @@
 """PDF document loader."""
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
@@ -36,6 +36,7 @@ def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
     """
     try:
         from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced as _load_enhanced
+
         return _load_enhanced(path, by_page)
     except ImportError as e:
         logger.warning(f"Enhanced loader not available: {e}")
@@ -70,29 +71,33 @@ def load_pdf_with_docling(path: Path, by_page: bool = True) -> list[Document]:
         if not by_page:
             # Single document with full content
             markdown_content = result.document.export_to_markdown()
-            return [Document(
-                page_content=markdown_content,
-                metadata={
-                    "source": str(path),
-                    "format": "markdown",
-                    "converter": "docling",
-                }
-            )]
+            return [
+                Document(
+                    page_content=markdown_content,
+                    metadata={
+                        "source": str(path),
+                        "format": "markdown",
+                        "converter": "docling",
+                    },
+                )
+            ]
 
         # One document per page
         docs: list[Document] = []
         for page_idx, page in enumerate(result.document.pages, start=1):
             page_markdown = page.export_to_markdown()
             if page_markdown and page_markdown.strip():
-                docs.append(Document(
-                    page_content=page_markdown,
-                    metadata={
-                        "source": str(path),
-                        "page": page_idx,
-                        "format": "markdown",
-                        "converter": "docling",
-                    }
-                ))
+                docs.append(
+                    Document(
+                        page_content=page_markdown,
+                        metadata={
+                            "source": str(path),
+                            "page": page_idx,
+                            "format": "markdown",
+                            "converter": "docling",
+                        },
+                    )
+                )
 
         if not docs:
             logger.warning(f"No content extracted from {path.name} using Docling")
@@ -126,7 +131,7 @@ def load_pdf_image_ocr(path: Path) -> list[Document]:
             images = list(page.images or [])
         except (AttributeError, TypeError) as e:
             logger.debug(f"Failed to extract images from page {page_idx}: {e}")
-            images =[]
+            images = []
         for img_idx, img_obj in enumerate(images, start=1):
             img_bytes = getattr(img_obj, "data", None)
             if not img_bytes:

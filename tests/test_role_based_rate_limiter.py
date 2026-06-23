@@ -2,8 +2,9 @@
 Tests for role-based rate limiting.
 """
 
-import pytest
 import time
+from datetime import UTC
+
 from app.services.role_based_rate_limiter import RoleBasedRateLimiter, SlidingWindowLimiter
 
 
@@ -12,10 +13,7 @@ class TestRoleBasedRateLimiter:
 
     def test_basic_rate_limiting(self):
         """Test basic rate limiting without roles."""
-        limiter = RoleBasedRateLimiter(
-            default_max_attempts=3,
-            default_window_seconds=1
-        )
+        limiter = RoleBasedRateLimiter(default_max_attempts=3, default_window_seconds=1)
 
         # First 3 requests should pass
         assert not limiter.is_limited("user1")
@@ -31,16 +29,11 @@ class TestRoleBasedRateLimiter:
     def test_role_based_limits(self):
         """Test different limits for different roles."""
         limiter = RoleBasedRateLimiter(
-            default_max_attempts=2,
-            default_window_seconds=60,
-            role_limits={
-                "admin": (10, 60),
-                "user": (2, 60)
-            }
+            default_max_attempts=2, default_window_seconds=60, role_limits={"admin": (10, 60), "user": (2, 60)}
         )
 
         # Admin can make 10 requests
-        for i in range(10):
+        for _i in range(10):
             assert not limiter.is_limited("admin1", role="admin")
             limiter.record("admin1", role="admin")
 
@@ -55,10 +48,7 @@ class TestRoleBasedRateLimiter:
 
     def test_window_expiration(self):
         """Test that limits reset after window expires."""
-        limiter = RoleBasedRateLimiter(
-            default_max_attempts=2,
-            default_window_seconds=1
-        )
+        limiter = RoleBasedRateLimiter(default_max_attempts=2, default_window_seconds=1)
 
         # Use up quota
         limiter.record("user1")
@@ -74,11 +64,7 @@ class TestRoleBasedRateLimiter:
     def test_get_remaining(self):
         """Test getting remaining quota."""
         limiter = RoleBasedRateLimiter(
-            default_max_attempts=5,
-            default_window_seconds=60,
-            role_limits={
-                "admin": (10, 60)
-            }
+            default_max_attempts=5, default_window_seconds=60, role_limits={"admin": (10, 60)}
         )
 
         # Admin starts with 10 remaining
@@ -95,10 +81,7 @@ class TestRoleBasedRateLimiter:
 
     def test_reset(self):
         """Test resetting rate limit."""
-        limiter = RoleBasedRateLimiter(
-            default_max_attempts=2,
-            default_window_seconds=60
-        )
+        limiter = RoleBasedRateLimiter(default_max_attempts=2, default_window_seconds=60)
 
         # Use up quota
         limiter.record("user1")
@@ -114,10 +97,7 @@ class TestRoleBasedRateLimiter:
 
     def test_multiple_users_isolated(self):
         """Test that different users have isolated quotas."""
-        limiter = RoleBasedRateLimiter(
-            default_max_attempts=2,
-            default_window_seconds=60
-        )
+        limiter = RoleBasedRateLimiter(default_max_attempts=2, default_window_seconds=60)
 
         # User1 uses quota
         limiter.record("user1")
@@ -130,10 +110,7 @@ class TestRoleBasedRateLimiter:
 
     def test_get_reset_time(self):
         """Test getting reset time."""
-        limiter = RoleBasedRateLimiter(
-            default_max_attempts=2,
-            default_window_seconds=60
-        )
+        limiter = RoleBasedRateLimiter(default_max_attempts=2, default_window_seconds=60)
 
         # No reset time when no requests
         assert limiter.get_reset_time("user1") is None
@@ -144,8 +121,9 @@ class TestRoleBasedRateLimiter:
         assert reset_time is not None
 
         # Reset time should be ~60 seconds in future
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
+        from datetime import datetime
+
+        now = datetime.now(UTC)
         time_diff = (reset_time - now).total_seconds()
         assert 59 <= time_diff <= 61
 
@@ -183,10 +161,7 @@ class TestEdgeCases:
 
     def test_empty_key(self):
         """Test handling of empty keys."""
-        limiter = RoleBasedRateLimiter(
-            default_max_attempts=3,
-            default_window_seconds=60
-        )
+        limiter = RoleBasedRateLimiter(default_max_attempts=3, default_window_seconds=60)
 
         # Empty key should not be limited
         assert not limiter.is_limited("")
@@ -200,7 +175,7 @@ class TestEdgeCases:
         """Test that limits are always >= 1."""
         limiter = RoleBasedRateLimiter(
             default_max_attempts=0,  # Should be clamped to 1
-            default_window_seconds=0  # Should be clamped to 1
+            default_window_seconds=0,  # Should be clamped to 1
         )
 
         # Should still allow at least 1 request
@@ -211,11 +186,7 @@ class TestEdgeCases:
     def test_unknown_role(self):
         """Test handling of unknown roles."""
         limiter = RoleBasedRateLimiter(
-            default_max_attempts=2,
-            default_window_seconds=60,
-            role_limits={
-                "admin": (10, 60)
-            }
+            default_max_attempts=2, default_window_seconds=60, role_limits={"admin": (10, 60)}
         )
 
         # Unknown role should use default limits

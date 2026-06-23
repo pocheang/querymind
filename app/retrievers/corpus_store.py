@@ -1,7 +1,7 @@
-import json
 import hashlib
+import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 def normalize_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for k, v in metadata.items():
-        if isinstance(v, (str, int, float, bool)) or v is None:
+        if isinstance(v, str | int | float | bool) or v is None:
             out[k] = v
         else:
             out[k] = str(v)
@@ -26,7 +26,7 @@ def documents_to_records(documents: list["Document"]) -> list[dict[str, Any]]:
     for i, doc in enumerate(documents):
         metadata = normalize_metadata(dict(doc.metadata))
         if not metadata.get("ingested_at"):
-            metadata["ingested_at"] = datetime.now(timezone.utc).isoformat()
+            metadata["ingested_at"] = datetime.now(UTC).isoformat()
         chunk_id = metadata.get("chunk_id")
         if not chunk_id:
             source = str(metadata.get("source", "") or "")

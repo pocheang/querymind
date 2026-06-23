@@ -9,32 +9,30 @@ Tests:
 - Admin endpoints
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 
-from app.agents.graph_rag_cache import (
-    LRUCache,
-    cached_pdf_quality,
-    cached_entity_extraction,
-    get_cache_stats,
-    clear_all_caches,
-)
+import pytest
+
 from app.agents.graph_rag_agent import (
-    run_graph_rag,
-    _run_basic_graph_rag,
-    _run_enhanced_graph_rag,
     _format_graph_context,
+    run_graph_rag,
 )
 from app.agents.graph_rag_agent_enhanced import (
     analyze_pdf_quality,
     extract_document_entities,
     get_document_context_for_query,
 )
-
+from app.agents.graph_rag_cache import (
+    LRUCache,
+    cached_pdf_quality,
+    clear_all_caches,
+    get_cache_stats,
+)
 
 # ============================================================================
 # Cache Tests
 # ============================================================================
+
 
 def test_lru_cache_basic_operations():
     """Test basic LRU cache operations."""
@@ -130,6 +128,7 @@ def test_cache_stats_aggregation():
 # Agent Unified Interface Tests
 # ============================================================================
 
+
 def test_run_graph_rag_basic_mode():
     """Test basic mode without enhancements."""
     with patch("app.tools.graph_tools.graph_lookup") as mock_lookup:
@@ -140,10 +139,7 @@ def test_run_graph_rag_basic_mode():
             "graph_signal_score": 0.5,
         }
 
-        result = run_graph_rag(
-            question="What is LLM?",
-            enable_enhancements=False
-        )
+        result = run_graph_rag(question="What is LLM?", enable_enhancements=False)
 
         assert result["graph_signal_score"] == 0.5
         assert "LLM" in result["entities"]
@@ -162,8 +158,9 @@ def test_run_graph_rag_enhanced_mode():
         }
 
         # Use high-quality document to trigger enhanced mode
-        retrieved_docs = [{
-            "content": """
+        retrieved_docs = [
+            {
+                "content": """
             # Large Language Models
 
             Large Language Models (LLMs) use Transformer architecture for
@@ -176,14 +173,11 @@ def test_run_graph_rag_enhanced_mode():
 
             ## References
             """,
-            "metadata": {"format": "markdown", "total_pages": 10}
-        }]
+                "metadata": {"format": "markdown", "total_pages": 10},
+            }
+        ]
 
-        result = run_graph_rag(
-            question="What is LLM?",
-            retrieved_docs=retrieved_docs,
-            enable_enhancements=True
-        )
+        result = run_graph_rag(question="What is LLM?", retrieved_docs=retrieved_docs, enable_enhancements=True)
 
         assert result["confidence"] == "high"
         assert result["graph_signal_score"] == 0.8
@@ -192,17 +186,8 @@ def test_run_graph_rag_enhanced_mode():
 
 def test_format_graph_context():
     """Test graph context formatting."""
-    entities = [
-        {
-            "entity": "LLM",
-            "relations": [
-                {"relation": "uses", "weight": 0.9, "other": "Transformer"}
-            ]
-        }
-    ]
-    neighbors = [
-        {"entity": "LLM", "relation": "enables", "other": "RAG", "weight": 0.85}
-    ]
+    entities = [{"entity": "LLM", "relations": [{"relation": "uses", "weight": 0.9, "other": "Transformer"}]}]
+    neighbors = [{"entity": "LLM", "relation": "enables", "other": "RAG", "weight": 0.85}]
     paths = [
         {
             "source": "LLM",
@@ -226,6 +211,7 @@ def test_format_graph_context():
 # ============================================================================
 # Enhanced Agent Tests
 # ============================================================================
+
 
 def test_analyze_pdf_quality_structure_detection():
     """Test PDF quality analysis with structured content."""
@@ -295,12 +281,12 @@ def test_get_document_context_for_query():
     docs = [
         {
             "content": "Large Language Models (LLMs) are powerful AI systems.",
-            "metadata": {"format": "markdown", "total_pages": 5}
+            "metadata": {"format": "markdown", "total_pages": 5},
         },
         {
             "content": "Natural Language Processing enables RAG systems.",
-            "metadata": {"format": "markdown", "total_pages": 3}
-        }
+            "metadata": {"format": "markdown", "total_pages": 3},
+        },
     ]
 
     context = get_document_context_for_query("What is LLM?", docs)
@@ -315,12 +301,13 @@ def test_get_document_context_for_query():
 # Configuration Tests
 # ============================================================================
 
+
 def test_config_imports():
     """Test that configuration constants are importable."""
     from app.agents.graph_rag_config import (
-        QUALITY_THRESHOLD_HIGH,
-        GRAPH_PARAMS_HIGH_QUALITY,
         ENGLISH_NOISE_TERMS,
+        GRAPH_PARAMS_HIGH_QUALITY,
+        QUALITY_THRESHOLD_HIGH,
     )
 
     assert isinstance(QUALITY_THRESHOLD_HIGH, float)
@@ -345,28 +332,19 @@ def test_tools_config_imports():
 # Integration Tests
 # ============================================================================
 
+
 @pytest.mark.integration
 def test_end_to_end_basic_flow():
     """Test end-to-end basic Graph RAG flow."""
     with patch("app.tools.graph_tools.graph_lookup") as mock_lookup:
         mock_lookup.return_value = {
-            "entities": [
-                {
-                    "entity": "LLM",
-                    "relations": [
-                        {"relation": "uses", "weight": 0.9, "other": "Transformer"}
-                    ]
-                }
-            ],
+            "entities": [{"entity": "LLM", "relations": [{"relation": "uses", "weight": 0.9, "other": "Transformer"}]}],
             "neighbors": [],
             "paths": [],
             "graph_signal_score": 0.6,
         }
 
-        result = run_graph_rag(
-            question="What is a Large Language Model?",
-            enable_enhancements=False
-        )
+        result = run_graph_rag(question="What is a Large Language Model?", enable_enhancements=False)
 
         assert result["graph_signal_score"] == 0.6
         assert len(result["entities"]) > 0
@@ -395,7 +373,7 @@ def test_end_to_end_enhanced_flow():
 
             ## References
             """,
-            "metadata": {"format": "markdown", "total_pages": 10}
+            "metadata": {"format": "markdown", "total_pages": 10},
         }
     ]
 
@@ -408,11 +386,7 @@ def test_end_to_end_enhanced_flow():
             "confidence": "high",
         }
 
-        result = run_graph_rag(
-            question="What is LLM?",
-            retrieved_docs=docs,
-            enable_enhancements=True
-        )
+        result = run_graph_rag(question="What is LLM?", retrieved_docs=docs, enable_enhancements=True)
 
         assert result["confidence"] == "high"
         assert result["graph_signal_score"] >= 0.7

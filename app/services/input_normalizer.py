@@ -1,7 +1,6 @@
 import re
 import unicodedata
 
-
 _MULTI_PUNCT_RE = re.compile(r"[!?！？。．\.]{3,}")
 _SPACE_RE = re.compile(r"[ \u3000\t]+")
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")

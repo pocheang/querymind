@@ -1,4 +1,4 @@
-﻿import importlib
+import importlib
 import sys
 import types
 
@@ -77,6 +77,30 @@ def test_router_respects_forced_agent_class_hint(monkeypatch):
     decision = router_agent.decide_route("hello", agent_class_hint="cybersecurity")
     assert decision.agent_class == "cybersecurity"
     assert "forced_agent_class=cybersecurity" in decision.reason
+
+
+def test_router_invalid_route_and_skill_fall_back_safely(monkeypatch):
+    from app.agents.shared_cache import clear_agent_caches
+
+    class FakeModel:
+        def invoke(self, _messages):
+            return types.SimpleNamespace(
+                content='{"route":"unknown_route","reason":"bad_output","skill":"not_a_skill"}'
+            )
+
+    # Clear cache before test to ensure clean state
+    clear_agent_caches()
+
+    monkeypatch.setattr(router_agent, "get_reasoning_model", lambda: FakeModel())
+    monkeypatch.setattr(router_agent, "get_chat_model", lambda: FakeModel())
+    monkeypatch.setattr(router_agent, "classify_agent_class", lambda _q: "general")
+    monkeypatch.setattr(router_agent, "is_smalltalk_query", lambda _q: False)
+
+    decision = router_agent.decide_route("invalid route test", use_llm_intent=False)
+    assert decision.route == "vector"
+    assert decision.skill == "answer_with_citations"
+    assert "invalid_route=unknown_route" in decision.reason
+    assert "invalid_skill=not_a_skill" in decision.reason
 
 
 def test_synthesize_answer_returns_fallback_on_error(monkeypatch):
@@ -164,9 +188,18 @@ def test_stream_prefers_effective_hit_count_for_web_fallback(monkeypatch):
     fake_synthesis_agent.stream_synthesize_answer = lambda **kwargs: iter(["ok"])
     fake_synthesis_agent.synthesize_answer = lambda **kwargs: "ok"
     fake_vector_agent = types.ModuleType("app.agents.vector_rag_agent")
-    fake_vector_agent.run_vector_rag = lambda _q: {"retrieved_count": 5, "effective_hit_count": 0, "context": "", "citations": []}
+    fake_vector_agent.run_vector_rag = lambda _q: {
+        "retrieved_count": 5,
+        "effective_hit_count": 0,
+        "context": "",
+        "citations": [],
+    }
     fake_web_agent = types.ModuleType("app.agents.web_research_agent")
-    fake_web_agent.run_web_research = lambda _q: {"used": True, "citations": [{"source": "web", "content": "x", "metadata": {}}], "context": "web ctx"}
+    fake_web_agent.run_web_research = lambda _q: {
+        "used": True,
+        "citations": [{"source": "web", "content": "x", "metadata": {}}],
+        "context": "web ctx",
+    }
 
     monkeypatch.setitem(sys.modules, "app.agents.graph_rag_agent", fake_graph_agent)
     monkeypatch.setitem(sys.modules, "app.agents.router_agent", fake_router_agent)
@@ -194,7 +227,12 @@ def test_stream_does_not_use_web_when_fallback_enabled_and_local_evidence_suffic
     fake_synthesis_agent.stream_synthesize_answer = lambda **kwargs: iter(["ok"])
     fake_synthesis_agent.synthesize_answer = lambda **kwargs: "ok"
     fake_vector_agent = types.ModuleType("app.agents.vector_rag_agent")
-    fake_vector_agent.run_vector_rag = lambda _q, **_kwargs: {"retrieved_count": 3, "effective_hit_count": 3, "context": "local", "citations": []}
+    fake_vector_agent.run_vector_rag = lambda _q, **_kwargs: {
+        "retrieved_count": 3,
+        "effective_hit_count": 3,
+        "context": "local",
+        "citations": [],
+    }
     fake_web_agent = types.ModuleType("app.agents.web_research_agent")
     web_calls = {"n": 0}
 
@@ -297,7 +335,11 @@ def test_stream_forces_web_when_user_explicitly_requests_online_search(monkeypat
     fake_vector_agent = types.ModuleType("app.agents.vector_rag_agent")
     fake_vector_agent.run_vector_rag = lambda _q: {"retrieved_count": 5, "context": "", "citations": []}
     fake_web_agent = types.ModuleType("app.agents.web_research_agent")
-    fake_web_agent.run_web_research = lambda _q: {"used": True, "citations": [{"source": "web", "content": "x", "metadata": {}}], "context": "web ctx"}
+    fake_web_agent.run_web_research = lambda _q: {
+        "used": True,
+        "citations": [{"source": "web", "content": "x", "metadata": {}}],
+        "context": "web ctx",
+    }
 
     monkeypatch.setitem(sys.modules, "app.agents.graph_rag_agent", fake_graph_agent)
     monkeypatch.setitem(sys.modules, "app.agents.router_agent", fake_router_agent)
@@ -308,7 +350,9 @@ def test_stream_forces_web_when_user_explicitly_requests_online_search(monkeypat
     graph_streaming = importlib.import_module("app.graph.streaming")
     graph_streaming = importlib.reload(graph_streaming)
 
-    events = list(graph_streaming.run_query_stream("请上网查一下最新漏洞动态", use_web_fallback=True, use_reasoning=True))
+    events = list(
+        graph_streaming.run_query_stream("请上网查一下最新漏洞动态", use_web_fallback=True, use_reasoning=True)
+    )
     web_events = [e for e in events if e.get("type") == "web_result"]
     assert web_events
     assert web_events[0].get("used") is True
@@ -327,7 +371,11 @@ def test_stream_skips_web_for_casual_chat(monkeypatch):
     fake_vector_agent = types.ModuleType("app.agents.vector_rag_agent")
     fake_vector_agent.run_vector_rag = lambda _q: {"retrieved_count": 0, "context": "", "citations": []}
     fake_web_agent = types.ModuleType("app.agents.web_research_agent")
-    fake_web_agent.run_web_research = lambda _q: {"used": True, "citations": [{"source": "web", "content": "x", "metadata": {}}], "context": "web ctx"}
+    fake_web_agent.run_web_research = lambda _q: {
+        "used": True,
+        "citations": [{"source": "web", "content": "x", "metadata": {}}],
+        "context": "web ctx",
+    }
 
     monkeypatch.setitem(sys.modules, "app.agents.graph_rag_agent", fake_graph_agent)
     monkeypatch.setitem(sys.modules, "app.agents.router_agent", fake_router_agent)

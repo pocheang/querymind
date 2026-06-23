@@ -1,7 +1,7 @@
 """Enhanced PDF loader with advanced processing."""
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 from langchain_core.documents import Document
 
@@ -17,7 +17,7 @@ def load_pdf_enhanced(
     by_page: bool = True,
     enable_cleaning: bool = True,
     enable_table_merging: bool = True,
-    enable_nested_table_handling: bool = True
+    enable_nested_table_handling: bool = True,
 ) -> list[Document]:
     """Load PDF with configurable enhanced processing.
 

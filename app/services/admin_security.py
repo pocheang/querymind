@@ -2,21 +2,20 @@
 
 Provides security checks for admin operations to prevent self-modification and privilege escalation.
 """
-from typing import Any, Callable
+
+from collections.abc import Callable
+from typing import Any
+
 from fastapi import Request
 
 from app.api.dependencies import settings
 from app.api.utils.error_responses import bad_request, forbidden
 from app.api.utils.string_utils import normalize_string
-from app.services.admin_token_tracker import validate_admin_approval_token, get_token_tracker
+from app.services.admin_token_tracker import get_token_tracker, validate_admin_approval_token
 
 
 def check_self_modification(
-    user_id: str,
-    actor_user: dict[str, Any],
-    operation: str,
-    audit_callback: callable = None,
-    request: Request = None
+    user_id: str, actor_user: dict[str, Any], operation: str, audit_callback: callable = None, request: Request = None
 ) -> None:
     """
     Check if admin is attempting to modify their own account.
@@ -43,7 +42,7 @@ def check_self_modification(
                 result="blocked_self_modification",
                 user=actor_user,
                 resource_id=user_id,
-                detail=f"attempted self-modification: {operation}"
+                detail=f"attempted self-modification: {operation}",
             )
 
         raise forbidden("cannot modify your own account")
@@ -76,7 +75,7 @@ def validate_ticket_id(ticket_id: str) -> None:
     import re
 
     # Ticket format: PROJECT-NUMBER (e.g., JIRA-123, TICKET-456)
-    TICKET_PATTERN = re.compile(r'^[A-Z]+-\d+$')
+    TICKET_PATTERN = re.compile(r"^[A-Z]+-\d+$")
 
     if not ticket_id or len(ticket_id) < 3:
         raise bad_request("ticket_id is required (minimum 3 characters)")
@@ -122,7 +121,7 @@ def validate_and_check_approval_token(
     audit_callback: Callable,
     request: Request,
     user: dict[str, Any],
-    resource_id: str = None
+    resource_id: str = None,
 ) -> tuple[bool, str]:
     """
     Validate approval token with single-use enforcement and audit logging.
@@ -142,17 +141,10 @@ def validate_and_check_approval_token(
     Raises:
         HTTPException: If token validation fails (403)
     """
-    configured_hash = str(
-        getattr(settings, "admin_create_approval_token_hash", "") or ""
-    ).strip().lower()
+    configured_hash = str(getattr(settings, "admin_create_approval_token_hash", "") or "").strip().lower()
 
     tracker = get_token_tracker()
-    token_ok, token_mode = validate_admin_approval_token(
-        approval_token,
-        configured_hash,
-        actor_user_id,
-        tracker
-    )
+    token_ok, token_mode = validate_admin_approval_token(approval_token, configured_hash, actor_user_id, tracker)
 
     if not token_ok:
         audit_callback(
@@ -162,7 +154,7 @@ def validate_and_check_approval_token(
             result="failed",
             user=user,
             resource_id=resource_id,
-            detail=f"approval_failed; mode={token_mode}"
+            detail=f"approval_failed; mode={token_mode}",
         )
         raise forbidden("unauthorized")
 

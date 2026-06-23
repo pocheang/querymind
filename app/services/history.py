@@ -1,14 +1,17 @@
 import json
+import logging
 import re
 import sqlite3
 import threading
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TITLE = "新会话"
 
@@ -121,7 +124,9 @@ class HistoryStore:
             return False
         if self._backend == "sqlite":
             with self._lock, self._connect() as conn:
-                cur = conn.execute("DELETE FROM sessions WHERE namespace=? AND session_id=?", (self._namespace, session_id))
+                cur = conn.execute(
+                    "DELETE FROM sessions WHERE namespace=? AND session_id=?", (self._namespace, session_id)
+                )
                 conn.commit()
                 return int(cur.rowcount or 0) > 0
         path = self.base_dir / f"{session_id}.json"
@@ -130,7 +135,9 @@ class HistoryStore:
         path.unlink()
         return True
 
-    def append_message(self, session_id: str, role: str, content: str, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def append_message(
+        self, session_id: str, role: str, content: str, metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         session_id = validate_session_id(session_id)
         data = self.get_or_create_session(session_id)
         if not data.get("messages") and role == "user":
@@ -278,12 +285,12 @@ class HistoryStore:
                 )
                 if int(updated.rowcount or 0) == 0:
                     conn.execute(
-                    """
+                        """
                     INSERT INTO sessions(namespace, session_id, data_json, created_at, updated_at)
                     VALUES(?, ?, ?, ?, ?)
                     """,
-                    (self._namespace, session_id, payload, created_at, updated_at),
-                )
+                        (self._namespace, session_id, payload, created_at, updated_at),
+                    )
                 conn.commit()
             return
         path = self.base_dir / f"{session_id}.json"
@@ -363,11 +370,11 @@ class HistoryStore:
     def _tier_cold_files_if_needed(self) -> None:
         if self._backend != "file":
             return
-        now_ts = datetime.now(timezone.utc).timestamp()
+        now_ts = datetime.now(UTC).timestamp()
         if (now_ts - self._last_tier_ts) < 300:
             return
         self._last_tier_ts = now_ts
-        cutoff = datetime.now(timezone.utc) - timedelta(days=self._hot_days)
+        cutoff = datetime.now(UTC) - timedelta(days=self._hot_days)
         for path in list(self.base_dir.glob("*.json")):
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
@@ -376,14 +383,14 @@ class HistoryStore:
                 continue
             updated = str(data.get("updated_at", "") or "")
             try:
-                dt = datetime.fromisoformat(updated) if updated else datetime.now(timezone.utc)
+                dt = datetime.fromisoformat(updated) if updated else datetime.now(UTC)
             except (ValueError, TypeError) as e:
                 logger.debug(f"Invalid timestamp, using current time: {e}")
-                dt = datetime.now(timezone.utc)
+                dt = datetime.now(UTC)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             else:
-                dt = dt.astimezone(timezone.utc)
+                dt = dt.astimezone(UTC)
             if dt < cutoff:
                 target = self._cold_dir / path.name
                 try:
@@ -422,4 +429,4 @@ class HistoryStore:
 
     @staticmethod
     def _now() -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()

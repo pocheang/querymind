@@ -1,7 +1,5 @@
 """Chart and graph detection and extraction from PDFs."""
 
-from pathlib import Path
-from typing import List, Dict, Optional
 import logging
 
 from app.services.outbound_redaction import redact_messages_for_provider
@@ -28,8 +26,9 @@ def _resize_image_if_needed(image_bytes: bytes, max_size_bytes: int = MAX_IMAGE_
         return image_bytes
 
     try:
-        from PIL import Image
         from io import BytesIO
+
+        from PIL import Image
 
         logger.info(f"Resizing large image ({len(image_bytes)} bytes) to fit {max_size_bytes} bytes")
 
@@ -55,7 +54,7 @@ def _resize_image_if_needed(image_bytes: bytes, max_size_bytes: int = MAX_IMAGE_
 
         # Save to bytes
         output = BytesIO()
-        img.save(output, format='JPEG', quality=85, optimize=True)
+        img.save(output, format="JPEG", quality=85, optimize=True)
         resized_bytes = output.getvalue()
 
         logger.info(f"Resized image from {len(image_bytes)} to {len(resized_bytes)} bytes")
@@ -67,7 +66,7 @@ def _resize_image_if_needed(image_bytes: bytes, max_size_bytes: int = MAX_IMAGE_
         return image_bytes
 
 
-def detect_chart_in_image(image_bytes: bytes) -> Dict[str, any]:
+def detect_chart_in_image(image_bytes: bytes) -> dict[str, any]:
     """
     Detect if image contains a chart/graph.
 
@@ -81,8 +80,9 @@ def detect_chart_in_image(image_bytes: bytes) -> Dict[str, any]:
         - confidence: float
     """
     try:
-        from PIL import Image
         from io import BytesIO
+
+        from PIL import Image
 
         img = Image.open(BytesIO(image_bytes))
 
@@ -101,13 +101,7 @@ def detect_chart_in_image(image_bytes: bytes) -> Dict[str, any]:
 
         # Basic detection - assume it might be a chart
         # In production, use a trained model
-        return {
-            "is_chart": True,
-            "chart_type": "unknown",
-            "confidence": 0.6,
-            "width": width,
-            "height": height
-        }
+        return {"is_chart": True, "chart_type": "unknown", "confidence": 0.6, "width": width, "height": height}
 
     except Exception as e:
         logger.error(f"Chart detection failed: {e}")
@@ -115,10 +109,8 @@ def detect_chart_in_image(image_bytes: bytes) -> Dict[str, any]:
 
 
 def extract_chart_data_with_vision(
-    image_bytes: bytes,
-    model: str = "gpt-4o",
-    api_key: Optional[str] = None
-) -> Dict[str, any]:
+    image_bytes: bytes, model: str = "gpt-4o", api_key: str | None = None
+) -> dict[str, any]:
     """
     Extract data from chart using multimodal LLM.
 
@@ -151,7 +143,7 @@ def extract_chart_data_with_vision(
         return {"error": str(e)}
 
 
-def _extract_json_from_text(text: str) -> Optional[Dict]:
+def _extract_json_from_text(text: str) -> dict | None:
     """
     Extract JSON from text with multiple strategies.
 
@@ -165,7 +157,7 @@ def _extract_json_from_text(text: str) -> Optional[Dict]:
     import re
 
     # Strategy 1: Look for JSON code block
-    code_block_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+    code_block_match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
     if code_block_match:
         try:
             return json.loads(code_block_match.group(1))
@@ -174,18 +166,18 @@ def _extract_json_from_text(text: str) -> Optional[Dict]:
 
     # Strategy 2: Find first complete JSON object
     brace_count = 0
-    start_idx = text.find('{')
+    start_idx = text.find("{")
     if start_idx == -1:
         return None
 
     for i in range(start_idx, len(text)):
-        if text[i] == '{':
+        if text[i] == "{":
             brace_count += 1
-        elif text[i] == '}':
+        elif text[i] == "}":
             brace_count -= 1
             if brace_count == 0:
                 try:
-                    return json.loads(text[start_idx:i+1])
+                    return json.loads(text[start_idx : i + 1])
                 except json.JSONDecodeError as e:
                     logger.debug(f"JSON object parse failed: {e}")
                 break
@@ -193,10 +185,11 @@ def _extract_json_from_text(text: str) -> Optional[Dict]:
     return None
 
 
-def _extract_with_openai(image_bytes: bytes, api_key: Optional[str], model: str = "gpt-4o") -> Dict:
+def _extract_with_openai(image_bytes: bytes, api_key: str | None, model: str = "gpt-4o") -> dict:
     """Extract chart data using OpenAI GPT-4o/GPT-4-turbo."""
     try:
         import base64
+
         from openai import OpenAI
 
         if not api_key:
@@ -204,7 +197,7 @@ def _extract_with_openai(image_bytes: bytes, api_key: Optional[str], model: str 
             return {"error": "OpenAI API key not configured"}
 
         # Encode image
-        image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
         client = OpenAI(api_key=api_key)
 
@@ -234,23 +227,14 @@ Format your response as JSON:
                     "role": "user",
                     "content": [
                         {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_b64}"
-                            }
-                        }
-                    ]
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}},
+                    ],
                 }
             ],
             provider="openai",
         )
 
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=1000
-        )
+        response = client.chat.completions.create(model=model, messages=messages, max_tokens=1000)
 
         # Parse response
         content = response.choices[0].message.content
@@ -271,10 +255,11 @@ Format your response as JSON:
         return {"error": str(e)}
 
 
-def _extract_with_anthropic(image_bytes: bytes, api_key: Optional[str], model: str = "claude-3-5-sonnet-20241022") -> Dict:
+def _extract_with_anthropic(image_bytes: bytes, api_key: str | None, model: str = "claude-3-5-sonnet-20241022") -> dict:
     """Extract chart data using Anthropic Claude."""
     try:
         import base64
+
         from anthropic import Anthropic
 
         if not api_key:
@@ -282,7 +267,7 @@ def _extract_with_anthropic(image_bytes: bytes, api_key: Optional[str], model: s
             return {"error": "Anthropic API key not configured"}
 
         # Encode image
-        image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
         client = Anthropic(api_key=api_key)
 
@@ -302,29 +287,15 @@ Format your response as JSON."""
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/jpeg",
-                                "data": image_b64
-                            }
-                        },
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
+                        {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}},
+                        {"type": "text", "text": prompt},
+                    ],
                 }
             ],
             provider="anthropic",
         )
 
-        message = client.messages.create(
-            model=model,
-            max_tokens=1000,
-            messages=messages
-        )
+        message = client.messages.create(model=model, max_tokens=1000, messages=messages)
 
         # Parse response
         content = message.content[0].text
@@ -345,7 +316,7 @@ Format your response as JSON."""
         return {"error": str(e)}
 
 
-def chart_data_to_markdown(chart_data: Dict) -> str:
+def chart_data_to_markdown(chart_data: dict) -> str:
     """
     Convert extracted chart data to Markdown format.
 

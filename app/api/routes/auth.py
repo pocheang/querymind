@@ -1,18 +1,18 @@
 """Authentication routes for the Multi-Agent Local RAG API."""
+
+import logging
 import secrets
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from authlib.integrations.starlette_client import OAuth
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from authlib.integrations.starlette_client import OAuth
 
-from app.api.utils.error_responses import bad_request, unauthorized, not_found, internal_error, rate_limited, not_implemented
-from app.api.utils.string_utils import normalize_string
 from app.api.dependencies import (
     _audit,
-    _client_ip,
     _clear_auth_cookie,
+    _client_ip,
     _require_user,
     _require_user_and_token,
     _set_auth_cookie,
@@ -21,8 +21,19 @@ from app.api.dependencies import (
     register_limiter,
     settings,
 )
+from app.api.utils.error_responses import (
+    bad_request,
+    internal_error,
+    not_found,
+    not_implemented,
+    rate_limited,
+    unauthorized,
+)
+from app.api.utils.string_utils import normalize_string
 from app.core.schemas import AuthCredentials, AuthLoginResponse, AuthUser
 from app.services.auth.validation import validate_password
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -37,8 +48,73 @@ if settings.google_client_id and settings.google_client_secret:
         client_kwargs={"scope": "openid email profile"},
     )
 
-# Store OAuth state temporarily (in production, use Redis)
-_oauth_states: dict[str, dict[str, Any]] = {}
+
+# 安全修复：OAuth状态存储迁移到Redis（支持多进程部署）
+def _get_redis_for_oauth():
+    """获取Redis客户端用于OAuth状态存储"""
+    try:
+        import redis
+
+        redis_url = settings.redis_url or "redis://localhost:6379/0"
+        return redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_connect_timeout=0.5,
+            socket_timeout=0.5,
+        )
+    except Exception as e:
+        logger.warning(f"Redis not available for OAuth state storage: {e}")
+        return None
+
+
+def _store_oauth_state(state: str, data: dict[str, Any], ttl_seconds: int = 300) -> None:
+    """存储OAuth状态（优先Redis，降级到内存）"""
+    redis_client = _get_redis_for_oauth()
+    if redis_client:
+        try:
+            import json
+
+            redis_client.setex(f"oauth_state:{state}", ttl_seconds, json.dumps(data))
+            return
+        except Exception as e:
+            logger.warning(f"Failed to store OAuth state in Redis: {e}")
+
+    # 降级到内存（仅单进程有效）
+    _oauth_states_memory[state] = data
+
+
+def _get_oauth_state(state: str) -> dict[str, Any] | None:
+    """获取OAuth状态"""
+    redis_client = _get_redis_for_oauth()
+    if redis_client:
+        try:
+            import json
+
+            value = redis_client.get(f"oauth_state:{state}")
+            if value:
+                return json.loads(value)
+        except Exception as e:
+            logger.warning(f"Failed to get OAuth state from Redis: {e}")
+
+    # 降级到内存
+    return _oauth_states_memory.get(state)
+
+
+def _delete_oauth_state(state: str) -> None:
+    """删除OAuth状态"""
+    redis_client = _get_redis_for_oauth()
+    if redis_client:
+        try:
+            redis_client.delete(f"oauth_state:{state}")
+        except Exception:
+            pass
+
+    # 同时清理内存
+    _oauth_states_memory.pop(state, None)
+
+
+# 内存存储作为降级方案
+_oauth_states_memory: dict[str, dict[str, Any]] = {}
 
 
 class ChangePasswordRequest(BaseModel):
@@ -104,7 +180,9 @@ def logout(request: Request, response: Response, auth: tuple[dict[str, Any], str
     _user, token = auth
     auth_service.logout(token)
     _clear_auth_cookie(response)
-    _audit(request, action="auth.logout", resource_type="auth", result="success", user=_user, resource_id=_user["user_id"])
+    _audit(
+        request, action="auth.logout", resource_type="auth", result="success", user=_user, resource_id=_user["user_id"]
+    )
     return {"ok": True}
 
 
@@ -122,9 +200,7 @@ def update_profile(
     """Update user profile (display name)."""
     user_id = user["user_id"]
 
-    updated_user = auth_service.user_manager.update_user_display_name(
-        user_id, req.display_name
-    )
+    updated_user = auth_service.user_manager.update_user_display_name(user_id, req.display_name)
 
     if not updated_user:
         raise not_found("User")
@@ -143,9 +219,11 @@ def update_profile(
 def change_password(
     req: ChangePasswordRequest,
     request: Request,
-    user: dict[str, Any] = Depends(_require_user),
+    response: Response,
+    auth: tuple[dict[str, Any], str] = Depends(_require_user_and_token),
 ):
     """Change user password (requires old password verification)."""
+    user, token = auth
     user_id = user["user_id"]
     username = user["username"]
 
@@ -207,6 +285,17 @@ def change_password(
         )
         raise internal_error("密码更新失败")
 
+    # 安全修复：密码更改后轮换会话令牌
+    try:
+        new_session = auth_service.session_manager.rotate_session_token(
+            token, user_id, user["username"], user["role"], user["status"]
+        )
+        # 更新cookie中的token
+        _set_auth_cookie(response, new_session["token"])
+    except Exception as e:
+        logger.warning(f"Failed to rotate session token after password change: {e}")
+        # 即使令牌轮换失败，密码已成功更改
+
     _audit(
         request,
         action="auth.change_password",
@@ -227,7 +316,7 @@ async def google_login(request: Request) -> RedirectResponse:
 
     # Generate state for CSRF protection
     state = secrets.token_urlsafe(32)
-    _oauth_states[state] = {"ip": _client_ip(request)}
+    _store_oauth_state(state, {"ip": _client_ip(request)}, ttl_seconds=300)
 
     redirect_uri = settings.google_redirect_uri
     return await oauth.google.authorize_redirect(request, redirect_uri, state=state)
@@ -241,7 +330,9 @@ async def google_callback(request: Request, response: Response) -> RedirectRespo
 
     # Verify state
     state = request.query_params.get("state")
-    if not state or state not in _oauth_states:
+    oauth_state_data = _get_oauth_state(state) if state else None
+
+    if not state or not oauth_state_data:
         _audit(
             request,
             action="auth.google_callback",
@@ -252,7 +343,7 @@ async def google_callback(request: Request, response: Response) -> RedirectRespo
         return RedirectResponse(url="/login?error=invalid_state")
 
     # Verify IP matches (basic CSRF protection)
-    stored_ip = _oauth_states[state].get("ip")
+    stored_ip = oauth_state_data.get("ip")
     current_ip = _client_ip(request)
     if stored_ip != current_ip:
         _audit(
@@ -262,11 +353,11 @@ async def google_callback(request: Request, response: Response) -> RedirectRespo
             result="blocked",
             detail=f"ip_mismatch: {stored_ip} != {current_ip}",
         )
-        del _oauth_states[state]
+        _delete_oauth_state(state)
         return RedirectResponse(url="/login?error=security_check_failed")
 
     # Clean up state
-    del _oauth_states[state]
+    _delete_oauth_state(state)
 
     try:
         # Exchange code for token
@@ -346,6 +437,3 @@ async def google_callback(request: Request, response: Response) -> RedirectRespo
             detail=f"oauth_error: {e}",
         )
         return RedirectResponse(url="/login?error=oauth_failed")
-
-
-

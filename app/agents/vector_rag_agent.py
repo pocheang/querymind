@@ -14,7 +14,6 @@ from pathlib import Path
 from app.agents.agent_config import (
     CHUNK_PREVIEW_LENGTH,
     DENSE_SCORE_THRESHOLD,
-    MIN_CHUNK_LENGTH,
 )
 from app.core.config import get_settings
 from app.retrievers.hybrid_retriever import hybrid_search_with_diagnostics
@@ -48,10 +47,19 @@ def run_vector_rag(
     """
     settings = get_settings()
 
-    # Auto-apply agent document filtering
-    if allowed_sources is None and agent_class:
-        allowed_sources = get_sources_by_agent_class(agent_class)
-        logger.debug(f"Applied agent filter for {agent_class}: {len(allowed_sources or [])} sources")
+    # Always honor agent-class filtering, intersecting it with any explicit source scope.
+    if agent_class:
+        class_sources = get_sources_by_agent_class(agent_class)
+        if allowed_sources is None:
+            allowed_sources = class_sources
+        elif class_sources is not None:
+            allowed_set = set(class_sources)
+            allowed_sources = [src for src in allowed_sources if src in allowed_set]
+        logger.debug(
+            "Applied agent filter for %s: %s sources",
+            agent_class,
+            len(allowed_sources or []),
+        )
 
     try:
         results, diagnostics = hybrid_search_with_diagnostics(
@@ -97,11 +105,7 @@ def run_vector_rag(
             }
         )
 
-        context_blocks.append(
-            f"[SOURCE: {src}]\n"
-            f"[RETRIEVAL: {','.join(retrieval_sources)}]\n"
-            f"{chunk}"
-        )
+        context_blocks.append(f"[SOURCE: {src}]\n[RETRIEVAL: {','.join(retrieval_sources)}]\n{chunk}")
 
         # Evidence gating: count high-quality hits
         # Prefer score-backed hits, but keep unknown-score hits valid
@@ -110,23 +114,21 @@ def run_vector_rag(
         rerank_score = item.get("rerank_score")
         has_valid_score = False
 
-        if isinstance(rerank_score, (int, float)) and float(rerank_score) > 0:
+        if isinstance(rerank_score, int | float) and float(rerank_score) > 0:
             effective_hit_count += 1
             has_valid_score = True
-        elif isinstance(dense_score, (int, float)) and float(dense_score) >= DENSE_SCORE_THRESHOLD:
+        elif isinstance(dense_score, int | float) and float(dense_score) >= DENSE_SCORE_THRESHOLD:
             effective_hit_count += 1
             has_valid_score = True
-        elif isinstance(bm25_score, (int, float)) and float(bm25_score) > 0:
+        elif isinstance(bm25_score, int | float) and float(bm25_score) > 0:
             effective_hit_count += 1
             has_valid_score = True
 
-        # Count unknown-score items if they have valid text content
-        if not has_valid_score and len(chunk.strip()) >= MIN_CHUNK_LENGTH:
+        # Count unknown-score items if they still contain non-empty evidence text
+        if not has_valid_score and chunk.strip():
             effective_hit_count += 1
 
-    logger.info(
-        f"Vector RAG retrieved {len(citations)} chunks, {effective_hit_count} effective hits"
-    )
+    logger.info(f"Vector RAG retrieved {len(citations)} chunks, {effective_hit_count} effective hits")
 
     return {
         "context": "\n\n".join(context_blocks),

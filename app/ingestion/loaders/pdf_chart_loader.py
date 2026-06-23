@@ -1,18 +1,21 @@
 """PDF loader with chart extraction support."""
 
-from pathlib import Path
-from typing import List
 import logging
+from pathlib import Path
 
 from langchain_core.documents import Document
 
 from app.core.config import get_settings
-from app.ingestion.utils.chart_extractor import detect_chart_in_image, extract_chart_data_with_vision, chart_data_to_markdown
+from app.ingestion.utils.chart_extractor import (
+    chart_data_to_markdown,
+    detect_chart_in_image,
+    extract_chart_data_with_vision,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: str = "gpt-4-vision") -> List[Document]:
+def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: str = "gpt-4-vision") -> list[Document]:
     """
     Extract charts from PDF and convert to structured text.
 
@@ -46,7 +49,7 @@ def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: s
 
     try:
         # Use context manager for proper resource cleanup
-        with open(path, 'rb') as pdf_file:
+        with open(path, "rb") as pdf_file:
             reader = PdfReader(pdf_file)
 
             for page_idx, page in enumerate(reader.pages, start=1):
@@ -70,14 +73,10 @@ def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: s
 
                     # Extract chart data
                     if use_vision:
-                        chart_data = extract_chart_data_with_vision(
-                            img_bytes,
-                            model=vision_model,
-                            api_key=api_key
-                        )
+                        chart_data = extract_chart_data_with_vision(img_bytes, model=vision_model, api_key=api_key)
                         chart_text = chart_data_to_markdown(chart_data)
                     else:
-                        chart_text = f"[Chart detected but vision extraction disabled]"
+                        chart_text = "[Chart detected but vision extraction disabled]"
 
                     # Create document
                     doc = Document(
@@ -89,7 +88,7 @@ def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: s
                             "modality": "chart",
                             "chart_type": detection.get("chart_type", "unknown"),
                             "detection_confidence": detection.get("confidence", 0.0),
-                        }
+                        },
                     )
                     docs.append(doc)
 
@@ -100,7 +99,7 @@ def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: s
     return docs
 
 
-def load_pdf_with_charts(path: Path, extract_charts: bool = True, vision_model: str = "gpt-4-vision") -> List[Document]:
+def load_pdf_with_charts(path: Path, extract_charts: bool = True, vision_model: str = "gpt-4-vision") -> list[Document]:
     """
     Load PDF with chart extraction.
 

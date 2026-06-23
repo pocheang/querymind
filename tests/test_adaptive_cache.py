@@ -8,15 +8,14 @@ Validates:
     - Real-time query detection
 """
 
-import pytest
 from app.retrievers.hybrid.adaptive_cache import (
-    get_adaptive_cache_ttl,
-    should_skip_cache,
-    _is_user_specific_query,
-    DEFAULT_CACHE_TTL_FAST_TIER,
     DEFAULT_CACHE_TTL_BALANCED_TIER,
     DEFAULT_CACHE_TTL_DEEP_TIER,
+    DEFAULT_CACHE_TTL_FAST_TIER,
     DEFAULT_CACHE_TTL_USER_QUERY,
+    _is_user_specific_query,
+    get_adaptive_cache_ttl,
+    should_skip_cache,
 )
 
 
@@ -74,11 +73,7 @@ class TestUserSpecificQueries:
     def test_user_specific_ttl_override(self):
         """User-specific queries should use special TTL regardless of tier."""
         # Even with fast tier, user-specific query uses USER_QUERY TTL
-        ttl = get_adaptive_cache_ttl(
-            "Show me my documents",
-            tier="fast",
-            user_id="user123"
-        )
+        ttl = get_adaptive_cache_ttl("Show me my documents", tier="fast", user_id="user123")
         assert ttl == DEFAULT_CACHE_TTL_USER_QUERY
         assert ttl == 180  # 3 minutes
 
@@ -118,6 +113,7 @@ class TestCustomSettings:
 
     def test_custom_settings_override(self):
         """Custom settings should override defaults."""
+
         # Mock settings object
         class MockSettings:
             cache_ttl_fast_tier = 600  # 10 minutes

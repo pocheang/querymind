@@ -18,8 +18,8 @@ def vision_prompt() -> str:
         "2) 动物：种类、数量、动作。\n"
         "3) 物体与场景：关键物体、环境、空间关系。\n"
         "4) 可读文本：图中看得见的文字（若有）。\n"
-        "5) 风险与不确定性：无法确认的内容请明确写\"无法确认\"。\n"
-        "注意：不要臆测真实身份；除非图中有明确文字证据，否则人物身份写\"无法确认\"。"
+        '5) 风险与不确定性：无法确认的内容请明确写"无法确认"。\n'
+        '注意：不要臆测真实身份；除非图中有明确文字证据，否则人物身份写"无法确认"。'
     )
 
 
@@ -92,7 +92,7 @@ def _describe_image_ollama(img_bytes: bytes, settings) -> dict:
     except Exception as e:
         return {"status": "ollama_error", "caption": "", "model": model, "error": str(e)}
 
-    text = str(((data.get("message") or {}).get("content") or "")).strip()
+    text = str((data.get("message") or {}).get("content") or "").strip()
     if not text:
         return {"status": "ollama_empty", "caption": "", "model": model, "error": ""}
     return {"status": "ok", "caption": text, "model": model, "error": ""}
@@ -130,9 +130,7 @@ def describe_image_with_vision(img_bytes: bytes, settings) -> dict:
         tried.append(res)
 
     detail = "; ".join(
-        f"{x.get('status','unknown')}:{(x.get('error','') or '')[:120]}"
-        for x in tried
-        if x.get("status")
+        f"{x.get('status', 'unknown')}:{(x.get('error', '') or '')[:120]}" for x in tried if x.get("status")
     )
     return {"status": "vision_failed", "caption": "", "model": "", "error": detail}
 

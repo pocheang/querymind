@@ -1,6 +1,7 @@
 """
 Memory-related helper functions for the Multi-Agent Local RAG API.
 """
+
 from typing import Any
 
 from app.core.config import get_settings
@@ -34,7 +35,9 @@ def _memory_signals_from_result(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _build_memory_context_for_session(user: dict[str, Any], session_id: str | None, question: str, history_store_fn) -> str:
+def _build_memory_context_for_session(
+    user: dict[str, Any], session_id: str | None, question: str, history_store_fn
+) -> str:
     """Build memory context for a session."""
     if not session_id:
         return ""
@@ -45,7 +48,9 @@ def _build_memory_context_for_session(user: dict[str, Any], session_id: str | No
     return build_memory_context(question=question, session_messages=messages, long_term_memories=long_term)
 
 
-def _promote_long_term_memory(user: dict[str, Any], session_id: str | None, question: str, result: dict[str, Any]) -> None:
+def _promote_long_term_memory(
+    user: dict[str, Any], session_id: str | None, question: str, result: dict[str, Any]
+) -> None:
     """Promote a query result to long-term memory."""
     if not session_id:
         return

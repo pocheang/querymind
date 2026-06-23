@@ -1,6 +1,5 @@
 """Pydantic models for evaluation data structures."""
 
-from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
 
 
@@ -10,7 +9,7 @@ class TestQuery(BaseModel):
     id: str = Field(..., description="Unique query identifier")
     query: str = Field(..., description="Query text")
     category: str = Field(..., description="Query category (e.g., enterprise_hr, technical)")
-    expected_docs: List[str] = Field(default_factory=list, description="Expected document IDs")
+    expected_docs: list[str] = Field(default_factory=list, description="Expected document IDs")
     difficulty: str = Field(default="medium", description="Query difficulty: easy, medium, hard")
 
 
@@ -19,10 +18,10 @@ class RetrievalResult(BaseModel):
 
     query_id: str = Field(..., description="Query identifier")
     query_text: str = Field(..., description="Original query text")
-    retrieved_docs: List[str] = Field(default_factory=list, description="Retrieved document IDs")
-    scores: List[float] = Field(default_factory=list, description="Relevance scores")
+    retrieved_docs: list[str] = Field(default_factory=list, description="Retrieved document IDs")
+    scores: list[float] = Field(default_factory=list, description="Relevance scores")
     latency_ms: float = Field(..., description="Retrieval latency in milliseconds")
-    metadata: Dict = Field(default_factory=dict, description="Additional metadata")
+    metadata: dict = Field(default_factory=dict, description="Additional metadata")
 
 
 class EvaluationMetrics(BaseModel):
@@ -47,8 +46,8 @@ class QueryEvaluation(BaseModel):
     reciprocal_rank: float
     ndcg: float
     latency_ms: float
-    retrieved_docs: List[str]
-    relevant_docs: List[str]
+    retrieved_docs: list[str]
+    relevant_docs: list[str]
 
 
 class SystemComparison(BaseModel):
@@ -56,7 +55,7 @@ class SystemComparison(BaseModel):
 
     system_name: str = Field(..., description="System identifier")
     metrics: EvaluationMetrics = Field(..., description="Aggregated metrics")
-    query_results: List[QueryEvaluation] = Field(default_factory=list, description="Per-query results")
+    query_results: list[QueryEvaluation] = Field(default_factory=list, description="Per-query results")
 
 
 class EvaluationRun(BaseModel):
@@ -66,5 +65,5 @@ class EvaluationRun(BaseModel):
     system_name: str = Field(..., description="System being evaluated")
     timestamp: str = Field(..., description="ISO timestamp of evaluation")
     metrics: EvaluationMetrics = Field(..., description="Aggregated metrics")
-    query_results: List[QueryEvaluation] = Field(default_factory=list, description="Per-query results")
-    config: Dict = Field(default_factory=dict, description="Evaluation configuration")
+    query_results: list[QueryEvaluation] = Field(default_factory=list, description="Per-query results")
+    config: dict = Field(default_factory=dict, description="Evaluation configuration")

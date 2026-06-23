@@ -1,19 +1,15 @@
 """Streaming PDF loader for memory-efficient processing of large PDFs."""
 
 import logging
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 from langchain_core.documents import Document
 
 logger = logging.getLogger(__name__)
 
 
-def load_pdf_streaming(
-    path: Path,
-    chunk_pages: int = 10,
-    mode: str = "docling_enhanced"
-) -> Iterator[Document]:
+def load_pdf_streaming(path: Path, chunk_pages: int = 10, mode: str = "docling_enhanced") -> Iterator[Document]:
     """
     Stream-process PDF files in page chunks for memory efficiency.
 
@@ -84,17 +80,11 @@ def load_pdf_streaming(
         for chunk_start in range(1, total_pages + 1, chunk_pages):
             chunk_end = min(chunk_start + chunk_pages - 1, total_pages)
 
-            logger.debug(
-                f"Processing chunk: pages {chunk_start}-{chunk_end} "
-                f"of {total_pages}"
-            )
+            logger.debug(f"Processing chunk: pages {chunk_start}-{chunk_end} of {total_pages}")
 
             try:
                 # Convert only this chunk of pages
-                result = converter.convert(
-                    str(path),
-                    page_range=(chunk_start, chunk_end)
-                )
+                result = converter.convert(str(path), page_range=(chunk_start, chunk_end))
 
                 # Export the chunk to markdown
                 chunk_markdown = result.document.export_to_markdown()
@@ -111,38 +101,27 @@ def load_pdf_streaming(
                     }
 
                     # Yield immediately - don't wait for all chunks
-                    yield Document(
-                        page_content=chunk_markdown,
-                        metadata=metadata
-                    )
+                    yield Document(page_content=chunk_markdown, metadata=metadata)
 
                     processed_count += 1
                 else:
                     logger.debug(f"Chunk {chunk_start}-{chunk_end} is empty, skipping")
 
             except Exception as e:
-                logger.error(
-                    f"Error processing chunk {chunk_start}-{chunk_end} of {path.name}: {e}",
-                    exc_info=True
-                )
+                logger.error(f"Error processing chunk {chunk_start}-{chunk_end} of {path.name}: {e}", exc_info=True)
                 # Continue processing remaining chunks
                 continue
 
             # Log progress after each chunk
             logger.debug(
-                f"Completed chunk {(chunk_start - 1) // chunk_pages + 1} "
-                f"({chunk_end}/{total_pages} pages processed)"
+                f"Completed chunk {(chunk_start - 1) // chunk_pages + 1} ({chunk_end}/{total_pages} pages processed)"
             )
 
         logger.info(
-            f"Streaming processing complete: {path.name} "
-            f"({processed_count} chunks yielded, {total_pages} pages total)"
+            f"Streaming processing complete: {path.name} ({processed_count} chunks yielded, {total_pages} pages total)"
         )
 
     except ImportError as e:
         logger.error(f"Docling import failed: {e}")
     except Exception as e:
-        logger.error(
-            f"Streaming PDF processing failed for {path.name}: {e}",
-            exc_info=True
-        )
+        logger.error(f"Streaming PDF processing failed for {path.name}: {e}", exc_info=True)

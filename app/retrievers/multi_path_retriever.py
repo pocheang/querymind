@@ -12,13 +12,11 @@ Target: 85-90% recall in 300ms with parallel execution.
 import asyncio
 import logging
 import time
-from typing import Optional
-from collections import defaultdict
 
 from app.core.config import get_settings
-from app.retrievers.vector_store import similarity_search
 from app.retrievers.bm25_retriever import bm25_search
 from app.retrievers.hybrid.fusion import reciprocal_rank_fusion
+from app.retrievers.vector_store import similarity_search
 from app.services.tracing import traced_span
 
 logger = logging.getLogger(__name__)
@@ -41,7 +39,7 @@ class MultiPathRetriever:
         self,
         query: str,
         top_k: int = 50,
-        allowed_sources: Optional[list[str]] = None,
+        allowed_sources: list[str] | None = None,
         enable_path1: bool = True,  # Dense vector
         enable_path2: bool = True,  # BM25 sparse
         enable_path3: bool = True,  # Hybrid RRF
@@ -86,7 +84,7 @@ class MultiPathRetriever:
             all_docs = []
             path_timings = {}
 
-            for i, (path_name, result) in enumerate(zip(path_names, path_results)):
+            for _i, (path_name, result) in enumerate(zip(path_names, path_results, strict=False)):
                 if isinstance(result, Exception):
                     logger.warning(f"Path {path_name} failed: {result}")
                     path_timings[path_name] = {"status": "error", "error": str(result)}
@@ -124,10 +122,7 @@ class MultiPathRetriever:
             return final_results, diagnostics
 
     async def _path1_dense_vector(
-        self,
-        query: str,
-        k: int = 30,
-        allowed_sources: Optional[list[str]] = None
+        self, query: str, k: int = 30, allowed_sources: list[str] | None = None
     ) -> tuple[list[dict], dict]:
         """
         Path 1: Dense vector retrieval using embeddings.
@@ -165,10 +160,7 @@ class MultiPathRetriever:
             }
 
     async def _path2_bm25_sparse(
-        self,
-        query: str,
-        k: int = 30,
-        allowed_sources: Optional[list[str]] = None
+        self, query: str, k: int = 30, allowed_sources: list[str] | None = None
     ) -> tuple[list[dict], dict]:
         """
         Path 2: BM25 sparse retrieval for keyword matching.
@@ -199,10 +191,7 @@ class MultiPathRetriever:
             }
 
     async def _path3_hybrid_rrf(
-        self,
-        query: str,
-        k: int = 20,
-        allowed_sources: Optional[list[str]] = None
+        self, query: str, k: int = 20, allowed_sources: list[str] | None = None
     ) -> tuple[list[dict], dict]:
         """
         Path 3: Hybrid retrieval with RRF fusion.
@@ -222,7 +211,7 @@ class MultiPathRetriever:
                 fused = reciprocal_rank_fusion(
                     vector_docs,
                     bm25_docs,
-                    k=self.settings.hybrid_rrf_k if hasattr(self.settings, 'hybrid_rrf_k') else 60
+                    k=self.settings.hybrid_rrf_k if hasattr(self.settings, "hybrid_rrf_k") else 60,
                 )
 
                 # Return top k after fusion
@@ -326,9 +315,7 @@ class MultiPathRetriever:
 
 # Convenience function for direct usage
 async def multi_path_retrieve(
-    query: str,
-    top_k: int = 50,
-    allowed_sources: Optional[list[str]] = None
+    query: str, top_k: int = 50, allowed_sources: list[str] | None = None
 ) -> tuple[list[dict], dict]:
     """
     Convenience function for multi-path retrieval.

@@ -33,4 +33,3 @@ def test_emit_alert_webhook_failure_does_not_raise(monkeypatch):
     monkeypatch.setattr(alerting.httpx, "Client", BrokenClient)
 
     assert alerting.emit_alert("query_failed", {"trace_id": "trace-1"}) is False
-

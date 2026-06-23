@@ -3,8 +3,9 @@
 import logging
 import sys
 import time
+from collections.abc import Generator
 from concurrent.futures import TimeoutError as FutureTimeoutError
-from typing import Any, Generator
+from typing import Any
 
 from app.agents.react_agent import run_react_agent
 from app.agents.router_agent import decide_route
@@ -209,8 +210,18 @@ def run_query_stream(
             session_id=state.get("session_id", ""),
         )
         state["detected_language"] = react_result.get("detected_language", state.get("force_language") or "zh")
-        state["vector_result"] = react_result.get("vector_result") or {"context": "", "citations": [], "retrieved_count": 0, "effective_hit_count": 0}
-        state["graph_result"] = react_result.get("graph_result") or {"context": "", "entities": [], "neighbors": [], "paths": []}
+        state["vector_result"] = react_result.get("vector_result") or {
+            "context": "",
+            "citations": [],
+            "retrieved_count": 0,
+            "effective_hit_count": 0,
+        }
+        state["graph_result"] = react_result.get("graph_result") or {
+            "context": "",
+            "entities": [],
+            "neighbors": [],
+            "paths": [],
+        }
         state["web_result"] = react_result.get("web_result") or {"used": False, "citations": [], "context": ""}
         state["react_result"] = {
             "history": react_result.get("react_history", []),
@@ -304,7 +315,9 @@ def run_query_stream(
             graph_result = {"context": "", "entities": [], "neighbors": [], "error": "graph_error:Timeout"}
             try:
                 agent_class = state.get("agent_class")
-                fut_vector = submit_hybrid(safe_vector_result, question, allowed_sources, retrieval_strategy, agent_class)
+                fut_vector = submit_hybrid(
+                    safe_vector_result, question, allowed_sources, retrieval_strategy, agent_class
+                )
                 fut_graph = submit_hybrid(safe_graph_result, question, allowed_sources, agent_class)
                 try:
                     left = max(0.1, deadline - time.monotonic())
@@ -313,7 +326,12 @@ def run_query_stream(
                     fut_vector.cancel()
                 except Exception as e:
                     logger.exception(f"Vector RAG failed in streaming for question: {question}")
-                    vector_result = {"context": "", "citations": [], "retrieved_count": 0, "error": f"vector_error:{type(e).__name__}"}
+                    vector_result = {
+                        "context": "",
+                        "citations": [],
+                        "retrieved_count": 0,
+                        "error": f"vector_error:{type(e).__name__}",
+                    }
                 state["vector_result"] = vector_result
                 try:
                     left = max(0.1, deadline - time.monotonic())
@@ -322,7 +340,12 @@ def run_query_stream(
                     fut_graph.cancel()
                 except Exception as e:
                     logger.exception(f"Graph RAG failed in streaming for question: {question}")
-                    graph_result = {"context": "", "entities": [], "neighbors": [], "error": f"graph_error:{type(e).__name__}"}
+                    graph_result = {
+                        "context": "",
+                        "entities": [],
+                        "neighbors": [],
+                        "error": f"graph_error:{type(e).__name__}",
+                    }
                 state["graph_result"] = graph_result
             except HybridExecutorRejectedError:
                 if fut_vector is not None:
@@ -369,7 +392,9 @@ def run_query_stream(
         entity_count = len(state["graph_result"].get("entities", []))
         neighbor_count = len(state["graph_result"].get("neighbors", []))
         path_count = len(state["graph_result"].get("paths", []))
-        thoughts.append(f"[执行阶段] 本地图谱命中: {entity_count} 个实体, {neighbor_count} 个邻居关系, {path_count} 条路径。")
+        thoughts.append(
+            f"[执行阶段] 本地图谱命中: {entity_count} 个实体, {neighbor_count} 个邻居关系, {path_count} 条路径。"
+        )
         yield {"type": "thought", "content": thoughts[-1]}
         yield {
             "type": "graph_result",
@@ -448,7 +473,9 @@ def run_query_stream(
         min_hits = int(state.get("adaptive_min_vector_hits", 2) or 2)
         vector_result = state.get("vector_result")
         if vector_result:
-            need_web = (not evidence_is_sufficient(vector_result, {}, route="vector", min_hits=min_hits)) and use_web_fallback
+            need_web = (
+                not evidence_is_sufficient(vector_result, {}, route="vector", min_hits=min_hits)
+            ) and use_web_fallback
         else:
             need_web = use_web_fallback
     elif route == "graph":
@@ -456,8 +483,7 @@ def run_query_stream(
         graph_result = state.get("graph_result")
         if graph_result:
             need_web = (
-                not evidence_is_sufficient({}, graph_result, route="graph", min_hits=min_hits)
-                and use_web_fallback
+                not evidence_is_sufficient({}, graph_result, route="graph", min_hits=min_hits) and use_web_fallback
             )
         else:
             need_web = use_web_fallback

@@ -1,20 +1,25 @@
 """
 Document-related helper functions for the Multi-Agent Local RAG API.
 """
+
 import hashlib
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 
+from app.agents.synthesis_agent import synthesize_answer
 from app.core.config import get_settings
 from app.ingestion.loaders import IMAGE_EXTENSIONS
 from app.services.agent_classifier import classify_agent_class
 from app.services.index_manager import list_indexed_files
 from app.services.rag_runtime_scope import is_under_path
-from app.agents.synthesis_agent import synthesize_answer
+
+logger = logging.getLogger(__name__)
+
 
 settings = get_settings()
 
@@ -138,19 +143,13 @@ def _vector_context_from_citations(citations: list[dict[str, Any]]) -> str:
             retrieval_sources = [str(retrieval_sources)]
         retrieval_label = ",".join(str(x) for x in retrieval_sources if str(x).strip()) or "filtered"
         blocks.append(
-            f"[SOURCE: {source or 'unknown'}]\n"
-            f"[RETRIEVAL: {retrieval_label}]\n"
-            f"{str(citation.get('content', '') or '')}"
+            f"[SOURCE: {source or 'unknown'}]\n[RETRIEVAL: {retrieval_label}]\n{str(citation.get('content', '') or '')}"
         )
     return "\n\n".join(blocks)
 
 
 def _enforce_result_source_scope(
-    result: dict[str, Any],
-    allowed_sources: list[str],
-    request: Request,
-    user: dict[str, Any],
-    audit_fn
+    result: dict[str, Any], allowed_sources: list[str], request: Request, user: dict[str, Any], audit_fn
 ) -> dict[str, Any]:
     """Enforce source scope on query results."""
     allowed_set = set(allowed_sources)
@@ -302,7 +301,7 @@ def _visible_doc_chunks_by_filename_for_user(user: dict[str, Any]) -> dict[str, 
             continue
         try:
             chunks = int(row.get("chunks", 0) or 0)
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError):
             # Invalid chunk count, default to 0
             chunks = 0
         if filename not in mapping:
@@ -348,7 +347,11 @@ def _guess_agent_class_for_upload(filename: str) -> str:
     if suffix in {".pdf", *IMAGE_EXTENSIONS}:
         return "pdf_text"
     guessed = classify_agent_class(Path(filename).stem)
-    return guessed if guessed in {"general", "cybersecurity", "artificial_intelligence", "pdf_text", "policy"} else "general"
+    return (
+        guessed
+        if guessed in {"general", "cybersecurity", "artificial_intelligence", "pdf_text", "policy"}
+        else "general"
+    )
 
 
 def _is_probably_valid_upload_signature(suffix: str, head: bytes) -> bool:

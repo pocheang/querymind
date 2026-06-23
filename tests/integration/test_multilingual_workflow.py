@@ -1,6 +1,8 @@
 """Integration tests for multilingual response API."""
+
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
 
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
@@ -12,15 +14,14 @@ query_routes = pytest.importorskip("app.api.routes.query")
 def test_query_endpoint_auto_detect_chinese(monkeypatch):
     """Test /query endpoint auto-detects Chinese and returns detected_language."""
     # Mock user authentication using dependency_overrides
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "test_user",
-        "role": "viewer"
-    }
+    api_main.app.dependency_overrides[api_main._require_user] = lambda: {"user_id": "test_user", "role": "viewer"}
 
     try:
         # Mock other dependencies
         monkeypatch.setattr(query_routes, "_require_permission", lambda *args, **kwargs: None)
-        monkeypatch.setattr(query_routes, "_require_existing_session_for_query", lambda user, session_id: "test_session")
+        monkeypatch.setattr(
+            query_routes, "_require_existing_session_for_query", lambda user, session_id: "test_session"
+        )
         monkeypatch.setattr(query_routes.quota_guard, "enforce_query_quota", lambda user: None)
 
         mock_cache = Mock()
@@ -30,7 +31,11 @@ def test_query_endpoint_auto_detect_chinese(monkeypatch):
 
         monkeypatch.setattr(query_routes, "_build_memory_context_for_session", lambda **kwargs: "")
         monkeypatch.setattr(query_routes, "_allowed_sources_for_user", lambda user: [])
-        monkeypatch.setattr(query_routes, "_effective_strategy_for_session", lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}))
+        monkeypatch.setattr(
+            query_routes,
+            "_effective_strategy_for_session",
+            lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}),
+        )
 
         mock_history = Mock()
         mock_history.append_message = Mock()
@@ -67,7 +72,7 @@ def test_query_endpoint_auto_detect_chinese(monkeypatch):
                 "question": "什么是RAG？",
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
 
         assert response.status_code == 200
@@ -86,15 +91,14 @@ def test_query_endpoint_auto_detect_chinese(monkeypatch):
 def test_query_endpoint_force_language_english(monkeypatch):
     """Test /query endpoint with force_language='en' parameter."""
     # Mock user authentication using dependency_overrides
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "test_user",
-        "role": "viewer"
-    }
+    api_main.app.dependency_overrides[api_main._require_user] = lambda: {"user_id": "test_user", "role": "viewer"}
 
     try:
         # Mock other dependencies
         monkeypatch.setattr(query_routes, "_require_permission", lambda *args, **kwargs: None)
-        monkeypatch.setattr(query_routes, "_require_existing_session_for_query", lambda user, session_id: "test_session")
+        monkeypatch.setattr(
+            query_routes, "_require_existing_session_for_query", lambda user, session_id: "test_session"
+        )
         monkeypatch.setattr(query_routes.quota_guard, "enforce_query_quota", lambda user: None)
 
         mock_cache = Mock()
@@ -104,7 +108,11 @@ def test_query_endpoint_force_language_english(monkeypatch):
 
         monkeypatch.setattr(query_routes, "_build_memory_context_for_session", lambda **kwargs: "")
         monkeypatch.setattr(query_routes, "_allowed_sources_for_user", lambda user: [])
-        monkeypatch.setattr(query_routes, "_effective_strategy_for_session", lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}))
+        monkeypatch.setattr(
+            query_routes,
+            "_effective_strategy_for_session",
+            lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}),
+        )
 
         mock_history = Mock()
         mock_history.append_message = Mock()
@@ -145,7 +153,7 @@ def test_query_endpoint_force_language_english(monkeypatch):
                 "force_language": "en",  # Force English response
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
 
         assert response.status_code == 200
@@ -251,8 +259,6 @@ def test_detected_language_defaults_to_zh():
 def test_complete_chinese_conversation_flow(monkeypatch):
     """Test complete Chinese conversation flow with multiple queries in sequence."""
     from app.services.session_language import (
-        get_language_preference,
-        get_language_history,
         clear_session_history,
     )
 
@@ -262,7 +268,7 @@ def test_complete_chinese_conversation_flow(monkeypatch):
     # Mock user authentication
     api_main.app.dependency_overrides[api_main._require_user] = lambda: {
         "user_id": "test_user_chinese",
-        "role": "viewer"
+        "role": "viewer",
     }
 
     try:
@@ -278,7 +284,11 @@ def test_complete_chinese_conversation_flow(monkeypatch):
 
         monkeypatch.setattr(query_routes, "_build_memory_context_for_session", lambda **kwargs: "")
         monkeypatch.setattr(query_routes, "_allowed_sources_for_user", lambda user: [])
-        monkeypatch.setattr(query_routes, "_effective_strategy_for_session", lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}))
+        monkeypatch.setattr(
+            query_routes,
+            "_effective_strategy_for_session",
+            lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}),
+        )
 
         mock_history = Mock()
         mock_history.append_message = Mock()
@@ -299,7 +309,7 @@ def test_complete_chinese_conversation_flow(monkeypatch):
 
         def mock_run_query(*args, **kwargs):
             # Handle both positional and keyword arguments
-            question = args[0] if args else kwargs.get("question", "")
+            args[0] if args else kwargs.get("question", "")
 
             response = {
                 "answer": chinese_responses[call_count[0] % len(chinese_responses)],
@@ -330,7 +340,7 @@ def test_complete_chinese_conversation_flow(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response1.status_code == 200
         data1 = response1.json()
@@ -345,7 +355,7 @@ def test_complete_chinese_conversation_flow(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response2.status_code == 200
         data2 = response2.json()
@@ -360,7 +370,7 @@ def test_complete_chinese_conversation_flow(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response3.status_code == 200
         data3 = response3.json()
@@ -378,8 +388,6 @@ def test_complete_chinese_conversation_flow(monkeypatch):
 def test_complete_english_conversation_flow(monkeypatch):
     """Test complete English conversation flow with multiple queries in sequence."""
     from app.services.session_language import (
-        get_language_preference,
-        get_language_history,
         clear_session_history,
     )
 
@@ -389,7 +397,7 @@ def test_complete_english_conversation_flow(monkeypatch):
     # Mock user authentication
     api_main.app.dependency_overrides[api_main._require_user] = lambda: {
         "user_id": "test_user_english",
-        "role": "viewer"
+        "role": "viewer",
     }
 
     try:
@@ -405,7 +413,11 @@ def test_complete_english_conversation_flow(monkeypatch):
 
         monkeypatch.setattr(query_routes, "_build_memory_context_for_session", lambda **kwargs: "")
         monkeypatch.setattr(query_routes, "_allowed_sources_for_user", lambda user: [])
-        monkeypatch.setattr(query_routes, "_effective_strategy_for_session", lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}))
+        monkeypatch.setattr(
+            query_routes,
+            "_effective_strategy_for_session",
+            lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}),
+        )
 
         mock_history = Mock()
         mock_history.append_message = Mock()
@@ -426,7 +438,7 @@ def test_complete_english_conversation_flow(monkeypatch):
 
         def mock_run_query(*args, **kwargs):
             # Handle both positional and keyword arguments
-            question = args[0] if args else kwargs.get("question", "")
+            args[0] if args else kwargs.get("question", "")
 
             response = {
                 "answer": english_responses[call_count[0] % len(english_responses)],
@@ -457,7 +469,7 @@ def test_complete_english_conversation_flow(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response1.status_code == 200
         data1 = response1.json()
@@ -472,7 +484,7 @@ def test_complete_english_conversation_flow(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response2.status_code == 200
         data2 = response2.json()
@@ -487,7 +499,7 @@ def test_complete_english_conversation_flow(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response3.status_code == 200
         data3 = response3.json()
@@ -505,8 +517,6 @@ def test_complete_english_conversation_flow(monkeypatch):
 def test_language_switching_mid_conversation(monkeypatch):
     """Test switching from Chinese to English mid-conversation."""
     from app.services.session_language import (
-        get_language_preference,
-        get_language_history,
         clear_session_history,
     )
 
@@ -516,7 +526,7 @@ def test_language_switching_mid_conversation(monkeypatch):
     # Mock user authentication
     api_main.app.dependency_overrides[api_main._require_user] = lambda: {
         "user_id": "test_user_switching",
-        "role": "viewer"
+        "role": "viewer",
     }
 
     try:
@@ -532,7 +542,11 @@ def test_language_switching_mid_conversation(monkeypatch):
 
         monkeypatch.setattr(query_routes, "_build_memory_context_for_session", lambda **kwargs: "")
         monkeypatch.setattr(query_routes, "_allowed_sources_for_user", lambda user: [])
-        monkeypatch.setattr(query_routes, "_effective_strategy_for_session", lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}))
+        monkeypatch.setattr(
+            query_routes,
+            "_effective_strategy_for_session",
+            lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}),
+        )
 
         mock_history = Mock()
         mock_history.append_message = Mock()
@@ -550,8 +564,9 @@ def test_language_switching_mid_conversation(monkeypatch):
 
             # Use same detection logic as language_detector.py
             import re
-            chinese_pattern = re.compile(r'[一-鿿]')
-            alphanum_pattern = re.compile(r'[a-zA-Z一-鿿0-9]')
+
+            chinese_pattern = re.compile(r"[一-鿿]")
+            alphanum_pattern = re.compile(r"[a-zA-Z一-鿿0-9]")
 
             chinese_chars = len(chinese_pattern.findall(question))
             total_alphanum = len(alphanum_pattern.findall(question))
@@ -591,7 +606,7 @@ def test_language_switching_mid_conversation(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response1.status_code == 200
         assert response1.json()["detected_language"] == "zh"
@@ -603,7 +618,7 @@ def test_language_switching_mid_conversation(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response2.status_code == 200
         assert response2.json()["detected_language"] == "zh"
@@ -616,7 +631,7 @@ def test_language_switching_mid_conversation(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response3.status_code == 200
         assert response3.json()["detected_language"] == "en"
@@ -628,7 +643,7 @@ def test_language_switching_mid_conversation(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response4.status_code == 200
         assert response4.json()["detected_language"] == "en"
@@ -651,10 +666,7 @@ def test_mixed_language_queries(monkeypatch):
     clear_session_history(session_id)
 
     # Mock user authentication
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "test_user_mixed",
-        "role": "viewer"
-    }
+    api_main.app.dependency_overrides[api_main._require_user] = lambda: {"user_id": "test_user_mixed", "role": "viewer"}
 
     try:
         # Setup common mocks
@@ -669,7 +681,11 @@ def test_mixed_language_queries(monkeypatch):
 
         monkeypatch.setattr(query_routes, "_build_memory_context_for_session", lambda **kwargs: "")
         monkeypatch.setattr(query_routes, "_allowed_sources_for_user", lambda user: [])
-        monkeypatch.setattr(query_routes, "_effective_strategy_for_session", lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}))
+        monkeypatch.setattr(
+            query_routes,
+            "_effective_strategy_for_session",
+            lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}),
+        )
 
         mock_history = Mock()
         mock_history.append_message = Mock()
@@ -687,8 +703,9 @@ def test_mixed_language_queries(monkeypatch):
 
             # Use same detection logic as language_detector.py
             import re
-            chinese_pattern = re.compile(r'[一-鿿]')
-            alphanum_pattern = re.compile(r'[a-zA-Z一-鿿0-9]')
+
+            chinese_pattern = re.compile(r"[一-鿿]")
+            alphanum_pattern = re.compile(r"[a-zA-Z一-鿿0-9]")
 
             chinese_chars = len(chinese_pattern.findall(question))
             total_alphanum = len(alphanum_pattern.findall(question))
@@ -699,7 +716,11 @@ def test_mixed_language_queries(monkeypatch):
                 chinese_ratio = chinese_chars / total_alphanum
                 lang = "zh" if chinese_ratio > 0.20 else "en"
 
-            answer = "这是对混合语言查询的中文回答。" if lang == "zh" else "This is an English response to mixed language query."
+            answer = (
+                "这是对混合语言查询的中文回答。"
+                if lang == "zh"
+                else "This is an English response to mixed language query."
+            )
 
             return {
                 "answer": answer,
@@ -728,7 +749,7 @@ def test_mixed_language_queries(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response1.status_code == 200
         data1 = response1.json()
@@ -742,7 +763,7 @@ def test_mixed_language_queries(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response2.status_code == 200
         data2 = response2.json()
@@ -757,7 +778,7 @@ def test_mixed_language_queries(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response3.status_code == 200
         data3 = response3.json()
@@ -776,10 +797,7 @@ def test_edge_cases(monkeypatch):
     clear_session_history(session_id)
 
     # Mock user authentication
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "test_user_edge",
-        "role": "viewer"
-    }
+    api_main.app.dependency_overrides[api_main._require_user] = lambda: {"user_id": "test_user_edge", "role": "viewer"}
 
     try:
         # Setup common mocks
@@ -794,7 +812,11 @@ def test_edge_cases(monkeypatch):
 
         monkeypatch.setattr(query_routes, "_build_memory_context_for_session", lambda **kwargs: "")
         monkeypatch.setattr(query_routes, "_allowed_sources_for_user", lambda user: [])
-        monkeypatch.setattr(query_routes, "_effective_strategy_for_session", lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}))
+        monkeypatch.setattr(
+            query_routes,
+            "_effective_strategy_for_session",
+            lambda **kwargs: ("advanced", {"reason": "default", "bucket": "default"}),
+        )
 
         mock_history = Mock()
         mock_history.append_message = Mock()
@@ -816,7 +838,7 @@ def test_edge_cases(monkeypatch):
 
             # Detect if there's actual content
             if question and question.strip():
-                chinese_count = sum(1 for char in question if '一' <= char <= '鿿')
+                chinese_count = sum(1 for char in question if "一" <= char <= "鿿")
                 if chinese_count > 0:
                     answer = "这是对您问题的回答。"
                     lang = "zh"
@@ -854,7 +876,7 @@ def test_edge_cases(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response1.status_code == 200
         data1 = response1.json()
@@ -868,7 +890,7 @@ def test_edge_cases(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response2.status_code == 200
         data2 = response2.json()
@@ -882,7 +904,7 @@ def test_edge_cases(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response3.status_code == 200
         data3 = response3.json()
@@ -896,7 +918,7 @@ def test_edge_cases(monkeypatch):
                 "session_id": session_id,
                 "use_web_fallback": False,
                 "use_reasoning": False,
-            }
+            },
         )
         assert response4.status_code == 200
         data4 = response4.json()

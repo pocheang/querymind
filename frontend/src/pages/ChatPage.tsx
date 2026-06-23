@@ -20,11 +20,20 @@ import { useChatComputed } from "@/pages/chat/hooks/useChatComputed";
 import { useChatHelpers } from "@/pages/chat/hooks/useChatHelpers";
 import { KeyboardHelp } from "@/components/KeyboardHelp";
 import { generateSmartPrompts } from "@/pages/chat/utils/smartPrompts";
+import type { User, UserRole } from "@/hooks/usePermissions";
 
 // Route-specific CSS (code-split by Vite)
 import "@/styles/pages/chat-entry.css";
 
 export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
+  // Convert AuthUser to User type for permission system
+  const permissionUser: User | null = user ? {
+    user_id: user.user_id,
+    username: user.username,
+    role: user.role as UserRole,
+    status: user.status,
+    display_name: user.display_name ?? undefined,
+  } : null;
   const {
     sidebarOpen, setSidebarOpen,
     sidebarCollapsed, setSidebarCollapsed,
@@ -229,7 +238,7 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
         docDropActive={docDropActive}
         canUploadAndManageDocs={canUploadAndManageDocs}
         isAdmin={isAdmin}
-        user={user}
+        user={permissionUser}
         prompts={prompts}
         promptsLoading={promptsLoading}
         promptTitle={promptTitle}
@@ -275,7 +284,7 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
         <ChatTopbar
           themeLabel={themeLabel}
           sidebarCollapsed={sidebarCollapsed}
-          user={user}
+          user={permissionUser}
           onToggleSidebar={handleSidebarToggle}
           onOpenSettings={() => setSettingsOpen(true)}
           onThemeToggle={onThemeToggle}

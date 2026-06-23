@@ -125,12 +125,32 @@ class QueryResultCache:
         raw = json.dumps(payload, ensure_ascii=False, sort_keys=True)
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
-    def get(self, key: str, session_id: str | None = None) -> dict[str, Any] | None:
+    def get(self, key: str, session_id: str | None = None, user_id: str | None = None) -> dict[str, Any] | None:
+        """
+        获取缓存数据，并验证用户归属。
+
+        Args:
+            key: 缓存键
+            session_id: 可选的会话ID
+            user_id: 可选的用户ID，用于验证缓存归属
+
+        Returns:
+            缓存数据，如果验证失败则返回 None
+        """
         if self._effective_backend() == "off":
             return None
         if session_id:
             v = self._session_memory.get(f"session:{session_id}:{key}")
             if isinstance(v, dict):
+                # 验证用户归属
+                if user_id and v.get("user_id") != user_id:
+                    logger.warning(
+                        "Cache ownership mismatch (session): key=%s, expected_user=%s, cached_user=%s",
+                        key,
+                        user_id,
+                        v.get("user_id"),
+                    )
+                    return None
                 return v
         backend = self._effective_backend()
         if backend == "redis":
@@ -141,23 +161,58 @@ class QueryResultCache:
                     if raw:
                         data = json.loads(raw)
                         if isinstance(data, dict):
+                            # 验证用户归属
+                            if user_id and data.get("user_id") != user_id:
+                                logger.warning(
+                                    "Cache ownership mismatch (redis): key=%s, expected_user=%s, cached_user=%s",
+                                    key,
+                                    user_id,
+                                    data.get("user_id"),
+                                )
+                                return None
                             return data
                 except (json.JSONDecodeError, ValueError, TypeError, OSError):
                     logger.warning("query_cache_get_failed key=%s", key, exc_info=True)
         v = self._memory.get(key)
-        return v if isinstance(v, dict) else None
+        if isinstance(v, dict):
+            # 验证用户归属
+            if user_id and v.get("user_id") != user_id:
+                logger.warning(
+                    "Cache ownership mismatch (memory): key=%s, expected_user=%s, cached_user=%s",
+                    key,
+                    user_id,
+                    v.get("user_id"),
+                )
+                return None
+            return v
+        return None
 
-    def set(self, key: str, value: dict[str, Any], session_id: str | None = None) -> None:
+    def set(self, key: str, value: dict[str, Any], session_id: str | None = None, user_id: str | None = None) -> None:
+        """
+        保存缓存数据，强制包含用户ID以确保隔离。
+
+        Args:
+            key: 缓存键
+            value: 缓存值
+            session_id: 可选的会话ID
+            user_id: 可选的用户ID，将被保存到缓存数据中
+        """
         if self._effective_backend() == "off":
             return
-        self._memory.set(key, dict(value))
+
+        # 创建缓存数据副本并确保包含 user_id
+        cache_value = dict(value)
+        if user_id:
+            cache_value["user_id"] = user_id
+
+        self._memory.set(key, cache_value)
         if session_id:
-            self._session_memory.set(f"session:{session_id}:{key}", dict(value))
+            self._session_memory.set(f"session:{session_id}:{key}", cache_value)
         if self._effective_backend() == "redis":
             client = _get_redis_client()
             if client is not None:
                 try:
-                    client.setex(f"qcache:{key}", self._ttl_seconds, json.dumps(value, ensure_ascii=False))
+                    client.setex(f"qcache:{key}", self._ttl_seconds, json.dumps(cache_value, ensure_ascii=False))
                 except (json.JSONDecodeError, ValueError, TypeError, OSError):
                     logger.warning("query_cache_set_failed key=%s", key, exc_info=True)
 
@@ -175,7 +230,7 @@ class QueryResultCache:
             if backend == "redis":
                 client = _get_redis_client()
                 if client is not None:
-                    token = hashlib.sha256(f"{key}:{now}".encode("utf-8")).hexdigest()
+                    token = hashlib.sha256(f"{key}:{now}".encode()).hexdigest()
                     try:
                         locked = bool(
                             client.set(

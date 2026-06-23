@@ -1,5 +1,6 @@
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
 
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
@@ -31,7 +32,7 @@ def test_admin_ops_overview_returns_metrics(monkeypatch):
         "status": "active",
     }
 
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
     monkeypatch.setattr(
         api_main.auth_service,
         "list_audit_logs",
@@ -109,7 +110,7 @@ def test_admin_ops_export_csv_returns_csv(monkeypatch):
                 "resource_id": "s1",
                 "result": "success",
                 "detail": "ok",
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
         ],
     )
@@ -151,7 +152,7 @@ def test_admin_audit_logs_supports_filters(monkeypatch):
                 "resource_id": "u1",
                 "result": "success",
                 "detail": "ok",
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
         ]
 
@@ -208,7 +209,9 @@ def test_admin_ops_rollback_and_trends(monkeypatch):
         "role": "admin",
         "status": "active",
     }
-    monkeypatch.setattr(api_main, "read_benchmark_trends", lambda limit=30: [{"created_at": "2026-04-09T00:00:00+00:00"}])
+    monkeypatch.setattr(
+        api_main, "read_benchmark_trends", lambda limit=30: [{"created_at": "2026-04-09T00:00:00+00:00"}]
+    )
     try:
         rollback_res = client.post("/admin/ops/rollback")
         assert rollback_res.status_code == 200

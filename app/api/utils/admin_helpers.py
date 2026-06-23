@@ -1,11 +1,12 @@
 """
 Admin-related helper functions for the Multi-Agent Local RAG API.
 """
+
 import os
 import re
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,15 +22,15 @@ settings = get_settings()
 def _parse_audit_ts(value: str | None) -> datetime:
     """Parse an audit timestamp."""
     if not value:
-        return datetime.fromtimestamp(0, tz=timezone.utc)
+        return datetime.fromtimestamp(0, tz=UTC)
     try:
         dt = datetime.fromisoformat(value)
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         # Invalid timestamp format, return epoch
-        return datetime.fromtimestamp(0, tz=timezone.utc)
+        return datetime.fromtimestamp(0, tz=UTC)
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def _filter_audit_rows(
@@ -56,15 +57,15 @@ def _filter_audit_rows(
 def _parse_request_ts(value: str | None) -> datetime:
     """Parse a request timestamp."""
     if not value:
-        return datetime.fromtimestamp(0, tz=timezone.utc)
+        return datetime.fromtimestamp(0, tz=UTC)
     try:
         dt = datetime.fromisoformat(value)
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         # Invalid timestamp format, return epoch
-        return datetime.fromtimestamp(0, tz=timezone.utc)
+        return datetime.fromtimestamp(0, tz=UTC)
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def _extract_grounding_support_from_detail(detail: str | None) -> float | None:
@@ -75,7 +76,7 @@ def _extract_grounding_support_from_detail(detail: str | None) -> float | None:
         return None
     try:
         v = float(m.group(1))
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError):
         # Invalid float format
         return None
     if v < 0:
@@ -138,7 +139,13 @@ def _check_chroma_ready() -> dict[str, Any]:
         return {"ok": True, "required": True, "latency_ms": latency, "path": str(settings.chroma_path)}
     except Exception as e:
         latency = int((time.perf_counter() - start) * 1000)
-        return {"ok": False, "required": True, "latency_ms": latency, "path": str(settings.chroma_path), "error": str(e)}
+        return {
+            "ok": False,
+            "required": True,
+            "latency_ms": latency,
+            "path": str(settings.chroma_path),
+            "error": str(e),
+        }
 
 
 def _runtime_diagnostics_summary(get_request_metrics_fn) -> dict[str, Any]:
@@ -181,13 +188,9 @@ def _runtime_diagnostics_summary(get_request_metrics_fn) -> dict[str, Any]:
 
 # Security-related helper functions for admin operations
 
+
 def validate_and_check_approval_token(
-    approval_token: str,
-    actor_user_id: str,
-    audit_callback: callable,
-    request: Any,
-    user: dict[str, Any],
-    action: str
+    approval_token: str, actor_user_id: str, audit_callback: callable, request: Any, user: dict[str, Any], action: str
 ) -> tuple[bool, str]:
     """
     Validate approval token and handle errors (prevent information disclosure).
@@ -207,19 +210,12 @@ def validate_and_check_approval_token(
         HTTPException: If token is invalid or configuration is missing
     """
     from app.api.utils.error_responses import forbidden
-    from app.services.admin_token_tracker import validate_admin_approval_token, get_token_tracker
+    from app.services.admin_token_tracker import get_token_tracker, validate_admin_approval_token
 
-    configured_hash = str(
-        getattr(settings, "admin_create_approval_token_hash", "") or ""
-    ).strip().lower()
+    configured_hash = str(getattr(settings, "admin_create_approval_token_hash", "") or "").strip().lower()
 
     tracker = get_token_tracker()
-    token_ok, token_mode = validate_admin_approval_token(
-        approval_token,
-        configured_hash,
-        actor_user_id,
-        tracker
-    )
+    token_ok, token_mode = validate_admin_approval_token(approval_token, configured_hash, actor_user_id, tracker)
 
     # Unified error handling, no configuration information leakage
     if not token_ok:
@@ -229,7 +225,7 @@ def validate_and_check_approval_token(
             resource_type="user",
             result="failed",
             user=user,
-            detail=f"approval_failed; mode={token_mode}"
+            detail=f"approval_failed; mode={token_mode}",
         )
         raise forbidden("unauthorized")
 
@@ -242,7 +238,7 @@ def handle_service_exception(
     request: Any,
     action: str,
     user: dict[str, Any],
-    resource_id: str | None = None
+    resource_id: str | None = None,
 ) -> None:
     """
     Unified service layer exception handling with audit logging.
@@ -259,6 +255,7 @@ def handle_service_exception(
         HTTPException: Converted HTTP exception
     """
     import logging
+
     from app.api.utils.error_responses import bad_request, internal_error
 
     logger = logging.getLogger(__name__)
@@ -270,7 +267,7 @@ def handle_service_exception(
         result="failed",
         user=user,
         resource_id=resource_id,
-        detail=f"{type(e).__name__}: {str(e)}"
+        detail=f"{type(e).__name__}: {str(e)}",
     )
 
     if isinstance(e, ValueError):
@@ -278,4 +275,3 @@ def handle_service_exception(
 
     logger.error(f"Unexpected error in {action}: {e}", exc_info=True)
     raise internal_error("operation failed")
-

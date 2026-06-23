@@ -1,7 +1,8 @@
 """Admin language statistics routes."""
+
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
 from app.api.dependencies import _require_permission, _require_user
 from app.services.language_analytics import LanguageAnalytics

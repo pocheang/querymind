@@ -1,11 +1,10 @@
 import asyncio
+from datetime import timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from app.services.agent_execution_tracker import (
     AgentExecutionTracker,
-    AgentStep,
-    ExecutionTrace,
     track_agent_execution,
     utcnow,
 )

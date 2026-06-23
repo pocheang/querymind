@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def parse_iso_datetime(value: str) -> datetime | None:
@@ -10,9 +10,9 @@ def parse_iso_datetime(value: str) -> datetime | None:
         raw = raw.replace("Z", "+00:00")
         dt = datetime.fromisoformat(raw)
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
-    except (ValueError, TypeError) as e:
+            return dt.replace(tzinfo=UTC)
+        return dt.astimezone(UTC)
+    except (ValueError, TypeError):
         # Invalid datetime format
         return None
 
@@ -39,7 +39,7 @@ def rank_feature_score(item: dict, settings) -> float:
         dt = parse_iso_datetime(str(metadata.get(key, "")))
         if not dt:
             continue
-        age_days = max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 86400.0)
+        age_days = max(0.0, (datetime.now(UTC) - dt).total_seconds() / 86400.0)
         freshness_signal = max(0.0, 1.0 - min(age_days / 365.0, 1.0))
         break
 
@@ -48,4 +48,6 @@ def rank_feature_score(item: dict, settings) -> float:
         retrieval_sources = [str(retrieval_sources)]
     diversity_signal = min(1.0, len(set([str(x) for x in retrieval_sources])) / 2.0)
 
-    return (source_weight * source_signal) + (freshness_weight * freshness_signal) + (diversity_weight * diversity_signal)
+    return (
+        (source_weight * source_signal) + (freshness_weight * freshness_signal) + (diversity_weight * diversity_signal)
+    )

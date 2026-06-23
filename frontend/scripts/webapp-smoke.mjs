@@ -45,6 +45,18 @@ async function main() {
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  await page.addInitScript(() => {
+    localStorage.setItem("auth_token", "e2e-token");
+  });
+
+  page.on("console", (msg) => console.log(`BROWSER CONSOLE [${msg.type()}]:`, msg.text()));
+  page.on("pageerror", (err) => console.error("BROWSER PAGEERROR:", err.message));
+  page.on("response", (res) => {
+    if (res.status() >= 400) {
+      console.error(`HTTP ERROR [${res.status()}]:`, res.url());
+    }
+  });
+
   await context.route("**/*", async (route) => {
     const req = route.request();
     const url = req.url();
@@ -94,37 +106,51 @@ async function main() {
     await route.continue();
   });
 
-  await page.addInitScript(() => {
-    localStorage.setItem("auth_token", "e2e-token");
-  });
 
-  await page.goto(`${baseURL}/`, { waitUntil: "networkidle" });
+  try {
+    await page.goto(`${baseURL}/app/`, { waitUntil: "networkidle" });
 
-  await page.getByText("Agent Workbench").waitFor();
-  await page.getByText("PDF Workbench").waitFor();
-  await page.getByText("PDF/Image (1)").waitFor();
+    await page.getByText("Agent Workbench").first().waitFor();
+    await page.getByText("PDF Workbench").waitFor();
+    await page.locator('button:has-text("Knowledge Base")').click();
+    await page.locator(".sidebar-kb-metrics").waitFor();
+    await page.getByText("PDF/Image (1)").waitFor();
 
-  await page.getByRole("button", { name: "Force pdf_text" }).click();
-  await page.getByRole("button", { name: "Draft Question" }).click();
-  const composer = page.locator(".composer-panel textarea");
-  await composer.waitFor();
-  const draft = await composer.inputValue();
-  if (!draft.includes("incident-report.pdf")) {
-    throw new Error("PDF draft question was not populated as expected.");
+    await page.getByRole("button", { name: "Force pdf_text" }).click();
+    await page.getByRole("button", { name: "Draft Question" }).click();
+    const composer = page.locator(".composer-panel textarea");
+    await composer.waitFor();
+    const draft = await composer.inputValue();
+    if (!draft.includes("incident-report.pdf")) {
+      throw new Error("PDF draft question was not populated as expected.");
+    }
+
+    await composer.fill("<img src=x onerror=alert(1) />");
+    const scriptCount = await page.locator("script").count();
+    if (scriptCount < 1) {
+      throw new Error("Unexpected DOM state: script tags missing.");
+    }
+    const xssMarker = await page.locator("script[data-test-xss]").count();
+    if (xssMarker !== 0) {
+      throw new Error("Unexpected script injection marker found.");
+    }
+
+    console.log("webapp smoke test passed");
+  } catch (err) {
+    console.error("DIAGNOSTICS ON FAILURE:");
+    console.error("Current URL:", page.url());
+    try {
+      const lang = await page.evaluate(() => document.documentElement.lang);
+      const text = await page.evaluate(() => document.body.innerText);
+      console.error("Page HTML Lang:", lang);
+      console.error("Page Visible Text:\n", text);
+    } catch (evalErr) {
+      console.error("Failed to evaluate page content:", evalErr.message);
+    }
+    throw err;
+  } finally {
+    await browser.close();
   }
-
-  await composer.fill("<img src=x onerror=alert(1) />");
-  const scriptCount = await page.locator("script").count();
-  if (scriptCount < 1) {
-    throw new Error("Unexpected DOM state: script tags missing.");
-  }
-  const xssMarker = await page.locator("script[data-test-xss]").count();
-  if (xssMarker !== 0) {
-    throw new Error("Unexpected script injection marker found.");
-  }
-
-  console.log("webapp smoke test passed");
-  await browser.close();
 }
 
 main().catch((err) => {

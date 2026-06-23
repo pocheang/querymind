@@ -10,9 +10,10 @@ This module provides caching for expensive operations like:
 import hashlib
 import logging
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Callable, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ DEFAULT_TTL_SECONDS = 3600  # 1 hour
 @dataclass
 class CacheEntry:
     """Cache entry with value and metadata."""
+
     value: Any
     created_at: datetime
     hits: int = 0
@@ -51,7 +53,7 @@ class LRUCache:
         self._hits = 0
         self._misses = 0
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """
         Get value from cache.
 
@@ -146,7 +148,7 @@ def _make_content_hash(content: str, max_length: int = 1000) -> str:
     """
     # Use first N chars for performance with large documents
     sample = content[:max_length] if len(content) > max_length else content
-    return hashlib.md5(sample.encode('utf-8')).hexdigest()
+    return hashlib.md5(sample.encode("utf-8")).hexdigest()
 
 
 def cached_pdf_quality(func: Callable) -> Callable:
@@ -158,6 +160,7 @@ def cached_pdf_quality(func: Callable) -> Callable:
         def analyze_pdf_quality(text: str, metadata: dict) -> float:
             ...
     """
+
     def wrapper(text: str, metadata: dict) -> float:
         # Create cache key from content hash and metadata
         content_hash = _make_content_hash(text)
@@ -189,6 +192,7 @@ def cached_entity_extraction(func: Callable) -> Callable:
         def extract_document_entities(text: str, limit: int = 20) -> list[str]:
             ...
     """
+
     def wrapper(text: str, limit: int = 20) -> list[str]:
         # Create cache key
         content_hash = _make_content_hash(text)
@@ -219,13 +223,11 @@ def cached_document_context(func: Callable) -> Callable:
         def get_document_context_for_query(question: str, retrieved_docs: list[dict], top_k: int = 3) -> dict:
             ...
     """
+
     def wrapper(question: str, retrieved_docs: list[dict], top_k: int = 3) -> dict:
         # Create cache key from question and doc hashes
-        question_hash = hashlib.md5(question.encode('utf-8')).hexdigest()[:8]
-        doc_hashes = [
-            _make_content_hash(doc.get("content", ""))[:8]
-            for doc in retrieved_docs[:top_k]
-        ]
+        question_hash = hashlib.md5(question.encode("utf-8")).hexdigest()[:8]
+        doc_hashes = [_make_content_hash(doc.get("content", ""))[:8] for doc in retrieved_docs[:top_k]]
         cache_key = f"context:{question_hash}:{''.join(doc_hashes)}"
 
         # Try cache first

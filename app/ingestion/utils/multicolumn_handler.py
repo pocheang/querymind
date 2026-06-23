@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """Multi-column layout detection and text reordering."""
 
 

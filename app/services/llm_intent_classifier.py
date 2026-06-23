@@ -1,6 +1,7 @@
 """
 LLM-based intent classifier for routing user queries to appropriate agents.
 """
+
 import json
 import logging
 import re
@@ -77,11 +78,11 @@ def classify_intent_with_llm(question: str) -> dict:
         content = response.content.strip()
 
         # 尝试提取JSON - 改进正则表达式以支持多行
-        json_match = re.search(r'\{[^{}]*\}', content, re.DOTALL)
+        json_match = re.search(r"\{[^{}]*\}", content, re.DOTALL)
         if json_match:
             json_str = json_match.group(0)
             # 清理可能的中文引号
-            json_str = json_str.replace('"', '"').replace('"', '"').replace(''', "'").replace(''', "'")
+            json_str = json_str.replace('"', '"').replace('"', '"').replace(""", "'").replace(""", "'")
 
             try:
                 result = json.loads(json_str)
@@ -104,7 +105,7 @@ def classify_intent_with_llm(question: str) -> dict:
                 "agent_class": agent_class,
                 "confidence": confidence,
                 "reason": result.get("reason", "LLM classification"),
-                "method": "llm"
+                "method": "llm",
             }
         else:
             logger.warning(f"Failed to extract JSON from LLM response: {content}")
@@ -124,29 +125,131 @@ def _fallback_classification(question: str) -> dict:
     # 安全相关关键词（扩展版）
     security_keywords = [
         # 中文关键词
-        "安全", "漏洞", "攻击", "防护", "威胁", "入侵", "渗透", "加密", "认证", "授权",
-        "合规", "审计", "监控", "防火墙", "恶意", "风险", "隐私", "权限", "访问控制",
-        "身份", "密码", "证书", "签名", "令牌", "会话", "策略", "日志", "告警",
+        "安全",
+        "漏洞",
+        "攻击",
+        "防护",
+        "威胁",
+        "入侵",
+        "渗透",
+        "加密",
+        "认证",
+        "授权",
+        "合规",
+        "审计",
+        "监控",
+        "防火墙",
+        "恶意",
+        "风险",
+        "隐私",
+        "权限",
+        "访问控制",
+        "身份",
+        "密码",
+        "证书",
+        "签名",
+        "令牌",
+        "会话",
+        "策略",
+        "日志",
+        "告警",
         # 英文关键词
-        "security", "vulnerability", "attack", "defense", "threat", "intrusion", "penetration",
-        "encryption", "authentication", "authorization", "firewall", "malware", "exploit",
-        "compliance", "audit", "monitoring", "privacy", "permission", "access control",
-        "identity", "password", "certificate", "signature", "token", "session", "policy",
-        "log", "alert", "incident", "breach", "phishing", "ransomware", "backdoor",
+        "security",
+        "vulnerability",
+        "attack",
+        "defense",
+        "threat",
+        "intrusion",
+        "penetration",
+        "encryption",
+        "authentication",
+        "authorization",
+        "firewall",
+        "malware",
+        "exploit",
+        "compliance",
+        "audit",
+        "monitoring",
+        "privacy",
+        "permission",
+        "access control",
+        "identity",
+        "password",
+        "certificate",
+        "signature",
+        "token",
+        "session",
+        "policy",
+        "log",
+        "alert",
+        "incident",
+        "breach",
+        "phishing",
+        "ransomware",
+        "backdoor",
         # 安全架构相关
-        "waf", "ids", "ips", "siem", "soc", "iam", "pki", "vpn", "ssl", "tls",
-        "oauth", "saml", "jwt", "cors", "csrf", "xss", "sqli", "injection",
+        "waf",
+        "ids",
+        "ips",
+        "siem",
+        "soc",
+        "iam",
+        "pki",
+        "vpn",
+        "ssl",
+        "tls",
+        "oauth",
+        "saml",
+        "jwt",
+        "cors",
+        "csrf",
+        "xss",
+        "sqli",
+        "injection",
         # 合规相关
-        "gdpr", "hipaa", "pci", "iso27001", "等保", "sox", "compliance layer"
+        "gdpr",
+        "hipaa",
+        "pci",
+        "iso27001",
+        "等保",
+        "sox",
+        "compliance layer",
     ]
 
     # AI相关关键词
     ai_keywords = [
-        "人工智能", "机器学习", "深度学习", "神经网络", "模型", "训练", "推理", "算法",
-        "artificial intelligence", "machine learning", "deep learning", "neural network",
-        "model", "training", "inference", "algorithm", "transformer", "llm", "gpt",
-        "bert", "nlp", "computer vision", "cv", "cnn", "rnn", "lstm", "gan",
-        "reinforcement learning", "supervised", "unsupervised", "classification", "regression"
+        "人工智能",
+        "机器学习",
+        "深度学习",
+        "神经网络",
+        "模型",
+        "训练",
+        "推理",
+        "算法",
+        "artificial intelligence",
+        "machine learning",
+        "deep learning",
+        "neural network",
+        "model",
+        "training",
+        "inference",
+        "algorithm",
+        "transformer",
+        "llm",
+        "gpt",
+        "bert",
+        "nlp",
+        "computer vision",
+        "cv",
+        "cnn",
+        "rnn",
+        "lstm",
+        "gan",
+        "reinforcement learning",
+        "supervised",
+        "unsupervised",
+        "classification",
+        "regression",
     ]
 
     # PDF相关关键词
@@ -158,7 +261,7 @@ def _fallback_classification(question: str) -> dict:
             "agent_class": "cybersecurity",
             "confidence": 0.7,
             "reason": "Matched security keywords (fallback)",
-            "method": "fallback"
+            "method": "fallback",
         }
 
     if any(kw in q_lower for kw in ai_keywords):
@@ -166,7 +269,7 @@ def _fallback_classification(question: str) -> dict:
             "agent_class": "artificial_intelligence",
             "confidence": 0.7,
             "reason": "Matched AI keywords (fallback)",
-            "method": "fallback"
+            "method": "fallback",
         }
 
     if any(kw in q_lower for kw in pdf_keywords):
@@ -174,7 +277,7 @@ def _fallback_classification(question: str) -> dict:
             "agent_class": "pdf_text",
             "confidence": 0.6,
             "reason": "Matched PDF keywords (fallback)",
-            "method": "fallback"
+            "method": "fallback",
         }
 
     # 默认通用类别
@@ -182,5 +285,5 @@ def _fallback_classification(question: str) -> dict:
         "agent_class": "general",
         "confidence": 0.5,
         "reason": "No specific category matched (fallback)",
-        "method": "fallback"
+        "method": "fallback",
     }

@@ -1,4 +1,4 @@
-﻿import importlib
+import importlib
 import sys
 import types
 from dataclasses import dataclass, field
@@ -19,7 +19,7 @@ class _TextLoader:
         self.encoding = encoding
 
     def load(self):
-        with open(self.path, "r", encoding=self.encoding) as f:
+        with open(self.path, encoding=self.encoding) as f:
             text = f.read()
         return [_Doc(page_content=text, metadata={"source": self.path})]
 
@@ -74,7 +74,9 @@ def test_load_single_path_image_uses_image_loader(monkeypatch):
     img = tmp_dir / "demo.png"
     img.write_bytes(b"fake")
 
-    monkeypatch.setattr(loaders, "_load_image_file", lambda p: [_Doc(page_content="ocr text", metadata={"source": str(p)})])
+    monkeypatch.setattr(
+        loaders, "_load_image_file", lambda p: [_Doc(page_content="ocr text", metadata={"source": str(p)})]
+    )
 
     docs = loaders._load_single_path(img)
     assert len(docs) == 1
@@ -86,8 +88,12 @@ def test_load_single_path_pdf_merges_text_and_image_ocr(monkeypatch):
     pdf = tmp_dir / "demo.pdf"
     pdf.write_bytes(b"%PDF-1.4")
 
-    monkeypatch.setattr(loaders, "_load_pdf_text", lambda p: [_Doc(page_content="pdf text", metadata={"source": str(p)})])
-    monkeypatch.setattr(loaders, "_load_pdf_image_ocr", lambda p: [_Doc(page_content="img ocr", metadata={"source": str(p)})])
+    monkeypatch.setattr(
+        loaders, "_load_pdf_text", lambda p: [_Doc(page_content="pdf text", metadata={"source": str(p)})]
+    )
+    monkeypatch.setattr(
+        loaders, "_load_pdf_image_ocr", lambda p: [_Doc(page_content="img ocr", metadata={"source": str(p)})]
+    )
 
     docs = loaders._load_single_path(pdf)
     assert [d.page_content for d in docs] == ["pdf text", "img ocr"]

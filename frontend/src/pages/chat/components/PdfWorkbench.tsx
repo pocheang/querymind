@@ -9,6 +9,7 @@ type Props = {
   pdfTargetFile: string;
   onPdfTargetFileChange: (filename: string) => void;
   onSwitchAgentMode: (mode: AgentClassHint) => void;
+  onDraftQuestion: () => void;
 };
 
 export function PdfWorkbench({
@@ -17,6 +18,7 @@ export function PdfWorkbench({
   pdfTargetFile,
   onPdfTargetFileChange,
   onSwitchAgentMode,
+  onDraftQuestion,
 }: Props) {
   const { t } = useTranslation();
 
@@ -49,6 +51,9 @@ export function PdfWorkbench({
       <div className="row-actions wrap">
         <button type="button" className="secondary tiny-btn" onClick={() => onSwitchAgentMode("pdf_text")}>
           {t("components.workbench.forcePdfText")}
+        </button>
+        <button type="button" className="secondary tiny-btn" onClick={onDraftQuestion}>
+          {t("components.workbench.draftQuestion")}
         </button>
         <button type="button" className="secondary tiny-btn" onClick={() => onSwitchAgentMode("")}>
           {t("components.workbench.returnAuto")}

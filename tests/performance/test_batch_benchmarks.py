@@ -3,28 +3,19 @@
 import sys
 from pathlib import Path
 
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+# Add tests/performance to path for local imports
+sys.path.insert(0, str(Path(__file__).parent))
 
-from tests.performance.benchmark_pdf_processing import (
-    run_batch_chart_extraction_benchmark,
-    run_batch_size_comparison,
-    print_summary
-)
+from benchmark_pdf_processing import print_summary, run_batch_chart_extraction_benchmark, run_batch_size_comparison
 
 
 def test_basic_batch_benchmark():
     """Test basic batch chart extraction benchmark."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Test 1: Basic Batch Chart Extraction Benchmark")
-    print("="*60)
+    print("=" * 60)
 
-    result = run_batch_chart_extraction_benchmark(
-        num_images=10,
-        batch_size=5,
-        mock_api_delay=0.1
-    )
+    result = run_batch_chart_extraction_benchmark(num_images=10, batch_size=5, mock_api_delay=0.1)
 
     print_summary([result])
 
@@ -42,15 +33,11 @@ def test_basic_batch_benchmark():
 
 def test_batch_size_comparison():
     """Test comparison across different batch sizes."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Test 2: Batch Size Comparison")
-    print("="*60)
+    print("=" * 60)
 
-    results = run_batch_size_comparison(
-        num_images=20,
-        batch_sizes=[5, 10, 20],
-        mock_api_delay=0.1
-    )
+    results = run_batch_size_comparison(num_images=20, batch_sizes=[5, 10, 20], mock_api_delay=0.1)
 
     print_summary(results)
 
@@ -61,9 +48,9 @@ def test_batch_size_comparison():
         assert result["speedup_factor"] > 1.0
 
     # Print comparison table
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Batch Size Performance Comparison")
-    print("="*60)
+    print("=" * 60)
     print(f"{'Batch Size':<12} {'Speedup':<10} {'Time Saved':<15} {'Meets Target':<15}")
     print("-" * 60)
 
@@ -80,30 +67,26 @@ def test_batch_size_comparison():
 
 def test_40_percent_improvement():
     """Test that batch processing achieves 40% improvement."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Test 3: Verify 40% Improvement Target")
-    print("="*60)
+    print("=" * 60)
 
-    result = run_batch_chart_extraction_benchmark(
-        num_images=20,
-        batch_size=10,
-        mock_api_delay=0.1
-    )
+    result = run_batch_chart_extraction_benchmark(num_images=20, batch_size=10, mock_api_delay=0.1)
 
     speedup = result["speedup_factor"]
     time_saved_percent = result["time_saved_percent"]
     meets_target = result["meets_40_percent_target"]
 
-    print(f"\nResults:")
+    print("\nResults:")
     print(f"  Speedup Factor: {speedup}x")
     print(f"  Time Saved: {time_saved_percent}%")
     print(f"  Target (40% = 1.67x speedup): {'✓ PASS' if meets_target else '✗ FAIL'}")
 
     if meets_target:
-        print(f"\n✓ Successfully achieved 40%+ improvement!")
+        print("\n✓ Successfully achieved 40%+ improvement!")
     else:
-        print(f"\n✗ Did not meet 40% improvement target")
-        print(f"  Expected: >= 1.67x speedup")
+        print("\n✗ Did not meet 40% improvement target")
+        print("  Expected: >= 1.67x speedup")
         print(f"  Actual: {speedup}x speedup")
 
     assert meets_target, f"Expected >= 1.67x speedup, got {speedup}x"
@@ -114,9 +97,9 @@ def test_40_percent_improvement():
 
 def main():
     """Run all benchmark tests."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("BATCH CHART EXTRACTION BENCHMARK TESTS")
-    print("="*60)
+    print("=" * 60)
 
     try:
         # Test 1: Basic benchmark
@@ -128,9 +111,9 @@ def main():
         # Test 3: 40% improvement verification
         test_40_percent_improvement()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("ALL TESTS PASSED ✓")
-        print("="*60)
+        print("=" * 60)
         print("\nBatch chart extraction benchmarks are working correctly!")
         print("Performance improvement target (40%) is being met.")
 
@@ -139,6 +122,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

@@ -84,10 +84,7 @@ def _llm_rewrite(query: str, use_reasoning: bool = False) -> str | None:
     # Reserve at least 0.5s for the rest of the pipeline
     timeout = max(0.5, min(2.0, timeout - 0.5))
 
-    prompt = (
-        "Rewrite the query for retrieval. Keep meaning unchanged. "
-        "Return one short rewritten query only."
-    )
+    prompt = "Rewrite the query for retrieval. Keep meaning unchanged. Return one short rewritten query only."
     try:
         model = get_reasoning_model() if use_reasoning else get_chat_model()
         # Note: LangChain models don't have direct timeout parameter
@@ -132,7 +129,7 @@ def build_rewrite_queries(
             continue
 
         # Normalize for comparison: lowercase + collapse whitespace
-        normalized = re.sub(r'\s+', ' ', original.lower())
+        normalized = re.sub(r"\s+", " ", original.lower())
 
         if normalized in seen:
             continue

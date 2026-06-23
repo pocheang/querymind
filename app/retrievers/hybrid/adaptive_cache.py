@@ -15,27 +15,26 @@ Benefits:
 
 import logging
 import re
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 # Default TTL values (in seconds)
-DEFAULT_CACHE_TTL_FAST_TIER = 300      # 5 minutes for simple queries
+DEFAULT_CACHE_TTL_FAST_TIER = 300  # 5 minutes for simple queries
 DEFAULT_CACHE_TTL_BALANCED_TIER = 120  # 2 minutes for moderate queries
-DEFAULT_CACHE_TTL_DEEP_TIER = 60       # 1 minute for complex queries
-DEFAULT_CACHE_TTL_USER_QUERY = 180     # 3 minutes for user-specific queries
-DEFAULT_CACHE_TTL_FALLBACK = 45        # Legacy default
+DEFAULT_CACHE_TTL_DEEP_TIER = 60  # 1 minute for complex queries
+DEFAULT_CACHE_TTL_USER_QUERY = 180  # 3 minutes for user-specific queries
+DEFAULT_CACHE_TTL_FALLBACK = 45  # Legacy default
 
 
 # User-specific query patterns (Chinese + English)
 USER_SPECIFIC_PATTERNS = [
-    r'\b(my|mine|our|ours)\b',  # English possessives
-    r'\b(I|me|we|us)\b',         # English pronouns
-    r'(我的|我们的|我|咱们)',      # Chinese possessives/pronouns
-    r'(给我|帮我|为我)',          # Chinese "for me" patterns
+    r"\b(my|mine|our|ours)\b",  # English possessives
+    r"\b(I|me|we|us)\b",  # English pronouns
+    r"(我的|我们的|我|咱们)",  # Chinese possessives/pronouns
+    r"(给我|帮我|为我)",  # Chinese "for me" patterns
 ]
 
-USER_SPECIFIC_REGEX = re.compile('|'.join(USER_SPECIFIC_PATTERNS), re.IGNORECASE)
+USER_SPECIFIC_REGEX = re.compile("|".join(USER_SPECIFIC_PATTERNS), re.IGNORECASE)
 
 
 def _is_user_specific_query(query: str) -> bool:
@@ -50,12 +49,7 @@ def _is_user_specific_query(query: str) -> bool:
     return bool(USER_SPECIFIC_REGEX.search(query))
 
 
-def get_adaptive_cache_ttl(
-    query: str,
-    tier: Optional[str] = None,
-    user_id: Optional[str] = None,
-    settings=None
-) -> int:
+def get_adaptive_cache_ttl(query: str, tier: str | None = None, user_id: str | None = None, settings=None) -> int:
     """
     Calculate adaptive cache TTL based on query characteristics.
 
@@ -134,13 +128,13 @@ def should_skip_cache(query: str, force_refresh: bool = False) -> bool:
 
     # Real-time query patterns
     realtime_patterns = [
-        r'\b(now|current|latest|today|real-time|live)\b',  # English
-        r'(现在|当前|最新|实时|今天)',                        # Chinese
+        r"\b(now|current|latest|today|real-time|live)\b",  # English
+        r"(现在|当前|最新|实时|今天)",  # Chinese
     ]
 
     for pattern in realtime_patterns:
         if re.search(pattern, query, re.IGNORECASE):
-            logger.debug(f"Real-time query detected, skipping cache")
+            logger.debug("Real-time query detected, skipping cache")
             return True
 
     return False

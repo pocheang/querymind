@@ -1,4 +1,5 @@
 """Health check and metrics routes for the Multi-Agent Local RAG API."""
+
 import os
 import socket
 import sys
@@ -72,7 +73,13 @@ def _check_chroma_ready() -> dict[str, Any]:
         return {"ok": True, "required": True, "latency_ms": latency, "path": str(settings.chroma_path)}
     except Exception as e:
         latency = int((time.perf_counter() - start) * 1000)
-        return {"ok": False, "required": True, "latency_ms": latency, "path": str(settings.chroma_path), "error": str(e)}
+        return {
+            "ok": False,
+            "required": True,
+            "latency_ms": latency,
+            "path": str(settings.chroma_path),
+            "error": str(e),
+        }
 
 
 def _runtime_diagnostics_summary() -> dict[str, Any]:

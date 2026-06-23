@@ -1,8 +1,8 @@
-from functools import lru_cache
 import hashlib
 import json
 import math
 import re
+from functools import lru_cache
 from types import SimpleNamespace
 
 from app.api.utils.string_utils import normalize_string
@@ -145,7 +145,9 @@ class LocalEvidenceChatModel:
         if "知识图谱抽取器" in system_text:
             return SimpleNamespace(content="[]")
         if "答案质检" in system_text:
-            return SimpleNamespace(content='{"is_correct":true,"issues":[],"improved_answer":"","analysis":"local_review_skipped"}')
+            return SimpleNamespace(
+                content='{"is_correct":true,"issues":[],"improved_answer":"","analysis":"local_review_skipped"}'
+            )
         return SimpleNamespace(content=self._answer(human_text))
 
     def stream(self, messages):
@@ -479,11 +481,11 @@ def _build_chat_model_cached(
         if anthropic_base_url:
             return _wrap_chat_model_for_provider(
                 AnthropicRelayChatModel(
-                model=anthropic_model,
-                api_key=anthropic_api_key,
-                base_url=anthropic_base_url,
-                temperature=temperature,
-                max_tokens=max_tokens if max_tokens > 0 else 2048,
+                    model=anthropic_model,
+                    api_key=anthropic_api_key,
+                    base_url=anthropic_base_url,
+                    temperature=temperature,
+                    max_tokens=max_tokens if max_tokens > 0 else 2048,
                 ),
                 provider=provider,
             )
@@ -592,10 +594,16 @@ def get_embedding_model():
             provider=provider,
             backend=backend,
             openai_model=str(override["model"]) if backend == "openai" else settings.openai_embed_model,
-            openai_api_key=str(override.get("api_key", "") or "") if backend == "openai" else str(settings.openai_api_key or ""),
-            openai_base_url=str(override.get("base_url", "") or "") if backend == "openai" else str(settings.openai_base_url or ""),
+            openai_api_key=str(override.get("api_key", "") or "")
+            if backend == "openai"
+            else str(settings.openai_api_key or ""),
+            openai_base_url=str(override.get("base_url", "") or "")
+            if backend == "openai"
+            else str(settings.openai_base_url or ""),
             ollama_model=str(override["model"]) if backend == "ollama" else settings.ollama_embed_model,
-            ollama_base_url=str(override.get("base_url", "") or "") if backend == "ollama" else settings.ollama_base_url,
+            ollama_base_url=str(override.get("base_url", "") or "")
+            if backend == "ollama"
+            else settings.ollama_base_url,
         )
     return _build_embedding_model_cached(
         provider=str(settings.model_backend or ""),
@@ -622,12 +630,18 @@ def get_reasoning_model(temperature: float | None = None):
             provider=provider,
             backend=backend,
             temperature=_norm_temp(effective_temperature),
-            openai_model=model if backend == "openai" else (settings.openai_reasoning_model or settings.openai_chat_model),
+            openai_model=model
+            if backend == "openai"
+            else (settings.openai_reasoning_model or settings.openai_chat_model),
             openai_api_key=api_key if backend == "openai" else str(settings.openai_api_key or ""),
             openai_base_url=base_url if backend == "openai" else str(settings.openai_base_url or ""),
-            ollama_model=model if backend == "ollama" else (settings.ollama_reasoning_model or settings.ollama_chat_model),
+            ollama_model=model
+            if backend == "ollama"
+            else (settings.ollama_reasoning_model or settings.ollama_chat_model),
             ollama_base_url=base_url if backend == "ollama" else settings.ollama_base_url,
-            anthropic_model=model if backend == "anthropic" else (settings.anthropic_reasoning_model or settings.anthropic_chat_model),
+            anthropic_model=model
+            if backend == "anthropic"
+            else (settings.anthropic_reasoning_model or settings.anthropic_chat_model),
             anthropic_api_key=api_key if backend == "anthropic" else str(settings.anthropic_api_key or ""),
             anthropic_base_url=base_url if backend == "anthropic" else "",
             max_tokens=_safe_int(override.get("max_tokens"), 0),

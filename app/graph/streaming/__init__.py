@@ -1,12 +1,12 @@
 """Streaming components for query processing."""
 
-from app.graph.streaming.sse_encoder import encode_sse
 from app.graph.streaming import stream_processor
 from app.graph.streaming.safe_wrappers import (
-    safe_vector_result,
     safe_graph_result,
+    safe_vector_result,
     safe_web_result,
 )
+from app.graph.streaming.sse_encoder import encode_sse
 from app.services.query_intent import is_casual_chat_query
 
 

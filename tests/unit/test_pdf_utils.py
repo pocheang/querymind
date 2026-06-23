@@ -1,10 +1,10 @@
 """Unit tests for PDF utility functions."""
 
-import pytest
-import hashlib
-import tempfile
 import shutil
 from pathlib import Path
+
+import pytest
+
 from app.ingestion.utils.performance import compute_file_hash
 
 

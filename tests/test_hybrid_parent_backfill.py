@@ -2,7 +2,9 @@ import importlib
 import sys
 import types
 from types import SimpleNamespace
+
 from app.services.resilience import TTLCache
+
 
 def test_hybrid_search_backfills_parent_and_dedupes_by_parent(monkeypatch):
     fake_vector_store = types.ModuleType("app.retrievers.vector_store")
@@ -154,7 +156,11 @@ def test_hybrid_search_with_diagnostics_reports_rewrites_and_degrade(monkeypatch
             rank_feature_enabled=False,
         ),
     )
-    monkeypatch.setattr(hybrid_retriever, "similarity_search", lambda _q, k=None: [(_Doc("doc", {"chunk_id": "cid", "source": "s1.md"}), 0.2)])
+    monkeypatch.setattr(
+        hybrid_retriever,
+        "similarity_search",
+        lambda _q, k=None: [(_Doc("doc", {"chunk_id": "cid", "source": "s1.md"}), 0.2)],
+    )
     monkeypatch.setattr(hybrid_retriever, "bm25_search", lambda _q, k=6, allowed_sources=None: [])
     monkeypatch.setattr(hybrid_retriever, "rerank", lambda _q, items, top_n=None: items)
     monkeypatch.setattr(hybrid_retriever, "get_parent_text_map", lambda _ids: {})
@@ -364,10 +370,14 @@ def test_hybrid_search_baseline_strategy_reduces_variants(monkeypatch):
     monkeypatch.setattr(hybrid_retriever, "rerank", lambda _q, items, top_n=None: items)
     monkeypatch.setattr(hybrid_retriever, "get_parent_text_map", lambda _ids: {})
 
-    _res_adv, d_adv = hybrid_retriever.hybrid_search_with_diagnostics("Alpha, Beta and Gamma", retrieval_strategy="advanced")
+    _res_adv, d_adv = hybrid_retriever.hybrid_search_with_diagnostics(
+        "Alpha, Beta and Gamma", retrieval_strategy="advanced"
+    )
     seen_adv = len(set(seen_queries))
     seen_queries.clear()
-    _res_base, d_base = hybrid_retriever.hybrid_search_with_diagnostics("Alpha, Beta and Gamma", retrieval_strategy="baseline")
+    _res_base, d_base = hybrid_retriever.hybrid_search_with_diagnostics(
+        "Alpha, Beta and Gamma", retrieval_strategy="baseline"
+    )
     seen_base = len(set(seen_queries))
 
     assert d_adv.get("strategy") == "advanced"

@@ -1,17 +1,16 @@
 import json
 import sys
 
-from app.core.config import get_settings
-from app.retrievers.hybrid.caching import cache_lookup, cache_store, clear_retrieval_cache
 import app.retrievers.hybrid.candidate_collection as candidate_collection
 import app.retrievers.hybrid.parent_expansion as parent_expansion
+from app.core.config import get_settings
 from app.retrievers.bm25_retriever import bm25_search
-from app.retrievers.hybrid.candidate_collection import collect_candidates, safe_similarity_search
+from app.retrievers.hybrid.caching import cache_lookup, cache_store, clear_retrieval_cache
 from app.retrievers.hybrid.parent_expansion import expand_to_parent_context
-from app.retrievers.parent_store import get_parent_text_map
 from app.retrievers.hybrid.strategy import strategy_flags
-from app.retrievers.vector_store import similarity_search
+from app.retrievers.parent_store import get_parent_text_map
 from app.retrievers.reranker import rerank
+from app.retrievers.vector_store import similarity_search
 from app.services.query_rewrite import build_rewrite_queries
 from app.services.tracing import traced_span
 
@@ -63,7 +62,11 @@ def hybrid_search_with_diagnostics(
                 vector_top_k = int(getattr(settings, "vector_top_k", 6) or 6)
                 variants = build_rewrite_queries(
                     query,
-                    enable_llm=bool(flags["rewrite"] and getattr(settings, "query_rewrite_enabled", True) and getattr(settings, "query_rewrite_with_llm", False)),
+                    enable_llm=bool(
+                        flags["rewrite"]
+                        and getattr(settings, "query_rewrite_enabled", True)
+                        and getattr(settings, "query_rewrite_with_llm", False)
+                    ),
                     use_reasoning=False,
                     enable_decompose=bool(flags["decompose"] and getattr(settings, "query_decompose_enabled", True)),
                     max_variants=int(getattr(settings, "query_rewrite_max_variants", 6) or 6),
@@ -72,7 +75,9 @@ def hybrid_search_with_diagnostics(
                     variants = [query]
 
                 for variant in variants:
-                    raw_vector_cache[variant] = _safe_similarity_search(variant, k=vector_top_k, allowed_sources=allowed_sources)
+                    raw_vector_cache[variant] = _safe_similarity_search(
+                        variant, k=vector_top_k, allowed_sources=allowed_sources
+                    )
 
                 fused, diag = _collect_candidates_for_current_module(
                     query,
@@ -105,9 +110,13 @@ def hybrid_search_with_diagnostics(
         return expanded, diagnostics
 
 
-def hybrid_search(query: str, allowed_sources: list[str] | None = None, retrieval_strategy: str | None = None) -> list[dict]:
+def hybrid_search(
+    query: str, allowed_sources: list[str] | None = None, retrieval_strategy: str | None = None
+) -> list[dict]:
     """Perform hybrid search and return results only."""
-    results, _ = hybrid_search_with_diagnostics(query, allowed_sources=allowed_sources, retrieval_strategy=retrieval_strategy)
+    results, _ = hybrid_search_with_diagnostics(
+        query, allowed_sources=allowed_sources, retrieval_strategy=retrieval_strategy
+    )
     return results
 
 

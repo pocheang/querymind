@@ -3,8 +3,9 @@ Concurrency tests for AgentExecutionTracker to verify thread safety.
 """
 
 import asyncio
-import pytest
 from datetime import timedelta
+
+import pytest
 
 from app.services.agent_execution_tracker import (
     AgentExecutionTracker,
@@ -27,13 +28,9 @@ async def test_concurrent_step_recording(tracker):
 
     # Launch 100 concurrent step recordings
     async def record_step(i):
-        step_id = tracker.record_agent_step(
-            execution_id, f"Agent{i}", {"index": i}
-        )
+        step_id = tracker.record_agent_step(execution_id, f"Agent{i}", {"index": i})
         await asyncio.sleep(0.001)  # Simulate work
-        tracker.complete_agent_step(
-            execution_id, step_id, {"result": f"done{i}"}
-        )
+        tracker.complete_agent_step(execution_id, step_id, {"result": f"done{i}"})
 
     await asyncio.gather(*[record_step(i) for i in range(100)])
 
@@ -151,7 +148,7 @@ async def test_trace_lock_cleanup(tracker):
 
     # Note: defaultdict only creates entries when accessed,
     # so we may not have locks yet unless the implementation uses them
-    initial_lock_count = len(tracker._trace_locks)
+    len(tracker._trace_locks)
 
     # Make them old and cleanup
     tracker._ttl_hours = 0

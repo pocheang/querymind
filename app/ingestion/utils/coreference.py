@@ -1,7 +1,6 @@
 """Coreference resolution - resolve pronouns to their referents."""
 
 import re
-from typing import List, Dict, Tuple
 
 
 def simple_coreference_resolution(text: str) -> str:
@@ -31,17 +30,17 @@ def simple_coreference_resolution(text: str) -> str:
         resolved = resolve_pronouns_in_sentence(sentence, recent_entities)
         resolved_sentences.append(resolved)
 
-    return ' '.join(resolved_sentences)
+    return " ".join(resolved_sentences)
 
 
-def split_into_sentences(text: str) -> List[str]:
+def split_into_sentences(text: str) -> list[str]:
     """Split text into sentences."""
     # Simple sentence splitting
-    sentences = re.split(r'[.!?]+\s+', text)
+    sentences = re.split(r"[.!?]+\s+", text)
     return [s.strip() for s in sentences if s.strip()]
 
 
-def extract_entities(sentence: str) -> List[str]:
+def extract_entities(sentence: str) -> list[str]:
     """
     Extract potential entities (nouns) from sentence.
 
@@ -53,16 +52,16 @@ def extract_entities(sentence: str) -> List[str]:
     """
     # Simple pattern: capitalized words or common nouns
     # Pattern: words starting with capital letter
-    capitalized = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', sentence)
+    capitalized = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", sentence)
 
     # Pattern: technical terms (CamelCase, acronyms)
-    technical = re.findall(r'\b[A-Z]{2,}\b|\b[A-Z][a-z]+[A-Z][a-z]+\b', sentence)
+    technical = re.findall(r"\b[A-Z]{2,}\b|\b[A-Z][a-z]+[A-Z][a-z]+\b", sentence)
 
     # Common nouns (simplified)
     common_nouns = re.findall(
-        r'\b(system|database|model|application|service|framework|library|tool|method|function|class|module)\b',
+        r"\b(system|database|model|application|service|framework|library|tool|method|function|class|module)\b",
         sentence,
-        re.IGNORECASE
+        re.IGNORECASE,
     )
 
     entities = capitalized + technical + common_nouns
@@ -77,7 +76,7 @@ def extract_entities(sentence: str) -> List[str]:
     return unique_entities
 
 
-def resolve_pronouns_in_sentence(sentence: str, recent_entities: List[str]) -> str:
+def resolve_pronouns_in_sentence(sentence: str, recent_entities: list[str]) -> str:
     """
     Resolve pronouns in a sentence using recent entities.
 
@@ -99,43 +98,18 @@ def resolve_pronouns_in_sentence(sentence: str, recent_entities: List[str]) -> s
     # Resolve "it"
     if most_recent:
         # Pattern: "It is", "it was", "it has", etc.
-        resolved = re.sub(
-            r'\bIt\b',
-            most_recent,
-            resolved,
-            count=1
-        )
-        resolved = re.sub(
-            r'\bit\b',
-            most_recent.lower(),
-            resolved,
-            count=1
-        )
+        resolved = re.sub(r"\bIt\b", most_recent, resolved, count=1)
+        resolved = re.sub(r"\bit\b", most_recent.lower(), resolved, count=1)
 
     # Resolve "this" and "that"
     if most_recent:
-        resolved = re.sub(
-            r'\bThis\b(?=\s+(?:is|was|has|can|will))',
-            most_recent,
-            resolved,
-            count=1
-        )
-        resolved = re.sub(
-            r'\bThat\b(?=\s+(?:is|was|has|can|will))',
-            most_recent,
-            resolved,
-            count=1
-        )
+        resolved = re.sub(r"\bThis\b(?=\s+(?:is|was|has|can|will))", most_recent, resolved, count=1)
+        resolved = re.sub(r"\bThat\b(?=\s+(?:is|was|has|can|will))", most_recent, resolved, count=1)
 
     # Resolve "they" (use plural form if available)
     if len(recent_entities) >= 2:
         plural_ref = f"{recent_entities[-2]} and {recent_entities[-1]}"
-        resolved = re.sub(
-            r'\bThey\b',
-            plural_ref,
-            resolved,
-            count=1
-        )
+        resolved = re.sub(r"\bThey\b", plural_ref, resolved, count=1)
 
     return resolved
 
@@ -172,7 +146,7 @@ def add_entity_context(text: str) -> str:
         else:
             annotated.append(sentence)
 
-    return ' '.join(annotated)
+    return " ".join(annotated)
 
 
 def resolve_demonstratives(text: str) -> str:
@@ -192,10 +166,10 @@ def resolve_demonstratives(text: str) -> str:
 
     # Find standalone demonstratives
     patterns = [
-        (r'\bthis\s+(?:is|was|has|can|will|should|would)\b', 'this concept'),
-        (r'\bthat\s+(?:is|was|has|can|will|should|would)\b', 'that approach'),
-        (r'\bthese\s+(?:are|were|have|can|will|should|would)\b', 'these methods'),
-        (r'\bthose\s+(?:are|were|have|can|will|should|would)\b', 'those techniques'),
+        (r"\bthis\s+(?:is|was|has|can|will|should|would)\b", "this concept"),
+        (r"\bthat\s+(?:is|was|has|can|will|should|would)\b", "that approach"),
+        (r"\bthese\s+(?:are|were|have|can|will|should|would)\b", "these methods"),
+        (r"\bthose\s+(?:are|were|have|can|will|should|would)\b", "those techniques"),
     ]
 
     for pattern, replacement in patterns:

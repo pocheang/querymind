@@ -1,11 +1,11 @@
 """Hybrid baseline retriever (Vector + BM25)."""
 
 import time
-from typing import List, Dict, Any
+from typing import Any
 
-from app.retrievers.vector_store import similarity_search
-from app.retrievers.bm25_retriever import bm25_search
 from app.evaluation.models import RetrievalResult
+from app.retrievers.bm25_retriever import bm25_search
+from app.retrievers.vector_store import similarity_search
 
 
 class HybridRetriever:
@@ -43,11 +43,7 @@ class HybridRetriever:
         fused_scores = self._fuse_scores(vector_results, bm25_results)
 
         # Sort by fused score and take top_k
-        sorted_results = sorted(
-            fused_scores.items(),
-            key=lambda x: x[1]["score"],
-            reverse=True
-        )[:top_k]
+        sorted_results = sorted(fused_scores.items(), key=lambda x: x[1]["score"], reverse=True)[:top_k]
 
         latency_ms = (time.time() - start_time) * 1000
 
@@ -55,13 +51,15 @@ class HybridRetriever:
         retrieved_docs = []
         scores = []
 
-        for doc_id, data in sorted_results:
-            retrieved_docs.append({
-                "id": data["doc"].metadata.get("id", ""),
-                "content": data["doc"].page_content,
-                "metadata": data["doc"].metadata,
-                "source": data["doc"].metadata.get("source", "")
-            })
+        for _doc_id, data in sorted_results:
+            retrieved_docs.append(
+                {
+                    "id": data["doc"].metadata.get("id", ""),
+                    "content": data["doc"].page_content,
+                    "metadata": data["doc"].metadata,
+                    "source": data["doc"].metadata.get("source", ""),
+                }
+            )
             scores.append(float(data["score"]))
 
         return RetrievalResult(
@@ -74,15 +72,11 @@ class HybridRetriever:
                 "retriever": "hybrid",
                 "vector_weight": self.vector_weight,
                 "bm25_weight": self.bm25_weight,
-                "top_k": top_k
-            }
+                "top_k": top_k,
+            },
         )
 
-    def _fuse_scores(
-        self,
-        vector_results: List[tuple],
-        bm25_results: List[tuple]
-    ) -> Dict[str, Dict[str, Any]]:
+    def _fuse_scores(self, vector_results: list[tuple], bm25_results: list[tuple]) -> dict[str, dict[str, Any]]:
         """
         Fuse vector and BM25 scores using weighted average.
 
@@ -110,7 +104,7 @@ class HybridRetriever:
                     "doc": doc,
                     "vector_score": normalized_score,
                     "bm25_score": 0.0,
-                    "score": normalized_score * self.vector_weight
+                    "score": normalized_score * self.vector_weight,
                 }
 
         # Normalize BM25 scores (0-1 range)
@@ -135,7 +129,7 @@ class HybridRetriever:
                         "doc": doc,
                         "vector_score": 0.0,
                         "bm25_score": normalized_score,
-                        "score": normalized_score * self.bm25_weight
+                        "score": normalized_score * self.bm25_weight,
                     }
 
         return fused

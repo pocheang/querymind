@@ -1,13 +1,14 @@
 """
 Authentication helper functions for the Multi-Agent Local RAG API.
 """
+
 from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import Request, Response
-from app.api.utils.error_responses import forbidden
 from fastapi.security import HTTPAuthorizationCredentials
 
+from app.api.utils.error_responses import forbidden
 from app.core.config import get_settings
 from app.services.auth_db import AuthDBService
 
@@ -31,7 +32,9 @@ def _auth_cookie_samesite() -> str:
     return raw
 
 
-def _resolve_auth_token(request: Request, credentials: HTTPAuthorizationCredentials | None) -> tuple[str | None, str | None]:
+def _resolve_auth_token(
+    request: Request, credentials: HTTPAuthorizationCredentials | None
+) -> tuple[str | None, str | None]:
     """Resolve authentication token from bearer header or cookie."""
     if credentials and credentials.credentials:
         token = str(credentials.credentials).strip() or None

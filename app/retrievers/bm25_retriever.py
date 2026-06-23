@@ -50,7 +50,7 @@ def tokenize_chinese_aware(text: str) -> list[str]:
         import jieba
 
         # Detect if text contains significant Chinese content (>20% Chinese chars)
-        chinese_char_count = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
+        chinese_char_count = len([c for c in text if "\u4e00" <= c <= "\u9fff"])
         total_chars = len([c for c in text if not c.isspace()])
 
         if total_chars > 0 and chinese_char_count / total_chars > 0.2:
@@ -90,7 +90,9 @@ def _load_bm25(use_chinese_tokenizer: bool = True):
     return BM25Okapi(tokenized), records
 
 
-def bm25_search(query: str, k: int = 6, allowed_sources: list[str] | None = None, use_chinese_tokenizer: bool = True) -> list[dict]:
+def bm25_search(
+    query: str, k: int = 6, allowed_sources: list[str] | None = None, use_chinese_tokenizer: bool = True
+) -> list[dict]:
     """
     Perform BM25 search with optional Chinese-aware tokenization.
 
@@ -161,4 +163,3 @@ def bm25_search(query: str, k: int = 6, allowed_sources: list[str] | None = None
 def reset_bm25_cache() -> None:
     """Clear the BM25 index cache to force reloading."""
     _load_bm25.cache_clear()
-

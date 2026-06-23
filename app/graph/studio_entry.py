@@ -7,4 +7,3 @@ def get_graph():
     Returns a compiled graph app for visual debugging.
     """
     return build_workflow()
-

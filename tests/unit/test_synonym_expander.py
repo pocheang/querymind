@@ -1,6 +1,5 @@
 """Unit tests for synonym expander service."""
 
-import pytest
 from app.services.synonym_expander import SynonymExpander, get_expander
 
 

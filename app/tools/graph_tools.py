@@ -34,7 +34,9 @@ def _relation_weight(rel: str) -> float:
         return 0.0
     if r in _NOISY_RELATIONS:
         return 0.0
-    if any(k in r for k in ("causes", "导致", "depends", "依赖", "uses", "利用", "targets", "攻击", "mitigates", "缓解")):
+    if any(
+        k in r for k in ("causes", "导致", "depends", "依赖", "uses", "利用", "targets", "攻击", "mitigates", "缓解")
+    ):
         return 1.0
     return 0.6
 

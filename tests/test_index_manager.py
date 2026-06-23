@@ -1,6 +1,6 @@
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
-import uuid
 
 import pytest
 
@@ -60,7 +60,11 @@ def test_delete_file_index_requires_source_when_filename_is_ambiguous(monkeypatc
     monkeypatch.setattr(index_manager, "_delete_parent_records", lambda filename, source=None: 0)
     monkeypatch.setattr(index_manager, "_reset_bm25", lambda: None)
     reset_calls = {"retrieval_cache": 0}
-    monkeypatch.setattr(index_manager, "_reset_retrieval_cache", lambda: reset_calls.__setitem__("retrieval_cache", reset_calls["retrieval_cache"] + 1))
+    monkeypatch.setattr(
+        index_manager,
+        "_reset_retrieval_cache",
+        lambda: reset_calls.__setitem__("retrieval_cache", reset_calls["retrieval_cache"] + 1),
+    )
     monkeypatch.setattr(index_manager, "_delete_triplets_by_sources", lambda _sources: 0)
 
     with pytest.raises(ValueError):

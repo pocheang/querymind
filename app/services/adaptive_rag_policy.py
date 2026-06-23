@@ -1,8 +1,7 @@
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
 from app.api.utils.string_utils import normalize_string
-
 
 _COMPLEXITY_PATTERNS = {
     "complex": [
@@ -56,7 +55,7 @@ def build_adaptive_plan(
 ) -> AdaptivePlan:
     level = _estimate_complexity_level(question)
 
-    route = initial_route if initial_route in {"vector", "graph", "hybrid"} else "vector"
+    route = initial_route if initial_route in {"vector", "graph", "hybrid", "react"} else "vector"
     prefer_graph = route in {"graph", "hybrid"}
     if level == "complex" and route == "vector":
         route = "hybrid"

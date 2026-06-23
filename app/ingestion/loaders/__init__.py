@@ -1,12 +1,12 @@
 """Document loaders by file type."""
 
-from pathlib import Path
-
-from langchain_core.documents import Document
+import importlib.util
 
 # Import from parent module (app.ingestion.loaders is the file, not this package)
 import sys
-import importlib.util
+from pathlib import Path
+
+from langchain_core.documents import Document
 
 # Import the refactored loaders module (loaders.py file, not this package)
 _loaders_file = str(Path(__file__).parent.parent / "loaders.py")
@@ -14,8 +14,8 @@ _spec = importlib.util.spec_from_file_location("app.ingestion._loaders_impl", _l
 loaders_module = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(loaders_module)
 
-from app.ingestion.loaders.pdf_loader import load_pdf_text, load_pdf_image_ocr
 from app.ingestion.loaders.image_loader import load_image_file
+from app.ingestion.loaders.pdf_loader import load_pdf_image_ocr, load_pdf_text
 from app.ingestion.loaders.text_loader import load_text_file
 from app.ingestion.utils.ocr_utils import normalize_ocr_text, parse_psm_modes
 from app.ingestion.utils.people_detection import build_people_summary, detect_people_in_image

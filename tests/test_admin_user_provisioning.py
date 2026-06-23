@@ -1,5 +1,6 @@
-import pytest
 import hashlib
+
+import pytest
 
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
@@ -44,7 +45,13 @@ def test_admin_create_admin_success(monkeypatch):
     monkeypatch.setattr(
         api_main.auth_service,
         "create_user_with_role",
-        lambda username, password, role="viewer", created_by_user_id=None, created_by_username=None, admin_ticket_id=None, admin_approval_token_hash=None: {
+        lambda username,
+        password,
+        role="viewer",
+        created_by_user_id=None,
+        created_by_username=None,
+        admin_ticket_id=None,
+        admin_approval_token_hash=None: {
             "user_id": "u_new",
             "username": username,
             "role": role,
@@ -122,7 +129,13 @@ def test_admin_create_admin_uses_hash_token_when_configured(monkeypatch):
     monkeypatch.setattr(
         api_main.auth_service,
         "create_user_with_role",
-        lambda username, password, role="viewer", created_by_user_id=None, created_by_username=None, admin_ticket_id=None, admin_approval_token_hash=None: {
+        lambda username,
+        password,
+        role="viewer",
+        created_by_user_id=None,
+        created_by_username=None,
+        admin_ticket_id=None,
+        admin_approval_token_hash=None: {
             "user_id": "u_new2",
             "username": username,
             "role": role,
@@ -186,7 +199,7 @@ def test_admin_reset_approval_token_success(monkeypatch):
             "username": "admin_target",
             "role": "admin",
             "status": "active",
-            "admin_approval_token_hash": hashlib.sha256("my-own-token".encode("utf-8")).hexdigest(),
+            "admin_approval_token_hash": hashlib.sha256(b"my-own-token").hexdigest(),
         }
         if user_id == "u_admin"
         else {
@@ -277,7 +290,7 @@ def test_admin_reset_password_success(monkeypatch):
             "username": "admin",
             "role": "admin",
             "status": "active",
-            "admin_approval_token_hash": hashlib.sha256("my-own-token".encode("utf-8")).hexdigest(),
+            "admin_approval_token_hash": hashlib.sha256(b"my-own-token").hexdigest(),
         }
         if user_id == "u_admin"
         else {

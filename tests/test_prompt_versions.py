@@ -1,6 +1,7 @@
-from app.services.prompt_store import PromptStore
-from pathlib import Path
 import uuid
+from pathlib import Path
+
+from app.services.prompt_store import PromptStore
 
 
 def test_prompt_versions_and_rollback():
@@ -13,7 +14,9 @@ def test_prompt_versions_and_rollback():
     versions = store.list_versions(user_id="u1", prompt_id=prompt_id, limit=10)
     assert len(versions) >= 2
     old_version = versions[-1]
-    approved = store.approve_version(user_id="u1", prompt_id=prompt_id, version_id=str(old_version["version_id"]), approved_by="admin")
+    approved = store.approve_version(
+        user_id="u1", prompt_id=prompt_id, version_id=str(old_version["version_id"]), approved_by="admin"
+    )
     assert approved is not None
     assert approved["status"] == "approved"
     rolled = store.rollback_to_version(user_id="u1", prompt_id=prompt_id, version_id=str(old_version["version_id"]))

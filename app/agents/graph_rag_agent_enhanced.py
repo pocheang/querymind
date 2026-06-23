@@ -30,11 +30,11 @@ from app.agents.graph_rag_config import (
     GRAPH_PARAMS_HIGH_QUALITY,
     GRAPH_PARAMS_LOW_QUALITY,
     GRAPH_PARAMS_MEDIUM_QUALITY,
+    MAX_ENTITY_LENGTH,
+    MAX_ENTITY_WORDS,
     MIN_ENTITIES_FOR_HIGH_CONFIDENCE,
     MIN_ENTITIES_FOR_MEDIUM_CONFIDENCE,
     MIN_ENTITY_LENGTH,
-    MAX_ENTITY_LENGTH,
-    MAX_ENTITY_WORDS,
     PAGE_COUNT_HIGH,
     PAGE_COUNT_MEDIUM,
     PATTERN_ACRONYMS,
@@ -47,9 +47,9 @@ from app.agents.graph_rag_config import (
     PATTERN_REFERENCES,
     PATTERN_RELATION_KEYWORDS,
     PATTERN_TABLES,
+    PATTERN_TECH_TERMS,
     PATTERN_TECHNICAL_PHRASES_EN,
     PATTERN_TECHNICAL_PHRASES_ZH,
-    PATTERN_TECH_TERMS,
     QUALITY_THRESHOLD_HIGH,
     QUALITY_THRESHOLD_LOW,
     QUALITY_WEIGHT_CONTENT,
@@ -412,9 +412,7 @@ def run_graph_rag_with_pdf_context(
         lines.append(f"Entity: {name}")
         for rel in item.get("relations", []):
             if rel.get("other"):
-                lines.append(
-                    f"  - {rel.get('relation')} ({rel.get('weight', 0):.2f}) -> {rel.get('other')}"
-                )
+                lines.append(f"  - {rel.get('relation')} ({rel.get('weight', 0):.2f}) -> {rel.get('other')}")
 
     for row in neighbors:
         if row.get("entity") and row.get("relation") and row.get("other"):
@@ -468,7 +466,10 @@ def should_use_graph_rag(
     # Check document quality
     if retrieved_docs:
         context = get_document_context_for_query(question, retrieved_docs)
-        if context["quality_score"] >= QUALITY_THRESHOLD_HIGH and len(context["entities"]) >= MIN_ENTITIES_FOR_HIGH_CONFIDENCE:
+        if (
+            context["quality_score"] >= QUALITY_THRESHOLD_HIGH
+            and len(context["entities"]) >= MIN_ENTITIES_FOR_HIGH_CONFIDENCE
+        ):
             return True, "high_quality_documents_with_entities"
         if context["quality_score"] < QUALITY_THRESHOLD_LOW:
             return False, "low_quality_documents"

@@ -21,7 +21,9 @@ def test_ready_returns_ok_when_dependencies_ok(monkeypatch):
 
 def test_ready_returns_503_when_required_dependency_fails(monkeypatch):
     monkeypatch.setattr(api_main, "_check_ollama_ready", lambda: {"ok": True, "required": True, "latency_ms": 1})
-    monkeypatch.setattr(api_main, "_check_neo4j_ready", lambda: {"ok": False, "required": True, "latency_ms": 1, "error": "down"})
+    monkeypatch.setattr(
+        api_main, "_check_neo4j_ready", lambda: {"ok": False, "required": True, "latency_ms": 1, "error": "down"}
+    )
     monkeypatch.setattr(api_main, "_check_chroma_ready", lambda: {"ok": True, "required": True, "latency_ms": 1})
 
     client = TestClient(api_main.app)

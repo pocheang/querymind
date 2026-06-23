@@ -1,9 +1,8 @@
 """Synonym expansion service for Chinese query enhancement."""
 
-from typing import List, Dict, Set, Optional
+import json
 import logging
 from pathlib import Path
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -11,13 +10,13 @@ logger = logging.getLogger(__name__)
 class SynonymExpander:
     """Expands queries with synonyms to improve recall."""
 
-    def __init__(self, synonym_dict_path: Optional[str] = None):
+    def __init__(self, synonym_dict_path: str | None = None):
         """Initialize the synonym expander.
 
         Args:
             synonym_dict_path: Path to JSON file containing synonym mappings
         """
-        self.synonyms: Dict[str, Set[str]] = {}
+        self.synonyms: dict[str, set[str]] = {}
 
         if synonym_dict_path:
             self.load_synonyms(synonym_dict_path)
@@ -38,7 +37,6 @@ class SynonymExpander:
             "性能": {"效能", "表现", "性能指标"},
             "优化": {"改进", "提升", "增强"},
             "系统": {"平台", "框架", "体系"},
-
             # Business terms
             "员工": {"职工", "雇员", "人员"},
             "公司": {"企业", "组织", "机构"},
@@ -50,7 +48,6 @@ class SynonymExpander:
             "薪资": {"工资", "薪水", "报酬"},
             "培训": {"训练", "学习", "教育"},
             "考核": {"评估", "评价", "考评"},
-
             # Common verbs
             "使用": {"应用", "运用", "采用"},
             "创建": {"建立", "创造", "生成"},
@@ -60,7 +57,6 @@ class SynonymExpander:
             "提交": {"递交", "上传", "发送"},
             "审批": {"审核", "批准", "核准"},
             "配置": {"设置", "设定", "配备"},
-
             # Common adjectives
             "重要": {"关键", "核心", "主要"},
             "简单": {"容易", "简易", "轻松"},
@@ -91,7 +87,7 @@ class SynonymExpander:
                 self._load_default_synonyms()
                 return
 
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
 
             self.synonyms = {k: set(v) for k, v in data.items()}
@@ -101,7 +97,7 @@ class SynonymExpander:
             logger.error(f"Failed to load synonyms from {file_path}: {e}")
             self._load_default_synonyms()
 
-    def add_synonym_group(self, word: str, synonyms: Set[str]):
+    def add_synonym_group(self, word: str, synonyms: set[str]):
         """Add a synonym group.
 
         Args:
@@ -115,7 +111,7 @@ class SynonymExpander:
 
         logger.debug(f"Added synonym group for '{word}': {synonyms}")
 
-    def get_synonyms(self, word: str) -> Set[str]:
+    def get_synonyms(self, word: str) -> set[str]:
         """Get synonyms for a word.
 
         Args:
@@ -126,7 +122,7 @@ class SynonymExpander:
         """
         return self.synonyms.get(word, set())
 
-    def expand_query(self, tokens: List[str], max_expansions: int = 2) -> List[str]:
+    def expand_query(self, tokens: list[str], max_expansions: int = 2) -> list[str]:
         """Expand query tokens with synonyms.
 
         Args:
@@ -147,12 +143,7 @@ class SynonymExpander:
 
         return expanded
 
-    def expand_query_string(
-        self,
-        query: str,
-        tokens: List[str],
-        strategy: str = "append"
-    ) -> str:
+    def expand_query_string(self, query: str, tokens: list[str], strategy: str = "append") -> str:
         """Expand a query string with synonyms.
 
         Args:
@@ -199,7 +190,7 @@ class SynonymExpander:
             # Convert sets to lists for JSON serialization
             data = {k: list(v) for k, v in self.synonyms.items()}
 
-            with open(path, 'w', encoding='utf-8') as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
 
             logger.info(f"Saved {len(self.synonyms)} synonym groups to {file_path}")
@@ -209,10 +200,10 @@ class SynonymExpander:
 
 
 # Global expander instance
-_expander: Optional[SynonymExpander] = None
+_expander: SynonymExpander | None = None
 
 
-def get_expander(synonym_dict_path: Optional[str] = None) -> SynonymExpander:
+def get_expander(synonym_dict_path: str | None = None) -> SynonymExpander:
     """Get or create the global synonym expander instance.
 
     Args:

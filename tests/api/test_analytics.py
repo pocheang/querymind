@@ -1,14 +1,31 @@
 """
 Integration tests for Analytics API endpoints.
+
+NOTE: These tests require httpx >= 0.27.2 due to compatibility with Starlette 0.35.1.
+If tests fail with "TypeError: Client.__init__() got an unexpected keyword argument 'app'",
+run: pip install "httpx>=0.27.2" --upgrade
 """
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.api.main import app
-from app.services.retrieval_logger import RetrievalLogger, RetrievalLog
+from app.services.retrieval_logger import RetrievalLog, RetrievalLogger
 
-client = TestClient(app)
+
+@pytest.fixture
+def client():
+    """Create a test client for the app."""
+    try:
+        from fastapi.testclient import TestClient
+
+        with TestClient(app) as c:
+            yield c
+    except TypeError as e:
+        if "unexpected keyword argument 'app'" in str(e):
+            pytest.skip(
+                "TestClient incompatibility detected. Please upgrade httpx: pip install 'httpx>=0.27.2' --upgrade"
+            )
+        raise
 
 
 @pytest.fixture(autouse=True)
@@ -76,7 +93,7 @@ def sample_logs():
     return logs
 
 
-def test_get_overview_empty():
+def test_get_overview_empty(client):
     """Test overview endpoint with no logs."""
     response = client.get("/api/analytics/overview")
     assert response.status_code == 200
@@ -87,7 +104,7 @@ def test_get_overview_empty():
     assert data["success_rate"] == 0.0
 
 
-def test_get_overview_empty_with_app_base_prefix():
+def test_get_overview_empty_with_app_base_prefix(client):
     """Analytics overview should remain reachable when public deployments prefix APIs with /app."""
     response = client.get("/app/api/analytics/overview")
     assert response.status_code == 200
@@ -96,7 +113,7 @@ def test_get_overview_empty_with_app_base_prefix():
     assert data["success_rate"] == 0.0
 
 
-def test_get_overview(sample_logs):
+def test_get_overview(client, sample_logs):
     """Test overview endpoint with sample logs."""
     response = client.get("/api/analytics/overview")
     assert response.status_code == 200
@@ -119,7 +136,7 @@ def test_get_overview(sample_logs):
     assert isinstance(data["route_distribution"], dict)
 
 
-def test_get_agents_empty():
+def test_get_agents_empty(client):
     """Test agents endpoint with no logs."""
     response = client.get("/api/analytics/agents")
     assert response.status_code == 200
@@ -127,7 +144,7 @@ def test_get_agents_empty():
     assert len(response.json()) == 0
 
 
-def test_get_agents(sample_logs):
+def test_get_agents(client, sample_logs):
     """Test agents endpoint with sample logs."""
     response = client.get("/api/analytics/agents")
     assert response.status_code == 200
@@ -149,7 +166,7 @@ def test_get_agents(sample_logs):
         assert "avg_top_score" in agent
 
 
-def test_get_documents_empty():
+def test_get_documents_empty(client):
     """Test documents endpoint with no logs."""
     response = client.get("/api/analytics/documents")
     assert response.status_code == 200
@@ -157,7 +174,7 @@ def test_get_documents_empty():
     assert len(response.json()) == 0
 
 
-def test_get_documents_default_limit(sample_logs):
+def test_get_documents_default_limit(client, sample_logs):
     """Test documents endpoint with default limit."""
     response = client.get("/api/analytics/documents")
     assert response.status_code == 200
@@ -175,7 +192,7 @@ def test_get_documents_default_limit(sample_logs):
         assert "agent_usage" in doc
 
 
-def test_get_documents_custom_limit(sample_logs):
+def test_get_documents_custom_limit(client, sample_logs):
     """Test documents endpoint with custom limit."""
     response = client.get("/api/analytics/documents?limit=2")
     assert response.status_code == 200
@@ -185,7 +202,7 @@ def test_get_documents_custom_limit(sample_logs):
     assert len(data) <= 2
 
 
-def test_get_documents_limit_validation():
+def test_get_documents_limit_validation(client):
     """Test documents endpoint limit validation."""
     # Test minimum limit
     response = client.get("/api/analytics/documents?limit=0")
@@ -203,7 +220,7 @@ def test_get_documents_limit_validation():
     assert response.status_code == 200
 
 
-def test_export_json_empty():
+def test_export_json_empty(client):
     """Test JSON export with no logs."""
     response = client.get("/api/analytics/export?format=json")
     assert response.status_code == 200
@@ -213,7 +230,7 @@ def test_export_json_empty():
     assert len(data) == 0
 
 
-def test_export_json(sample_logs):
+def test_export_json(client, sample_logs):
     """Test JSON export with sample logs."""
     response = client.get("/api/analytics/export?format=json")
     assert response.status_code == 200
@@ -232,14 +249,14 @@ def test_export_json(sample_logs):
     assert "route" in log
 
 
-def test_export_json_default_format(sample_logs):
+def test_export_json_default_format(client, sample_logs):
     """Test export endpoint defaults to JSON."""
     response = client.get("/api/analytics/export")
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json"
 
 
-def test_export_csv_empty():
+def test_export_csv_empty(client):
     """Test CSV export with no logs."""
     response = client.get("/api/analytics/export?format=csv")
     assert response.status_code == 200
@@ -254,7 +271,7 @@ def test_export_csv_empty():
     assert "timestamp" in content
 
 
-def test_export_csv(sample_logs):
+def test_export_csv(client, sample_logs):
     """Test CSV export with sample logs."""
     response = client.get("/api/analytics/export?format=csv")
     assert response.status_code == 200
@@ -275,7 +292,7 @@ def test_export_csv(sample_logs):
     assert "agent_class" in header
 
 
-def test_export_format_validation():
+def test_export_format_validation(client):
     """Test export format validation."""
     # Invalid format
     response = client.get("/api/analytics/export?format=xml")

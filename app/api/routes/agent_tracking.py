@@ -1,15 +1,14 @@
 import asyncio
 import json
 import logging
-from typing import Any, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.api.dependencies import _require_user, _require_permission
-from app.api.utils.error_responses import not_found, bad_request, forbidden
-
+from app.api.dependencies import _require_permission, _require_user
+from app.api.utils.error_responses import bad_request, forbidden, not_found
 from app.services.agent_execution_tracker import (
     AgentExecutionTracker,
     ExecutionTrace,
@@ -47,12 +46,14 @@ class ExecutionStatus(BaseModel):
     query: str
     step_count: int
     start_time: str
-    end_time: Optional[str] = None
-    total_duration_ms: Optional[float] = None
+    end_time: str | None = None
+    total_duration_ms: float | None = None
 
 
 @router.get("/stream/{execution_id}")
-async def stream_execution(execution_id: str, request: Request, user: dict[str, Any] = Depends(_require_user), max_iterations: int = 600):
+async def stream_execution(
+    execution_id: str, request: Request, user: dict[str, Any] = Depends(_require_user), max_iterations: int = 600
+):
     """
     Server-Sent Events (SSE) endpoint for real-time execution tracking.
 
@@ -87,12 +88,12 @@ async def stream_execution(execution_id: str, request: Request, user: dict[str, 
 
             if len(trace.steps) > last_step_count:
                 for step in trace.steps[last_step_count:]:
-                    step_data = step.model_dump(mode='json')
+                    step_data = step.model_dump(mode="json")
                     yield f"event: agent_step\ndata: {json.dumps(step_data)}\n\n"
                 last_step_count = len(trace.steps)
 
-            if trace.status in ['completed', 'failed']:
-                trace_data = trace.model_dump(mode='json')
+            if trace.status in ["completed", "failed"]:
+                trace_data = trace.model_dump(mode="json")
                 yield f"event: execution_complete\ndata: {json.dumps(trace_data)}\n\n"
                 break
 
@@ -113,7 +114,7 @@ async def stream_execution(execution_id: str, request: Request, user: dict[str, 
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
-        }
+        },
     )
 
 
@@ -134,7 +135,7 @@ async def get_execution_trace(execution_id: str, request: Request, user: dict[st
     return trace
 
 
-@router.get("/history", response_model=List[ExecutionTrace])
+@router.get("/history", response_model=list[ExecutionTrace])
 async def get_execution_history(request: Request, user: dict[str, Any] = Depends(_require_user), limit: int = 20):
     """
     Get recent execution traces.
@@ -215,7 +216,4 @@ async def cleanup_old_traces(request: Request, user: dict[str, Any] = Depends(_r
     tracker = AgentExecutionTracker.get_instance()
     removed_count = tracker.cleanup_old_traces()
 
-    return {
-        "message": f"Cleaned up {removed_count} old execution traces",
-        "removed_count": removed_count
-    }
+    return {"message": f"Cleaned up {removed_count} old execution traces", "removed_count": removed_count}

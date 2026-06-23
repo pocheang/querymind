@@ -1,10 +1,12 @@
 """Enhanced document indexing with Chinese text processing."""
 
-from typing import List, Dict, Any, Optional
 import logging
+from typing import Any
+
 from langchain_core.documents import Document
-from app.services.chinese_tokenizer import get_tokenizer
+
 from app.services.chinese_query_preprocessor import ChineseQueryPreprocessor
+from app.services.chinese_tokenizer import get_tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ class ChineseDocumentIndexer:
         self.tokenizer = get_tokenizer()
         self.preprocessor = ChineseQueryPreprocessor(
             enable_synonym_expansion=False,  # Don't expand during indexing
-            enable_stopword_removal=False     # Keep all content for indexing
+            enable_stopword_removal=False,  # Keep all content for indexing
         )
 
     def preprocess_document(self, document: Document) -> Document:
@@ -54,14 +56,11 @@ class ChineseDocumentIndexer:
             metadata["segmented_text"] = " ".join(tokens)
 
         # Create new document with enhanced metadata
-        enhanced_doc = Document(
-            page_content=normalized_content,
-            metadata=metadata
-        )
+        enhanced_doc = Document(page_content=normalized_content, metadata=metadata)
 
         return enhanced_doc
 
-    def preprocess_documents(self, documents: List[Document]) -> List[Document]:
+    def preprocess_documents(self, documents: list[Document]) -> list[Document]:
         """Preprocess multiple documents.
 
         Args:
@@ -108,7 +107,7 @@ class ChineseDocumentIndexer:
 
         return searchable
 
-    def extract_metadata_for_filtering(self, document: Document) -> Dict[str, Any]:
+    def extract_metadata_for_filtering(self, document: Document) -> dict[str, Any]:
         """Extract metadata useful for filtering and ranking.
 
         Args:
@@ -152,7 +151,7 @@ class ChineseAwareChunker:
         self.chunk_overlap = chunk_overlap
         self.tokenizer = get_tokenizer()
 
-    def split_text(self, text: str) -> List[str]:
+    def split_text(self, text: str) -> list[str]:
         """Split text into chunks respecting Chinese sentence boundaries.
 
         Args:
@@ -162,7 +161,7 @@ class ChineseAwareChunker:
             List of text chunks
         """
         # Chinese sentence delimiters
-        sentence_delimiters = ['。', '！', '？', '；', '\n']
+        sentence_delimiters = ["。", "！", "？", "；", "\n"]
 
         # Split into sentences
         sentences = []
@@ -191,7 +190,7 @@ class ChineseAwareChunker:
                 # Start new chunk with overlap
                 if self.chunk_overlap > 0:
                     # Take last N characters as overlap
-                    overlap_text = current_chunk[-self.chunk_overlap:]
+                    overlap_text = current_chunk[-self.chunk_overlap :]
                     current_chunk = overlap_text + sentence
                 else:
                     current_chunk = sentence
@@ -204,7 +203,7 @@ class ChineseAwareChunker:
 
         return chunks
 
-    def chunk_document(self, document: Document) -> List[Document]:
+    def chunk_document(self, document: Document) -> list[Document]:
         """Chunk a document into smaller pieces.
 
         Args:
@@ -222,18 +221,15 @@ class ChineseAwareChunker:
             metadata["chunk_index"] = i
             metadata["total_chunks"] = len(chunks)
 
-            chunked_doc = Document(
-                page_content=chunk,
-                metadata=metadata
-            )
+            chunked_doc = Document(page_content=chunk, metadata=metadata)
             chunked_docs.append(chunked_doc)
 
         return chunked_docs
 
 
 # Global instances
-_indexer: Optional[ChineseDocumentIndexer] = None
-_chunker: Optional[ChineseAwareChunker] = None
+_indexer: ChineseDocumentIndexer | None = None
+_chunker: ChineseAwareChunker | None = None
 
 
 def get_indexer() -> ChineseDocumentIndexer:

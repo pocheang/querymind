@@ -8,7 +8,6 @@ This module provides graph-based retrieval augmented generation with:
 """
 
 import logging
-from typing import Optional
 
 from app.core.config import get_settings
 from app.services.agent_document_filter import get_sources_by_agent_class
@@ -45,16 +44,17 @@ def run_graph_rag(
     """
     settings = get_settings()
 
-    # Auto-apply agent document filtering
-    if allowed_sources is None and agent_class:
-        allowed_sources = get_sources_by_agent_class(agent_class)
+    # Always honor agent-class filtering, intersecting it with any explicit source scope.
+    if agent_class:
+        class_sources = get_sources_by_agent_class(agent_class)
+        if allowed_sources is None:
+            allowed_sources = class_sources
+        elif class_sources is not None:
+            allowed_set = set(class_sources)
+            allowed_sources = [src for src in allowed_sources if src in allowed_set]
 
     # Determine whether to use enhancements
-    should_enhance = (
-        enable_enhancements
-        if enable_enhancements is not None
-        else settings.graph_rag_enhanced
-    )
+    should_enhance = enable_enhancements if enable_enhancements is not None else settings.graph_rag_enhanced
 
     # Use enhanced version when explicitly requested or when documents are provided
     if should_enhance and retrieved_docs:
@@ -89,11 +89,7 @@ def _run_basic_graph_rag(
 
         # Log differently based on error type
         if error_type in {"ServiceUnavailable", "ConnectionError"}:
-            logger.warning(
-                "Graph lookup unavailable for question '%s': %s",
-                question,
-                error_type
-            )
+            logger.warning("Graph lookup unavailable for question '%s': %s", question, error_type)
         else:
             logger.exception("Graph lookup failed for question: %s", question)
 
@@ -207,17 +203,13 @@ def _format_graph_context(
         for rel in item.get("relations", []):
             if rel.get("other"):
                 weight = rel.get("weight", 0)
-                lines.append(
-                    f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}"
-                )
+                lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}")
 
     # Format neighbor relationships
     for row in neighbors:
         if row.get("entity") and row.get("relation") and row.get("other"):
             weight = float(row.get("weight", 0))
-            lines.append(
-                f"Neighbor: {row['entity']} -[{row['relation']}|{weight:.2f}]- {row['other']}"
-            )
+            lines.append(f"Neighbor: {row['entity']} -[{row['relation']}|{weight:.2f}]- {row['other']}")
 
     # Format 2-hop paths
     for row in paths:

@@ -1,6 +1,5 @@
 import hashlib
 import json
-import secrets
 import sqlite3
 import threading
 from pathlib import Path
@@ -8,7 +7,7 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.services.auth.audit_logger import AuditLogger
-from app.services.auth.encryption import encrypt_api_settings_payload, decrypt_api_settings_payload
+from app.services.auth.encryption import decrypt_api_settings_payload, encrypt_api_settings_payload
 from app.services.auth.session_manager import SessionManager
 from app.services.auth.user_manager import UserManager
 from app.services.auth.utils import iso, now
@@ -39,12 +38,12 @@ class AuthDBService:
             settings = get_settings()
             seed = str(getattr(settings, "api_settings_encryption_key", "") or "").strip()
             if not seed:
-                key_path = self._api_settings_key_path()
-                if key_path.exists():
-                    seed = str(key_path.read_text(encoding="utf-8") or "").strip()
-                if not seed:
-                    seed = secrets.token_urlsafe(48)
-                    key_path.write_text(seed, encoding="utf-8")
+                # 安全修复：强制要求环境变量，禁止自动生成
+                raise RuntimeError(
+                    "API_SETTINGS_ENCRYPTION_KEY environment variable is required. "
+                    "Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(48))' "
+                    "and set it in your .env file. Auto-generation is disabled for security."
+                )
             self._api_settings_key = hashlib.sha256(seed.encode("utf-8")).digest()
             return self._api_settings_key
 
@@ -191,7 +190,9 @@ class AuthDBService:
         existing = {str(r["name"]) for r in rows}
         if "last_seen_at" not in existing:
             conn.execute("ALTER TABLE auth_sessions ADD COLUMN last_seen_at TEXT")
-            conn.execute("UPDATE auth_sessions SET last_seen_at=issued_at WHERE last_seen_at IS NULL OR last_seen_at=''")
+            conn.execute(
+                "UPDATE auth_sessions SET last_seen_at=issued_at WHERE last_seen_at IS NULL OR last_seen_at=''"
+            )
 
     def register(self, username: str, password: str) -> dict[str, Any]:
         return self.create_user_with_role(username=username, password=password, role="viewer")
@@ -343,10 +344,7 @@ class AuthDBService:
                 to_store = self._encrypt_api_settings_payload(to_store)
             settings[key] = to_store
 
-            conn.execute(
-                "UPDATE users SET settings = ? WHERE user_id = ?",
-                (json.dumps(settings), user_id)
-            )
+            conn.execute("UPDATE users SET settings = ? WHERE user_id = ?", (json.dumps(settings), user_id))
             conn.commit()
 
     def get_system_metadata(self, key: str) -> dict[str, Any] | None:

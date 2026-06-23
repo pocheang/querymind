@@ -2,9 +2,10 @@
 
 测试管理员操作的安全漏洞修复。
 """
-import pytest
+
 from unittest import mock
-from fastapi.testclient import TestClient
+
+import pytest
 
 
 class TestAdminSelfModification:
@@ -13,9 +14,7 @@ class TestAdminSelfModification:
     def test_admin_cannot_modify_own_role(self, client, admin_headers, admin_user_id):
         """严重: 防止自我权限提升"""
         response = client.patch(
-            f"/admin/users/{admin_user_id}/role",
-            json={"role": "super_admin"},
-            headers=admin_headers
+            f"/admin/users/{admin_user_id}/role", json={"role": "super_admin"}, headers=admin_headers
         )
         assert response.status_code == 403
         assert "cannot modify your own" in response.json()["detail"].lower()
@@ -23,9 +22,7 @@ class TestAdminSelfModification:
     def test_admin_cannot_disable_self(self, client, admin_headers, admin_user_id):
         """严重: 防止自我禁用"""
         response = client.patch(
-            f"/admin/users/{admin_user_id}/status",
-            json={"status": "disabled"},
-            headers=admin_headers
+            f"/admin/users/{admin_user_id}/status", json={"status": "disabled"}, headers=admin_headers
         )
         assert response.status_code == 403
         assert "cannot modify your own" in response.json()["detail"].lower()
@@ -38,9 +35,9 @@ class TestAdminSelfModification:
                 "approval_token": "valid-token",
                 "ticket_id": "JIRA-123",
                 "reason": "test reason",
-                "new_admin_approval_token": "new-token-123456"
+                "new_admin_approval_token": "new-token-123456",
             },
-            headers=admin_headers
+            headers=admin_headers,
         )
         assert response.status_code == 403
 
@@ -53,24 +50,32 @@ class TestApprovalTokenSecurity:
         token = "test-approval-token-12345678"
 
         # 第一次使用成功
-        response1 = client.post("/admin/users/create-admin", json={
-            "username": "testadmin1",
-            "password": "SecurePass123!",
-            "approval_token": token,
-            "ticket_id": "JIRA-123",
-            "reason": "legitimate business need",
-            "new_admin_approval_token": "new-token-1234567890"
-        }, headers=admin_headers)
+        response1 = client.post(
+            "/admin/users/create-admin",
+            json={
+                "username": "testadmin1",
+                "password": "SecurePass123!",
+                "approval_token": token,
+                "ticket_id": "JIRA-123",
+                "reason": "legitimate business need",
+                "new_admin_approval_token": "new-token-1234567890",
+            },
+            headers=admin_headers,
+        )
 
         # 第二次使用同一令牌失败
-        response2 = client.post("/admin/users/create-admin", json={
-            "username": "testadmin2",
-            "password": "SecurePass123!",
-            "approval_token": token,  # 重复使用
-            "ticket_id": "JIRA-124",
-            "reason": "another reason",
-            "new_admin_approval_token": "new-token-0987654321"
-        }, headers=admin_headers)
+        response2 = client.post(
+            "/admin/users/create-admin",
+            json={
+                "username": "testadmin2",
+                "password": "SecurePass123!",
+                "approval_token": token,  # 重复使用
+                "ticket_id": "JIRA-124",
+                "reason": "another reason",
+                "new_admin_approval_token": "new-token-0987654321",
+            },
+            headers=admin_headers,
+        )
 
         # 至少有一个应该失败
         assert response1.status_code == 200 or response2.status_code == 403
@@ -80,14 +85,18 @@ class TestApprovalTokenSecurity:
     def test_approval_token_error_message_no_leak(self, client, admin_headers):
         """高危: 防止信息泄露"""
         # 使用无效令牌
-        response = client.post("/admin/users/create-admin", json={
-            "username": "testadmin",
-            "password": "SecurePass123!",
-            "approval_token": "invalid-token",
-            "ticket_id": "JIRA-123",
-            "reason": "test reason",
-            "new_admin_approval_token": "new-token-123456"
-        }, headers=admin_headers)
+        response = client.post(
+            "/admin/users/create-admin",
+            json={
+                "username": "testadmin",
+                "password": "SecurePass123!",
+                "approval_token": "invalid-token",
+                "ticket_id": "JIRA-123",
+                "reason": "test reason",
+                "new_admin_approval_token": "new-token-123456",
+            },
+            headers=admin_headers,
+        )
 
         assert response.status_code == 403
         # 错误消息应该是通用的，不泄露配置信息
@@ -106,10 +115,7 @@ class TestUserStatusEnforcement:
         auth_service.update_user_status(admin_user_id, "disabled")
 
         # 尝试管理员操作
-        response = client.get(
-            "/admin/users",
-            headers={"Authorization": f"Bearer {admin_token}"}
-        )
+        response = client.get("/admin/users", headers={"Authorization": f"Bearer {admin_token}"})
 
         assert response.status_code == 403
         assert "not active" in response.json()["detail"].lower()
@@ -121,10 +127,7 @@ class TestUserStatusEnforcement:
         auth_service.update_user_status(user["user_id"], "disabled")
 
         # 尝试登录
-        response = client.post("/auth/login", json={
-            "username": "suspended_user",
-            "password": "Password123!"
-        })
+        response = client.post("/auth/login", json={"username": "suspended_user", "password": "Password123!"})
 
         # 应该失败或返回403
         assert response.status_code in [401, 403]
@@ -138,14 +141,18 @@ class TestRateLimiting:
         # 快速连续创建多个管理员
         responses = []
         for i in range(3):
-            response = client.post("/admin/users/create-admin", json={
-                "username": f"admin{i}",
-                "password": "SecurePass123!",
-                "approval_token": f"token-{i}-123456789",
-                "ticket_id": f"JIRA-{i}",
-                "reason": "test reason for rate limit",
-                "new_admin_approval_token": f"new-token-{i}-123456789"
-            }, headers=admin_headers)
+            response = client.post(
+                "/admin/users/create-admin",
+                json={
+                    "username": f"admin{i}",
+                    "password": "SecurePass123!",
+                    "approval_token": f"token-{i}-123456789",
+                    "ticket_id": f"JIRA-{i}",
+                    "reason": "test reason for rate limit",
+                    "new_admin_approval_token": f"new-token-{i}-123456789",
+                },
+                headers=admin_headers,
+            )
             responses.append(response)
 
         # 至少有一个应该被速率限制阻止
@@ -163,9 +170,9 @@ class TestRateLimiting:
                     "approval_token": f"token-{i}",
                     "ticket_id": f"JIRA-{i}",
                     "reason": "test reason",
-                    "new_password": f"NewPass{i}!"
+                    "new_password": f"NewPass{i}!",
                 },
-                headers=admin_headers
+                headers=admin_headers,
             )
             responses.append(response)
 
@@ -182,22 +189,11 @@ class TestAuditLogging:
         user_id = "test-user-123"
 
         # 触发异常
-        with mock.patch.object(
-            auth_service,
-            'update_user_role',
-            side_effect=Exception("database error")
-        ):
-            response = client.patch(
-                f"/admin/users/{user_id}/role",
-                json={"role": "analyst"},
-                headers=admin_headers
-            )
+        with mock.patch.object(auth_service, "update_user_role", side_effect=Exception("database error")):
+            client.patch(f"/admin/users/{user_id}/role", json={"role": "analyst"}, headers=admin_headers)
 
         # 检查审计日志
-        logs = auth_service.list_audit_logs(
-            action_keyword="role_update",
-            result="failed"
-        )
+        logs = auth_service.list_audit_logs(action_keyword="role_update", result="failed")
         assert len(logs) > 0
         # 应该记录异常类型
         assert any("Exception" in log.get("detail", "") for log in logs)
@@ -205,17 +201,10 @@ class TestAuditLogging:
     def test_audit_log_on_self_modification_attempt(self, client, admin_headers, admin_user_id, auth_service):
         """高危: 自我修改尝试应被审计"""
         # 尝试自我修改
-        client.patch(
-            f"/admin/users/{admin_user_id}/role",
-            json={"role": "viewer"},
-            headers=admin_headers
-        )
+        client.patch(f"/admin/users/{admin_user_id}/role", json={"role": "viewer"}, headers=admin_headers)
 
         # 检查审计日志
-        logs = auth_service.list_audit_logs(
-            action_keyword="role_update",
-            result="blocked_self_modification"
-        )
+        logs = auth_service.list_audit_logs(action_keyword="role_update", result="blocked_self_modification")
         assert len(logs) > 0
 
 
@@ -224,42 +213,54 @@ class TestInputValidation:
 
     def test_ticket_id_format_validation(self, client, admin_headers):
         """中危: 验证工单 ID 格式"""
-        response = client.post("/admin/users/create-admin", json={
-            "username": "testadmin",
-            "password": "SecurePass123!",
-            "approval_token": "valid-token-123456",
-            "ticket_id": "invalid",  # 无效格式
-            "reason": "test reason",
-            "new_admin_approval_token": "new-token-123456"
-        }, headers=admin_headers)
+        response = client.post(
+            "/admin/users/create-admin",
+            json={
+                "username": "testadmin",
+                "password": "SecurePass123!",
+                "approval_token": "valid-token-123456",
+                "ticket_id": "invalid",  # 无效格式
+                "reason": "test reason",
+                "new_admin_approval_token": "new-token-123456",
+            },
+            headers=admin_headers,
+        )
 
         assert response.status_code == 400
         assert "invalid ticket format" in response.json()["detail"].lower()
 
     def test_reason_length_validation(self, client, admin_headers):
         """中危: 验证原因长度"""
-        response = client.post("/admin/users/create-admin", json={
-            "username": "testadmin",
-            "password": "SecurePass123!",
-            "approval_token": "valid-token-123456",
-            "ticket_id": "JIRA-123",
-            "reason": "ab",  # 太短
-            "new_admin_approval_token": "new-token-123456"
-        }, headers=admin_headers)
+        response = client.post(
+            "/admin/users/create-admin",
+            json={
+                "username": "testadmin",
+                "password": "SecurePass123!",
+                "approval_token": "valid-token-123456",
+                "ticket_id": "JIRA-123",
+                "reason": "ab",  # 太短
+                "new_admin_approval_token": "new-token-123456",
+            },
+            headers=admin_headers,
+        )
 
         assert response.status_code == 400
         assert "reason" in response.json()["detail"].lower()
 
     def test_approval_token_length_validation(self, client, admin_headers):
         """中危: 验证审批令牌长度"""
-        response = client.post("/admin/users/create-admin", json={
-            "username": "testadmin",
-            "password": "SecurePass123!",
-            "approval_token": "valid-token-123456",
-            "ticket_id": "JIRA-123",
-            "reason": "test reason",
-            "new_admin_approval_token": "short"  # 太短
-        }, headers=admin_headers)
+        response = client.post(
+            "/admin/users/create-admin",
+            json={
+                "username": "testadmin",
+                "password": "SecurePass123!",
+                "approval_token": "valid-token-123456",
+                "ticket_id": "JIRA-123",
+                "reason": "test reason",
+                "new_admin_approval_token": "short",  # 太短
+            },
+            headers=admin_headers,
+        )
 
         assert response.status_code == 400
         assert "approval token" in response.json()["detail"].lower()
@@ -267,16 +268,14 @@ class TestInputValidation:
 
 # Fixtures
 
+
 @pytest.fixture
 def admin_user_id(auth_service):
     """创建测试管理员用户"""
     import uuid
+
     username = f"test_admin_{uuid.uuid4().hex[:8]}"
-    user = auth_service.create_user_with_role(
-        username=username,
-        password="AdminPass123!",
-        role="admin"
-    )
+    user = auth_service.create_user_with_role(username=username, password="AdminPass123!", role="admin")
     yield user["user_id"]
     # Cleanup
     try:
@@ -304,6 +303,7 @@ def admin_headers(admin_token):
 def test_user_id(auth_service):
     """创建测试普通用户"""
     import uuid
+
     username = f"test_user_{uuid.uuid4().hex[:8]}"
     user = auth_service.register(username, "UserPass123!")
     yield user["user_id"]

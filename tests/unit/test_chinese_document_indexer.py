@@ -1,13 +1,8 @@
 """Unit tests for Chinese document indexer."""
 
-import pytest
 from langchain_core.documents import Document
-from app.services.chinese_document_indexer import (
-    ChineseDocumentIndexer,
-    ChineseAwareChunker,
-    get_indexer,
-    get_chunker
-)
+
+from app.services.chinese_document_indexer import ChineseAwareChunker, ChineseDocumentIndexer, get_chunker, get_indexer
 
 
 class TestChineseDocumentIndexer:
@@ -16,10 +11,7 @@ class TestChineseDocumentIndexer:
     def test_preprocess_document_chinese(self):
         """Test preprocessing a Chinese document."""
         indexer = ChineseDocumentIndexer()
-        doc = Document(
-            page_content="人工智能技术在医疗领域的应用越来越广泛。",
-            metadata={"source": "test.txt"}
-        )
+        doc = Document(page_content="人工智能技术在医疗领域的应用越来越广泛。", metadata={"source": "test.txt"})
 
         processed = indexer.preprocess_document(doc)
 
@@ -33,8 +25,7 @@ class TestChineseDocumentIndexer:
         """Test preprocessing an English document."""
         indexer = ChineseDocumentIndexer()
         doc = Document(
-            page_content="Machine learning is a subset of artificial intelligence.",
-            metadata={"source": "test.txt"}
+            page_content="Machine learning is a subset of artificial intelligence.", metadata={"source": "test.txt"}
         )
 
         processed = indexer.preprocess_document(doc)
@@ -49,7 +40,7 @@ class TestChineseDocumentIndexer:
         docs = [
             Document(page_content="第一个文档", metadata={}),
             Document(page_content="第二个文档", metadata={}),
-            Document(page_content="第三个文档", metadata={})
+            Document(page_content="第三个文档", metadata={}),
         ]
 
         processed = indexer.preprocess_documents(docs)
@@ -60,13 +51,7 @@ class TestChineseDocumentIndexer:
     def test_create_searchable_text(self):
         """Test creating searchable text representation."""
         indexer = ChineseDocumentIndexer()
-        doc = Document(
-            page_content="人工智能应用",
-            metadata={
-                "language": "chinese",
-                "segmented_text": "人工智能 应用"
-            }
-        )
+        doc = Document(page_content="人工智能应用", metadata={"language": "chinese", "segmented_text": "人工智能 应用"})
 
         searchable = indexer.create_searchable_text(doc)
 
@@ -78,10 +63,7 @@ class TestChineseDocumentIndexer:
     def test_extract_metadata_for_filtering(self):
         """Test extracting filterable metadata."""
         indexer = ChineseDocumentIndexer()
-        doc = Document(
-            page_content="这是一个测试文档，包含一些中文内容。",
-            metadata={"source": "test.txt"}
-        )
+        doc = Document(page_content="这是一个测试文档，包含一些中文内容。", metadata={"source": "test.txt"})
 
         metadata = indexer.extract_metadata_for_filtering(doc)
 
@@ -143,10 +125,7 @@ class TestChineseAwareChunker:
     def test_chunk_document(self):
         """Test chunking a document."""
         chunker = ChineseAwareChunker(chunk_size=50, chunk_overlap=10)
-        doc = Document(
-            page_content="这是第一句。" * 20,
-            metadata={"source": "test.txt"}
-        )
+        doc = Document(page_content="这是第一句。" * 20, metadata={"source": "test.txt"})
 
         chunked_docs = chunker.chunk_document(doc)
 
@@ -161,10 +140,7 @@ class TestChineseAwareChunker:
     def test_chunk_document_preserves_metadata(self):
         """Test that chunking preserves original metadata."""
         chunker = ChineseAwareChunker(chunk_size=50, chunk_overlap=10)
-        doc = Document(
-            page_content="测试内容。" * 20,
-            metadata={"source": "test.txt", "author": "test_author"}
-        )
+        doc = Document(page_content="测试内容。" * 20, metadata={"source": "test.txt", "author": "test_author"})
 
         chunked_docs = chunker.chunk_document(doc)
 

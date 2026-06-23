@@ -25,16 +25,16 @@ def _sanitize_output(text: str) -> str:
         return ""
 
     # Remove HTML tags
-    text = re.sub(r'<[^>]*>', '', text)
+    text = re.sub(r"<[^>]*>", "", text)
 
     # Remove javascript: protocol
-    text = re.sub(r'javascript:', '', text, flags=re.IGNORECASE)
+    text = re.sub(r"javascript:", "", text, flags=re.IGNORECASE)
 
     # Remove event handlers
-    text = re.sub(r'on\w+\s*=', '', text, flags=re.IGNORECASE)
+    text = re.sub(r"on\w+\s*=", "", text, flags=re.IGNORECASE)
 
     # Remove script tags and content
-    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r"<script[^>]*>.*?</script>", "", text, flags=re.IGNORECASE | re.DOTALL)
 
     return text.strip()
 
@@ -116,7 +116,9 @@ def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = Fal
                 t = _sanitize_output(normalize_user_question(str(data.get("title", t))))
                 enhanced = _sanitize_output(normalize_user_question(str(data.get("content", enhanced))))
                 llm_issues = [_sanitize_output(str(x)) for x in (data.get("issues", []) or []) if str(x).strip()]
-                llm_suggestions = [_sanitize_output(str(x)) for x in (data.get("suggestions", []) or []) if str(x).strip()]
+                llm_suggestions = [
+                    _sanitize_output(str(x)) for x in (data.get("suggestions", []) or []) if str(x).strip()
+                ]
                 if llm_issues:
                     issues = llm_issues
                 if llm_suggestions:
@@ -131,5 +133,5 @@ def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = Fal
         "title": _sanitize_output(t),
         "content": _sanitize_output(enhanced),
         "issues": [_sanitize_output(str(x)) for x in issues],
-        "suggestions": [_sanitize_output(str(x)) for x in suggestions]
+        "suggestions": [_sanitize_output(str(x)) for x in suggestions],
     }

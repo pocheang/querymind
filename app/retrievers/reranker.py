@@ -1,8 +1,11 @@
-from functools import lru_cache
+import logging
 import re
+from functools import lru_cache
 
 from app.core.config import get_settings
 from app.services.resilience import call_with_circuit_breaker
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -99,7 +102,7 @@ def rerank(query: str, candidates: list[dict], top_n: int | None = None) -> list
         return _lexical_fallback_rerank(query, candidates, top_n=limit)
 
     rescored = []
-    for item, score in zip(candidates, scores):
+    for item, score in zip(candidates, scores, strict=False):
         merged = dict(item)
         merged["rerank_score"] = float(score)
         rescored.append(merged)

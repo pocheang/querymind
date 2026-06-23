@@ -13,11 +13,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
-from app.api.dependencies import _require_permission, _require_user
 from app.agents.graph_rag_cache import (
     clear_all_caches,
     get_cache_stats,
 )
+from app.api.dependencies import _require_permission, _require_user
 
 logger = logging.getLogger(__name__)
 

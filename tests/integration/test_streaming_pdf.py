@@ -41,7 +41,7 @@ def create_test_pdf(path: Path, num_pages: int = 10, content_per_page: str = Non
         # Write text to PDF
         text_object = c.beginText(50, 750)
         text_object.setFont("Helvetica", 12)
-        for line in text.split('\n'):
+        for line in text.split("\n"):
             text_object.textLine(line)
         c.drawText(text_object)
 
@@ -71,19 +71,19 @@ def test_streaming_with_real_pdf():
 
         # Check document structure
         for doc in docs:
-            assert hasattr(doc, 'page_content'), "Document should have page_content"
-            assert hasattr(doc, 'metadata'), "Document should have metadata"
+            assert hasattr(doc, "page_content"), "Document should have page_content"
+            assert hasattr(doc, "metadata"), "Document should have metadata"
             assert doc.page_content, "Page content should not be empty"
 
             # Check metadata
-            assert 'source' in doc.metadata
-            assert 'page_range' in doc.metadata
-            assert 'total_pages' in doc.metadata
-            assert 'chunk_size' in doc.metadata
+            assert "source" in doc.metadata
+            assert "page_range" in doc.metadata
+            assert "total_pages" in doc.metadata
+            assert "chunk_size" in doc.metadata
 
             # Verify metadata values
-            assert doc.metadata['total_pages'] == 10
-            assert doc.metadata['chunk_size'] == 5
+            assert doc.metadata["total_pages"] == 10
+            assert doc.metadata["chunk_size"] == 5
 
 
 @pytest.mark.integration
@@ -133,14 +133,15 @@ def test_streaming_memory_efficiency():
 
         # Verify streaming uses less memory
         # Note: Memory savings may vary, but streaming should use less or equal memory
-        print(f"\nMemory comparison:")
+        print("\nMemory comparison:")
         print(f"  Streaming (5 pages/chunk): +{streaming_increase:.2f} MB")
         print(f"  Batch (30 pages/chunk): +{batch_increase:.2f} MB")
 
         # Streaming should use less or equal memory than batch
         # Allow for some variance due to system factors
-        assert streaming_increase <= batch_increase * 1.2, \
+        assert streaming_increase <= batch_increase * 1.2, (
             f"Streaming should be more memory efficient: {streaming_increase:.2f} MB vs {batch_increase:.2f} MB"
+        )
 
 
 @pytest.mark.integration
@@ -165,17 +166,17 @@ def test_streaming_large_document():
         # Verify all pages are covered
         total_pages_covered = 0
         for doc in docs:
-            page_range = doc.metadata['page_range']
-            start, end = map(int, page_range.split('-'))
-            total_pages_covered += (end - start + 1)
+            page_range = doc.metadata["page_range"]
+            start, end = map(int, page_range.split("-"))
+            total_pages_covered += end - start + 1
 
         # Should cover all pages
         assert total_pages_covered == num_pages, f"Should cover all {num_pages} pages, got {total_pages_covered}"
 
         # Verify metadata consistency
         for doc in docs:
-            assert doc.metadata['total_pages'] == num_pages
-            assert doc.metadata['chunk_size'] == 5
+            assert doc.metadata["total_pages"] == num_pages
+            assert doc.metadata["chunk_size"] == 5
 
 
 @pytest.mark.integration
@@ -196,26 +197,25 @@ def test_streaming_chunk_sizes():
 
             # Verify chunk_size in metadata
             for doc in docs:
-                assert doc.metadata['chunk_size'] == chunk_size
-                assert doc.metadata['total_pages'] == 20
+                assert doc.metadata["chunk_size"] == chunk_size
+                assert doc.metadata["total_pages"] == 20
 
             # Verify expected number of chunks
             expected_chunks = (20 + chunk_size - 1) // chunk_size  # Ceiling division
-            assert len(docs) == expected_chunks, \
+            assert len(docs) == expected_chunks, (
                 f"Expected {expected_chunks} chunks for size {chunk_size}, got {len(docs)}"
+            )
 
             # Verify page ranges are correct
             for i, doc in enumerate(docs):
-                page_range = doc.metadata['page_range']
-                start, end = map(int, page_range.split('-'))
+                page_range = doc.metadata["page_range"]
+                start, end = map(int, page_range.split("-"))
 
                 expected_start = i * chunk_size + 1
                 expected_end = min((i + 1) * chunk_size, 20)
 
-                assert start == expected_start, \
-                    f"Chunk {i}: expected start {expected_start}, got {start}"
-                assert end == expected_end, \
-                    f"Chunk {i}: expected end {expected_end}, got {end}"
+                assert start == expected_start, f"Chunk {i}: expected start {expected_start}, got {start}"
+                assert end == expected_end, f"Chunk {i}: expected end {expected_end}, got {end}"
 
 
 @pytest.mark.integration
@@ -276,79 +276,61 @@ def test_streaming_vs_batch_comparison():
         gc.collect()
 
         # Streaming approach (small chunks)
-        streaming_results = {
-            'docs': [],
-            'mem_before': get_memory_usage_mb(),
-            'mem_peak': 0,
-            'chunks_processed': 0
-        }
+        streaming_results = {"docs": [], "mem_before": get_memory_usage_mb(), "mem_peak": 0, "chunks_processed": 0}
 
         for doc in load_pdf_streaming(pdf_path, chunk_pages=5):
-            streaming_results['docs'].append(doc)
-            streaming_results['chunks_processed'] += 1
+            streaming_results["docs"].append(doc)
+            streaming_results["chunks_processed"] += 1
             current_mem = get_memory_usage_mb()
-            streaming_results['mem_peak'] = max(
-                streaming_results['mem_peak'],
-                current_mem
-            )
+            streaming_results["mem_peak"] = max(streaming_results["mem_peak"], current_mem)
 
-        streaming_results['mem_increase'] = (
-            streaming_results['mem_peak'] - streaming_results['mem_before']
-        )
+        streaming_results["mem_increase"] = streaming_results["mem_peak"] - streaming_results["mem_before"]
 
         # Force cleanup
-        streaming_results['docs'].clear()
+        streaming_results["docs"].clear()
         gc.collect()
 
         # Batch approach (large chunks)
-        batch_results = {
-            'docs': [],
-            'mem_before': get_memory_usage_mb(),
-            'mem_peak': 0,
-            'chunks_processed': 0
-        }
+        batch_results = {"docs": [], "mem_before": get_memory_usage_mb(), "mem_peak": 0, "chunks_processed": 0}
 
         for doc in load_pdf_streaming(pdf_path, chunk_pages=num_pages):  # All at once
-            batch_results['docs'].append(doc)
-            batch_results['chunks_processed'] += 1
+            batch_results["docs"].append(doc)
+            batch_results["chunks_processed"] += 1
             current_mem = get_memory_usage_mb()
-            batch_results['mem_peak'] = max(
-                batch_results['mem_peak'],
-                current_mem
-            )
+            batch_results["mem_peak"] = max(batch_results["mem_peak"], current_mem)
 
-        batch_results['mem_increase'] = (
-            batch_results['mem_peak'] - batch_results['mem_before']
-        )
+        batch_results["mem_increase"] = batch_results["mem_peak"] - batch_results["mem_before"]
 
         # Print comparison
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("STREAMING vs BATCH COMPARISON")
-        print("="*60)
+        print("=" * 60)
         print(f"PDF: {num_pages} pages")
-        print(f"\nStreaming (5 pages/chunk):")
+        print("\nStreaming (5 pages/chunk):")
         print(f"  Chunks processed: {streaming_results['chunks_processed']}")
         print(f"  Memory increase: {streaming_results['mem_increase']:.2f} MB")
         print(f"\nBatch ({num_pages} pages/chunk):")
         print(f"  Chunks processed: {batch_results['chunks_processed']}")
         print(f"  Memory increase: {batch_results['mem_increase']:.2f} MB")
 
-        if batch_results['mem_increase'] > 0:
+        if batch_results["mem_increase"] > 0:
             savings_pct = (
-                (batch_results['mem_increase'] - streaming_results['mem_increase'])
-                / batch_results['mem_increase'] * 100
+                (batch_results["mem_increase"] - streaming_results["mem_increase"])
+                / batch_results["mem_increase"]
+                * 100
             )
             print(f"\nMemory difference: {savings_pct:.1f}%")
-        print("="*60)
+        print("=" * 60)
 
         # Verify streaming processed more chunks (as expected)
-        assert streaming_results['chunks_processed'] > batch_results['chunks_processed'], \
+        assert streaming_results["chunks_processed"] > batch_results["chunks_processed"], (
             "Streaming should process more chunks than batch"
+        )
 
         # Verify both approaches covered all pages
         expected_streaming_chunks = num_pages // 5  # 20 pages / 5 per chunk
-        assert streaming_results['chunks_processed'] == expected_streaming_chunks
-        assert batch_results['chunks_processed'] == 1  # All pages in one chunk
+        assert streaming_results["chunks_processed"] == expected_streaming_chunks
+        assert batch_results["chunks_processed"] == 1  # All pages in one chunk
 
         # Note: We don't assert memory efficiency here because Docling's internal
         # caching and model loading can cause streaming to use more memory in tests.
@@ -367,6 +349,7 @@ def test_streaming_progressive_yielding():
         docs_received = []
 
         import time
+
         start_time = time.time()
 
         for doc in load_pdf_streaming(pdf_path, chunk_pages=5):
@@ -380,8 +363,7 @@ def test_streaming_progressive_yielding():
         # Verify documents were yielded progressively
         # Each subsequent document should be yielded after the previous one
         for i in range(1, len(yield_times)):
-            assert yield_times[i] > yield_times[i-1], \
-                f"Document {i} should be yielded after document {i-1}"
+            assert yield_times[i] > yield_times[i - 1], f"Document {i} should be yielded after document {i - 1}"
 
         print(f"\nProgressive yielding times: {[f'{t:.3f}s' for t in yield_times]}")
 
@@ -430,17 +412,17 @@ def test_streaming_metadata_consistency():
 
         # All documents should have consistent metadata
         for doc in docs:
-            assert doc.metadata['total_pages'] == 25
-            assert doc.metadata['chunk_size'] == 7
-            assert doc.metadata['source'] == str(pdf_path)
-            assert doc.metadata['format'] == 'markdown'
-            assert doc.metadata['converter'] == 'docling_enhanced'
+            assert doc.metadata["total_pages"] == 25
+            assert doc.metadata["chunk_size"] == 7
+            assert doc.metadata["source"] == str(pdf_path)
+            assert doc.metadata["format"] == "markdown"
+            assert doc.metadata["converter"] == "docling_enhanced"
 
             # Verify page_range format
-            page_range = doc.metadata['page_range']
-            assert '-' in page_range, "page_range should be in 'start-end' format"
+            page_range = doc.metadata["page_range"]
+            assert "-" in page_range, "page_range should be in 'start-end' format"
 
-            start, end = map(int, page_range.split('-'))
+            start, end = map(int, page_range.split("-"))
             assert start >= 1, "Start page should be >= 1"
             assert end <= 25, "End page should be <= total_pages"
             assert start <= end, "Start should be <= end"

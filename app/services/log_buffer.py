@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from collections import deque
-from datetime import datetime, timezone
 import logging
 import threading
 import traceback
+from collections import deque
+from datetime import UTC, datetime
 from typing import Any
 
 from app.api.utils.string_utils import normalize_string
@@ -17,10 +17,10 @@ _INSTALLED = False
 class InMemoryLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            created = datetime.fromtimestamp(float(record.created), tz=timezone.utc).isoformat()
-        except (ValueError, OSError) as e:
+            created = datetime.fromtimestamp(float(record.created), tz=UTC).isoformat()
+        except (ValueError, OSError):
             # Invalid timestamp, use current time
-            created = datetime.now(timezone.utc).isoformat()
+            created = datetime.now(UTC).isoformat()
         message = str(record.getMessage() or "")
         exc_text = ""
         if record.exc_info:
@@ -81,4 +81,3 @@ def list_captured_logs(
         if len(out) >= cap:
             break
     return out
-

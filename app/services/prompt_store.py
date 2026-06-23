@@ -1,6 +1,6 @@
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +8,7 @@ from app.core.config import get_settings
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class PromptStore:
@@ -60,7 +60,9 @@ class PromptStore:
                 )
                 """
             )
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_prompt_versions_prompt ON prompt_template_versions(prompt_id, created_at DESC)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_prompt_versions_prompt ON prompt_template_versions(prompt_id, created_at DESC)"
+            )
 
     def list_prompts(self, user_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:
@@ -96,7 +98,14 @@ class PromptStore:
                 agent_class=cls,
                 change_note="initial_create",
             )
-        return {"prompt_id": prompt_id, "title": title, "content": content, "agent_class": cls, "created_at": now, "updated_at": now}
+        return {
+            "prompt_id": prompt_id,
+            "title": title,
+            "content": content,
+            "agent_class": cls,
+            "created_at": now,
+            "updated_at": now,
+        }
 
     def update_prompt(
         self,

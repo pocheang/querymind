@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
 import logging
 import threading
 import time
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -37,7 +37,7 @@ def emit_alert(event_type: str, payload: dict[str, Any]) -> bool:
 
     body = {
         "event_type": event_type,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "payload": payload,
     }
     try:
@@ -90,7 +90,9 @@ def resolve_signing_secret() -> tuple[str | None, str | None]:
 
 def _is_webhook_allowed(url: str) -> bool:
     settings = get_settings()
-    allow = [x.strip().lower() for x in str(getattr(settings, "alert_webhook_allowlist", "") or "").split(",") if x.strip()]
+    allow = [
+        x.strip().lower() for x in str(getattr(settings, "alert_webhook_allowlist", "") or "").split(",") if x.strip()
+    ]
     if not allow:
         return True
     host = str(urlparse(url).hostname or "").strip().lower()

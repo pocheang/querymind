@@ -1,4 +1,5 @@
 """Authentication dependencies used by API routes."""
+
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
@@ -59,7 +60,7 @@ def _require_user(
             resource_type="session",
             result="blocked_inactive_user",
             user=user,
-            detail=f"status={user_status}"
+            detail=f"status={user_status}",
         )
         raise forbidden("account is not active")
 
@@ -95,8 +96,8 @@ def _require_permission(
     Raises:
         HTTPException: If user lacks the required permission
     """
-    from app.services.rbac import can
     from app.api.utils.auth_helpers import _audit
+    from app.services.rbac import can
 
     # Check permission using RBAC system
     if not can(permission, user):
@@ -108,6 +109,6 @@ def _require_permission(
             result="denied",
             user=user,
             resource_id=resource_id,
-            detail=f"permission={permission}; role={user.get('role', 'unknown')}"
+            detail=f"permission={permission}; role={user.get('role', 'unknown')}",
         )
         raise forbidden(f"Permission denied: {permission}")

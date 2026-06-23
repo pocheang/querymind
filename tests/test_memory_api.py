@@ -76,7 +76,9 @@ def test_query_injects_memory_context_and_promotes(memory_api_env, monkeypatch):
     before_count = len(memory_store.get_session_payload(session_id)["candidates"])
     seen: dict[str, str] = {}
 
-    def fake_run_query(question: str, use_web_fallback: bool = True, use_reasoning: bool = True, memory_context: str = ""):
+    def fake_run_query(
+        question: str, use_web_fallback: bool = True, use_reasoning: bool = True, memory_context: str = ""
+    ):
         seen["question"] = question
         seen["memory_context"] = memory_context
         return {
@@ -124,7 +126,9 @@ def test_query_does_not_inject_memory_for_smalltalk(memory_api_env, monkeypatch)
     )
     seen: dict[str, str] = {}
 
-    def fake_run_query(question: str, use_web_fallback: bool = True, use_reasoning: bool = True, memory_context: str = ""):
+    def fake_run_query(
+        question: str, use_web_fallback: bool = True, use_reasoning: bool = True, memory_context: str = ""
+    ):
         seen["question"] = question
         seen["memory_context"] = memory_context
         return {
@@ -186,7 +190,10 @@ def test_stream_query_injects_memory_context_and_promotes(memory_api_env, monkey
                 "reason": "ok",
                 "skill": "answer_with_citations",
                 "agent_class": "general",
-                "vector_result": {"retrieved_count": 2, "citations": [{"source": "s1", "content": "c1", "metadata": {}}]},
+                "vector_result": {
+                    "retrieved_count": 2,
+                    "citations": [{"source": "s1", "content": "c1", "metadata": {}}],
+                },
                 "graph_result": {"entities": []},
                 "web_result": {"used": False, "citations": [], "context": ""},
                 "thoughts": ["t1"],
@@ -204,7 +211,7 @@ def test_stream_query_injects_memory_context_and_promotes(memory_api_env, monkey
         },
     )
     assert res.status_code == 200
-    assert "\"type\": \"done\"" in res.text
+    assert '"type": "done"' in res.text
     assert "Long-term memory" in seen["memory_context"]
     after_count = len(memory_store.get_session_payload(session_id)["candidates"])
     assert after_count == before_count + 1
@@ -258,7 +265,7 @@ def test_stream_query_does_not_inject_memory_for_smalltalk(memory_api_env, monke
         },
     )
     assert res.status_code == 200
-    assert "\"type\": \"done\"" in res.text
+    assert '"type": "done"' in res.text
     assert seen["question"] == "hi"
     assert seen["memory_context"] == ""
 
@@ -357,7 +364,15 @@ def test_stream_query_applies_question_enhancement_before_workflow(memory_api_en
         memory_context: str = "",
     ):
         seen["question"] = question
-        yield {"type": "done", "result": {"answer": "ok", "vector_result": {}, "graph_result": {}, "web_result": {"used": False, "citations": []}}}
+        yield {
+            "type": "done",
+            "result": {
+                "answer": "ok",
+                "vector_result": {},
+                "graph_result": {},
+                "web_result": {"used": False, "citations": []},
+            },
+        }
 
     monkeypatch.setattr(api_main, "run_query_stream", fake_run_query_stream)
     res = client.post(
@@ -496,8 +511,16 @@ def test_source_scope_rebuilds_vector_context_from_allowed_citations(monkeypatch
             "retrieved_count": 2,
             "effective_hit_count": 2,
             "citations": [
-                {"source": "allowed.md", "content": "allowed text", "metadata": {"source": "allowed.md", "retrieval_sources": ["vector"]}},
-                {"source": "secret.md", "content": "secret text", "metadata": {"source": "secret.md", "retrieval_sources": ["vector"]}},
+                {
+                    "source": "allowed.md",
+                    "content": "allowed text",
+                    "metadata": {"source": "allowed.md", "retrieval_sources": ["vector"]},
+                },
+                {
+                    "source": "secret.md",
+                    "content": "secret text",
+                    "metadata": {"source": "secret.md", "retrieval_sources": ["vector"]},
+                },
             ],
         },
     }
@@ -574,7 +597,9 @@ def test_resynthesize_after_source_scope_uses_filtered_context(monkeypatch):
 
 def test_query_cache_key_changes_when_visible_index_changes(monkeypatch):
     user = {"user_id": "u-test", "role": "viewer"}
-    rows = [{"source": "a.md", "chunks": 1, "visibility": "private", "owner_user_id": "u-test", "agent_class": "general"}]
+    rows = [
+        {"source": "a.md", "chunks": 1, "visibility": "private", "owner_user_id": "u-test", "agent_class": "general"}
+    ]
     monkeypatch.setattr(api_main, "_list_visible_documents_for_user", lambda _user: rows)
     monkeypatch.setattr(api_main, "_source_mtime_ns", lambda _source: 0)
 

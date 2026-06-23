@@ -11,15 +11,15 @@ import json
 import threading
 import uuid
 from collections import defaultdict, deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 def utcnow():
     """Get current UTC timestamp."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class RetrievalLog(BaseModel):
@@ -48,7 +48,7 @@ class RetrievalLog(BaseModel):
 
     # Result status
     has_result: bool  # Whether results were found
-    error: Optional[str] = None  # Error message if failed
+    error: str | None = None  # Error message if failed
 
 
 class AnalyticsOverview(BaseModel):
@@ -66,8 +66,8 @@ class AnalyticsOverview(BaseModel):
     agent_distribution: dict[str, int]  # {"cybersecurity": 50, ...}
     route_distribution: dict[str, int]  # {"vector": 60, ...}
 
-    time_range_start: Optional[datetime] = None
-    time_range_end: Optional[datetime] = None
+    time_range_start: datetime | None = None
+    time_range_end: datetime | None = None
 
 
 class AgentStats(BaseModel):

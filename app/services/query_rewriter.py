@@ -1,6 +1,7 @@
 """
 查询改写服务 - 将口语化问题改写为适合检索的查询。
 """
+
 import json
 import logging
 import re
@@ -58,7 +59,7 @@ def rewrite_query_for_retrieval(question: str, agent_class: str = "general") -> 
         content = response.content.strip()
 
         # 提取JSON数组
-        json_match = re.search(r'\[.*?\]', content, re.DOTALL)
+        json_match = re.search(r"\[.*?\]", content, re.DOTALL)
         if json_match:
             json_str = json_match.group(0)
             # 清理中文引号
@@ -68,7 +69,9 @@ def rewrite_query_for_retrieval(question: str, agent_class: str = "general") -> 
                 rewritten_queries = json.loads(json_str)
                 if isinstance(rewritten_queries, list) and len(rewritten_queries) > 0:
                     # 过滤空字符串和过长的查询
-                    valid_queries = [q.strip() for q in rewritten_queries if q and len(q.strip()) > 0 and len(q.strip()) < 100]
+                    valid_queries = [
+                        q.strip() for q in rewritten_queries if q and len(q.strip()) > 0 and len(q.strip()) < 100
+                    ]
 
                     # 返回原始问题 + 改写版本
                     result = [question] + valid_queries[:3]  # 最多3个改写版本
@@ -117,7 +120,7 @@ def expand_query_with_synonyms(question: str, agent_class: str = "general") -> l
         "general": {
             "介绍": ["说明", "解释", "概述"],
             "知识": ["信息", "内容", "资料"],
-        }
+        },
     }
 
     expanded = [question]

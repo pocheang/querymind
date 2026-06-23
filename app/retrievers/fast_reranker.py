@@ -13,8 +13,6 @@ Target: 200ms for 30 candidates with GPU
 
 import logging
 import time
-from functools import lru_cache
-from typing import Optional
 
 from app.core.config import get_settings
 from app.services.tracing import traced_span
@@ -41,7 +39,7 @@ class FastReranker:
         model_name: str = "BAAI/bge-reranker-base",
         batch_size: int = 32,
         max_length: int = 512,
-        device: Optional[str] = None,
+        device: str | None = None,
     ):
         """
         Initialize fast reranker.
@@ -63,6 +61,7 @@ class FastReranker:
         """Auto-detect best available device."""
         try:
             import torch
+
             return "cuda" if torch.cuda.is_available() else "cpu"
         except ImportError:
             return "cpu"
@@ -151,24 +150,17 @@ class FastReranker:
                 return self._fallback_ranking(documents, top_k, start_time)
 
             # Step 5: Add rerank scores to documents
-            for doc, score in zip(candidates, scores):
+            for doc, score in zip(candidates, scores, strict=False):
                 doc["rerank_score"] = float(score)
 
             # Step 6: Filter by relevance threshold
-            filtered = [
-                doc for doc in candidates
-                if doc.get("rerank_score", 0) >= self.relevance_threshold
-            ]
+            filtered = [doc for doc in candidates if doc.get("rerank_score", 0) >= self.relevance_threshold]
 
             # If too few results, lower threshold
             if len(filtered) < 3:
                 logger.info(f"Only {len(filtered)} docs above threshold, keeping top 3")
-                sorted_candidates = sorted(
-                    candidates,
-                    key=lambda x: x.get("rerank_score", 0),
-                    reverse=True
-                )
-                filtered = sorted_candidates[:min(3, len(sorted_candidates))]
+                sorted_candidates = sorted(candidates, key=lambda x: x.get("rerank_score", 0), reverse=True)
+                filtered = sorted_candidates[: min(3, len(sorted_candidates))]
             else:
                 # Sort filtered results
                 filtered.sort(key=lambda x: x.get("rerank_score", 0), reverse=True)
@@ -198,22 +190,13 @@ class FastReranker:
 
             return results, diagnostics
 
-    def _fallback_ranking(
-        self,
-        documents: list[dict],
-        top_k: int,
-        start_time: float
-    ) -> tuple[list[dict], dict]:
+    def _fallback_ranking(self, documents: list[dict], top_k: int, start_time: float) -> tuple[list[dict], dict]:
         """
         Fallback ranking when model is unavailable.
         Uses hybrid_score or score from retrieval.
         """
         # Sort by existing scores
-        sorted_docs = sorted(
-            documents,
-            key=lambda x: x.get("hybrid_score", x.get("score", 0)),
-            reverse=True
-        )
+        sorted_docs = sorted(documents, key=lambda x: x.get("hybrid_score", x.get("score", 0)), reverse=True)
 
         results = sorted_docs[:top_k]
 
@@ -232,12 +215,12 @@ class FastReranker:
 
 
 # Global instance for reuse
-_fast_reranker: Optional[FastReranker] = None
+_fast_reranker: FastReranker | None = None
 
 
 def get_fast_reranker(
-    model_name: Optional[str] = None,
-    device: Optional[str] = None,
+    model_name: str | None = None,
+    device: str | None = None,
 ) -> FastReranker:
     """
     Get or create global fast reranker instance.

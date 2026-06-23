@@ -1,7 +1,6 @@
 from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 
-
 _ALLOWED = {"baseline", "advanced", "safe"}
 
 

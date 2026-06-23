@@ -1,6 +1,6 @@
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
-import uuid
 
 import pytest
 

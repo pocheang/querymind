@@ -12,6 +12,8 @@ def route_after_router(state: GraphState):
     if is_casual_chat_query(state.get("question", "")):
         return "synthesis"
     route = state.get("route", "vector")
+    if route == "react":
+        return "react"
     if route == "graph":
         return "graph"
     if route == "hybrid":
@@ -81,7 +83,7 @@ def route_after_graph(state: GraphState):
     question = state.get("question", "")
     if is_casual_chat_query(question):
         return "synthesis"
-    route = state.get("route", "graph")
+    state.get("route", "graph")
     use_web = state.get("use_web_fallback", True)
 
     if use_web and state.get("adaptive_prefer_web", False):

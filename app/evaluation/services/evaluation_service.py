@@ -3,16 +3,9 @@
 import json
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-import time
+from typing import Any
 
-from app.evaluation.models import (
-    TestQuery,
-    RetrievalResult,
-    EvaluationMetrics,
-    SystemComparison,
-    GroundTruth
-)
+from app.evaluation.models import EvaluationMetrics, GroundTruth, SystemComparison, TestQuery
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +17,7 @@ class EvaluationService:
         """Initialize evaluation service."""
         pass
 
-    def precision_at_k(
-        self,
-        retrieved: List[str],
-        relevant: List[str],
-        k: int
-    ) -> float:
+    def precision_at_k(self, retrieved: list[str], relevant: list[str], k: int) -> float:
         """
         Calculate precision@k.
 
@@ -50,12 +38,7 @@ class EvaluationService:
 
         return relevant_retrieved / k
 
-    def recall_at_k(
-        self,
-        retrieved: List[str],
-        relevant: List[str],
-        k: int
-    ) -> float:
+    def recall_at_k(self, retrieved: list[str], relevant: list[str], k: int) -> float:
         """
         Calculate recall@k.
 
@@ -92,11 +75,7 @@ class EvaluationService:
 
         return 2 * (precision * recall) / (precision + recall)
 
-    def mean_reciprocal_rank(
-        self,
-        retrieved: List[str],
-        relevant: List[str]
-    ) -> float:
+    def mean_reciprocal_rank(self, retrieved: list[str], relevant: list[str]) -> float:
         """
         Calculate Mean Reciprocal Rank (MRR).
 
@@ -115,12 +94,7 @@ class EvaluationService:
 
         return 0.0
 
-    def ndcg_at_k(
-        self,
-        retrieved: List[str],
-        relevance_scores: Dict[str, float],
-        k: int
-    ) -> float:
+    def ndcg_at_k(self, retrieved: list[str], relevance_scores: dict[str, float], k: int) -> float:
         """
         Calculate Normalized Discounted Cumulative Gain (NDCG@k).
 
@@ -139,13 +113,13 @@ class EvaluationService:
         dcg = 0.0
         for i, doc_id in enumerate(retrieved[:k], 1):
             rel = relevance_scores.get(doc_id, 0.0)
-            dcg += rel / (i ** 0.5)  # log2(i+1) approximation
+            dcg += rel / (i**0.5)  # log2(i+1) approximation
 
         # Calculate IDCG (ideal DCG)
         ideal_scores = sorted(relevance_scores.values(), reverse=True)
         idcg = 0.0
         for i, rel in enumerate(ideal_scores[:k], 1):
-            idcg += rel / (i ** 0.5)
+            idcg += rel / (i**0.5)
 
         if idcg == 0:
             return 0.0
@@ -156,9 +130,9 @@ class EvaluationService:
         self,
         system_name: str,
         retriever,
-        test_queries: List[TestQuery],
-        ground_truth: Dict[str, GroundTruth],
-        k_values: List[int] = [1, 3, 5, 10]
+        test_queries: list[TestQuery],
+        ground_truth: dict[str, GroundTruth],
+        k_values: list[int] = None,
     ) -> EvaluationMetrics:
         """
         Run evaluation on a retrieval system.
@@ -173,6 +147,8 @@ class EvaluationService:
         Returns:
             EvaluationMetrics with aggregated results
         """
+        if k_values is None:
+            k_values = [1, 3, 5, 10]
         logger.info(f"Starting evaluation for {system_name} on {len(test_queries)} queries")
 
         precision_at_k = {k: [] for k in k_values}
@@ -234,14 +210,10 @@ class EvaluationService:
                 continue
 
         # Aggregate metrics
-        avg_precision = {k: sum(scores) / len(scores) if scores else 0.0
-                        for k, scores in precision_at_k.items()}
-        avg_recall = {k: sum(scores) / len(scores) if scores else 0.0
-                     for k, scores in recall_at_k.items()}
-        avg_f1 = {k: sum(scores) / len(scores) if scores else 0.0
-                 for k, scores in f1_at_k.items()}
-        avg_ndcg = {k: sum(scores) / len(scores) if scores else 0.0
-                   for k, scores in ndcg_at_k.items()}
+        avg_precision = {k: sum(scores) / len(scores) if scores else 0.0 for k, scores in precision_at_k.items()}
+        avg_recall = {k: sum(scores) / len(scores) if scores else 0.0 for k, scores in recall_at_k.items()}
+        avg_f1 = {k: sum(scores) / len(scores) if scores else 0.0 for k, scores in f1_at_k.items()}
+        avg_ndcg = {k: sum(scores) / len(scores) if scores else 0.0 for k, scores in ndcg_at_k.items()}
         avg_mrr = sum(mrr_scores) / len(mrr_scores) if mrr_scores else 0.0
         avg_latency = sum(latencies) / len(latencies) if latencies else 0.0
 
@@ -259,13 +231,10 @@ class EvaluationService:
             mrr=avg_mrr,
             ndcg_at_k=avg_ndcg,
             avg_latency_ms=avg_latency,
-            total_queries=len(test_queries)
+            total_queries=len(test_queries),
         )
 
-    def compare_systems(
-        self,
-        system_results: Dict[str, EvaluationMetrics]
-    ) -> SystemComparison:
+    def compare_systems(self, system_results: dict[str, EvaluationMetrics]) -> SystemComparison:
         """
         Compare multiple systems and determine winner.
 
@@ -294,26 +263,16 @@ class EvaluationService:
             f1_5 = metrics.f1_at_k.get(5, 0.0)
             mrr = metrics.mrr
             latency = metrics.avg_latency_ms
-            summary_lines.append(
-                f"{system_name}: F1@5={f1_5:.3f}, MRR={mrr:.3f}, "
-                f"Latency={latency:.1f}ms"
-            )
+            summary_lines.append(f"{system_name}: F1@5={f1_5:.3f}, MRR={mrr:.3f}, Latency={latency:.1f}ms")
 
         summary = "\n".join(summary_lines)
         summary += f"\n\nWinner: {winner} (F1@5={best_f1:.3f})"
 
         return SystemComparison(
-            systems=list(system_results.keys()),
-            metrics=system_results,
-            winner=winner,
-            summary=summary
+            systems=list(system_results.keys()), metrics=system_results, winner=winner, summary=summary
         )
 
-    def save_results(
-        self,
-        results: Dict[str, Any],
-        output_path: Path
-    ) -> None:
+    def save_results(self, results: dict[str, Any], output_path: Path) -> None:
         """
         Save evaluation results to JSON file.
 
@@ -323,7 +282,7 @@ class EvaluationService:
         """
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
 
         logger.info(f"Results saved to {output_path}")

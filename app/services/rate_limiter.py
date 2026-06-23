@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from collections import defaultdict, deque
-from datetime import datetime, timedelta, timezone
 import threading
+from collections import defaultdict, deque
+from datetime import UTC, datetime, timedelta
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class SlidingWindowLimiter:

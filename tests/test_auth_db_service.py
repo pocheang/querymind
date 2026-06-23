@@ -1,6 +1,6 @@
-import uuid
 import hashlib
 import json
+import uuid
 from pathlib import Path
 
 import pytest
@@ -81,7 +81,7 @@ def test_auth_db_update_user_admin_approval_token():
     root = _mk("auth-db-admin-token")
     service = AuthDBService(db_path=root / "app.db", token_ttl_hours=1)
     user = service.create_user_with_role("admintoken01", "Password123", role="admin")
-    digest = hashlib.sha256("my-new-token-123".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(b"my-new-token-123").hexdigest()
 
     updated = service.update_user_admin_approval_token(
         user_id=user["user_id"],

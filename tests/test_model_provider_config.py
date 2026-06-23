@@ -14,7 +14,10 @@ from app.services.request_context import request_context
 
 
 def test_anthropic_base_url_uses_sdk_root_path():
-    assert validate_api_base_url_for_provider("https://api.anthropic.com/v1", provider="anthropic") == "https://api.anthropic.com"
+    assert (
+        validate_api_base_url_for_provider("https://api.anthropic.com/v1", provider="anthropic")
+        == "https://api.anthropic.com"
+    )
     assert validate_api_base_url_for_provider("https://cc-vibe.com", provider="anthropic") == "https://cc-vibe.com"
 
 

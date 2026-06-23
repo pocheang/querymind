@@ -2,10 +2,11 @@
 Enhanced router agent with query decomposition support.
 """
 
-import os
 import logging
-from typing import Optional, Dict, Any
-from app.agents.router_agent import decide_route, RouteDecision
+import os
+from typing import Any
+
+from app.agents.router_agent import RouteDecision, decide_route
 from app.services.query_decomposer import QueryDecomposer
 
 logger = logging.getLogger(__name__)
@@ -34,11 +35,8 @@ class EnhancedRouterAgent:
             logger.info("Query decomposition enabled")
 
     async def route_with_decomposition(
-        self,
-        question: str,
-        use_reasoning: bool = False,
-        agent_class_hint: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, question: str, use_reasoning: bool = False, agent_class_hint: str | None = None
+    ) -> dict[str, Any]:
         """
         Route query with optional decomposition.
 
@@ -67,10 +65,7 @@ class EnhancedRouterAgent:
                     logger.info(f"Query decomposed into {len(decomposed.sub_queries)} sub-queries")
                     for sub_query in decomposed.sub_queries:
                         route_decision = decide_route(sub_query, use_reasoning, agent_class_hint)
-                        result["route_decisions"].append({
-                            "query": sub_query,
-                            "decision": route_decision
-                        })
+                        result["route_decisions"].append({"query": sub_query, "decision": route_decision})
                     return result
 
             except Exception as e:
@@ -79,18 +74,13 @@ class EnhancedRouterAgent:
 
         # Normal routing (no decomposition or single query)
         route_decision = decide_route(question, use_reasoning, agent_class_hint)
-        result["route_decisions"].append({
-            "query": question,
-            "decision": route_decision
-        })
+        result["route_decisions"].append({"query": question, "decision": route_decision})
 
         return result
 
 
 def route_with_decomposition_sync(
-    question: str,
-    use_reasoning: bool = False,
-    agent_class_hint: Optional[str] = None
+    question: str, use_reasoning: bool = False, agent_class_hint: str | None = None
 ) -> RouteDecision:
     """
     Synchronous wrapper for backward compatibility.

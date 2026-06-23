@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from concurrent.futures import Future, ThreadPoolExecutor
+import logging
 import threading
-from typing import Any, Callable
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
+from typing import Any
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 _LOCK = threading.Lock()
 _EXECUTOR: ThreadPoolExecutor | None = None

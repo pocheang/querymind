@@ -3,12 +3,13 @@ Analytics API Routes
 
 Provides endpoints for retrieval analytics, agent performance, and document popularity.
 """
+
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import Response
 
-from app.api.dependencies import _require_user, _require_permission
+from app.api.dependencies import _require_permission, _require_user
 from app.services.retrieval_logger import RetrievalLogger
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -43,7 +44,9 @@ async def get_agent_stats(request: Request, user: dict[str, Any] = Depends(_requ
 
 
 @router.get("/documents")
-async def get_document_stats(request: Request, user: dict[str, Any] = Depends(_require_user), limit: int = Query(default=20, ge=1, le=100)):
+async def get_document_stats(
+    request: Request, user: dict[str, Any] = Depends(_require_user), limit: int = Query(default=20, ge=1, le=100)
+):
     """
     Get document popularity ranking - Admin only.
 
@@ -59,7 +62,11 @@ async def get_document_stats(request: Request, user: dict[str, Any] = Depends(_r
 
 
 @router.get("/export")
-async def export_logs(request: Request, user: dict[str, Any] = Depends(_require_user), format: str = Query(default="json", pattern="^(json|csv)$")):
+async def export_logs(
+    request: Request,
+    user: dict[str, Any] = Depends(_require_user),
+    format: str = Query(default="json", pattern="^(json|csv)$"),
+):
     """
     Export retrieval logs - Admin only.
 

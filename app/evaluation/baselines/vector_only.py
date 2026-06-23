@@ -1,10 +1,9 @@
 """Vector-only baseline retriever."""
 
 import time
-from typing import List, Dict, Any
 
-from app.retrievers.vector_store import similarity_search
 from app.evaluation.models import RetrievalResult
+from app.retrievers.vector_store import similarity_search
 
 
 class VectorOnlyRetriever:
@@ -37,12 +36,14 @@ class VectorOnlyRetriever:
         scores = []
 
         for doc, score in results:
-            retrieved_docs.append({
-                "id": doc.metadata.get("id", ""),
-                "content": doc.page_content,
-                "metadata": doc.metadata,
-                "source": doc.metadata.get("source", "")
-            })
+            retrieved_docs.append(
+                {
+                    "id": doc.metadata.get("id", ""),
+                    "content": doc.page_content,
+                    "metadata": doc.metadata,
+                    "source": doc.metadata.get("source", ""),
+                }
+            )
             scores.append(float(score))
 
         return RetrievalResult(
@@ -51,8 +52,5 @@ class VectorOnlyRetriever:
             retrieved_docs=retrieved_docs,
             scores=scores,
             latency_ms=latency_ms,
-            metadata={
-                "retriever": "vector_only",
-                "top_k": top_k
-            }
+            metadata={"retriever": "vector_only", "top_k": top_k},
         )

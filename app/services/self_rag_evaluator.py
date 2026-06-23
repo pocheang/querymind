@@ -2,11 +2,12 @@
 Self-RAG evaluator service for evaluating retrieval relevance and answer quality.
 """
 
-import re
-import os
 import logging
-from typing import List, Dict, Any
-from app.models.advanced_rag_models import RelevanceScore, AnswerQuality
+import os
+import re
+from typing import Any
+
+from app.models.advanced_rag_models import AnswerQuality, RelevanceScore
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +64,7 @@ Relevance: [0-1]
 Overall Score: [0-1]
 Feedback: [brief explanation]"""
 
-    async def evaluate_retrieval_relevance(
-        self, query: str, documents: List[Dict[str, Any]]
-    ) -> List[RelevanceScore]:
+    async def evaluate_retrieval_relevance(self, query: str, documents: list[dict[str, Any]]) -> list[RelevanceScore]:
         """
         Evaluate relevance of each retrieved document to the query.
 
@@ -87,10 +86,7 @@ Feedback: [brief explanation]"""
                 # Use first 500 characters for evaluation
                 doc_preview = content[:500]
 
-                prompt = self.relevance_prompt.format(
-                    query=query,
-                    document=doc_preview
-                )
+                prompt = self.relevance_prompt.format(query=query, document=doc_preview)
 
                 # Use ainvoke for compatibility with LangChain 0.3+ API
                 response = await self.llm.ainvoke(prompt)
@@ -98,11 +94,7 @@ Feedback: [brief explanation]"""
 
                 score = self._parse_relevance_score(response_text)
                 relevance_scores.append(
-                    RelevanceScore(
-                        document_id=str(doc_id),
-                        score=score,
-                        reasoning=response_text.strip()
-                    )
+                    RelevanceScore(document_id=str(doc_id), score=score, reasoning=response_text.strip())
                 )
 
             except Exception as e:
@@ -112,17 +104,15 @@ Feedback: [brief explanation]"""
                     RelevanceScore(
                         document_id=str(doc.get("id", "unknown")),
                         score=0.5,
-                        reasoning=f"Error during evaluation: {str(e)}"
+                        reasoning=f"Error during evaluation: {str(e)}",
                     )
                 )
 
         return relevance_scores
 
     def filter_relevant_documents(
-        self,
-        documents: List[Dict[str, Any]],
-        relevance_scores: List[RelevanceScore]
-    ) -> List[Dict[str, Any]]:
+        self, documents: list[dict[str, Any]], relevance_scores: list[RelevanceScore]
+    ) -> list[dict[str, Any]]:
         """
         Filter documents based on relevance threshold.
 
@@ -134,7 +124,7 @@ Feedback: [brief explanation]"""
             Filtered list of relevant documents
         """
         relevant_docs = []
-        for doc, score in zip(documents, relevance_scores):
+        for doc, score in zip(documents, relevance_scores, strict=False):
             if score.score >= self.relevance_threshold:
                 relevant_docs.append(doc)
             else:
@@ -143,9 +133,7 @@ Feedback: [brief explanation]"""
         logger.info(f"Filtered {len(documents)} documents to {len(relevant_docs)} relevant documents")
         return relevant_docs
 
-    async def evaluate_answer_quality(
-        self, query: str, answer: str, documents: List[Dict[str, Any]]
-    ) -> AnswerQuality:
+    async def evaluate_answer_quality(self, query: str, answer: str, documents: list[dict[str, Any]]) -> AnswerQuality:
         """
         Evaluate quality of generated answer.
 
@@ -161,11 +149,7 @@ Feedback: [brief explanation]"""
             # Format documents for prompt
             docs_text = self._format_documents(documents)
 
-            prompt = self.quality_prompt.format(
-                query=query,
-                answer=answer,
-                documents=docs_text
-            )
+            prompt = self.quality_prompt.format(query=query, answer=answer, documents=docs_text)
 
             # Use ainvoke for compatibility with LangChain 0.3+ API
             response = await self.llm.ainvoke(prompt)
@@ -179,7 +163,7 @@ Feedback: [brief explanation]"""
                 accuracy=quality["accuracy"],
                 relevance=quality["relevance"],
                 feedback=response_text.strip(),
-                needs_refinement=quality["score"] < self.quality_threshold
+                needs_refinement=quality["score"] < self.quality_threshold,
             )
 
         except Exception as e:
@@ -191,7 +175,7 @@ Feedback: [brief explanation]"""
                 accuracy=0.5,
                 relevance=0.5,
                 feedback=f"Error during evaluation: {str(e)}",
-                needs_refinement=True
+                needs_refinement=True,
             )
 
     def _parse_relevance_score(self, response: str) -> float:
@@ -222,7 +206,7 @@ Feedback: [brief explanation]"""
         logger.warning(f"Could not parse relevance score from: {response}")
         return 0.5
 
-    def _parse_quality_evaluation(self, response: str) -> Dict[str, float]:
+    def _parse_quality_evaluation(self, response: str) -> dict[str, float]:
         """
         Parse quality evaluation from LLM response.
 
@@ -232,12 +216,7 @@ Feedback: [brief explanation]"""
         Returns:
             Dictionary with quality scores
         """
-        quality = {
-            "score": 0.5,
-            "completeness": 0.5,
-            "accuracy": 0.5,
-            "relevance": 0.5
-        }
+        quality = {"score": 0.5, "completeness": 0.5, "accuracy": 0.5, "relevance": 0.5}
 
         # Extract scores for each aspect
         for aspect in ["completeness", "accuracy", "relevance"]:
@@ -260,13 +239,11 @@ Feedback: [brief explanation]"""
             quality["score"] = min(1.0, max(0.0, score))
         else:
             # Calculate overall score as average if not provided
-            quality["score"] = (
-                quality["completeness"] + quality["accuracy"] + quality["relevance"]
-            ) / 3
+            quality["score"] = (quality["completeness"] + quality["accuracy"] + quality["relevance"]) / 3
 
         return quality
 
-    def _format_documents(self, documents: List[Dict[str, Any]]) -> str:
+    def _format_documents(self, documents: list[dict[str, Any]]) -> str:
         """
         Format documents for prompt.
 

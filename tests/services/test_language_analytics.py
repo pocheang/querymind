@@ -1,7 +1,8 @@
 """Tests for language analytics service."""
+
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 
@@ -104,6 +105,7 @@ class TestLanguageAnalyticsLogging:
 
     def test_log_detection_thread_safe(self, analytics):
         """Test that logging is thread-safe."""
+
         def log_events():
             for i in range(10):
                 analytics.log_detection(

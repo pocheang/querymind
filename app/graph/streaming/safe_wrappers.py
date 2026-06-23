@@ -3,7 +3,7 @@
 import logging
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -53,7 +53,7 @@ def _log_retrieval(
         RetrievalLogger.get_instance().log_retrieval(
             RetrievalLog(
                 log_id=str(uuid4()),
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 question=question,
                 agent_class=agent_class or "general",
                 route=route,

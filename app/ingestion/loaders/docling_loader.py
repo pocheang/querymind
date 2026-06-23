@@ -1,8 +1,11 @@
 """Docling-based PDF to Markdown loader with table preservation."""
 
+import logging
 from pathlib import Path
 
 from langchain_core.documents import Document
+
+logger = logging.getLogger(__name__)
 
 
 def load_pdf_with_docling(path: Path) -> list[Document]:
@@ -36,7 +39,7 @@ def load_pdf_with_docling(path: Path) -> list[Document]:
                 "source": str(path),
                 "format": "markdown",
                 "converter": "docling",
-            }
+            },
         )
 
         return [doc]
@@ -65,6 +68,7 @@ def load_pdf_with_docling_by_page(path: Path) -> list[Document]:
     """
     try:
         from docling.document_converter import DocumentConverter
+
     except ImportError:
         return []
 
@@ -89,7 +93,7 @@ def load_pdf_with_docling_by_page(path: Path) -> list[Document]:
                     "page": page_idx,
                     "format": "markdown",
                     "converter": "docling",
-                }
+                },
             )
             docs.append(doc)
 

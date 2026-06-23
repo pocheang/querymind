@@ -1,6 +1,6 @@
-﻿from pathlib import Path
-from types import SimpleNamespace
 import uuid
+from pathlib import Path
+from types import SimpleNamespace
 
 from app.services.auto_ingest_watcher import AutoIngestWatcher
 
@@ -39,7 +39,9 @@ def test_auto_ingest_requires_stable_signature_before_ingest():
         ingested.append(paths)
         return {"loaded_documents": 1, "chunks_indexed": 1, "triplets_written": 0}
 
-    watcher = AutoIngestWatcher(settings=settings, ingest_fn=_ingest, delete_index_fn=lambda *args, **kwargs: {"ok": True})
+    watcher = AutoIngestWatcher(
+        settings=settings, ingest_fn=_ingest, delete_index_fn=lambda *args, **kwargs: {"ok": True}
+    )
 
     first = watcher.scan_once()
     second = watcher.scan_once()
@@ -63,7 +65,9 @@ def test_auto_ingest_reingests_after_file_change():
         ingested.append(paths)
         return {"loaded_documents": 1, "chunks_indexed": 1, "triplets_written": 0}
 
-    watcher = AutoIngestWatcher(settings=settings, ingest_fn=_ingest, delete_index_fn=lambda *args, **kwargs: {"ok": True})
+    watcher = AutoIngestWatcher(
+        settings=settings, ingest_fn=_ingest, delete_index_fn=lambda *args, **kwargs: {"ok": True}
+    )
 
     watcher.scan_once()
     watcher.scan_once()
@@ -87,7 +91,9 @@ def test_auto_ingest_disabled_no_work():
         calls["ingest"] += 1
         return {"loaded_documents": 1, "chunks_indexed": 1, "triplets_written": 0}
 
-    watcher = AutoIngestWatcher(settings=settings, ingest_fn=_ingest, delete_index_fn=lambda *args, **kwargs: {"ok": True})
+    watcher = AutoIngestWatcher(
+        settings=settings, ingest_fn=_ingest, delete_index_fn=lambda *args, **kwargs: {"ok": True}
+    )
     result = watcher.scan_once()
 
     assert result == {"discovered": 0, "ready": 0, "ingested": 0}

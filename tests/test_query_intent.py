@@ -67,9 +67,5 @@ def test_is_casual_chat_query_tolerates_non_json_true_response():
 
 
 def test_force_web_ignores_internal_completion_guidance_block():
-    text = (
-        "你好啊\n\n"
-        "[补全提示]\n"
-        "- 优先按用户当前这条最新提问作答，不要被更早轮次覆盖。"
-    )
+    text = "你好啊\n\n[补全提示]\n- 优先按用户当前这条最新提问作答，不要被更早轮次覆盖。"
     assert query_intent.should_force_web_research(text) is False

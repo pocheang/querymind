@@ -1,12 +1,13 @@
 """Language detection service for multilingual response system."""
-import re
+
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 # Chinese character range: U+4E00 to U+9FFF (CJK Unified Ideographs)
-CHINESE_PATTERN = re.compile(r'[一-鿿]')
-ALPHANUM_PATTERN = re.compile(r'[a-zA-Z一-鿿0-9]')
+CHINESE_PATTERN = re.compile(r"[一-鿿]")
+ALPHANUM_PATTERN = re.compile(r"[a-zA-Z一-鿿0-9]")
 
 # Detection threshold: if Chinese chars > 20% of alphanumeric, classify as Chinese
 CHINESE_THRESHOLD = 0.20

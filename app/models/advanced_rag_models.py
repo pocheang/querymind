@@ -2,7 +2,8 @@
 Data models for advanced RAG techniques.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -10,13 +11,12 @@ class DecomposedQuery(BaseModel):
     """Result of query decomposition."""
 
     original_query: str = Field(..., description="Original user query")
-    sub_queries: List[str] = Field(..., description="List of decomposed sub-queries")
+    sub_queries: list[str] = Field(..., description="List of decomposed sub-queries")
     decomposition_strategy: str = Field(
-        ...,
-        description="Strategy used for decomposition: comparison, sequential, parallel, general, or none"
+        ..., description="Strategy used for decomposition: comparison, sequential, parallel, general, or none"
     )
 
-    @field_validator('sub_queries')
+    @field_validator("sub_queries")
     @classmethod
     def validate_sub_queries(cls, v):
         if not v:
@@ -25,7 +25,7 @@ class DecomposedQuery(BaseModel):
             raise ValueError("Maximum 4 sub-queries allowed")
         return v
 
-    @field_validator('decomposition_strategy')
+    @field_validator("decomposition_strategy")
     @classmethod
     def validate_strategy(cls, v):
         valid_strategies = ["comparison", "sequential", "parallel", "general", "none"]
@@ -57,11 +57,10 @@ class SubQueryResult(BaseModel):
     """Result from processing a single sub-query."""
 
     sub_query: str = Field(..., description="The sub-query that was processed")
-    documents: List[Dict[str, Any]] = Field(..., description="Retrieved documents")
+    documents: list[dict[str, Any]] = Field(..., description="Retrieved documents")
     answer: str = Field(..., description="Generated answer for this sub-query")
-    relevance_scores: Optional[List[RelevanceScore]] = Field(
-        None,
-        description="Relevance scores for documents (if Self-RAG enabled)"
+    relevance_scores: list[RelevanceScore] | None = Field(
+        None, description="Relevance scores for documents (if Self-RAG enabled)"
     )
 
 
@@ -69,20 +68,12 @@ class AdvancedRAGResult(BaseModel):
     """Complete result from advanced RAG processing."""
 
     query: str = Field(..., description="Original user query")
-    decomposed_query: Optional[DecomposedQuery] = Field(
-        None,
-        description="Decomposed query (if decomposition was used)"
-    )
-    sub_query_results: List[SubQueryResult] = Field(
-        ...,
-        description="Results from each sub-query"
-    )
+    decomposed_query: DecomposedQuery | None = Field(None, description="Decomposed query (if decomposition was used)")
+    sub_query_results: list[SubQueryResult] = Field(..., description="Results from each sub-query")
     final_answer: str = Field(..., description="Final synthesized answer")
-    answer_quality: Optional[AnswerQuality] = Field(
-        None,
-        description="Quality evaluation of final answer (if Self-RAG enabled)"
+    answer_quality: AnswerQuality | None = Field(
+        None, description="Quality evaluation of final answer (if Self-RAG enabled)"
     )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional metadata (latency, token usage, etc.)"
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata (latency, token usage, etc.)"
     )

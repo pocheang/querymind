@@ -112,6 +112,8 @@ def validate_api_base_url_for_provider(base_url: str, *, provider: str) -> str:
     dns_check = bool(getattr(settings, "api_base_url_dns_check", True))
     resolved_ips = _resolve_host_ips(host, port, enabled=dns_check)
     if resolved_ips and all(_is_blocked_ip(x) for x in resolved_ips):
-        raise OutboundURLValidationError("base_url DNS resolution includes only blocked private/loopback/link-local addresses")
+        raise OutboundURLValidationError(
+            "base_url DNS resolution includes only blocked private/loopback/link-local addresses"
+        )
 
     return normalized

@@ -1,49 +1,43 @@
 """Query routes for the Multi-Agent Local RAG API."""
+
 import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, Request
 
-from app.api.utils.error_responses import bad_request, conflict, rate_limited
 from app.api.dependencies import (
-    auth_service,
+    _allowed_sources_for_user,
+    _audit,
+    _build_memory_context_for_session,
+    _build_user_file_inventory_answer,
+    _call_with_supported_kwargs,
+    _effective_strategy_for_session,
+    _enforce_result_source_scope,
+    _history_store_for_user,
+    _is_file_inventory_question,
+    _is_overload_mode,
+    _latest_answer_for_same_question,
+    _launch_shadow_run,
+    _normalize_agent_class_hint,
+    _promote_long_term_memory,
+    _query_cache_key,
+    _query_limiter_key,
+    _require_existing_session_for_query,
+    _require_permission,
+    _require_user,
+    _resolve_effective_agent_class,
+    _resynthesize_after_source_scope,
+    _run_with_query_runtime,
+    _sse_response,
+    _trace_id,
+    _user_api_settings_for_runtime,
     query_guard,
     query_result_cache,
     quota_guard,
     runtime_metrics,
-    shadow_queue,
     settings,
-    _require_user,
-    _require_permission,
-    _require_existing_session_for_query,
-    _query_cache_key,
-    _query_limiter_key,
-    _trace_id,
-    _run_with_query_runtime,
-    _is_overload_mode,
-    _call_with_supported_kwargs,
-    _user_api_settings_for_runtime,
-    _history_store_for_user,
-    _memory_store_for_user,
-    _build_memory_context_for_session,
-    _promote_long_term_memory,
-    _allowed_sources_for_user,
-    _allowed_sources_for_visible_filenames,
-    _enforce_result_source_scope,
-    _resynthesize_after_source_scope,
-    _list_visible_pdf_names_for_user,
-    _visible_doc_chunks_by_filename_for_user,
-    _is_file_inventory_question,
-    _build_user_file_inventory_answer,
-    _audit,
-    _normalize_agent_class_hint,
-    _normalize_retrieval_strategy,
-    _resolve_effective_agent_class,
-    _latest_answer_for_same_question,
-    _launch_shadow_run,
-    _effective_strategy_for_session,
-    _sse_response,
 )
+from app.api.utils.error_responses import bad_request, conflict, rate_limited
 from app.core.schemas import Citation, QueryRequest, QueryResponse
 from app.graph.streaming import encode_sse, run_query_stream
 from app.graph.workflow import run_query
@@ -53,22 +47,15 @@ from app.services.evidence_conflict import detect_evidence_conflict
 from app.services.input_normalizer import (
     enhance_user_question_for_completion,
     normalize_and_validate_user_question,
-    normalize_user_question,
-)
-from app.services.pdf_agent_guard import (
-    apply_pdf_focus_to_question,
-    build_choose_pdf_hint,
-    build_upload_pdf_hint,
-    choose_pdf_targets,
 )
 from app.services.network_security import OutboundURLValidationError
 from app.services.query_guard import QueryOverloadedError, QueryRateLimitedError
 from app.services.query_intent import is_casual_chat_query
 from app.services.quota_guard import QuotaExceededError
 from app.services.rag_runtime_scope import execution_route_from_result
-from app.services.retrieval_profiles import profile_force_local_only, profile_to_strategy
 from app.services.request_context import request_context
-from app.services.runtime_ops import feature_enabled, resolve_profile_for_request
+from app.services.retrieval_profiles import profile_force_local_only, profile_to_strategy
+from app.services.runtime_ops import feature_enabled
 
 router = APIRouter(prefix="/query", tags=["query"])
 logger = logging.getLogger(__name__)
@@ -102,8 +89,6 @@ def _maybe_sign_response(
 
 
 @router.post("", response_model=QueryResponse)
-
-
 def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, "query:run", request, "query")
     req.session_id = _require_existing_session_for_query(user, req.session_id)
@@ -133,7 +118,13 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
                 req.session_id,
                 "assistant",
                 answer,
-                metadata={"route": "policy", "agent_class": "policy", "web_used": False, "graph_entities": [], "citations": []},
+                metadata={
+                    "route": "policy",
+                    "agent_class": "policy",
+                    "web_used": False,
+                    "graph_entities": [],
+                    "citations": [],
+                },
             )
         return QueryResponse(
             answer=answer,
@@ -162,7 +153,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
                     "reason": early_response["reason"],
                     "skill": early_response["skill"],
                     "agent_class": early_response["agent_class"],
-                    "use_reasoning": req.use_reasoning
+                    "use_reasoning": req.use_reasoning,
                 },
             )
 
@@ -170,11 +161,17 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
             normalized_question = modified_question
 
     is_fast_smalltalk = is_casual_chat_query(normalized_question)
-    effective_question = normalized_question if is_fast_smalltalk else enhance_user_question_for_completion(normalized_question)
-    memory_context = "" if is_fast_smalltalk else _build_memory_context_for_session(
-        user=user,
-        session_id=req.session_id,
-        question=effective_question,
+    effective_question = (
+        normalized_question if is_fast_smalltalk else enhance_user_question_for_completion(normalized_question)
+    )
+    memory_context = (
+        ""
+        if is_fast_smalltalk
+        else _build_memory_context_for_session(
+            user=user,
+            session_id=req.session_id,
+            question=effective_question,
+        )
     )
     allowed_sources = pdf_allowed_sources if pdf_allowed_sources is not None else _allowed_sources_for_user(user)
     retrieval_strategy, strategy_meta = _effective_strategy_for_session(
@@ -226,7 +223,11 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         request_id=req.request_id,
         mode="query",
     )
-    cached_response = None if is_fast_smalltalk else query_result_cache.get(cache_key, session_id=req.session_id, user_id=str(user.get("user_id", "")))
+    cached_response = (
+        None
+        if is_fast_smalltalk
+        else query_result_cache.get(cache_key, session_id=req.session_id, user_id=str(user.get("user_id", "")))
+    )
     if isinstance(cached_response, dict) and cached_response:
         try:
             cached = QueryResponse.model_validate(cached_response)
@@ -245,7 +246,11 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
             return cached
     if not query_result_cache.mark_inflight(cache_key):
         runtime_metrics.inc("query_duplicate_total")
-        hot_cached = None if is_fast_smalltalk else query_result_cache.get(cache_key, session_id=req.session_id, user_id=str(user.get("user_id", "")))
+        hot_cached = (
+            None
+            if is_fast_smalltalk
+            else query_result_cache.get(cache_key, session_id=req.session_id, user_id=str(user.get("user_id", "")))
+        )
         if isinstance(hot_cached, dict) and hot_cached:
             try:
                 return QueryResponse.model_validate(hot_cached)
@@ -257,6 +262,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
             {"trace_id": _trace_id(request), "session_id": str(req.session_id or "")},
         )
         raise conflict("duplicate request in progress")
+
     def _query_pipeline():
         runtime_kwargs = dict(run_query_kwargs)
         if overload_mode_enabled():
@@ -264,7 +270,9 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
             runtime_kwargs["use_reasoning"] = False
             runtime_kwargs.setdefault("retrieval_strategy", "baseline")
         result_local = _call_with_supported_kwargs(run_query, effective_question, **runtime_kwargs)
-        result_local = _enforce_result_source_scope(result_local, allowed_sources=allowed_sources, request=request, user=user)
+        result_local = _enforce_result_source_scope(
+            result_local, allowed_sources=allowed_sources, request=request, user=user
+        )
         result_local = _resynthesize_after_source_scope(
             result_local,
             question=effective_question,
@@ -273,7 +281,9 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         )
         consistency_local = {"checked": False}
         if bool(settings.consistency_guard_enabled) and (not is_fast_smalltalk):
-            prev_answer = _latest_answer_for_same_question(user=user, session_id=req.session_id, question=original_question)
+            prev_answer = _latest_answer_for_same_question(
+                user=user, session_id=req.session_id, question=original_question
+            )
             if prev_answer:
                 sim = text_similarity(prev_answer, result_local.get("answer", ""))
                 consistency_local = {"checked": True, "previous_similarity": round(sim, 4), "stabilized": False}
@@ -286,7 +296,9 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
                     stabilize_kwargs["retrieval_strategy"] = "baseline"
                     stabilize_kwargs["use_reasoning"] = False
                     retried = _call_with_supported_kwargs(run_query, effective_question, **stabilize_kwargs)
-                    retried = _enforce_result_source_scope(retried, allowed_sources=allowed_sources, request=request, user=user)
+                    retried = _enforce_result_source_scope(
+                        retried, allowed_sources=allowed_sources, request=request, user=user
+                    )
                     retried = _resynthesize_after_source_scope(
                         retried,
                         question=effective_question,
@@ -336,7 +348,8 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
                 "web_used": result.get("web_result", {}).get("used", False),
                 "thoughts": result.get("thoughts", []),
                 "graph_entities": result.get("graph_result", {}).get("entities", []),
-                "citations": result.get("vector_result", {}).get("citations", []) + result.get("web_result", {}).get("citations", []),
+                "citations": result.get("vector_result", {}).get("citations", [])
+                + result.get("web_result", {}).get("citations", []),
                 "retrieval_diagnostics": result.get("vector_result", {}).get("retrieval_diagnostics", {}),
                 "grounding": result.get("grounding", {}),
                 "explainability": result.get("explainability", {}),
@@ -408,9 +421,12 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         question=effective_question,
         primary_result=result,
     )
-    query_result_cache.set(cache_key, response.model_dump(), session_id=req.session_id, user_id=str(user.get("user_id", "")))
+    query_result_cache.set(
+        cache_key, response.model_dump(), session_id=req.session_id, user_id=str(user.get("user_id", ""))
+    )
     runtime_metrics.inc("query_success_total")
     return response
+
 
 @router.post("/query/stream")
 @router.post("/stream")
@@ -454,7 +470,13 @@ async def stream_query(
                 session_id,
                 "assistant",
                 answer,
-                metadata={"route": "policy", "agent_class": "policy", "web_used": False, "graph_entities": [], "citations": []},
+                metadata={
+                    "route": "policy",
+                    "agent_class": "policy",
+                    "web_used": False,
+                    "graph_entities": [],
+                    "citations": [],
+                },
             )
 
         def event_gen_file_inventory():
@@ -523,12 +545,18 @@ async def stream_query(
             normalized_question = modified_question
 
     is_fast_smalltalk = is_casual_chat_query(normalized_question)
-    effective_question = normalized_question if is_fast_smalltalk else enhance_user_question_for_completion(normalized_question)
+    effective_question = (
+        normalized_question if is_fast_smalltalk else enhance_user_question_for_completion(normalized_question)
+    )
     history_store = _history_store_for_user(user)
-    memory_context = "" if is_fast_smalltalk else _build_memory_context_for_session(
-        user=user,
-        session_id=session_id,
-        question=effective_question,
+    memory_context = (
+        ""
+        if is_fast_smalltalk
+        else _build_memory_context_for_session(
+            user=user,
+            session_id=session_id,
+            question=effective_question,
+        )
     )
     allowed_sources = pdf_allowed_sources if pdf_allowed_sources is not None else _allowed_sources_for_user(user)
     normalized_strategy, strategy_meta = _effective_strategy_for_session(
@@ -588,15 +616,21 @@ async def stream_query(
         replay_events = list(stream_replay.get("events", []) or [])
         replay_done = bool(stream_replay.get("done", False))
         if replay_events:
+
             async def event_gen_replay():
                 for ev in replay_events:
                     if isinstance(ev, dict):
                         yield encode_sse(ev)
                 if not replay_done:
                     yield encode_sse({"type": "status", "message": "replay_partial", "trace_id": _trace_id(request)})
+
             return _sse_response(event_gen_replay())
 
-    cached_stream = None if is_fast_smalltalk else query_result_cache.get(stream_cache_key, session_id=session_id, user_id=str(user.get("user_id", "")))
+    cached_stream = (
+        None
+        if is_fast_smalltalk
+        else query_result_cache.get(stream_cache_key, session_id=session_id, user_id=str(user.get("user_id", "")))
+    )
     if isinstance(cached_stream, dict) and cached_stream.get("result"):
         runtime_metrics.inc("query_stream_cache_hit_total")
         done_result = dict(cached_stream.get("result", {}) or {})
@@ -697,7 +731,9 @@ async def stream_query(
                             )
                             final_result["evidence_conflict"] = conflict_report
                             if conflict_report.get("conflict"):
-                                final_result["answer"] = f"[evidence-conflict-warning]\n{final_result.get('answer', '')}"
+                                final_result["answer"] = (
+                                    f"[evidence-conflict-warning]\n{final_result.get('answer', '')}"
+                                )
                             final_result["execution_route"] = execution_route_from_result(final_result)
                             final_result["retrieval_strategy"] = normalized_strategy or "advanced"
                             final_result["trace_id"] = trace_id
@@ -769,7 +805,8 @@ async def stream_query(
                     "web_used": final_result.get("web_result", {}).get("used", False),
                     "thoughts": final_result.get("thoughts", []),
                     "graph_entities": final_result.get("graph_result", {}).get("entities", []),
-                    "citations": final_result.get("vector_result", {}).get("citations", []) + final_result.get("web_result", {}).get("citations", []),
+                    "citations": final_result.get("vector_result", {}).get("citations", [])
+                    + final_result.get("web_result", {}).get("citations", []),
                     "retrieval_diagnostics": final_result.get("vector_result", {}).get("retrieval_diagnostics", {}),
                     "grounding": final_result.get("grounding", {}),
                     "explainability": final_result.get("explainability", {}),
@@ -789,7 +826,9 @@ async def stream_query(
                 primary_result=final_result,
             )
         if final_result is not None:
-            query_result_cache.set(stream_cache_key, {"result": final_result}, session_id=session_id, user_id=str(user.get("user_id", "")))
+            query_result_cache.set(
+                stream_cache_key, {"result": final_result}, session_id=session_id, user_id=str(user.get("user_id", ""))
+            )
             runtime_metrics.inc("query_stream_success_total")
 
     return _sse_response(event_gen())

@@ -9,10 +9,21 @@ Validates:
 """
 
 import pytest
+
 from app.retrievers.bm25_retriever import (
     tokenize,
     tokenize_chinese_aware,
 )
+
+
+def _jieba_available():
+    """Check if jieba is available."""
+    try:
+        import jieba
+
+        return True
+    except ImportError:
+        return False
 
 
 class TestChineseAwareTokenization:
@@ -121,10 +132,7 @@ class TestTokenizationComparison:
 class TestBM25Integration:
     """Test BM25 search with Chinese tokenization."""
 
-    @pytest.mark.skipif(
-        not _jieba_available(),
-        reason="jieba not available"
-    )
+    @pytest.mark.skipif(not _jieba_available(), reason="jieba not available")
     def test_bm25_search_with_chinese_query(self):
         """BM25 search should work with Chinese queries."""
         from app.retrievers.bm25_retriever import bm25_search
@@ -160,6 +168,7 @@ def _jieba_available() -> bool:
     """Check if jieba is available."""
     try:
         import jieba
+
         return True
     except ImportError:
         return False

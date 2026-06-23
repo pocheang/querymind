@@ -12,9 +12,9 @@ Tests comprehensive error handling in production-like scenarios including:
 import os
 import tempfile
 import threading
-import time
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 import pytest
 
 
@@ -28,9 +28,9 @@ def test_corrupted_pdf_handling():
     from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced
 
     # Create a corrupted PDF file (invalid PDF content)
-    with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
         # Write invalid PDF content
-        f.write(b'This is not a valid PDF file content')
+        f.write(b"This is not a valid PDF file content")
         corrupted_pdf_path = Path(f.name)
 
     try:
@@ -57,16 +57,16 @@ def test_missing_api_key():
     from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced
 
     # Create a minimal valid PDF structure
-    with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
         # Minimal PDF header
-        f.write(b'%PDF-1.4\n')
+        f.write(b"%PDF-1.4\n")
         test_pdf_path = Path(f.name)
 
     try:
         # Mock environment without API key
         with patch.dict(os.environ, {}, clear=True):
             # Mock DocumentConverter to simulate API key requirement
-            with patch('docling.document_converter.DocumentConverter') as mock_converter:
+            with patch("docling.document_converter.DocumentConverter") as mock_converter:
                 mock_instance = Mock()
                 mock_instance.convert.side_effect = Exception("API key not found")
                 mock_converter.return_value = mock_instance
@@ -94,13 +94,13 @@ def test_network_timeout():
     from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced
 
     # Create a test PDF file
-    with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as f:
-        f.write(b'%PDF-1.4\n')
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
+        f.write(b"%PDF-1.4\n")
         test_pdf_path = Path(f.name)
 
     try:
         # Mock DocumentConverter to simulate network timeout
-        with patch('docling.document_converter.DocumentConverter') as mock_converter:
+        with patch("docling.document_converter.DocumentConverter") as mock_converter:
             mock_instance = Mock()
             # Simulate timeout exception
             mock_instance.convert.side_effect = TimeoutError("Network request timed out")
@@ -129,9 +129,9 @@ def test_invalid_image_format():
     from app.ingestion.loaders import _load_image_file
 
     # Create an invalid image file
-    with tempfile.NamedTemporaryFile(mode='wb', suffix='.png', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".png", delete=False) as f:
         # Write invalid image content
-        f.write(b'Not a valid PNG image')
+        f.write(b"Not a valid PNG image")
         invalid_image_path = Path(f.name)
 
     try:
@@ -143,13 +143,11 @@ def test_invalid_image_format():
         # Either empty or contains error document
         if len(result) > 0:
             # If it returns a document, it should indicate an error
-            assert any('error' in doc.page_content.lower() or
-                      'failed' in doc.page_content.lower()
-                      for doc in result)
+            assert any("error" in doc.page_content.lower() or "failed" in doc.page_content.lower() for doc in result)
 
     except Exception as e:
         # If it raises an exception, it should be a handled exception type
-        assert isinstance(e, (ValueError, IOError, OSError))
+        assert isinstance(e, ValueError | IOError | OSError)
 
     finally:
         # Cleanup
@@ -167,8 +165,8 @@ def test_concurrent_cache_access():
     from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced
 
     # Create a test PDF file
-    with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as f:
-        f.write(b'%PDF-1.4\n')
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
+        f.write(b"%PDF-1.4\n")
         test_pdf_path = Path(f.name)
 
     results = []
@@ -205,8 +203,7 @@ def test_concurrent_cache_access():
         # All results should be consistent (all empty or all with content)
         if results:
             first_result_len = len(results[0])
-            assert all(len(r) == first_result_len for r in results), \
-                "Inconsistent results from concurrent access"
+            assert all(len(r) == first_result_len for r in results), "Inconsistent results from concurrent access"
 
     finally:
         # Cleanup
@@ -224,13 +221,13 @@ def test_disk_full_scenario():
     from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced
 
     # Create a test PDF file
-    with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as f:
-        f.write(b'%PDF-1.4\n')
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
+        f.write(b"%PDF-1.4\n")
         test_pdf_path = Path(f.name)
 
     try:
         # Mock DocumentConverter to simulate disk full
-        with patch('docling.document_converter.DocumentConverter') as mock_converter:
+        with patch("docling.document_converter.DocumentConverter") as mock_converter:
             mock_instance = Mock()
             mock_instance.convert.side_effect = OSError(28, "No space left on device")
             mock_converter.return_value = mock_instance
@@ -258,13 +255,13 @@ def test_memory_limit_exceeded():
     from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced
 
     # Create a test PDF file
-    with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as f:
-        f.write(b'%PDF-1.4\n')
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
+        f.write(b"%PDF-1.4\n")
         test_pdf_path = Path(f.name)
 
     try:
         # Mock DocumentConverter to simulate memory error
-        with patch('docling.document_converter.DocumentConverter') as mock_converter:
+        with patch("docling.document_converter.DocumentConverter") as mock_converter:
             mock_instance = Mock()
             # Simulate memory error
             mock_instance.convert.side_effect = MemoryError("Cannot allocate memory")
@@ -293,13 +290,13 @@ def test_pdf_with_no_extractable_content():
     from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced
 
     # Create a test PDF file
-    with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as f:
-        f.write(b'%PDF-1.4\n')
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
+        f.write(b"%PDF-1.4\n")
         test_pdf_path = Path(f.name)
 
     try:
         # Mock DocumentConverter to return empty content
-        with patch('docling.document_converter.DocumentConverter') as mock_converter:
+        with patch("docling.document_converter.DocumentConverter") as mock_converter:
             mock_result = Mock()
             mock_document = Mock()
             mock_page = Mock()
@@ -334,13 +331,13 @@ def test_pdf_processing_with_partial_failure():
     from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced
 
     # Create a test PDF file
-    with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as f:
-        f.write(b'%PDF-1.4\n')
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
+        f.write(b"%PDF-1.4\n")
         test_pdf_path = Path(f.name)
 
     try:
         # Mock DocumentConverter with mixed success/failure pages
-        with patch('docling.document_converter.DocumentConverter') as mock_converter:
+        with patch("docling.document_converter.DocumentConverter") as mock_converter:
             mock_result = Mock()
             mock_document = Mock()
 

@@ -1,9 +1,9 @@
 """Chinese text tokenization service using jieba."""
 
+import logging
+
 import jieba
 import jieba.analyse
-from typing import List, Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class ChineseTokenizer:
     """Handles Chinese text segmentation and keyword extraction."""
 
-    def __init__(self, user_dict_path: Optional[str] = None):
+    def __init__(self, user_dict_path: str | None = None):
         """Initialize the tokenizer with optional custom dictionary.
 
         Args:
@@ -29,7 +29,7 @@ class ChineseTokenizer:
 
         self._initialized = True
 
-    def tokenize(self, text: str, cut_all: bool = False) -> List[str]:
+    def tokenize(self, text: str, cut_all: bool = False) -> list[str]:
         """Segment Chinese text into tokens.
 
         Args:
@@ -45,7 +45,7 @@ class ChineseTokenizer:
         tokens = jieba.cut(text, cut_all=cut_all)
         return [token.strip() for token in tokens if token.strip()]
 
-    def tokenize_for_search(self, text: str) -> List[str]:
+    def tokenize_for_search(self, text: str) -> list[str]:
         """Segment text optimized for search (balanced precision/recall).
 
         Args:
@@ -61,12 +61,8 @@ class ChineseTokenizer:
         return [token.strip() for token in tokens if token.strip()]
 
     def extract_keywords(
-        self,
-        text: str,
-        topK: int = 10,
-        withWeight: bool = False,
-        allowPOS: Optional[tuple] = None
-    ) -> List[str] | List[tuple[str, float]]:
+        self, text: str, topK: int = 10, withWeight: bool = False, allowPOS: tuple | None = None
+    ) -> list[str] | list[tuple[str, float]]:
         """Extract keywords using TF-IDF.
 
         Args:
@@ -81,22 +77,13 @@ class ChineseTokenizer:
         if not text or not text.strip():
             return []
 
-        keywords = jieba.analyse.extract_tags(
-            text,
-            topK=topK,
-            withWeight=withWeight,
-            allowPOS=allowPOS
-        )
+        keywords = jieba.analyse.extract_tags(text, topK=topK, withWeight=withWeight, allowPOS=allowPOS)
 
         return keywords
 
     def extract_keywords_textrank(
-        self,
-        text: str,
-        topK: int = 10,
-        withWeight: bool = False,
-        allowPOS: Optional[tuple] = None
-    ) -> List[str] | List[tuple[str, float]]:
+        self, text: str, topK: int = 10, withWeight: bool = False, allowPOS: tuple | None = None
+    ) -> list[str] | list[tuple[str, float]]:
         """Extract keywords using TextRank algorithm.
 
         Args:
@@ -111,16 +98,11 @@ class ChineseTokenizer:
         if not text or not text.strip():
             return []
 
-        keywords = jieba.analyse.textrank(
-            text,
-            topK=topK,
-            withWeight=withWeight,
-            allowPOS=allowPOS
-        )
+        keywords = jieba.analyse.textrank(text, topK=topK, withWeight=withWeight, allowPOS=allowPOS)
 
         return keywords
 
-    def add_word(self, word: str, freq: Optional[int] = None, tag: Optional[str] = None):
+    def add_word(self, word: str, freq: int | None = None, tag: str | None = None):
         """Add a word to the dictionary dynamically.
 
         Args:
@@ -154,10 +136,10 @@ class ChineseTokenizer:
 
 
 # Global tokenizer instance
-_tokenizer: Optional[ChineseTokenizer] = None
+_tokenizer: ChineseTokenizer | None = None
 
 
-def get_tokenizer(user_dict_path: Optional[str] = None) -> ChineseTokenizer:
+def get_tokenizer(user_dict_path: str | None = None) -> ChineseTokenizer:
     """Get or create the global tokenizer instance.
 
     Args:

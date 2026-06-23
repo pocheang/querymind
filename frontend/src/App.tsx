@@ -14,6 +14,7 @@ const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage").then(
 const ProfilePage = lazy(() => import("@/pages/ProfilePage").then(({ ProfilePage }) => ({ default: ProfilePage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(({ ForgotPasswordPage }) => ({ default: ForgotPasswordPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(({ NotFoundPage }) => ({ default: NotFoundPage })));
+const LandingPage = lazy(() => import("@/pages/LandingPage").then(({ LandingPage }) => ({ default: LandingPage })));
 
 function RouteFallback() {
   return <div className="app-loading" aria-live="polite" />;
@@ -167,7 +168,16 @@ export function App() {
             />
           }
         />
-        <Route path="/" element={<Navigate to={user ? "/app" : "/app/login"} replace />} />
+        <Route
+          path="/"
+          element={
+            <LandingPage
+              isLoggedIn={!!user}
+              themeLabel={themeLabel}
+              onThemeToggle={() => setTheme((prev) => nextTheme(prev))}
+            />
+          }
+        />
         <Route path="*" element={<NotFoundPage pathname={location.pathname} />} />
       </Routes>
     </Suspense>
