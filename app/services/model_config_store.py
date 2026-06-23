@@ -49,11 +49,11 @@ def _default_chat_model(provider: str) -> str:
     if provider == "local":
         return "local-evidence"
     if provider == "ollama":
-        return str(settings.ollama_chat_model or "qwen2.5:7b-instruct")
+        return str(settings.ollama_chat_model or "qwen2.5:14b")
     if provider in {"openai", "deepseek", "custom"}:
-        return str(settings.openai_chat_model or "gpt-5.4-codex") if provider != "deepseek" else "deepseek-chat"
+        return str(settings.openai_chat_model or "gpt-4-turbo") if provider != "deepseek" else "deepseek-chat"
     if provider == "anthropic":
-        return str(settings.anthropic_chat_model or "claude-sonnet-4-6")
+        return str(settings.anthropic_chat_model or "claude-opus-4-8")
     return ""
 
 
@@ -63,11 +63,11 @@ def _default_reasoning_model(provider: str) -> str:
     if provider == "local":
         return "local-evidence"
     if provider == "ollama":
-        return str(settings.ollama_reasoning_model or settings.ollama_chat_model or "qwen2.5:7b-instruct")
+        return str(settings.ollama_reasoning_model or "deepseek-r1:32b")
     if provider in {"openai", "deepseek", "custom"}:
-        return str(settings.openai_reasoning_model or settings.openai_chat_model or "gpt-5.4-codex")
+        return str(settings.openai_reasoning_model or settings.openai_chat_model or "gpt-4-turbo")
     if provider == "anthropic":
-        return str(settings.anthropic_reasoning_model or settings.anthropic_chat_model or "claude-sonnet-4-6")
+        return str(settings.anthropic_reasoning_model or settings.anthropic_chat_model or "claude-opus-4-8")
     return ""
 
 
