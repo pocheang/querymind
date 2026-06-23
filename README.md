@@ -31,14 +31,42 @@
 - 📊 **实时监控** - 代理执行可视化、检索分析、性能指标
 - 🚀 **本地优先** - 支持 Ollama、OpenAI、Anthropic 等多种模型
 
-### 🎬 功能演示
+### 🖼️ 界面预览
 
-> 📸 **截图占位符** - 待添加以下截图：
-> - 登录界面
-> - 聊天界面（展示多轮对话）
-> - 知识图谱可视化
-> - 代理执行追踪
-> - 管理控制台
+<table>
+  <tr>
+    <td width="50%">
+      <img src="./docs/images/screenshots/login.png" alt="登录界面">
+      <p align="center"><b>登录界面</b></p>
+    </td>
+    <td width="50%">
+      <img src="./docs/images/screenshots/chat.png" alt="聊天界面">
+      <p align="center"><b>智能问答</b></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="./docs/images/screenshots/agent-tracking.png" alt="代理追踪">
+      <p align="center"><b>代理执行追踪</b></p>
+    </td>
+    <td width="50%">
+      <img src="./docs/images/screenshots/knowledge-graph.png" alt="知识图谱">
+      <p align="center"><b>知识图谱</b></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="./docs/images/screenshots/documents.png" alt="文档管理">
+      <p align="center"><b>文档管理</b></p>
+    </td>
+    <td width="50%">
+      <img src="./docs/images/screenshots/admin-console.png" alt="管理控制台">
+      <p align="center"><b>管理控制台</b></p>
+    </td>
+  </tr>
+</table>
+
+### 🎬 功能演示
 
 ---
 
