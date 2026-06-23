@@ -244,6 +244,7 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
         onRenameSession={actions.renameSession}
         onSwitchAgentMode={helpers.switchAgentMode}
         onPdfTargetFileChange={setPdfTargetFile}
+        onDraftQuestion={helpers.draftPdfQuestion}
         onRefreshDocuments={actions.refreshDocuments}
         onUploadVisibilityChange={setUploadVisibility}
         onMainUploadChange={fileUploadHandlers.onMainUploadChange}
@@ -274,6 +275,7 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
         <ChatTopbar
           themeLabel={themeLabel}
           sidebarCollapsed={sidebarCollapsed}
+          user={user}
           onToggleSidebar={handleSidebarToggle}
           onOpenSettings={() => setSettingsOpen(true)}
           onThemeToggle={onThemeToggle}
@@ -321,7 +323,7 @@ export function ChatPage({ user, onLogout, themeLabel, onThemeToggle }: Props) {
       </main>
 
       <ToastStack toasts={toasts} />
-      <ApiSettings isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <ApiSettings isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} isAdmin={isAdmin} />
       <KeyboardHelp />
     </div>
   );

@@ -52,6 +52,7 @@ type Props = {
   onRenameSession: (sessionId: string, newTitle: string) => Promise<void>;
   onSwitchAgentMode: (mode: AgentClassHint) => void;
   onPdfTargetFileChange: (filename: string) => void;
+  onDraftQuestion: () => void;
   onRefreshDocuments: () => Promise<void>;
   onUploadVisibilityChange: (visibility: "private" | "public") => void;
   onMainUploadChange: (evt: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
@@ -108,6 +109,7 @@ export function ChatSidebar({
   onRenameSession,
   onSwitchAgentMode,
   onPdfTargetFileChange,
+  onDraftQuestion,
   onRefreshDocuments,
   onUploadVisibilityChange,
   onMainUploadChange,
@@ -172,7 +174,7 @@ export function ChatSidebar({
           </div>
           <div className="sidebar-brand-block">
             <span className="sidebar-brand-kicker">{t("components.chat.brandKicker")}</span>
-            <div className="brand">Local RAG</div>
+            <div className="brand">QueryMind</div>
             <p className="muted">{t("components.chat.sidebarDescription")}</p>
           </div>
           <button type="button" className="sidebar-collapse-btn" onClick={onToggleSidebarCollapsed}>
@@ -190,6 +192,7 @@ export function ChatSidebar({
             currentSessionId={currentSessionId}
             busySessionId={busySessionId}
             searchRequestKey={sessionSearchRequest}
+            user={user}
             onCreateSession={onCreateSession}
             onLoadSession={onLoadSession}
             onDeleteSession={onDeleteSession}
@@ -224,6 +227,7 @@ export function ChatSidebar({
           fileInputRef={fileInputRef}
           onSwitchAgentMode={onSwitchAgentMode}
           onPdfTargetFileChange={onPdfTargetFileChange}
+          onDraftQuestion={onDraftQuestion}
           onRefreshDocuments={onRefreshDocuments}
           onUploadVisibilityChange={onUploadVisibilityChange}
           onMainUploadChange={onMainUploadChange}
