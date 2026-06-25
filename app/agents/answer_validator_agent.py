@@ -199,12 +199,20 @@ async def _check_hallucination(answer: str, source_docs: List[Dict]) -> float:
                 continue
 
             # NLI entailment check
-            # Model returns scores for [contradiction, neutral, entailment]
-            # We use the raw score where positive indicates entailment
-            score = model.predict([(source_text, f"The document mentions: {span}")])[0]
+            # Model returns numpy array with shape (1, 3): [contradiction, neutral, entailment]
+            scores = model.predict([(source_text, f"The document mentions: {span}")])
 
-            # Score < 0.3 means not entailed (contradiction or neutral)
-            if score < 0.3:
+            # Extract entailment score (index 2)
+            import numpy as np
+            if isinstance(scores, np.ndarray):
+                # scores has shape (1, 3) - get entailment score
+                entailment_score = float(scores[0, 2]) if scores.ndim > 1 else float(scores[2])
+            else:
+                entailment_score = 0.0
+
+            # Entailment score > 0 means supported by source
+            # We use threshold of 0.5 for entailment
+            if entailment_score < 0.5:
                 unsupported += 1
 
         # Calculate factuality score

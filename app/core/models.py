@@ -546,7 +546,10 @@ def _build_embedding_model_cached(
 
 def get_chat_model(temperature: float | None = None):
     settings = get_settings()
-    override = _request_chat_override() or _global_chat_override()
+    # Priority: Global admin settings (when enabled) > User settings > Environment variables
+    global_override = _global_chat_override()
+    user_override = _request_chat_override()
+    override = global_override or user_override
     if override:
         provider = str(override["provider"])
         backend = _normalize_backend(provider)
@@ -618,7 +621,10 @@ def get_embedding_model():
 
 def get_reasoning_model(temperature: float | None = None):
     settings = get_settings()
-    override = _request_chat_override() or _global_reasoning_override()
+    # Priority: Global admin settings (when enabled) > User settings > Environment variables
+    global_override = _global_reasoning_override()
+    user_override = _request_chat_override()
+    override = global_override or user_override
     if override:
         provider = str(override["provider"])
         backend = _normalize_backend(provider)

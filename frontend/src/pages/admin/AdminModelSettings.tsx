@@ -7,10 +7,10 @@ type ModelProvider = "local" | "ollama" | "openai" | "deepseek" | "anthropic" | 
 const MODEL_PROVIDERS: ModelProvider[] = ["local", "ollama", "openai", "deepseek", "anthropic", "custom"];
 const MODEL_DEFAULTS: Record<ModelProvider, Pick<AdminModelSettingsView, "base_url" | "chat_model" | "reasoning_model" | "embedding_model">> = {
   local: { base_url: "", chat_model: "local-evidence", reasoning_model: "local-evidence", embedding_model: "local-hash-384" },
-  ollama: { base_url: "http://localhost:11434", chat_model: "qwen2.5:7b-instruct", reasoning_model: "qwen2.5:7b-instruct", embedding_model: "nomic-embed-text" },
-  openai: { base_url: "https://api.openai.com/v1", chat_model: "gpt-5.4-codex", reasoning_model: "gpt-5.4-codex", embedding_model: "text-embedding-3-small" },
-  deepseek: { base_url: "https://api.deepseek.com/v1", chat_model: "deepseek-chat", reasoning_model: "deepseek-reasoner", embedding_model: "text-embedding-3-small" },
-  anthropic: { base_url: "https://api.anthropic.com", chat_model: "claude-sonnet-4-6", reasoning_model: "claude-sonnet-4-6", embedding_model: "" },
+  ollama: { base_url: "http://localhost:11434", chat_model: "qwen3:14b", reasoning_model: "deepseek-r1:32b", embedding_model: "nomic-embed-text" },
+  openai: { base_url: "https://api.openai.com/v1", chat_model: "gpt-5.5", reasoning_model: "gpt-5.5-thinking", embedding_model: "text-embedding-3-small" },
+  deepseek: { base_url: "https://api.deepseek.com/v1", chat_model: "deepseek-v4", reasoning_model: "deepseek-r1", embedding_model: "text-embedding-3-small" },
+  anthropic: { base_url: "https://api.anthropic.com", chat_model: "claude-opus-4-8", reasoning_model: "claude-opus-4-8", embedding_model: "" },
   custom: { base_url: "", chat_model: "", reasoning_model: "", embedding_model: "" },
 };
 
