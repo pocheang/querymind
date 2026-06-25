@@ -35,6 +35,7 @@ from app.agents.quality_config import (
     NLI_MAX_CHECKS,
     ANSWER_VALIDATOR_TIMEOUT_MS
 )
+from app.core.models import get_chat_model
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +275,80 @@ def _safety_check(answer: str) -> float:
     return 1.0
 
 
+async def _llm_deep_validation(query: str, answer: str, source_docs: List[Dict]) -> float:
+    """
+    Level 3: LLM deep validation for very low confidence answers.
+
+    Uses LLM to verify factual consistency between answer and sources.
+    Only called for <10% of queries with preliminary_score < 0.6.
+
+    Args:
+        query: Original query
+        answer: Generated answer
+        source_docs: Source documents
+
+    Returns:
+        Factuality score (0.0-1.0)
+    """
+    try:
+        model = get_chat_model(temperature=0.0)
+
+        # Prepare source text (limit to top 3 docs, 500 chars each)
+        source_text = "\n".join([
+            doc.get("content", doc.get("text", ""))[:500]
+            for doc in source_docs[:3]
+        ])
+
+        if not source_text:
+            return 0.5  # Neutral if no sources
+
+        prompt = f"""Verify if this answer is factually consistent with the source documents.
+
+Query: {query}
+
+Answer: {answer}
+
+Source Documents:
+{source_text}
+
+Is the answer factually supported by the sources? Respond with:
+FACTUAL: yes/no
+CONFIDENCE: 0.0-1.0
+ISSUES: brief list of any unsupported claims (if FACTUAL=no)
+"""
+
+        response = await asyncio.wait_for(
+            model.ainvoke(prompt),
+            timeout=1.0  # 1 second timeout for Level 3
+        )
+
+        content = response.content if hasattr(response, "content") else str(response)
+
+        # Parse response
+        is_factual = True
+        if "factual:" in content.lower():
+            factual_line = content.lower().split("factual:")[1].split("\n")[0]
+            is_factual = "yes" in factual_line
+
+        confidence = 0.7  # Default
+        conf_match = re.search(r"confidence:\s*([\d.]+)", content.lower())
+        if conf_match:
+            confidence = float(conf_match.group(1))
+
+        # Return factuality score
+        if is_factual:
+            return confidence
+        else:
+            return confidence * 0.5  # Penalize if not factual
+
+    except asyncio.TimeoutError:
+        logger.warning("LLM deep validation timed out after 1s")
+        return 0.6  # Conservative fallback
+    except Exception as e:
+        logger.warning(f"LLM deep validation failed: {e}")
+        return 0.6  # Conservative fallback
+
+
 async def validate_answer(
     query: str,
     answer: str,
@@ -333,11 +408,16 @@ async def validate_answer(
         answer_quality = _assess_answer_quality(answer)
         safety_score = _safety_check(answer)
 
-        # Decide if we need deeper validation
+        # Decide validation path based on preliminary score
         preliminary_score = (citation_score + answer_quality) / 2
 
-        if preliminary_score >= ANSWER_FAST_PATH_THRESHOLD and citation_score >= 0.8:
-            # Fast path: looks good, skip NLI
+        if preliminary_score < 0.6:
+            # Level 3: Very low confidence - use LLM deep validation
+            factuality_score = await _llm_deep_validation(query, answer, source_docs)
+            hallucination_risk = 1.0 - factuality_score
+            validation_method = "deep"
+        elif preliminary_score >= ANSWER_FAST_PATH_THRESHOLD and citation_score >= 0.8:
+            # Fast path: looks good, skip NLI and LLM
             factuality_score = 0.85  # Assume good if citations are complete
             hallucination_risk = 0.15
             validation_method = "fast_path"

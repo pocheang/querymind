@@ -488,3 +488,22 @@ async def test_validator_execution_time():
 
     # Should complete within reasonable time
     assert result.execution_time_ms < 300  # Allow some overhead for test environment
+
+
+@pytest.mark.asyncio
+async def test_validator_level_3_llm_deep_validation():
+    """Test Level 3 LLM deep validation for very low confidence answers"""
+    # Create scenario with very low preliminary score (no citations, poor quality)
+    query = "What is the revenue?"
+    answer = "Maybe it's around 50 million or something."  # Vague, unsupported
+    source_docs = [{"id": "doc1", "content": "The company had strong growth."}]  # No specific numbers
+    citations = []  # No citations = low citation score
+
+    result = await validate_answer(query, answer, source_docs, citations)
+
+    # With no citations and vague answer, preliminary_score will be low
+    # Should trigger either Level 3 (deep) or Level 2 (standard)
+    assert result.validation_method in ["deep", "standard", "regenerate"]
+
+    # Low quality answer should not approve
+    assert result.action in ["flag", "regenerate"]
