@@ -40,6 +40,7 @@ class RouteDecision(BaseModel):
     reason: str
     skill: str
     agent_class: str
+    confidence: float = 0.7  # Default confidence for backward compatibility
 
 
 ROUTER_PROMPT = """
@@ -143,6 +144,7 @@ def decide_route(
             ),
             skill=SKILL_DEFAULT,
             agent_class=forced or AGENT_CLASS_GENERAL,
+            confidence=0.95,  # High confidence for smalltalk detection
         )
 
     # Select intent classification method
@@ -232,6 +234,7 @@ Suggested skill: {skill}"""
         reason=reason,
         skill=skill,
         agent_class=agent_class,
+        confidence=confidence,
     )
 
 

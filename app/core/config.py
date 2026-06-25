@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     pdf_enable_chart_extraction: bool = Field(
         default=False, alias="PDF_ENABLE_CHART_EXTRACTION"
     )  # Extract charts with vision
-    pdf_chart_vision_model: str = Field(default="gpt-4-vision", alias="PDF_CHART_VISION_MODEL")  # gpt-4-vision|claude-3
+    pdf_chart_vision_model: str = Field(default="gpt-4o", alias="PDF_CHART_VISION_MODEL")  # gpt-4o|claude-opus-4-8
     pdf_enable_structure_analysis: bool = Field(
         default=False, alias="PDF_ENABLE_STRUCTURE_ANALYSIS"
     )  # Document structure
@@ -230,8 +230,8 @@ class Settings(BaseSettings):
     people_detection_mode: str = Field(default="face", alias="PEOPLE_DETECTION_MODE")
     image_caption_enabled: bool = Field(default=False, alias="IMAGE_CAPTION_ENABLED")
     image_caption_backend: str = Field(default="auto", alias="IMAGE_CAPTION_BACKEND")
-    openai_vision_model: str = Field(default="gpt-4.1-mini", alias="OPENAI_VISION_MODEL")
-    ollama_vision_model: str = Field(default="llava:7b", alias="OLLAMA_VISION_MODEL")
+    openai_vision_model: str = Field(default="gpt-4o", alias="OPENAI_VISION_MODEL")
+    ollama_vision_model: str = Field(default="llama4-scout:8b", alias="OLLAMA_VISION_MODEL")
     cors_enabled: bool = Field(default=True, alias="CORS_ENABLED")
     cors_allow_origins: str = Field(
         default="http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174,http://127.0.0.1:8000,http://localhost:8000",

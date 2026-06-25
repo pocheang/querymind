@@ -90,8 +90,8 @@ class Settings(BaseSettings):
     CHROMA_COLLECTION_NAME: str = "documents"
     
     # ============ LLM 配置 ============
-    LLM_PROVIDER: str = "openai"  # openai / anthropic / ollama
-    LLM_MODEL: str = "gpt-4"
+    LLM_PROVIDER: str = "openai"  # openai / anthropic / ollama / deepseek
+    LLM_MODEL: str = "gpt-5.5"
     LLM_TEMPERATURE: float = 0.7
     LLM_MAX_TOKENS: int = 2000
     
@@ -107,7 +107,7 @@ class Settings(BaseSettings):
     
     # ============ Embedding 配置 ============
     EMBEDDING_PROVIDER: str = "openai"
-    EMBEDDING_MODEL: str = "text-embedding-ada-002"
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536
     
     # ============ 检索配置 ============
@@ -160,7 +160,7 @@ settings = Settings()
 ```bash
 # 通过环境变量覆盖配置
 export LLM_PROVIDER=ollama
-export LLM_MODEL=llama3
+export LLM_MODEL=qwen3:14b
 export DEBUG=true
 
 # 启动服务

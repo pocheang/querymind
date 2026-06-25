@@ -39,6 +39,7 @@ from app.api.routes import (
     analytics,
     auth,
     documents,
+    enhanced_query,
     evaluation,
     health,
     prompts,
@@ -84,6 +85,7 @@ _ROUTE_MODULES = (
     evaluation,
     advanced_rag,
     analytics,
+    enhanced_query,
 )
 
 # Setup logging
@@ -228,6 +230,7 @@ app.include_router(evaluation.router)
 app.include_router(advanced_rag.router)
 app.include_router(analytics.router)
 app.include_router(admin_graph_rag.router)
+app.include_router(enhanced_query.router)
 
 # React frontend serving
 react_dist_dir = Path(__file__).resolve().parents[2] / "frontend" / "dist"
