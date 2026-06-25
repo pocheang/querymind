@@ -388,8 +388,8 @@ class EnhancedRAGWorkflow:
         answer_validation = await validate_answer(
             query=query,
             answer=answer,
-            retrieved_chunks=citations,
-            context_text=context,
+            source_docs=citations,
+            citations=citations,
         )
 
         # Retry logic: regenerate if action is "regenerate"
@@ -421,8 +421,8 @@ class EnhancedRAGWorkflow:
             answer_validation = await validate_answer(
                 query=query,
                 answer=answer,
-                retrieved_chunks=citations,
-                context_text=context,
+                source_docs=citations,
+                citations=citations,
             )
 
         logger.info(

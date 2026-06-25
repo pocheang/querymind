@@ -58,6 +58,11 @@ async def update_conversation_context(
     """
     now = datetime.utcnow()
 
+    # Periodic cleanup to prevent memory leak (every ~10th call)
+    # Use session_id hash to distribute cleanup across sessions
+    if hash(session_id) % 10 == 0:
+        cleanup_expired_contexts()
+
     # Get or create context
     if session_id not in _context_store:
         context = ConversationContext(
