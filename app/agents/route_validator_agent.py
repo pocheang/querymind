@@ -2,6 +2,7 @@
 Route Validator Agent - Validates router decisions with layered approach.
 """
 
+import asyncio
 import logging
 import time
 import re
@@ -12,7 +13,7 @@ from app.agents.quality_config import (
     ROUTE_HIGH_CONFIDENCE_THRESHOLD,
     ROUTE_MEDIUM_CONFIDENCE_THRESHOLD,
     ROUTE_LOW_CONFIDENCE_THRESHOLD,
-    ROUTE_VALIDATOR_USE_CACHE,
+    ROUTE_VALIDATOR_TIMEOUT_MS,
 )
 from app.agents.router_agent import RouteDecision
 from app.agents.agent_config import VALID_ROUTES, VALID_SKILLS
@@ -109,7 +110,10 @@ ALTERNATIVE_SKILL: skill (if VALID=no)
 """
 
     try:
-        response = await model.ainvoke(prompt)
+        response = await asyncio.wait_for(
+            model.ainvoke(prompt),
+            timeout=ROUTE_VALIDATOR_TIMEOUT_MS / 1000.0
+        )
         content = response.content if hasattr(response, "content") else str(response)
 
         is_valid = "yes" in content.lower().split("valid:")[1].split("\n")[0] if "valid:" in content.lower() else True
@@ -137,6 +141,15 @@ ALTERNATIVE_SKILL: skill (if VALID=no)
             "confidence": confidence,
             "reason": reason,
             "alternative": alternative
+        }
+
+    except asyncio.TimeoutError:
+        logger.warning(f"LLM validation timed out after {ROUTE_VALIDATOR_TIMEOUT_MS}ms")
+        return {
+            "is_valid": True,
+            "confidence": 0.7,
+            "reason": "llm_timeout",
+            "alternative": None
         }
 
     except Exception as e:
