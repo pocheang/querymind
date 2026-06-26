@@ -170,6 +170,9 @@ def cached_router_decision(func: Callable) -> Callable:
     """
     Decorator to cache router decisions.
 
+    Cache key includes: question, agent_class_hint, use_reasoning, use_llm_intent
+    to prevent collisions between different routing configurations (P2-8 fix).
+
     Usage:
         @cached_router_decision
         def decide_route(question: str, ...) -> RouteDecision:
@@ -177,8 +180,14 @@ def cached_router_decision(func: Callable) -> Callable:
     """
 
     def wrapper(question: str, *args, **kwargs):
-        # Create cache key
-        cache_key = _make_cache_key("router", question, kwargs.get("agent_class_hint"), kwargs.get("use_reasoning"))
+        # Create cache key with all relevant parameters (P2-8 fix)
+        cache_key = _make_cache_key(
+            "router",
+            question,
+            kwargs.get("agent_class_hint"),
+            kwargs.get("use_reasoning"),
+            kwargs.get("use_llm_intent"),  # Add this to prevent collisions
+        )
 
         # Try cache first
         cached_result = _router_decision_cache.get(cache_key)
