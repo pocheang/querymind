@@ -114,6 +114,15 @@ async def lifespan(app: FastAPI):
     # Start shadow queue for background processing
     shadow_queue.start()
 
+    # Warmup: Pre-load NLI model to avoid first-query delay (P1-5 fix)
+    try:
+        from app.agents.answer_validator_agent import _get_nli_model
+        logger.info("Warming up NLI model for hallucination detection...")
+        _get_nli_model()  # Lazy load on startup
+        logger.info("✓ NLI model loaded successfully")
+    except Exception as e:
+        logger.warning(f"NLI model warmup failed (non-critical): {e}")
+
     # Start agent execution tracker periodic cleanup
     from app.services.agent_execution_tracker import get_tracker
 

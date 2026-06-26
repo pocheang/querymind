@@ -305,65 +305,80 @@ class EnhancedRAGWorkflow:
         retrieval_strategy: Optional[str],
     ) -> Dict[str, Any]:
         """
-        Execute retrieval based on route decision.
+        Execute retrieval based on route decision with exception isolation.
 
         Returns:
             Dictionary with context, citations, chunks, and metadata
         """
         route = route_decision.route
 
-        if route == "graph":
-            # Graph RAG retrieval
-            graph_result = run_graph_rag(
-                question=query,
-                allowed_sources=allowed_sources,
-            )
+        try:
+            if route == "graph":
+                # Graph RAG retrieval
+                graph_result = run_graph_rag(
+                    question=query,
+                    allowed_sources=allowed_sources,
+                )
+                return {
+                    "context": graph_result.get("context", ""),
+                    "citations": graph_result.get("citations", []),
+                    "chunks": self._extract_chunks_from_graph(graph_result),
+                    "metadata": {"route": "graph"},
+                }
+
+            elif route == "hybrid":
+                # Hybrid: combine vector + graph
+                vector_result = run_vector_rag(
+                    question=query,
+                    allowed_sources=allowed_sources,
+                    retrieval_strategy=retrieval_strategy,
+                    agent_class=route_decision.agent_class,
+                )
+                graph_result = run_graph_rag(
+                    question=query,
+                    allowed_sources=allowed_sources,
+                )
+
+                # Merge contexts
+                combined_context = f"{vector_result.get('context', '')}\n\n{graph_result.get('context', '')}"
+                combined_citations = vector_result.get("citations", []) + graph_result.get("citations", [])
+
+                return {
+                    "context": combined_context,
+                    "citations": combined_citations,
+                    "chunks": self._extract_chunks_from_vector(vector_result),
+                    "metadata": {"route": "hybrid"},
+                }
+
+            else:
+                # Default: vector RAG
+                vector_result = run_vector_rag(
+                    question=query,
+                    allowed_sources=allowed_sources,
+                    retrieval_strategy=retrieval_strategy,
+                    agent_class=route_decision.agent_class,
+                )
+                return {
+                    "context": vector_result.get("context", ""),
+                    "citations": vector_result.get("citations", []),
+                    "chunks": self._extract_chunks_from_vector(vector_result),
+                    "metadata": {
+                        "route": "vector",
+                        "retrieved_count": vector_result.get("retrieved_count", 0),
+                    },
+                }
+
+        except Exception as e:
+            logger.error(f"Retrieval failed for route={route}: {e}", exc_info=True)
+            # Fallback: return empty result with error metadata
             return {
-                "context": graph_result.get("context", ""),
-                "citations": graph_result.get("citations", []),
-                "chunks": self._extract_chunks_from_graph(graph_result),
-                "metadata": {"route": "graph"},
-            }
-
-        elif route == "hybrid":
-            # Hybrid: combine vector + graph
-            vector_result = run_vector_rag(
-                question=query,
-                allowed_sources=allowed_sources,
-                retrieval_strategy=retrieval_strategy,
-                agent_class=route_decision.agent_class,
-            )
-            graph_result = run_graph_rag(
-                question=query,
-                allowed_sources=allowed_sources,
-            )
-
-            # Merge contexts
-            combined_context = f"{vector_result.get('context', '')}\n\n{graph_result.get('context', '')}"
-            combined_citations = vector_result.get("citations", []) + graph_result.get("citations", [])
-
-            return {
-                "context": combined_context,
-                "citations": combined_citations,
-                "chunks": self._extract_chunks_from_vector(vector_result),
-                "metadata": {"route": "hybrid"},
-            }
-
-        else:
-            # Default: vector RAG
-            vector_result = run_vector_rag(
-                question=query,
-                allowed_sources=allowed_sources,
-                retrieval_strategy=retrieval_strategy,
-                agent_class=route_decision.agent_class,
-            )
-            return {
-                "context": vector_result.get("context", ""),
-                "citations": vector_result.get("citations", []),
-                "chunks": self._extract_chunks_from_vector(vector_result),
+                "context": f"检索过程遇到错误：{str(e)}。请尝试重新提问或换个方式询问。",
+                "citations": [],
+                "chunks": [],
                 "metadata": {
-                    "route": "vector",
-                    "retrieved_count": vector_result.get("retrieved_count", 0),
+                    "route": route,
+                    "error": str(e),
+                    "fallback": True,
                 },
             }
 
