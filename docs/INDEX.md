@@ -1,7 +1,7 @@
 # Documentation Index
 
 **Status**: Public
-**Last Updated**: 2026-06-02
+**Last Updated**: 2026-06-23
 **Purpose**: Complete index of public Multi-Agent Local RAG documentation
 
 This index covers only publicly published documentation. Internal records
@@ -70,6 +70,8 @@ under `internal_docs/` and excluded from GitHub. See
 
 ## Releases
 
+- [releases/RELEASE_NOTES_v0.5.0.md](./releases/RELEASE_NOTES_v0.5.0.md)
+- [releases/RELEASE_NOTES_v0.4.5.md](./releases/RELEASE_NOTES_v0.4.5.md)
 - [releases/RELEASE_NOTES_v0.4.3.md](./releases/RELEASE_NOTES_v0.4.3.md)
 - [releases/RELEASE_NOTES_v0.4.2.md](./releases/RELEASE_NOTES_v0.4.2.md)
 - [releases/RELEASE_NOTES_v0.4.1.md](./releases/RELEASE_NOTES_v0.4.1.md)

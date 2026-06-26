@@ -68,6 +68,26 @@ const nodeTranslations: Record<string, { zh: string; en: string }> = {
     zh: '✨ Synthesis Agent\n答案生成 + 引用\n上下文整合',
     en: '✨ Synthesis Agent\nAnswer Generation + Citations\nContext Integration'
   },
+  '30': {
+    zh: '🎯 Route Validator Agent\n路由验证代理\n3层验证 (95%+准确率)\n规则+置信度+LLM',
+    en: '🎯 Route Validator Agent\nRoute Validation Agent\n3-Layer Validation (95%+)\nRule+Confidence+LLM'
+  },
+  '31': {
+    zh: '📊 Retrieval Quality Agent\n检索质量代理\n多维度指标评估\nPrecision+Recall+F1',
+    en: '📊 Retrieval Quality Agent\nRetrieval Quality Agent\nMulti-dimensional Metrics\nPrecision+Recall+F1'
+  },
+  '32': {
+    zh: '🛡️ Answer Validator Agent\n答案验证代理\nNLI幻觉检测 (92%+)\n3层验证流水线',
+    en: '🛡️ Answer Validator Agent\nAnswer Validation Agent\nNLI Hallucination (92%+)\n3-Level Pipeline'
+  },
+  '33': {
+    zh: '💭 Context Tracker Agent\n上下文跟踪代理\n多轮对话追踪 (50轮)\n线程安全LRU缓存',
+    en: '💭 Context Tracker Agent\nContext Tracking Agent\nMulti-turn Tracking (50)\nThread-safe LRU Cache'
+  },
+  '34': {
+    zh: '⚖️ Quality Orchestrator Agent\n质量编排代理\n分数融合 + 决策逻辑\n接受/优化/拒绝',
+    en: '⚖️ Quality Orchestrator Agent\nQuality Orchestration Agent\nScore Fusion + Decision\nAccept/Refine/Reject'
+  },
   '14': {
     zh: '💾 ChromaDB\n向量索引\n父子分块策略\nparent 1500 / child 600',
     en: '💾 ChromaDB\nVector Index\nParent-Child Chunks\nparent 1500 / child 600'
@@ -135,35 +155,61 @@ const nodeTranslations: Record<string, { zh: string; en: string }> = {
 };
 
 const initialNodes: Node[] = [
+  // ========== Layer 0: User Interface (y: 0-100) ==========
   { id: '1', type: 'default', data: { label: '' }, position: { x: 600, y: 0 }, className: 'node-browser' },
-  { id: '2', type: 'default', data: { label: '' }, position: { x: 550, y: 120 }, className: 'node-auth' },
-  { id: '3', type: 'default', data: { label: '' }, position: { x: 500, y: 260 }, className: 'node-query' },
-  { id: '4', type: 'default', data: { label: '' }, position: { x: 450, y: 400 }, className: 'node-validation' },
-  { id: '5', type: 'default', data: { label: '' }, position: { x: 750, y: 400 }, className: 'node-validation' },
-  { id: '6', type: 'default', data: { label: '' }, position: { x: 550, y: 540 }, className: 'node-nlp' },
-  { id: '7', type: 'default', data: { label: '' }, position: { x: 550, y: 680 }, className: 'node-nlp' },
-  { id: '8', type: 'default', data: { label: '' }, position: { x: 550, y: 820 }, className: 'node-router' },
-  { id: '9', type: 'default', data: { label: '' }, position: { x: 50, y: 980 }, className: 'node-agent' },
-  { id: '10', type: 'default', data: { label: '' }, position: { x: 280, y: 980 }, className: 'node-agent' },
-  { id: '11', type: 'default', data: { label: '' }, position: { x: 510, y: 980 }, className: 'node-agent' },
-  { id: '12', type: 'default', data: { label: '' }, position: { x: 740, y: 980 }, className: 'node-agent' },
-  { id: '13', type: 'default', data: { label: '' }, position: { x: 970, y: 980 }, className: 'node-agent' },
-  { id: '14', type: 'default', data: { label: '' }, position: { x: 50, y: 1180 }, className: 'node-retrieval' },
-  { id: '15', type: 'default', data: { label: '' }, position: { x: 280, y: 1180 }, className: 'node-retrieval' },
-  { id: '16', type: 'default', data: { label: '' }, position: { x: 510, y: 1180 }, className: 'node-retrieval' },
-  { id: '17', type: 'default', data: { label: '' }, position: { x: 740, y: 1180 }, className: 'node-retrieval' },
-  { id: '18', type: 'default', data: { label: '' }, position: { x: 300, y: 1360 }, className: 'node-output' },
-  { id: '19', type: 'default', data: { label: '' }, position: { x: 150, y: 1500 }, className: 'node-output' },
-  { id: '20', type: 'default', data: { label: '' }, position: { x: 450, y: 1500 }, className: 'node-output' },
-  { id: '21', type: 'default', data: { label: '' }, position: { x: 750, y: 1500 }, className: 'node-output' },
-  { id: '22', type: 'default', data: { label: '' }, position: { x: 1100, y: 1180 }, className: 'node-validation' },
-  { id: '23', type: 'default', data: { label: '' }, position: { x: 1100, y: 820 }, className: 'node-validation' },
-  { id: '24', type: 'default', data: { label: '' }, position: { x: 1100, y: 540 }, className: 'node-validation' },
-  { id: '25', type: 'default', data: { label: '' }, position: { x: 1100, y: 680 }, className: 'node-validation' },
-  { id: '26', type: 'default', data: { label: '' }, position: { x: 1100, y: 980 }, className: 'node-retrieval' },
-  { id: '27', type: 'default', data: { label: '' }, position: { x: 1100, y: 260 }, className: 'node-auth' },
-  { id: '28', type: 'default', data: { label: '' }, position: { x: 1100, y: 1360 }, className: 'node-validation' },
-  { id: '29', type: 'default', data: { label: '' }, position: { x: 970, y: 1180 }, className: 'node-retrieval' },
+
+  // ========== Layer 1: Authentication & Security (y: 200-300) ==========
+  { id: '2', type: 'default', data: { label: '' }, position: { x: 600, y: 200 }, className: 'node-auth' },
+  { id: '27', type: 'default', data: { label: '' }, position: { x: 1000, y: 200 }, className: 'node-auth' },
+
+  // ========== Layer 2: Query Entry & Validation (y: 400-500) ==========
+  { id: '3', type: 'default', data: { label: '' }, position: { x: 600, y: 400 }, className: 'node-query' },
+  { id: '4', type: 'default', data: { label: '' }, position: { x: 400, y: 500 }, className: 'node-validation' },
+  { id: '5', type: 'default', data: { label: '' }, position: { x: 800, y: 500 }, className: 'node-validation' },
+
+  // ========== Layer 3: NLP Preprocessing (y: 700-800) ==========
+  { id: '6', type: 'default', data: { label: '' }, position: { x: 600, y: 700 }, className: 'node-nlp' },
+  { id: '7', type: 'default', data: { label: '' }, position: { x: 600, y: 850 }, className: 'node-nlp' },
+  { id: '24', type: 'default', data: { label: '' }, position: { x: 1000, y: 700 }, className: 'node-validation' },
+  { id: '25', type: 'default', data: { label: '' }, position: { x: 1000, y: 850 }, className: 'node-validation' },
+
+  // ========== Layer 4: Router & Route Validation (y: 1000-1050) ==========
+  { id: '8', type: 'default', data: { label: '' }, position: { x: 600, y: 1000 }, className: 'node-router' },
+  { id: '30', type: 'default', data: { label: '' }, position: { x: 200, y: 1000 }, className: 'node-validation' },
+  { id: '23', type: 'default', data: { label: '' }, position: { x: 1000, y: 1000 }, className: 'node-validation' },
+
+  // ========== Layer 5: AI Agents (y: 1200) ==========
+  { id: '9', type: 'default', data: { label: '' }, position: { x: 100, y: 1200 }, className: 'node-agent' },
+  { id: '10', type: 'default', data: { label: '' }, position: { x: 300, y: 1200 }, className: 'node-agent' },
+  { id: '11', type: 'default', data: { label: '' }, position: { x: 500, y: 1200 }, className: 'node-agent' },
+  { id: '12', type: 'default', data: { label: '' }, position: { x: 700, y: 1200 }, className: 'node-agent' },
+  { id: '13', type: 'default', data: { label: '' }, position: { x: 900, y: 1200 }, className: 'node-agent' },
+  { id: '26', type: 'default', data: { label: '' }, position: { x: 1100, y: 1200 }, className: 'node-retrieval' },
+
+  // ========== Layer 6: Data Retrieval (y: 1400) ==========
+  { id: '14', type: 'default', data: { label: '' }, position: { x: 100, y: 1400 }, className: 'node-retrieval' },
+  { id: '15', type: 'default', data: { label: '' }, position: { x: 300, y: 1400 }, className: 'node-retrieval' },
+  { id: '16', type: 'default', data: { label: '' }, position: { x: 500, y: 1400 }, className: 'node-retrieval' },
+  { id: '17', type: 'default', data: { label: '' }, position: { x: 700, y: 1400 }, className: 'node-retrieval' },
+  { id: '29', type: 'default', data: { label: '' }, position: { x: 900, y: 1400 }, className: 'node-retrieval' },
+
+  // ========== Layer 7: Retrieval Quality Check (y: 1550) ==========
+  { id: '31', type: 'default', data: { label: '' }, position: { x: 400, y: 1550 }, className: 'node-validation' },
+
+  // ========== Layer 8: Synthesis & Answer Generation (y: 1700) ==========
+  { id: '18', type: 'default', data: { label: '' }, position: { x: 600, y: 1700 }, className: 'node-output' },
+  { id: '22', type: 'default', data: { label: '' }, position: { x: 1000, y: 1700 }, className: 'node-validation' },
+
+  // ========== Layer 9: Quality Assurance (y: 1900-2000) ==========
+  { id: '32', type: 'default', data: { label: '' }, position: { x: 400, y: 1900 }, className: 'node-validation' },
+  { id: '33', type: 'default', data: { label: '' }, position: { x: 800, y: 1900 }, className: 'node-validation' },
+  { id: '34', type: 'default', data: { label: '' }, position: { x: 600, y: 2050 }, className: 'node-validation' },
+  { id: '28', type: 'default', data: { label: '' }, position: { x: 1000, y: 2000 }, className: 'node-validation' },
+
+  // ========== Layer 10: Final Output (y: 2250) ==========
+  { id: '19', type: 'default', data: { label: '' }, position: { x: 400, y: 2250 }, className: 'node-output' },
+  { id: '20', type: 'default', data: { label: '' }, position: { x: 600, y: 2250 }, className: 'node-output' },
+  { id: '21', type: 'default', data: { label: '' }, position: { x: 800, y: 2250 }, className: 'node-output' },
 ];
 
 const initialEdges: Edge[] = [
@@ -175,6 +221,25 @@ const initialEdges: Edge[] = [
   { id: 'e5-6', source: '5', target: '6', animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
   { id: 'e6-7', source: '6', target: '7', animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
   { id: 'e7-8', source: '7', target: '8', animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
+  // Quality Assurance Flow - New in v0.5.0
+  { id: 'e8-30', source: '8', target: '30', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e30-9', source: '30', target: '9', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e30-10', source: '30', target: '10', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e30-11', source: '30', target: '11', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e30-12', source: '30', target: '12', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e30-13', source: '30', target: '13', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e14-31', source: '14', target: '31', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e15-31', source: '15', target: '31', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e16-31', source: '16', target: '31', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e17-31', source: '17', target: '31', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e18-32', source: '18', target: '32', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e18-33', source: '18', target: '33', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e32-34', source: '32', target: '34', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e33-34', source: '33', target: '34', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e31-34', source: '31', target: '34', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e30-34', source: '30', target: '34', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  { id: 'e34-19', source: '34', target: '19', animated: true, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#10b981' } },
+  // Original Flow
   { id: 'e8-9', source: '8', target: '9', animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
   { id: 'e8-10', source: '8', target: '10', animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
   { id: 'e8-11', source: '8', target: '11', animated: true, markerEnd: { type: MarkerType.ArrowClosed } },

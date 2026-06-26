@@ -4,6 +4,22 @@ Complete release history for the Multi-Agent Local RAG system.
 
 ## Latest Releases
 
+### [v0.5.0](./RELEASE_NOTES_v0.5.0.md) - 2026-06-23
+**Permission System & Code Quality**
+- Comprehensive RBAC system with Viewer and Analyst roles
+- Frontend permission integration with React hooks
+- Data isolation and user-scoped access
+- Code quality improvements and documentation cleanup
+- 100% backward compatible
+
+### [v0.4.5](./RELEASE_NOTES_v0.4.5.md) - 2026-06-19
+**System Optimization**
+- Graph RAG Agent optimization with unified architecture
+- LRU caching system (3-level specialized caches)
+- Configuration centralization (350+ constants)
+- Performance improvements (50-93% latency reduction)
+- Zero code duplication
+
 ### [v0.4.3](./RELEASE_NOTES_v0.4.3.md) - 2026-06-02
 **Exception Handling Excellence**
 - Complete overhaul of exception handling (55 handlers optimized)
@@ -56,9 +72,10 @@ Complete release history for the Multi-Agent Local RAG system.
 
 ## Release Naming Convention
 
-- **v0.4.x** - Current stable series
-- **v0.3.x** - Previous stable series
-- **v0.2.x** - Legacy series
+- **v0.5.x** - Current stable series
+- **v0.4.x** - Previous stable series
+- **v0.3.x** - Legacy series
+- **v0.2.x** - Historical series
 
 ## How to Read Release Notes
 
@@ -71,5 +88,5 @@ Each release note contains:
 
 ---
 
-**Latest Update**: 2026-06-02  
-**Total Releases Documented**: 5
+**Latest Update**: 2026-06-23  
+**Total Releases Documented**: 7

@@ -15,8 +15,9 @@ For current release notes, also see [../CHANGELOG.md](../CHANGELOG.md).
 
 | Version | Date | Type | Public Summary |
 | --- | --- | --- | --- |
-| v0.5.0 | 2026-06-23 | Security & Quality | Comprehensive RBAC system with Viewer/Analyst roles, frontend permission integration, project cleanup, enhanced documentation standards |
+| v0.5.0 | 2026-06-26 | Quality & Security | Quality Assurance system (5 agents), Architecture page optimization (10-layer layout), RBAC system, 2026 AI models, enhanced documentation |
 | v0.4.6 | 2026-06-19 | Stability & Security | Fixed 13 critical backend issues: race conditions, resource leaks, security vulnerabilities. 67% memory reduction, auto-recovery mechanisms |
+| v0.4.5 | 2026-06-19 | Performance | Graph RAG Agent optimization with unified architecture, LRU caching system, configuration centralization, 50-93% latency reduction |
 | v0.4.4 | 2026-06-17 | UI Enhancement | Admin Console pagination system, internationalization (i18n) infrastructure with English/Chinese support, UI optimization and accessibility improvements |
 | v0.4.1 | 2026-05-20 | Refactoring | Code quality improvements: Eliminated ~2,700 lines of duplicate code, created 19 reusable modules, standardized error handling and API patterns |
 | v0.4.0 | 2026-05-16 | Major Feature | Interview demo features: Performance comparison, Agent visualization, Chinese NLP, Advanced RAG, Streaming PDF, Demo dataset, Modern UI redesign |
@@ -106,7 +107,45 @@ Key metrics:
 - 67% memory reduction
 - Zero breaking changes
 
-## v0.4.1
+## v0.4.5
+
+Public highlights:
+
+- **Graph RAG Agent Optimization**:
+  - Unified dual-version architecture: Merged graph_rag_agent.py and graph_rag_agent_enhanced.py
+  - Eliminated 93.8% code duplication
+  - Smart routing based on configuration and document quality
+  - Clear layered design: Management → Agent → Infrastructure → Tools
+  
+- **LRU Caching System**:
+  - 3-level specialized caches with decorators
+  - PDF quality analysis cache (500 entries, 1h TTL)
+  - Entity extraction cache (500 entries, 1h TTL)
+  - Document context cache (200 entries, 30min TTL)
+  - Real-time cache statistics and monitoring
+  
+- **Configuration Centralization**:
+  - 350+ configuration constants centrally managed
+  - 15+ pre-compiled regex patterns
+  - Immutable configuration with type safety
+  
+- **Management API**:
+  - 4 monitoring endpoints for cache stats, clearing, config, health
+  
+- **System-wide Optimization**:
+  - Shared cache infrastructure for all agents
+  - 3 specialized cache instances (vector search, routing, synthesis)
+  - 40+ standardized agent configurations
+  - Eliminated hardcoded values across modules
+
+Key metrics:
+- 50-93% latency reduction (cache hit scenarios)
+- 93.8% code duplication eliminated
+- 19 tests with 100% pass rate
+- 93%+ code coverage
+- Zero breaking changes
+
+## v0.4.4
 
 Public highlights:
 

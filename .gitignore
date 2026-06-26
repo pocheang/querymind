@@ -350,6 +350,71 @@ docs/structure_*.html
 docs/visualizations/
 
 # ============================================
+# INTERNAL DOCUMENTATION (NOT FOR PUBLIC)
+# ============================================
+# Internal development documentation
+internal_docs/
+
+# Internal reports and plans
+OPTIMIZATION_COMPLETE_REPORT.md
+REQUIRED_OPTIMIZATIONS.md
+MODEL_CONFIG_UPGRADE_2026.md
+GLOBAL_MODEL_OVERRIDE.md
+*_INTERNAL_*.md
+
+# Artifacts and temporary files
+artifacts/
+
+# Internal completion reports (keep only INDEX.md)
+docs/archive/completion-reports/*.md
+!docs/archive/completion-reports/INDEX.md
+
+# Internal plans and roadmaps
+docs/archive/plans/*.md
+!docs/archive/plans/INDEX.md
+
+# All internal archive documents (fixes, investigations, summaries, etc.)
+docs/archive/fixes/
+docs/archive/frontend/
+docs/archive/investigations/
+docs/archive/refactoring/
+docs/archive/summaries/
+docs/archive/ui/
+
+# Internal design documents
+docs/design/
+
+# Internal feature documentation
+docs/features/
+
+# Internal tools and superpowers
+docs/superpowers/
+
+# Internal templates
+docs/templates/
+
+# Temporary visualizations
+docs/visualizations/
+
+# Internal documentation indexes
+docs/DOCUMENTATION_INDEX.md
+docs/README.md
+
+docs/COMPLETION_REPORT.md
+docs/DOCUMENTATION_COMPLETION_REPORT.md
+docs/DOCUMENTATION_ENHANCEMENTS.md
+docs/PROJECT_RUNNING_STATUS.md
+
+# Development guides (internal use)
+docs/DEVELOPER_GUIDE.md
+docs/BACKEND_BEST_PRACTICES.md
+docs/BACKEND_FIXES_*.md
+docs/REACT_AGENT_GUIDE.md
+docs/AGENT_INTEGRATION_GUIDE.md
+docs/it_ops_langgraph_stategraph_design.md
+docs/SYSTEM_CHECK_CHECKLIST.md
+
+# ============================================
 # GitHub Release Creation Tools (Temporary)
 # ============================================
 # Release creation guides and scripts (one-time use)

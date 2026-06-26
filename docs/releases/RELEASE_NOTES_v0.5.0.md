@@ -1,21 +1,24 @@
 # Release Notes v0.5.0
 
-**Release Date**: 2026-06-23  
+**Release Date**: 2026-06-26  
 **Status**: Production Ready  
-**Type**: Security & Code Quality Release
+**Type**: Quality Assurance, Security, Architecture & Documentation Release
 
 ## Executive Summary
 
-Version 0.5.0 implements a comprehensive permission and role-based access control (RBAC) system, introduces frontend permission integration, and performs extensive project cleanup and documentation improvements. This release enhances security, improves code maintainability, and establishes clear documentation standards while maintaining 100% backward compatibility.
+Version 0.5.0 implements a comprehensive permission and role-based access control (RBAC) system, introduces **Quality Assurance Agents** for automated answer validation with **5 specialized validators**, performs extensive project cleanup and documentation improvements, **optimizes architecture page with 10-layer clear layout**, and updates to support 2026 mainstream AI models. This release enhances security, improves code quality, establishes clear documentation standards, and **significantly improves answer quality through multi-layer validation** while maintaining 100% backward compatibility.
 
 ## Key Highlights
 
+✅ **Quality Assurance System** - 5 specialized agents for answer validation and quality control  
+✅ **Architecture Page Optimization** - 10-layer clear layout with all 11 Agents clearly labeled  
 ✅ **Comprehensive RBAC System** - Viewer and Analyst roles with fine-grained permissions  
 ✅ **Frontend Permission Integration** - React hooks and component-level enforcement  
 ✅ **Data Isolation** - User-scoped data access with tenant isolation  
-✅ **Code Quality Improvements** - Cleaned up 17+ internal docs and improved .gitignore  
-✅ **New Agent Capabilities** - React Agent and AI report generation  
-✅ **100% Test Coverage** - All tests passing with no breaking changes
+✅ **Code Quality Improvements** - 52 commits over 3 days with rigorous testing  
+✅ **2026 AI Models Support** - GPT-5.5, Claude Opus 4.8, DeepSeek-V4, and more  
+✅ **Enhanced Documentation** - 18+ professional documents with comprehensive guides  
+✅ **100% Test Coverage** - All tests passing with no breaking changese** - All tests passing with no breaking changes
 
 ---
 

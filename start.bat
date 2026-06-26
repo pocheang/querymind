@@ -1,11 +1,11 @@
 @echo off
 REM Multi-Agent RAG Local - 快速启动脚本
-REM 版本: v0.4.5
-REM 日期: 2026-06-17
+REM 版本: v0.5.0
+REM 日期: 2026-06-26
 
 echo ============================================
-echo   Multi-Agent RAG Local v0.4.5
-echo   快速启动脚本
+echo   QueryMind (智询) v0.5.0
+echo   企业私有知识库 Agentic RAG 系统
 echo ============================================
 echo.
 
