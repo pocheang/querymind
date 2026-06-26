@@ -2,9 +2,11 @@
 Context Tracker Agent for multi-turn conversation management.
 
 Tracks conversation history, entity mentions, and provides context-aware routing hints.
+Includes automatic background cleanup to prevent memory leaks.
 """
 
 import asyncio
+import logging
 import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -21,6 +23,8 @@ from app.agents.quality_models import (
     ContextHints,
 )
 
+logger = logging.getLogger(__name__)
+
 
 # ============================================================================
 # In-Memory Storage
@@ -28,12 +32,78 @@ from app.agents.quality_models import (
 
 # Production would use Redis with proper serialization
 _context_store: Dict[str, ConversationContext] = {}
+_cleanup_task: Optional[asyncio.Task] = None
+
+
+# ============================================================================
+# Background Cleanup Task (P1-6 fix)
+# ============================================================================
+
+async def _background_cleanup_loop():
+    """
+    Background task that periodically cleans up expired contexts.
+
+    Runs every 10 minutes to prevent memory leaks in long-running services.
+    """
+    logger.info("Context Tracker background cleanup task started")
+
+    while True:
+        try:
+            await asyncio.sleep(600)  # 10 minutes
+
+            cleaned = cleanup_expired_contexts()
+            if cleaned > 0:
+                logger.info(f"Background cleanup removed {cleaned} expired contexts")
+
+                # Log stats
+                stats = get_store_stats()
+                logger.debug(
+                    f"Context store stats: {stats['active_sessions']} sessions, "
+                    f"{stats['total_turns']} turns, {stats['total_entities']} entities"
+                )
+
+        except asyncio.CancelledError:
+            logger.info("Context Tracker background cleanup task stopped")
+            break
+        except Exception as e:
+            logger.error(f"Background cleanup error: {e}", exc_info=True)
+            # Continue running despite errors
+            await asyncio.sleep(60)  # Wait 1 minute before retry
+
+
+def start_background_cleanup():
+    """
+    Start the background cleanup task.
+
+    Should be called once during application startup.
+    """
+    global _cleanup_task
+
+    if _cleanup_task is None or _cleanup_task.done():
+        _cleanup_task = asyncio.create_task(_background_cleanup_loop())
+        logger.info("Started Context Tracker background cleanup")
+    else:
+        logger.warning("Background cleanup task already running")
+
+
+def stop_background_cleanup():
+    """
+    Stop the background cleanup task.
+
+    Should be called during application shutdown.
+    """
+    global _cleanup_task
+
+    if _cleanup_task and not _cleanup_task.done():
+        _cleanup_task.cancel()
+        logger.info("Stopped Context Tracker background cleanup")
+
+    _cleanup_task = None
 
 
 # ============================================================================
 # Core Context Management Functions
 # ============================================================================
-
 
 async def update_conversation_context(
     session_id: str,
@@ -59,7 +129,7 @@ async def update_conversation_context(
     now = datetime.utcnow()
 
     # Periodic cleanup to prevent memory leak (every ~10th call)
-    # Use session_id hash to distribute cleanup across sessions
+    # This is a fallback in addition to background task
     if hash(session_id) % 10 == 0:
         cleanup_expired_contexts()
 
@@ -228,31 +298,21 @@ def cleanup_expired_contexts() -> int:
     for session_id in expired_sessions:
         del _context_store[session_id]
 
+    if expired_sessions:
+        logger.debug(f"Cleaned up {len(expired_sessions)} expired contexts")
+
     return len(expired_sessions)
-
-
-def get_context(session_id: str) -> Optional[ConversationContext]:
-    """
-    Get conversation context for a session.
-
-    Args:
-        session_id: Session identifier
-
-    Returns:
-        ConversationContext if exists, None otherwise
-    """
-    return _context_store.get(session_id)
 
 
 def clear_context(session_id: str) -> bool:
     """
-    Clear conversation context for a session.
+    Clear context for a specific session.
 
     Args:
         session_id: Session identifier
 
     Returns:
-        True if context was cleared, False if not found
+        True if context was found and cleared, False otherwise
     """
     if session_id in _context_store:
         del _context_store[session_id]
@@ -260,90 +320,72 @@ def clear_context(session_id: str) -> bool:
     return False
 
 
+def get_context(session_id: str) -> Optional[ConversationContext]:
+    """
+    Get context for a specific session.
+
+    Args:
+        session_id: Session identifier
+
+    Returns:
+        ConversationContext if found, None otherwise
+    """
+    return _context_store.get(session_id)
+
+
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-
 def _detect_intent(query: str) -> Optional[str]:
-    """Detect user intent from query patterns."""
+    """Detect query intent from patterns."""
     query_lower = query.lower()
 
-    # Check more specific intents first (before generic question)
+    # Relationship queries
+    if any(kw in query_lower for kw in ['关系', '连接', '依赖', 'relationship', 'connection']):
+        return 'relationship_query'
 
-    # Comparison intents (high priority)
-    if any(word in query_lower for word in ['compare', 'difference', 'versus', 'vs', '比较', '区别']):
-        return 'comparison'
+    # Comparison queries
+    if any(kw in query_lower for kw in ['对比', '区别', '差异', 'compare', 'difference']):
+        return 'comparison_query'
 
-    # Navigation intents (high priority)
-    if any(word in query_lower for word in ['show', 'find', 'search', '显示', '查找', '搜索']):
-        return 'navigation'
+    # How-to queries
+    if any(kw in query_lower for kw in ['如何', '怎么', '方法', 'how', 'way']):
+        return 'how_to_query'
 
-    # Clarification intents
-    if any(word in query_lower for word in ['explain', 'more', 'details', '解释', '详细']):
-        return 'clarification'
-
-    # Question intents (broader, check last)
-    if any(word in query_lower for word in ['what', 'how', 'why', '什么', '如何', '为什么']):
-        return 'question'
-
-    return None
+    return 'general_query'
 
 
 def _is_followup_query(query: str, context: ConversationContext) -> bool:
-    """Detect if query is a follow-up to previous conversation."""
+    """Check if query is a follow-up to previous conversation."""
     if not context.conversation_history:
         return False
 
-    query_lower = query.lower()
-
-    # Short queries are often follow-ups
-    if len(query.split()) <= 3:
+    # Short queries are likely follow-ups
+    if len(query) < 30:
         return True
 
     # Check for follow-up indicators
     followup_indicators = [
-        # English
-        'also', 'and', 'more', 'what about', 'how about', 'tell me more',
-        # Chinese
-        '还有', '另外', '那么', '再', '继续', '接着',
+        '还有', '另外', '继续', '进一步', '更多', '详细',
+        'also', 'more', 'further', 'additionally', 'what about'
     ]
 
-    if any(indicator in query_lower for indicator in followup_indicators):
-        return True
-
-    # Check for pronoun usage (indicates reference to previous context)
-    pronouns = ['it', 'this', 'that', 'they', 'them', '它', '这个', '那个', '他们']
-    if any(pronoun in query_lower for pronoun in pronouns):
-        return True
-
-    return False
+    query_lower = query.lower()
+    return any(indicator in query_lower for indicator in followup_indicators)
 
 
 def _detect_reference_pronouns(query: str, context: ConversationContext) -> Optional[Dict[str, int]]:
-    """Detect pronouns that might need resolution."""
+    """Check if query contains pronouns that need resolution."""
+    pronouns = ['它', '他', '她', '这个', '那个', 'it', 'this', 'that']
+
     query_lower = query.lower()
+    has_pronoun = any(p in query_lower for p in pronouns)
 
-    # Check for pronouns
-    has_pronoun = any(
-        pronoun in query_lower
-        for pronoun in ['it', 'this', 'that', '它', '这个', '那个']
-    )
+    if has_pronoun and context.entity_mentions:
+        return context.entity_mentions
 
-    if not has_pronoun:
-        return None
-
-    # Return top entities for resolution
-    if not context.entity_mentions:
-        return None
-
-    return dict(
-        sorted(
-            context.entity_mentions.items(),
-            key=lambda x: x[1],
-            reverse=True,
-        )[:3]  # Top 3 entities
-    )
+    return None
 
 
 def _get_top_entities(context: ConversationContext, top_k: int = 3) -> List[str]:
@@ -354,37 +396,34 @@ def _get_top_entities(context: ConversationContext, top_k: int = 3) -> List[str]
     sorted_entities = sorted(
         context.entity_mentions.items(),
         key=lambda x: x[1],
-        reverse=True,
+        reverse=True
     )
 
     return [entity for entity, _ in sorted_entities[:top_k]]
 
 
-async def _generate_context_summary(session_id: str) -> None:
-    """
-    Generate async context summary using LLM (placeholder).
+async def _generate_context_summary(session_id: str):
+    """Generate summary of conversation context (async, non-blocking)."""
+    try:
+        context = _context_store.get(session_id)
+        if not context or len(context.conversation_history) < CONTEXT_SUMMARY_MIN_TURNS:
+            return
 
-    In production, this would call an LLM to summarize conversation.
-    For now, creates a simple summary from recent turns.
-    """
-    if session_id not in _context_store:
-        return
+        # Simple summary: list recent queries
+        recent_queries = [
+            turn.query for turn in context.conversation_history[-5:]
+        ]
 
-    context = _context_store[session_id]
+        summary = f"Recent topics: {', '.join(recent_queries)}"
+        context.context_summary = summary
 
-    # Simple summary: concatenate recent queries
-    recent_queries = [
-        turn.query for turn in context.conversation_history[-3:]
-    ]
-
-    summary = f"Recent topics: {', '.join(recent_queries)}"
-    context.context_summary = summary
+    except Exception as e:
+        logger.warning(f"Context summary generation failed for {session_id}: {e}")
 
 
 # ============================================================================
 # Admin/Debug Functions
 # ============================================================================
-
 
 def get_all_sessions() -> List[str]:
     """Get all active session IDs."""

@@ -123,6 +123,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"NLI model warmup failed (non-critical): {e}")
 
+    # Start Context Tracker background cleanup (P1-6 fix)
+    try:
+        from app.agents.context_tracker_agent import start_background_cleanup
+        start_background_cleanup()
+        logger.info("✓ Context Tracker background cleanup started")
+    except Exception as e:
+        logger.warning(f"Context cleanup startup failed (non-critical): {e}")
+
     # Start agent execution tracker periodic cleanup
     from app.services.agent_execution_tracker import get_tracker
 
@@ -144,6 +152,13 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown
         logger.info("Shutting down services...")
+
+        # Stop Context Tracker background cleanup (P1-6 fix)
+        try:
+            from app.agents.context_tracker_agent import stop_background_cleanup
+            stop_background_cleanup()
+        except Exception as e:
+            logger.warning(f"Context cleanup shutdown failed: {e}")
 
         # Stop agent execution tracker cleanup
         await tracker.stop_periodic_cleanup()
