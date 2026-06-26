@@ -113,9 +113,10 @@ class EnhancedRAGWorkflow:
         allowed_sources: Optional[List[str]] = None,
         retrieval_strategy: Optional[str] = None,
         agent_class_hint: Optional[str] = None,
+        timeout_ms: int = 10000,  # P1-11: Total timeout protection (10 seconds default)
     ) -> Dict[str, Any]:
         """
-        Execute complete quality-enhanced RAG pipeline.
+        Execute complete quality-enhanced RAG pipeline with timeout protection.
 
         Args:
             query: User query text
@@ -124,6 +125,7 @@ class EnhancedRAGWorkflow:
             allowed_sources: Optional document source filter
             retrieval_strategy: Optional retrieval strategy
             agent_class_hint: Optional agent class hint
+            timeout_ms: Maximum execution time in milliseconds (default 10000)
 
         Returns:
             Dictionary with:
@@ -132,6 +134,39 @@ class EnhancedRAGWorkflow:
             - quality_report: Comprehensive quality assessment
             - route_used: Route that was used
             - execution_metadata: Performance metrics
+        """
+        try:
+            # Execute with timeout protection (P1-11)
+            result = await asyncio.wait_for(
+                self._execute_query_internal(
+                    query=query,
+                    user_id=user_id,
+                    session_id=session_id,
+                    allowed_sources=allowed_sources,
+                    retrieval_strategy=retrieval_strategy,
+                    agent_class_hint=agent_class_hint,
+                ),
+                timeout=timeout_ms / 1000.0
+            )
+            return result
+
+        except asyncio.TimeoutError:
+            logger.error(f"Query timed out after {timeout_ms}ms: {query[:100]}...")
+            return self._create_timeout_response(query, timeout_ms)
+
+    async def _execute_query_internal(
+        self,
+        query: str,
+        user_id: str,
+        session_id: str,
+        allowed_sources: Optional[List[str]] = None,
+        retrieval_strategy: Optional[str] = None,
+        agent_class_hint: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Internal execution method without timeout wrapper.
+
+        This is separated to allow timeout protection at the top level.
         """
         start_time = time.time()
         execution_metadata = {
@@ -527,3 +562,66 @@ Instructions:
             })
 
         return chunks
+
+
+    def _create_timeout_response(self, query: str, timeout_ms: int) -> Dict[str, Any]:
+        """
+        Create a response when query times out (P1-11).
+
+        Args:
+            query: Original query
+            timeout_ms: Timeout value that was exceeded
+
+        Returns:
+            Error response with timeout information
+        """
+        from app.agents.quality_models import (
+            QualityReport,
+            QualityBreakdown,
+            ExecutionStats,
+        )
+
+        quality_report = QualityReport(
+            overall_confidence=0.0,
+            quality_level="very_low",
+            quality_label="超时",
+            user_prompt=f"⚠️ 查询超时（{timeout_ms}ms），请简化问题或稍后重试",
+            breakdown=QualityBreakdown(
+                route_decision={"score": 0.0, "status": "⏱ 超时"},
+                retrieval={"score": 0.0, "status": "⏱ 超时"},
+                answer_factuality={"score": 0.0, "status": "⏱ 超时"},
+                citations={"score": 0.0, "status": "⏱ 超时"},
+            ),
+            issues=[{
+                "severity": "critical",
+                "component": "workflow",
+                "message": f"Query execution exceeded {timeout_ms}ms timeout"
+            }],
+            suggestions=["简化查询", "分解为多个小问题", "稍后重试"],
+            execution_stats=ExecutionStats(
+                total_time_ms=timeout_ms,
+                validation_overhead_ms=0,
+                retry_count=0,
+                route_retry=0,
+                answer_retry=0,
+            ),
+        )
+
+        return {
+            "answer": f"抱歉，查询处理超时（{timeout_ms}ms）。请尝试：\n1. 简化您的问题\n2. 分解为多个小问题\n3. 稍后重试",
+            "citations": [],
+            "quality_report": quality_report,
+            "route_used": "timeout",
+            "route_reason": f"timeout_after_{timeout_ms}ms",
+            "skill_used": "none",
+            "agent_class": "error",
+            "execution_metadata": {
+                "total_time_ms": timeout_ms,
+                "validation_overhead_ms": 0,
+                "route_retry": 0,
+                "answer_retry": 0,
+                "context_tracking_enabled": self.enable_context_tracking,
+                "timeout": True,
+            },
+        }
+
