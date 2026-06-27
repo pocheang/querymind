@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     query_rewrite_with_llm: bool = Field(default=False, alias="QUERY_REWRITE_WITH_LLM")
     query_decompose_enabled: bool = Field(default=True, alias="QUERY_DECOMPOSE_ENABLED")
     query_rewrite_max_variants: int = Field(default=6, alias="QUERY_REWRITE_MAX_VARIANTS")
+    query_expansion_enabled: bool = Field(default=True, alias="QUERY_EXPANSION_ENABLED")
+    query_expansion_max_ratio: float = Field(default=3.0, alias="QUERY_EXPANSION_MAX_RATIO")
     rank_feature_enabled: bool = Field(default=True, alias="RANK_FEATURE_ENABLED")
     rank_feature_source_weight: float = Field(default=0.08, alias="RANK_FEATURE_SOURCE_WEIGHT")
     rank_feature_freshness_weight: float = Field(default=0.07, alias="RANK_FEATURE_FRESHNESS_WEIGHT")

@@ -6,6 +6,7 @@ Optimizations:
 - Improved type hints
 - Better error handling
 - Performance logging
+- Query expansion for improved retrieval
 """
 
 import logging
@@ -17,6 +18,7 @@ from app.agents.agent_config import (
 )
 from app.core.config import get_settings
 from app.retrievers.hybrid_retriever import hybrid_search_with_diagnostics
+from app.retrievers.query_expansion import expand_query
 from app.services.agent_document_filter import get_sources_by_agent_class
 
 logger = logging.getLogger(__name__)
@@ -47,6 +49,25 @@ def run_vector_rag(
     """
     settings = get_settings()
 
+    # Apply query expansion if enabled
+    search_query = question
+    query_expansion_enabled = getattr(settings, "query_expansion_enabled", True)
+    query_expansion_max_ratio = getattr(settings, "query_expansion_max_ratio", 3.0)
+
+    if query_expansion_enabled:
+        try:
+            expanded_query = expand_query(
+                question,
+                max_expansion_ratio=query_expansion_max_ratio
+            )
+            if expanded_query and expanded_query != question:
+                search_query = expanded_query
+                logger.info(f"Query expanded: '{question}' -> '{search_query}'")
+        except Exception as e:
+            # If expansion fails, fall back to original query
+            logger.warning(f"Query expansion failed: {e}, using original query")
+            search_query = question
+
     # Always honor agent-class filtering, intersecting it with any explicit source scope.
     if agent_class:
         class_sources = get_sources_by_agent_class(agent_class)
@@ -63,7 +84,7 @@ def run_vector_rag(
 
     try:
         results, diagnostics = hybrid_search_with_diagnostics(
-            question,
+            search_query,
             allowed_sources=allowed_sources,
             retrieval_strategy=retrieval_strategy,
         )
@@ -71,7 +92,7 @@ def run_vector_rag(
         # Backward-compatible fallback for monkeypatched/stubbed signatures in tests
         logger.warning("Falling back to legacy hybrid_search_with_diagnostics signature")
         results, diagnostics = hybrid_search_with_diagnostics(
-            question,
+            search_query,
             allowed_sources=allowed_sources,
         )
 
@@ -129,6 +150,18 @@ def run_vector_rag(
             effective_hit_count += 1
 
     logger.info(f"Vector RAG retrieved {len(citations)} chunks, {effective_hit_count} effective hits")
+
+    # Add query expansion info to diagnostics
+    if query_expansion_enabled and search_query != question:
+        diagnostics["query_expansion"] = {
+            "original": question,
+            "expanded": search_query,
+            "enabled": True,
+        }
+    else:
+        diagnostics["query_expansion"] = {
+            "enabled": query_expansion_enabled,
+        }
 
     return {
         "context": "\n\n".join(context_blocks),
