@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "buckets": {
+    "0.5-0.6": {
+      "total_predictions": 0,
+      "correct_predictions": 0,
+      "last_updated": null
+    },
+    "0.6-0.7": {
+      "total_predictions": 0,
+      "correct_predictions": 0,
+      "last_updated": null
+    },
+    "0.7-0.8": {
+      "total_predictions": 4,
+      "correct_predictions": 4,
+      "last_updated": "2026-06-27T10:51:29.690416"
+    },
+    "0.8-0.9": {
+      "total_predictions": 4,
+      "correct_predictions": 0,
+      "last_updated": "2026-06-27T10:51:29.691416"
+    },
+    "0.9-1.0": {
+      "total_predictions": 0,
+      "correct_predictions": 0,
+      "last_updated": null
+    }
+  }
+}

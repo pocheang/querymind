@@ -23,6 +23,8 @@ from app.agents.agent_config import (
     VALID_ROUTES,
     VALID_SKILLS,
 )
+from app.agents.router_calibration import ConfidenceCalibrator
+from app.agents.router_config import ENABLE_CALIBRATION
 from app.agents.router_examples import get_mixed_examples
 from app.agents.shared_cache import cached_router_decision
 from app.api.utils.string_utils import normalize_string
@@ -32,6 +34,9 @@ from app.services.llm_intent_classifier import classify_intent_with_llm
 from app.services.query_intent import is_smalltalk_query
 
 logger = logging.getLogger(__name__)
+
+# Initialize global calibrator for confidence calibration
+_calibrator = ConfidenceCalibrator() if ENABLE_CALIBRATION else None
 
 
 class RouteDecision(BaseModel):
@@ -140,6 +145,9 @@ def decide_route(
     forced = _normalize_agent_class_hint(agent_class_hint)
 
     if is_smalltalk_query(question):
+        raw_confidence = 0.95  # High confidence for smalltalk detection
+        calibrated_confidence = _calibrator.calibrate(raw_confidence) if _calibrator else raw_confidence
+
         return RouteDecision(
             route=ROUTE_VECTOR,
             reason=_append_reason(
@@ -148,7 +156,7 @@ def decide_route(
             ),
             skill=SKILL_DEFAULT,
             agent_class=forced or AGENT_CLASS_GENERAL,
-            confidence=0.95,  # High confidence for smalltalk detection
+            confidence=calibrated_confidence,
         )
 
     # Select intent classification method
@@ -222,23 +230,43 @@ Suggested skill: {skill}"""
         if forced_reason:
             reason = _append_reason(reason, forced_reason)
 
+        # Extract LLM confidence if provided (for route decision confidence)
+        llm_confidence = route_data.get("confidence")
+        if llm_confidence is not None and isinstance(llm_confidence, (int, float)):
+            route_confidence = float(llm_confidence)
+            # Clamp to valid range
+            route_confidence = max(0.0, min(1.0, route_confidence))
+        else:
+            route_confidence = 0.7  # Default if not provided
+
         logger.info(
             f"Route decision: route={route}, skill={skill}, "
             f"agent_class={agent_class}, method={classification_method}, "
-            f"confidence={confidence:.2f}"
+            f"intent_confidence={confidence:.2f}, route_confidence={route_confidence:.2f}"
         )
 
     except Exception as e:
         logger.exception(f"Router LLM call failed: {e}")
         route = ROUTE_VECTOR
         reason = _append_reason(f"router_invoke_error:{type(e).__name__}", forced_reason)
+        route_confidence = 0.5  # Low confidence for error case
+
+    # Apply confidence calibration
+    raw_confidence = route_confidence
+    if _calibrator is not None:
+        calibrated_confidence = _calibrator.calibrate(raw_confidence)
+        logger.debug(
+            f"Calibrated confidence: {raw_confidence:.2f} -> {calibrated_confidence:.2f}"
+        )
+    else:
+        calibrated_confidence = raw_confidence
 
     return RouteDecision(
         route=route,
         reason=reason,
         skill=skill,
         agent_class=agent_class,
-        confidence=confidence,
+        confidence=calibrated_confidence,
     )
 
 
@@ -254,3 +282,41 @@ def decide_route_simple(question: str) -> str:
     """
     decision = decide_route(question, use_llm_intent=False)
     return decision.route
+
+
+def record_routing_feedback(raw_confidence: float, was_correct: bool) -> None:
+    """
+    Record feedback about a routing decision for calibration.
+
+    This function should be called after verifying whether a routing
+    decision was correct (e.g., based on answer quality metrics or
+    explicit user feedback).
+
+    Args:
+        raw_confidence: The raw confidence score that was used
+        was_correct: Whether the routing decision was correct
+
+    Example:
+        decision = decide_route(question)
+        # ... execute query and evaluate result ...
+        if result_quality > threshold:
+            record_routing_feedback(decision.confidence, was_correct=True)
+    """
+    if _calibrator is not None:
+        _calibrator.record_feedback(raw_confidence, was_correct)
+        logger.info(
+            f"Recorded routing feedback: confidence={raw_confidence:.2f}, "
+            f"correct={was_correct}"
+        )
+
+
+def get_calibration_stats() -> dict[str, dict]:
+    """
+    Get calibration statistics for monitoring.
+
+    Returns:
+        Dictionary mapping bucket names to calibration stats
+    """
+    if _calibrator is not None:
+        return _calibrator.get_stats()
+    return {}
