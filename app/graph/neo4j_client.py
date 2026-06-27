@@ -69,13 +69,14 @@ class Neo4jClient:
                 self.__class__._schema_init_in_progress = False
                 self.__class__._schema_cv.notify_all()
 
-    def _execute_query_safe(self, session, cypher: str, **params):
+    def _execute_query_safe(self, session, cypher: str, query_type: str | None = None, **params):
         """
-        Execute a Cypher query with validation and error handling.
+        Execute a Cypher query with validation, error handling, and retry logic.
 
         Args:
             session: Neo4j session
             cypher: Cypher query string
+            query_type: Type of query for fallback (e.g., "entity_neighbors", "entity_paths_2hop")
             **params: Query parameters
 
         Returns:
@@ -84,7 +85,7 @@ class Neo4jClient:
         Raises:
             Exception: If query fails and cannot be retried
         """
-        from app.graph.cypher_validation import validate_cypher_query
+        from app.graph.cypher_validation import validate_cypher_query, get_simpler_query
 
         # Validate query before execution
         validation = validate_cypher_query(cypher)
@@ -94,15 +95,35 @@ class Neo4jClient:
                 validation.error,
                 validation.error_type
             )
-            # For now, we still execute even if validation fails (to maintain backward compatibility)
-            # In a future version, we could raise an exception here
+            # Try to get a simpler query if validation fails
+            if query_type:
+                allowed_sources = params.get("allowed_sources")
+                simpler_query = get_simpler_query(query_type, allowed_sources)
+                if simpler_query:
+                    logger.info("Retrying with simpler query for type: %s", query_type)
+                    try:
+                        return session.run(simpler_query, **params)
+                    except Exception as retry_error:
+                        logger.error("Simpler query also failed: %s", retry_error)
+                        # Fall through to original execution attempt
 
         try:
             return session.run(cypher, **params)
         except (CypherSyntaxError, ClientError) as e:
             logger.error("Cypher query execution failed: %s", e)
-            # Log the query for debugging (but not parameters which may contain sensitive data)
             logger.debug("Failed query: %s", cypher)
+
+            # Try simpler query on execution failure
+            if query_type:
+                allowed_sources = params.get("allowed_sources")
+                simpler_query = get_simpler_query(query_type, allowed_sources)
+                if simpler_query:
+                    logger.info("Retrying with simpler query after execution error for type: %s", query_type)
+                    try:
+                        return session.run(simpler_query, **params)
+                    except Exception as retry_error:
+                        logger.error("Simpler query also failed: %s", retry_error)
+
             raise
 
     def upsert_triplet(
@@ -315,7 +336,7 @@ class Neo4jClient:
             """
             params = {"keywords": keywords, "limit": limit}
         with self.driver.session() as session:
-            return [dict(r) for r in session.run(cypher, **params)]
+            return [dict(r) for r in self._execute_query_safe(session, cypher, query_type="entity_search", **params)]
 
     def entity_neighbors(self, entity: str, limit: int = 10, allowed_sources: list[str] | None = None) -> list[dict]:
         if allowed_sources is not None:
@@ -336,7 +357,7 @@ class Neo4jClient:
             """
             params = {"entity": entity, "limit": limit}
         with self.driver.session() as session:
-            return [dict(r) for r in session.run(cypher, **params)]
+            return [dict(r) for r in self._execute_query_safe(session, cypher, query_type="entity_neighbors", **params)]
 
     def entity_paths_2hop(self, entity: str, limit: int = 8, allowed_sources: list[str] | None = None) -> list[dict]:
         if allowed_sources is not None:
@@ -360,7 +381,7 @@ class Neo4jClient:
             """
             params = {"entity": entity, "limit": limit}
         with self.driver.session() as session:
-            return [dict(r) for r in session.run(cypher, **params)]
+            return [dict(r) for r in self._execute_query_safe(session, cypher, query_type="entity_paths_2hop", **params)]
 
     def delete_by_source(self, source: str) -> int:
         count_cypher = """
@@ -444,7 +465,7 @@ class Neo4jClient:
 
         result = {}
         with self.driver.session() as session:
-            for record in session.run(cypher, **params):
+            for record in self._execute_query_safe(session, cypher, query_type="entity_neighbors", **params):
                 entity_name = record["entity"]
                 neighbors = record["neighbors"]
                 # Flatten the neighbor structure
@@ -505,7 +526,7 @@ class Neo4jClient:
 
         result = {}
         with self.driver.session() as session:
-            for record in session.run(cypher, **params):
+            for record in self._execute_query_safe(session, cypher, query_type="entity_paths_2hop", **params):
                 source_name = record["source"]
                 paths = record["paths"]
                 # Flatten the path structure
