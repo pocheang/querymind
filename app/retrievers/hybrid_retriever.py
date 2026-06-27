@@ -19,6 +19,9 @@ def hybrid_search_with_diagnostics(
     query: str,
     allowed_sources: list[str] | None = None,
     retrieval_strategy: str | None = None,
+    dynamic_top_k: int | None = None,
+    dynamic_vector_weight: float | None = None,
+    dynamic_bm25_weight: float | None = None,
 ) -> tuple[list[dict], dict]:
     """Perform hybrid search with full diagnostics."""
     with traced_span("retrieval.hybrid_search", {"strategy": str(retrieval_strategy or "advanced")}):
@@ -37,6 +40,9 @@ def hybrid_search_with_diagnostics(
                 "rrf": getattr(settings, "hybrid_rrf_k", 60),
                 "rerank_n": getattr(settings, "reranker_top_n", 5),
                 "strategy": retrieval_strategy or "advanced",
+                "dynamic_top_k": dynamic_top_k,
+                "dynamic_vector_weight": dynamic_vector_weight,
+                "dynamic_bm25_weight": dynamic_bm25_weight,
             },
             ensure_ascii=False,
             sort_keys=True,
@@ -53,6 +59,9 @@ def hybrid_search_with_diagnostics(
                 vector_threshold=strict_threshold,
                 settings=settings,
                 retrieval_strategy=retrieval_strategy,
+                dynamic_top_k=dynamic_top_k,
+                dynamic_vector_weight=dynamic_vector_weight,
+                dynamic_bm25_weight=dynamic_bm25_weight,
             )
 
         raw_vector_cache: dict[str, list] = {}
@@ -86,6 +95,9 @@ def hybrid_search_with_diagnostics(
                     settings=settings,
                     retrieval_strategy=retrieval_strategy,
                     precomputed_raw_vector_results=raw_vector_cache,
+                    dynamic_top_k=dynamic_top_k,
+                    dynamic_vector_weight=dynamic_vector_weight,
+                    dynamic_bm25_weight=dynamic_bm25_weight,
                 )
                 degraded = True
                 diag["degraded_reason"] = "strict_threshold_no_results"
@@ -151,6 +163,9 @@ def _collect_candidates_for_current_module(
     settings,
     retrieval_strategy: str | None = None,
     precomputed_raw_vector_results: dict[str, list] | None = None,
+    dynamic_top_k: int | None = None,
+    dynamic_vector_weight: float | None = None,
+    dynamic_bm25_weight: float | None = None,
 ) -> tuple[list[dict], dict]:
     original_rewrite = candidate_collection.build_rewrite_queries
     original_vector = candidate_collection.safe_similarity_search
@@ -167,6 +182,9 @@ def _collect_candidates_for_current_module(
             settings=settings,
             retrieval_strategy=retrieval_strategy,
             precomputed_raw_vector_results=precomputed_raw_vector_results,
+            dynamic_top_k=dynamic_top_k,
+            dynamic_vector_weight=dynamic_vector_weight,
+            dynamic_bm25_weight=dynamic_bm25_weight,
         )
     finally:
         candidate_collection.build_rewrite_queries = original_rewrite

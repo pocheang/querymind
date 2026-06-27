@@ -48,12 +48,28 @@ def collect_candidates(
     retrieval_strategy: str | None = None,
     precomputed_vector_results: dict[str, list] | None = None,
     precomputed_raw_vector_results: dict[str, list] | None = None,
+    dynamic_top_k: int | None = None,
+    dynamic_vector_weight: float | None = None,
+    dynamic_bm25_weight: float | None = None,
 ) -> tuple[list[dict], dict]:
     """Collect and fuse candidates from vector and BM25 retrieval."""
     rrf_k = int(getattr(settings, "hybrid_rrf_k", 60) or 60)
     flags = strategy_flags(retrieval_strategy)
-    vector_top_k, bm25_top_k, reranker_top_n = adaptive_retrieval_params(query, settings, flags["dynamic"])
-    vector_weight, bm25_weight = hybrid_weights(settings)
+
+    # Use dynamic parameters if provided, otherwise use adaptive params or settings
+    if dynamic_top_k is not None:
+        vector_top_k = dynamic_top_k
+        bm25_top_k = dynamic_top_k
+        reranker_top_n = int(getattr(settings, "reranker_top_n", 5) or 5)
+    else:
+        vector_top_k, bm25_top_k, reranker_top_n = adaptive_retrieval_params(query, settings, flags["dynamic"])
+
+    # Use dynamic weights if provided, otherwise use settings
+    if dynamic_vector_weight is not None and dynamic_bm25_weight is not None:
+        vector_weight = dynamic_vector_weight
+        bm25_weight = dynamic_bm25_weight
+    else:
+        vector_weight, bm25_weight = hybrid_weights(settings)
 
     variants = build_rewrite_queries(
         query,
@@ -89,7 +105,10 @@ def collect_candidates(
         "vector_top_k": vector_top_k,
         "bm25_top_k": bm25_top_k,
         "reranker_top_n": reranker_top_n,
+        "vector_weight": vector_weight,
+        "bm25_weight": bm25_weight,
         "strategy": retrieval_strategy or "advanced",
+        "dynamic_params_applied": dynamic_top_k is not None,
     }
 
     for variant in variants:

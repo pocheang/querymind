@@ -7,6 +7,7 @@ Optimizations:
 - Better error handling
 - Performance logging
 - Query expansion for improved retrieval
+- Dynamic parameter tuning based on query complexity
 """
 
 import logging
@@ -18,6 +19,7 @@ from app.agents.agent_config import (
 )
 from app.core.config import get_settings
 from app.retrievers.hybrid_retriever import hybrid_search_with_diagnostics
+from app.retrievers.parameter_tuning import apply_dynamic_parameters
 from app.retrievers.query_expansion import expand_query
 from app.services.agent_document_filter import get_sources_by_agent_class
 
@@ -48,6 +50,14 @@ def run_vector_rag(
         - retrieval_diagnostics: Diagnostic information
     """
     settings = get_settings()
+
+    # Apply dynamic parameter tuning based on query complexity
+    dynamic_params = apply_dynamic_parameters(question)
+    logger.info(
+        f"Dynamic parameters: complexity={dynamic_params['complexity']}, "
+        f"top_k={dynamic_params['top_k']}, "
+        f"weights=({dynamic_params['vector_weight']:.1f}:{dynamic_params['bm25_weight']:.1f})"
+    )
 
     # Apply query expansion if enabled
     search_query = question
@@ -87,6 +97,9 @@ def run_vector_rag(
             search_query,
             allowed_sources=allowed_sources,
             retrieval_strategy=retrieval_strategy,
+            dynamic_top_k=dynamic_params['top_k'],
+            dynamic_vector_weight=dynamic_params['vector_weight'],
+            dynamic_bm25_weight=dynamic_params['bm25_weight'],
         )
     except TypeError:
         # Backward-compatible fallback for monkeypatched/stubbed signatures in tests
@@ -162,6 +175,14 @@ def run_vector_rag(
         diagnostics["query_expansion"] = {
             "enabled": query_expansion_enabled,
         }
+
+    # Add dynamic parameter tuning info to diagnostics
+    diagnostics["dynamic_parameters"] = {
+        "complexity": dynamic_params["complexity"],
+        "top_k": dynamic_params["top_k"],
+        "vector_weight": dynamic_params["vector_weight"],
+        "bm25_weight": dynamic_params["bm25_weight"],
+    }
 
     return {
         "context": "\n\n".join(context_blocks),

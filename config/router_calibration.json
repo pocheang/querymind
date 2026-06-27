@@ -16,16 +16,16 @@
       "high": 0.7
     },
     "0.7-0.8": {
-      "total_predictions": 7,
-      "correct_predictions": 7,
-      "last_updated": "2026-06-27T11:03:03.688377",
+      "total_predictions": 8,
+      "correct_predictions": 8,
+      "last_updated": "2026-06-27T11:35:11.163118",
       "low": 0.7,
       "high": 0.8
     },
     "0.8-0.9": {
-      "total_predictions": 7,
+      "total_predictions": 8,
       "correct_predictions": 0,
-      "last_updated": "2026-06-27T11:03:03.689378",
+      "last_updated": "2026-06-27T11:35:11.164169",
       "low": 0.8,
       "high": 0.9
     },
