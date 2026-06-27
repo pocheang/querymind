@@ -107,9 +107,48 @@ def _fetch_paths(client: Neo4jClient, entities_to_lookup: list[str], allowed_sou
     }
 
 
-def graph_lookup(question: str, allowed_sources: list[str] | None = None) -> dict:
-    raw_tokens = TOKEN_PATTERN.findall(question)
-    tokens = [_normalize_token(t) for t in raw_tokens if _normalize_token(t)]
+def graph_lookup(question: str, allowed_sources: list[str] | None = None, use_robust_extraction: bool | None = None) -> dict:
+    """
+    Look up entities and relationships in the graph.
+
+    Args:
+        question: Query string
+        allowed_sources: Optional list of allowed document sources
+        use_robust_extraction: Use robust multi-stage entity extraction (default: from config)
+
+    Returns:
+        Dictionary with entities, neighbors, paths, and graph_signal_score
+    """
+    # Determine whether to use robust extraction (from config if not specified)
+    if use_robust_extraction is None:
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        use_robust_extraction = settings.graph_entity_extraction_robust
+
+    # Extract entities using robust extraction or fallback to simple tokenization
+    if use_robust_extraction:
+        try:
+            from app.graph.entity_extraction import extract_entities
+
+            # Extract entities with rule-based method (fast, no LLM overhead)
+            extracted = extract_entities(question, use_llm=False, max_entities=12)
+            # Use extracted entity texts as tokens
+            tokens = [e["text"] for e in extracted]
+            # Normalize tokens
+            tokens = [_normalize_token(t) for t in tokens if _normalize_token(t)]
+        except Exception as e:
+            # Fallback to simple tokenization on error
+            import logging
+
+            logging.getLogger(__name__).warning("Robust entity extraction failed, using fallback: %s", e)
+            raw_tokens = TOKEN_PATTERN.findall(question)
+            tokens = [_normalize_token(t) for t in raw_tokens if _normalize_token(t)]
+    else:
+        # Legacy simple tokenization
+        raw_tokens = TOKEN_PATTERN.findall(question)
+        tokens = [_normalize_token(t) for t in raw_tokens if _normalize_token(t)]
+
     with bulkhead("neo4j"):
         client = Neo4jClient()
         try:

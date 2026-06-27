@@ -107,6 +107,8 @@ class Settings(BaseSettings):
     graph_triplet_batch_chars: int = Field(default=2200, alias="GRAPH_TRIPLET_BATCH_CHARS")
     graph_rag_enhanced: bool = Field(default=False, alias="GRAPH_RAG_ENHANCED")
     graph_rag_min_pdf_quality: float = Field(default=0.3, alias="GRAPH_RAG_MIN_PDF_QUALITY")
+    graph_entity_extraction_robust: bool = Field(default=True, alias="GRAPH_ENTITY_EXTRACTION_ROBUST")
+    graph_entity_extraction_use_llm: bool = Field(default=False, alias="GRAPH_ENTITY_EXTRACTION_USE_LLM")
 
     pdf_loader_mode: str = Field(
         default="pypdf", alias="PDF_LOADER_MODE"
