@@ -117,7 +117,7 @@ async def test_citation_format_consistency():
     citations = re.findall(citation_pattern, answer)
 
     # Should have at least one citation if context is provided
-    assert len(citations) >= 0, "Citations should follow [doc_id:page] format"
+    assert len(citations) > 0, "Citations should follow [doc_id:page] format"
 
 
 # ============================================================================

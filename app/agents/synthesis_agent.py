@@ -10,6 +10,11 @@ from app.services.language_analytics import LanguageAnalytics
 from app.services.language_detector import detect_language
 from app.services.query_intent import is_casual_chat_query
 from app.services.request_context import deadline_exceeded, overload_mode_enabled
+from app.agents.synthesis_templates import (
+    infer_query_type,
+    get_answer_template,
+    get_cot_reasoning_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -108,8 +113,21 @@ def _build_prompt_with_language(
     graph_context: str = "",
     web_context: str = "",
 ) -> str:
-    """Build prompt with language hint for multilingual support."""
+    """Build prompt with language hint and query-type-specific template for multilingual support."""
     language_hint = f"[Language: {detected_language}]\n"
+
+    # Infer query type and get appropriate template
+    query_type = infer_query_type(question)
+    answer_template = get_answer_template(query_type)
+    cot_prompt = get_cot_reasoning_prompt()
+
+    # Compose prompt with template guidance
+    template_section = (
+        f"\n答案模板指导（Query Type: {query_type}）:\n"
+        f"{answer_template}\n\n"
+        f"{cot_prompt}\n"
+    )
+
     return (
         f"{language_hint}"
         f"技能: {skill_name}\n\n"
@@ -118,6 +136,7 @@ def _build_prompt_with_language(
         f"向量检索上下文:\n{vector_context or '无'}\n\n"
         f"图谱上下文:\n{graph_context or '无'}\n\n"
         f"联网补充上下文:\n{web_context or '无'}\n"
+        f"{template_section}"
     )
 
 
