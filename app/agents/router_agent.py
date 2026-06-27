@@ -18,6 +18,7 @@ from app.agents.agent_config import (
     AGENT_CLASS_GENERAL,
     ROUTE_VECTOR,
     ROUTE_WEB,
+    ROUTER_LOW_CONFIDENCE_THRESHOLD,
     SKILL_DEFAULT,
     VALID_AGENT_CLASSES,
     VALID_ROUTES,
@@ -122,6 +123,71 @@ def _append_reason(base_reason: str, *tags: str) -> str:
     parts = [normalize_string(base_reason)]
     parts.extend(normalize_string(tag) for tag in tags if normalize_string(tag))
     return "|".join(part for part in parts if part)
+
+
+def _try_fallback_with_reasoning(
+    question: str, agent_class: str, skill: str, original_confidence: float
+) -> tuple[str, str, float] | None:
+    """
+    Try fallback strategy using reasoning model.
+
+    Args:
+        question: User question
+        agent_class: Agent class for context
+        skill: Suggested skill
+        original_confidence: Original low confidence score
+
+    Returns:
+        Tuple of (route, reason, confidence) if successful, None if fallback also fails
+    """
+    try:
+        logger.info(
+            f"Fallback triggered: original_confidence={original_confidence:.2f} "
+            f"< threshold={ROUTER_LOW_CONFIDENCE_THRESHOLD}"
+        )
+
+        # Try reasoning model for better decision
+        reasoning_model = get_reasoning_model()
+        prompt = f"""{ROUTER_PROMPT}
+
+Question: {question}
+Agent class: {agent_class}
+Suggested skill: {skill}"""
+        response = reasoning_model.invoke(prompt)
+        response_text = response.content if hasattr(response, "content") else str(response)
+
+        route_data = _extract_json(response_text)
+
+        raw_route = normalize_string(route_data.get("route", ROUTE_VECTOR), lowercase=True)
+        route = raw_route if raw_route in VALID_ROUTES else ROUTE_VECTOR
+
+        reason = normalize_string(route_data.get("reason", "fallback_reasoning")) or "fallback_reasoning"
+        reason = _append_reason(reason, "fallback_reasoning")
+
+        # Extract confidence from reasoning model
+        reasoning_confidence = route_data.get("confidence")
+        if reasoning_confidence is not None and isinstance(reasoning_confidence, (int, float)):
+            confidence = float(reasoning_confidence)
+            confidence = max(0.0, min(1.0, confidence))
+        else:
+            confidence = 0.7
+
+        logger.info(
+            f"Fallback reasoning result: route={route}, confidence={confidence:.2f}"
+        )
+
+        # Check if reasoning model improved confidence
+        if confidence >= ROUTER_LOW_CONFIDENCE_THRESHOLD:
+            return (route, reason, confidence)
+        else:
+            logger.warning(
+                f"Fallback reasoning still low confidence: {confidence:.2f}"
+            )
+            return None
+
+    except Exception as e:
+        logger.warning(f"Fallback reasoning model failed: {e}")
+        return None
 
 
 @cached_router_decision
@@ -238,6 +304,33 @@ Suggested skill: {skill}"""
             route_confidence = max(0.0, min(1.0, route_confidence))
         else:
             route_confidence = 0.7  # Default if not provided
+
+        # Check if confidence is too low and trigger fallback
+        if route_confidence < ROUTER_LOW_CONFIDENCE_THRESHOLD:
+            logger.info(
+                f"Low confidence detected: {route_confidence:.2f} < {ROUTER_LOW_CONFIDENCE_THRESHOLD}"
+            )
+
+            # Try fallback with reasoning model
+            fallback_result = _try_fallback_with_reasoning(question, agent_class, skill, route_confidence)
+
+            if fallback_result is not None:
+                # Fallback succeeded with reasoning model
+                route, reason, route_confidence = fallback_result
+                if forced_reason:
+                    reason = _append_reason(reason, forced_reason)
+            else:
+                # Fallback to safe route (vector)
+                logger.warning(
+                    f"Fallback to safe route: original_route={route}, "
+                    f"original_confidence={route_confidence:.2f}"
+                )
+                route = ROUTE_VECTOR
+                reason = _append_reason(reason, "fallback_safe_route")
+                if forced_reason:
+                    reason = _append_reason(reason, forced_reason)
+                # Keep low confidence to indicate uncertainty
+                route_confidence = max(0.5, route_confidence)
 
         logger.info(
             f"Route decision: route={route}, skill={skill}, "
