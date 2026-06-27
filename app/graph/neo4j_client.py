@@ -3,6 +3,7 @@ import threading
 import time
 
 from neo4j import GraphDatabase
+from neo4j.exceptions import CypherSyntaxError, ClientError
 
 from app.core.config import get_settings
 
@@ -67,6 +68,42 @@ class Neo4jClient:
                 self.__class__._schema_inited = bool(ok)
                 self.__class__._schema_init_in_progress = False
                 self.__class__._schema_cv.notify_all()
+
+    def _execute_query_safe(self, session, cypher: str, **params):
+        """
+        Execute a Cypher query with validation and error handling.
+
+        Args:
+            session: Neo4j session
+            cypher: Cypher query string
+            **params: Query parameters
+
+        Returns:
+            Query result
+
+        Raises:
+            Exception: If query fails and cannot be retried
+        """
+        from app.graph.cypher_validation import validate_cypher_query
+
+        # Validate query before execution
+        validation = validate_cypher_query(cypher)
+        if not validation.is_valid:
+            logger.warning(
+                "Cypher query validation failed: %s (type: %s)",
+                validation.error,
+                validation.error_type
+            )
+            # For now, we still execute even if validation fails (to maintain backward compatibility)
+            # In a future version, we could raise an exception here
+
+        try:
+            return session.run(cypher, **params)
+        except (CypherSyntaxError, ClientError) as e:
+            logger.error("Cypher query execution failed: %s", e)
+            # Log the query for debugging (but not parameters which may contain sensitive data)
+            logger.debug("Failed query: %s", cypher)
+            raise
 
     def upsert_triplet(
         self,

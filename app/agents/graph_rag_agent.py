@@ -79,6 +79,7 @@ def _run_basic_graph_rag(
     Basic graph RAG implementation without enhancements.
 
     This is the legacy implementation using basic graph_lookup.
+    Includes validation, error handling, and fallback indicators.
     """
     from app.tools.graph_tools import graph_lookup
 
@@ -100,6 +101,7 @@ def _run_basic_graph_rag(
             "paths": [],
             "graph_signal_score": 0.0,
             "error": f"graph_lookup_error:{error_type}",
+            "should_fallback_to_vector": True,  # Indicate fallback should happen
         }
 
     # Extract results
@@ -111,13 +113,23 @@ def _run_basic_graph_rag(
     # Format context string
     context = _format_graph_context(entities, neighbors, paths)
 
-    return {
+    # Check if graph returned empty results
+    has_results = bool(entities or neighbors or paths)
+
+    result = {
         "context": context,
         "entities": [x.get("entity") for x in entities if x.get("entity")],
         "neighbors": neighbors,
         "paths": paths,
         "graph_signal_score": graph_signal_score,
     }
+
+    # Add fallback indicator if graph has no results
+    if not has_results:
+        result["should_fallback_to_vector"] = True
+        logger.info("Graph RAG returned empty results for question: %s", question)
+
+    return result
 
 
 def _run_enhanced_graph_rag(
