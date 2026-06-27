@@ -2,7 +2,7 @@
 4-Level Validation Cascade for Answer Validator.
 
 Implements progressive validation with early exit:
-- Level 1: Rule-based checks (dates, numbers, entities) - 5ms target
+- Level 1: Rule-based checks (dates, numbers, entities, negations) - 5ms target
 - Level 2: Sentence-level NLI batch validation - 2-3s actual (disabled by default)
 - Level 3: Citation cross-checking - 50ms target
 - Level 4: Deep LLM validation - 2-3s actual (only if issues flagged)
@@ -23,6 +23,7 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 from app.core.models import get_chat_model
+from app.agents.hallucination_patterns import detect_all_patterns
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +193,10 @@ class ValidationCascade:
         - Date mismatches
         - Number mismatches (>15% difference)
         - Entity mismatches
+        - Negation conflicts
         - PII patterns (critical stop)
+
+        Uses hallucination_patterns module (Task 9).
         """
         start_time = time.time()
         issues = []
@@ -232,61 +236,17 @@ class ValidationCascade:
                 should_continue=False
             )
 
-        # Check dates
-        answer_dates = set(self._extract_dates(answer))
-        source_dates = set(self._extract_dates(source_text))
+        # Use hallucination_patterns module for comprehensive pattern detection
+        pattern_issues = detect_all_patterns(answer, source_text)
 
-        if answer_dates and source_dates:
-            mismatched_dates = answer_dates - source_dates
-            # Flag if any dates don't match (strict for dates)
-            if mismatched_dates:
-                issues.append(RuleBasisIssue(
-                    issue_type="date_mismatch",
-                    severity="high",
-                    content=f"Date mismatch: {mismatched_dates}",
-                    suggestion="Verify dates against source documents"
-                ))
-
-        # Check numbers
-        answer_numbers = self._extract_numbers(answer)
-        source_numbers = self._extract_numbers(source_text)
-
-        if answer_numbers:
-            for ans_num in answer_numbers:
-                has_match = any(
-                    self._numbers_match(ans_num, src_num)
-                    for src_num in source_numbers
-                )
-                if not has_match and source_numbers:
-                    issues.append(RuleBasisIssue(
-                        issue_type="number_mismatch",
-                        severity="high",
-                        content=f"Number {ans_num} not found in sources",
-                        suggestion="Verify numeric claims"
-                    ))
-
-        # Check entities (basic matching)
-        answer_entities = set(self._extract_entities(answer))
-        source_entities = set(self._extract_entities(source_text))
-
-        if answer_entities and source_entities:
-            # Check for entities in answer not in source
-            mismatched = answer_entities - source_entities
-            # Filter out common words that might be capitalized
-            common_words = {'The', 'A', 'An', 'In', 'On', 'At', 'To', 'For', 'Of', 'With', 'CEO', 'CFO', 'CTO'}
-            mismatched = {e for e in mismatched if e not in common_words}
-
-            # Only flag if specific named entities (names) mismatch
-            # Filter to likely proper nouns (2+ words or Chinese names)
-            likely_names = {e for e in mismatched if ' ' in e or re.match(r'[一-鿿]{2,}', e)}
-
-            if likely_names:
-                issues.append(RuleBasisIssue(
-                    issue_type="entity_mismatch",
-                    severity="medium",
-                    content=f"Entities not in source: {likely_names}",
-                    suggestion="Verify entity names"
-                ))
+        # Convert HallucinationPattern to RuleBasisIssue
+        for pattern in pattern_issues:
+            issues.append(RuleBasisIssue(
+                issue_type=pattern.pattern_type,
+                severity=pattern.severity,
+                content=pattern.content,
+                suggestion=pattern.suggestion
+            ))
 
         elapsed = int((time.time() - start_time) * 1000)
 
