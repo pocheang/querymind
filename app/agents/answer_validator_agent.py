@@ -33,7 +33,16 @@ from app.agents.quality_config import (
     ANSWER_FLAG_THRESHOLD,
     NLI_MODEL_NAME,
     NLI_MAX_CHECKS,
-    ANSWER_VALIDATOR_TIMEOUT_MS
+    ANSWER_VALIDATOR_TIMEOUT_MS,
+    CASCADE_USE_FOR_VALIDATION,
+    CASCADE_ENABLE_LEVEL1,
+    CASCADE_ENABLE_LEVEL2,
+    CASCADE_ENABLE_LEVEL3,
+    CASCADE_ENABLE_LEVEL4,
+    CASCADE_LEVEL1_TIMEOUT_MS,
+    CASCADE_LEVEL2_TIMEOUT_MS,
+    CASCADE_LEVEL3_TIMEOUT_MS,
+    CASCADE_LEVEL4_TIMEOUT_MS
 )
 from app.core.models import get_chat_model
 
@@ -42,6 +51,10 @@ logger = logging.getLogger(__name__)
 # Lazy load NLI model to avoid startup overhead
 _nli_model = None
 _nli_load_attempted = False
+
+# Lazy load validation cascade (Task 8)
+_validation_cascade = None
+_cascade_load_attempted = False
 
 
 def _get_nli_model():
@@ -71,6 +84,42 @@ def _get_nli_model():
         _nli_model = None
 
     return _nli_model
+
+
+def _get_validation_cascade():
+    """
+    Lazy load validation cascade (Task 8).
+    Returns None if cascade is disabled or fails to load.
+    """
+    global _validation_cascade, _cascade_load_attempted
+
+    if _cascade_load_attempted:
+        return _validation_cascade
+
+    _cascade_load_attempted = True
+
+    if not CASCADE_USE_FOR_VALIDATION:
+        logger.info("Validation cascade disabled via config")
+        return None
+
+    try:
+        from app.agents.validation_cascade import ValidationCascade
+
+        cascade_config = {
+            "level1_timeout_ms": CASCADE_LEVEL1_TIMEOUT_MS,
+            "level2_timeout_ms": CASCADE_LEVEL2_TIMEOUT_MS,
+            "level3_timeout_ms": CASCADE_LEVEL3_TIMEOUT_MS,
+            "level4_timeout_ms": CASCADE_LEVEL4_TIMEOUT_MS,
+            "enable_level4": CASCADE_ENABLE_LEVEL4
+        }
+
+        _validation_cascade = ValidationCascade(config=cascade_config)
+        logger.info("Validation cascade loaded successfully")
+    except Exception as e:
+        logger.warning(f"Failed to load validation cascade: {e}")
+        _validation_cascade = None
+
+    return _validation_cascade
 
 
 def _quick_validation(answer: str, citations: List[Dict]) -> Dict:
@@ -358,13 +407,13 @@ async def validate_answer(
     """
     Validate answer quality with multi-level checks.
 
-    Validation cascade:
-    - Level 0: Quick checks (<20ms)
-    - Level 1: Citation validation (<100ms)
-    - Level 2: Hallucination detection (<200ms)
-    - Level 3: LLM deep validation (~500ms, <10% queries)
+    Validation cascade (Task 8):
+    - Level 1: Rule-based checks (dates, numbers, entities) - 5ms target
+    - Level 2: Sentence-level NLI batch validation - 100ms target
+    - Level 3: Citation cross-checking - 50ms target
+    - Level 4: Deep LLM validation - 200ms target (only if issues flagged)
 
-    90% of queries should complete in <150ms via fast path.
+    Falls back to legacy validation if cascade is disabled or unavailable.
 
     Args:
         query: Original query
@@ -377,6 +426,68 @@ async def validate_answer(
     """
     start_time = time.time()
 
+    # Try cascade validation first (Task 8)
+    cascade = _get_validation_cascade()
+    if cascade is not None:
+        try:
+            cascade_result = await cascade.run_cascade(query, answer, source_docs, citations)
+
+            # Convert cascade result to AnswerValidationResult
+            # Map cascade confidence to factuality score
+            factuality_score = cascade_result.confidence_score
+            hallucination_risk = 1.0 - factuality_score
+
+            # Assess other dimensions using legacy functions
+            citation_score = _validate_citations(answer, citations, source_docs)
+            answer_quality = _assess_answer_quality(answer)
+            safety_score = _safety_check(answer)
+
+            # Calculate overall score with weighted dimensions
+            overall_score = (
+                factuality_score * ANSWER_WEIGHT_FACTUALITY +
+                citation_score * ANSWER_WEIGHT_CITATION +
+                answer_quality * ANSWER_WEIGHT_QUALITY +
+                safety_score * ANSWER_WEIGHT_SAFETY
+            )
+
+            # Determine action
+            if overall_score >= ANSWER_APPROVE_THRESHOLD:
+                action = "approve"
+            elif overall_score >= ANSWER_FLAG_THRESHOLD:
+                action = "flag"
+            else:
+                action = "regenerate"
+
+            # Convert cascade issues to AnswerIssue format
+            issues = []
+            for cascade_issue in cascade_result.all_issues:
+                issues.append(AnswerIssue(
+                    type="hallucination" if "contradiction" in cascade_issue.issue_type else "quality",
+                    content=cascade_issue.content,
+                    severity=cascade_issue.severity,
+                    suggestion=cascade_issue.suggestion or ""
+                ))
+
+            return AnswerValidationResult(
+                is_valid=(action != "regenerate"),
+                overall_score=round(overall_score, 3),
+                validation_details=AnswerValidationDetails(
+                    factual_consistency=round(factuality_score, 3),
+                    hallucination_risk=round(hallucination_risk, 3),
+                    citation_completeness=round(citation_score, 3),
+                    answer_quality=round(answer_quality, 3),
+                    safety_score=round(safety_score, 3)
+                ),
+                issues=issues,
+                action=action,
+                execution_time_ms=cascade_result.execution_time_ms,
+                validation_method=f"cascade_{cascade_result.highest_level_reached.value}"
+            )
+        except Exception as e:
+            logger.warning(f"Cascade validation failed, falling back to legacy: {e}")
+            # Fall through to legacy validation
+
+    # Legacy validation (original implementation)
     try:
         # Level 0: Quick validation
         quick_result = _quick_validation(answer, citations)
