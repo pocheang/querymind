@@ -131,8 +131,9 @@ def graph_lookup(question: str, allowed_sources: list[str] | None = None, use_ro
         try:
             from app.graph.entity_extraction import extract_entities
 
-            # Extract entities with rule-based method (fast, no LLM overhead)
-            extracted = extract_entities(question, use_llm=False, max_entities=12)
+            # Extract entities (LLM usage controlled by config)
+            use_llm = settings.graph_entity_extraction_use_llm
+            extracted = extract_entities(question, use_llm=use_llm)
             # Use extracted entity texts as tokens
             tokens = [e["text"] for e in extracted]
             # Normalize tokens
