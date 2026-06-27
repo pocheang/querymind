@@ -17,6 +17,7 @@ from app.graph.nodes import (
 from app.graph.nodes import (
     vector_node as _vector_node_impl,
 )
+from app.graph.routing import route_after_graph, route_after_vector
 from app.graph.state import GraphState
 from app.services.agent_execution_tracker import get_tracker, track_agent_execution
 from app.services.tracing import traced_span
@@ -196,3 +197,4 @@ def clear_workflow_cache() -> None:
     global _WORKFLOW_APP
     with _WORKFLOW_LOCK:
         _WORKFLOW_APP = None
+

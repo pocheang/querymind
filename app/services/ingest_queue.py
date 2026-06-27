@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import atexit
 import logging
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
@@ -12,6 +13,32 @@ logger = logging.getLogger(__name__)
 
 _EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="ingest")
 _JOBS: dict[str, Future] = {}
+
+
+def _cleanup_completed_jobs() -> None:
+    """Remove completed jobs from the _JOBS dict to prevent unbounded growth."""
+    completed_ids = [doc_id for doc_id, future in _JOBS.items() if future.done()]
+    for doc_id in completed_ids:
+        del _JOBS[doc_id]
+    if completed_ids:
+        logger.debug(f"Cleaned up {len(completed_ids)} completed ingest jobs")
+
+
+def shutdown_ingest_queue(wait: bool = True) -> None:
+    """
+    Gracefully shutdown the ingest queue thread pool.
+
+    Args:
+        wait: If True, wait for all pending jobs to complete
+    """
+    global _EXECUTOR
+    logger.info(f"Shutting down ingest queue (wait={wait}, pending_jobs={len(_JOBS)})")
+    _EXECUTOR.shutdown(wait=wait)
+    _JOBS.clear()
+
+
+# Register cleanup on application exit
+atexit.register(lambda: shutdown_ingest_queue(wait=False))
 
 
 def run_ingest_job(
@@ -57,6 +84,9 @@ def enqueue_ingest_job(
     metadata_overrides: dict[str, Any],
     parser_profile: dict[str, Any] | None = None,
 ) -> bool:
+    # Clean up completed jobs to prevent unbounded memory growth
+    _cleanup_completed_jobs()
+
     future = _EXECUTOR.submit(
         run_ingest_job,
         document_id=document_id,

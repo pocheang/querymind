@@ -1,18 +1,7 @@
 import re
 
-_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[一-鿿]")
-
-# Improved sentence splitting that handles common abbreviations and edge cases
-_SENTENCE_SPLIT_RE = re.compile(
-    r"(?<=[。！？])"  # After Chinese punctuation
-    r"|(?<=[.!?])"  # After English punctuation
-    r"(?![.!?])"  # Not followed by more punctuation (handles ellipsis)
-    r'(?!\s*["\'])'  # Not followed by closing quote
-    r"(?!\s*\))"  # Not followed by closing parenthesis
-    r"(?!\s+[a-z])"  # Not followed by lowercase (handles abbreviations like "Dr. Smith")
-)
-
-# Common abbreviations that should not trigger sentence breaks
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")
+_CJK_PUNCTUATION_CLASS = "\u3002\uFF01\uFF1F"
 _ABBREVIATIONS = {
     "dr.",
     "mr.",
@@ -35,8 +24,16 @@ _ABBREVIATIONS = {
     "pp.",
     "ed.",
 }
-
-_HEDGE_MARKERS = ("可能", "或许", "大概率", "根据现有信息", "目前无法确认", "insufficient evidence", "likely")
+_HEDGE_MARKERS = (
+    "\u53ef\u80fd",
+    "\u6216\u8bb8",
+    "\u5927\u6982\u7387",
+    "\u6839\u636e\u73b0\u6709\u4fe1\u606f",
+    "\u76ee\u524d\u65e0\u6cd5\u786e\u8ba4",
+    "insufficient evidence",
+    "likely",
+)
+_LOW_SUPPORT_PREFIX = "\u57fa\u4e8e\u5f53\u524d\u53ef\u7528\u8bc1\u636e\uff0c"
 
 
 def _tokenize(text: str) -> set[str]:
@@ -44,42 +41,23 @@ def _tokenize(text: str) -> set[str]:
 
 
 def _split_sentences(text: str) -> list[str]:
-    """
-    Split text into sentences with improved handling of abbreviations and edge cases.
-    """
     raw_text = str(text or "").strip()
     if not raw_text:
         return []
 
-    # Pre-process: protect abbreviations by temporarily replacing periods
     protected_text = raw_text
     for abbr in _ABBREVIATIONS:
-        # Replace "Dr." with "Dr<ABBR>" temporarily
         protected_text = protected_text.replace(abbr, abbr.replace(".", "<ABBR>"))
         protected_text = protected_text.replace(abbr.upper(), abbr.upper().replace(".", "<ABBR>"))
 
-    # Split sentences
-    raw_sentences = _SENTENCE_SPLIT_RE.split(protected_text)
-
-    # Post-process: restore abbreviations and clean up
-    sentences = []
-    for sent in raw_sentences:
-        # Restore abbreviations
-        restored = sent.replace("<ABBR>", ".")
+    chunks = re.findall(rf"[^{_CJK_PUNCTUATION_CLASS}.!?]+[{_CJK_PUNCTUATION_CLASS}.!?]?", protected_text)
+    sentences: list[str] = []
+    for chunk in chunks:
+        restored = chunk.replace("<ABBR>", ".")
         cleaned = restored.strip()
-
-        # Skip empty or very short fragments
-        if len(cleaned) < 3:
-            continue
-
-        # Merge fragments that don't end with proper punctuation back to previous sentence
-        # But only if previous sentence exists and current fragment is not too long
-        if sentences and cleaned and cleaned[-1] not in "。！？.!?" and len(cleaned) < 100:
-            sentences[-1] = sentences[-1] + " " + cleaned
-        else:
+        if len(cleaned) >= 3:
             sentences.append(cleaned)
 
-    # Fallback: if splitting produced no valid sentences, return original text as single sentence
     return sentences if sentences else [raw_text]
 
 
@@ -92,7 +70,13 @@ def _support_score(sentence: str, evidence_tokens: set[str]) -> float:
 
 def _has_hedge(text: str) -> bool:
     lower = str(text or "").lower()
-    return any(m.lower() in lower for m in _HEDGE_MARKERS)
+    return any(marker.lower() in lower for marker in _HEDGE_MARKERS)
+
+
+def _rewrite_low_support_sentence(sentence: str) -> str:
+    if sentence.startswith(_LOW_SUPPORT_PREFIX) or _has_hedge(sentence):
+        return sentence
+    return f"{_LOW_SUPPORT_PREFIX}{sentence}"
 
 
 def apply_sentence_grounding(
@@ -100,8 +84,6 @@ def apply_sentence_grounding(
     evidence_texts: list[str],
     threshold: float = 0.22,
 ) -> tuple[str, dict]:
-    # Temporarily disabled to avoid confusion with Ollama models
-    # Return answer as-is without adding hedge prefixes
     sentences = _split_sentences(answer)
     evid_tokens = _tokenize("\n".join([x for x in evidence_texts if x]))
 
@@ -111,20 +93,30 @@ def apply_sentence_grounding(
         return answer, {"enabled": False, "reason": "no_evidence", "total_sentences": len(sentences)}
 
     supported = 0
+    rewritten = 0
     low_support_examples: list[str] = []
+    grounded_sentences: list[str] = []
+
     for sent in sentences:
         score = _support_score(sent, evid_tokens)
         if score >= threshold or _has_hedge(sent):
             supported += 1
-        else:
-            low_support_examples.append(sent[:120])
+            grounded_sentences.append(sent)
+            continue
 
+        rewritten += 1
+        low_support_examples.append(sent[:120])
+        grounded_sentences.append(_rewrite_low_support_sentence(sent))
+
+    joiner = "" if re.search(r"[\u4e00-\u9fff]", answer or "") else " "
+    grounded_answer = joiner.join(grounded_sentences)
     report = {
-        "enabled": False,
-        "reason": "disabled_for_ollama",
+        "enabled": True,
+        "reason": "sentence_grounding",
         "total_sentences": len(sentences),
         "supported_sentences": supported,
         "support_ratio": (supported / len(sentences)) if sentences else 0.0,
+        "rewritten_sentences": rewritten,
         "low_support_examples": low_support_examples[:3],
     }
-    return answer, report
+    return grounded_answer, report

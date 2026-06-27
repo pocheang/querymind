@@ -63,6 +63,8 @@ class CalibrationBucket:
     total_predictions: int = 0
     correct_predictions: int = 0
     last_updated: str | None = None
+    low: float = 0.5
+    high: float = 1.0
 
     @property
     def historical_accuracy(self) -> float:
@@ -71,12 +73,19 @@ class CalibrationBucket:
             return DEFAULT_ACCURACY
         return self.correct_predictions / self.total_predictions
 
+    @property
+    def midpoint(self) -> float:
+        """Calculate the midpoint of this bucket's range."""
+        return (self.low + self.high) / 2.0
+
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
             "total_predictions": self.total_predictions,
             "correct_predictions": self.correct_predictions,
             "last_updated": self.last_updated,
+            "low": self.low,
+            "high": self.high,
         }
 
     @classmethod
@@ -86,6 +95,8 @@ class CalibrationBucket:
             total_predictions=data.get("total_predictions", 0),
             correct_predictions=data.get("correct_predictions", 0),
             last_updated=data.get("last_updated"),
+            low=data.get("low", 0.5),
+            high=data.get("high", 1.0),
         )
 
 
@@ -100,7 +111,7 @@ class CalibrationData:
         """Initialize all buckets if not provided."""
         if not self.buckets:
             self.buckets = {
-                f"{low}-{high}": CalibrationBucket()
+                f"{low}-{high}": CalibrationBucket(low=low, high=high)
                 for low, high in CONFIDENCE_BUCKETS
             }
 
@@ -122,11 +133,17 @@ class CalibrationData:
             for name, bucket_data in data.get("buckets", {}).items()
         }
 
-        # Ensure all expected buckets exist
+        # Ensure all expected buckets exist with proper boundaries
         for low, high in CONFIDENCE_BUCKETS:
             bucket_name = f"{low}-{high}"
             if bucket_name not in buckets:
-                buckets[bucket_name] = CalibrationBucket()
+                buckets[bucket_name] = CalibrationBucket(low=low, high=high)
+            else:
+                # Update boundaries if missing (for backward compatibility)
+                if buckets[bucket_name].low == 0.5 and buckets[bucket_name].high == 1.0:
+                    if bucket_name != "0.5-0.6":  # Unless it's actually the first bucket
+                        buckets[bucket_name].low = low
+                        buckets[bucket_name].high = high
 
         return cls(
             buckets=buckets,
@@ -214,11 +231,15 @@ def apply_calibration(raw_confidence: float, data: CalibrationData) -> float:
     Apply calibration to a raw confidence score.
 
     Calibration formula:
-        calibrated = raw_confidence * (historical_accuracy / raw_confidence)
-        calibrated = historical_accuracy
+        calibrated = raw_confidence * (historical_accuracy / bucket_midpoint)
 
     This adjusts the confidence to match the historical accuracy observed
-    for similar confidence levels.
+    for similar confidence levels while preserving within-bucket variation.
+
+    Example:
+        - Bucket 0.7-0.8 (midpoint=0.75) with historical_accuracy=0.8
+        - raw_confidence=0.79 → calibrated = 0.79 * (0.8/0.75) = 0.843
+        - raw_confidence=0.71 → calibrated = 0.71 * (0.8/0.75) = 0.757
 
     Args:
         raw_confidence: Raw confidence score from router
@@ -238,16 +259,17 @@ def apply_calibration(raw_confidence: float, data: CalibrationData) -> float:
         )
         return raw_confidence
 
-    # Apply calibration: adjust confidence to match historical accuracy
+    # Apply calibration: scale by ratio of historical accuracy to bucket midpoint
     historical_accuracy = bucket.historical_accuracy
-    calibrated = historical_accuracy  # Directly use historical accuracy
+    bucket_midpoint = bucket.midpoint
+    calibrated = raw_confidence * (historical_accuracy / bucket_midpoint)
 
     # Clamp to valid range
     calibrated = max(0.0, min(1.0, calibrated))
 
     logger.debug(
         f"Calibrated confidence {raw_confidence:.2f} -> {calibrated:.2f} "
-        f"(bucket={bucket_name}, history={historical_accuracy:.2f})"
+        f"(bucket={bucket_name}, history={historical_accuracy:.2f}, midpoint={bucket_midpoint:.2f})"
     )
 
     return calibrated

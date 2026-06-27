@@ -61,14 +61,3 @@ AUTO_SAVE_CALIBRATION: Final[bool] = True
 # Whether to enable confidence calibration
 # Set to False to disable calibration and use raw confidence scores
 ENABLE_CALIBRATION: Final[bool] = True
-
-# Whether to log calibration adjustments
-# Useful for debugging and monitoring calibration effectiveness
-LOG_CALIBRATION_ADJUSTMENTS: Final[bool] = True
-
-# Maximum allowed calibration adjustment (as a multiplier)
-# Prevents extreme adjustments from sparse data
-# 2.0 = allow confidence to double at most
-# 0.5 = allow confidence to halve at most
-MAX_CALIBRATION_MULTIPLIER: Final[float] = 2.0
-MIN_CALIBRATION_MULTIPLIER: Final[float] = 0.5

@@ -338,22 +338,34 @@ def get_context(session_id: str) -> Optional[ConversationContext]:
 # ============================================================================
 
 def _detect_intent(query: str) -> Optional[str]:
-    """Detect query intent from patterns."""
-    query_lower = query.lower()
+    """Detect high-level user intent for conversation tracking."""
+    query_text = str(query or "").strip()
+    query_lower = query_text.lower()
 
-    # Relationship queries
-    if any(kw in query_lower for kw in ['关系', '连接', '依赖', 'relationship', 'connection']):
-        return 'relationship_query'
+    comparison_keywords = ["compare", "difference", "versus", "vs", "\u5bf9\u6bd4", "\u533a\u522b", "\u5dee\u5f02", "\u6bd4\u8f83"]
+    navigation_keywords = [
+        "show", "find", "search", "list", "browse", "example", "examples", "document", "documents",
+        "\u641c\u7d22", "\u67e5\u627e", "\u67e5\u770b", "\u5217\u51fa", "\u793a\u4f8b", "\u8d44\u6599",
+    ]
+    clarification_keywords = [
+        "explain more", "more details", "details", "elaborate", "clarify", "tell me more",
+        "\u8be6\u7ec6", "\u89e3\u91ca", "\u8865\u5145", "\u66f4\u591a",
+    ]
+    question_keywords = [
+        "what", "why", "how", "when", "where", "which", "what is",
+        "\u4ec0\u4e48", "\u4e3a\u4ec0\u4e48", "\u5982\u4f55", "\u600e\u4e48", "\u54ea\u4e2a", "\u662f\u4ec0\u4e48",
+    ]
 
-    # Comparison queries
-    if any(kw in query_lower for kw in ['对比', '区别', '差异', 'compare', 'difference']):
-        return 'comparison_query'
+    if any(keyword in query_lower for keyword in comparison_keywords):
+        return "comparison"
+    if any(keyword in query_lower for keyword in navigation_keywords):
+        return "navigation"
+    if any(keyword in query_lower for keyword in clarification_keywords):
+        return "clarification"
+    if query_text.endswith(("?", "\uff1f")) or any(keyword in query_lower for keyword in question_keywords):
+        return "question"
 
-    # How-to queries
-    if any(kw in query_lower for kw in ['如何', '怎么', '方法', 'how', 'way']):
-        return 'how_to_query'
-
-    return 'general_query'
+    return "general_query"
 
 
 def _is_followup_query(query: str, context: ConversationContext) -> bool:
@@ -361,33 +373,40 @@ def _is_followup_query(query: str, context: ConversationContext) -> bool:
     if not context.conversation_history:
         return False
 
-    # Short queries are likely follow-ups
-    if len(query) < 30:
+    query_text = str(query or "").strip()
+    query_lower = query_text.lower()
+
+    if len(query_text) < 30:
         return True
 
-    # Check for follow-up indicators
     followup_indicators = [
-        '还有', '另外', '继续', '进一步', '更多', '详细',
-        'also', 'more', 'further', 'additionally', 'what about'
+        "also", "more", "further", "additionally", "what about", "tell me more",
+        "\u8fd8\u6709", "\u53e6\u5916", "\u7ee7\u7eed", "\u8fdb\u4e00\u6b65", "\u66f4\u591a", "\u8be6\u7ec6",
     ]
+    if any(indicator in query_lower for indicator in followup_indicators):
+        return True
 
-    query_lower = query.lower()
-    return any(indicator in query_lower for indicator in followup_indicators)
+    if context.entity_mentions and _detect_reference_pronouns(query_text, context):
+        return True
+
+    return False
 
 
 def _detect_reference_pronouns(query: str, context: ConversationContext) -> Optional[Dict[str, int]]:
     """Check if query contains pronouns that need resolution."""
-    pronouns = ['它', '他', '她', '这个', '那个', 'it', 'this', 'that']
+    query_text = str(query or "")
+    query_lower = query_text.lower()
 
-    query_lower = query.lower()
-    has_pronoun = any(p in query_lower for p in pronouns)
+    chinese_pronouns = ["\u5b83", "\u4ed6", "\u5979", "\u8fd9\u4e2a", "\u90a3\u4e2a"]
+    english_pronoun_patterns = [r"\bit\b", r"\bthis\b", r"\bthat\b", r"\bthese\b", r"\bthose\b"]
 
-    if has_pronoun and context.entity_mentions:
+    has_chinese_pronoun = any(pronoun in query_text for pronoun in chinese_pronouns)
+    has_english_pronoun = any(re.search(pattern, query_lower, flags=re.IGNORECASE) for pattern in english_pronoun_patterns)
+
+    if (has_chinese_pronoun or has_english_pronoun) and context.entity_mentions:
         return context.entity_mentions
 
     return None
-
-
 def _get_top_entities(context: ConversationContext, top_k: int = 3) -> List[str]:
     """Get top K most mentioned entities."""
     if not context.entity_mentions:

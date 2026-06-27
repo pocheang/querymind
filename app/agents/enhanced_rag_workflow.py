@@ -27,6 +27,7 @@ from app.agents.answer_validator_agent import validate_answer
 from app.agents.quality_orchestrator_agent import orchestrate_quality
 from app.agents.context_tracker_agent import (
     get_context_aware_routing_hints,
+    resolve_query_with_context,
     update_conversation_context,
 )
 from app.agents.vector_rag_agent import run_vector_rag
@@ -178,13 +179,18 @@ class EnhancedRAGWorkflow:
         try:
             # Step 1: Get context hints from conversation history (Task 6)
             context_hints = None
+            resolved_query = query
             if self.enable_context_tracking:
                 context_hints = get_context_aware_routing_hints(session_id, query)
                 logger.debug(f"Context hints: {context_hints}")
+                if context_hints and context_hints.resolve_references:
+                    resolved_query = resolve_query_with_context(query, context_hints)
+                    if resolved_query != query:
+                        logger.info("Resolved follow-up query with conversation context")
 
             # Step 2: Route decision with validation and retry (Task 2)
             route_decision, route_validation = await self._route_with_validation(
-                query=query,
+                query=resolved_query,
                 agent_class_hint=agent_class_hint,
                 context_hints=context_hints,
                 execution_metadata=execution_metadata,
@@ -192,7 +198,7 @@ class EnhancedRAGWorkflow:
 
             # Step 3: Execute retrieval based on validated route
             retrieval_result = await self._execute_retrieval(
-                query=query,
+                query=resolved_query,
                 route_decision=route_decision,
                 allowed_sources=allowed_sources,
                 retrieval_strategy=retrieval_strategy,
@@ -200,7 +206,7 @@ class EnhancedRAGWorkflow:
 
             # Step 4: Assess retrieval quality in parallel (Task 3)
             retrieval_quality = await evaluate_retrieval_quality(
-                query=query,
+                query=resolved_query,
                 chunks=retrieval_result["chunks"],
                 metadata=retrieval_result["metadata"],
             )
@@ -405,17 +411,7 @@ class EnhancedRAGWorkflow:
 
         except Exception as e:
             logger.error(f"Retrieval failed for route={route}: {e}", exc_info=True)
-            # Fallback: return empty result with error metadata
-            return {
-                "context": f"检索过程遇到错误：{str(e)}。请尝试重新提问或换个方式询问。",
-                "citations": [],
-                "chunks": [],
-                "metadata": {
-                    "route": route,
-                    "error": str(e),
-                    "fallback": True,
-                },
-            }
+            raise
 
     async def _generate_answer_with_validation(
         self,
@@ -624,4 +620,5 @@ Instructions:
                 "timeout": True,
             },
         }
+
 

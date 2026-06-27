@@ -170,15 +170,18 @@ class EvaluationService:
         Args:
             comparisons: List of system comparisons
         """
-        print("\n" + "=" * 80)
-        print("RETRIEVAL SYSTEM COMPARISON")
-        print("=" * 80)
-        print(f"{'System':<20} {'P@5':>8} {'R@5':>8} {'F1@5':>8} {'MRR':>8} {'NDCG@5':>8} {'Latency(ms)':>12}")
-        print("-" * 80)
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info("\n" + "=" * 80)
+        logger.info("RETRIEVAL SYSTEM COMPARISON")
+        logger.info("=" * 80)
+        logger.info(f"{'System':<20} {'P@5':>8} {'R@5':>8} {'F1@5':>8} {'MRR':>8} {'NDCG@5':>8} {'Latency(ms)':>12}")
+        logger.info("-" * 80)
 
         for comp in comparisons:
             m = comp.metrics
-            print(
+            logger.info(
                 f"{comp.system_name:<20} "
                 f"{m.precision_at_5:>8.3f} "
                 f"{m.recall_at_5:>8.3f} "
@@ -188,4 +191,4 @@ class EvaluationService:
                 f"{m.avg_latency_ms:>12.1f}"
             )
 
-        print("=" * 80 + "\n")
+        logger.info("=" * 80 + "\n")

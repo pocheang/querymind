@@ -212,7 +212,7 @@ class TestConfidenceCalibration:
 
         calibrated = apply_calibration(0.75, data)
 
-        # Should adjust downward: 0.75 * (0.6 / 0.75) = 0.6
+        # New formula: 0.75 * (0.6 / 0.75) = 0.6
         assert abs(calibrated - 0.6) < 0.01
 
     def test_apply_calibration_overconfident(self):
@@ -223,7 +223,7 @@ class TestConfidenceCalibration:
 
         calibrated = apply_calibration(0.95, data)
 
-        # Should reduce: 0.95 * (0.7 / 0.95) ≈ 0.7
+        # New formula: 0.95 * (0.7 / 0.95) ≈ 0.7
         assert calibrated < 0.95
         assert abs(calibrated - 0.7) < 0.01
 
@@ -235,7 +235,7 @@ class TestConfidenceCalibration:
 
         calibrated = apply_calibration(0.55, data)
 
-        # Should increase: 0.55 * (0.8 / 0.55) ≈ 0.8
+        # New formula: 0.55 * (0.8 / 0.55) ≈ 0.8
         assert calibrated > 0.55
         assert abs(calibrated - 0.8) < 0.01
 
@@ -289,7 +289,7 @@ class TestConfidenceCalibrator:
 
             calibrated = calibrator.calibrate(0.75)
 
-            # Should apply calibration
+            # New formula: 0.75 * (0.8 / 0.75) = 0.8
             assert calibrated != 0.75
             assert abs(calibrated - 0.8) < 0.01
 

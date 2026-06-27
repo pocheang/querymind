@@ -4,27 +4,37 @@
     "0.5-0.6": {
       "total_predictions": 0,
       "correct_predictions": 0,
-      "last_updated": null
+      "last_updated": null,
+      "low": 0.5,
+      "high": 1.0
     },
     "0.6-0.7": {
       "total_predictions": 0,
       "correct_predictions": 0,
-      "last_updated": null
+      "last_updated": null,
+      "low": 0.6,
+      "high": 0.7
     },
     "0.7-0.8": {
-      "total_predictions": 4,
-      "correct_predictions": 4,
-      "last_updated": "2026-06-27T10:51:29.690416"
+      "total_predictions": 6,
+      "correct_predictions": 6,
+      "last_updated": "2026-06-27T11:00:41.226135",
+      "low": 0.7,
+      "high": 0.8
     },
     "0.8-0.9": {
-      "total_predictions": 4,
+      "total_predictions": 6,
       "correct_predictions": 0,
-      "last_updated": "2026-06-27T10:51:29.691416"
+      "last_updated": "2026-06-27T11:00:41.227207",
+      "low": 0.8,
+      "high": 0.9
     },
     "0.9-1.0": {
       "total_predictions": 0,
       "correct_predictions": 0,
-      "last_updated": null
+      "last_updated": null,
+      "low": 0.9,
+      "high": 1.0
     }
   }
 }

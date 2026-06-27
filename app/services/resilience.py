@@ -28,13 +28,14 @@ def call_with_circuit_breaker(name: str, fn: Callable[[], Any]) -> Any:
         return fn()
     now = time.time()
 
-    # Check if circuit is open (read-only, no lock needed for check)
+    # HIGH PRIORITY FIX: Keep lock held during check to prevent race condition
     with _BREAKERS_LOCK:
         state = _BREAKERS.setdefault(name, _BreakerState())
         is_open = state.opened_until > now
 
-    if is_open:
-        raise CircuitBreakerOpenError(f"circuit_open:{name}")
+        # Check circuit state while holding lock to prevent race condition
+        if is_open:
+            raise CircuitBreakerOpenError(f"circuit_open:{name}")
 
     try:
         result = fn()

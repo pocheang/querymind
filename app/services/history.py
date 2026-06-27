@@ -3,6 +3,7 @@ import logging
 import re
 import sqlite3
 import threading
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -13,10 +14,21 @@ from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TITLE = "新会话"
+DEFAULT_TITLE = "\u65b0\u4f1a\u8bdd"
 
 
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
+_LOCK_REGISTRY_GUARD = threading.Lock()
+_LOCK_REGISTRY: dict[str, threading.RLock] = {}
+
+
+def _shared_lock_for_namespace(namespace: str) -> threading.RLock:
+    with _LOCK_REGISTRY_GUARD:
+        lock = _LOCK_REGISTRY.get(namespace)
+        if lock is None:
+            lock = threading.RLock()
+            _LOCK_REGISTRY[namespace] = lock
+        return lock
 
 
 def validate_session_id(session_id: str) -> str:
@@ -39,7 +51,7 @@ class HistoryStore:
         self._hot_days = max(1, int(getattr(settings, "history_hot_tier_days", 14) or 14))
         self._db_path = settings.history_sqlite_path
         self._namespace = str(self.base_dir.resolve())
-        self._lock = threading.RLock()
+        self._lock = _shared_lock_for_namespace(self._namespace)
         self._last_tier_ts = 0.0
         if self._backend == "sqlite":
             self._init_sqlite()
@@ -55,17 +67,19 @@ class HistoryStore:
             "messages": [],
             "runtime_policy": {"strategy_lock": None},
         }
-        self._write(session_id, data)
+        with self._lock:
+            self._write(session_id, data)
         return data
 
     def get_or_create_session(self, session_id: str | None = None) -> dict[str, Any]:
-        if session_id:
-            session_id = validate_session_id(session_id)
-            existing = self.get_session(session_id)
-            if existing is not None:
-                return existing
-            return self.create_session(session_id=session_id)
-        return self.create_session()
+        with self._lock:
+            if session_id:
+                session_id = validate_session_id(session_id)
+                existing = self.get_session(session_id)
+                if existing is not None:
+                    return existing
+                return self.create_session(session_id=session_id)
+            return self.create_session()
 
     def list_sessions(self) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
@@ -87,12 +101,13 @@ class HistoryStore:
             session_id = validate_session_id(session_id)
         except ValueError:
             return None
-        data = self._read(session_id)
-        if data is None:
-            return None
-        if self._ensure_message_ids(data):
-            self._write(session_id, data)
-        return data
+        with self._lock:
+            data = self._read(session_id)
+            if data is None:
+                return None
+            if self._ensure_message_ids(data):
+                self._write(session_id, data)
+            return data
 
     def get_session_strategy_lock(self, session_id: str) -> str | None:
         data = self.get_session(session_id)
@@ -107,15 +122,16 @@ class HistoryStore:
             session_id = validate_session_id(session_id)
         except ValueError:
             return None
-        data = self.get_session(session_id)
-        if data is None:
-            return None
-        policy = dict(data.get("runtime_policy", {}) or {})
-        policy["strategy_lock"] = normalize_string(strategy, lowercase=True) or None
-        data["runtime_policy"] = policy
-        data["updated_at"] = self._now()
-        self._write(session_id, data)
-        return data
+        with self._lock:
+            data = self.get_session(session_id)
+            if data is None:
+                return None
+            policy = dict(data.get("runtime_policy", {}) or {})
+            policy["strategy_lock"] = normalize_string(strategy, lowercase=True) or None
+            data["runtime_policy"] = policy
+            data["updated_at"] = self._now()
+            self._write(session_id, data)
+            return data
 
     def delete_session(self, session_id: str) -> bool:
         try:
@@ -129,61 +145,65 @@ class HistoryStore:
                 )
                 conn.commit()
                 return int(cur.rowcount or 0) > 0
-        path = self.base_dir / f"{session_id}.json"
-        if not path.exists():
-            return False
-        path.unlink()
-        return True
+        with self._lock:
+            path = self.base_dir / f"{session_id}.json"
+            if not path.exists():
+                return False
+            path.unlink()
+            return True
 
     def append_message(
         self, session_id: str, role: str, content: str, metadata: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         session_id = validate_session_id(session_id)
-        data = self.get_or_create_session(session_id)
-        if not data.get("messages") and role == "user":
-            title = (content or DEFAULT_TITLE).strip().replace("\n", " ")[:40]
-            data["title"] = title or data.get("title", DEFAULT_TITLE)
-        data.setdefault("messages", []).append(
-            {
-                "message_id": uuid.uuid4().hex,
-                "role": role,
-                "content": content,
-                "metadata": metadata or {},
-                "created_at": self._now(),
-            }
-        )
-        data["updated_at"] = self._now()
-        self._write(data["session_id"], data)
-        return data
+        with self._lock:
+            data = self.get_or_create_session(session_id)
+            if not data.get("messages") and role == "user":
+                title = (content or DEFAULT_TITLE).strip().replace("\n", " ")[:40]
+                data["title"] = title or data.get("title", DEFAULT_TITLE)
+            data.setdefault("messages", []).append(
+                {
+                    "message_id": uuid.uuid4().hex,
+                    "role": role,
+                    "content": content,
+                    "metadata": metadata or {},
+                    "created_at": self._now(),
+                }
+            )
+            data["updated_at"] = self._now()
+            self._write(data["session_id"], data)
+            return data
 
     def update_message(self, session_id: str, message_id: str, content: str) -> dict[str, Any] | None:
         try:
             session_id = validate_session_id(session_id)
         except ValueError:
             return None
-        data = self.get_session(session_id)
-        if data is None:
-            return None
-        if self._update_message_in_data(data, message_id, content) is None:
-            return None
-        data["updated_at"] = self._now()
-        self._refresh_title(data)
-        self._write(session_id, data)
-        return data
+        with self._lock:
+            data = self.get_session(session_id)
+            if data is None:
+                return None
+            if self._update_message_in_data(data, message_id, content) is None:
+                return None
+            data["updated_at"] = self._now()
+            self._refresh_title(data)
+            self._write(session_id, data)
+            return data
 
     def get_message(self, session_id: str, message_id: str) -> dict[str, Any] | None:
         try:
             session_id = validate_session_id(session_id)
         except ValueError:
             return None
-        data = self.get_session(session_id)
-        if data is None:
+        with self._lock:
+            data = self.get_session(session_id)
+            if data is None:
+                return None
+            self._ensure_message_ids(data)
+            for msg in data.get("messages", []):
+                if msg.get("message_id") == message_id:
+                    return msg
             return None
-        self._ensure_message_ids(data)
-        for msg in data.get("messages", []):
-            if msg.get("message_id") == message_id:
-                return msg
-        return None
 
     def upsert_assistant_after_user(
         self,
@@ -196,55 +216,57 @@ class HistoryStore:
             session_id = validate_session_id(session_id)
         except ValueError:
             return None
-        data = self.get_session(session_id)
-        if data is None:
-            return None
-        self._ensure_message_ids(data)
-        messages = data.get("messages", [])
-        for idx, msg in enumerate(messages):
-            if msg.get("message_id") != user_message_id:
-                continue
-            if msg.get("role") != "user":
+        with self._lock:
+            data = self.get_session(session_id)
+            if data is None:
                 return None
-            candidate_idx = idx + 1
-            if candidate_idx < len(messages) and messages[candidate_idx].get("role") == "assistant":
-                messages[candidate_idx]["content"] = assistant_content
-                messages[candidate_idx]["metadata"] = metadata or {}
-                messages[candidate_idx]["updated_at"] = self._now()
-            else:
-                messages.insert(
-                    candidate_idx,
-                    {
-                        "message_id": uuid.uuid4().hex,
-                        "role": "assistant",
-                        "content": assistant_content,
-                        "metadata": metadata or {},
-                        "created_at": self._now(),
-                    },
-                )
-            data["updated_at"] = self._now()
-            self._write(session_id, data)
-            return data
-        return None
+            self._ensure_message_ids(data)
+            messages = data.get("messages", [])
+            for idx, msg in enumerate(messages):
+                if msg.get("message_id") != user_message_id:
+                    continue
+                if msg.get("role") != "user":
+                    return None
+                candidate_idx = idx + 1
+                if candidate_idx < len(messages) and messages[candidate_idx].get("role") == "assistant":
+                    messages[candidate_idx]["content"] = assistant_content
+                    messages[candidate_idx]["metadata"] = metadata or {}
+                    messages[candidate_idx]["updated_at"] = self._now()
+                else:
+                    messages.insert(
+                        candidate_idx,
+                        {
+                            "message_id": uuid.uuid4().hex,
+                            "role": "assistant",
+                            "content": assistant_content,
+                            "metadata": metadata or {},
+                            "created_at": self._now(),
+                        },
+                    )
+                data["updated_at"] = self._now()
+                self._write(session_id, data)
+                return data
+            return None
 
     def delete_message(self, session_id: str, message_id: str) -> dict[str, Any] | None:
         try:
             session_id = validate_session_id(session_id)
         except ValueError:
             return None
-        data = self.get_session(session_id)
-        if data is None:
-            return None
-        messages = data.get("messages", [])
-        self._ensure_message_ids(data)
-        kept = [m for m in messages if m.get("message_id") != message_id]
-        if len(kept) == len(messages):
-            return None
-        data["messages"] = kept
-        data["updated_at"] = self._now()
-        self._refresh_title(data)
-        self._write(session_id, data)
-        return data
+        with self._lock:
+            data = self.get_session(session_id)
+            if data is None:
+                return None
+            messages = data.get("messages", [])
+            self._ensure_message_ids(data)
+            kept = [m for m in messages if m.get("message_id") != message_id]
+            if len(kept) == len(messages):
+                return None
+            data["messages"] = kept
+            data["updated_at"] = self._now()
+            self._refresh_title(data)
+            self._write(session_id, data)
+            return data
 
     def _refresh_title(self, data: dict[str, Any]) -> None:
         for msg in data.get("messages", []):
@@ -295,9 +317,18 @@ class HistoryStore:
             return
         path = self.base_dir / f"{session_id}.json"
         temp_path = path.with_suffix(".json.tmp")
-        temp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        temp_path.replace(path)
-        self._tier_cold_files_if_needed()
+        payload = json.dumps(data, ensure_ascii=False, indent=2)
+        with self._lock:
+            for attempt in range(3):
+                try:
+                    temp_path.write_text(payload, encoding="utf-8")
+                    temp_path.replace(path)
+                    break
+                except PermissionError:
+                    if attempt == 2:
+                        raise
+                    time.sleep(0.05 * (attempt + 1))
+            self._tier_cold_files_if_needed()
 
     def _read(self, session_id: str) -> dict[str, Any] | None:
         try:
@@ -318,19 +349,20 @@ class HistoryStore:
                 logger.warning(f"Failed to parse session data for {session_id}: {e}")
                 return None
             return data if isinstance(data, dict) else None
-        path = self.base_dir / f"{session_id}.json"
-        if not path.exists():
-            cold_path = self._cold_dir / f"{session_id}.json"
-            if cold_path.exists():
-                path = cold_path
-            else:
+        with self._lock:
+            path = self.base_dir / f"{session_id}.json"
+            if not path.exists():
+                cold_path = self._cold_dir / f"{session_id}.json"
+                if cold_path.exists():
+                    path = cold_path
+                else:
+                    return None
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning(f"Failed to read session file {session_id}: {e}")
                 return None
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning(f"Failed to read session file {session_id}: {e}")
-            return None
-        return data if isinstance(data, dict) else None
+            return data if isinstance(data, dict) else None
 
     def _iter_sessions_data(self) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
@@ -349,55 +381,57 @@ class HistoryStore:
                 if isinstance(data, dict):
                     rows.append(data)
             return rows
-        for path in sorted(self.base_dir.glob("*.json"), reverse=True):
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError) as e:
-                logger.debug(f"Skipping invalid session file {path}: {e}")
-                continue
-            if isinstance(data, dict):
-                rows.append(data)
-        for path in sorted(self._cold_dir.glob("*.json"), reverse=True):
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError) as e:
-                logger.debug(f"Skipping invalid cold session file {path}: {e}")
-                continue
-            if isinstance(data, dict):
-                rows.append(data)
-        return rows
+        with self._lock:
+            for path in sorted(self.base_dir.glob("*.json"), reverse=True):
+                try:
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.debug(f"Skipping invalid session file {path}: {e}")
+                    continue
+                if isinstance(data, dict):
+                    rows.append(data)
+            for path in sorted(self._cold_dir.glob("*.json"), reverse=True):
+                try:
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.debug(f"Skipping invalid cold session file {path}: {e}")
+                    continue
+                if isinstance(data, dict):
+                    rows.append(data)
+            return rows
 
     def _tier_cold_files_if_needed(self) -> None:
         if self._backend != "file":
             return
-        now_ts = datetime.now(UTC).timestamp()
-        if (now_ts - self._last_tier_ts) < 300:
-            return
-        self._last_tier_ts = now_ts
-        cutoff = datetime.now(UTC) - timedelta(days=self._hot_days)
-        for path in list(self.base_dir.glob("*.json")):
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError) as e:
-                logger.debug(f"Skipping invalid session file during archival {path}: {e}")
-                continue
-            updated = str(data.get("updated_at", "") or "")
-            try:
-                dt = datetime.fromisoformat(updated) if updated else datetime.now(UTC)
-            except (ValueError, TypeError) as e:
-                logger.debug(f"Invalid timestamp, using current time: {e}")
-                dt = datetime.now(UTC)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=UTC)
-            else:
-                dt = dt.astimezone(UTC)
-            if dt < cutoff:
-                target = self._cold_dir / path.name
+        with self._lock:
+            now_ts = datetime.now(UTC).timestamp()
+            if (now_ts - self._last_tier_ts) < 300:
+                return
+            self._last_tier_ts = now_ts
+            cutoff = datetime.now(UTC) - timedelta(days=self._hot_days)
+            for path in list(self.base_dir.glob("*.json")):
                 try:
-                    path.replace(target)
-                except OSError as e:
-                    logger.debug(f"Failed to move session to cold storage {path}: {e}")
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.debug(f"Skipping invalid session file during archival {path}: {e}")
                     continue
+                updated = str(data.get("updated_at", "") or "")
+                try:
+                    dt = datetime.fromisoformat(updated) if updated else datetime.now(UTC)
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"Invalid timestamp, using current time: {e}")
+                    dt = datetime.now(UTC)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=UTC)
+                else:
+                    dt = dt.astimezone(UTC)
+                if dt < cutoff:
+                    target = self._cold_dir / path.name
+                    try:
+                        path.replace(target)
+                    except OSError as e:
+                        logger.debug(f"Failed to move session to cold storage {path}: {e}")
+                        continue
 
     def _connect(self) -> sqlite3.Connection:
         settings = get_settings()

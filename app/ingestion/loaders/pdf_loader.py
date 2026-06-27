@@ -20,44 +20,21 @@ def load_pdf_text(path: Path) -> list[Document]:
 
 
 def load_pdf_enhanced(path: Path, by_page: bool = True) -> list[Document]:
-    """Load PDF with enhanced processing (cleaning, table merging, etc).
-
-    This uses Docling + advanced processing:
-    - Header/footer removal
-    - Cross-page table merging
-    - Nested table flattening
-
-    Args:
-        path: Path to PDF file
-        by_page: If True, return one Document per page
-
-    Returns:
-        List of Document objects with enhanced content
-    """
+    """Load PDF with enhanced processing (cleaning, table merging, etc)."""
     try:
         from app.ingestion.loaders.pdf_loader_enhanced import load_pdf_enhanced as _load_enhanced
 
         return _load_enhanced(path, by_page)
     except ImportError as e:
         logger.warning(f"Enhanced loader not available: {e}")
-        # Fallback to regular Docling
         return load_pdf_with_docling(path, by_page)
     except Exception as e:
         logger.error(f"Enhanced loading failed for {path.name}: {e}", exc_info=True)
-        # Fallback to regular Docling
         return load_pdf_with_docling(path, by_page)
 
 
 def load_pdf_with_docling(path: Path, by_page: bool = True) -> list[Document]:
-    """Load PDF using Docling with Markdown conversion (preserves tables).
-
-    Args:
-        path: Path to PDF file
-        by_page: If True, return one Document per page. If False, return single Document.
-
-    Returns:
-        List of Document objects with Markdown-formatted content
-    """
+    """Load PDF using Docling with Markdown conversion (preserves tables)."""
     try:
         from docling.document_converter import DocumentConverter
     except ImportError as e:
@@ -69,7 +46,6 @@ def load_pdf_with_docling(path: Path, by_page: bool = True) -> list[Document]:
         result = converter.convert(str(path))
 
         if not by_page:
-            # Single document with full content
             markdown_content = result.document.export_to_markdown()
             return [
                 Document(
@@ -82,7 +58,6 @@ def load_pdf_with_docling(path: Path, by_page: bool = True) -> list[Document]:
                 )
             ]
 
-        # One document per page
         docs: list[Document] = []
         for page_idx, page in enumerate(result.document.pages, start=1):
             page_markdown = page.export_to_markdown()
@@ -101,9 +76,7 @@ def load_pdf_with_docling(path: Path, by_page: bool = True) -> list[Document]:
 
         if not docs:
             logger.warning(f"No content extracted from {path.name} using Docling")
-
         return docs
-
     except Exception as e:
         logger.error(f"Docling conversion failed for {path.name}: {e}", exc_info=True)
         return []
@@ -122,7 +95,7 @@ def load_pdf_image_ocr(path: Path) -> list[Document]:
     docs: list[Document] = []
     try:
         reader = PdfReader(str(path))
-    except (OSError, ValueError) as e:
+    except Exception as e:
         logger.warning(f"Failed to read PDF for image OCR {path}: {e}")
         return docs
 

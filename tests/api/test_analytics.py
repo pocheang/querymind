@@ -11,6 +11,8 @@ import pytest
 from app.api.main import app
 from app.services.retrieval_logger import RetrievalLog, RetrievalLogger
 
+ADMIN_HEADERS = {"X-Test-User": "admin", "X-Test-Role": "admin", "X-Test-User-Id": "admin-123"}
+
 
 @pytest.fixture
 def client():
@@ -19,6 +21,7 @@ def client():
         from fastapi.testclient import TestClient
 
         with TestClient(app) as c:
+            c.headers.update(ADMIN_HEADERS)
             yield c
     except TypeError as e:
         if "unexpected keyword argument 'app'" in str(e):
@@ -304,3 +307,4 @@ def test_export_format_validation(client):
 
     response = client.get("/api/analytics/export?format=csv")
     assert response.status_code == 200
+

@@ -5,6 +5,16 @@ from pathlib import Path
 
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _test_api_settings_key(monkeypatch):
+    monkeypatch.setenv("API_SETTINGS_ENCRYPTION_KEY", "test-api-settings-key-1234567890")
+    reload_settings()
+    yield
+    reload_settings()
+
+from app.core.config import reload_settings
+
 from app.services.auth_db import AuthDBService
 
 

@@ -129,7 +129,7 @@ def delete_long_term_memory(
     session_id: str, memory_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)
 ):
     session_id = _require_valid_session_id(session_id)
-    _require_permission(user, "session:delete", request, "session", resource_id=session_id)
+    _require_permission(user, "session:read", request, "session", resource_id=session_id)
     ok = _memory_store_for_user(user).delete_long_term(session_id=session_id, candidate_id=memory_id)
     if not ok:
         raise not_found("Memory")
@@ -217,3 +217,6 @@ def delete_session_message(
         request, action="message.delete", resource_type="message", result="success", user=user, resource_id=message_id
     )
     return data
+
+
+

@@ -1,5 +1,10 @@
 """Document management routes for the Multi-Agent Local RAG API."""
 
+import asyncio
+try:
+    import aiofiles
+except ModuleNotFoundError:
+    aiofiles = None
 import logging
 import time
 from pathlib import Path
@@ -9,15 +14,16 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 
 from app.api.dependencies import (
     _audit,
-    _client_ip,
+    settings,
+    upload_limiter,
+)
+from app.api.utils.auth_dependencies import _require_permission, _require_user
+from app.api.utils.auth_helpers import _client_ip
+from app.api.utils.document_helpers import (
     _guess_agent_class_for_upload,
     _is_probably_valid_upload_signature,
     _is_source_manageable_for_user,
     _list_visible_documents_for_user,
-    _require_permission,
-    _require_user,
-    settings,
-    upload_limiter,
 )
 from app.api.utils.error_responses import (
     bad_request,
@@ -51,6 +57,18 @@ from app.services.runtime_ops import append_index_freshness
 
 router = APIRouter(tags=["documents"])
 logger = logging.getLogger(__name__)
+
+
+async def _write_file_bytes(target: Path, chunks: list[bytes]) -> None:
+    """Write uploaded bytes using aiofiles when available, else a thread fallback."""
+    if aiofiles is not None:
+        async with aiofiles.open(target, "wb") as out:
+            for chunk in chunks:
+                await out.write(chunk)
+        return
+
+    payload = b"".join(chunks)
+    await asyncio.to_thread(target.write_bytes, payload)
 
 
 def _resolve_manageable_source_for_filename(filename: str, user: dict[str, Any]) -> str | None:
@@ -359,36 +377,40 @@ async def upload_files(
         target = user_upload_root / safe_filename
         file_uploaded_bytes = 0
         file_head = b""
+        file_chunks = []
+
         try:
-            with target.open("wb") as out:
-                while True:
-                    chunk = await f.read(read_chunk)
-                    if not chunk:
-                        break
-                    if len(file_head) < 16:
-                        file_head = (file_head + chunk)[:16]
-                    file_uploaded_bytes += len(chunk)
-                    total_uploaded_bytes += len(chunk)
-                    if file_uploaded_bytes > settings.upload_max_file_bytes:
-                        raise payload_too_large(f"file too large: {target.name}")
-                    if total_uploaded_bytes > settings.upload_max_total_bytes:
-                        raise payload_too_large("total upload size exceeded")
-                    out.write(chunk)
-        except HTTPException:
-            if target.exists():
-                target.unlink()
-            raise
+            # Read and validate file before writing to disk (security improvement)
+            while True:
+                chunk = await f.read(read_chunk)
+                if not chunk:
+                    break
+                if len(file_head) < 16:
+                    file_head = (file_head + chunk)[:16]
+                file_uploaded_bytes += len(chunk)
+                total_uploaded_bytes += len(chunk)
+                if file_uploaded_bytes > settings.upload_max_file_bytes:
+                    raise payload_too_large(f"file too large: {target.name}")
+                if total_uploaded_bytes > settings.upload_max_total_bytes:
+                    raise payload_too_large("total upload size exceeded")
+                file_chunks.append(chunk)
         finally:
             await f.close()
 
         if file_uploaded_bytes <= 0:
-            if target.exists():
-                target.unlink()
             continue
+
+        # Validate file signature BEFORE writing to disk (prevents malicious files from touching filesystem)
         if suffix in {".pdf", *IMAGE_EXTENSIONS} and not _is_probably_valid_upload_signature(suffix, file_head):
+            raise bad_request(f"invalid file signature: {safe_filename}")
+
+        # Now write validated file to disk
+        try:
+            await _write_file_bytes(target, file_chunks)
+        except Exception as e:
             if target.exists():
                 target.unlink()
-            raise bad_request(f"invalid file signature: {safe_filename}")
+            raise internal_error(f"Failed to write file: {safe_filename}") from e
         sha256 = compute_sha256(target)
         duplicate = find_duplicate_for_user(sha256, str(user.get("user_id", "")))
         if duplicate is not None:
@@ -508,3 +530,6 @@ async def upload_files(
         chunks_indexed=0,
         triplets_written=0,
     )
+
+
+

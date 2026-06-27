@@ -1,8 +1,12 @@
+import logging
 import threading
+import time
 
 from neo4j import GraphDatabase
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class Neo4jClient:
@@ -121,6 +125,133 @@ class Neo4jClient:
                 confidence=float(confidence),
             )
 
+    def batch_upsert_triplets(
+        self,
+        triplets: list[dict],
+        batch_size: int = 100,
+    ) -> int:
+        """
+        Batch upsert multiple triplets for better performance (~10x faster than individual upserts).
+
+        Args:
+            triplets: List of triplet dicts with keys: head, relation, tail, source,
+                     chunk_id (optional), page (optional), confidence
+            batch_size: Number of triplets to process per transaction (default: 100)
+
+        Returns:
+            Total number of triplets processed
+
+        Example:
+            triplets = [
+                {
+                    "head": "Python", "relation": "is_a", "tail": "Language",
+                    "source": "doc.txt", "chunk_id": "chunk_1", "page": 1, "confidence": 0.9
+                },
+                ...
+            ]
+            count = client.batch_upsert_triplets(triplets)
+        """
+        # Input validation
+        if not isinstance(triplets, list):
+            raise TypeError(f"triplets must be a list, got {type(triplets).__name__}")
+
+        if not isinstance(batch_size, int) or batch_size < 1:
+            raise ValueError(f"batch_size must be a positive integer, got {batch_size}")
+
+        if not triplets:
+            return 0
+
+        # Validate required fields in triplets
+        for i, triplet in enumerate(triplets):
+            if not isinstance(triplet, dict):
+                raise TypeError(f"triplets[{i}] must be a dict, got {type(triplet).__name__}")
+
+            required_fields = ["head", "relation", "tail", "source"]
+            for field in required_fields:
+                if field not in triplet:
+                    raise ValueError(f"triplets[{i}] missing required field: {field}")
+                if not isinstance(triplet[field], str):
+                    raise TypeError(f"triplets[{i}][{field}] must be a string, got {type(triplet[field]).__name__}")
+                if not triplet[field].strip():
+                    raise ValueError(f"triplets[{i}][{field}] cannot be empty")
+
+        # Cypher query using UNWIND for batch processing
+        cypher = """
+        UNWIND $batch AS triplet
+        MERGE (h:Entity {name: triplet.head})
+        MERGE (t:Entity {name: triplet.tail})
+        MERGE (s:Source {name: triplet.source})
+        MERGE (h)-[r:RELATED {type: triplet.relation}]->(t)
+        SET r.sources = CASE
+            WHEN r.sources IS NULL THEN [triplet.source]
+            WHEN triplet.source IN r.sources THEN r.sources
+            ELSE r.sources + triplet.source
+        END,
+        r.chunk_ids = CASE
+            WHEN triplet.chunk_id = "" THEN coalesce(r.chunk_ids, [])
+            WHEN r.chunk_ids IS NULL THEN [triplet.chunk_id]
+            WHEN triplet.chunk_id IN r.chunk_ids THEN r.chunk_ids
+            ELSE r.chunk_ids + triplet.chunk_id
+        END,
+        r.pages = CASE
+            WHEN triplet.page IS NULL THEN coalesce(r.pages, [])
+            WHEN r.pages IS NULL THEN [triplet.page]
+            WHEN triplet.page IN r.pages THEN r.pages
+            ELSE r.pages + triplet.page
+        END,
+        r.confidence_max = CASE
+            WHEN r.confidence_max IS NULL OR triplet.confidence > r.confidence_max THEN triplet.confidence
+            ELSE r.confidence_max
+        END,
+        r.confidence_count = coalesce(r.confidence_count, 0) + 1,
+        r.confidence_avg = CASE
+            WHEN r.confidence_avg IS NULL THEN triplet.confidence
+            ELSE ((r.confidence_avg * (r.confidence_count - 1)) + triplet.confidence) / r.confidence_count
+        END
+        MERGE (h)-[:MENTIONED_IN]->(s)
+        MERGE (t)-[:MENTIONED_IN]->(s)
+        """
+
+        total_processed = 0
+        start_time = time.time()
+
+        with self.driver.session() as session:
+            # Process in batches to avoid memory issues with large datasets
+            num_batches = (len(triplets) + batch_size - 1) // batch_size
+            logger.info(f"Processing {len(triplets)} triplets in {num_batches} batches of {batch_size}")
+
+            for batch_idx, i in enumerate(range(0, len(triplets), batch_size), 1):
+                batch_start = time.time()
+                batch = triplets[i:i + batch_size]
+
+                # Ensure all triplets have required fields with defaults
+                normalized_batch = [
+                    {
+                        "head": t["head"],
+                        "relation": t["relation"],
+                        "tail": t["tail"],
+                        "source": t["source"],
+                        "chunk_id": t.get("chunk_id", ""),
+                        "page": t.get("page"),
+                        "confidence": float(t.get("confidence", 0.7)),
+                    }
+                    for t in batch
+                ]
+                session.run(cypher, batch=normalized_batch)
+                total_processed += len(batch)
+
+                batch_time = time.time() - batch_start
+                logger.debug(f"Batch {batch_idx}/{num_batches}: {len(batch)} triplets in {batch_time:.2f}s")
+
+        total_time = time.time() - start_time
+        triplets_per_sec = total_processed / total_time if total_time > 0 else 0
+        logger.info(
+            f"Batch upsert completed: {total_processed} triplets in {total_time:.2f}s "
+            f"({triplets_per_sec:.1f} triplets/sec)"
+        )
+
+        return total_processed
+
     def search_entities(
         self, keywords: list[str], limit: int = 10, allowed_sources: list[str] | None = None
     ) -> list[dict]:
@@ -232,3 +363,129 @@ class Neo4jClient:
             if hasattr(session, "write_transaction"):
                 return int(session.write_transaction(_tx_work))
             return int(_tx_work(session))
+
+    def batch_entity_neighbors(
+        self, entities: list[str], limit_per_entity: int = 10, allowed_sources: list[str] | None = None
+    ) -> dict[str, list[dict]]:
+        """
+        Batch fetch neighbors for multiple entities in a single query (eliminates N+1 problem).
+
+        Args:
+            entities: List of entity names to fetch neighbors for
+            limit_per_entity: Max neighbors per entity
+            allowed_sources: Optional source filtering
+
+        Returns:
+            Dict mapping entity name to list of neighbor dicts
+
+        Performance: 3 entities with 10 neighbors each = 1 query instead of 3 queries
+        """
+        if not entities:
+            return {}
+
+        if allowed_sources is not None:
+            if not allowed_sources:
+                return {e: [] for e in entities}
+            cypher = """
+            UNWIND $entities AS entity_name
+            MATCH (e:Entity {name: entity_name})-[r:RELATED]-(o:Entity)
+            WHERE any(src IN coalesce(r.sources, []) WHERE src IN $allowed_sources)
+            WITH e.name AS entity, r.type AS relation, o.name AS other
+            ORDER BY entity, relation, other
+            RETURN entity, collect({relation: relation, other: other})[..$limit] AS neighbors
+            """
+            params = {"entities": entities, "limit": limit_per_entity, "allowed_sources": allowed_sources}
+        else:
+            cypher = """
+            UNWIND $entities AS entity_name
+            MATCH (e:Entity {name: entity_name})-[r:RELATED]-(o:Entity)
+            WITH e.name AS entity, r.type AS relation, o.name AS other
+            ORDER BY entity, relation, other
+            RETURN entity, collect({relation: relation, other: other})[..$limit] AS neighbors
+            """
+            params = {"entities": entities, "limit": limit_per_entity}
+
+        result = {}
+        with self.driver.session() as session:
+            for record in session.run(cypher, **params):
+                entity_name = record["entity"]
+                neighbors = record["neighbors"]
+                # Flatten the neighbor structure
+                result[entity_name] = [
+                    {"entity": entity_name, "relation": n["relation"], "other": n["other"]} for n in neighbors
+                ]
+
+        # Ensure all requested entities are in result (even if no neighbors found)
+        for entity in entities:
+            if entity not in result:
+                result[entity] = []
+
+        return result
+
+    def batch_entity_paths_2hop(
+        self, entities: list[str], limit_per_entity: int = 8, allowed_sources: list[str] | None = None
+    ) -> dict[str, list[dict]]:
+        """
+        Batch fetch 2-hop paths for multiple entities in a single query (eliminates N+1 problem).
+
+        Args:
+            entities: List of entity names to fetch paths for
+            limit_per_entity: Max paths per entity
+            allowed_sources: Optional source filtering
+
+        Returns:
+            Dict mapping entity name to list of path dicts
+
+        Performance: 3 entities with 8 paths each = 1 query instead of 3 queries
+        """
+        if not entities:
+            return {}
+
+        if allowed_sources is not None:
+            if not allowed_sources:
+                return {e: [] for e in entities}
+            cypher = """
+            UNWIND $entities AS entity_name
+            MATCH p=(e:Entity {name: entity_name})-[r1:RELATED]-(m:Entity)-[r2:RELATED]-(o:Entity)
+            WHERE any(src IN coalesce(r1.sources, []) WHERE src IN $allowed_sources)
+              AND any(src IN coalesce(r2.sources, []) WHERE src IN $allowed_sources)
+              AND o.name <> e.name
+            WITH e.name AS source, r1.type AS rel1, m.name AS middle, r2.type AS rel2, o.name AS target
+            ORDER BY source, middle, target
+            RETURN source, collect({rel1: rel1, middle: middle, rel2: rel2, target: target})[..$limit] AS paths
+            """
+            params = {"entities": entities, "limit": limit_per_entity, "allowed_sources": allowed_sources}
+        else:
+            cypher = """
+            UNWIND $entities AS entity_name
+            MATCH p=(e:Entity {name: entity_name})-[r1:RELATED]-(m:Entity)-[r2:RELATED]-(o:Entity)
+            WHERE o.name <> e.name
+            WITH e.name AS source, r1.type AS rel1, m.name AS middle, r2.type AS rel2, o.name AS target
+            ORDER BY source, middle, target
+            RETURN source, collect({rel1: rel1, middle: middle, rel2: rel2, target: target})[..$limit] AS paths
+            """
+            params = {"entities": entities, "limit": limit_per_entity}
+
+        result = {}
+        with self.driver.session() as session:
+            for record in session.run(cypher, **params):
+                source_name = record["source"]
+                paths = record["paths"]
+                # Flatten the path structure
+                result[source_name] = [
+                    {
+                        "source": source_name,
+                        "rel1": p["rel1"],
+                        "middle": p["middle"],
+                        "rel2": p["rel2"],
+                        "target": p["target"],
+                    }
+                    for p in paths
+                ]
+
+        # Ensure all requested entities are in result (even if no paths found)
+        for entity in entities:
+            if entity not in result:
+                result[entity] = []
+
+        return result

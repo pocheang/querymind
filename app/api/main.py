@@ -186,18 +186,32 @@ _APP_BASE_API_SEGMENTS = {
     "user",
 }
 
+_LEGACY_API_PREFIX_SEGMENTS = {
+    "agent-tracking",
+    "auth",
+    "documents",
+    "prompts",
+    "query",
+    "sessions",
+    "upload",
+}
+
 
 @app.middleware("http")
 async def rewrite_app_prefixed_api_paths(request, call_next):
-    """Support deployments that expose backend routes under the public /app base."""
+    """Support public /app prefixes and legacy /api prefixes for bare routers."""
     path = str(request.scope.get("path", "") or "")
     if path.startswith("/app/"):
         remainder = path[len("/app/") :]
         first_segment = remainder.split("/", 1)[0]
         if first_segment in _APP_BASE_API_SEGMENTS:
             request.scope["path"] = f"/{remainder}"
+    elif path.startswith("/api/"):
+        remainder = path[len("/api/") :]
+        first_segment = remainder.split("/", 1)[0]
+        if first_segment in _LEGACY_API_PREFIX_SEGMENTS:
+            request.scope["path"] = f"/{remainder}"
     return await call_next(request)
-
 
 def _configure_cors(app_obj: FastAPI, settings_obj) -> None:
     """Attach CORS middleware according to settings, with prod-safety guards.
@@ -280,6 +294,16 @@ def serve_react_app_root():
     return _serve_react_index()
 
 
+def __getattr__(name: str):
+    """Expose route/helper symbols for backward-compatible test monkeypatching."""
+    for module in _ROUTE_MODULES:
+        if hasattr(module, name):
+            return getattr(module, name)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+
+
+
 @app.get("/app/{frontend_path:path}")
 def serve_react_app(frontend_path: str):
     """Serve React app for all frontend routes."""
@@ -314,3 +338,5 @@ class _CompatMainModule(type(sys)):
 
 
 sys.modules[__name__].__class__ = _CompatMainModule
+
+

@@ -62,19 +62,19 @@ def _get_redis_client():
             if _REDIS_CLIENT is not None:
                 try:
                     _REDIS_CLIENT.close()
-                except Exception:
-                    pass
-            _REDIS_CLIENT = None
+                except Exception as cleanup_error:
+                    logger.debug(f"Redis cleanup failed during init error: {cleanup_error}")
+                _REDIS_CLIENT = None
             _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
             return None
         except Exception as e:
-            logger.warning(f"Redis connection failed for query guard: {e}")
+            logger.warning(f"Redis connection failed for query guard: {e}", exc_info=True)
             if _REDIS_CLIENT is not None:
                 try:
                     _REDIS_CLIENT.close()
-                except Exception:
-                    pass
-            _REDIS_CLIENT = None
+                except Exception as cleanup_error:
+                    logger.debug(f"Redis cleanup failed during connection error: {cleanup_error}")
+                _REDIS_CLIENT = None
             _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
             return None
 
@@ -252,7 +252,19 @@ class QueryLoadGuard:
                         return
                 if (time.monotonic() - started) > self._acquire_timeout_s:
                     raise QueryOverloadedError("query queue timeout")
-                time.sleep(0.05)
+
+                # OPTIMIZATION: Exponential backoff instead of fixed 50ms spin-wait
+                # Reduces CPU usage under high load
+                elapsed = time.monotonic() - started
+                if elapsed < 0.5:
+                    sleep_time = 0.05  # 50ms for first 0.5s
+                elif elapsed < 2.0:
+                    sleep_time = 0.1   # 100ms for next 1.5s
+                elif elapsed < 5.0:
+                    sleep_time = 0.2   # 200ms for next 3s
+                else:
+                    sleep_time = 0.5   # 500ms after 5s
+                time.sleep(sleep_time)
             yield
         finally:
             if queued:
@@ -268,8 +280,8 @@ class QueryLoadGuard:
                         if current_waiting > self._max_waiting * 2:
                             logger.error(f"Resetting corrupted waiting counter: {current_waiting}")
                             client.set(waiting_key, 0, ex=max(5, self._window_seconds))
-                    except Exception:
-                        pass
+                    except Exception as reset_error:
+                        logger.warning(f"Failed to reset waiting counter: {reset_error}")
             if acquired:
                 try:
                     client.decr(inflight_key)
@@ -283,5 +295,5 @@ class QueryLoadGuard:
                         if current_inflight > self._max_concurrent * 2:
                             logger.error(f"Resetting corrupted inflight counter: {current_inflight}")
                             client.set(inflight_key, 0, ex=max(5, self._window_seconds))
-                    except Exception:
-                        pass
+                    except Exception as reset_error:
+                        logger.warning(f"Failed to reset inflight counter: {reset_error}")

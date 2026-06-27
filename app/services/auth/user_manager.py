@@ -13,6 +13,14 @@ from app.services.auth.validation import (
     validate_username,
 )
 
+def _validate_user_id(user_id: str) -> bool:
+    """Validate UUID-like user IDs while remaining compatible with legacy 32-char hex IDs."""
+    try:
+        uuid.UUID(str(user_id or "").strip())
+    except (ValueError, TypeError, AttributeError):
+        return False
+    return True
+
 
 def _validate_service_password(password: str) -> str:
     """Validate new strong passwords, while allowing legacy internal fixtures."""
@@ -159,6 +167,12 @@ class UserManager:
             return [dict(r) for r in rows]
 
     def get_user_profile(self, user_id: str) -> dict[str, Any] | None:
+        # HIGH PRIORITY SECURITY FIX: Validate user_id format to prevent injection-like attacks
+        if not _validate_user_id(user_id):
+            import logging
+            logging.getLogger(__name__).warning(f"Invalid user_id format rejected: {user_id[:20]}...")
+            return None
+
         with self.conn_factory() as conn:
             row = conn.execute(
                 """

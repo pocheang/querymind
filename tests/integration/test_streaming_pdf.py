@@ -10,6 +10,7 @@ from pathlib import Path
 
 import psutil
 import pytest
+reportlab = pytest.importorskip("reportlab", reason="reportlab is required for PDF fixture generation")
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 

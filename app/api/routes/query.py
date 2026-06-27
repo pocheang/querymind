@@ -6,7 +6,6 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Form, Request
 
 from app.api.dependencies import (
-    _allowed_sources_for_user,
     _audit,
     _build_memory_context_for_session,
     _build_user_file_inventory_answer,
@@ -37,10 +36,12 @@ from app.api.dependencies import (
     runtime_metrics,
     settings,
 )
+from app.api.utils.document_helpers import _allowed_sources_for_user
 from app.api.utils.error_responses import bad_request, conflict, rate_limited
 from app.core.schemas import Citation, QueryRequest, QueryResponse
 from app.graph.streaming import encode_sse, run_query_stream
 from app.graph.workflow import run_query
+from app.services.agent_execution_tracker import AgentExecutionTracker
 from app.services.alerting import emit_alert, resolve_signing_secret, sign_payload
 from app.services.consistency_guard import should_stabilize, text_similarity
 from app.services.evidence_conflict import detect_evidence_conflict
@@ -66,6 +67,27 @@ def overload_mode_enabled() -> bool:
     return _is_overload_mode()
 
 
+
+def _ensure_trackable_execution_result(
+    result: dict[str, Any],
+    *,
+    question: str,
+    user: dict[str, Any],
+) -> dict[str, Any]:
+    """Ensure cached responses still point to a live execution trace."""
+    payload = dict(result or {})
+    tracker = AgentExecutionTracker.get_instance()
+    execution_id = str(payload.get("execution_id", "") or "").strip()
+    if execution_id and tracker.get_execution_trace(execution_id) is not None:
+        return payload
+
+    execution_id = tracker.start_execution(
+        question,
+        user_id=str(user.get("user_id", "") or "") or None,
+    )
+    payload["execution_id"] = execution_id
+    tracker.complete_execution(execution_id, payload)
+    return payload
 def _maybe_sign_response(
     payload: dict[str, Any],
     *,
@@ -230,7 +252,8 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
     )
     if isinstance(cached_response, dict) and cached_response:
         try:
-            cached = QueryResponse.model_validate(cached_response)
+            cached_payload = _ensure_trackable_execution_result(cached_response, question=original_question, user=user)
+            cached = QueryResponse.model_validate(cached_payload)
         except (ValueError, TypeError) as e:
             logger.warning(f"Invalid cached query response: {e}")
             runtime_metrics.inc("query_cache_invalid_total")
@@ -253,7 +276,8 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         )
         if isinstance(hot_cached, dict) and hot_cached:
             try:
-                return QueryResponse.model_validate(hot_cached)
+                hot_cached_payload = _ensure_trackable_execution_result(hot_cached, question=original_question, user=user)
+                return QueryResponse.model_validate(hot_cached_payload)
             except (ValueError, TypeError) as e:
                 logger.warning(f"Invalid hot cached query response: {e}")
                 runtime_metrics.inc("query_cache_invalid_total")
@@ -320,12 +344,21 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         result, consistency_info = _run_with_query_runtime(user=user, request=request, fn=_query_pipeline)
     finally:
         query_result_cache.clear_inflight(cache_key)
-    vector_citations = [Citation(**x) for x in result.get("vector_result", {}).get("citations", [])]
-    web_citations = [Citation(**x) for x in result.get("web_result", {}).get("citations", [])]
-    conflict_report = detect_evidence_conflict(
-        list(result.get("vector_result", {}).get("citations", []) or [])
-        + list(result.get("web_result", {}).get("citations", []) or [])
-    )
+
+    # OPTIMIZATION: Extract nested dict access to avoid repeated lookups
+    vector_result = result.get("vector_result", {})
+    web_result = result.get("web_result", {})
+    graph_result = result.get("graph_result", {})
+
+    vector_citations_raw = vector_result.get("citations", [])
+    web_citations_raw = web_result.get("citations", [])
+
+    vector_citations = [Citation(**x) for x in vector_citations_raw]
+    web_citations = [Citation(**x) for x in web_citations_raw]
+
+    # Note: No need for list() conversion - already lists
+    conflict_report = detect_evidence_conflict(vector_citations_raw + web_citations_raw)
+
     if conflict_report.get("conflict"):
         detected_lang = result.get("detected_language", "zh")
         if detected_lang == "zh":
@@ -333,6 +366,7 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         else:
             warning_msg = "⚠️ Note: Conflicting information was found in the retrieved sources. The answer below considers multiple perspectives.\n\n"
         result["answer"] = f"{warning_msg}{result.get('answer', '')}"
+
     execution_route = execution_route_from_result(result)
     if req.session_id:
         history_store = _history_store_for_user(user)
@@ -345,12 +379,11 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
                 "route": result.get("route", "unknown"),
                 "execution_route": execution_route,
                 "agent_class": result.get("agent_class", "general"),
-                "web_used": result.get("web_result", {}).get("used", False),
+                "web_used": web_result.get("used", False),
                 "thoughts": result.get("thoughts", []),
-                "graph_entities": result.get("graph_result", {}).get("entities", []),
-                "citations": result.get("vector_result", {}).get("citations", [])
-                + result.get("web_result", {}).get("citations", []),
-                "retrieval_diagnostics": result.get("vector_result", {}).get("retrieval_diagnostics", {}),
+                "graph_entities": graph_result.get("entities", []),
+                "citations": vector_citations_raw + web_citations_raw,
+                "retrieval_diagnostics": vector_result.get("retrieval_diagnostics", {}),
                 "grounding": result.get("grounding", {}),
                 "explainability": result.get("explainability", {}),
                 "answer_safety": result.get("answer_safety", {}),
@@ -364,8 +397,8 @@ def query(req: QueryRequest, request: Request, user: dict[str, Any] = Depends(_r
         "answer": result.get("answer", ""),
         "route": result.get("route", "unknown"),
         "citations": vector_citations + web_citations,
-        "graph_entities": result.get("graph_result", {}).get("entities", []),
-        "web_used": result.get("web_result", {}).get("used", False),
+        "graph_entities": graph_result.get("entities", []),
+        "web_used": web_result.get("used", False),
         "detected_language": result.get("detected_language", "zh"),
         "execution_id": result.get("execution_id"),  # 添加 execution_id
         "debug": {
@@ -499,7 +532,7 @@ async def stream_query(
                 }
             )
 
-        return _sse_response(event_gen_file_inventory())
+        return _sse_response(event_gen_file_inventory(), append_terminal_event=True)
 
     if effective_agent_class == "pdf_text":
         from app.api.utils.query_helpers import handle_pdf_agent_routing
@@ -539,7 +572,7 @@ async def stream_query(
                     }
                 )
 
-            return _sse_response(event_gen_pdf_early())
+            return _sse_response(event_gen_pdf_early(), append_terminal_event=True)
 
         if modified_question:
             normalized_question = modified_question
@@ -624,7 +657,7 @@ async def stream_query(
                 if not replay_done:
                     yield encode_sse({"type": "status", "message": "replay_partial", "trace_id": _trace_id(request)})
 
-            return _sse_response(event_gen_replay())
+            return _sse_response(event_gen_replay(), append_terminal_event=True)
 
     cached_stream = (
         None
@@ -633,7 +666,11 @@ async def stream_query(
     )
     if isinstance(cached_stream, dict) and cached_stream.get("result"):
         runtime_metrics.inc("query_stream_cache_hit_total")
-        done_result = dict(cached_stream.get("result", {}) or {})
+        done_result = _ensure_trackable_execution_result(
+            dict(cached_stream.get("result", {}) or {}),
+            question=original_question,
+            user=user,
+        )
 
         async def event_gen_cached():
             yield encode_sse({"type": "status", "message": "cache_hit"})
@@ -642,7 +679,7 @@ async def stream_query(
                 yield encode_sse({"type": "answer_chunk", "content": answer_text})
             yield encode_sse({"type": "done", "result": done_result})
 
-        return _sse_response(event_gen_cached())
+        return _sse_response(event_gen_cached(), append_terminal_event=True)
     if not query_result_cache.mark_inflight(stream_cache_key):
         runtime_metrics.inc("query_stream_duplicate_total")
         emit_alert(
@@ -831,4 +868,7 @@ async def stream_query(
             )
             runtime_metrics.inc("query_stream_success_total")
 
-    return _sse_response(event_gen())
+    return _sse_response(event_gen(), append_terminal_event=True)
+
+
+
