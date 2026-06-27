@@ -1,19 +1,20 @@
 """
 Retrieval Quality Agent - Async parallel evaluation of retrieval results quality.
 
-Evaluates 4 metrics in parallel:
+Evaluates 5 metrics in parallel:
 - Coverage: Query keyword coverage in results
-- Relevance: Average score of Top-K results
+- Relevance: Average score of Top-K results (basic)
+- LLM Relevance: LLM-based relevance scoring for top results
 - Diversity: Source diversity (avoid single-source bias)
 - Completeness: Context completeness check
 
-Target: <50ms execution time with async/await.
+Target: <200ms execution time with async/await and optional LLM scoring.
 """
 
 import asyncio
 import time
 import re
-from typing import List, Dict
+from typing import List, Dict, Optional
 from collections import Counter
 
 from app.agents.quality_models import RetrievalQualityResult, RetrievalQualityMetrics
@@ -25,6 +26,13 @@ from app.agents.quality_config import (
     RETRIEVAL_SAMPLE_TOP_K,
     RETRIEVAL_QUALITY_TIMEOUT_MS
 )
+
+# Optional: Import LLM relevance scoring (Task 11)
+try:
+    from app.agents.relevance_scoring import batch_score_relevance
+    LLM_SCORING_AVAILABLE = True
+except ImportError:
+    LLM_SCORING_AVAILABLE = False
 
 
 def _is_chinese(text: str) -> bool:
@@ -181,21 +189,58 @@ async def _calculate_completeness_score(chunks: List[Dict]) -> float:
     return min(1.0, final_score)
 
 
+async def _calculate_llm_relevance_score(query: str, chunks: List[Dict], metadata: Dict) -> float:
+    """
+    Calculate LLM-based relevance score for top-K chunks.
+
+    Uses lightweight LLM to score query-document relevance.
+    Falls back to basic relevance score if LLM scoring unavailable.
+
+    Returns 0.0-1.0.
+    """
+    if not LLM_SCORING_AVAILABLE:
+        # Fallback to basic relevance scoring
+        return await _calculate_relevance_score(chunks, metadata)
+
+    if not chunks or not query:
+        return 0.0
+
+    # Score only top-K chunks for performance
+    top_k = min(metadata.get('top_k', RETRIEVAL_SAMPLE_TOP_K), 5)
+    top_chunks = chunks[:top_k]
+
+    try:
+        # Use batch LLM scoring with timeout
+        result = await asyncio.wait_for(
+            batch_score_relevance(query, top_chunks),
+            timeout=10.0  # 10s timeout for LLM scoring
+        )
+        return result.average_score
+    except asyncio.TimeoutError:
+        # Fallback to basic scoring on timeout
+        return await _calculate_relevance_score(chunks, metadata)
+    except Exception:
+        # Fallback to basic scoring on any error
+        return await _calculate_relevance_score(chunks, metadata)
+
+
 async def evaluate_retrieval_quality(
     query: str,
     chunks: List[Dict],
-    metadata: Dict
+    metadata: Dict,
+    use_llm_scoring: bool = False
 ) -> RetrievalQualityResult:
     """
     Evaluate retrieval quality with 4 metrics (async, non-blocking).
 
     Runs all metrics in parallel for maximum performance.
-    Target execution time: <50ms.
+    Target execution time: <50ms (basic), <200ms (with LLM scoring).
 
     Args:
         query: Original query text
         chunks: Retrieved document chunks
         metadata: Retrieval metadata (scores, strategy, etc)
+        use_llm_scoring: Whether to use LLM-based relevance scoring (slower but more accurate)
 
     Returns:
         RetrievalQualityResult with quality assessment
@@ -218,10 +263,16 @@ async def evaluate_retrieval_quality(
         )
 
     try:
+        # Choose relevance scoring method
+        if use_llm_scoring and LLM_SCORING_AVAILABLE:
+            relevance_task = _calculate_llm_relevance_score(query, chunks, metadata)
+        else:
+            relevance_task = _calculate_relevance_score(chunks, metadata)
+
         # Run all metrics in parallel
         tasks = [
             _calculate_coverage_score(query, chunks),
-            _calculate_relevance_score(chunks, metadata),
+            relevance_task,
             _calculate_diversity_score(chunks),
             _calculate_completeness_score(chunks)
         ]

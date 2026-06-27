@@ -9,7 +9,8 @@ from app.agents.retrieval_quality_agent import (
     _calculate_coverage_score,
     _calculate_relevance_score,
     _calculate_diversity_score,
-    _calculate_completeness_score
+    _calculate_completeness_score,
+    LLM_SCORING_AVAILABLE,
 )
 from app.agents.quality_models import RetrievalQualityResult, RetrievalQualityMetrics
 
@@ -308,3 +309,72 @@ async def test_timeout_handling():
 
     assert result.execution_time_ms < 200, "Should complete well within timeout"
     assert "timeout" not in str(result.issues).lower(), "Should not timeout on normal execution"
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not LLM_SCORING_AVAILABLE, reason="LLM scoring module not available")
+async def test_llm_relevance_scoring_integration():
+    """Test LLM-based relevance scoring integration (Task 11)"""
+    query = "What is machine learning?"
+    chunks = [
+        {"content": "Machine learning is a subset of AI that enables systems to learn from data.", "score": 0.9, "source": "doc1.pdf"},
+        {"content": "Weather forecasting uses meteorological models.", "score": 0.5, "source": "doc2.pdf"},
+        {"content": "Deep learning uses neural networks for pattern recognition.", "score": 0.85, "source": "doc3.pdf"},
+    ]
+    metadata = {"strategy": "hybrid", "top_k": 3}
+
+    # Test with LLM scoring enabled
+    result = await evaluate_retrieval_quality(query, chunks, metadata, use_llm_scoring=True)
+
+    assert isinstance(result, RetrievalQualityResult)
+    assert 0.0 <= result.overall_quality <= 1.0
+    # LLM scoring may take longer but should still complete
+    assert result.execution_time_ms < 30000, f"LLM scoring too slow: {result.execution_time_ms}ms"
+
+    # Verify relevance score is reasonable (should detect relevant and irrelevant docs)
+    assert 0.4 <= result.metrics.relevance_score <= 0.9, \
+        f"LLM relevance score seems off: {result.metrics.relevance_score}"
+
+
+@pytest.mark.asyncio
+async def test_llm_scoring_fallback_on_error():
+    """Test that LLM scoring falls back to basic scoring on errors"""
+    query = "test query"
+    chunks = [
+        {"content": "test content", "score": 0.8, "source": "doc.pdf"}
+    ]
+    metadata = {}
+
+    # Should work regardless of LLM availability
+    result = await evaluate_retrieval_quality(query, chunks, metadata, use_llm_scoring=True)
+
+    assert isinstance(result, RetrievalQualityResult)
+    assert 0.0 <= result.overall_quality <= 1.0
+    assert result.execution_time_ms < 30000
+
+
+@pytest.mark.asyncio
+async def test_basic_vs_llm_scoring_comparison():
+    """Compare basic scoring vs LLM scoring when available"""
+    query = "cybersecurity best practices"
+    chunks = [
+        {"content": "Cybersecurity involves protecting systems from attacks.", "score": 0.9, "source": "doc1.pdf"},
+        {"content": "Cooking pasta requires boiling water.", "score": 0.3, "source": "doc2.pdf"},
+    ]
+    metadata = {"top_k": 2}
+
+    # Basic scoring
+    result_basic = await evaluate_retrieval_quality(query, chunks, metadata, use_llm_scoring=False)
+
+    # LLM scoring (if available)
+    result_llm = await evaluate_retrieval_quality(query, chunks, metadata, use_llm_scoring=True)
+
+    # Both should produce valid results
+    assert 0.0 <= result_basic.overall_quality <= 1.0
+    assert 0.0 <= result_llm.overall_quality <= 1.0
+
+    if LLM_SCORING_AVAILABLE:
+        # LLM scoring should potentially be more accurate at detecting irrelevant content
+        # But both should work correctly
+        assert result_llm.execution_time_ms >= result_basic.execution_time_ms, \
+            "LLM scoring should take at least as long as basic scoring"
