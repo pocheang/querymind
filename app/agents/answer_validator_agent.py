@@ -110,6 +110,9 @@ def _get_validation_cascade():
             "level2_timeout_ms": CASCADE_LEVEL2_TIMEOUT_MS,
             "level3_timeout_ms": CASCADE_LEVEL3_TIMEOUT_MS,
             "level4_timeout_ms": CASCADE_LEVEL4_TIMEOUT_MS,
+            "enable_level1": CASCADE_ENABLE_LEVEL1,
+            "enable_level2": CASCADE_ENABLE_LEVEL2,
+            "enable_level3": CASCADE_ENABLE_LEVEL3,
             "enable_level4": CASCADE_ENABLE_LEVEL4
         }
 

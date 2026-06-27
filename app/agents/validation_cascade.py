@@ -3,13 +3,15 @@
 
 Implements progressive validation with early exit:
 - Level 1: Rule-based checks (dates, numbers, entities) - 5ms target
-- Level 2: Sentence-level NLI batch validation - 100ms target
+- Level 2: Sentence-level NLI batch validation - 2-3s actual (disabled by default)
 - Level 3: Citation cross-checking - 50ms target
-- Level 4: Deep LLM validation - 200ms target (only if issues flagged)
+- Level 4: Deep LLM validation - 2-3s actual (only if issues flagged)
 
-Target metrics:
-- NLI accuracy: 92% -> 96%
-- False positive rate: 8% -> 3%
+Performance notes:
+- Level 2 (NLI) has significant latency (2-3s) due to model loading and inference
+- Level 4 (LLM) latency varies with local model performance
+- By default, only Levels 1 and 3 are enabled for <150ms validation
+- Enable Level 2 for higher semantic accuracy at cost of 2-3s latency
 """
 
 import asyncio
@@ -74,9 +76,12 @@ class ValidationCascade:
 
         # Load config with defaults
         self.level1_timeout_ms = self.config.get("level1_timeout_ms", 10)
-        self.level2_timeout_ms = self.config.get("level2_timeout_ms", 150)
+        self.level2_timeout_ms = self.config.get("level2_timeout_ms", 3000)
         self.level3_timeout_ms = self.config.get("level3_timeout_ms", 75)
-        self.level4_timeout_ms = self.config.get("level4_timeout_ms", 300)
+        self.level4_timeout_ms = self.config.get("level4_timeout_ms", 3000)
+        self.enable_level1 = self.config.get("enable_level1", True)
+        self.enable_level2 = self.config.get("enable_level2", False)  # Disabled by default due to perf
+        self.enable_level3 = self.config.get("enable_level3", True)
         self.enable_level4 = self.config.get("enable_level4", True)
 
     def _get_nli_model(self):
@@ -693,10 +698,10 @@ ISSUES: list any problems (or "none")
         Run full validation cascade with early exit.
 
         Strategy:
-        - Level 1: Always run (fast, catches obvious issues)
-        - Level 2: Run if Level 1 passes
-        - Level 3: Run if Level 2 passes
-        - Level 4: Only if earlier levels flag issues and enable_level4=True
+        - Level 1: Rule-based (if enabled, default: True)
+        - Level 2: NLI batch (if enabled, default: False due to 2-3s latency)
+        - Level 3: Citation check (if enabled, default: True)
+        - Level 4: Deep LLM (only if issues flagged and enabled, default: True)
 
         Early exit on critical issues.
         """
@@ -705,33 +710,36 @@ ISSUES: list any problems (or "none")
         level_results = []
         highest_level = CascadeLevel.RULE_BASED
 
-        # Level 1: Rule-based (always run)
-        level1_result = await self.validate_level1(answer, source_docs)
-        level_results.append(level1_result)
-        all_issues.extend(level1_result.issues)
+        # Level 1: Rule-based (if enabled)
+        if self.enable_level1:
+            level1_result = await self.validate_level1(answer, source_docs)
+            level_results.append(level1_result)
+            all_issues.extend(level1_result.issues)
 
-        if not level1_result.should_continue:
-            # Critical issue, stop immediately
-            elapsed = int((time.time() - start_time) * 1000)
-            return ValidationCascadeResult(
-                has_issues=True,
-                confidence_score=level1_result.confidence_score,
-                highest_level_reached=CascadeLevel.RULE_BASED,
-                all_issues=all_issues,
-                total_execution_time_ms=elapsed,
-                execution_time_ms=elapsed,
-                level_results=level_results
-            )
+            if not level1_result.should_continue:
+                # Critical issue, stop immediately
+                elapsed = int((time.time() - start_time) * 1000)
+                return ValidationCascadeResult(
+                    has_issues=True,
+                    confidence_score=level1_result.confidence_score,
+                    highest_level_reached=CascadeLevel.RULE_BASED,
+                    all_issues=all_issues,
+                    total_execution_time_ms=elapsed,
+                    execution_time_ms=elapsed,
+                    level_results=level_results
+                )
 
-        # Level 2: NLI batch (if Level 1 passes or has only minor issues)
-        if level1_result.confidence_score >= 0.5:
+        # Level 2: NLI batch (if enabled and Level 1 passes or has only minor issues)
+        last_confidence = level_results[-1].confidence_score if level_results else 1.0
+        if self.enable_level2 and last_confidence >= 0.5:
             highest_level = CascadeLevel.NLI_BATCH
             level2_result = await self.validate_level2(answer, source_docs)
             level_results.append(level2_result)
             all_issues.extend(level2_result.issues)
 
-        # Level 3: Citation check
-        if len(level_results) >= 2 and level_results[-1].confidence_score >= 0.5:
+        # Level 3: Citation check (if enabled)
+        last_confidence = level_results[-1].confidence_score if level_results else 1.0
+        if self.enable_level3 and last_confidence >= 0.5:
             highest_level = CascadeLevel.CITATION_CHECK
             level3_result = await self.validate_level3(answer, citations, source_docs)
             level_results.append(level3_result)
