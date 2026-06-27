@@ -23,6 +23,7 @@ from app.agents.agent_config import (
     VALID_ROUTES,
     VALID_SKILLS,
 )
+from app.agents.router_examples import get_mixed_examples
 from app.agents.shared_cache import cached_router_decision
 from app.api.utils.string_utils import normalize_string
 from app.core.models import get_chat_model, get_reasoning_model
@@ -44,42 +45,45 @@ class RouteDecision(BaseModel):
 
 
 ROUTER_PROMPT = """
-You are a route planner for a cybersecurity RAG assistant.
+You are a route planner for a RAG (Retrieval-Augmented Generation) assistant.
 
-Choose one route:
-- vector: best for finding answers from text chunks
-- graph: best for entity relations, dependencies, and topology
-- hybrid: needs both text evidence and relation graph
-- react: complex multi-step queries requiring iterative reasoning and tool use
+Your task: Analyze the user's query and choose the best retrieval route.
 
-Choose one skill from:
-- answer_with_citations
-- compare_entities
-- timeline_builder
-- web_fact_check
-- cyber_attack_analysis
-- cyber_defense_hardening
-- incident_response_playbook
-- ai_knowledge_assistant
-- pdf_text_reader
+Available routes:
+- vector: Find answers from text chunks using semantic search (best for concepts, definitions, facts)
+- graph: Query entity relationships in knowledge graph (best for "who", "what relationship", organizational queries)
+- hybrid: Combine both text retrieval AND graph queries (best for comparisons, complex questions needing both)
+- react: Multi-step reasoning with iterative tool use (best for "compare then analyze", multi-step investigations)
 
-ReAct route hints:
-- Multi-step reasoning: "compare X and Y, then analyze Z"
-- Complex questions requiring multiple information sources
-- Questions needing sequential tool calls: search, verify, synthesize
-- Investigative queries: "find X, check if Y, recommend Z"
+Skills to choose from:
+- answer_with_citations: Standard Q&A with source citations
+- compare_entities: Side-by-side comparison
+- timeline_builder: Chronological event sequences
+- web_fact_check: Verify with web search
+- cyber_attack_analysis: Attack chain analysis
+- cyber_defense_hardening: Defense recommendations
+- incident_response_playbook: Incident handling
+- ai_knowledge_assistant: General AI/ML questions
+- pdf_text_reader: Extract and read PDF content
 
-Cyber skill hints:
-- exploitation, attack chain, lateral movement, privilege escalation, C2 => cyber_attack_analysis
-- defense architecture, detection rules, hardening checklist, zero trust => cyber_defense_hardening
-- incident triage, containment, forensic trace, emergency drill => incident_response_playbook
+{few_shot_examples}
 
-PDF skill hints:
-- reading PDF content, extracting text from PDF => pdf_text_reader
+IMPORTANT: Think step-by-step before deciding:
+1. What is the user asking for? (concept, relationship, comparison, multi-step task?)
+2. What information sources are needed? (text docs, entity relationships, both, web?)
+3. Which route best matches the query pattern?
+4. How confident are you in this decision? (0.0-1.0)
 
 Output JSON only:
-{"route":"vector|graph|hybrid|react","reason":"...","skill":"..."}
+{{"route":"vector|graph|hybrid|react","reason":"your step-by-step reasoning here","skill":"chosen_skill","confidence":0.0-1.0}}
+
+Query: {{question}}
 """
+
+# Inject few-shot examples into prompt
+ROUTER_PROMPT = ROUTER_PROMPT.format(
+    few_shot_examples=get_mixed_examples(vector_count=2, graph_count=2, hybrid_count=1, react_count=1)
+)
 
 
 def _extract_json(text: str) -> dict:
