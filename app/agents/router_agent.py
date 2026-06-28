@@ -18,11 +18,15 @@ from app.agents.agent_config import (
     AGENT_CLASS_GENERAL,
     ROUTE_VECTOR,
     ROUTE_WEB,
+    ROUTER_LOW_CONFIDENCE_THRESHOLD,
     SKILL_DEFAULT,
     VALID_AGENT_CLASSES,
     VALID_ROUTES,
     VALID_SKILLS,
 )
+from app.agents.router_calibration import ConfidenceCalibrator
+from app.agents.router_config import ENABLE_CALIBRATION
+from app.agents.router_examples import get_mixed_examples
 from app.agents.shared_cache import cached_router_decision
 from app.api.utils.string_utils import normalize_string
 from app.core.models import get_chat_model, get_reasoning_model
@@ -31,6 +35,9 @@ from app.services.llm_intent_classifier import classify_intent_with_llm
 from app.services.query_intent import is_smalltalk_query
 
 logger = logging.getLogger(__name__)
+
+# Initialize global calibrator for confidence calibration
+_calibrator = ConfidenceCalibrator() if ENABLE_CALIBRATION else None
 
 
 class RouteDecision(BaseModel):
@@ -44,42 +51,45 @@ class RouteDecision(BaseModel):
 
 
 ROUTER_PROMPT = """
-You are a route planner for a cybersecurity RAG assistant.
+You are a route planner for a RAG (Retrieval-Augmented Generation) assistant.
 
-Choose one route:
-- vector: best for finding answers from text chunks
-- graph: best for entity relations, dependencies, and topology
-- hybrid: needs both text evidence and relation graph
-- react: complex multi-step queries requiring iterative reasoning and tool use
+Your task: Analyze the user's query and choose the best retrieval route.
 
-Choose one skill from:
-- answer_with_citations
-- compare_entities
-- timeline_builder
-- web_fact_check
-- cyber_attack_analysis
-- cyber_defense_hardening
-- incident_response_playbook
-- ai_knowledge_assistant
-- pdf_text_reader
+Available routes:
+- vector: Find answers from text chunks using semantic search (best for concepts, definitions, facts)
+- graph: Query entity relationships in knowledge graph (best for "who", "what relationship", organizational queries)
+- hybrid: Combine both text retrieval AND graph queries (best for comparisons, complex questions needing both)
+- react: Multi-step reasoning with iterative tool use (best for "compare then analyze", multi-step investigations)
 
-ReAct route hints:
-- Multi-step reasoning: "compare X and Y, then analyze Z"
-- Complex questions requiring multiple information sources
-- Questions needing sequential tool calls: search, verify, synthesize
-- Investigative queries: "find X, check if Y, recommend Z"
+Skills to choose from:
+- answer_with_citations: Standard Q&A with source citations
+- compare_entities: Side-by-side comparison
+- timeline_builder: Chronological event sequences
+- web_fact_check: Verify with web search
+- cyber_attack_analysis: Attack chain analysis
+- cyber_defense_hardening: Defense recommendations
+- incident_response_playbook: Incident handling
+- ai_knowledge_assistant: General AI/ML questions
+- pdf_text_reader: Extract and read PDF content
 
-Cyber skill hints:
-- exploitation, attack chain, lateral movement, privilege escalation, C2 => cyber_attack_analysis
-- defense architecture, detection rules, hardening checklist, zero trust => cyber_defense_hardening
-- incident triage, containment, forensic trace, emergency drill => incident_response_playbook
+{few_shot_examples}
 
-PDF skill hints:
-- reading PDF content, extracting text from PDF => pdf_text_reader
+IMPORTANT: Think step-by-step before deciding:
+1. What is the user asking for? (concept, relationship, comparison, multi-step task?)
+2. What information sources are needed? (text docs, entity relationships, both, web?)
+3. Which route best matches the query pattern?
+4. How confident are you in this decision? (0.0-1.0)
 
 Output JSON only:
-{"route":"vector|graph|hybrid|react","reason":"...","skill":"..."}
+{{"route":"vector|graph|hybrid|react","reason":"your step-by-step reasoning here","skill":"chosen_skill","confidence":0.0-1.0}}
+
+Query: {{question}}
 """
+
+# Inject few-shot examples into prompt
+ROUTER_PROMPT = ROUTER_PROMPT.format(
+    few_shot_examples=get_mixed_examples(vector_count=2, graph_count=2, hybrid_count=1, react_count=1)
+)
 
 
 def _extract_json(text: str) -> dict:
@@ -115,6 +125,71 @@ def _append_reason(base_reason: str, *tags: str) -> str:
     return "|".join(part for part in parts if part)
 
 
+def _try_fallback_with_reasoning(
+    question: str, agent_class: str, skill: str, original_confidence: float
+) -> tuple[str, str, float] | None:
+    """
+    Try fallback strategy using reasoning model.
+
+    Args:
+        question: User question
+        agent_class: Agent class for context
+        skill: Suggested skill
+        original_confidence: Original low confidence score
+
+    Returns:
+        Tuple of (route, reason, confidence) if successful, None if fallback also fails
+    """
+    try:
+        logger.info(
+            f"Fallback triggered: original_confidence={original_confidence:.2f} "
+            f"< threshold={ROUTER_LOW_CONFIDENCE_THRESHOLD}"
+        )
+
+        # Try reasoning model for better decision
+        reasoning_model = get_reasoning_model()
+        prompt = f"""{ROUTER_PROMPT}
+
+Question: {question}
+Agent class: {agent_class}
+Suggested skill: {skill}"""
+        response = reasoning_model.invoke(prompt)
+        response_text = response.content if hasattr(response, "content") else str(response)
+
+        route_data = _extract_json(response_text)
+
+        raw_route = normalize_string(route_data.get("route", ROUTE_VECTOR), lowercase=True)
+        route = raw_route if raw_route in VALID_ROUTES else ROUTE_VECTOR
+
+        reason = normalize_string(route_data.get("reason", "fallback_reasoning")) or "fallback_reasoning"
+        reason = _append_reason(reason, "fallback_reasoning")
+
+        # Extract confidence from reasoning model
+        reasoning_confidence = route_data.get("confidence")
+        if reasoning_confidence is not None and isinstance(reasoning_confidence, (int, float)):
+            confidence = float(reasoning_confidence)
+            confidence = max(0.0, min(1.0, confidence))
+        else:
+            confidence = 0.7
+
+        logger.info(
+            f"Fallback reasoning result: route={route}, confidence={confidence:.2f}"
+        )
+
+        # Check if reasoning model improved confidence
+        if confidence >= ROUTER_LOW_CONFIDENCE_THRESHOLD:
+            return (route, reason, confidence)
+        else:
+            logger.warning(
+                f"Fallback reasoning still low confidence: {confidence:.2f}"
+            )
+            return None
+
+    except Exception as e:
+        logger.warning(f"Fallback reasoning model failed: {e}")
+        return None
+
+
 @cached_router_decision
 def decide_route(
     question: str, use_reasoning: bool = False, agent_class_hint: str | None = None, use_llm_intent: bool = True
@@ -136,6 +211,9 @@ def decide_route(
     forced = _normalize_agent_class_hint(agent_class_hint)
 
     if is_smalltalk_query(question):
+        raw_confidence = 0.95  # High confidence for smalltalk detection
+        calibrated_confidence = _calibrator.calibrate(raw_confidence) if _calibrator else raw_confidence
+
         return RouteDecision(
             route=ROUTE_VECTOR,
             reason=_append_reason(
@@ -144,7 +222,7 @@ def decide_route(
             ),
             skill=SKILL_DEFAULT,
             agent_class=forced or AGENT_CLASS_GENERAL,
-            confidence=0.95,  # High confidence for smalltalk detection
+            confidence=calibrated_confidence,
         )
 
     # Select intent classification method
@@ -218,23 +296,70 @@ Suggested skill: {skill}"""
         if forced_reason:
             reason = _append_reason(reason, forced_reason)
 
+        # Extract LLM confidence if provided (for route decision confidence)
+        llm_confidence = route_data.get("confidence")
+        if llm_confidence is not None and isinstance(llm_confidence, (int, float)):
+            route_confidence = float(llm_confidence)
+            # Clamp to valid range
+            route_confidence = max(0.0, min(1.0, route_confidence))
+        else:
+            route_confidence = 0.7  # Default if not provided
+
+        # Check if confidence is too low and trigger fallback
+        if route_confidence < ROUTER_LOW_CONFIDENCE_THRESHOLD:
+            logger.info(
+                f"Low confidence detected: {route_confidence:.2f} < {ROUTER_LOW_CONFIDENCE_THRESHOLD}"
+            )
+
+            # Try fallback with reasoning model
+            fallback_result = _try_fallback_with_reasoning(question, agent_class, skill, route_confidence)
+
+            if fallback_result is not None:
+                # Fallback succeeded with reasoning model
+                route, reason, route_confidence = fallback_result
+                if forced_reason:
+                    reason = _append_reason(reason, forced_reason)
+            else:
+                # Fallback to safe route (vector)
+                logger.warning(
+                    f"Fallback to safe route: original_route={route}, "
+                    f"original_confidence={route_confidence:.2f}"
+                )
+                route = ROUTE_VECTOR
+                reason = _append_reason(reason, "fallback_safe_route")
+                if forced_reason:
+                    reason = _append_reason(reason, forced_reason)
+                # Keep low confidence to indicate uncertainty
+                route_confidence = max(0.5, route_confidence)
+
         logger.info(
             f"Route decision: route={route}, skill={skill}, "
             f"agent_class={agent_class}, method={classification_method}, "
-            f"confidence={confidence:.2f}"
+            f"intent_confidence={confidence:.2f}, route_confidence={route_confidence:.2f}"
         )
 
     except Exception as e:
         logger.exception(f"Router LLM call failed: {e}")
         route = ROUTE_VECTOR
         reason = _append_reason(f"router_invoke_error:{type(e).__name__}", forced_reason)
+        route_confidence = 0.5  # Low confidence for error case
+
+    # Apply confidence calibration
+    raw_confidence = route_confidence
+    if _calibrator is not None:
+        calibrated_confidence = _calibrator.calibrate(raw_confidence)
+        logger.debug(
+            f"Calibrated confidence: {raw_confidence:.2f} -> {calibrated_confidence:.2f}"
+        )
+    else:
+        calibrated_confidence = raw_confidence
 
     return RouteDecision(
         route=route,
         reason=reason,
         skill=skill,
         agent_class=agent_class,
-        confidence=confidence,
+        confidence=calibrated_confidence,
     )
 
 
@@ -250,3 +375,41 @@ def decide_route_simple(question: str) -> str:
     """
     decision = decide_route(question, use_llm_intent=False)
     return decision.route
+
+
+def record_routing_feedback(raw_confidence: float, was_correct: bool) -> None:
+    """
+    Record feedback about a routing decision for calibration.
+
+    This function should be called after verifying whether a routing
+    decision was correct (e.g., based on answer quality metrics or
+    explicit user feedback).
+
+    Args:
+        raw_confidence: The raw confidence score that was used
+        was_correct: Whether the routing decision was correct
+
+    Example:
+        decision = decide_route(question)
+        # ... execute query and evaluate result ...
+        if result_quality > threshold:
+            record_routing_feedback(decision.confidence, was_correct=True)
+    """
+    if _calibrator is not None:
+        _calibrator.record_feedback(raw_confidence, was_correct)
+        logger.info(
+            f"Recorded routing feedback: confidence={raw_confidence:.2f}, "
+            f"correct={was_correct}"
+        )
+
+
+def get_calibration_stats() -> dict[str, dict]:
+    """
+    Get calibration statistics for monitoring.
+
+    Returns:
+        Dictionary mapping bucket names to calibration stats
+    """
+    if _calibrator is not None:
+        return _calibrator.get_stats()
+    return {}

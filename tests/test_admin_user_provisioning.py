@@ -8,6 +8,30 @@ from fastapi.testclient import TestClient
 api_main = pytest.importorskip("app.api.main")
 
 
+@pytest.fixture(autouse=True)
+def _clear_admin_token_tracker():
+    from app.services.admin_token_tracker import get_token_tracker
+
+    get_token_tracker()._used_tokens.clear()
+    yield
+    get_token_tracker()._used_tokens.clear()
+
+
+@pytest.fixture
+def admin_client():
+    client = TestClient(api_main.app)
+    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
+        "user_id": "u_admin",
+        "username": "admin",
+        "role": "admin",
+        "status": "active",
+    }
+    try:
+        yield client
+    finally:
+        api_main.app.dependency_overrides.clear()
+
+
 def test_admin_create_admin_requires_admin_role():
     client = TestClient(api_main.app)
     api_main.app.dependency_overrides[api_main._require_user] = lambda: {
@@ -33,15 +57,13 @@ def test_admin_create_admin_requires_admin_role():
         api_main.app.dependency_overrides.clear()
 
 
-def test_admin_create_admin_success(monkeypatch):
-    client = TestClient(api_main.app)
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "u_admin",
-        "username": "admin",
-        "role": "admin",
-        "status": "active",
-    }
-    monkeypatch.setattr(api_main.settings, "admin_create_approval_token", "approve-123")
+def test_admin_create_admin_success(admin_client, monkeypatch):
+    monkeypatch.setattr(api_main.settings, "admin_create_approval_token", "")
+    monkeypatch.setattr(
+        api_main.settings,
+        "admin_create_approval_token_hash",
+        hashlib.sha256(b"approve-123").hexdigest(),
+    )
     monkeypatch.setattr(
         api_main.auth_service,
         "create_user_with_role",
@@ -64,62 +86,51 @@ def test_admin_create_admin_success(monkeypatch):
         },
     )
     monkeypatch.setattr(api_main, "_audit", lambda *args, **kwargs: None)
-    try:
-        res = client.post(
-            "/admin/users/create-admin",
-            json={
-                "username": "newadmin",
-                "password": "Password123",
-                "approval_token": "approve-123",
-                "ticket_id": "SEC-2026-001",
-                "reason": "on-call admin rotation",
-                "new_admin_approval_token": "new-admin-token-abc",
-            },
-        )
-        assert res.status_code == 200
-        data = res.json()
-        assert data["role"] == "admin"
-        assert data["username"] == "newadmin"
-    finally:
-        api_main.app.dependency_overrides.clear()
+
+    res = admin_client.post(
+        "/admin/users/create-admin",
+        json={
+            "username": "newadmin",
+            "password": "Password123",
+            "approval_token": "approve-123",
+            "ticket_id": "SEC-2026001",
+            "reason": "on-call admin rotation",
+            "new_admin_approval_token": "new-admin-token-abc",
+        },
+    )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["role"] == "admin"
+    assert data["username"] == "newadmin"
+    assert data["admin_ticket_id"] == "SEC-2026001"
 
 
-def test_admin_create_admin_rejects_invalid_approval_token(monkeypatch):
-    client = TestClient(api_main.app)
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "u_admin",
-        "username": "admin",
-        "role": "admin",
-        "status": "active",
-    }
-    monkeypatch.setattr(api_main.settings, "admin_create_approval_token", "approve-123")
+def test_admin_create_admin_rejects_invalid_approval_token(admin_client, monkeypatch):
+    monkeypatch.setattr(api_main.settings, "admin_create_approval_token", "")
+    monkeypatch.setattr(
+        api_main.settings,
+        "admin_create_approval_token_hash",
+        hashlib.sha256(b"approve-123").hexdigest(),
+    )
     monkeypatch.setattr(api_main, "_audit", lambda *args, **kwargs: None)
-    try:
-        res = client.post(
-            "/admin/users/create-admin",
-            json={
-                "username": "newadmin",
-                "password": "Password123",
-                "approval_token": "bad",
-                "ticket_id": "SEC-2026-002",
-                "reason": "escalation",
-                "new_admin_approval_token": "new-admin-token-def",
-            },
-        )
-        assert res.status_code == 403
-    finally:
-        api_main.app.dependency_overrides.clear()
+
+    res = admin_client.post(
+        "/admin/users/create-admin",
+        json={
+            "username": "newadmin",
+            "password": "Password123",
+            "approval_token": "bad",
+            "ticket_id": "SEC-2026002",
+            "reason": "escalation",
+            "new_admin_approval_token": "new-admin-token-def",
+        },
+    )
+
+    assert res.status_code == 403
 
 
-def test_admin_create_admin_uses_hash_token_when_configured(monkeypatch):
-    client = TestClient(api_main.app)
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "u_admin",
-        "username": "admin",
-        "role": "admin",
-        "status": "active",
-    }
-    # sha256("approve-123")
+def test_admin_create_admin_uses_hash_token_when_configured(admin_client, monkeypatch):
     monkeypatch.setattr(
         api_main.settings,
         "admin_create_approval_token_hash",
@@ -148,49 +159,36 @@ def test_admin_create_admin_uses_hash_token_when_configured(monkeypatch):
         },
     )
     monkeypatch.setattr(api_main, "_audit", lambda *args, **kwargs: None)
-    try:
-        res = client.post(
-            "/admin/users/create-admin",
-            json={
-                "username": "newadmin2",
-                "password": "Password123",
-                "approval_token": "approve-123",
-                "ticket_id": "SEC-2026-003",
-                "reason": "hash mode validation",
-                "new_admin_approval_token": "new-admin-token-ghi",
-            },
-        )
-        assert res.status_code == 200
-        assert res.json()["role"] == "admin"
-    finally:
-        api_main.app.dependency_overrides.clear()
+
+    res = admin_client.post(
+        "/admin/users/create-admin",
+        json={
+            "username": "newadmin2",
+            "password": "Password123",
+            "approval_token": "approve-123",
+            "ticket_id": "SEC-2026003",
+            "reason": "hash mode validation",
+            "new_admin_approval_token": "new-admin-token-ghi",
+        },
+    )
+
+    assert res.status_code == 200
+    assert res.json()["role"] == "admin"
 
 
-def test_admin_update_role_blocks_promotion_to_admin():
-    client = TestClient(api_main.app)
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "u_admin",
-        "username": "admin",
-        "role": "admin",
-        "status": "active",
-    }
-    try:
-        res = client.patch("/admin/users/u1/role", json={"role": "admin"})
-        assert res.status_code == 400
-        assert "restricted" in (res.json().get("detail", "") or "")
-    finally:
-        api_main.app.dependency_overrides.clear()
+def test_admin_update_role_blocks_promotion_to_admin(admin_client):
+    res = admin_client.patch("/admin/users/u1/role", json={"role": "admin"})
+    assert res.status_code == 400
+    assert "restricted" in (res.json().get("detail", "") or "")
 
 
-def test_admin_reset_approval_token_success(monkeypatch):
-    client = TestClient(api_main.app)
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "u_admin",
-        "username": "admin",
-        "role": "admin",
-        "status": "active",
-    }
-
+def test_admin_reset_approval_token_success(admin_client, monkeypatch):
+    monkeypatch.setattr(api_main.settings, "admin_create_approval_token", "")
+    monkeypatch.setattr(
+        api_main.settings,
+        "admin_create_approval_token_hash",
+        hashlib.sha256(b"my-own-token").hexdigest(),
+    )
     monkeypatch.setattr(
         api_main.auth_service,
         "get_user_profile",
@@ -201,13 +199,13 @@ def test_admin_reset_approval_token_success(monkeypatch):
             "status": "active",
             "admin_approval_token_hash": hashlib.sha256(b"my-own-token").hexdigest(),
         }
-        if user_id == "u_admin"
+        if user_id == "u_target"
         else {
             "user_id": user_id,
-            "username": "target",
+            "username": "admin",
             "role": "admin",
             "status": "active",
-            "admin_approval_token_hash": "",
+            "admin_approval_token_hash": hashlib.sha256(b"my-own-token").hexdigest(),
         },
     )
     monkeypatch.setattr(
@@ -226,62 +224,51 @@ def test_admin_reset_approval_token_success(monkeypatch):
         },
     )
     monkeypatch.setattr(api_main, "_audit", lambda *args, **kwargs: None)
-    try:
-        res = client.post(
-            "/admin/users/u_target/reset-approval-token",
-            json={
-                "approval_token": "my-own-token",
-                "ticket_id": "SEC-2026-010",
-                "reason": "rotation due to role handoff",
-                "new_admin_approval_token": "new-target-token-123",
-            },
-        )
-        assert res.status_code == 200
-        payload = res.json()
-        assert payload["user_id"] == "u_target"
-        assert payload["has_admin_approval_token"] is True
-        assert payload["admin_ticket_id"] == "SEC-2026-010"
-    finally:
-        api_main.app.dependency_overrides.clear()
+
+    res = admin_client.post(
+        "/admin/users/u_target/reset-approval-token",
+        json={
+            "approval_token": "my-own-token",
+            "ticket_id": "SEC-2026010",
+            "reason": "rotation due to role handoff",
+            "new_admin_approval_token": "new-target-token-123",
+        },
+    )
+
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["user_id"] == "u_target"
+    assert payload["has_admin_approval_token"] is True
+    assert payload["admin_ticket_id"] == "SEC-2026010"
 
 
-def test_admin_reset_approval_token_rejects_non_admin_target(monkeypatch):
-    client = TestClient(api_main.app)
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "u_admin",
-        "username": "admin",
-        "role": "admin",
-        "status": "active",
-    }
+def test_admin_reset_approval_token_rejects_non_admin_target(admin_client, monkeypatch):
     monkeypatch.setattr(
         api_main.auth_service,
         "get_user_profile",
         lambda user_id: {"user_id": user_id, "username": "viewer01", "role": "viewer", "status": "active"},
     )
-    try:
-        res = client.post(
-            "/admin/users/u_view/reset-approval-token",
-            json={
-                "approval_token": "any-token",
-                "ticket_id": "SEC-2026-011",
-                "reason": "rotation",
-                "new_admin_approval_token": "new-target-token-234",
-            },
-        )
-        assert res.status_code == 400
-    finally:
-        api_main.app.dependency_overrides.clear()
+
+    res = admin_client.post(
+        "/admin/users/u_view/reset-approval-token",
+        json={
+            "approval_token": "any-token",
+            "ticket_id": "SEC-2026011",
+            "reason": "rotation",
+            "new_admin_approval_token": "new-target-token-234",
+        },
+    )
+
+    assert res.status_code == 400
 
 
-def test_admin_reset_password_success(monkeypatch):
-    client = TestClient(api_main.app)
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "u_admin",
-        "username": "admin",
-        "role": "admin",
-        "status": "active",
-    }
-
+def test_admin_reset_password_success(admin_client, monkeypatch):
+    monkeypatch.setattr(api_main.settings, "admin_create_approval_token", "")
+    monkeypatch.setattr(
+        api_main.settings,
+        "admin_create_approval_token_hash",
+        hashlib.sha256(b"my-own-token").hexdigest(),
+    )
     monkeypatch.setattr(
         api_main.auth_service,
         "get_user_profile",
@@ -317,32 +304,24 @@ def test_admin_reset_password_success(monkeypatch):
         },
     )
     monkeypatch.setattr(api_main, "_audit", lambda *args, **kwargs: None)
-    try:
-        res = client.post(
-            "/admin/users/u_target/reset-password",
-            json={
-                "approval_token": "my-own-token",
-                "ticket_id": "SEC-2026-020",
-                "reason": "forgot password and account recovery",
-                "new_password": "Password456",
-            },
-        )
-        assert res.status_code == 200
-        payload = res.json()
-        assert payload["user_id"] == "u_target"
-        assert payload["username"] == "target_user"
-    finally:
-        api_main.app.dependency_overrides.clear()
+
+    res = admin_client.post(
+        "/admin/users/u_target/reset-password",
+        json={
+            "approval_token": "my-own-token",
+            "ticket_id": "SEC-2026020",
+            "reason": "forgot password and account recovery",
+            "new_password": "Password456",
+        },
+    )
+
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["user_id"] == "u_target"
+    assert payload["username"] == "target_user"
 
 
-def test_admin_update_user_classification_success(monkeypatch):
-    client = TestClient(api_main.app)
-    api_main.app.dependency_overrides[api_main._require_user] = lambda: {
-        "user_id": "u_admin",
-        "username": "admin",
-        "role": "admin",
-        "status": "active",
-    }
+def test_admin_update_user_classification_success(admin_client, monkeypatch):
     monkeypatch.setattr(
         api_main.auth_service,
         "update_user_classification",
@@ -359,21 +338,20 @@ def test_admin_update_user_classification_success(monkeypatch):
         },
     )
     monkeypatch.setattr(api_main, "_audit", lambda *args, **kwargs: None)
-    try:
-        res = client.patch(
-            "/admin/users/u_cls/classification",
-            json={
-                "business_unit": "Finance",
-                "department": "Risk",
-                "user_type": "employee",
-                "data_scope": "P1",
-            },
-        )
-        assert res.status_code == 200
-        payload = res.json()
-        assert payload["business_unit"] == "Finance"
-        assert payload["department"] == "Risk"
-        assert payload["user_type"] == "employee"
-        assert payload["data_scope"] == "P1"
-    finally:
-        api_main.app.dependency_overrides.clear()
+
+    res = admin_client.patch(
+        "/admin/users/u_cls/classification",
+        json={
+            "business_unit": "Finance",
+            "department": "Risk",
+            "user_type": "employee",
+            "data_scope": "P1",
+        },
+    )
+
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["business_unit"] == "Finance"
+    assert payload["department"] == "Risk"
+    assert payload["user_type"] == "employee"
+    assert payload["data_scope"] == "P1"

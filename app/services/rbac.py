@@ -28,14 +28,16 @@ _ROLE_ACTIONS: dict[str, set[str]] = {
         "upload:create",
     },
     "viewer": {
-        # Viewers have read-only access with limited actions
-        "query:run",  # Can run queries
-        "session:read",  # Can view sessions
-        "session:create",  # Can create new sessions
-        "message:read",  # Can read messages
-        "prompt:read",  # Can view prompt templates
-        "document:read",  # Can view documents
-        # Viewers CANNOT: upload, edit, delete, manage prompts/documents
+        # Viewers can work with their own lightweight content and settings.
+        "query:run",
+        "session:read",
+        "session:create",
+        "message:read",
+        "prompt:read",
+        "prompt:manage",
+        "document:read",
+        "document:manage_own",
+        "upload:create",
     },
 }
 
@@ -46,3 +48,4 @@ def can(action: str, user: dict[str, Any]) -> bool:
         return False
     allowed = _ROLE_ACTIONS[role]
     return "*" in allowed or action in allowed
+

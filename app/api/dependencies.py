@@ -14,9 +14,41 @@ from fastapi import Request
 from fastapi.security import HTTPBearer
 
 from app.api.utils.admin_helpers import _runtime_diagnostics_summary as _runtime_diagnostics_summary_impl
+from app.api.utils.auth_dependencies import (
+    _require_permission,
+    _require_user,
+    _require_user_and_token,
+    auth_scheme,
+    auth_service,
+)
 from app.api.utils.auth_helpers import (
     _audit,
 )
+from app.api.utils.admin_helpers import (
+    _check_chroma_ready,
+    _check_ollama_ready,
+    _extract_grounding_support_from_detail,
+    _filter_audit_rows,
+    _load_benchmark_queries,
+    _parse_audit_ts,
+    _parse_request_ts,
+)
+from app.api.utils.auth_helpers import _clear_auth_cookie, _client_ip, _set_auth_cookie
+from app.api.utils.document_helpers import (
+    _allowed_sources_for_user,
+    _build_user_file_inventory_answer,
+    _is_file_inventory_question,
+)
+from app.api.utils.memory_helpers import _memory_store_for_user, _promote_long_term_memory
+from app.api.utils.query_helpers import (
+    _call_with_supported_kwargs,
+    _normalize_agent_class_hint,
+    _query_limiter_key,
+    _resolve_effective_agent_class,
+    _trace_id,
+)
+from app.api.utils.response_helpers import _sse_response
+from app.api.utils.session_helpers import _require_existing_session_for_query, _require_valid_session_id
 from app.api.utils.document_helpers import _enforce_result_source_scope as _enforce_result_source_scope_impl
 from app.api.utils.document_helpers import (
     _visible_index_fingerprint_for_user,
@@ -38,7 +70,6 @@ from app.api.utils.session_helpers import (
 from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 from app.core.schemas import AdminModelSettingsResponse, UserApiSettings, UserApiSettingsView
-from app.services.auth_db import AuthDBService
 from app.services.auto_ingest_watcher import AutoIngestWatcher
 from app.services.background_queue import BackgroundTaskQueue
 from app.services.model_config_store import get_global_model_settings, public_global_model_settings
@@ -54,9 +85,7 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 # Shared service instances
-auth_service = AuthDBService()
 prompt_store = PromptStore()
-auth_scheme = HTTPBearer(auto_error=False)
 auto_ingest_watcher = AutoIngestWatcher(settings=settings)
 
 # Rate limiters
@@ -105,6 +134,26 @@ _auto_ingest_thread: threading.Thread | None = None
 # Runtime metrics
 runtime_metrics = RuntimeMetrics()
 
+
+
+def __getattr__(name: str):
+    """Resolve legacy helper imports from split utility modules."""
+    from app.api.utils import admin_helpers, auth_dependencies, auth_helpers, document_helpers, memory_helpers, query_helpers, request_helpers, response_helpers, session_helpers
+
+    modules = (
+        admin_helpers,
+        auth_dependencies,
+        auth_helpers,
+        document_helpers,
+        memory_helpers,
+        query_helpers,
+        request_helpers,
+        session_helpers,
+    )
+    for module in modules:
+        if hasattr(module, name):
+            return getattr(module, name)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 # ============================================================================
 # Dependency-injected helpers
@@ -291,3 +340,5 @@ def _api_settings_view(settings_data: UserApiSettings) -> UserApiSettingsView:
 def _admin_model_settings_view(settings_data: dict[str, Any]) -> AdminModelSettingsResponse:
     """Convert model settings to admin view model."""
     return AdminModelSettingsResponse(ok=True, settings=public_global_model_settings(settings_data))
+
+

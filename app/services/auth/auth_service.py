@@ -111,6 +111,9 @@ class AuthDBService:
             )
             self._ensure_auth_session_columns(conn)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id)")
+            # HIGH PRIORITY FIX: Add indexes for query performance
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions(expires_at)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_last_seen ON auth_sessions(last_seen_at)")
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS audit_logs (

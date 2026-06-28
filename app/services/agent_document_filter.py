@@ -76,29 +76,33 @@ def get_agent_filter_stats() -> dict:
 # 使用示例
 if __name__ == "__main__":
     import json
+    import logging
 
-    print("=" * 60)
-    print("Agent 文档过滤器测试")
-    print("=" * 60)
-    print()
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    logger.info("=" * 60)
+    logger.info("Agent 文档过滤器测试")
+    logger.info("=" * 60)
+    logger.info("")
 
     # 测试每个 agent_class
     for agent_class in ["cybersecurity", "artificial_intelligence", "pdf_text", "general"]:
         sources = get_sources_by_agent_class(agent_class)
-        print(f"{agent_class}:")
+        logger.info(f"{agent_class}:")
         if sources is None:
-            print("  → 不过滤 (访问所有文档)")
+            logger.info("  → 不过滤 (访问所有文档)")
         else:
-            print(f"  → {len(sources)} 个文档")
+            logger.info(f"  → {len(sources)} 个文档")
             for source in sorted(sources)[:5]:  # 只显示前5个
-                print(f"    - {source}")
+                logger.info(f"    - {source}")
             if len(sources) > 5:
-                print(f"    ... 还有 {len(sources) - 5} 个")
-        print()
+                logger.info(f"    ... 还有 {len(sources) - 5} 个")
+        logger.info("")
 
     # 显示统计信息
-    print("=" * 60)
-    print("文档统计")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("文档统计")
+    logger.info("=" * 60)
     stats = get_agent_filter_stats()
-    print(json.dumps(stats, indent=2, ensure_ascii=False))
+    logger.info(json.dumps(stats, indent=2, ensure_ascii=False))

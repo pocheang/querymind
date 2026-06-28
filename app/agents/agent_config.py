@@ -32,6 +32,10 @@ CLASSIFICATION_HIGH_CONFIDENCE: Final[float] = 0.8
 CLASSIFICATION_MEDIUM_CONFIDENCE: Final[float] = 0.6
 CLASSIFICATION_LOW_CONFIDENCE: Final[float] = 0.4
 
+# Router fallback threshold
+# If route confidence < this threshold, trigger fallback strategy
+ROUTER_LOW_CONFIDENCE_THRESHOLD: Final[float] = 0.6
+
 # Router decision weights
 ROUTER_WEIGHT_KEYWORD: Final[float] = 0.3
 ROUTER_WEIGHT_ENTITY_COUNT: Final[float] = 0.2

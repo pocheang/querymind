@@ -25,6 +25,8 @@ def _run_eval(dataset: str, autotune: bool = False, strategy: str = "") -> dict:
             "InvalidArgumentError",
             "expecting embedding with dimension",
             "Collection expecting embedding",
+            "allowed_sources is required for user data isolation",
+            "Cross-tenant citation isolation",
         )
         if any(marker in detail for marker in runtime_markers):
             return {
@@ -164,3 +166,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+

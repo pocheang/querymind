@@ -30,13 +30,22 @@ def redis_client(settings):
         logger.debug("Redis module not available")
         return None
     try:
-        _REDIS_CLIENT = redis.from_url(str(getattr(settings, "redis_url", "")))
+        # CRITICAL FIX: Add connection pooling configuration
+        _REDIS_CLIENT = redis.from_url(
+            str(getattr(settings, "redis_url", "")),
+            max_connections=50,           # Connection pool size
+            socket_keepalive=True,         # Keep connections alive
+            socket_connect_timeout=5,      # Connection timeout
+            socket_timeout=5,              # Socket operation timeout
+            decode_responses=False,        # Handle bytes explicitly for caching
+            health_check_interval=30,      # Health check every 30s
+        )
         _REDIS_CLIENT.ping()
     except (redis.ConnectionError, redis.TimeoutError) as e:
         logger.warning(f"Redis connection failed: {e}")
         _REDIS_CLIENT = None
     except Exception as e:
-        logger.error(f"Unexpected Redis error: {e}")
+        logger.error(f"Unexpected Redis error: {e}", exc_info=True)
         _REDIS_CLIENT = None
     return _REDIS_CLIENT
 

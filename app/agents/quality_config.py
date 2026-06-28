@@ -84,15 +84,32 @@ ANSWER_FLAG_THRESHOLD: Final[float] = _get_float_env("ANSWER_FLAG_THRESHOLD", 0.
 NLI_MODEL_NAME: Final[str] = _get_str_env("NLI_MODEL_NAME", "cross-encoder/nli-MiniLM2-L6-H768")
 NLI_MAX_CHECKS: Final[int] = _get_int_env("NLI_MAX_CHECKS", 5)
 
+# Validation Cascade Configuration (Task 8)
+CASCADE_ENABLE_LEVEL1: Final[bool] = _get_bool_env("CASCADE_ENABLE_LEVEL1", True)
+# Level 2 disabled by default due to 2-3s performance overhead (1900% over 100ms target)
+# Enable with CASCADE_ENABLE_LEVEL2=true for higher accuracy at cost of latency
+CASCADE_ENABLE_LEVEL2: Final[bool] = _get_bool_env("CASCADE_ENABLE_LEVEL2", False)
+CASCADE_ENABLE_LEVEL3: Final[bool] = _get_bool_env("CASCADE_ENABLE_LEVEL3", True)
+CASCADE_ENABLE_LEVEL4: Final[bool] = _get_bool_env("CASCADE_ENABLE_LEVEL4", True)
+CASCADE_LEVEL1_TIMEOUT_MS: Final[int] = _get_int_env("CASCADE_LEVEL1_TIMEOUT_MS", 10)
+CASCADE_LEVEL2_TIMEOUT_MS: Final[int] = _get_int_env("CASCADE_LEVEL2_TIMEOUT_MS", 3000)  # Realistic: 2-3s
+CASCADE_LEVEL3_TIMEOUT_MS: Final[int] = _get_int_env("CASCADE_LEVEL3_TIMEOUT_MS", 75)
+CASCADE_LEVEL4_TIMEOUT_MS: Final[int] = _get_int_env("CASCADE_LEVEL4_TIMEOUT_MS", 3000)  # Realistic for LLM
+CASCADE_USE_FOR_VALIDATION: Final[bool] = _get_bool_env("CASCADE_USE_FOR_VALIDATION", True)
+
 
 # ============================================================================
 # Quality Orchestrator Configuration
 # ============================================================================
 
-QUALITY_WEIGHT_ROUTE: Final[float] = _get_float_env("QUALITY_WEIGHT_ROUTE", 0.15)
-QUALITY_WEIGHT_RETRIEVAL: Final[float] = _get_float_env("QUALITY_WEIGHT_RETRIEVAL", 0.25)
-QUALITY_WEIGHT_ANSWER_FACT: Final[float] = _get_float_env("QUALITY_WEIGHT_ANSWER_FACT", 0.40)
-QUALITY_WEIGHT_ANSWER_QUALITY: Final[float] = _get_float_env("QUALITY_WEIGHT_ANSWER_QUALITY", 0.15)
+# Optimized weights based on A/B testing (Task 12)
+# Alternative weights showed better correlation with human judgments
+# Previous: Route 15%, Retrieval 25%, Fact 40%, Quality 15%, Cite 5%
+# Optimized: Route 10%, Retrieval 30%, Fact 45%, Quality 10%, Cite 5%
+QUALITY_WEIGHT_ROUTE: Final[float] = _get_float_env("QUALITY_WEIGHT_ROUTE", 0.10)
+QUALITY_WEIGHT_RETRIEVAL: Final[float] = _get_float_env("QUALITY_WEIGHT_RETRIEVAL", 0.30)
+QUALITY_WEIGHT_ANSWER_FACT: Final[float] = _get_float_env("QUALITY_WEIGHT_ANSWER_FACT", 0.45)
+QUALITY_WEIGHT_ANSWER_QUALITY: Final[float] = _get_float_env("QUALITY_WEIGHT_ANSWER_QUALITY", 0.10)
 QUALITY_WEIGHT_CITATION: Final[float] = _get_float_env("QUALITY_WEIGHT_CITATION", 0.05)
 QUALITY_HIGH_THRESHOLD: Final[float] = _get_float_env("QUALITY_HIGH_THRESHOLD", 0.85)
 QUALITY_MEDIUM_THRESHOLD: Final[float] = _get_float_env("QUALITY_MEDIUM_THRESHOLD", 0.70)

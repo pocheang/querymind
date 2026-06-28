@@ -79,6 +79,7 @@ def _run_basic_graph_rag(
     Basic graph RAG implementation without enhancements.
 
     This is the legacy implementation using basic graph_lookup.
+    Includes validation, error handling, and fallback indicators.
     """
     from app.tools.graph_tools import graph_lookup
 
@@ -93,14 +94,9 @@ def _run_basic_graph_rag(
         else:
             logger.exception("Graph lookup failed for question: %s", question)
 
-        return {
-            "context": "",
-            "entities": [],
-            "neighbors": [],
-            "paths": [],
-            "graph_signal_score": 0.0,
-            "error": f"graph_lookup_error:{error_type}",
-        }
+        # Fallback to vector RAG when graph fails
+        logger.info("Falling back to vector RAG due to graph lookup error")
+        return _fallback_to_vector_rag(question, allowed_sources, error_type)
 
     # Extract results
     entities = graph_result.get("entities", [])
@@ -111,13 +107,24 @@ def _run_basic_graph_rag(
     # Format context string
     context = _format_graph_context(entities, neighbors, paths)
 
-    return {
+    # Check if graph returned empty results
+    has_results = bool(entities or neighbors or paths)
+
+    result = {
         "context": context,
         "entities": [x.get("entity") for x in entities if x.get("entity")],
         "neighbors": neighbors,
         "paths": paths,
         "graph_signal_score": graph_signal_score,
     }
+
+    # Add fallback indicator if graph has no results
+    if not has_results:
+        logger.info("Graph RAG returned empty results for question: %s", question)
+        logger.info("Falling back to vector RAG due to empty graph results")
+        return _fallback_to_vector_rag(question, allowed_sources, "empty_results")
+
+    return result
 
 
 def _run_enhanced_graph_rag(
@@ -221,3 +228,54 @@ def _format_graph_context(
             )
 
     return "\n".join(lines)
+
+
+def _fallback_to_vector_rag(
+    question: str,
+    allowed_sources: list[str] | None,
+    reason: str,
+) -> dict:
+    """
+    Fallback to vector RAG when graph RAG fails or returns empty results.
+
+    Args:
+        question: User query
+        allowed_sources: Optional list of allowed document sources
+        reason: Reason for fallback (error type or "empty_results")
+
+    Returns:
+        Dictionary with vector RAG results and fallback metadata
+    """
+    from app.agents.vector_rag_agent import run_vector_rag
+
+    logger.info("Executing vector RAG fallback for question: %s (reason: %s)", question, reason)
+
+    try:
+        vector_result = run_vector_rag(
+            question=question,
+            allowed_sources=allowed_sources,
+        )
+
+        # Add graph RAG metadata to indicate this was a fallback
+        return {
+            "context": vector_result.get("context", ""),
+            "entities": [],
+            "neighbors": [],
+            "paths": [],
+            "graph_signal_score": 0.0,
+            "fallback_used": True,
+            "fallback_reason": reason,
+            "vector_rag_result": vector_result,
+        }
+    except Exception as e:
+        logger.error("Vector RAG fallback also failed: %s", e)
+        return {
+            "context": "",
+            "entities": [],
+            "neighbors": [],
+            "paths": [],
+            "graph_signal_score": 0.0,
+            "fallback_used": True,
+            "fallback_reason": reason,
+            "fallback_error": str(e),
+        }

@@ -9,6 +9,7 @@ Tests comprehensive error handling in production-like scenarios including:
 - Resource limits
 """
 
+import importlib.util
 import os
 import tempfile
 import threading
@@ -16,6 +17,9 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+
+HAS_DOCLING = importlib.util.find_spec("docling") is not None
+DOCLING_REASON = "docling is not installed in this environment"
 
 
 @pytest.mark.integration
@@ -48,6 +52,7 @@ def test_corrupted_pdf_handling():
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not HAS_DOCLING, reason=DOCLING_REASON)
 def test_missing_api_key():
     """Test missing API key scenario.
 
@@ -85,6 +90,7 @@ def test_missing_api_key():
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not HAS_DOCLING, reason=DOCLING_REASON)
 def test_network_timeout():
     """Test network timeout handling.
 
@@ -212,6 +218,7 @@ def test_concurrent_cache_access():
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not HAS_DOCLING, reason=DOCLING_REASON)
 def test_disk_full_scenario():
     """Test disk full scenario.
 
@@ -246,6 +253,7 @@ def test_disk_full_scenario():
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not HAS_DOCLING, reason=DOCLING_REASON)
 def test_memory_limit_exceeded():
     """Test memory limit exceeded scenario.
 
@@ -281,6 +289,7 @@ def test_memory_limit_exceeded():
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not HAS_DOCLING, reason=DOCLING_REASON)
 def test_pdf_with_no_extractable_content():
     """Test PDF with no extractable content.
 
@@ -322,6 +331,7 @@ def test_pdf_with_no_extractable_content():
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not HAS_DOCLING, reason=DOCLING_REASON)
 def test_pdf_processing_with_partial_failure():
     """Test PDF processing with partial page failures.
 
@@ -369,3 +379,5 @@ def test_pdf_processing_with_partial_failure():
         # Cleanup
         if test_pdf_path.exists():
             test_pdf_path.unlink()
+
+

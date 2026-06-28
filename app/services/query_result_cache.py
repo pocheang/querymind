@@ -43,18 +43,30 @@ def _get_redis_client():
                 socket_connect_timeout=0.2,
                 socket_timeout=0.2,
                 retry_on_timeout=False,
+                max_connections=50,  # Connection pool configuration (was missing)
+                health_check_interval=30,
             )
             _REDIS_CLIENT.ping()
             _REDIS_UNAVAILABLE_UNTIL = 0.0
             return _REDIS_CLIENT
         except (ImportError, AttributeError) as e:
-            logger.debug(f"Redis not available: {e}")
-            _REDIS_CLIENT = None
+            logger.debug(f"Redis not available for query result cache: {e}")
+            if _REDIS_CLIENT is not None:
+                try:
+                    _REDIS_CLIENT.close()
+                except Exception as cleanup_error:
+                    logger.debug(f"Redis cleanup failed during init error: {cleanup_error}")
+                _REDIS_CLIENT = None
             _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
             return None
         except Exception as e:
-            logger.warning(f"Redis connection failed: {e}")
-            _REDIS_CLIENT = None
+            logger.warning(f"Redis connection failed for query result cache: {e}", exc_info=True)
+            if _REDIS_CLIENT is not None:
+                try:
+                    _REDIS_CLIENT.close()
+                except Exception as cleanup_error:
+                    logger.debug(f"Redis cleanup failed during connection error: {cleanup_error}")
+                _REDIS_CLIENT = None
             _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
             return None
 

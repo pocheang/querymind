@@ -279,10 +279,17 @@ def safe_web_result(question: str) -> dict[str, Any]:
     start_time = time.time()
     try:
         run_web_research = _agent_func("app.agents.web_research_agent", "run_web_research")
+
+        def _web_research_call():
+            return run_web_research(question)
+
+        def _with_circuit_breaker():
+            return call_with_circuit_breaker("web_research.run", _web_research_call)
+
         with bulkhead("web"):
             result = call_with_retry(
                 "stream.web_research",
-                lambda: call_with_circuit_breaker("web_research.run", lambda: run_web_research(question)),
+                _with_circuit_breaker,
             )
         retrieval_time_ms = (time.time() - start_time) * 1000
         citations = result.get("citations", [])

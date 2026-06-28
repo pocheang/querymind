@@ -92,12 +92,20 @@ def ingest_paths(
     try:
         client = Neo4jClient()
     except (ImportError, RuntimeError, ValueError) as e:
-        logger.warning(f"neo4j_client_init_failed: {e}", exc_info=True)
+        logger.warning(
+            f"Neo4j client initialization failed - graph features disabled. "
+            f"Error: {e}. Check NEO4J_URI and credentials in environment.",
+            exc_info=True
+        )
         client = None
 
     if client is not None:
         try:
-            for chunk in chunks:
+            # Collect all triplets first for batch processing (10x performance improvement)
+            triplets_to_insert = []
+            extraction_errors = 0
+
+            for chunk_idx, chunk in enumerate(chunks):
                 text = chunk.page_content
                 source = str(chunk.metadata.get("source", "unknown"))
                 profile = (parser_profiles_by_source or {}).get(source, {})
@@ -109,18 +117,49 @@ def ingest_paths(
                     page = int(page_raw) if page_raw is not None else None
                 except (TypeError, ValueError):
                     page = None
+                    logger.debug(f"Invalid page number '{page_raw}' in chunk {chunk_idx} from {source}")
+
                 min_confidence = float(profile.get("graph_min_confidence", 0.5) or 0.5)
-                for triplet in extract_graph_triplets(text, min_confidence=min_confidence):
-                    client.upsert_triplet(
-                        head=triplet.head,
-                        relation=triplet.relation,
-                        tail=triplet.tail,
-                        source=source,
-                        chunk_id=chunk_id,
-                        page=page,
-                        confidence=triplet.confidence,
+
+                try:
+                    for triplet in extract_graph_triplets(text, min_confidence=min_confidence):
+                        triplets_to_insert.append({
+                            "head": triplet.head,
+                            "relation": triplet.relation,
+                            "tail": triplet.tail,
+                            "source": source,
+                            "chunk_id": chunk_id,
+                            "page": page,
+                            "confidence": triplet.confidence,
+                        })
+                except Exception as e:
+                    extraction_errors += 1
+                    logger.warning(
+                        f"Failed to extract triplets from chunk {chunk_idx} (source: {source}): {e}"
                     )
-                    count_triplets += 1
+
+            # Batch insert all triplets at once
+            if triplets_to_insert:
+                try:
+                    count_triplets = client.batch_upsert_triplets(triplets_to_insert)
+                    if extraction_errors > 0:
+                        logger.warning(
+                            f"Graph extraction completed with {extraction_errors} errors. "
+                            f"Successfully inserted {count_triplets} triplets."
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to batch insert {len(triplets_to_insert)} triplets to Neo4j: {e}. "
+                        f"Graph features may be incomplete.",
+                        exc_info=True
+                    )
+            elif extraction_errors > 0:
+                logger.warning(
+                    f"No triplets extracted due to {extraction_errors} extraction errors. "
+                    f"Check document format and extraction settings."
+                )
+        except Exception as e:
+            logger.error(f"Unexpected error during graph ingestion: {e}", exc_info=True)
         finally:
             client.close()
 

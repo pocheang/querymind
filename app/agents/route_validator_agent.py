@@ -1,5 +1,7 @@
 """
 Route Validator Agent - Validates router decisions with layered approach.
+
+Now includes historical accuracy tracking for confidence recalibration.
 """
 
 import asyncio
@@ -18,8 +20,13 @@ from app.agents.quality_config import (
 from app.agents.router_agent import RouteDecision
 from app.agents.agent_config import VALID_ROUTES, VALID_SKILLS
 from app.core.models import get_chat_model
+from app.agents.route_accuracy_tracker import RouteAccuracyTracker
 
 logger = logging.getLogger(__name__)
+
+# Global accuracy tracker instance
+_accuracy_tracker = RouteAccuracyTracker()
+_accuracy_tracker.load()  # Load historical data on module import
 
 
 def _extract_query_features(query: str) -> Dict[str, Any]:
@@ -168,11 +175,13 @@ async def validate_route_decision(
     use_cache: bool = True
 ) -> RouteValidationResult:
     """
-    Validate routing decision with layered approach.
+    Validate routing decision with layered approach and historical accuracy tracking.
 
     Layer 1: High confidence fast pass (>=0.85) - ~5ms
     Layer 2: Rule-based validation (0.6-0.85) - ~30ms
     Layer 3: LLM validation (<0.6) - ~300ms
+
+    Now includes confidence recalibration based on historical accuracy.
 
     Args:
         query: Original query text
@@ -187,13 +196,19 @@ async def validate_route_decision(
     # Get router confidence if available
     router_confidence = getattr(route_decision, 'confidence', 0.7)
 
+    # Apply historical accuracy recalibration
+    recalibrated_confidence = _accuracy_tracker.recalibrate_confidence(route_decision)
+
+    # Use recalibrated confidence for threshold checks
+    effective_confidence = recalibrated_confidence
+
     # Layer 1: High confidence fast pass
-    if router_confidence >= ROUTE_HIGH_CONFIDENCE_THRESHOLD:
+    if effective_confidence >= ROUTE_HIGH_CONFIDENCE_THRESHOLD:
         return RouteValidationResult(
             is_valid=True,
-            confidence=router_confidence,
+            confidence=recalibrated_confidence,
             validation_method="rule_fast",
-            validation_reason="high_confidence_fast_pass",
+            validation_reason="high_confidence_fast_pass_with_history",
             execution_time_ms=int((time.time() - start_time) * 1000),
             suggested_alternative=None,
             warnings=[]
@@ -202,19 +217,22 @@ async def validate_route_decision(
     # Layer 2: Rule-based validation
     rule_result = _rule_based_validation(query, route_decision)
 
-    if rule_result["confidence"] >= ROUTE_MEDIUM_CONFIDENCE_THRESHOLD:
+    # Blend rule confidence with recalibrated confidence
+    blended_confidence = (rule_result["confidence"] + recalibrated_confidence) / 2.0
+
+    if blended_confidence >= ROUTE_MEDIUM_CONFIDENCE_THRESHOLD:
         return RouteValidationResult(
             is_valid=True,
-            confidence=rule_result["confidence"],
+            confidence=blended_confidence,
             validation_method="rule_feature",
-            validation_reason=rule_result["reason"],
+            validation_reason=f"{rule_result['reason']}_with_history",
             execution_time_ms=int((time.time() - start_time) * 1000),
             suggested_alternative=None,
             warnings=rule_result.get("warnings", [])
         )
 
     # Layer 3: LLM validation (only for low confidence)
-    if router_confidence < ROUTE_LOW_CONFIDENCE_THRESHOLD:
+    if effective_confidence < ROUTE_LOW_CONFIDENCE_THRESHOLD:
         llm_result = await _llm_validation(query, route_decision)
 
         return RouteValidationResult(
@@ -230,10 +248,35 @@ async def validate_route_decision(
     # Default: Medium confidence, pass with warning
     return RouteValidationResult(
         is_valid=True,
-        confidence=0.7,
+        confidence=blended_confidence if 'blended_confidence' in locals() else 0.7,
         validation_method="rule_feature",
         validation_reason="medium_confidence_default",
         execution_time_ms=int((time.time() - start_time) * 1000),
         suggested_alternative=None,
         warnings=["medium_confidence"]
+    )
+
+
+def record_route_outcome(
+    query: str,
+    route_decision: RouteDecision,
+    was_successful: bool,
+    execution_time_ms: int
+):
+    """
+    Record the outcome of a routing decision for historical tracking.
+
+    This should be called after executing a route to track whether it was successful.
+
+    Args:
+        query: Original query text
+        route_decision: Router's decision that was executed
+        was_successful: Whether the route produced good results
+        execution_time_ms: Execution time
+    """
+    _accuracy_tracker.record_outcome(
+        query=query,
+        route_decision=route_decision,
+        was_successful=was_successful,
+        execution_time_ms=execution_time_ms
     )

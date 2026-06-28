@@ -4,7 +4,10 @@ import logging
 import secrets
 from typing import Any
 
-from authlib.integrations.starlette_client import OAuth
+try:
+    from authlib.integrations.starlette_client import OAuth
+except ModuleNotFoundError:
+    OAuth = None
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -38,8 +41,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 # OAuth setup
-oauth = OAuth()
-if settings.google_client_id and settings.google_client_secret:
+oauth = OAuth() if OAuth is not None else None
+if oauth is not None and settings.google_client_id and settings.google_client_secret:
     oauth.register(
         name="google",
         client_id=settings.google_client_id,
@@ -158,7 +161,7 @@ def login(req: AuthCredentials, request: Request, response: Response):
     except ValueError as e:
         login_limiter.record(login_key)
         _audit(request, action="auth.login", resource_type="auth", result="failed", detail=str(e))
-        raise unauthorized("Invalid credentials")
+        raise unauthorized("invalid credentials")
     login_limiter.reset(login_key)
     _audit(
         request,
@@ -437,3 +440,5 @@ async def google_callback(request: Request, response: Response) -> RedirectRespo
             detail=f"oauth_error: {e}",
         )
         return RedirectResponse(url="/login?error=oauth_failed")
+
+

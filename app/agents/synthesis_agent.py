@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import asyncio
 from collections.abc import Iterable
 
 from app.core.config import get_settings
@@ -10,6 +11,12 @@ from app.services.language_analytics import LanguageAnalytics
 from app.services.language_detector import detect_language
 from app.services.query_intent import is_casual_chat_query
 from app.services.request_context import deadline_exceeded, overload_mode_enabled
+from app.agents.synthesis_templates import (
+    infer_query_type,
+    get_answer_template,
+    get_cot_reasoning_prompt,
+)
+from app.agents.fact_verification import FactVerifier
 
 logger = logging.getLogger(__name__)
 
@@ -39,22 +46,97 @@ ANSWER_PROMPT = """
 - 若提示中包含 [Language: zh]，整个回答必须100%使用中文，不得混用英文。
 - 若提示中包含 [Language: en]，整个回答必须100%使用英文，不得混用中文。
 - 严禁在回答中混合使用中英文。
+
+引用规则（Citation-First Generation - Task 13）：
+- 强制 每个事实性陈述必须有引用 [doc_id:page]
+- 强制 上下文中的引用格式为 [doc_id:page] 内容，你必须在答案中逐字保留这些引用标记
+- 强制 示例：如果上下文是 [doc1:p3] Transformer uses self-attention ，答案必须写成 Transformer uses self-attention [doc1:p3]
+- 强制 无引用 = 不能声明为事实。无法引用的信息必须使用模糊语言或说明信息不足
+- 禁止 不要编造、推测或添加上下文中未提供的信息
+- 禁止 不要删除或省略上下文中的引用标记 [doc_id:page]
+- 推荐 对于不完整的上下文，使用限定语言：根据提供的信息、部分包括、有限信息显示
+- 推荐 根据问题类型（概念/对比/关系/步骤）组织答案结构，但每个要点都要有引用
+
+引用格式说明：
+- 输入格式：[doc_id:page] 内容
+- 输出格式：内容 [doc_id:page] 或 内容[doc_id:page]
+- 必须保留引用标记，可以调整位置使其自然嵌入句子中
+
+Chain-of-Thought 推理步骤（生成答案前先思考）：
+1. 问题分析：用户真正想知道什么？问题类型是什么（概念/对比/关系/步骤）？
+2. 上下文评估：哪些事实性陈述可以从上下文中提取？每个陈述对应哪个引用？哪些信息缺失？
+3. 引用规划：每个陈述对应 [doc_id:page]？有没有无引用支持的陈述需要删除或模糊化？
+4. 答案结构：如何组织答案（定义/对比/步骤等）？引用如何自然嵌入？哪里需要限定语言？
 """
 
 REVIEW_PROMPT = """
-你是答案质检与修订器。请严格检查“当前答案”是否满足问题与上下文。
+你是答案质检与修订器。请严格检查当前答案是否满足问题与上下文。
 
 请按以下原则执行：
 1) 若答案正确且充分：is_correct=true，improved_answer 可以等于原答案。
 2) 若答案有错/不完整/偏题：is_correct=false，并给出修订后的 improved_answer。
 3) 避免无根据编造，缺信息时明确说明边界。
-4) 输出 JSON，不要输出其他内容。
+4) Task 13 检查引用完整性：每个事实性陈述是否都有 [doc_id:page] 引用？
+5) Task 13 检查引用真实性：答案中的引用是否都在上下文中存在？
+6) Task 13 若引用缺失或不充分，在 improved_answer 中补充引用或移除无引用支持的陈述。
+7) 输出 JSON，不要输出其他内容。
 
 输出格式：
 {"is_correct": true|false, "issues": ["..."], "improved_answer": "...", "analysis": "..."}
 """
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")
+
+
+def _parse_source_docs_from_contexts(
+    vector_context: str = "",
+    graph_context: str = "",
+    web_context: str = "",
+) -> list[dict]:
+    """
+    Parse source documents from context strings.
+
+    Extracts [doc_id:page] markers and associated content from contexts.
+
+    Args:
+        vector_context: Vector retrieval context
+        graph_context: Graph context
+        web_context: Web search context
+
+    Returns:
+        List of source document dicts with doc_id, page, content
+    """
+    source_docs = []
+
+    # Combine all contexts
+    all_context = f"{vector_context}\n{graph_context}\n{web_context}"
+
+    if not all_context.strip():
+        return source_docs
+
+    # Pattern: [doc_id:page] content
+    # Extract citation blocks
+    citation_pattern = r'\[([^\]]+)\]\s*([^\[]+)'
+    matches = re.findall(citation_pattern, all_context)
+
+    for citation, content in matches:
+        # Parse citation: doc1:p3 -> doc_id=doc1, page=p3
+        cit_match = re.match(r'(\w+):(\w+)', citation)
+        if not cit_match:
+            continue
+
+        doc_id = cit_match.group(1)
+        page = cit_match.group(2)
+        content_text = content.strip()
+
+        if content_text:
+            source_docs.append({
+                "doc_id": doc_id,
+                "page": page,
+                "content": content_text,
+            })
+
+    return source_docs
 
 
 def _build_prompt(
@@ -84,8 +166,21 @@ def _build_prompt_with_language(
     graph_context: str = "",
     web_context: str = "",
 ) -> str:
-    """Build prompt with language hint for multilingual support."""
+    """Build prompt with language hint and query-type-specific template for multilingual support."""
     language_hint = f"[Language: {detected_language}]\n"
+
+    # Infer query type and get appropriate template
+    query_type = infer_query_type(question)
+    answer_template = get_answer_template(query_type)
+    cot_prompt = get_cot_reasoning_prompt()
+
+    # Compose prompt with template guidance
+    template_section = (
+        f"\n答案模板指导（Query Type: {query_type}）:\n"
+        f"{answer_template}\n\n"
+        f"{cot_prompt}\n"
+    )
+
     return (
         f"{language_hint}"
         f"技能: {skill_name}\n\n"
@@ -94,6 +189,7 @@ def _build_prompt_with_language(
         f"向量检索上下文:\n{vector_context or '无'}\n\n"
         f"图谱上下文:\n{graph_context or '无'}\n\n"
         f"联网补充上下文:\n{web_context or '无'}\n"
+        f"{template_section}"
     )
 
 
@@ -235,9 +331,10 @@ def synthesize_answer(
     use_reasoning: bool = False,
     force_language: str = "",
     session_id: str = "",
+    enable_fact_verification: bool = True,
 ) -> dict:
     """
-    Synthesize answer with language detection support.
+    Synthesize answer with language detection and fact verification support.
 
     Args:
         question: User question
@@ -249,9 +346,10 @@ def synthesize_answer(
         use_reasoning: Whether to use reasoning model
         force_language: Force specific language ('zh' or 'en'), empty string for auto-detect
         session_id: Session identifier for analytics
+        enable_fact_verification: Enable post-generation fact verification (Task 14)
 
     Returns:
-        dict with 'answer' and 'detected_language' keys
+        dict with 'answer', 'detected_language', and optional 'verification' keys
     """
     # Detect language (or use forced language)
     detected_language = force_language if force_language else detect_language(question)
@@ -299,10 +397,58 @@ def synthesize_answer(
             web_context=web_context,
             use_reasoning=use_reasoning,
         )
-        return {
+
+        # Task 14: Post-generation fact verification
+        verification_result = None
+        if enable_fact_verification and final_answer != SYNTHESIS_FALLBACK_MESSAGE:
+            try:
+                # Prepare source documents from contexts
+                source_docs = _parse_source_docs_from_contexts(
+                    vector_context=vector_context,
+                    graph_context=graph_context,
+                    web_context=web_context,
+                )
+
+                # Run fact verification
+                verifier = FactVerifier()
+                verification_result = asyncio.run(
+                    verifier.verify_answer(final_answer, source_docs)
+                )
+
+                # Log verification metrics
+                logger.info(
+                    f"Fact verification: groundedness={verification_result.groundedness_score:.2f}, "
+                    f"verified={len(verification_result.verified_claims)}, "
+                    f"unverified={len(verification_result.unverified_claims)}"
+                )
+
+                # If groundedness is too low, flag for review
+                if verification_result.groundedness_score < 0.80:
+                    logger.warning(
+                        f"Low groundedness score: {verification_result.groundedness_score:.2f}. "
+                        f"Issues: {verification_result.issues[:3]}"
+                    )
+
+            except Exception as e:
+                logger.warning(f"Fact verification failed: {e}")
+                verification_result = None
+
+        result_dict = {
             "answer": final_answer,
             "detected_language": detected_language,
         }
+
+        # Include verification result if available
+        if verification_result:
+            result_dict["verification"] = {
+                "groundedness_score": verification_result.groundedness_score,
+                "overall_verified": verification_result.overall_verified,
+                "unverified_count": len(verification_result.unverified_claims),
+                "issues": verification_result.issues[:5],  # Top 5 issues
+            }
+
+        return result_dict
+
     except (RuntimeError, ValueError) as e:
         logger.error(f"Synthesis failed: {e}")
         return {

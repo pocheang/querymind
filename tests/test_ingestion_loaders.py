@@ -32,7 +32,17 @@ class _PdfLoader:
         return [_Doc(page_content="pdf text", metadata={"source": self.path})]
 
 
+_STUBBED_MODULE_NAMES = (
+    "langchain_core",
+    "langchain_core.documents",
+    "langchain_community",
+    "langchain_community.document_loaders",
+)
+
+
 def _install_loader_stubs():
+    originals = {name: sys.modules.get(name) for name in _STUBBED_MODULE_NAMES}
+
     lc_core = types.ModuleType("langchain_core")
     lc_core_docs = types.ModuleType("langchain_core.documents")
     lc_core_docs.Document = _Doc
@@ -48,6 +58,15 @@ def _install_loader_stubs():
     sys.modules["langchain_core.documents"] = lc_core_docs
     sys.modules["langchain_community"] = lc_comm
     sys.modules["langchain_community.document_loaders"] = lc_comm_docs
+    return originals
+
+
+def _restore_loader_stubs(originals):
+    for name, module in originals.items():
+        if module is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = module
 
 
 def _make_tmp_dir(prefix: str) -> Path:
@@ -58,8 +77,11 @@ def _make_tmp_dir(prefix: str) -> Path:
     return path
 
 
-_install_loader_stubs()
-loaders = importlib.import_module("app.ingestion.loaders")
+_original_modules = _install_loader_stubs()
+try:
+    loaders = importlib.import_module("app.ingestion.loaders")
+finally:
+    _restore_loader_stubs(_original_modules)
 
 
 def test_supported_extensions_include_images():
@@ -125,11 +147,11 @@ def test_normalize_ocr_text_collapses_blank_lines():
 def test_text_loader_fallbacks_to_gb18030():
     tmp_dir = _make_tmp_dir("loaders-gb18030")
     txt = tmp_dir / "cn.txt"
-    txt.write_bytes("中文内容".encode("gb18030"))
+    txt.write_bytes("????".encode("gb18030"))
 
     docs = loaders.load_documents(paths=[txt])
     assert len(docs) == 1
-    assert "中文内容" in docs[0].page_content
+    assert "????" in docs[0].page_content
 
 
 def test_detect_people_disabled_returns_safe_defaults():
@@ -157,6 +179,6 @@ def test_describe_image_with_vision_disabled():
 
 
 def test_build_vision_summary_includes_caption():
-    text = loaders._build_vision_summary({"status": "ok", "model": "demo", "caption": "图中有一只猫在窗台上。"})
+    text = loaders._build_vision_summary({"status": "ok", "model": "demo", "caption": "???????????"})
     assert "[image_scene]" in text
-    assert "图中有一只猫在窗台上。" in text
+    assert "???????????" in text

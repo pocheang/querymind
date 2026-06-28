@@ -219,10 +219,16 @@ def safe_graph_result(
 
 def safe_web_result(question: str) -> dict[str, Any]:
     try:
+        def _web_research_call():
+            return run_web_research(question)
+
+        def _with_circuit_breaker():
+            return call_with_circuit_breaker("web_research.run", _web_research_call)
+
         with bulkhead("web"):
             return call_with_retry(
                 "workflow.web_research",
-                lambda: call_with_circuit_breaker("web_research.run", lambda: run_web_research(question)),
+                _with_circuit_breaker,
             )
     except Exception as e:
         logger.exception(f"Web research failed for question: {question}")

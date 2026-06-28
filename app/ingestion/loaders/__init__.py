@@ -1,14 +1,10 @@
 """Document loaders by file type."""
 
 import importlib.util
-
-# Import from parent module (app.ingestion.loaders is the file, not this package)
-import sys
 from pathlib import Path
 
 from langchain_core.documents import Document
 
-# Import the refactored loaders module (loaders.py file, not this package)
 _loaders_file = str(Path(__file__).parent.parent / "loaders.py")
 _spec = importlib.util.spec_from_file_location("app.ingestion._loaders_impl", _loaders_file)
 loaders_module = importlib.util.module_from_spec(_spec)
@@ -36,20 +32,23 @@ _describe_image_with_vision = describe_image_with_vision
 _build_vision_summary = build_vision_summary
 
 
-def _load_single_path(path: Path) -> list[Document]:
-    """Load a single supported file into LangChain documents.
+def _sync_compat_aliases() -> None:
+    """Mirror package-level monkeypatches into the implementation module."""
+    loaders_module._load_pdf_text = _load_pdf_text
+    loaders_module._load_pdf_image_ocr = _load_pdf_image_ocr
+    loaders_module._load_image_file = _load_image_file
+    loaders_module._load_text_file = load_text_file
 
-    This delegates to the refactored loader with chart extraction support.
-    """
-    # Use the refactored function from parent loaders module
+
+def _load_single_path(path: Path) -> list[Document]:
+    """Load a single supported file into LangChain documents."""
+    _sync_compat_aliases()
     return loaders_module._load_single_path(path)
 
 
 def load_documents(data_dir: Path | None = None, paths: list[Path] | None = None) -> list[Document]:
-    """Compatibility loader used by ingestion services.
-
-    This delegates to the refactored loader with chart extraction support.
-    """
+    """Compatibility loader used by ingestion services."""
+    _sync_compat_aliases()
     return loaders_module.load_documents(data_dir=data_dir, paths=paths)
 
 

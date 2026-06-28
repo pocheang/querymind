@@ -50,7 +50,8 @@ def write_corpus_records(records: list[dict[str, Any]], path: Path | None = None
     settings = get_settings()
     target = path or settings.corpus_path
     target.parent.mkdir(parents=True, exist_ok=True)
-    with target.open("w", encoding="utf-8") as f:
+    # OPTIMIZATION: Add explicit 64KB buffering for better I/O performance
+    with target.open("w", encoding="utf-8", buffering=65536) as f:
         for row in records:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -61,7 +62,8 @@ def read_corpus_records(path: Path | None = None) -> list[dict[str, Any]]:
     if not target.exists():
         return []
     rows: list[dict[str, Any]] = []
-    with target.open("r", encoding="utf-8") as f:
+    # OPTIMIZATION: Add explicit 64KB buffering for better I/O performance
+    with target.open("r", encoding="utf-8", buffering=65536) as f:
         for line in f:
             line = line.strip()
             if not line:

@@ -6,6 +6,8 @@ Provides centralized caching for:
 - Router decisions
 - Web research results
 - Synthesis outputs
+
+Cache versioning: Router cache includes version to support calibration updates.
 """
 
 import hashlib
@@ -23,6 +25,9 @@ DEFAULT_VECTOR_CACHE_SIZE = 200
 DEFAULT_ROUTER_CACHE_SIZE = 500
 DEFAULT_SYNTHESIS_CACHE_SIZE = 100
 DEFAULT_TTL_SECONDS = 1800  # 30 minutes
+
+# Router cache version - increment when calibration logic changes
+ROUTER_CACHE_VERSION = "v2_calibrated"
 
 
 @dataclass
@@ -170,8 +175,9 @@ def cached_router_decision(func: Callable) -> Callable:
     """
     Decorator to cache router decisions.
 
-    Cache key includes: question, agent_class_hint, use_reasoning, use_llm_intent
-    to prevent collisions between different routing configurations (P2-8 fix).
+    Cache key includes: question, agent_class_hint, use_reasoning, use_llm_intent,
+    and cache version to prevent collisions between different routing configurations
+    and calibration versions.
 
     Usage:
         @cached_router_decision
@@ -180,13 +186,14 @@ def cached_router_decision(func: Callable) -> Callable:
     """
 
     def wrapper(question: str, *args, **kwargs):
-        # Create cache key with all relevant parameters (P2-8 fix)
+        # Create cache key with all relevant parameters including version
         cache_key = _make_cache_key(
             "router",
+            ROUTER_CACHE_VERSION,  # Include version to invalidate on calibration changes
             question,
             kwargs.get("agent_class_hint"),
             kwargs.get("use_reasoning"),
-            kwargs.get("use_llm_intent"),  # Add this to prevent collisions
+            kwargs.get("use_llm_intent"),
         )
 
         # Try cache first
