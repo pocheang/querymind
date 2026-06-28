@@ -11,13 +11,59 @@ Key features:
 - Graceful handling of partial failures
 """
 
+import json
 import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CircuitBreakerConfig:
+    """Configuration for circuit breaker thresholds."""
+    failure_threshold: int = 5
+    timeout_seconds: float = 60.0
+    success_threshold: int = 2
+
+
+def _load_circuit_breaker_config() -> Dict[str, CircuitBreakerConfig]:
+    """
+    Load circuit breaker configuration from config file.
+
+    Returns:
+        Dictionary mapping component names to their configurations
+    """
+    config_path = Path(__file__).parent.parent.parent / "config" / "circuit_breaker.json"
+
+    try:
+        if config_path.exists():
+            with open(config_path, "r") as f:
+                config_data = json.load(f)
+
+            configs = {}
+            for name, settings in config_data.get("circuit_breakers", {}).items():
+                configs[name] = CircuitBreakerConfig(
+                    failure_threshold=settings.get("failure_threshold", 5),
+                    timeout_seconds=settings.get("timeout_seconds", 60.0),
+                    success_threshold=settings.get("success_threshold", 2),
+                )
+
+            logger.info(f"Loaded circuit breaker config from {config_path}")
+            return configs
+        else:
+            logger.warning(f"Circuit breaker config not found at {config_path}, using defaults")
+            return {}
+    except Exception as e:
+        logger.error(f"Failed to load circuit breaker config: {e}", exc_info=True)
+        return {}
+
+
+# Global circuit breaker configuration cache
+_circuit_breaker_configs: Dict[str, CircuitBreakerConfig] = _load_circuit_breaker_config()
 
 
 class CircuitBreakerState(Enum):
@@ -34,13 +80,15 @@ class DegradationStrategy:
 
     Attributes:
         component: Name of the failing component
-        fallback_route: Alternative route to use (vector, graph, hybrid)
+        fallback_route: Alternative route to use (vector, graph, web, hybrid)
+        fallback_alternatives: Additional fallback options if primary fails
         fallback_reason: Reason tag for logging/monitoring
         return_partial: Whether to return partial results with warning
         skip_validation: Whether to skip quality validation on fallback
     """
     component: str
     fallback_route: Optional[str] = None
+    fallback_alternatives: list = field(default_factory=list)
     fallback_reason: str = ""
     return_partial: bool = False
     skip_validation: bool = False
@@ -60,6 +108,7 @@ class DegradationStrategy:
             "router": DegradationStrategy(
                 component="router",
                 fallback_route="vector",
+                fallback_alternatives=[],
                 fallback_reason="router_failed_degraded_to_vector",
                 return_partial=False,
                 skip_validation=False,
@@ -67,6 +116,7 @@ class DegradationStrategy:
             "vector_rag": DegradationStrategy(
                 component="vector_rag",
                 fallback_route="graph",
+                fallback_alternatives=["web"],  # Try web if graph also fails
                 fallback_reason="vector_rag_failed_degraded_to_graph",
                 return_partial=False,
                 skip_validation=False,
@@ -74,6 +124,7 @@ class DegradationStrategy:
             "graph_rag": DegradationStrategy(
                 component="graph_rag",
                 fallback_route="vector",
+                fallback_alternatives=["web"],  # Try web if vector also fails
                 fallback_reason="graph_rag_failed_degraded_to_vector",
                 return_partial=False,
                 skip_validation=False,
@@ -81,6 +132,7 @@ class DegradationStrategy:
             "quality_validation": DegradationStrategy(
                 component="quality_validation",
                 fallback_route=None,
+                fallback_alternatives=[],
                 fallback_reason="quality_validation_degraded_partial_result",
                 return_partial=True,
                 skip_validation=True,
@@ -88,6 +140,7 @@ class DegradationStrategy:
             "route_validation": DegradationStrategy(
                 component="route_validation",
                 fallback_route=None,
+                fallback_alternatives=[],
                 fallback_reason="route_validation_degraded_skip_validation",
                 return_partial=False,
                 skip_validation=True,
@@ -95,6 +148,7 @@ class DegradationStrategy:
             "answer_validation": DegradationStrategy(
                 component="answer_validation",
                 fallback_route=None,
+                fallback_alternatives=[],
                 fallback_reason="answer_validation_degraded_skip_validation",
                 return_partial=True,
                 skip_validation=True,
@@ -102,6 +156,7 @@ class DegradationStrategy:
             "retrieval_timeout": DegradationStrategy(
                 component="retrieval_timeout",
                 fallback_route=None,
+                fallback_alternatives=[],
                 fallback_reason="retrieval_timeout_degraded_partial_context",
                 return_partial=True,
                 skip_validation=False,
@@ -109,6 +164,7 @@ class DegradationStrategy:
             "synthesis": DegradationStrategy(
                 component="synthesis",
                 fallback_route=None,
+                fallback_alternatives=[],
                 fallback_reason="synthesis_failed_degraded_to_simple_generation",
                 return_partial=True,
                 skip_validation=False,
@@ -124,6 +180,7 @@ class DegradationStrategy:
         return DegradationStrategy(
             component=component,
             fallback_route="vector",
+            fallback_alternatives=[],
             fallback_reason=f"{component}_failed_degraded_to_safe_default",
             return_partial=True,
             skip_validation=False,
@@ -149,23 +206,32 @@ class CircuitBreaker:
     def __init__(
         self,
         name: str,
-        failure_threshold: int = 5,
-        timeout_seconds: float = 60.0,
-        success_threshold: int = 2,
+        failure_threshold: Optional[int] = None,
+        timeout_seconds: Optional[float] = None,
+        success_threshold: Optional[int] = None,
     ):
         """
-        Initialize circuit breaker.
+        Initialize circuit breaker with configuration from file or defaults.
 
         Args:
             name: Circuit breaker identifier
-            failure_threshold: Consecutive failures before opening (default 5)
-            timeout_seconds: Seconds to wait before HALF_OPEN (default 60)
-            success_threshold: Successes in HALF_OPEN to close (default 2)
+            failure_threshold: Consecutive failures before opening (default from config or 5)
+            timeout_seconds: Seconds to wait before HALF_OPEN (default from config or 60)
+            success_threshold: Successes in HALF_OPEN to close (default from config or 2)
         """
         self.name = name
-        self.failure_threshold = failure_threshold
-        self.timeout_seconds = timeout_seconds
-        self.success_threshold = success_threshold
+
+        # Load configuration from file if not explicitly provided
+        config = _circuit_breaker_configs.get(name) or _circuit_breaker_configs.get("default")
+        if config:
+            self.failure_threshold = failure_threshold if failure_threshold is not None else config.failure_threshold
+            self.timeout_seconds = timeout_seconds if timeout_seconds is not None else config.timeout_seconds
+            self.success_threshold = success_threshold if success_threshold is not None else config.success_threshold
+        else:
+            # Fallback to hardcoded defaults if no config available
+            self.failure_threshold = failure_threshold if failure_threshold is not None else 5
+            self.timeout_seconds = timeout_seconds if timeout_seconds is not None else 60.0
+            self.success_threshold = success_threshold if success_threshold is not None else 2
 
         self.state = CircuitBreakerState.CLOSED
         self.failure_count = 0
@@ -300,18 +366,21 @@ _circuit_breakers: Dict[str, CircuitBreaker] = {}
 
 def get_circuit_breaker(
     name: str,
-    failure_threshold: int = 5,
-    timeout_seconds: float = 60.0,
-    success_threshold: int = 2,
+    failure_threshold: Optional[int] = None,
+    timeout_seconds: Optional[float] = None,
+    success_threshold: Optional[int] = None,
 ) -> CircuitBreaker:
     """
     Get or create circuit breaker for a component.
 
+    Configuration is loaded from config/circuit_breaker.json if available.
+    Explicit parameters override configuration file values.
+
     Args:
         name: Circuit breaker identifier
-        failure_threshold: Failures before opening (default 5)
-        timeout_seconds: Wait time before HALF_OPEN (default 60)
-        success_threshold: Successes to close from HALF_OPEN (default 2)
+        failure_threshold: Failures before opening (default from config or 5)
+        timeout_seconds: Wait time before HALF_OPEN (default from config or 60)
+        success_threshold: Successes to close from HALF_OPEN (default from config or 2)
 
     Returns:
         CircuitBreaker instance
@@ -362,6 +431,7 @@ def apply_fallback_strategy(
         - strategy: DegradationStrategy instance
         - should_fallback: Whether to apply fallback
         - fallback_route: Alternative route if applicable
+        - fallback_alternatives: Additional fallback options to try
         - reason: Reason string for logging
     """
     strategy = DegradationStrategy.get_strategy(component)
@@ -377,13 +447,15 @@ def apply_fallback_strategy(
         f"Degradation triggered: component={component}, "
         f"error={type(error).__name__}, "
         f"circuit_breaker_open={circuit_breaker_open}, "
-        f"fallback_route={strategy.fallback_route}"
+        f"fallback_route={strategy.fallback_route}, "
+        f"fallback_alternatives={strategy.fallback_alternatives}"
     )
 
     return {
         "strategy": strategy,
         "should_fallback": True,
         "fallback_route": strategy.fallback_route,
+        "fallback_alternatives": strategy.fallback_alternatives,
         "return_partial": strategy.return_partial,
         "skip_validation": strategy.skip_validation,
         "reason": strategy.fallback_reason,

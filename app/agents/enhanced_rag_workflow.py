@@ -32,6 +32,7 @@ from app.agents.context_tracker_agent import (
 )
 from app.agents.vector_rag_agent import run_vector_rag
 from app.agents.graph_rag_agent import run_graph_rag
+from app.agents.web_research_agent import run_web_research
 from app.agents.quality_models import (
     QualityReport,
     RouteValidationResult,
@@ -602,6 +603,8 @@ class EnhancedRAGWorkflow:
 
             # Try fallback route
             fallback_route = fallback_info["fallback_route"]
+            fallback_alternatives = fallback_info.get("fallback_alternatives", [])
+
             if fallback_route and fallback_route != route:
                 logger.info(f"Attempting fallback from {route} to {fallback_route}")
 
@@ -620,6 +623,16 @@ class EnhancedRAGWorkflow:
                                 "chunks": self._extract_chunks_from_graph(graph_result),
                                 "metadata": {"route": f"fallback_{fallback_route}", "original_route": route},
                             }
+                    elif fallback_route == "web":
+                        logger.info("Attempting web search fallback")
+                        web_result = run_web_research(question=query)
+                        record_component_success("web_research")
+                        return {
+                            "context": web_result.get("context", ""),
+                            "citations": web_result.get("citations", []),
+                            "chunks": [],
+                            "metadata": {"route": "fallback_web", "original_route": route},
+                        }
                     else:  # fallback to vector
                         vector_cb = get_circuit_breaker("vector_rag")
                         if not vector_cb.is_open():
@@ -639,6 +652,56 @@ class EnhancedRAGWorkflow:
 
                 except Exception as fallback_error:
                     logger.error(f"Fallback retrieval also failed: {fallback_error}", exc_info=True)
+
+                    # Try fallback alternatives (e.g., web search if graph failed)
+                    for alt_route in fallback_alternatives:
+                        if alt_route == route or alt_route == fallback_route:
+                            continue
+
+                        logger.info(f"Attempting alternative fallback: {alt_route}")
+                        try:
+                            if alt_route == "web":
+                                web_result = run_web_research(question=query)
+                                record_component_success("web_research")
+                                return {
+                                    "context": web_result.get("context", ""),
+                                    "citations": web_result.get("citations", []),
+                                    "chunks": [],
+                                    "metadata": {"route": f"fallback_{alt_route}", "original_route": route},
+                                }
+                            elif alt_route == "graph":
+                                graph_cb = get_circuit_breaker("graph_rag")
+                                if not graph_cb.is_open():
+                                    graph_result = run_graph_rag(
+                                        question=query,
+                                        allowed_sources=allowed_sources,
+                                    )
+                                    record_component_success("graph_rag")
+                                    return {
+                                        "context": graph_result.get("context", ""),
+                                        "citations": graph_result.get("citations", []),
+                                        "chunks": self._extract_chunks_from_graph(graph_result),
+                                        "metadata": {"route": f"fallback_{alt_route}", "original_route": route},
+                                    }
+                            elif alt_route == "vector":
+                                vector_cb = get_circuit_breaker("vector_rag")
+                                if not vector_cb.is_open():
+                                    vector_result = run_vector_rag(
+                                        question=query,
+                                        allowed_sources=allowed_sources,
+                                        retrieval_strategy=retrieval_strategy,
+                                        agent_class=route_decision.agent_class,
+                                    )
+                                    record_component_success("vector_rag")
+                                    return {
+                                        "context": vector_result.get("context", ""),
+                                        "citations": vector_result.get("citations", []),
+                                        "chunks": self._extract_chunks_from_vector(vector_result),
+                                        "metadata": {"route": f"fallback_{alt_route}", "original_route": route},
+                                    }
+                        except Exception as alt_error:
+                            logger.error(f"Alternative fallback {alt_route} also failed: {alt_error}", exc_info=True)
+                            continue
 
             # Last resort: return empty context
             logger.error("All retrieval attempts failed, returning empty context")
