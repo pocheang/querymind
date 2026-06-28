@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import asyncio
 from collections.abc import Iterable
 
 from app.core.config import get_settings
@@ -15,6 +16,7 @@ from app.agents.synthesis_templates import (
     get_answer_template,
     get_cot_reasoning_prompt,
 )
+from app.agents.fact_verification import FactVerifier
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +86,57 @@ REVIEW_PROMPT = """
 """
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")
+
+
+def _parse_source_docs_from_contexts(
+    vector_context: str = "",
+    graph_context: str = "",
+    web_context: str = "",
+) -> list[dict]:
+    """
+    Parse source documents from context strings.
+
+    Extracts [doc_id:page] markers and associated content from contexts.
+
+    Args:
+        vector_context: Vector retrieval context
+        graph_context: Graph context
+        web_context: Web search context
+
+    Returns:
+        List of source document dicts with doc_id, page, content
+    """
+    source_docs = []
+
+    # Combine all contexts
+    all_context = f"{vector_context}\n{graph_context}\n{web_context}"
+
+    if not all_context.strip():
+        return source_docs
+
+    # Pattern: [doc_id:page] content
+    # Extract citation blocks
+    citation_pattern = r'\[([^\]]+)\]\s*([^\[]+)'
+    matches = re.findall(citation_pattern, all_context)
+
+    for citation, content in matches:
+        # Parse citation: doc1:p3 -> doc_id=doc1, page=p3
+        cit_match = re.match(r'(\w+):(\w+)', citation)
+        if not cit_match:
+            continue
+
+        doc_id = cit_match.group(1)
+        page = cit_match.group(2)
+        content_text = content.strip()
+
+        if content_text:
+            source_docs.append({
+                "doc_id": doc_id,
+                "page": page,
+                "content": content_text,
+            })
+
+    return source_docs
 
 
 def _build_prompt(
@@ -278,9 +331,10 @@ def synthesize_answer(
     use_reasoning: bool = False,
     force_language: str = "",
     session_id: str = "",
+    enable_fact_verification: bool = True,
 ) -> dict:
     """
-    Synthesize answer with language detection support.
+    Synthesize answer with language detection and fact verification support.
 
     Args:
         question: User question
@@ -292,9 +346,10 @@ def synthesize_answer(
         use_reasoning: Whether to use reasoning model
         force_language: Force specific language ('zh' or 'en'), empty string for auto-detect
         session_id: Session identifier for analytics
+        enable_fact_verification: Enable post-generation fact verification (Task 14)
 
     Returns:
-        dict with 'answer' and 'detected_language' keys
+        dict with 'answer', 'detected_language', and optional 'verification' keys
     """
     # Detect language (or use forced language)
     detected_language = force_language if force_language else detect_language(question)
@@ -342,10 +397,58 @@ def synthesize_answer(
             web_context=web_context,
             use_reasoning=use_reasoning,
         )
-        return {
+
+        # Task 14: Post-generation fact verification
+        verification_result = None
+        if enable_fact_verification and final_answer != SYNTHESIS_FALLBACK_MESSAGE:
+            try:
+                # Prepare source documents from contexts
+                source_docs = _parse_source_docs_from_contexts(
+                    vector_context=vector_context,
+                    graph_context=graph_context,
+                    web_context=web_context,
+                )
+
+                # Run fact verification
+                verifier = FactVerifier()
+                verification_result = asyncio.run(
+                    verifier.verify_answer(final_answer, source_docs)
+                )
+
+                # Log verification metrics
+                logger.info(
+                    f"Fact verification: groundedness={verification_result.groundedness_score:.2f}, "
+                    f"verified={len(verification_result.verified_claims)}, "
+                    f"unverified={len(verification_result.unverified_claims)}"
+                )
+
+                # If groundedness is too low, flag for review
+                if verification_result.groundedness_score < 0.80:
+                    logger.warning(
+                        f"Low groundedness score: {verification_result.groundedness_score:.2f}. "
+                        f"Issues: {verification_result.issues[:3]}"
+                    )
+
+            except Exception as e:
+                logger.warning(f"Fact verification failed: {e}")
+                verification_result = None
+
+        result_dict = {
             "answer": final_answer,
             "detected_language": detected_language,
         }
+
+        # Include verification result if available
+        if verification_result:
+            result_dict["verification"] = {
+                "groundedness_score": verification_result.groundedness_score,
+                "overall_verified": verification_result.overall_verified,
+                "unverified_count": len(verification_result.unverified_claims),
+                "issues": verification_result.issues[:5],  # Top 5 issues
+            }
+
+        return result_dict
+
     except (RuntimeError, ValueError) as e:
         logger.error(f"Synthesis failed: {e}")
         return {
