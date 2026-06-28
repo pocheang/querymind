@@ -14,6 +14,7 @@ from app.agents.fact_verification import (
     FactVerifier,
     FactClaim,
     VerificationResult,
+    FactVerificationConfig,
     extract_claims,
     verify_claim_against_source,
     check_citation_support,
@@ -483,3 +484,87 @@ async def test_verify_hedged_claims():
     # May not be perfect due to extra hedging words, but should pass if at least one claim verifies
     assert result.groundedness_score >= 0.5 or len(result.verified_claims) >= 1, \
         f"Hedged claims should have some verified content, got score={result.groundedness_score}, verified={len(result.verified_claims)}"
+
+
+# ============================================================================
+# Configuration Tests
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_custom_config_stricter_thresholds():
+    """Test that custom config with stricter thresholds works"""
+    config = FactVerificationConfig(
+        min_support_confidence=0.8,  # Higher threshold
+        number_tolerance=0.05,        # Tighter tolerance (5%)
+        min_groundedness=0.95         # Very high groundedness required
+    )
+
+    answer = "The model has 112M parameters [doc1:p1]."
+    source_docs = [
+        {
+            "doc_id": "doc1",
+            "page": "p1",
+            "content": "The model has 110M parameters."
+        }
+    ]
+
+    verifier = FactVerifier(config)
+    result = await verifier.verify_answer(answer, source_docs)
+
+    # 112M vs 110M is ~1.8% difference - within 5% tolerance
+    # But with stricter thresholds, overall verification might be stricter
+    assert hasattr(result, 'groundedness_score')
+    assert isinstance(result.groundedness_score, float)
+
+
+@pytest.mark.asyncio
+async def test_custom_config_lenient_thresholds():
+    """Test that custom config with lenient thresholds works"""
+    config = FactVerificationConfig(
+        min_support_confidence=0.4,   # Lower threshold
+        number_tolerance=0.25,         # Looser tolerance (25%)
+        min_groundedness=0.70          # Lower groundedness required
+    )
+
+    answer = "The model has 130M parameters [doc1:p1]."
+    source_docs = [
+        {
+            "doc_id": "doc1",
+            "page": "p1",
+            "content": "The model has 110M parameters."
+        }
+    ]
+
+    verifier = FactVerifier(config)
+    result = await verifier.verify_answer(answer, source_docs)
+
+    # 130M vs 110M is ~18% difference - outside default 15%, but within 25%
+    # With lenient config, this should pass
+    assert result.groundedness_score >= 0.5, \
+        f"Lenient config should allow more variance, got {result.groundedness_score}"
+
+
+def test_config_defaults_match_original_behavior():
+    """Test that default config values match original hardcoded values"""
+    config = FactVerificationConfig()
+
+    # Verify all the original hardcoded values are preserved
+    assert config.min_support_confidence == 0.6
+    assert config.no_citation_confidence == 0.3
+    assert config.missing_citation_confidence == 0.2
+    assert config.base_confidence == 0.5
+    assert config.number_match_boost == 0.25
+    assert config.date_match_boost == 0.25
+    assert config.high_overlap_boost == 0.25
+    assert config.medium_overlap_boost == 0.15
+    assert config.low_overlap_boost == 0.05
+    assert config.negation_mismatch_penalty == 0.3
+    assert config.number_mismatch_penalty == 0.5
+    assert config.date_mismatch_penalty == 0.5
+    assert config.high_overlap_threshold == 0.5
+    assert config.medium_overlap_threshold == 0.3
+    assert config.low_overlap_threshold == 0.15
+    assert config.number_tolerance == 0.15
+    assert config.min_groundedness == 0.85
+    assert config.min_claim_length == 10
+    assert config.min_clean_claim_length == 5

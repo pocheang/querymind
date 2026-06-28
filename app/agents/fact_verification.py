@@ -14,14 +14,109 @@ Integrates with:
 - Task 13: Citation-first generation (validates [doc_id:page] citations)
 - Task 9: Hallucination pattern detection (date/number/entity checks)
 - Task 8: Multi-stage NLI validation (semantic verification)
+
+Configuration:
+All verification thresholds are externalized via FactVerificationConfig.
+Default values preserve original behavior. Tune for specific use cases:
+
+Example - Stricter verification (higher precision):
+    config = FactVerificationConfig(
+        min_support_confidence=0.7,  # Require higher confidence
+        number_tolerance=0.10,        # Tighter number matching (10%)
+        min_groundedness=0.90         # Higher overall threshold
+    )
+    verifier = FactVerifier(config)
+
+Example - Lenient verification (higher recall):
+    config = FactVerificationConfig(
+        min_support_confidence=0.5,   # Lower confidence threshold
+        number_tolerance=0.20,         # Looser number matching (20%)
+        min_groundedness=0.75          # Lower overall threshold
+    )
+    verifier = FactVerifier(config)
+
+Example - Default behavior:
+    verifier = FactVerifier()  # Uses FactVerificationConfig() defaults
 """
 
 import re
 import logging
 from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass, field
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FactVerificationConfig:
+    """
+    Configuration for fact verification thresholds and parameters.
+
+    All thresholds are externalized for tuning and experimentation.
+    Default values match the original hardcoded behavior.
+    """
+    # Citation support thresholds
+    min_support_confidence: float = 0.6
+    """Minimum confidence score for a claim to be considered supported"""
+
+    no_citation_confidence: float = 0.3
+    """Confidence score when claim has no citations"""
+
+    missing_citation_confidence: float = 0.2
+    """Confidence score when cited document is not found"""
+
+    # Confidence scoring weights
+    base_confidence: float = 0.5
+    """Base confidence score before applying adjustments"""
+
+    number_match_boost: float = 0.25
+    """Confidence boost when numbers match"""
+
+    date_match_boost: float = 0.25
+    """Confidence boost when dates match"""
+
+    high_overlap_boost: float = 0.25
+    """Confidence boost for word overlap > 50%"""
+
+    medium_overlap_boost: float = 0.15
+    """Confidence boost for word overlap > 30%"""
+
+    low_overlap_boost: float = 0.05
+    """Confidence boost for word overlap > 15%"""
+
+    negation_mismatch_penalty: float = 0.3
+    """Confidence penalty when negation doesn't match"""
+
+    number_mismatch_penalty: float = 0.5
+    """Confidence penalty when numbers don't match"""
+
+    date_mismatch_penalty: float = 0.5
+    """Confidence penalty when dates don't match"""
+
+    # Overlap thresholds
+    high_overlap_threshold: float = 0.5
+    """Threshold for high word overlap (50%)"""
+
+    medium_overlap_threshold: float = 0.3
+    """Threshold for medium word overlap (30%)"""
+
+    low_overlap_threshold: float = 0.15
+    """Threshold for low word overlap (15%)"""
+
+    # Number matching tolerance
+    number_tolerance: float = 0.15
+    """Relative tolerance for number matching (15% default)"""
+
+    # Answer-level thresholds
+    min_groundedness: float = 0.85
+    """Minimum groundedness score for answer to be considered verified"""
+
+    min_claim_length: int = 10
+    """Minimum sentence length to extract as a claim"""
+
+    min_clean_claim_length: int = 5
+    """Minimum claim length after removing citations"""
 
 
 class FactClaim(BaseModel):
@@ -98,8 +193,8 @@ def _extract_dates(text: str) -> List[str]:
     return dates
 
 
-def _numbers_match(num1: float, num2: float, tolerance: float = 0.15) -> bool:
-    """Check if two numbers match within tolerance (15% default)"""
+def _numbers_match(num1: float, num2: float, tolerance: float) -> bool:
+    """Check if two numbers match within tolerance"""
     if num1 == 0 and num2 == 0:
         return True
     if num1 == 0 or num2 == 0:
@@ -118,7 +213,7 @@ def _has_negation(text: str) -> bool:
     return any(re.search(pattern, text, re.IGNORECASE) for pattern in negation_patterns)
 
 
-def extract_claims(answer: str) -> List[FactClaim]:
+def extract_claims(answer: str, config: Optional[FactVerificationConfig] = None) -> List[FactClaim]:
     """
     Extract factual claims from generated answer.
 
@@ -131,10 +226,14 @@ def extract_claims(answer: str) -> List[FactClaim]:
 
     Args:
         answer: Generated answer text with citations
+        config: Optional configuration for thresholds
 
     Returns:
         List of FactClaim objects
     """
+    if config is None:
+        config = FactVerificationConfig()
+
     if not answer or not answer.strip():
         return []
 
@@ -147,7 +246,7 @@ def extract_claims(answer: str) -> List[FactClaim]:
 
     position = 0
     for sentence in sentences:
-        if len(sentence) < 10:  # Skip very short sentences
+        if len(sentence) < config.min_claim_length:  # Skip very short sentences
             position += len(sentence) + 1
             continue
 
@@ -165,7 +264,7 @@ def extract_claims(answer: str) -> List[FactClaim]:
         clean_sentence = re.sub(r'\s*\[[^\]]+\]\s*', ' ', sentence).strip()
         clean_sentence = re.sub(r'\s+', ' ', clean_sentence)  # Normalize whitespace
 
-        if len(clean_sentence) < 5:  # Skip if too short after removing citations
+        if len(clean_sentence) < config.min_clean_claim_length:  # Skip if too short after removing citations
             position += len(sentence) + 1
             continue
 
@@ -200,7 +299,8 @@ def extract_claims(answer: str) -> List[FactClaim]:
 def check_citation_support(
     claim_text: str,
     citations: List[str],
-    source_docs: List[Dict]
+    source_docs: List[Dict],
+    config: Optional[FactVerificationConfig] = None
 ) -> Tuple[bool, float]:
     """
     Check if claim is supported by cited sources.
@@ -209,13 +309,17 @@ def check_citation_support(
         claim_text: Text of the claim
         citations: List of citation markers (e.g., ["doc1:p3"])
         source_docs: List of source documents with doc_id, page, content
+        config: Optional configuration for thresholds
 
     Returns:
         Tuple of (is_supported, confidence_score)
     """
+    if config is None:
+        config = FactVerificationConfig()
+
     if not citations:
         # No citations - cannot verify
-        return False, 0.3
+        return False, config.no_citation_confidence
 
     if not source_docs:
         # No source docs available
@@ -251,7 +355,7 @@ def check_citation_support(
 
     if not cited_contents:
         # Citations not found in source docs
-        return False, 0.2
+        return False, config.missing_citation_confidence
 
     # Check if claim content appears in cited sources
     # Use keyword overlap and fact matching
@@ -269,7 +373,7 @@ def check_citation_support(
     numbers_match = True
     if claim_numbers:
         numbers_match = all(
-            any(_numbers_match(cn, sn) for sn in source_numbers)
+            any(_numbers_match(cn, sn, config.number_tolerance) for sn in source_numbers)
             for cn in claim_numbers
         ) if source_numbers else False
 
@@ -299,42 +403,43 @@ def check_citation_support(
     overlap = len(claim_words & source_words) / len(claim_words) if claim_words else 0
 
     # Calculate confidence
-    confidence = 0.5  # Base confidence
+    confidence = config.base_confidence
 
     # Boost if facts match
     if numbers_match and claim_numbers:
-        confidence += 0.25
+        confidence += config.number_match_boost
     if dates_match and claim_dates:
-        confidence += 0.25
+        confidence += config.date_match_boost
 
     # Boost for word overlap
-    if overlap > 0.5:
-        confidence += 0.25
-    elif overlap > 0.3:
-        confidence += 0.15
-    elif overlap > 0.15:
-        confidence += 0.05
+    if overlap > config.high_overlap_threshold:
+        confidence += config.high_overlap_boost
+    elif overlap > config.medium_overlap_threshold:
+        confidence += config.medium_overlap_boost
+    elif overlap > config.low_overlap_threshold:
+        confidence += config.low_overlap_boost
 
     # Penalize negation mismatch
     if claim_has_negation != source_has_negation:
-        confidence -= 0.3
+        confidence -= config.negation_mismatch_penalty
 
     # Penalize number/date mismatch (strong penalty for fact errors)
     if not numbers_match and claim_numbers:
-        confidence -= 0.5
+        confidence -= config.number_mismatch_penalty
     if not dates_match and claim_dates:
-        confidence -= 0.5
+        confidence -= config.date_mismatch_penalty
 
     confidence = max(0.0, min(1.0, confidence))
 
-    is_supported = confidence >= 0.6
+    is_supported = confidence >= config.min_support_confidence
 
     return is_supported, confidence
 
 
 async def verify_claim_against_source(
     claim: FactClaim,
-    source_docs: List[Dict]
+    source_docs: List[Dict],
+    config: Optional[FactVerificationConfig] = None
 ) -> VerificationResult:
     """
     Verify a single claim against source documents.
@@ -348,15 +453,20 @@ async def verify_claim_against_source(
     Args:
         claim: FactClaim to verify
         source_docs: List of source documents
+        config: Optional configuration for thresholds
 
     Returns:
         VerificationResult with verification status and issues
     """
+    if config is None:
+        config = FactVerificationConfig()
+
     # Check citation support
     is_supported, confidence = check_citation_support(
         claim.text,
         claim.citations,
-        source_docs
+        source_docs,
+        config
     )
 
     if not is_supported:
@@ -380,12 +490,12 @@ async def verify_claim_against_source(
             source_numbers = _extract_numbers(source_text)
             if claim_numbers and source_numbers:
                 has_match = any(
-                    any(_numbers_match(cn, sn) for sn in source_numbers)
+                    any(_numbers_match(cn, sn, config.number_tolerance) for sn in source_numbers)
                     for cn in claim_numbers
                 )
                 if not has_match:
                     issue_type = "number_mismatch"
-                    suggestion = "Number in claim does not match source (>15% difference)"
+                    suggestion = f"Number in claim does not match source (>{config.number_tolerance*100:.0f}% difference)"
         elif claim.claim_type == "negation":
             source_text = " ".join([doc.get("content", "") for doc in source_docs[:5]])
             claim_has_neg = _has_negation(claim.text)
@@ -422,11 +532,16 @@ class FactVerifier:
     4. Flag unverified claims for removal/hedging
     """
 
-    def __init__(self, config: Optional[Dict] = None):
-        """Initialize fact verifier with optional config"""
-        self.config = config or {}
-        self.min_confidence = self.config.get("min_confidence", 0.6)
-        self.min_groundedness = self.config.get("min_groundedness", 0.85)
+    def __init__(self, config: Optional[FactVerificationConfig] = None):
+        """
+        Initialize fact verifier with configuration.
+
+        Args:
+            config: FactVerificationConfig instance or None for defaults
+        """
+        if config is None:
+            config = FactVerificationConfig()
+        self.config = config
 
     async def verify_answer(
         self,
@@ -459,7 +574,7 @@ class FactVerifier:
             )
 
         # Extract claims
-        claims = extract_claims(answer)
+        claims = extract_claims(answer, self.config)
 
         if not claims:
             # No factual claims to verify
@@ -478,7 +593,7 @@ class FactVerifier:
         issues = []
 
         for claim in claims:
-            result = await verify_claim_against_source(claim, source_docs)
+            result = await verify_claim_against_source(claim, source_docs, self.config)
 
             if result.is_verified:
                 verified_claims.append(claim)
@@ -492,7 +607,7 @@ class FactVerifier:
         verified_count = len(verified_claims)
         groundedness_score = verified_count / total_claims if total_claims > 0 else 1.0
 
-        overall_verified = groundedness_score >= self.min_groundedness
+        overall_verified = groundedness_score >= self.config.min_groundedness
 
         elapsed = int((time.time() - start_time) * 1000)
 
