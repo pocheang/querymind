@@ -46,7 +46,7 @@ from app.agents.degradation_strategies import (
     get_circuit_breaker,
     record_component_success,
 )
-from app.core.models import get_chat_model
+from app.core.models import get_chat_model, get_reasoning_model
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +92,8 @@ class EnhancedRAGWorkflow:
 
     def __init__(
         self,
-        max_route_retries: int = 1,
-        max_answer_retries: int = 1,
+        max_route_retries: int = 2,
+        max_answer_retries: int = 2,
         enable_context_tracking: bool = True,
     ):
         """
@@ -208,34 +208,136 @@ class EnhancedRAGWorkflow:
                 execution_metadata=execution_metadata,
             )
 
-            # Step 3: Execute retrieval based on validated route
-            retrieval_result = await self._execute_retrieval(
-                query=resolved_query,
-                route_decision=route_decision,
-                allowed_sources=allowed_sources,
-                retrieval_strategy=retrieval_strategy,
-                execution_metadata=execution_metadata,
-            )
+            # Step 3: Execute retrieval based on validated route with intelligent retry
+            retrieval_result = None
+            retrieval_quality = None
+            retrieval_retry_count = 0
+            current_top_k = 5
+            current_route = route_decision.route
 
-            # Step 4: Assess retrieval quality in parallel (Task 3) with degradation
-            try:
-                retrieval_quality = await evaluate_retrieval_quality(
-                    query=resolved_query,
-                    chunks=retrieval_result["chunks"],
-                    metadata=retrieval_result["metadata"],
-                )
-                record_component_success("retrieval_quality")
-            except Exception as e:
-                logger.warning(f"Retrieval quality evaluation failed: {e}", exc_info=True)
-                fallback_info = apply_fallback_strategy("quality_validation", e)
-                execution_metadata["validation_degraded"] = True
-                execution_metadata["degradation_events"].append({
-                    "component": "retrieval_quality",
-                    "error": str(e),
-                    "action": "use_default_score",
-                })
+            while retrieval_retry_count <= self.max_route_retries:
+                try:
+                    retrieval_result = await self._execute_retrieval(
+                        query=resolved_query,
+                        route_decision=route_decision if retrieval_retry_count == 0 else RouteDecision(
+                            route=current_route,
+                            skill=route_decision.skill,
+                            agent_class=route_decision.agent_class,
+                            reason=f"retry_{retrieval_retry_count}_route_{current_route}",
+                            confidence=route_decision.confidence,
+                        ),
+                        allowed_sources=allowed_sources,
+                        retrieval_strategy=retrieval_strategy,
+                        execution_metadata=execution_metadata,
+                        retry_attempt=retrieval_retry_count,
+                        top_k=current_top_k,
+                    )
 
-                # Use default quality result
+                    # Step 4: Assess retrieval quality
+                    try:
+                        retrieval_quality = await evaluate_retrieval_quality(
+                            query=resolved_query,
+                            chunks=retrieval_result["chunks"],
+                            metadata=retrieval_result["metadata"],
+                        )
+                        record_component_success("retrieval_quality")
+                    except Exception as e:
+                        logger.warning(f"Retrieval quality evaluation failed: {e}", exc_info=True)
+                        fallback_info = apply_fallback_strategy("quality_validation", e)
+                        execution_metadata["validation_degraded"] = True
+                        execution_metadata["degradation_events"].append({
+                            "component": "retrieval_quality",
+                            "error": str(e),
+                            "action": "use_default_score",
+                        })
+
+                        # Use default quality result
+                        retrieval_quality = RetrievalQualityResult(
+                            overall_quality=0.5,
+                            metrics=RetrievalQualityMetrics(
+                                coverage_score=0.5,
+                                relevance_score=0.5,
+                                diversity_score=0.5,
+                                completeness_score=0.5,
+                            ),
+                            execution_time_ms=0,
+                        )
+
+                    # Check if quality is acceptable or if we've exhausted retries
+                    quality_score = getattr(retrieval_quality, 'overall_quality', 1.0) if retrieval_quality else 1.0
+                    if quality_score >= 0.6 or retrieval_retry_count >= self.max_route_retries:
+                        # Quality is acceptable or max retries reached
+                        break
+
+                    # Quality is low, apply retry strategy
+                    retrieval_retry_count += 1
+                    execution_metadata["retry_count"] += 1
+
+                    # Exponential backoff: 100ms for first retry, 500ms for second
+                    backoff_ms = 100 if retrieval_retry_count == 1 else 500
+                    logger.info(
+                        f"Retrieval quality low ({quality_score:.3f}), "
+                        f"retrying with variation (attempt {retrieval_retry_count}/{self.max_route_retries}), "
+                        f"backoff={backoff_ms}ms"
+                    )
+                    await asyncio.sleep(backoff_ms / 1000.0)
+
+                    # Apply retry variation based on attempt number
+                    if retrieval_retry_count == 1:
+                        # First retry: increase top-k from 5 to 10
+                        current_top_k = 10
+                        logger.info("Retry variation 1: increasing top-k from 5 to 10")
+                    elif retrieval_retry_count == 2:
+                        # Second retry: try alternative route
+                        if current_route == "vector":
+                            current_route = "hybrid"
+                            logger.info("Retry variation 2: switching from vector to hybrid route")
+                        elif current_route == "graph":
+                            current_route = "hybrid"
+                            logger.info("Retry variation 2: switching from graph to hybrid route")
+                        else:
+                            # Already hybrid, try increasing top-k further
+                            current_top_k = 15
+                            logger.info("Retry variation 2: increasing top-k to 15 (already using hybrid)")
+
+                except Exception as e:
+                    logger.error(f"Retrieval failed on attempt {retrieval_retry_count}: {e}", exc_info=True)
+
+                    # If this is not the last retry, try again with variation
+                    if retrieval_retry_count < self.max_route_retries:
+                        retrieval_retry_count += 1
+                        execution_metadata["retry_count"] += 1
+
+                        # Exponential backoff
+                        backoff_ms = 100 if retrieval_retry_count == 1 else 500
+                        await asyncio.sleep(backoff_ms / 1000.0)
+
+                        # Apply fallback route
+                        component = "vector_rag" if current_route == "vector" else "graph_rag"
+                        fallback_info = apply_fallback_strategy(component, e, {"query": query, "route": current_route})
+
+                        execution_metadata["degradation_applied"] = True
+                        execution_metadata["degradation_events"].append({
+                            "component": component,
+                            "error": str(e),
+                            "fallback": fallback_info["fallback_route"],
+                            "retry_attempt": retrieval_retry_count,
+                        })
+
+                        # Switch to fallback route
+                        if fallback_info["fallback_route"] and fallback_info["fallback_route"] != current_route:
+                            current_route = fallback_info["fallback_route"]
+                            logger.info(f"Switching to fallback route: {current_route}")
+                        continue
+                    else:
+                        # Last retry failed, raise the error
+                        raise
+
+            # Ensure we have retrieval result and quality
+            if retrieval_result is None:
+                raise Exception("Retrieval failed after all retry attempts")
+            if retrieval_quality is None:
+                # Should not happen, but provide default
                 retrieval_quality = RetrievalQualityResult(
                     overall_quality=0.5,
                     metrics=RetrievalQualityMetrics(
@@ -301,6 +403,7 @@ class EnhancedRAGWorkflow:
                     "validation_overhead_ms": quality_report.execution_stats.validation_overhead_ms,
                     "route_retry": execution_metadata["route_retry"],
                     "answer_retry": execution_metadata["answer_retry"],
+                    "retry_count": execution_metadata["retry_count"],
                     "context_tracking_enabled": self.enable_context_tracking,
                     "degradation_applied": execution_metadata["degradation_applied"],
                     "circuit_breaker_triggered": execution_metadata["circuit_breaker_triggered"],
@@ -461,6 +564,8 @@ class EnhancedRAGWorkflow:
         allowed_sources: Optional[List[str]],
         retrieval_strategy: Optional[str],
         execution_metadata: Dict[str, Any],
+        retry_attempt: int = 0,
+        top_k: int = 5,
     ) -> Dict[str, Any]:
         """
         Execute retrieval based on route decision with exception isolation.
@@ -509,6 +614,7 @@ class EnhancedRAGWorkflow:
                             allowed_sources=allowed_sources,
                             retrieval_strategy=retrieval_strategy,
                             agent_class=route_decision.agent_class,
+                            top_k=top_k,
                         )
                         record_component_success("vector_rag")
                     except Exception as e:
@@ -574,6 +680,7 @@ class EnhancedRAGWorkflow:
                     allowed_sources=allowed_sources,
                     retrieval_strategy=retrieval_strategy,
                     agent_class=route_decision.agent_class,
+                    top_k=top_k,
                 )
                 record_component_success("vector_rag")
                 return {
@@ -641,6 +748,7 @@ class EnhancedRAGWorkflow:
                                 allowed_sources=allowed_sources,
                                 retrieval_strategy=retrieval_strategy,
                                 agent_class=route_decision.agent_class,
+                                top_k=top_k,
                             )
                             record_component_success("vector_rag")
                             return {
@@ -691,6 +799,7 @@ class EnhancedRAGWorkflow:
                                         allowed_sources=allowed_sources,
                                         retrieval_strategy=retrieval_strategy,
                                         agent_class=route_decision.agent_class,
+                                        top_k=top_k,
                                     )
                                     record_component_success("vector_rag")
                                     return {
@@ -721,78 +830,32 @@ class EnhancedRAGWorkflow:
         execution_metadata: Dict[str, Any],
     ) -> tuple[str, List[Dict], AnswerValidationResult]:
         """
-        Generate answer with validation and optional regeneration.
+        Generate answer with validation and optional regeneration with intelligent retry.
         Includes graceful degradation for validation failures.
 
         Returns:
             Tuple of (answer, citations, AnswerValidationResult)
         """
-        # Generate initial answer
-        answer = await self._generate_answer(query, context, route)
+        answer = None
+        answer_validation = None
+        answer_retry_count = 0
+        use_reasoning_model = False
 
-        # Validate answer (Task 4) with degradation handling
-        try:
-            answer_validation = await validate_answer(
-                query=query,
-                answer=answer,
-                source_docs=citations,
-                citations=citations,
-            )
-            record_component_success("answer_validation")
-
-        except Exception as e:
-            logger.warning(f"Answer validation failed: {e}", exc_info=True)
-            fallback_info = apply_fallback_strategy("answer_validation", e)
-            execution_metadata["validation_degraded"] = True
-            execution_metadata["degradation_events"].append({
-                "component": "answer_validation",
-                "error": str(e),
-                "action": "skip_validation",
-            })
-
-            # Create minimal validation result
-            answer_validation = AnswerValidationResult(
-                is_valid=True,
-                overall_score=0.7,
-                validation_details=AnswerValidationDetails(
-                    factual_consistency=0.7,
-                    hallucination_risk=0.3,
-                    citation_completeness=0.7,
-                    answer_quality=0.7,
-                    safety_score=1.0,
-                ),
-                action="approve",
-                validation_method="fast_path",
-                execution_time_ms=0,
-                issues=[],
-            )
-
-        # Retry logic: regenerate if action is "regenerate"
-        if (
-            answer_validation.action == "regenerate"
-            and execution_metadata["answer_retry"] < self.max_answer_retries
-        ):
-            logger.warning(
-                f"Answer validation suggests regeneration: "
-                f"score={answer_validation.overall_score:.3f}, "
-                f"issues={len(answer_validation.issues)}"
-            )
-            execution_metadata["answer_retry"] += 1
-            execution_metadata["retry_count"] += 1
-
-            # Regenerate with explicit quality instructions
+        while answer_retry_count <= self.max_answer_retries:
+            # Generate answer
             answer = await self._generate_answer(
                 query,
                 context,
                 route,
+                use_reasoning=use_reasoning_model,
                 regeneration_prompt=(
                     "Previous answer had quality issues. "
                     "Please ensure: (1) all claims are supported by context, "
                     "(2) citations are complete, (3) no speculation."
-                ),
+                ) if answer_retry_count > 0 else None,
             )
 
-            # Re-validate with degradation handling
+            # Validate answer (Task 4) with degradation handling
             try:
                 answer_validation = await validate_answer(
                     query=query,
@@ -801,9 +864,18 @@ class EnhancedRAGWorkflow:
                     citations=citations,
                 )
                 record_component_success("answer_validation")
+
             except Exception as e:
-                logger.warning(f"Answer validation retry failed: {e}")
-                # Use minimal validation on retry failure
+                logger.warning(f"Answer validation failed: {e}", exc_info=True)
+                fallback_info = apply_fallback_strategy("answer_validation", e)
+                execution_metadata["validation_degraded"] = True
+                execution_metadata["degradation_events"].append({
+                    "component": "answer_validation",
+                    "error": str(e),
+                    "action": "skip_validation",
+                })
+
+                # Create minimal validation result
                 answer_validation = AnswerValidationResult(
                     is_valid=True,
                     overall_score=0.7,
@@ -820,11 +892,37 @@ class EnhancedRAGWorkflow:
                     issues=[],
                 )
 
+            # Check if answer is acceptable or if we've exhausted retries
+            if answer_validation.action != "regenerate" or answer_retry_count >= self.max_answer_retries:
+                break
+
+            # Answer needs regeneration, apply retry strategy
+            answer_retry_count += 1
+            execution_metadata["answer_retry"] += 1
+            execution_metadata["retry_count"] += 1
+
+            # Exponential backoff: 100ms for first retry, 500ms for second
+            backoff_ms = 100 if answer_retry_count == 1 else 500
+            logger.warning(
+                f"Answer validation suggests regeneration: "
+                f"score={answer_validation.overall_score:.3f}, "
+                f"issues={len(answer_validation.issues)}, "
+                f"retry {answer_retry_count}/{self.max_answer_retries}, "
+                f"backoff={backoff_ms}ms"
+            )
+            await asyncio.sleep(backoff_ms / 1000.0)
+
+            # Apply retry variation: use reasoning model on third attempt (answer_retry_count == 2)
+            if answer_retry_count >= 2:
+                use_reasoning_model = True
+                logger.info("Retry variation: switching to reasoning model for answer generation")
+
         logger.info(
             f"Answer validation: score={answer_validation.overall_score:.3f}, "
             f"action={answer_validation.action}, "
             f"method={answer_validation.validation_method}, "
-            f"time={answer_validation.execution_time_ms}ms"
+            f"time={answer_validation.execution_time_ms}ms, "
+            f"retries={answer_retry_count}"
         )
 
         return answer, citations, answer_validation
@@ -834,6 +932,7 @@ class EnhancedRAGWorkflow:
         query: str,
         context: str,
         route: str,
+        use_reasoning: bool = False,
         regeneration_prompt: Optional[str] = None,
     ) -> str:
         """
@@ -843,12 +942,18 @@ class EnhancedRAGWorkflow:
             query: User query
             context: Retrieved context
             route: Route used
+            use_reasoning: Whether to use reasoning model instead of chat model
             regeneration_prompt: Optional quality improvement instructions
 
         Returns:
             Generated answer text
         """
-        model = get_chat_model()
+        # Select model based on retry strategy
+        if use_reasoning:
+            model = get_reasoning_model()
+            logger.info("Using reasoning model for answer generation")
+        else:
+            model = get_chat_model()
 
         prompt = f"""You are a helpful RAG assistant. Answer the question based on the provided context.
 
