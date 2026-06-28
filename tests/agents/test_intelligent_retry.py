@@ -1,12 +1,17 @@
 """
 Test suite for intelligent retry logic in workflow orchestration.
 
+Retry Terminology:
+- max_retries=2 means up to 3 total attempts: initial attempt + retry 1 + retry 2
+- "First retry" (retry 1) = second attempt overall
+- "Second retry" (retry 2) = third attempt overall
+
 Tests:
 - Retry with variation instead of identical retries
-- First retry: increase retrieval top-k (5 → 10)
-- Second retry: try alternative route (vector → hybrid)
-- Third retry: use reasoning model instead of chat model
-- Max 2 retries per agent
+- First retry (attempt 2): increase retrieval top-k (5 → 10)
+- Second retry (attempt 3): try alternative route (vector → hybrid)
+- Answer generation retries: use reasoning model on final retry
+- Max 2 retries per agent (3 total attempts)
 - Exponential backoff: 100ms, 500ms
 - Retry improves success rate
 """
@@ -228,7 +233,7 @@ class TestIntelligentRetryLogic:
             mock_vector_rag.side_effect = vector_rag_side_effect
             mock_graph_rag.side_effect = graph_rag_side_effect
 
-            # Quality results: first two fail, third succeeds
+            # Quality results: first two attempts fail, third attempt (second retry) succeeds
             quality_results = [0.3, 0.35, 0.85]
             quality_call_count = {"count": 0}
 
@@ -284,7 +289,7 @@ class TestIntelligentRetryLogic:
 
     @pytest.mark.asyncio
     async def test_third_retry_uses_reasoning_model(self):
-        """Third retry should use reasoning model instead of chat model."""
+        """Answer generation: reasoning model used on final retry attempt (third attempt overall, second retry)."""
         workflow = EnhancedRAGWorkflow(max_route_retries=2, max_answer_retries=2)
 
         with patch("app.agents.enhanced_rag_workflow.decide_route") as mock_route, \
@@ -335,7 +340,7 @@ class TestIntelligentRetryLogic:
             # Track which model is used
             model_usage = []
 
-            # Answer validation: first two fail, third succeeds
+            # Answer validation: first two attempts fail, third attempt (second retry) succeeds
             answer_call_count = {"count": 0}
 
             async def answer_val_side_effect(*args, **kwargs):
@@ -359,7 +364,7 @@ class TestIntelligentRetryLogic:
                         issues=[],
                     )
                 else:
-                    # Third attempt succeeds
+                    # Third attempt (second retry) succeeds
                     return AnswerValidationResult(
                         is_valid=True,
                         overall_score=0.85,

@@ -95,23 +95,27 @@ class EnhancedRAGWorkflow:
         max_route_retries: int = 2,
         max_answer_retries: int = 2,
         enable_context_tracking: bool = True,
+        quality_threshold: float = 0.6,
     ):
         """
         Initialize Enhanced RAG Workflow.
 
         Args:
-            max_route_retries: Maximum route retry attempts (default 1)
-            max_answer_retries: Maximum answer regeneration attempts (default 1)
+            max_route_retries: Maximum retrieval retry attempts (default 2, means up to 3 total attempts: initial + 2 retries)
+            max_answer_retries: Maximum answer regeneration retry attempts (default 2, means up to 3 total attempts: initial + 2 retries)
             enable_context_tracking: Enable multi-turn context tracking (default True)
+            quality_threshold: Minimum quality score to accept retrieval results without retry (default 0.6)
         """
         self.max_route_retries = max_route_retries
         self.max_answer_retries = max_answer_retries
         self.enable_context_tracking = enable_context_tracking
+        self.quality_threshold = quality_threshold
         logger.info(
             f"EnhancedRAGWorkflow initialized: "
             f"route_retries={max_route_retries}, "
             f"answer_retries={max_answer_retries}, "
-            f"context_tracking={enable_context_tracking}"
+            f"context_tracking={enable_context_tracking}, "
+            f"quality_threshold={quality_threshold}"
         )
 
     async def execute_query(
@@ -265,7 +269,7 @@ class EnhancedRAGWorkflow:
 
                     # Check if quality is acceptable or if we've exhausted retries
                     quality_score = getattr(retrieval_quality, 'overall_quality', 1.0) if retrieval_quality else 1.0
-                    if quality_score >= 0.6 or retrieval_retry_count >= self.max_route_retries:
+                    if quality_score >= self.quality_threshold or retrieval_retry_count >= self.max_route_retries:
                         # Quality is acceptable or max retries reached
                         break
 
