@@ -36,7 +36,14 @@ from app.agents.quality_models import (
     QualityReport,
     RouteValidationResult,
     RetrievalQualityResult,
+    RetrievalQualityMetrics,
     AnswerValidationResult,
+    AnswerValidationDetails,
+)
+from app.agents.degradation_strategies import (
+    apply_fallback_strategy,
+    get_circuit_breaker,
+    record_component_success,
 )
 from app.core.models import get_chat_model
 
@@ -174,6 +181,10 @@ class EnhancedRAGWorkflow:
             "route_retry": 0,
             "answer_retry": 0,
             "retry_count": 0,
+            "degradation_applied": False,
+            "circuit_breaker_triggered": False,
+            "validation_degraded": False,
+            "degradation_events": [],
         }
 
         try:
@@ -202,14 +213,38 @@ class EnhancedRAGWorkflow:
                 route_decision=route_decision,
                 allowed_sources=allowed_sources,
                 retrieval_strategy=retrieval_strategy,
+                execution_metadata=execution_metadata,
             )
 
-            # Step 4: Assess retrieval quality in parallel (Task 3)
-            retrieval_quality = await evaluate_retrieval_quality(
-                query=resolved_query,
-                chunks=retrieval_result["chunks"],
-                metadata=retrieval_result["metadata"],
-            )
+            # Step 4: Assess retrieval quality in parallel (Task 3) with degradation
+            try:
+                retrieval_quality = await evaluate_retrieval_quality(
+                    query=resolved_query,
+                    chunks=retrieval_result["chunks"],
+                    metadata=retrieval_result["metadata"],
+                )
+                record_component_success("retrieval_quality")
+            except Exception as e:
+                logger.warning(f"Retrieval quality evaluation failed: {e}", exc_info=True)
+                fallback_info = apply_fallback_strategy("quality_validation", e)
+                execution_metadata["validation_degraded"] = True
+                execution_metadata["degradation_events"].append({
+                    "component": "retrieval_quality",
+                    "error": str(e),
+                    "action": "use_default_score",
+                })
+
+                # Use default quality result
+                retrieval_quality = RetrievalQualityResult(
+                    overall_quality=0.5,
+                    metrics=RetrievalQualityMetrics(
+                        coverage_score=0.5,
+                        relevance_score=0.5,
+                        diversity_score=0.5,
+                        completeness_score=0.5,
+                    ),
+                    execution_time_ms=0,
+                )
 
             # Step 5: Generate answer with validation and retry (Task 4)
             answer, citations, answer_validation = await self._generate_answer_with_validation(
@@ -266,6 +301,10 @@ class EnhancedRAGWorkflow:
                     "route_retry": execution_metadata["route_retry"],
                     "answer_retry": execution_metadata["answer_retry"],
                     "context_tracking_enabled": self.enable_context_tracking,
+                    "degradation_applied": execution_metadata["degradation_applied"],
+                    "circuit_breaker_triggered": execution_metadata["circuit_breaker_triggered"],
+                    "validation_degraded": execution_metadata["validation_degraded"],
+                    "degradation_events": execution_metadata["degradation_events"],
                 },
             }
 
@@ -282,6 +321,7 @@ class EnhancedRAGWorkflow:
     ) -> tuple[RouteDecision, RouteValidationResult]:
         """
         Route decision with validation and optional retry.
+        Includes graceful degradation for router failures.
 
         Returns:
             Tuple of (RouteDecision, RouteValidationResult)
@@ -292,16 +332,78 @@ class EnhancedRAGWorkflow:
             # Context-aware routing could prefer previous route for follow-ups
             # For now, we let the router decide but log the hint
 
-        # Initial routing decision
-        route_decision = decide_route(
-            question=query,
-            use_reasoning=False,
-            agent_class_hint=agent_class_hint,
-            use_llm_intent=True,
-        )
+        # Initial routing decision with degradation handling
+        try:
+            # Check circuit breaker for router
+            router_cb = get_circuit_breaker("router")
+            if router_cb.is_open():
+                logger.warning("Router circuit breaker is OPEN, using fallback route")
+                execution_metadata["circuit_breaker_triggered"] = True
+                execution_metadata["degradation_applied"] = True
+                execution_metadata["degradation_events"].append({
+                    "component": "router",
+                    "reason": "circuit_breaker_open",
+                    "fallback": "vector",
+                })
+                route_decision = RouteDecision(
+                    route="vector",
+                    skill="answer_with_citations",
+                    agent_class=agent_class_hint or "general",
+                    reason="circuit_breaker_open_fallback_to_vector",
+                    confidence=0.5,
+                )
+            else:
+                route_decision = decide_route(
+                    question=query,
+                    use_reasoning=False,
+                    agent_class_hint=agent_class_hint,
+                    use_llm_intent=True,
+                )
+                record_component_success("router")
 
-        # Validate route decision (Task 2)
-        route_validation = await validate_route_decision(query, route_decision)
+        except Exception as e:
+            logger.error(f"Router failed: {e}", exc_info=True)
+            fallback_info = apply_fallback_strategy("router", e, {"query": query})
+            execution_metadata["degradation_applied"] = True
+            execution_metadata["degradation_events"].append({
+                "component": "router",
+                "error": str(e),
+                "fallback": fallback_info["fallback_route"],
+            })
+
+            # Use fallback route decision
+            route_decision = RouteDecision(
+                route=fallback_info["fallback_route"] or "vector",
+                skill="answer_with_citations",
+                agent_class=agent_class_hint or "general",
+                reason=fallback_info["reason"],
+                confidence=0.5,
+            )
+
+        # Validate route decision (Task 2) with degradation handling
+        try:
+            route_validation = await validate_route_decision(query, route_decision)
+            record_component_success("route_validation")
+
+        except Exception as e:
+            logger.warning(f"Route validation failed: {e}", exc_info=True)
+            fallback_info = apply_fallback_strategy("route_validation", e)
+            execution_metadata["validation_degraded"] = True
+            execution_metadata["degradation_events"].append({
+                "component": "route_validation",
+                "error": str(e),
+                "action": "skip_validation",
+            })
+
+            # Create minimal validation result
+            route_validation = RouteValidationResult(
+                is_valid=True,
+                confidence=0.5,
+                validation_method="rule_fast",
+                execution_time_ms=0,
+                validation_reason="validation_failed_degraded",
+                suggested_alternative=None,
+            )
 
         # Retry logic: if validation fails and suggests alternative
         if (
@@ -327,7 +429,20 @@ class EnhancedRAGWorkflow:
             )
 
             # Re-validate the alternative
-            route_validation = await validate_route_decision(query, route_decision)
+            try:
+                route_validation = await validate_route_decision(query, route_decision)
+                record_component_success("route_validation")
+            except Exception as e:
+                logger.warning(f"Route validation retry failed: {e}")
+                # Use minimal validation on retry failure
+                route_validation = RouteValidationResult(
+                    is_valid=True,
+                    confidence=0.5,
+                    validation_method="rule_fast",
+                    execution_time_ms=0,
+                    validation_reason="retry_validation_failed_degraded",
+                    suggested_alternative=None,
+                )
 
         logger.info(
             f"Route validation: valid={route_validation.is_valid}, "
@@ -344,9 +459,11 @@ class EnhancedRAGWorkflow:
         route_decision: RouteDecision,
         allowed_sources: Optional[List[str]],
         retrieval_strategy: Optional[str],
+        execution_metadata: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
         Execute retrieval based on route decision with exception isolation.
+        Includes graceful degradation for retrieval failures.
 
         Returns:
             Dictionary with context, citations, chunks, and metadata
@@ -355,11 +472,19 @@ class EnhancedRAGWorkflow:
 
         try:
             if route == "graph":
+                # Check circuit breaker for graph RAG
+                graph_cb = get_circuit_breaker("graph_rag")
+                if graph_cb.is_open():
+                    logger.warning("Graph RAG circuit breaker is OPEN, falling back to vector")
+                    execution_metadata["circuit_breaker_triggered"] = True
+                    raise Exception("Circuit breaker open for graph_rag")
+
                 # Graph RAG retrieval
                 graph_result = run_graph_rag(
                     question=query,
                     allowed_sources=allowed_sources,
                 )
+                record_component_success("graph_rag")
                 return {
                     "context": graph_result.get("context", ""),
                     "citations": graph_result.get("citations", []),
@@ -368,30 +493,80 @@ class EnhancedRAGWorkflow:
                 }
 
             elif route == "hybrid":
-                # Hybrid: combine vector + graph
-                vector_result = run_vector_rag(
-                    question=query,
-                    allowed_sources=allowed_sources,
-                    retrieval_strategy=retrieval_strategy,
-                    agent_class=route_decision.agent_class,
-                )
-                graph_result = run_graph_rag(
-                    question=query,
-                    allowed_sources=allowed_sources,
-                )
+                # Check circuit breakers
+                vector_cb = get_circuit_breaker("vector_rag")
+                graph_cb = get_circuit_breaker("graph_rag")
 
-                # Merge contexts
-                combined_context = f"{vector_result.get('context', '')}\n\n{graph_result.get('context', '')}"
-                combined_citations = vector_result.get("citations", []) + graph_result.get("citations", [])
+                vector_result = None
+                graph_result = None
 
-                return {
-                    "context": combined_context,
-                    "citations": combined_citations,
-                    "chunks": self._extract_chunks_from_vector(vector_result),
-                    "metadata": {"route": "hybrid"},
-                }
+                # Try vector RAG
+                if not vector_cb.is_open():
+                    try:
+                        vector_result = run_vector_rag(
+                            question=query,
+                            allowed_sources=allowed_sources,
+                            retrieval_strategy=retrieval_strategy,
+                            agent_class=route_decision.agent_class,
+                        )
+                        record_component_success("vector_rag")
+                    except Exception as e:
+                        logger.warning(f"Vector RAG failed in hybrid mode: {e}")
+                        apply_fallback_strategy("vector_rag", e)
+                else:
+                    logger.warning("Vector RAG circuit breaker is OPEN, skipping in hybrid")
+
+                # Try graph RAG
+                if not graph_cb.is_open():
+                    try:
+                        graph_result = run_graph_rag(
+                            question=query,
+                            allowed_sources=allowed_sources,
+                        )
+                        record_component_success("graph_rag")
+                    except Exception as e:
+                        logger.warning(f"Graph RAG failed in hybrid mode: {e}")
+                        apply_fallback_strategy("graph_rag", e)
+                else:
+                    logger.warning("Graph RAG circuit breaker is OPEN, skipping in hybrid")
+
+                # Merge results or use what we have
+                if vector_result and graph_result:
+                    combined_context = f"{vector_result.get('context', '')}\n\n{graph_result.get('context', '')}"
+                    combined_citations = vector_result.get("citations", []) + graph_result.get("citations", [])
+                    return {
+                        "context": combined_context,
+                        "citations": combined_citations,
+                        "chunks": self._extract_chunks_from_vector(vector_result),
+                        "metadata": {"route": "hybrid"},
+                    }
+                elif vector_result:
+                    logger.info("Hybrid mode degraded to vector only")
+                    return {
+                        "context": vector_result.get("context", ""),
+                        "citations": vector_result.get("citations", []),
+                        "chunks": self._extract_chunks_from_vector(vector_result),
+                        "metadata": {"route": "hybrid_degraded_vector_only"},
+                    }
+                elif graph_result:
+                    logger.info("Hybrid mode degraded to graph only")
+                    return {
+                        "context": graph_result.get("context", ""),
+                        "citations": graph_result.get("citations", []),
+                        "chunks": self._extract_chunks_from_graph(graph_result),
+                        "metadata": {"route": "hybrid_degraded_graph_only"},
+                    }
+                else:
+                    raise Exception("Both vector and graph failed in hybrid mode")
 
             else:
+                # Check circuit breaker for vector RAG
+                vector_cb = get_circuit_breaker("vector_rag")
+                if vector_cb.is_open():
+                    logger.warning("Vector RAG circuit breaker is OPEN, falling back to graph")
+                    execution_metadata["circuit_breaker_triggered"] = True
+                    raise Exception("Circuit breaker open for vector_rag")
+
                 # Default: vector RAG
                 vector_result = run_vector_rag(
                     question=query,
@@ -399,6 +574,7 @@ class EnhancedRAGWorkflow:
                     retrieval_strategy=retrieval_strategy,
                     agent_class=route_decision.agent_class,
                 )
+                record_component_success("vector_rag")
                 return {
                     "context": vector_result.get("context", ""),
                     "citations": vector_result.get("citations", []),
@@ -411,7 +587,67 @@ class EnhancedRAGWorkflow:
 
         except Exception as e:
             logger.error(f"Retrieval failed for route={route}: {e}", exc_info=True)
-            raise
+
+            # Apply fallback strategy
+            component = "vector_rag" if route == "vector" else "graph_rag"
+            fallback_info = apply_fallback_strategy(component, e, {"query": query, "route": route})
+
+            # Track degradation
+            execution_metadata["degradation_applied"] = True
+            execution_metadata["degradation_events"].append({
+                "component": component,
+                "error": str(e),
+                "fallback": fallback_info["fallback_route"],
+            })
+
+            # Try fallback route
+            fallback_route = fallback_info["fallback_route"]
+            if fallback_route and fallback_route != route:
+                logger.info(f"Attempting fallback from {route} to {fallback_route}")
+
+                try:
+                    if fallback_route == "graph":
+                        graph_cb = get_circuit_breaker("graph_rag")
+                        if not graph_cb.is_open():
+                            graph_result = run_graph_rag(
+                                question=query,
+                                allowed_sources=allowed_sources,
+                            )
+                            record_component_success("graph_rag")
+                            return {
+                                "context": graph_result.get("context", ""),
+                                "citations": graph_result.get("citations", []),
+                                "chunks": self._extract_chunks_from_graph(graph_result),
+                                "metadata": {"route": f"fallback_{fallback_route}", "original_route": route},
+                            }
+                    else:  # fallback to vector
+                        vector_cb = get_circuit_breaker("vector_rag")
+                        if not vector_cb.is_open():
+                            vector_result = run_vector_rag(
+                                question=query,
+                                allowed_sources=allowed_sources,
+                                retrieval_strategy=retrieval_strategy,
+                                agent_class=route_decision.agent_class,
+                            )
+                            record_component_success("vector_rag")
+                            return {
+                                "context": vector_result.get("context", ""),
+                                "citations": vector_result.get("citations", []),
+                                "chunks": self._extract_chunks_from_vector(vector_result),
+                                "metadata": {"route": f"fallback_{fallback_route}", "original_route": route},
+                            }
+
+                except Exception as fallback_error:
+                    logger.error(f"Fallback retrieval also failed: {fallback_error}", exc_info=True)
+
+            # Last resort: return empty context
+            logger.error("All retrieval attempts failed, returning empty context")
+            return {
+                "context": "",
+                "citations": [],
+                "chunks": [],
+                "metadata": {"route": "failed", "error": str(e)},
+            }
 
     async def _generate_answer_with_validation(
         self,
@@ -423,6 +659,7 @@ class EnhancedRAGWorkflow:
     ) -> tuple[str, List[Dict], AnswerValidationResult]:
         """
         Generate answer with validation and optional regeneration.
+        Includes graceful degradation for validation failures.
 
         Returns:
             Tuple of (answer, citations, AnswerValidationResult)
@@ -430,13 +667,42 @@ class EnhancedRAGWorkflow:
         # Generate initial answer
         answer = await self._generate_answer(query, context, route)
 
-        # Validate answer (Task 4)
-        answer_validation = await validate_answer(
-            query=query,
-            answer=answer,
-            source_docs=citations,
-            citations=citations,
-        )
+        # Validate answer (Task 4) with degradation handling
+        try:
+            answer_validation = await validate_answer(
+                query=query,
+                answer=answer,
+                source_docs=citations,
+                citations=citations,
+            )
+            record_component_success("answer_validation")
+
+        except Exception as e:
+            logger.warning(f"Answer validation failed: {e}", exc_info=True)
+            fallback_info = apply_fallback_strategy("answer_validation", e)
+            execution_metadata["validation_degraded"] = True
+            execution_metadata["degradation_events"].append({
+                "component": "answer_validation",
+                "error": str(e),
+                "action": "skip_validation",
+            })
+
+            # Create minimal validation result
+            answer_validation = AnswerValidationResult(
+                is_valid=True,
+                overall_score=0.7,
+                validation_details=AnswerValidationDetails(
+                    factual_consistency=0.7,
+                    hallucination_risk=0.3,
+                    citation_completeness=0.7,
+                    answer_quality=0.7,
+                    safety_score=1.0,
+                ),
+                action="approve",
+                validation_method="fast_path",
+                execution_time_ms=0,
+                issues=[],
+            )
 
         # Retry logic: regenerate if action is "regenerate"
         if (
@@ -463,13 +729,33 @@ class EnhancedRAGWorkflow:
                 ),
             )
 
-            # Re-validate
-            answer_validation = await validate_answer(
-                query=query,
-                answer=answer,
-                source_docs=citations,
-                citations=citations,
-            )
+            # Re-validate with degradation handling
+            try:
+                answer_validation = await validate_answer(
+                    query=query,
+                    answer=answer,
+                    source_docs=citations,
+                    citations=citations,
+                )
+                record_component_success("answer_validation")
+            except Exception as e:
+                logger.warning(f"Answer validation retry failed: {e}")
+                # Use minimal validation on retry failure
+                answer_validation = AnswerValidationResult(
+                    is_valid=True,
+                    overall_score=0.7,
+                    validation_details=AnswerValidationDetails(
+                        factual_consistency=0.7,
+                        hallucination_risk=0.3,
+                        citation_completeness=0.7,
+                        answer_quality=0.7,
+                        safety_score=1.0,
+                    ),
+                    action="approve",
+                    validation_method="fast_path",
+                    execution_time_ms=0,
+                    issues=[],
+                )
 
         logger.info(
             f"Answer validation: score={answer_validation.overall_score:.3f}, "
