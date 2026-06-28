@@ -424,3 +424,33 @@ GITHUB_RELEASE_*.md
 create_github_releases*.ps1
 create_releases_*.ps1
 fix_*_tag.ps1
+
+# Internal documentation (v0.6.0 cleanup)
+*_INTERNAL.md
+*_PRIVATE.md
+.superpowers/
+PROJECT_*.txt
+PROJECT_*.md
+DOCUMENTATION_INDEX.md
+DOCUMENTATION_CHECKLIST.md
+DELIVERY_CHECKLIST.md
+GITHUB_PUBLICATION_STRATEGY.md
+GITHUB_RELEASE_CHECKLIST.md
+
+# Internal test data
+tests/golden_dataset.json
+scripts/create_golden_dataset.py
+scripts/ab_comparison.py
+scripts/load_test.py
+
+# Internal configuration
+config/router_calibration.json
+config/circuit_breaker.json
+config/retry_policy.json
+config/fact_verification.json
+
+# Internal reports
+docs/ab_comparison_report.md
+docs/performance_regression_report.md
+docs/*-optimization-plan.md
+docs/*-optimization-design.md
