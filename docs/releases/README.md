@@ -4,7 +4,16 @@ Complete release history for the Multi-Agent Local RAG system.
 
 ## Latest Releases
 
-### [v0.5.0](./RELEASE_NOTES_v0.5.0.md) - 2026-06-23
+### [v0.6.0](./RELEASE_NOTES_v0.6.0.md) - 2026-06-28 ⭐ NEW
+**Agent Quality Optimization**
+- Comprehensive quality optimization across all 11 agents
+- Router accuracy: 95% → 99.0% (+4.2%)
+- Hallucination rate reduction: -70.9%
+- Citation completeness: 85% → 96.0% (+12.9%)
+- 20 systematic enhancements across 4 phases
+- Zero breaking changes, 100% backward compatible
+
+### [v0.5.0](./RELEASE_NOTES_v0.5.0.md) - 2026-06-26
 **Permission System & Code Quality**
 - Comprehensive RBAC system with Viewer and Analyst roles
 - Frontend permission integration with React hooks
@@ -72,10 +81,11 @@ Complete release history for the Multi-Agent Local RAG system.
 
 ## Release Naming Convention
 
-- **v0.5.x** - Current stable series
-- **v0.4.x** - Previous stable series
-- **v0.3.x** - Legacy series
-- **v0.2.x** - Historical series
+- **v0.6.x** - Current stable series (Quality Optimization)
+- **v0.5.x** - Previous stable series (Permission System)
+- **v0.4.x** - Legacy series (Code Quality)
+- **v0.3.x** - Historical series
+- **v0.2.x** - Early versions
 
 ## How to Read Release Notes
 
@@ -88,5 +98,5 @@ Each release note contains:
 
 ---
 
-**Latest Update**: 2026-06-23  
-**Total Releases Documented**: 7
+**Latest Update**: 2026-06-28  
+**Total Releases Documented**: 8
