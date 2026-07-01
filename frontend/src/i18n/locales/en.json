@@ -501,6 +501,10 @@
         "users": "User Management",
         "audit": "Audit Logs",
         "syslog": "System Logs"
+      },
+      "models": {
+        "settings": "Settings",
+        "monitor": "Monitor"
       }
     }
   },

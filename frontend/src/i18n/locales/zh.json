@@ -501,6 +501,10 @@
         "users": "用户管理",
         "audit": "审计日志",
         "syslog": "系统日志"
+      },
+      "models": {
+        "settings": "设置",
+        "monitor": "监控"
       }
     }
   },

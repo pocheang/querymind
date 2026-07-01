@@ -6,6 +6,7 @@ import type { AuthUser } from "@/types/api";
 import { AdminAuditLogManagement } from "@/pages/admin/AdminAuditLogManagement";
 import { AdminCreateForm } from "@/pages/admin/AdminCreateForm";
 import { AdminModelSettings } from "@/pages/admin/AdminModelSettings";
+import AdminModelMonitor from "@/pages/admin/AdminModelMonitor";
 import { AdminOpsOverview } from "@/pages/admin/AdminOpsOverview";
 import { AdminRagSettings } from "@/pages/admin/AdminRagSettings";
 import { AdminSystemLogTable } from "@/pages/admin/AdminSystemLogTable";
@@ -40,6 +41,9 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
   // Pagination state for system logs
   const [systemLogCurrentPage, setSystemLogCurrentPage] = useState(1);
   const [systemLogPageSize, setSystemLogPageSize] = useState(20);
+
+  // Model subsection state
+  const [modelSubsection, setModelSubsection] = useState<"settings" | "monitor">("settings");
 
   const actions = useAdminActions({
     ...state,
@@ -189,19 +193,45 @@ export function AdminPage({ user, onLogout, themeLabel, onThemeToggle }: Props) 
           )}
 
           {state.section === "models" && (
-            <AdminModelSettings
-              modelSettings={state.modelSettings}
-              modelLoading={state.modelLoading}
-              modelSaving={state.modelSaving}
-              modelTesting={state.modelTesting}
-              modelTestResult={state.modelTestResult}
-              onRefresh={() => void actions.loadModelSettings()}
-              onSave={() => void actions.saveModelSettings()}
-              onTest={() => void actions.testModelSettings()}
-              onPatch={actions.patchModelSettings}
-              modelApiKey={state.modelApiKey}
-              onApiKeyChange={state.setModelApiKey}
-            />
+            <div className="space-y-4">
+              {/* Model Subsection Navigation */}
+              <div className="flex gap-2 border-b border-gray-200 pb-2">
+                <button
+                  type="button"
+                  className={modelSubsection === "settings" ? "px-4 py-2 border-b-2 border-blue-600 text-blue-600 font-medium" : "px-4 py-2 text-gray-600 hover:text-gray-900"}
+                  onClick={() => setModelSubsection("settings")}
+                >
+                  {t("pages.admin.models.settings")}
+                </button>
+                <button
+                  type="button"
+                  className={modelSubsection === "monitor" ? "px-4 py-2 border-b-2 border-blue-600 text-blue-600 font-medium" : "px-4 py-2 text-gray-600 hover:text-gray-900"}
+                  onClick={() => setModelSubsection("monitor")}
+                >
+                  {t("pages.admin.models.monitor")}
+                </button>
+              </div>
+
+              {/* Model Settings */}
+              {modelSubsection === "settings" && (
+                <AdminModelSettings
+                  modelSettings={state.modelSettings}
+                  modelLoading={state.modelLoading}
+                  modelSaving={state.modelSaving}
+                  modelTesting={state.modelTesting}
+                  modelTestResult={state.modelTestResult}
+                  onRefresh={() => void actions.loadModelSettings()}
+                  onSave={() => void actions.saveModelSettings()}
+                  onTest={() => void actions.testModelSettings()}
+                  onPatch={actions.patchModelSettings}
+                  modelApiKey={state.modelApiKey}
+                  onApiKeyChange={state.setModelApiKey}
+                />
+              )}
+
+              {/* Model Monitor */}
+              {modelSubsection === "monitor" && <AdminModelMonitor />}
+            </div>
           )}
 
           {state.section === "rag" && (
