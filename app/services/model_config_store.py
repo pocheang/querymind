@@ -5,10 +5,11 @@ from typing import Any
 from app.api.utils.string_utils import normalize_string
 from app.core.config import get_settings
 from app.services.auth_db import AuthDBService
+from app.services.model_catalog import PROVIDER_CATALOG, get_provider_defaults
 from app.services.network_security import OutboundURLValidationError, validate_api_base_url_for_provider
 
 GLOBAL_MODEL_SETTINGS_KEY = "global_model_settings"
-PROVIDERS = {"local", "ollama", "openai", "anthropic", "deepseek", "custom"}
+PROVIDERS = set(PROVIDER_CATALOG.keys())
 
 
 def default_global_model_settings() -> dict[str, Any]:
@@ -74,6 +75,13 @@ def _default_reasoning_model(provider: str) -> str:
 def _default_embedding_model(provider: str) -> str:
     settings = get_settings()
     provider = normalize_string(provider, lowercase=True)
+
+    # Use provider catalog to determine embedding support
+    defaults = get_provider_defaults(provider)
+    if defaults["embedding_model"] is None:
+        # Provider does not support embeddings (e.g., Anthropic, DeepSeek)
+        return ""
+
     if provider == "local":
         return "local-hash-384"
     if provider == "ollama":
@@ -101,12 +109,16 @@ def _normalize_global_model_settings(raw: dict[str, Any]) -> dict[str, Any]:
     embedding_model = str(current.get("embedding_model", "") or "").strip()
     if not chat_model:
         raise ValueError("chat_model is required")
-    if provider != "anthropic" and not embedding_model:
+
+    # Use provider catalog to check if embeddings are supported
+    provider_info = PROVIDER_CATALOG.get(provider, PROVIDER_CATALOG["local"])
+    if provider_info["supports_embeddings"] and not embedding_model:
         raise ValueError("embedding_model is required")
+
     api_key = str(current.get("api_key", "") or "").strip()
-    if provider in {"openai", "anthropic", "deepseek", "custom"} and not api_key:
+    if provider_info["requires_api_key"] and not api_key:
         raise ValueError("api_key is required for this provider")
-    if provider in {"local", "ollama"}:
+    if not provider_info["requires_api_key"]:
         api_key = ""
     return {
         "enabled": bool(current.get("enabled", False)),

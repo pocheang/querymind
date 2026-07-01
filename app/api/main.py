@@ -31,6 +31,7 @@ from app.api.middleware import request_timing_middleware
 from app.api.routes import (
     admin_graph_rag,
     admin_language_stats,
+    admin_model_management,
     admin_ops,
     admin_settings,
     admin_users,
@@ -249,6 +250,7 @@ app.include_router(admin_users.router)
 app.include_router(admin_ops.router)
 app.include_router(admin_settings.router)
 app.include_router(admin_language_stats.router)
+app.include_router(admin_model_management.router)
 app.include_router(agent_tracking.router)
 app.include_router(evaluation.router)
 app.include_router(advanced_rag.router)

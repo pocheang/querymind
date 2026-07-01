@@ -13,6 +13,57 @@ from app.services.network_security import validate_api_base_url_for_provider
 from app.services.request_context import request_context
 
 
+def test_provider_catalog_defines_immutable_capabilities():
+    """Test that provider catalog exists and defines immutable provider capabilities."""
+    from app.services.model_catalog import PROVIDER_CATALOG
+
+    # Verify catalog structure
+    assert "anthropic" in PROVIDER_CATALOG
+    assert "openai" in PROVIDER_CATALOG
+    assert "deepseek" in PROVIDER_CATALOG
+    assert "local" in PROVIDER_CATALOG
+
+    # Verify each provider has required fields
+    for provider_name, provider_info in PROVIDER_CATALOG.items():
+        assert "supports_chat" in provider_info
+        assert "supports_embeddings" in provider_info
+        assert "default_chat_model" in provider_info
+        assert "default_embedding_model" in provider_info
+
+
+def test_anthropic_and_deepseek_do_not_override_embeddings():
+    """Test that Anthropic and DeepSeek providers do not provide embeddings."""
+    from app.services.model_catalog import PROVIDER_CATALOG
+
+    # Anthropic does not provide embeddings
+    assert PROVIDER_CATALOG["anthropic"]["supports_embeddings"] is False
+    assert PROVIDER_CATALOG["anthropic"]["default_embedding_model"] is None
+
+    # DeepSeek does not provide embeddings
+    assert PROVIDER_CATALOG["deepseek"]["supports_embeddings"] is False
+    assert PROVIDER_CATALOG["deepseek"]["default_embedding_model"] is None
+
+
+def test_backend_defaults_derive_from_provider_catalog():
+    """Test that backend defaults come from the provider catalog."""
+    from app.services.model_catalog import get_provider_defaults
+
+    # Local provider defaults
+    local_defaults = get_provider_defaults("local")
+    assert local_defaults["chat_model"] == "local-evidence"
+    assert local_defaults["embedding_model"] == "local-hash-384"
+
+    # OpenAI provider defaults
+    openai_defaults = get_provider_defaults("openai")
+    assert openai_defaults["chat_model"] is not None
+    assert openai_defaults["embedding_model"] is not None
+
+    # Anthropic provider defaults (chat only, no embeddings)
+    anthropic_defaults = get_provider_defaults("anthropic")
+    assert anthropic_defaults["chat_model"] is not None
+    assert anthropic_defaults["embedding_model"] is None
+
+
 def test_anthropic_base_url_uses_sdk_root_path():
     assert (
         validate_api_base_url_for_provider("https://api.anthropic.com/v1", provider="anthropic")
