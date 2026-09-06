@@ -15,10 +15,20 @@
 
 :root[data-theme="light"] .page-shell {
   /* #94A3B8 on white is 2.56:1 -- a placeholder weight being used for
-     timestamps, role labels and status text. #64748B is 4.76:1. The paler
-     value stays available as `--chat-text-faint` for genuine placeholders,
-     where the contrast minimum does not apply. */
-  --chat-text-muted: #64748b;
+     timestamps, role labels and status text. The paler value stays available as
+     `--chat-text-faint` for genuine placeholders, where the contrast minimum
+     does not apply.
+
+     #64748B was the first replacement and is not enough: 4.76:1 on white but
+     only 4.07:1 on the lavender chip backgrounds this token also lands on.
+     #475569 clears AA on both (7.5:1 and 6.3:1), so one value is correct on
+     every surface rather than on most.
+
+     That correction used to live in a second `:root[data-theme="light"]
+     .page-shell` block further down the file, which meant this line read
+     #64748B while the page rendered #475569 -- the two measurements are merged
+     here so the declaration and the reasoning are in one place. */
+  --chat-text-muted: #475569;
   --chat-text-faint: #94a3b8;
 
   /* #3B82F6 on white is 3.68:1. Links are body-size text and need AA. */
@@ -69,8 +79,12 @@
   color: #4338ca;
 }
 
+/* The third pass darkened this from #1d4ed8: the icon sits on the tinted
+   session-create button rather than on white. `.session-create-btn:hover
+   .session-create-icon` below carries its own value at a higher specificity and
+   is a different rule, not another copy of this one. */
 :root[data-theme="light"] .page-shell .session-create-icon {
-  color: #1d4ed8;
+  color: #1e3a8a;
 }
 
 /* White on #3B82F6 is 3.68:1. A darker fill carries white text at 11px. */
@@ -100,11 +114,8 @@
    did not reach.
    -------------------------------------------- */
 
-:root[data-theme="light"] .page-shell {
-  /* Clears AA on white (7.5:1) and on the tinted chips (6.3:1) alike, so one
-     value is correct on every surface it lands on rather than on most. */
-  --chat-text-muted: #475569;
-}
+/* `--chat-text-muted` was raised to #475569 here; it is declared once at the top
+   of this file now, with both measurements beside it. */
 
 /* `--primary` is not a token this project defines, so the button's declared
    background resolved to nothing: a transparent box with `color: white` on a
@@ -169,9 +180,6 @@
   color: #3730a3;
 }
 
-:root[data-theme="light"] .page-shell .session-create-icon {
-  color: #1e3a8a;
-}
 
 /* --------------------------------------------
    Fourth pass: state selectors and the suggestion chips

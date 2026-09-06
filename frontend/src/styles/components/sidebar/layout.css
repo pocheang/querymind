@@ -37,9 +37,6 @@
 .page-shell .sidebar-shell {
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.page-shell .sidebar-shell {
   display: flex;
   flex-direction: column;
   gap: 18px;

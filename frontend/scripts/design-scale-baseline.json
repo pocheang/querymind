@@ -205,7 +205,7 @@
   },
   "src/styles/themes/light/chat.css": {
     "radii": 1,
-    "shadows": 37
+    "shadows": 35
   },
   "src/styles/themes/light/contrast.css": {
     "radii": 0,

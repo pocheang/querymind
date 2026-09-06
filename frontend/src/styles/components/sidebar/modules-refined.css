@@ -33,10 +33,14 @@
   align-content: start;
 }
 
+/* The group is drawn as one card: the modules lose their own radius, top border
+   and shadow, and keep only the side borders that form the group's edges. Those
+   two were declared `0` here and `1px` again further down the file, so the zeros
+   never applied -- merged, with the winning values. */
 .page-shell .sidebar-tools .sidebar-module {
   border-radius: 0;
-  border-left: 0;
-  border-right: 0;
+  border-left: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
   border-top: 0;
   box-shadow: none;
   background: transparent;
@@ -56,10 +60,6 @@
   border-bottom-right-radius: 10px;
 }
 
-.page-shell .sidebar-tools .sidebar-module {
-  border-left: 1px solid var(--border-light);
-  border-right: 1px solid var(--border-light);
-}
 
 :root[data-theme="light"] .page-shell .sidebar-tools .sidebar-module {
   background: var(--chat-bg-surface, #fff);
