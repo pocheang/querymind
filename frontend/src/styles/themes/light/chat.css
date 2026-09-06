@@ -16,10 +16,13 @@
   --chat-border-strong: #94A3B8;
 
   --chat-text-primary: #111827;
-  --chat-text-secondary: #64748B;
+  /* #64748B is 4.11:1 on the lavender agent-mode chips this lands on -- the
+     same near-miss `contrast.css` records for `--chat-text-muted`. Measured on
+     the running app, signed in. */
+  --chat-text-secondary: #5b697e;
   --chat-text-muted: #94A3B8;
 
-  --chat-brand: #6366F1;
+  --chat-brand: #5759d3;
   --chat-brand-hover: #5558E8;
   --chat-brand-soft: #EEF2FF;
   --chat-brand-border: #C7D2FE;
@@ -181,14 +184,14 @@
 }
 
 :root[data-theme="light"] .page-shell .session-item.active::before {
-  background: linear-gradient(180deg, #3b82f6, #6366f1);
+  background: linear-gradient(180deg, #2e66c1, #6164ed);
   box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
 }
 
 :root[data-theme="light"] .page-shell .session-icon {
   background: rgba(241, 245, 249, 0.8);
   border-color: rgba(226, 232, 240, 0.6);
-  color: #64748b;
+  color: #5b697e;
 }
 
 :root[data-theme="light"] .page-shell .session-item:hover .session-icon {
@@ -197,7 +200,7 @@
 }
 
 :root[data-theme="light"] .page-shell .session-item.active .session-icon {
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  background: linear-gradient(135deg, #2e66c1, #6164ed);
   border-color: rgba(59, 130, 246, 0.3);
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
@@ -306,15 +309,17 @@
 }
 
 :root[data-theme="light"] .page-shell .sidebar-user-action-admin {
-  color: #3b82f6;
+  /* Was #3b82f6, 3.36:1 on the #f1f5f9 button. Uses the token so it moves with
+     the accent instead of being a second copy of an old value. */
+  color: var(--accent);
 }
 
 :root[data-theme="light"] .page-shell .sidebar-user-action-admin span {
-  color: #3b82f6;
+  color: var(--accent);
 }
 
 :root[data-theme="light"] .page-shell .sidebar-collapse-btn-bottom {
-  color: #64748b;
+  color: #5b697e;
 }
 
 :root[data-theme="light"] .page-shell .sidebar-collapse-btn-bottom:hover {
@@ -466,7 +471,7 @@
 }
 
 :root[data-theme="light"] .page-shell .composer-panel:focus-within .composer-input-wrapper {
-  border-color: #6366F1;
+  border-color: #5759d3;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
@@ -510,13 +515,13 @@
 :root[data-theme="light"] .page-shell .composer-upload-btn {
   background: rgba(99, 102, 241, 0.08);
   border: 1px solid rgba(99, 102, 241, 0.18);
-  color: #6366F1;
+  color: #5759d3;
   border-radius: 10px;
 }
 
 :root[data-theme="light"] .page-shell .composer-upload-btn:hover {
   background: rgba(99, 102, 241, 0.16);
-  border-color: #6366F1;
+  border-color: #5759d3;
   color: #4F46E5;
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
 }

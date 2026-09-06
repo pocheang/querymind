@@ -157,7 +157,7 @@
 }
 
 :root[data-theme="light"] .page-shell details summary::marker {
-  color: #6366F1;
+  color: #5759d3;
 }
 
 :root[data-theme="light"] .page-shell details summary:hover {
@@ -167,7 +167,7 @@
 
 :root[data-theme="light"] .page-shell details[open] summary {
   border-bottom-color: #E2E8F0;
-  color: #6366F1;
+  color: #5759d3;
 }
 
 :root[data-theme="light"] .page-shell .process-step {

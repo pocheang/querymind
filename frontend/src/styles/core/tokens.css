@@ -21,7 +21,7 @@
      for placeholders, where the contrast minimum does not apply -- darkening a
      placeholder makes an empty field look filled. Mirrors the split
      `themes/light/contrast.css` already made for the chat theme. */
-  --text-tertiary: #687381;
+  --text-tertiary: #5f6976;
   --text-faint: #94a3b8;
   --text-inverse: #ffffff;
 
