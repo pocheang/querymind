@@ -49,7 +49,7 @@
   }
 
   .reactflow-wrapper .react-flow__node.node-query {
-    background: linear-gradient(135deg, #667eea, #4c51bf);
+    background: linear-gradient(135deg, #596ecd, #4c51bf);
     color: #ffffff;
     border-color: #7c3aed;
   }
@@ -61,7 +61,7 @@
   }
 
   .reactflow-wrapper .react-flow__node.node-nlp {
-    background: linear-gradient(135deg, #48bb78, #38a169);
+    background: linear-gradient(135deg, #338455, #2e8456);
     color: #ffffff;
     border-color: #68d391;
   }
@@ -73,19 +73,19 @@
   }
 
   .reactflow-wrapper .react-flow__node.node-agent {
-    background: linear-gradient(135deg, #667eea, #4c51bf);
+    background: linear-gradient(135deg, #596ecd, #4c51bf);
     color: #ffffff;
     border-color: #7c3aed;
   }
 
   .reactflow-wrapper .react-flow__node.node-retrieval {
-    background: linear-gradient(135deg, #48bb78, #38a169);
+    background: linear-gradient(135deg, #338455, #2e8456);
     color: #ffffff;
     border-color: #68d391;
   }
 
   .reactflow-wrapper .react-flow__node.node-output {
-    background: linear-gradient(135deg, #ed8936, #c05621);
+    background: linear-gradient(135deg, #ab6327, #bf5621);
     color: #ffffff;
     border-color: #f6ad55;
   }
@@ -179,4 +179,34 @@
     }
   }
 
+}
+
+/* --------------------------------------------
+   Outside the layer, deliberately
+
+   React Flow ships its own stylesheet and `DataFlowVisualization.tsx` imports it
+   directly (`import 'reactflow/dist/style.css'`), so it lands UNLAYERED -- and an
+   unlayered rule beats every layered one regardless of specificity. Every `color`
+   declaration in the `@layer legacy` block above therefore never applied: all 34
+   nodes rendered React Flow's default #222 on the dark gradients this file
+   paints. Measured on the rendered page: 1.33:1 on the slate fills and 2.11:1 at
+   their lightest stop, against the 4.5 that 13px/600 text needs.
+
+   Raising specificity inside the layer cannot fix that and neither can
+   `!important`-free layering, so these two rules sit outside it, where
+   specificity decides normally: `.reactflow-wrapper .react-flow__node` (0,2,0)
+   beats `.react-flow__node-default` (0,1,0). Only the vendor-overriding
+   declarations live here; the rest of the file stays in `legacy`.
+
+   The gradients above were darkened in the same pass because white is the only
+   foreground that clears AA on all five palettes, and three of them could carry
+   neither white nor black at 4.5:1 across both ends of their range.
+   -------------------------------------------- */
+
+.reactflow-wrapper .react-flow__node {
+  color: #ffffff;
+}
+
+.reactflow-wrapper .react-flow__node .react-flow__handle {
+  color: inherit;
 }
