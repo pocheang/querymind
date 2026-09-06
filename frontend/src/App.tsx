@@ -42,12 +42,12 @@ function Protected({
   authReady,
   allowed = true,
   children,
-}: {
+}: Readonly<{
   user: AuthUser | null;
   authReady: boolean;
   allowed?: boolean;
   children: ReactNode;
-}) {
+}>) {
   if (!authReady) return null;
   if (!user) return <Navigate to="/app/login" replace />;
   if (!allowed) return <Navigate to="/app" replace />;

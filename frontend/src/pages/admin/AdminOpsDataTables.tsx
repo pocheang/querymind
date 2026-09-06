@@ -22,7 +22,7 @@ type Props = {
 
 const COLORS = ["#5b8cff", "#4fc3f7", "#8b7aff", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
 
-export function AdminOpsDataTables({ ops, formatAuditTime }: Props) {
+export function AdminOpsDataTables({ ops, formatAuditTime }: Readonly<Props>) {
   const { t } = useTranslation();
   const recentFailures = ops?.diagnostics?.recent_failures ?? [];
   const recentErrors = ops?.diagnostics?.recent_errors ?? [];

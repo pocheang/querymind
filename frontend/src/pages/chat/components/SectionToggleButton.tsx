@@ -5,7 +5,7 @@ type Props = {
   onToggle: () => void;
 };
 
-export function SectionToggleButton({ sectionsHidden, onToggle }: Props) {
+export function SectionToggleButton({ sectionsHidden, onToggle }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

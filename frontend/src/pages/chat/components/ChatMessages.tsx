@@ -25,7 +25,7 @@ export function ChatMessages({
   onRemoveMessage,
   onCreateSession,
   onNavigateToArchitecture
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   // Check if currently streaming

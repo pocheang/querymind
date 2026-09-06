@@ -8,7 +8,7 @@ type Props = {
   isLoggedIn: boolean;
 };
 
-export function ArchitecturePage({ isLoggedIn }: Props) {
+export function ArchitecturePage({ isLoggedIn }: Readonly<Props>) {
   const { t } = useTranslation();
   const heroSectionKeys = [
     'dataFlow',

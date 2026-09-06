@@ -37,7 +37,7 @@ export function AdminCreateForm({
   onAdminTicketIdChange,
   onAdminReasonChange,
   onCreateAdmin,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

@@ -88,7 +88,7 @@ export function ChatSidebar({
   onEditPrompt,
   onDeletePrompt,
   onLogout,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const {
     sidebarOpen,

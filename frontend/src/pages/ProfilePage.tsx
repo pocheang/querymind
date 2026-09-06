@@ -12,7 +12,7 @@ type Props = {
   onUserUpdated: (user: AuthUser) => void;
 };
 
-export function ProfilePage({ user, onUserUpdated }: Props) {
+export function ProfilePage({ user, onUserUpdated }: Readonly<Props>) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");

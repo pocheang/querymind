@@ -18,7 +18,7 @@ export function AdminPagination({
   pageSizeOptions,
   onPageChange,
   onPageSizeChange,
-}: AdminPaginationProps) {
+}: Readonly<AdminPaginationProps>) {
   const { t } = useTranslation();
 
   // Guard against invalid props

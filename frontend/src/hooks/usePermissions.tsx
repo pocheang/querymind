@@ -275,7 +275,7 @@ export function PermissionGate({
 /**
  * Role badge component to display user role
  */
-export function RoleBadge({ role }: { role: string }) {
+export function RoleBadge({ role }: Readonly<{ role: string }>) {
   const knownRole = toKnownUserRole(role);
   const labels: Record<KnownUserRole, string> = {
     admin: 'Admin',

@@ -17,7 +17,7 @@ export function DocumentItem({
   currentUserId,
   onReindexDocument,
   onDeleteDocument,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const canManage = canUploadAndManageDocs || isAdmin || !doc.owner_user_id || (!!currentUserId && doc.owner_user_id === currentUserId);
   const indexingStatus = doc.indexing_status || "ready";

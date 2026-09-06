@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
-export function NotFoundPage({ pathname }: { pathname: string }) {
+export function NotFoundPage({ pathname }: Readonly<{ pathname: string }>) {
   const { t } = useTranslation();
 
   return (

@@ -24,7 +24,7 @@ export function ChatRuntimePanels({
   onApproved,
   onDismissApproval,
   onDraft,
-}: Props) {
+}: Readonly<Props>) {
   const executionTrace = useExecutionTrace(executionId);
   const draft = executionTrace.draft;
 

@@ -16,7 +16,7 @@ type Props = {
   onApplyPreset: (preset: Preset) => void;
 };
 
-export function ApiSettingsPresets({ presets, activeProvider, activeModel, onApplyPreset }: Props) {
+export function ApiSettingsPresets({ presets, activeProvider, activeModel, onApplyPreset }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

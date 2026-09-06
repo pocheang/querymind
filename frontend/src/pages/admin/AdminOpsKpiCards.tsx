@@ -5,7 +5,7 @@ type Props = {
   ops: OpsOverview;
 };
 
-export function AdminOpsKpiCards({ ops }: Props) {
+export function AdminOpsKpiCards({ ops }: Readonly<Props>) {
   const { t } = useTranslation();
 
   const primary = [

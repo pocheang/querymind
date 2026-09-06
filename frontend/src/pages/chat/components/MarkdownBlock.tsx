@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
-function CodeBlock({ code, className = "" }: { code: string; className?: string }) {
+function CodeBlock({ code, className = "" }: Readonly<{ code: string; className?: string }>) {
   const { t } = useTranslation();
   const { copied, copy } = useCopyToClipboard(1200);
 
@@ -18,7 +18,7 @@ function CodeBlock({ code, className = "" }: { code: string; className?: string 
   );
 }
 
-export function MarkdownBlock({ text }: { text: string }) {
+export function MarkdownBlock({ text }: Readonly<{ text: string }>) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}

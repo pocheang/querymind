@@ -21,7 +21,7 @@ type Props = {
 
 const COLORS = ["#5b8cff", "#4fc3f7", "#8b7aff", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
 
-export function AdminAuditLogTable({ logs, formatAuditTime }: Props) {
+export function AdminAuditLogTable({ logs, formatAuditTime }: Readonly<Props>) {
   const { t } = useTranslation();
 
   const stats = useMemo(() => {

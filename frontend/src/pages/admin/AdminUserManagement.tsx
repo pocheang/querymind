@@ -70,7 +70,7 @@ export function AdminUserManagement({
   onOpenClassEditor,
   onResetPassword,
   onResetApprovalToken,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const filteredUsers = useMemo(() => {
     const q = kw.trim().toLowerCase();

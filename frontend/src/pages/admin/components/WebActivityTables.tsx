@@ -36,7 +36,7 @@ function formatAlertTime(timestamp: string) {
   });
 }
 
-export function WebActivityTables({ usersData, websitesData, alerts }: Props) {
+export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

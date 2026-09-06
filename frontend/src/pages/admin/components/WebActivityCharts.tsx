@@ -10,7 +10,7 @@ interface Props {
   data: ChartData;
 }
 
-export function WebActivityCharts({ data }: Props) {
+export function WebActivityCharts({ data }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

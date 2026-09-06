@@ -21,7 +21,7 @@ export function AdminFormField({
   disabled = false,
   required = false,
   className = "",
-}: AdminFormFieldProps) {
+}: Readonly<AdminFormFieldProps>) {
   return (
     <label className={`admin-field ${className}`.trim()}>
       <span>
@@ -59,7 +59,7 @@ export function AdminFormSelect({
   disabled = false,
   required = false,
   className = "",
-}: AdminFormSelectProps) {
+}: Readonly<AdminFormSelectProps>) {
   const normalizedOptions = options.map((opt) =>
     typeof opt === "string" ? { value: opt, label: opt } : opt
   );

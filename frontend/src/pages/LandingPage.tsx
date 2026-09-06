@@ -9,7 +9,7 @@ interface LandingPageProps {
   isLoggedIn: boolean;
 }
 
-export function LandingPage({ isLoggedIn }: LandingPageProps) {
+export function LandingPage({ isLoggedIn }: Readonly<LandingPageProps>) {
   const { t, i18n } = useTranslation();
 
   useEffect(() => {

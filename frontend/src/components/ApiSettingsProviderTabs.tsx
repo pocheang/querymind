@@ -8,7 +8,7 @@ type Props = {
   onChangeProvider: (provider: Provider) => void;
 };
 
-export function ApiSettingsProviderTabs({ providers, activeProvider, onChangeProvider }: Props) {
+export function ApiSettingsProviderTabs({ providers, activeProvider, onChangeProvider }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

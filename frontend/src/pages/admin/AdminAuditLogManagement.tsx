@@ -55,7 +55,7 @@ export function AdminAuditLogManagement({
   pageSize,
   onPageChange,
   onPageSizeChange,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const hasExactActorMatch =
     !auditActorUserId.trim() ||

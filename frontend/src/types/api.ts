@@ -1,5 +1,21 @@
 import type { UserIdentity } from "./auth";
 
+/**
+ * The values this API is known to send, without claiming the list is closed.
+ *
+ * `"a" | "b" | string` collapses to plain `string`: the literals survive in the
+ * source but TypeScript checks nothing against them and an editor offers no
+ * completion, which is what `typescript:S6571` flags. Simply deleting `| string`
+ * would be worse than the finding — it would be false. The document index emits
+ * `"error"` for `indexing_status`, a value this file has never listed, so a
+ * closed union would fail to compile against data the backend really sends.
+ *
+ * Intersecting with `{}` keeps the known values as suggestions while still
+ * accepting any string, so the type documents what to expect and stops lying
+ * about what is possible.
+ */
+export type Known<T extends string> = T | (string & {});
+
 export type AuthUser = UserIdentity;
 
 export type LoginResponse = {
@@ -122,7 +138,7 @@ export type SessionMessageMetadata = {
 
 export type SessionMessage = {
   message_id: string | null;
-  role: "user" | "assistant" | string;
+  role: Known<"user" | "assistant">;
   content: string;
   created_at?: string;
   metadata?: SessionMessageMetadata;
@@ -143,11 +159,11 @@ export type IndexedFileSummary = {
   page_count?: number;
   agent_class?: string;
   owner_user_id?: string | null;
-  visibility?: "private" | "public" | string;
+  visibility?: Known<"private" | "public">;
   exists_on_disk?: boolean;
   in_uploads?: boolean;
   document_id?: string | null;
-  indexing_status?: "pending" | "indexing" | "ready" | "failed" | string;
+  indexing_status?: Known<"pending" | "indexing" | "ready" | "failed" | "error">;
   indexing_stage?: string;
   indexing_error?: string;
   triplets_written?: number;
@@ -173,7 +189,7 @@ export type UploadResponse = {
   ok: boolean;
   filenames: string[];
   skipped_files?: string[];
-  visibility_applied?: "private" | "public" | string;
+  visibility_applied?: Known<"private" | "public">;
   assigned_agent_classes?: Record<string, string>;
   document_ids?: string[];
   indexing_status?: string;
@@ -256,7 +272,7 @@ export type OpsServiceHealth = {
 export type OpsOverview = {
   generated_at: string;
   window_hours: number;
-  status: "healthy" | "degraded" | string;
+  status: Known<"healthy" | "degraded">;
   kpi: {
     requests_total: number;
     requests_success: number;
@@ -325,7 +341,7 @@ export type ModelProvider = "local" | "ollama" | "openai" | "deepseek" | "anthro
 export type ModelCatalogItem = {
   id: string;
   label: string;
-  roles: Array<"chat" | "reasoning" | "embedding" | string>;
+  roles: Array<Known<"chat" | "reasoning" | "embedding">>;
   recommended?: boolean;
   deprecated_after?: string | null;
 };
@@ -338,7 +354,7 @@ export type ProviderCatalogEntry = {
   default_embedding_model: string;
   requires_api_key: boolean;
   supports_embeddings: boolean;
-  api_style: "local" | "ollama" | "openai" | "anthropic" | string;
+  api_style: Known<"local" | "ollama" | "openai" | "anthropic">;
   note?: string;
   models: ModelCatalogItem[];
 };
@@ -350,7 +366,7 @@ export type ModelCatalogResponse = {
 
 export type AdminRuntimeSnapshot = {
   generated_at: string;
-  status: "healthy" | "degraded" | string;
+  status: Known<"healthy" | "degraded">;
   blocking_services: string[];
   resources: {
     cpu_percent: number;
@@ -373,7 +389,7 @@ export type AdminRuntimeSnapshot = {
 
 export type AdminModelSettingsPayload = {
   enabled: boolean;
-  provider: ModelProvider | string;
+  provider: Known<ModelProvider>;
   api_key: string;
   base_url: string;
   chat_model: string;

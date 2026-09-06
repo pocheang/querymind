@@ -8,7 +8,7 @@ type Props = {
   children: ReactNode;
 };
 
-export function CollapsibleSection({ title, ariaLabel, open, className, children }: Props) {
+export function CollapsibleSection({ title, ariaLabel, open, className, children }: Readonly<Props>) {
   return (
     <details open={open} className={className}>
       <summary aria-label={ariaLabel}>{title}</summary>

@@ -19,7 +19,7 @@ export function TopbarMenu({
   user,
   onOpenSettings,
   onOpenSessionManagement,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);

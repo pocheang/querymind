@@ -17,7 +17,7 @@ export function QuickActions({
   onPromptPick,
   onStop,
   onClearQuestion,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

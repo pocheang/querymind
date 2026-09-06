@@ -21,7 +21,7 @@ type Props = {
   onLogin: (user: AuthUser) => void;
 };
 
-export function LoginPage({ onLogin }: Props) {
+export function LoginPage({ onLogin }: Readonly<Props>) {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const mode = searchParams.get("mode") === "register" ? "register" : "login";

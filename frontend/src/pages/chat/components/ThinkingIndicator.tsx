@@ -2,7 +2,7 @@ interface ThinkingIndicatorProps {
   elapsedSeconds?: number;
 }
 
-export function ThinkingIndicator({ elapsedSeconds: _elapsedSeconds }: ThinkingIndicatorProps) {
+export function ThinkingIndicator({ elapsedSeconds: _elapsedSeconds }: Readonly<ThinkingIndicatorProps>) {
   return (
     <div className="thinking-indicator">
       <span className="thinking-dots" aria-hidden="true"></span>

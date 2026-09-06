@@ -25,7 +25,7 @@ interface AnimatedToastLiteProps {
   onClose: (id: string) => void;
 }
 
-export function AnimatedToastLite({ toast, index, onClose }: AnimatedToastLiteProps) {
+export function AnimatedToastLite({ toast, index, onClose }: Readonly<AnimatedToastLiteProps>) {
   const { t } = useTranslation();
   const [isPaused, setIsPaused] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
@@ -97,7 +97,7 @@ interface ToastContainerProps {
   onClose: (id: string) => void;
 }
 
-export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
+export function ToastContainer({ toasts, onClose }: Readonly<ToastContainerProps>) {
   return (
     <div className="toast-lite-container">
       {toasts.map((toast, index) => (
@@ -121,7 +121,7 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function ToastProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = useCallback((message: string, type: Toast['type'], duration?: number) => {

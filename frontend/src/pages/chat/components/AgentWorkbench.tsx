@@ -20,7 +20,7 @@ export function AgentWorkbench({
   agentModes,
   agentDistribution,
   onSwitchAgentMode,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

@@ -32,7 +32,7 @@ export function AuthInput({
   autoComplete,
   onKeyDown,
   icon
-}: AuthInputProps) {
+}: Readonly<AuthInputProps>) {
   return (
     <div className="auth-input-shell">
       <span className="auth-input-icon" aria-hidden="true">

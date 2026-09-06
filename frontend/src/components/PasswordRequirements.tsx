@@ -5,7 +5,7 @@ interface PasswordRequirementsProps {
   password: string;
 }
 
-export function PasswordRequirements({ password }: PasswordRequirementsProps) {
+export function PasswordRequirements({ password }: Readonly<PasswordRequirementsProps>) {
   const { t } = useTranslation();
   const requirements = getPasswordRequirements(password);
   const complete = "✓";

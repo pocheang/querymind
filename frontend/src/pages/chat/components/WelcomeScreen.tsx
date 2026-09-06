@@ -14,7 +14,7 @@ export function WelcomeScreen({
   sessionsCount = 0,
   onCreateSession,
   onNavigateToArchitecture
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

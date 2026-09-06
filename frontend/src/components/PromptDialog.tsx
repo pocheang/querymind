@@ -28,7 +28,7 @@ export function PromptDialog({
   inputType = "text",
   onConfirm,
   onCancel,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const titleId = useId();
   const [value, setValue] = useState(defaultValue);

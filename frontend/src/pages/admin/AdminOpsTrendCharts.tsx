@@ -9,7 +9,7 @@ type Props = {
   hourlyMax: number;
 };
 
-export function AdminOpsTrendCharts({ ops, actionMax, resourceMax, errorMax, hourlyMax }: Props) {
+export function AdminOpsTrendCharts({ ops, actionMax, resourceMax, errorMax, hourlyMax }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

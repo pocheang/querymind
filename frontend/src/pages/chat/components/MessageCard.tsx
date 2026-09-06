@@ -16,7 +16,7 @@ type Props = {
   onRemoveMessage: (msg: SessionMessage) => Promise<void>;
 };
 
-export function MessageCard({ message, onEditMessage, onRemoveMessage }: Props) {
+export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonly<Props>) {
   const { t, i18n } = useTranslation();
   const isAssistant = message.role === "assistant";
   const metadata = message.metadata || EMPTY_METADATA;

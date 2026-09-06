@@ -14,7 +14,7 @@ type Props = {
   onDismiss: () => void;
 };
 
-export function ToolApprovalPanel({ approval, onApproved, onDismiss }: Props) {
+export function ToolApprovalPanel({ approval, onApproved, onDismiss }: Readonly<Props>) {
   const { t } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -26,7 +26,7 @@ type Props = {
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
-export function AnalyticsPage({ onLogout }: Props) {
+export function AnalyticsPage({ onLogout }: Readonly<Props>) {
   const { t } = useTranslation();
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [agents, setAgents] = useState<AgentStats[]>([]);

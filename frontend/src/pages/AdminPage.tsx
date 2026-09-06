@@ -28,7 +28,7 @@ type Props = {
   onLogout: () => Promise<void>;
 };
 
-export function AdminPage({ user, onLogout }: Props) {
+export function AdminPage({ user, onLogout }: Readonly<Props>) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const state = useAdminState();

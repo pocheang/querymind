@@ -5,7 +5,7 @@ type Props = {
   ops: OpsOverview;
 };
 
-export function AdminOpsDiagnostics({ ops }: Props) {
+export function AdminOpsDiagnostics({ ops }: Readonly<Props>) {
   const { t } = useTranslation();
 
   const renderValue = (value: string | undefined | null, defaultText = "-") => {

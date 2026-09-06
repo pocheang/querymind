@@ -63,7 +63,7 @@ export function AdminModelSettings({
   onPatch,
   modelApiKey,
   onApiKeyChange,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const [catalog, setCatalog] = useState<ModelCatalogResponse | null>(null);
   const [effective, setEffective] = useState<EffectiveModelComponent[] | null>(null);

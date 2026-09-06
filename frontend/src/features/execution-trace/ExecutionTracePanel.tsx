@@ -34,7 +34,7 @@ function writeCollapsed(collapsed: boolean): void {
   }
 }
 
-export function ExecutionTracePanel({ trace }: Props) {
+export function ExecutionTracePanel({ trace }: Readonly<Props>) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(readCollapsed);
 

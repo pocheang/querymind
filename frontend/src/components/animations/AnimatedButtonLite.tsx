@@ -33,7 +33,7 @@ export function AnimatedButtonLite({
   disabled = false,
   state: externalState,
   className = '',
-}: AnimatedButtonLiteProps) {
+}: Readonly<AnimatedButtonLiteProps>) {
   const [internalState, setInternalState] = useState<ButtonState>('idle');
 
   // 如果外部传入state，优先使用外部state

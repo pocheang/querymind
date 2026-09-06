@@ -20,7 +20,7 @@ export function AdminRagSettings({
   onExportAuditReport,
   onRunBenchmark,
   formatAuditTime,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

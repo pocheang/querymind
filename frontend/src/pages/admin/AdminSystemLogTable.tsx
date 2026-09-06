@@ -42,7 +42,7 @@ export function AdminSystemLogTable({
   systemLogPageSize,
   onSystemLogPageChange,
   onSystemLogPageSizeChange,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   const getSeverityTone = (level?: string | null) => {

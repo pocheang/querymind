@@ -65,7 +65,7 @@ interface ExportButtonsProps {
   onExport?: () => void;
 }
 
-export function ExportButtons({ data, filename, onExport }: ExportButtonsProps) {
+export function ExportButtons({ data, filename, onExport }: Readonly<ExportButtonsProps>) {
   const { t } = useTranslation();
 
   const handleExportCSV = () => {

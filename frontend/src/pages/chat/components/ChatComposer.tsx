@@ -31,7 +31,7 @@ export function ChatComposer({
   onComposerDragLeave,
   onComposerDrop,
   onChatUploadChange,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const question = useChatStore((s) => s.question);
   const setQuestion = useChatStore((s) => s.setQuestion);

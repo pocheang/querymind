@@ -28,7 +28,7 @@ type Props = {
  * pattern (.api-settings-overlay/.api-settings-panel) for consistency with
  * the app's one established modal style rather than inventing a new one.
  */
-export function SessionManagementModal({ isOpen, onClose, currentSessionId, messages, onSelectSession }: Props) {
+export function SessionManagementModal({ isOpen, onClose, currentSessionId, messages, onSelectSession }: Readonly<Props>) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("search");
 

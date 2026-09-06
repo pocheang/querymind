@@ -34,7 +34,7 @@ function sourceChips(metadata: SessionMessageMetadata) {
   return outcomes.filter((outcome) => outcome.status === "completed");
 }
 
-export function MetadataBadges({ metadata }: Props) {
+export function MetadataBadges({ metadata }: Readonly<Props>) {
   const { t } = useTranslation();
   const latency = formatLatency(metadata.latency_ms);
   const sources = sourceChips(metadata);

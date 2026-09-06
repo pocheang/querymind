@@ -13,7 +13,7 @@ interface Props {
   stats: Stats;
 }
 
-export function WebActivityKpiCards({ stats }: Props) {
+export function WebActivityKpiCards({ stats }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

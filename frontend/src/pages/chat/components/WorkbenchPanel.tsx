@@ -104,7 +104,7 @@ export function WorkbenchPanel({
   onUsePrompt,
   onEditPrompt,
   onDeletePrompt,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const [toolsCollapsed, setToolsCollapsed] = useState({
     agents: false,

@@ -45,7 +45,7 @@ export function SessionList({
   onDeleteSession,
   onRenameSession,
   onPinSession,
-}: Props) {
+}: Readonly<Props>) {
   const { t, i18n } = useTranslation();
   const permissions = usePermissions(user);
   const [sessionQuery, setSessionQuery] = useState("");

@@ -14,7 +14,7 @@ interface ToastStackProps {
   onRemove?: (id: string) => void;
 }
 
-export function ToastStack({ toasts, onRemove }: ToastStackProps) {
+export function ToastStack({ toasts, onRemove }: Readonly<ToastStackProps>) {
   // 将Chat的Toast格式转换为AnimatedToastLite的格式
   const animatedToasts = toasts.map((t) => ({
     id: t.id,

@@ -20,7 +20,7 @@ export function ApiSettingsFormFields({
   showApiKey,
   onShowApiKeyToggle,
   onConfigChange,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

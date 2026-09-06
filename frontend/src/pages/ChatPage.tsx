@@ -39,7 +39,7 @@ import { useSectionToggle, useTopbarToggle } from "@/hooks/useSectionToggle";
 // Route-specific CSS (code-split by Vite)
 import "@/styles/pages/chat-entry.css";
 
-export function ChatPage({ user, onLogout, onUserRefresh }: Props) {
+export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
   const [executionId, setExecutionId] = useState<string | null>(null);
   // A governed action the last run produced but did not perform, paired with the
   // question that produced it: confirming re-sends that question with the

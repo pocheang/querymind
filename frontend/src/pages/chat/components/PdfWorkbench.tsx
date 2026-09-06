@@ -19,7 +19,7 @@ export function PdfWorkbench({
   onPdfTargetFileChange,
   onSwitchAgentMode,
   onDraftQuestion,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

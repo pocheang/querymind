@@ -37,7 +37,7 @@ type Props = {
   onClose: () => void;
 };
 
-export function ApiSettings({ isOpen, onClose }: Props) {
+export function ApiSettings({ isOpen, onClose }: Readonly<Props>) {
   const { t } = useTranslation();
   const [config, setConfig] = useState<ApiConfig>(DEFAULT_CONFIG);
   const [showApiKey, setShowApiKey] = useState(false);

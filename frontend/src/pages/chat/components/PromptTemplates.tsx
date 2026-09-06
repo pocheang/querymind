@@ -33,7 +33,7 @@ export function PromptTemplates({
   onUsePrompt,
   onEditPrompt,
   onDeletePrompt,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

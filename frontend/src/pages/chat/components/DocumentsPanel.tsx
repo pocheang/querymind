@@ -48,7 +48,7 @@ export function DocumentsPanel({
   onDocDropActiveChange,
   onReindexDocument,
   onDeleteDocument,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const pdfDocuments = documents.filter((doc) => PDF_FILE_RE.test(doc.filename || ""));
   const nonPdfDocuments = documents.filter((doc) => !PDF_FILE_RE.test(doc.filename || ""));

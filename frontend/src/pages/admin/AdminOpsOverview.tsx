@@ -45,7 +45,7 @@ export function AdminOpsOverview({
   onOpsAutoRefreshChange,
   onOpsActorUserIdChange,
   onOpsActionKeywordChange,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (

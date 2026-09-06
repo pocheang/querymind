@@ -21,7 +21,7 @@ export function ConfirmDialog({
   isDanger = false,
   onConfirm,
   onCancel,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const titleId = useId();
 

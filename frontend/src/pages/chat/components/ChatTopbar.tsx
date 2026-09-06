@@ -25,7 +25,7 @@ export function ChatTopbar({
   onOpenSessionManagement,
   onToggleTopbar,
   onToggleSections,
-}: Props) {
+}: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (
