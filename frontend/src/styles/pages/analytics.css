@@ -194,16 +194,24 @@
     color: var(--accent);
   }
 
+  /* The three literals below were the recharts default palette used as text.
+     Measured on the running page against the card's white surface: green
+     2.16:1, yellow 1.64:1, orange 2.41:1. These are 2rem/700 numbers, so the
+     threshold that applies is the large-text 3:1 rather than 4.5:1 -- each is
+     darkened by the smallest hue-preserving step that clears it with margin,
+     which keeps the palette recognisable. Do not reuse these three values at a
+     smaller size; the blue card already reads `var(--accent)`, which is the
+     token that clears 4.5:1 at any size. */
   .stat-card-analytics.green p {
-    color: #00C49F;
+    color: #00a183; /* 3.15:1 */
   }
 
   .stat-card-analytics.yellow p {
-    color: #FFBB28;
+    color: #be8200; /* 3.18:1 */
   }
 
   .stat-card-analytics.orange p {
-    color: #FF8042;
+    color: #fd5300; /* 3.16:1 */
   }
 
   /* Charts Section */
@@ -284,12 +292,16 @@
     box-shadow: 0 4px 12px var(--accent-glow);
   }
 
+  /* This one carries 16px/600 white text, so it needs the full 4.5:1 and not
+     the 3:1 the stat numbers above get: white on #00C49F measured 2.16:1.
+     The hover step is darker rather than lighter -- lightening a fill that is
+     only just clearing AA walks it back under. */
   .analytics-page .export-btn.csv {
-    background: #00C49F;
+    background: #008269; /* white on this: 4.61:1 */
   }
 
   .analytics-page .export-btn.csv:hover {
-    background: #00d4a8;
+    background: #006552; /* 6.79:1 */
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 196, 159, 0.3);
   }

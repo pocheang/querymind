@@ -210,3 +210,19 @@
 .reactflow-wrapper .react-flow__node .react-flow__handle {
   color: inherit;
 }
+
+/* React Flow's attribution is required and must stay visible, so it may as well
+   be readable: the vendor ships #999 inside a panel it also sets to
+   `opacity: 0.5`, which measures 1.61:1 at 10px. Raising the panel to full
+   opacity and taking the link to `--text-secondary` keeps the attribution
+   exactly where it was and makes it legible. Unlayered for the same reason as
+   the rules above -- the vendor stylesheet is imported unlayered by
+   `DataFlowVisualization.tsx`, so a layered rule cannot reach it. */
+.reactflow-wrapper .react-flow__attribution {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.reactflow-wrapper .react-flow__attribution a {
+  color: var(--text-secondary);
+}

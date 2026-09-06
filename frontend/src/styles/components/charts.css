@@ -1,0 +1,29 @@
+/* ============================================
+   Chart legends
+
+   Recharts paints the legend *label* with the series colour, written as an
+   inline style on the span:
+
+     <span class="recharts-legend-item-text" style="color: rgb(0, 136, 254)">
+
+   so every label inherits whatever its bar is filled with. Measured on the
+   analytics page: "Average score" 1.69:1, "Success rate (%)" 2.23:1,
+   "Queries" 3.53:1, all at 16px and all below AA.
+
+   The colour is not carrying information in the label. The swatch beside it is
+   an SVG painted with the same series colour and keeps it, so the series stays
+   vivid where a saturated colour is what a reader actually needs -- in the
+   chart -- and the label becomes readable.
+
+   `!important` here is not a cascade fight with this project's own stylesheets,
+   which the styling notes rule out. An inline style beats every layer, so no
+   selector in `legacy`, `components` or `utilities` can reach this one. The
+   alternative is recharts' own `formatter` prop, which would have to be
+   repeated at each `<Legend>` call site and remembered at the next one; a
+   single rule here covers every chart in the app, including charts not yet
+   written.
+   ============================================ */
+
+.recharts-legend-item-text {
+  color: var(--text-secondary) !important;
+}

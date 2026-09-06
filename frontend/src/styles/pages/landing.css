@@ -514,10 +514,15 @@
   flex-shrink: 0;
 }
 
+/* No `opacity` here. These rows say which features a tier does *not* include,
+   which is content a reader has to be able to read -- not an inactive control,
+   so WCAG's exemption for those does not apply. `--text-tertiary` is chosen to
+   clear 4.5:1 (it measures 4.61 on this surface); multiplying it by 0.6 took it
+   to 2.47 and undid that. The line-through already says "not included", so the
+   fade was saying it a second time at the cost of legibility. */
 .landing-tier-features li.disabled {
   color: var(--text-tertiary);
   text-decoration: line-through;
-  opacity: 0.6;
 }
 
 .landing-tier-features li.disabled svg {
@@ -659,10 +664,20 @@
   color: #ffffff;
 }
 
+/* `color: inherit` is load-bearing, not tidiness. The banner sets `color:
+   white` on itself and the h2 above restates it, but `reset.css` carries
+   `p { color: var(--text-secondary) }` -- a type selector that matches this
+   element directly, and a directly-matched rule beats an inherited value
+   whatever the parent's specificity. So the paragraph rendered #475569 on the
+   indigo gradient at 1.37:1, while the heading beside it was white. It fails
+   the same way against the pre-2026-09-06 gradient, so this is not fallout
+   from darkening `--gradient-primary`; it was simply never measured against a
+   gradient before. */
 .landing-cta-banner p {
   font-size: var(--text-lg);
   max-width: 600px;
   margin: 0 auto var(--space-10) auto;
+  color: inherit;
   opacity: 0.9;
   line-height: 1.6;
 }

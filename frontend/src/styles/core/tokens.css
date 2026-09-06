@@ -40,13 +40,34 @@
   --accent-light: #dbeafe;
   --accent-soft: rgba(59, 130, 246, 0.12);
 
-  --success: #10b981;
+  /* The four status colours are each used three ways: as text, as a fill that
+     carries white text, and -- the binding constraint -- as a 14-20% tint of
+     themselves that the same colour is then written on. `ops.css` pairs
+     `color-mix(in srgb, var(--warning) 20%, transparent)` with
+     `color: var(--warning)`, and the badge rows do the same, so the background
+     moves with the token and a colour has to clear AA against a pale version of
+     itself. Each value below is the smallest darkening -- hue and saturation
+     held -- that reaches 4.5:1 on every surface measured on the running admin
+     page and on its own 6-20% tints.
+
+     Darkening is the correct direction for all three uses at once: these also
+     back white text, and the active pagination button was white on #06b6d4 at
+     2.43:1. Measured before, on the page: info 1.98 on the active tab,
+     success 2.04 on the ops state panel, warning 2.01 on an audit severity
+     badge, danger 3.44 on its own tint. The vivid values are deliberately not
+     kept under a second name -- nothing needed them, and this file has already
+     paid for tokens with no consumer.
+
+     Note that `getComputedStyle` returns these tints as `color(srgb r g b / a)`,
+     not `rgba()`. An auditor that only parses `rgba()` reads the tint as the
+     surface underneath it and reports these badges as passing. */
+  --success: #0a704e;
   --success-light: #d1fae5;
-  --warning: #f59e0b;
+  --warning: #895806;
   --warning-light: #fef3c7;
-  --danger: #ef4444;
+  --danger: #bd1010;
   --danger-light: #fee2e2;
-  --info: #06b6d4;
+  --info: #046c7e;
   --info-light: #cffafe;
 
   /* Spacing Scale */

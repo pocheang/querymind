@@ -22,10 +22,19 @@
   letter-spacing: 0;
 }
 
+/* #6d7c9a measured 4.20:1 on the card's near-white surface -- a near-miss at
+   16px, and the only grey in this file that was not already #6a7384 (4.77:1),
+   which the field hints and the social divider use. One grey rather than two
+   that differ by less than the eye can see and by more than AA allows.
+
+   It survived the earlier auth pass because the audit ran in a background tab:
+   `.auth-card` enters on a `slideUp` animation with `animation-fill-mode: none`
+   over a base of `opacity: 0`, and a background tab never advances it, so every
+   node on the card computed to opacity 0 and was skipped as invisible. */
 .auth-form-subtitle {
   margin: 0;
   font-size: 16px;
-  color: #6d7c9a;
+  color: #6a7384;
   line-height: 1.6;
 }
 
