@@ -1870,6 +1870,46 @@ Measure it in a real browser and read numbers, not impressions:
 *Is it a11y state?* Read the accessibility tree, not the pixels. `aria-expanded` /
 `aria-pressed` on a toggle is invisible in a screenshot and obvious in the tree.
 
+**A contrast auditor's bugs all fail in the same direction: they report a pass.**
+The 2026-09-05/06 sweep took the app from 130-odd failures to two deliberate
+exemptions (a logotype, which 1.4.3 exempts, and a disabled button, which it also
+exempts) -- but every defect found in the auditor itself had been quietly marking
+something readable, which is worse than not having run it. Six were fixed on the
+first pass (it read `backgroundColor` and never gradients, flagged emoji, read
+`background-clip: text` backwards, treated translucent gradient stops as opaque,
+and merged multi-layer backgrounds); three more turned up on the admin pages, and
+these are the ones worth writing down because nothing about them looks wrong:
+
+- **`color-mix()` computes to `color(srgb r g b / a)`, not `rgba()`.** A parser
+  that only knows `rgba()` returns null for it, the tint is skipped, and the text
+  is scored against the surface *underneath* the tint. Every status badge in
+  `ops.css` therefore measured as passing. This matters here specifically because
+  the house pattern is `color-mix(in srgb, var(--x) 20%, transparent)` with
+  `color: var(--x)` on top -- a colour on a pale version of itself, which is the
+  binding constraint on all four status tokens.
+- **`opacity` is not in `getComputedStyle(el).color`.** It applies at paint, on
+  the element *and every ancestor*, so the foreground alpha has to be multiplied
+  down the chain. Folding it in immediately found a 4.61:1 token being taken to
+  2.47 by an `opacity: 0.6` on the same rule.
+- **A background browser tab never advances CSS animations.** `.auth-card` enters
+  on `slideUp` with `animation-fill-mode: none` over a base of `opacity: 0`, so in
+  a background tab every node on the login card computes to opacity 0 and is
+  skipped as invisible. The audit reported 2 nodes checked and zero failures. Any
+  audit that walks the DOM has to run in the fronted tab, and has to report what
+  it *skipped* -- a count of nodes checked is the only thing that shows the
+  difference between "clean" and "did not look". The same applies to React Flow,
+  which renders nodes `visibility: hidden` until it has measured them, so the
+  34-node architecture diagram needs to be scrolled into view and waited for.
+
+Two rules follow. **Measure against the surface the text actually lands on**, never
+against white: `--accent`, `--text-tertiary` and `--chat-text-secondary` each took
+three iterations because the first two were measured on white and failed on
+`#fafbfc`, then on `#ddebff`. And **prove the scanner can fail before believing a
+pass** -- plant a node at a known-bad ratio, confirm it is reported, remove it. That
+is the same rule this file records for the sensitive-content gate and for
+`test_a_mismatched_scope_returns_nothing`, and it is the only reason the zero above
+means anything.
+
 **`npm run screenshots` captures the app's states to PNG** (`frontend/scripts/screenshots.mjs`,
 Playwright + Chromium): desktop 1440x900 and phone 375x812, signed in and signed out, sidebar
 open and closed, workbench collapsed and expanded — eight files. Both servers must be up
