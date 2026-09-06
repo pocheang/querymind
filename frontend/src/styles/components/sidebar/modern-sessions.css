@@ -121,7 +121,7 @@
 }
 
 .page-shell .session-search input::placeholder {
-  color: var(--text-tertiary);
+  color: var(--text-faint);
   font-weight: 400;
   transition: color 0.2s ease;
 }

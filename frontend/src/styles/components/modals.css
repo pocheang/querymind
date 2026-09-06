@@ -322,7 +322,7 @@
 }
 
 .api-input-field::placeholder {
-  color: var(--text-tertiary);
+  color: var(--text-faint);
 }
 
 .api-input-field:focus,

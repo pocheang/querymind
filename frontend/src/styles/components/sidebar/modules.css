@@ -803,7 +803,7 @@
 }
 
 .page-shell .sidebar .panel input::placeholder {
-  color: var(--text-tertiary);
+  color: var(--text-faint);
   font-weight: 400;
 }
 
@@ -844,7 +844,7 @@
 }
 
 .page-shell .sidebar .panel textarea::placeholder {
-  color: var(--text-tertiary);
+  color: var(--text-faint);
   font-weight: 400;
   font-family: system-ui, -apple-system, sans-serif;
 }

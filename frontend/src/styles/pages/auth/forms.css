@@ -50,7 +50,7 @@
 .auth-input-icon {
   width: 18px;
   height: 18px;
-  color: #9aa7c0;
+  color: #6a7384;
   flex-shrink: 0;
 }
 
@@ -178,7 +178,7 @@
 .auth-form .footer-text {
   margin: 0 0 6px;
   font-size: 13px;
-  color: #9aa7c0;
+  color: #6a7384;
   text-align: center;
 }
 
@@ -238,7 +238,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #3467ea;
+  /* Was #3467ea: 4.07:1 on the tinted #ddebff panel this link sits on. Uses
+     the accent token now rather than a second, slightly different blue. */
+  color: var(--accent);
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;

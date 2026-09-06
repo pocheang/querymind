@@ -37,7 +37,7 @@ textarea:focus {
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--text-tertiary);
+  color: var(--text-faint);
 }
 
 /* ============================================

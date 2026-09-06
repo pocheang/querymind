@@ -15,14 +15,27 @@
 
   --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-tertiary: #94a3b8;
+  /* Content, not decoration: 4.61:1 on the lightest surface it lands on (#fafbfc), not merely on pure white. Was #94a3b8 at 2.56:1, which is
+     below AA for any text and was being used for metric labels, struck-through
+     feature rows and status lines. The pale value survives as `--text-faint`
+     for placeholders, where the contrast minimum does not apply -- darkening a
+     placeholder makes an empty field look filled. Mirrors the split
+     `themes/light/contrast.css` already made for the chat theme. */
+  --text-tertiary: #687381;
+  --text-faint: #94a3b8;
   --text-inverse: #ffffff;
 
   --border-light: #e2e8f0;
   --border-medium: #cbd5e1;
   --border-strong: #94a3b8;
 
-  --accent: #3b82f6;
+  /* 4.61:1 against the lightest surface it lands on (#fafbfc), as text and as a fill
+     carrying white text alike -- measured there rather than against pure white,
+     which is how the first attempt landed at 4.45 on the nav. Was
+     #3b82f6 at 3.68:1 -- the value `contrast.css` had already measured and
+     replaced, but only inside `.page-shell`. Darkened by the smallest amount
+     that clears AA, so the hue is unchanged. */
+  --accent: #2f66c1;
   --accent-hover: #2563eb;
   --accent-light: #dbeafe;
   --accent-soft: rgba(59, 130, 246, 0.12);
@@ -70,7 +83,9 @@
 
   /* Gradients */
   --gradient-brand: linear-gradient(135deg, #5b8cff 0%, #8b7aff 100%);
-  --gradient-primary: linear-gradient(135deg, #3b82f6, #6366f1);
+  /* Both stops clear 4.6:1 as gradient text on #fafbfc and carry white text as a
+     fill; they were 3.68 and 4.47. */
+  --gradient-primary: linear-gradient(135deg, #2f66c1, #5559d6);
   --gradient-success: linear-gradient(135deg, #10b981, #059669);
   --gradient-danger: linear-gradient(135deg, #ef4444, #dc2626);
   --gradient-warning: linear-gradient(135deg, #f59e0b, #d97706);

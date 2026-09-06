@@ -50,7 +50,7 @@
 }
 
 .landing-orb-2 {
-  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, #047d92 0%, #2f66c1 100%);
   width: 400px;
   height: 400px;
   top: 30%;
@@ -481,11 +481,7 @@
 }
 
 .landing-tier-metric-label {
-  /* Not `--text-tertiary`: that token is #94a3b8, which is 2.54:1 on this card
-     and fails AA for any text. These are labels for the numbers beside them --
-     content, not a placeholder -- so they take the darker slate at 4.76:1.
-     Measured on the rendered page. */
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .landing-tier-metric-val {
@@ -519,10 +515,7 @@
 }
 
 .landing-tier-features li.disabled {
-  /* A struck-through feature still has to be readable: it is how a reader learns
-     what this tier does *not* include. #94a3b8 was 2.54:1; #64748b is 4.76:1 and
-     still reads as de-emphasised next to the enabled rows. */
-  color: #64748b;
+  color: var(--text-tertiary);
   text-decoration: line-through;
   opacity: 0.6;
 }
