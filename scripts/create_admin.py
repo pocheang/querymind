@@ -113,7 +113,12 @@ def main(argv: list[str] | None = None) -> int:
         service.create_user_with_role(username=args.username, password=password, role="admin")
         action = "created"
 
-    print(f"{action} administrator '{args.username}' in {settings.users_path}")
+    # `settings.users_path` does not exist and never did -- `Settings` has
+    # `app_db_path`. This line raised AttributeError *after* the account was
+    # created, so the script reported a failure having succeeded, and the
+    # generated password printed below was lost with it: an admin account nobody
+    # could sign in to and no way to find out. Found on 2026-09-06 by running it.
+    print(f"{action} administrator '{args.username}' in {settings.app_db_path}")
     if supplied:
         print("password: (taken from ADMIN_PASSWORD)")
     else:
