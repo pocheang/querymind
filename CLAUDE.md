@@ -584,6 +584,60 @@ decision, not a bug fix — do not "fix" them by flipping the flag.
 **Note**: Quality validation is controlled by `ExecutionPolicy`, not by per-profile
 settings — see Pipeline Profile above.
 
+### The first run creates an administrator
+
+`scripts/create_admin.py` was the only way to get an account with the `admin` role, so
+until 2026-09-08 a checkout had none: every `/admin/*` endpoint and all ten tabs of the
+console were unreachable by anyone who had not read the documentation. That is not a
+feature that is switched off, it is a feature nobody can find --
+`app/services/auth/bootstrap.py::ensure_admin_account` now runs from the lifespan and
+creates one when there is none.
+
+Four decisions in it are the point, and each is a way this shape usually goes wrong:
+
+- **No default password.** `admin/admin` is the first pair anything scanning the internet
+  tries, and a credential in this repository is a credential in every checkout of it. The
+  password comes from `ADMIN_PASSWORD` or is generated per installation.
+- **It keys on "no *active* administrator", not "no users".** An installation where
+  somebody registered an ordinary account first would otherwise never get one and would be
+  locked out with no way in short of editing SQLite; and an installation whose only admins
+  are *disabled* is in exactly the state this exists for, which a row-existence check
+  misses. Recreating one on restart is a recovery path, not a way past authentication --
+  whoever can restart the process can already read the database.
+- **An existing account is never promoted.** If the chosen username is taken by a
+  non-admin the bootstrap refuses and says so. Raising somebody's role because their
+  username collided is privilege escalation triggered by a string. (Without the guard it
+  is a bare `sqlite3.IntegrityError`, which is the shape somebody "fixes" by promoting.)
+- **A weak `ADMIN_PASSWORD` is an error, not a fallback.** Generating a different one
+  would leave the operator unable to sign in with what they set and nothing would say why.
+
+**The generated password goes to stderr, never through `logging`.** `setup_log_capture()`
+buffers records for the admin console's own log viewer, so a password logged there is
+readable by every administrator added afterwards -- a wider audience than the one person
+meant to see it. `describe_bootstrap` returns the block and the caller prints it;
+`test_the_password_is_never_written_through_the_logger` pins it.
+
+`ADMIN_USERNAME` and `ADMIN_PASSWORD` are read from the real process environment and are
+**not** `Settings` fields, for the reason `NACOS_PASSWORD` is not one: a field can reach a
+configuration endpoint. Both are in the `test_config_has_one_source.py` allowlist with
+that reason, and a test greps `config/env/*` and `config/profiles/*` for `ADMIN_PASSWORD`,
+because a key in a tracked layer looks exactly like a live setting.
+
+**The lifespan skips this under pytest**, so a test run cannot write an account into the
+developer's `data/app.db`; `tests/services/test_admin_bootstrap.py` (22) drives the
+function directly, which is a better test than a side effect of starting an app. The
+startup wiring itself was verified by running it: an empty database produced the banner
+and one `admin` row, a second run produced nothing, and a username collision logged the
+refusal and let startup continue.
+
+`scripts/create_admin.py` stays, and now calls the same `ensure_admin_account` rather than
+carrying its own copy -- two definitions of "what an administrator is" is how the two
+drift. What it still does that a running server will not is reset a forgotten password.
+
+Verified able to fail in four directions: a constant default password, promoting the
+colliding account, keying on "any users at all", and logging the password each redden the
+test that exists for them.
+
 ### Governed tool stack
 
 `app/mcp/runtime.py::get_tool_stack()` builds the approval store, registry,
@@ -908,6 +962,159 @@ turn asked. The block still leads the sequence — it also carries the long-term
 raw turns do not — and `_render_turns` skips it when building the rewrite prompt so the same
 rounds are not shown twice in two formats. One consequence of the old shape: the
 `max_turns=12` bound in `_render_conversation` was dead, because there was only ever one turn.
+
+### Long-term memory is the user's data, and had no page
+
+`_promote_long_term_memory` runs on every answered query and `build_memory_context` feeds
+the selected memories back into the next one, so this system accumulates memories about a
+person and uses them to shape later answers. Until 2026-09-08 **nothing in the frontend
+named them** -- a full-text search of `frontend/src` for `memor` returned no API call at
+all.
+
+**Not every answer becomes a memory, and that is worth knowing before reading the store.**
+`MemoryResolver.propose` looks at the *question*, not the answer, and keeps it only if it
+matches one of four patterns -- `记住`/remember, `喜欢`/prefer, `提醒我`/remind me,
+`我是`/`I am`/`my X is` -- which is what makes the four `kind` values (`explicit_remember`,
+`preference`, `task`, `stable_fact`) mean something. It also refuses anything
+`inspect_text` finds PII in, so a memory is never a redaction hole. What is stored is
+derived from the user's own words, which is exactly why they have to be able to read it
+back.
+
+**Two endpoints existed and neither could do the job, for the same reason.** Both treated a
+user-scoped record as though it were session-scoped:
+
+- `list_long_term` returns `long_term_ids`, which `_recompute_long_term_ids` caps at
+  `LONG_TERM_TOP_N` (5). It is a **working set** -- what one conversation will be given --
+  and it merges the `_global` pseudo-session's rows in, so the five differ by which session
+  asked. Measured on ten promotions: **nine stored, five listed, and a different five from
+  `_global`**. The two carrying a desk location and a team codename appeared in neither
+  session's list.
+- `delete_long_term` searched only the payload of the session it was called on, while the
+  list it answers merges the global set into every session. So it returned **404 for rows it
+  had just returned**. Of the nine, a session could list five and delete three.
+
+`MemoryStore` now has `list_all`, `forget` and `forget_all`, all of which walk **every**
+payload under the store's directory, and `delete_long_term` delegates to `forget` --
+validating the session id and then deliberately not using it to narrow the search.
+
+**The half-delete is the failure worth remembering.** A candidate is held twice, in the
+global payload and in the session that promoted it, and `list_long_term` reads both.
+Dropping either copy alone leaves the memory listed *and still in the prompt*, so "deleted"
+would report success and change nothing the reader can see.
+`test_forgetting_removes_a_memory_from_the_prompt_as_well_as_the_list` pins it, and was
+verified able to fail by reducing `forget` to the global payload alone.
+
+`GET /api/v1/memories`, `DELETE /api/v1/memories/{memory_id}` and `DELETE /api/v1/memories`
+are the record. Every handler resolves the store through `_memory_store_for_user`, which
+keys it on tenant and user id, so an id in a URL names nothing outside the caller's own
+directory -- there is no row for it to reach rather than a check that refuses to reach one.
+
+**An expired memory is returned marked `active: false` rather than hidden.** It no longer
+reaches the model but it has not gone anywhere; omitting it would report less held than is
+held, and would leave no way to remove it. `_expired` became
+`memory_is_expired(expires_at)` and takes the stored timestamp rather than a `MemoryItem`,
+so the store asks the resolver's own question instead of carrying a second definition --
+which matters because the store holds rows `memory_item_from_row` refuses, the legacy
+shapes with no `kind`.
+
+`forget_all` counts **distinct ids, not rows**: a memory is normally held twice, and
+telling somebody who was shown nine that eighteen were deleted reads as data they were
+never told about.
+
+The reader-facing half is `features/memory/MemoryPanel.tsx`, a section of the settings
+drawer beside Integrations rather than its own destination -- the same reasoning that
+declined to build the prototype's separate Integrations button. Two details in it are not
+taste:
+
+- **The kind label is a switch of literal `t()` keys**, not an interpolated one, because
+  `i18n/locales.test.ts` scans for literal calls; an interpolated key is invisible to it and
+  a missing locale entry then renders English forever, silently.
+- **The fetch effect must not depend on `t`.** react-i18next hands back a new `t` whenever
+  the language changes, so a fetch keyed on it re-runs for a reason unrelated to the data --
+  and under any `useTranslation` that does not memoize, it is an unbounded render loop
+  rather than an extra request. That is not hypothetical: the first version of the test
+  mocks a fresh `t` per render, and three vitest workers reached 1.8-3.4 GB with **no output
+  at all** before being killed. The tell was the absence of output, not an error. The
+  fallback wording is resolved at render time now, where it belongs.
+
+**Stored memories reach an answer by two independent routes, and a fix checked against one
+of them is half a deletion.** `build_memory_context` renders them into the prompt through
+`list_long_term`; the `memory` retrieval source returns them as *evidence* through
+`GBrainLongTermMemory.search`, which reads `list_global` instead -- a provider facade over
+the same store, keyed by `memory_base_dir` on the same tenant and user. Both are tested,
+and reducing `forget` to the session payload alone reddens both. There is exactly one
+writer on the request path (`_promote_long_term_memory`) and these two readers;
+`GBrainLongTermMemory.upsert`/`expire` have no caller in `app/` but touch the same store,
+so there is no shadow copy anywhere.
+
+**Deleting a conversation does not delete what it taught, and that is now pinned as a
+decision rather than left as an accident.** `HistoryStore.delete_session` unlinks the
+transcript and nothing else; a promoted memory lives in the `_global` payload precisely so
+it outlives one thread, which is the design -- "my timezone is UTC+8" is a fact about the
+person, not about where they mentioned it. That is defensible *only* while the person can
+see and remove it, so
+`test_deleting_a_conversation_does_not_delete_what_it_taught` asserts both halves
+together: the memory survives, and it is still listed and still removable. Before this
+change it survived with no remedy.
+
+**An expired row is de-emphasised by its ground, never by `opacity`.** The first version
+dimmed the whole row with `opacity-70`, which is the trap this file already records from
+the other side: `opacity` composites the entire subtree and never appears in
+`getComputedStyle().color`, so an audit walks straight past it. Measured, `--text-muted`
+goes from 5.56 to **2.97** under it -- failing AA on the kind label, the expiry badge and
+the date of every expired row. `bg-surface-muted` moves nothing (5.28), and the badge is
+what reaches a screen reader anyway, which `opacity` never did.
+
+That assertion is checkable without a browser, and the first attempt at it was **vacuous**:
+a backslash-b written through a shell heredoc reached the file as a literal backspace, so
+`not.toMatch(/<0x08>opacity-/)` could not fail. It matches class *tokens* now
+(`className.split(" ")`), and was verified by putting `opacity-70` back. Worth the note:
+a regex that silently stops matching is the same defect as a filter option nothing writes,
+and `cat -A` is what showed it.
+
+**Measured afterwards in a real browser and the calculation held**: the expired row
+computes `rgb(250,249,247)` at `opacity: 1`, and the panel's worst node is **5.28**
+(`--text-muted` on `--surface-muted` -- the description, the `Fact` and `Expired` badges,
+and the dates), against 2.97 for what `opacity-70` would have produced. 32 nodes checked,
+zero failures, and the three skipped were the harness's own header rather than the panel.
+
+**Measuring it needed a harness, and the harness found a second finding the calculation
+could not have.** The drawer is behind authentication, so the panel was rendered by a
+temporary `harness.html` + `harness.tsx` at the frontend root -- the real components, the
+real `styles/main.css` cascade, the real aurora ground and the drawer's own wrapper
+markup copied from `ApiSettings`, with only `window.fetch` replaced. On the first run the
+audit **skipped** the description text: the panel body was `bg-surface-muted/60`, and an
+alpha tint over a `glass-panel` over a gradient has no background the walk can resolve.
+It is opaque now, which is the same remedy `--success-surface` exists for. A skipped node
+is the one number that separates "clean" from "did not look", which is why the count is
+reported rather than the failures alone.
+
+What a harness like that proves and does not: resolved colour, layout and interaction are
+real, because the CSS and the components are. Anything about the surrounding signed-in
+page is not, and the drawer opening from the top bar was never exercised. Delete it in the
+same change -- a fixture left in `frontend/` is a second entry point Vite will happily
+serve.
+
+`tests/services/test_long_term_memory_record.py` (27) and `MemoryPanel.test.tsx` (10). Each
+was verified able to fail: restoring the shipped `delete_long_term` reddens the
+cross-session deletion test; reducing `forget` to the global payload reddens two, and
+skipping the global payload instead reddens four including the retrieval one; capping the
+panel's list at five reddens four; removing the guarded payload read reddens the corrupt-file
+test; and ignoring the confirmation on "delete all" reddens one.
+
+**The two session-scoped endpoints keep their job and now say what it is.** Their
+docstrings name themselves as the working set and point at `/api/v1/memories`, because the
+next person to build a "what do you remember about me" screen will find them first -- they
+are the ones with `memories` in the path. The command palette does not get an entry of its
+own either; the settings item's `value` carries the drawer's section names instead, so
+searching "记忆" or "memory" reaches it without inventing a second name for one
+destination.
+
+**Prompt version history is the other end of the same audit and is deliberately not built.**
+The backend serves `GET /prompts/{id}/versions` and the approve/rollback pair; the frontend
+prompt library calls only `/prompts`, `/prompts/check` and `/prompts/{id}`, so a prompt
+edited badly cannot be rolled back from the UI. That is an ordinary missing feature. The
+memory gap was not: it was stored personal data with no way to see or remove it.
 
 ### Knowledge graph extraction
 
@@ -1776,167 +1983,771 @@ misled readers. The chat endpoint moved to `public/query.py`, the SSE endpoint t
 
 **Note**: The `app/agents/` directory name is historical - it houses components, not autonomous agents.
 
-### Frontend styling (adopted 2026-08-31)
+### Frontend styling (rewritten 2026-09-07)
 
-**New and changed UI is written in Tailwind; the 73 hand-written stylesheets are
-migrated as they are touched, never in bulk.** A wholesale rewrite would churn every
-file in the app to fix a problem that is mostly cosmetic, and would discard visual
-behaviour that was tuned against real screenshots.
+**The frontend is shadcn/ui components over Tailwind v4, in a warm amber theme.** The
+visual language is ported from a design prototype (`QueryMind NextGen`): a 56px glass top
+bar, a 320px glass sidebar, frosted content cards on an "aurora" wash of four soft amber
+pools, 12px body text, and mono for every number, id and filename.
 
-**The cascade has an order now**, declared once in `styles/main.css`:
+This replaced the previous strategy -- "new UI in Tailwind, migrate the 73 hand-written
+stylesheets as they are touched, never in bulk". That strategy was right while the target
+was the existing look; it is the wrong shape for a change of visual language, because the
+two palettes then coexist for as long as the migration takes. The estate went from 79
+stylesheets / 15,781 lines to 9 / 1,194.
+
+**The cascade order still exists and is still what makes any of this work**, declared once
+in `styles/main.css`:
 
 ```
-theme      Tailwind's token layer
-legacy     the 73 hand-written stylesheets, being migrated away
+theme      Tailwind's token layer, then core/theme-amber.css
+legacy     core/reset.css (the preflight) and components/charts.css
 components component-local CSS imported from a .tsx
 design     core/elevation.css and core/surfaces.css
-utilities  Tailwind
+utilities  Tailwind, and the @utility classes in core/app-utilities.css
 ```
 
-This is the thing that makes incremental adoption possible at all. Before it, every
-hand-written sheet was *unlayered*, and unlayered rules beat every layer regardless of
-specificity — so a Tailwind class written in a component silently lost to the CSS it was
-meant to replace. That is why the codebase had four `tw:` class names against 1288
-`className` attributes, and why none of the four did anything.
+`legacy` has two occupants now rather than 73, and both are there because they must
+outrank nothing and be outranked by utilities. Keep the statement even so: it is what
+lets a stylesheet be added and migrated away again without an arms race.
 
-`styles/tailwind.css` is a stub: `@source` cannot be nested inside an import, so the
-Tailwind directives live at the root of `main.css`. Without `@source`, importing
-`tailwindcss/utilities.css` on its own emits **zero bytes** — `@import "tailwindcss"` is
-what normally carries source detection, and this project does not use that form.
+Unlayered rules beat every layer regardless of specificity, which is why nothing may be
+imported without naming a layer -- with one deliberate exception, `core/app-utilities.css`,
+whose `@utility` rules Tailwind places in `utilities` itself.
 
-**Shape and depth come from a scale**, defined in `styles/core/elevation.css` and mirrored
-into `@theme` so they exist as utilities:
+**Tailwind v4, CSS-first, and no config file.** Theme values live in `@theme` / `@theme
+inline` in `main.css`; there is no `tailwind.config.js` and no `components.json`. Two v4
+specifics that a v3-era tutorial will get wrong: custom utilities use `@utility`, not
+`@layer utilities { .x {} }`; and Radix enter/exit animations come from **`tw-animate-css`**,
+because `tailwindcss-animate` is a v3 PostCSS plugin that cannot load here.
 
-| | token | utility |
+**The `tw:` prefix is gone.** `tailwind-merge` parses class names against Tailwind's own
+conflict table and does not understand a prefix, so with one configured `cn()` degrades
+silently from "the later class wins" to plain concatenation -- which is the entire reason
+`cn()` exists. Dropping it required deleting `core/utilities.css` in the same commit: it
+hand-defined 19 classes sharing names with real utilities (`.rounded-md` = 8px vs
+Tailwind's 6px, `.shadow-sm`, `.text-primary`, `.bg-surface`, ...) and `utilities` outranks
+`legacy`, so every one would have flipped appearance with nothing reporting it.
+
+**`components/ui/*` is written by hand, not by the shadcn CLI.** The CLI writes
+`components.json`, assumes no prefix, and may emit v3-shaped files that fight the existing
+`@theme inline` block. Each component is `React.forwardRef` (React 18 -- not the React 19
+ref-as-prop form) + `cva()` + `cn()`.
+
+Two lint shapes are forced by `--max-warnings 25`, which is a ratchet that sits at exactly
+25 with no headroom:
+
+- **Variant tables live in a sibling file** (`button.tsx` + `buttonVariants.ts`).
+  `react-refresh/only-export-components` allows constant exports but `cva(...)` is a *call
+  expression*, so a component file that also exports its variants costs one warning each.
+  The repo already used this shape in `animations/animatedButtonVariants.ts`.
+- **Radix re-exports are declared as real function components**, not
+  `export const Dialog = DialogPrimitive.Root`. The rule cannot tell a value re-export is a
+  component. This is also what current shadcn/ui upstream does.
+
+#### The amber palette does not clear WCAG AA as published, and the theme corrects it
+
+Measured, not eyeballed -- as a fill carrying white text and as text on white are the same
+number:
+
+```
+amber-500 #f59e0b   2.15  fails
+amber-600 #d97706   3.19  fails   <- the prototype's primary
+amber-700 #b45309   5.02  passes  <- the smallest step that works
+amber-800 #92400e   7.09  passes
+```
+
+So the prototype's primary button (`from-amber-500 to-amber-600` + white text), its active
+tag chip and its `stone-400` metadata are all below AA. Rather than change the hue, the
+theme splits amber **by role** -- which is why `core/theme-amber.css` has three amber
+tokens where the prototype had one:
+
+| token | value | may be used as |
 |---|---|---|
-| buttons, inputs, chips | `--shape-control` (8px) | `tw:rounded-control` |
-| cards, rows, panels | `--shape-card` (12px) | `tw:rounded-card` |
-| large containers, modals | `--shape-panel` (16px) | `tw:rounded-panel` |
-| badges, avatars | `--shape-pill` | `tw:rounded-pill` |
-| resting / hover / overlay | `--elev-1..3` | `tw:shadow-elev-1..3` |
+| `--brand` | `#b45309` | a fill carrying white text (5.02) |
+| `--brand-text` | `#92400e` | amber ink on a light ground (6.79-7.09) |
+| `--brand-accent` | `#d97706` | icons, borders, the glow -- **never text** (3.05) |
 
-`npm run lint:design` is a **ratchet**, not a ban: `scripts/design-scale-baseline.json`
-freezes each file's current count of off-scale literals (135 radii, 193 shadows across 53 files at the
-time of writing). A file may improve, never regress, and a new file starts at zero. Same
-shape as `KNOWN_OFFENDERS` on the Python side. Re-freeze with `--write` only for values
-that genuinely are not on the scale — a chart bar, a scrollbar thumb — and say why.
+`--brand-accent` keeps the prototype's exact hue, so the parts of the design that read as
+"amber" are unchanged; only ink and fills moved. Two exemptions are deliberate and allowed
+by 1.4.3: `--brand-mark-gradient` (the bright ramp, used only behind the logo glyph and the
+assistant avatar -- a logotype) and `--text-faint` (placeholders only; darkening one makes
+an empty field look filled).
 
-**Variants belong to the component, not to a stylesheet.** `animatedButtonVariants.ts`
-exists because `groups.css` styled `.tiny-btn.danger` and `.tiny-btn.secondary`, class
-names nothing has ever emitted (the component produces `animated-btn-lite--danger`). The
-colour rule never matched, an unconditional white background above it did, and every
-Delete button rendered white on white — contrast 1.0, a blank rectangle beside every
-message, shipped and unnoticed. A `cva()` table makes the accepted values a type and the
-emitted classes a value; a template literal cannot be checked by anything. Its classes are
-still the hand-written ones on purpose — moving them to utilities is a later step that can
-happen one variant at a time inside that file, without touching a call site.
+**The aurora is what makes the flat-page number the wrong one to measure.** `--text-muted`
+was `stone-500 #78716c`, which is 4.59 on `--bg-page` but **4.16** where the aurora pools
+are strongest -- and that wash sits behind every surface. It is `#6e6762` now: 4.82 on the
+darkest point, 5.32 on the flat page, 5.56 on a card.
 
-**What this does not fix.** Of the eight defects found in this pass, tooling would have
-prevented five: the class-name drift, the eight competing radii, a `var(--primary)` that
-was never defined (transparent button, silent), the specificity fights, and missing
-`aria-expanded` / `aria-pressed`. It would not have prevented the two that cost the most
-time — a sidebar with `min-height: 100vh` and `overflow: auto` (an unbounded box cannot
-scroll, so the *document* scrolled instead) and a composer occupying 68% of a phone
-viewport. Those are a box-model reasoning error and a design judgement. Reach for the
-tooling for consistency and contracts; it buys nothing on either of those.
+#### Where the design and the platform disagree
 
-**Fixing CSS: which tool, and in what order.** The first question is which of four kinds of
-defect this is, because each has a different tool and none of them substitutes for another.
-Reaching for the wrong one is how the last pass lost most of its time.
+Four things bit during the rewrite; each is the kind that fails silently.
 
-*Which rule wins?* Fix it in the **layer**, above — never by raising specificity and never
-with `!important`. The layer order exists so a utility beats the sheet it replaces without
-an arms race. `getComputedStyle(el)` names the value that won; `el.matches(selector)` says
-whether your selector matched **at all**, which is the failure the white-on-white Delete
-button actually was — a rule that looked right and was never applied to anything.
+- **`core/critical.css` outranks everything, including `utilities`.**
+  `vite-plugin-inline-critical` inlines it into `<head>` with `order: 'post'`, so its
+  `<style>` lands after Vite's stylesheet link, and nothing in it is layered -- an unlayered
+  declaration beats every cascade layer. Its `body`, `html`, `*` and `#root` rules therefore
+  cannot be overridden by any class: `<body className="aurora-bg">` loses silently. That is
+  why the aurora is painted there (which is better anyway -- the warm ground is up before
+  the stylesheet loads) and why its token block is a **second copy** that must be changed in
+  step with `theme-amber.css`. It also only applies in a **build**; `apply: 'build'` means
+  dev renders whatever `theme-amber.css` says, so the two disagreeing shows up only as a
+  flash on a cold production load.
+- **Element-level legacy rules reach the new components.** `components/buttons/*` styled the
+  bare `button` element with `display: inline-flex; white-space: nowrap`. Utilities outrank
+  `legacy`, but only for properties they *set* -- a class list that never mentions either
+  property does not win, which is what collapsed the sidebar's agent cards onto one
+  overflowing line. Those sheets had to be deleted, not merely stopped being used.
+- **Deleting them removed the app's only preflight.** Tailwind's `preflight.css` is not
+  imported here; `core/reset.css` is the preflight. A utility like `border` sets
+  `border-width` and expects `border-style` to already be `solid`, so `reset.css` now
+  carries the `*, ::before, ::after { border-width: 0; border-style: solid }` reset. Without
+  it Chromium's UA defaults showed through: a dark inset frame inside every amber field and
+  a grey box around every link-styled button. Caught by `npm run screenshots`, not by any test.
+- **An element rule beats inheritance.** `reset.css` used to set `color` on `h1`-`h6`. A
+  heading on the brand gradient inherits `text-white` from its parent -- except that rule
+  won, and put dark ink on the amber CTA banner at 2.82:1 with nothing in the markup to
+  explain it. Headings inherit their colour now.
 
-*Is a value wrong?* Use the token, then `npm run lint:design`. A literal that is genuinely
-off-scale needs a `--write` re-freeze plus a sentence in the commit saying why.
+#### Two elements drawing one focus ring
 
-*Is a class name wrong?* A `cva()` table in the component (`class-variance-authority` is
-already a dependency), so the accepted variants are a type and the emitted classes a value.
-No tool can check a stylesheet against class names the component never emits.
+The login field showed **three concentric amber marks** on focus, and it had since the
+rewrite. Measured on the wrapper and the input together:
 
-*Is it geometry, contrast, or overlap?* **No linter and no unit test will find this.**
-Measure it in a real browser and read numbers, not impressions:
+```
+wrapper  border   1px  rgb(217,119,6)              focus-within:border-brand-accent
+wrapper  ring     2px  rgba(217,119,6,0.2)         focus-within:ring-2
+input    ring     3px  rgba(217,119,6,0.2)         core/surfaces.css, on the ELEMENT
+```
 
-| symptom | the number that settles it |
+`core/surfaces.css` gives every `input, textarea, select` a `:focus-visible` ring, and
+that rule is right: `reset.css` is this app's preflight, so an unclassed field would
+otherwise show focus not at all. What it cannot know is that the field is a *bare* input
+inside a bordered wrapper which already shows focus -- so both draw an affordance for one
+control, one outside the border and one inside it.
+
+`@utility field-shell` (`core/app-utilities.css`) is the fix, on five wrappers:
+`AuthInput`, `SessionSearch`, `TagInput`, `SessionList`'s filter, and the composer
+capsule. The wrapper is the field a reader sees, so the wrapper keeps the ring and the
+control gives its up. **It wins by layer order, not specificity** -- the element rule
+scores (0,4,1) against this rule's (0,2,1), and it does not matter, because `@utility`
+output lands in `utilities` and surfaces.css sits in `design`. That is the same mechanism
+this file already describes for buttons, used deliberately instead of accidentally.
+
+**The `Input` primitive was never affected, and why not is the general rule.** It carries
+its own `focus-visible:ring-2`, which sets `box-shadow` from the `utilities` layer and so
+already overrode the element rule -- verified by putting its exact class string on a live
+page and clicking it: one 2px ring, accent border, nothing doubled. The defect belongs to
+the *bare input inside a styled wrapper* shape, not to inputs generally.
+
+`fieldShell.test.ts` (7) asserts every `field-shell` site still carries a focus
+affordance of its own, parametrized per site. Moving a ring must never remove one: a
+field with no focus indicator is worse than the ugly one it replaced, is a WCAG 2.4.7
+failure, and is invisible to anyone using a mouse.
+
+**Three separate diagnostics said "there is no focus styling here", and all three were
+wrong.** Worth more than the fix, because each looks authoritative:
+
+- **Walking `document.styleSheets` with `r.cssRules ? recurse(r.cssRules) : [r]` drops
+  every leaf rule.** A plain `CSSStyleRule` has a `cssRules` that is *empty but truthy*
+  (CSS nesting), so the walk recursed into nothing and returned nothing. It reported zero
+  `focus-within` rules in the whole document -- i.e. that the wrapper's focus styling was
+  inert -- when the build plainly contains them. Recurse only when `cssRules.length`.
+- **Reading `getComputedStyle` immediately after a click catches `transition-all`
+  mid-flight.** The wrapper read as its unfocused border colour. This is the transition
+  trap this file records for the contrast auditor, reached from the other direction: there
+  a frozen intermediate invented a failure, here a frozen *start* value hid a real one.
+- **Programmatic `.focus()` on an off-screen element does not match `:focus-visible`.** A
+  probe positioned at `left:-9999px` measured a field that was focused and not
+  focus-visible, so it reported no ring at all. Put the probe on screen and click it.
+
+The measurement that settled it did all three correctly -- correct walk, 400ms settle,
+real click -- which is also how the fix was verified: `inputRing: "none"`, wrapper ring
+intact.
+
+**And a 400ms settle is still not enough.** Sweeping the rest of the controls onto one
+focus idiom, a `<select>` read `--brand-border` where the input beside it read
+`--brand-accent`, from the same class string, both matching `:focus-visible` -- a
+`transition-colors` still running from the previous focus. That is the fourth reading this
+one trap has spoiled in a day. **Disable transitions for any computed-style measurement,
+not only for the contrast audit**, which is the rule this file already gives one section
+down and which is strictly better than waiting:
+
+```js
+const kill = document.createElement("style");
+kill.textContent = "*{transition:none!important;animation:none!important}";
+document.head.appendChild(kill);
+```
+
+With it, the input and the select agree: accent border, one 2px ring, nothing doubled.
+
+**One focus idiom, everywhere but one file.** `:focus` fires on a mouse click and
+`:focus-visible` is the browser's judgement that somebody is navigating by keyboard;
+twelve files still used the first, so clicking a field in the admin console rang and
+clicking one in the settings drawer did not. 25 occurrences across `focus:ring-2`,
+`focus:ring-[var(--brand-ring)]`, `focus:border-brand-accent`, `focus:outline-none` and
+`focus:ring-0` moved. `components/ui/dropdown-menu.tsx` keeps the plain form deliberately:
+Radix moves focus programmatically for its roving tabindex and `:focus-visible` does not
+match that, so a menu item styled with it would stop highlighting as you arrow through.
+
+The risk in that sweep was a control that used to show focus on click and now shows
+nothing. Measured rather than assumed: **Chrome matches `:focus-visible` on a
+mouse-clicked text input**, so those are unchanged; a `<select>` does not, and there the
+popup opening is the feedback. `fieldShell.test.ts` pins both directions -- no `focus:`
+ring, outline or border utility outside that one file, and the menu still using it, so the
+rule cannot pass by matching nothing.
+
+#### Fonts are self-hosted, and must stay that way
+
+The production CSP is `font-src 'self' data:` in all three copies
+(`app/api/transport/middleware.py`, `frontend/public/_headers`,
+`frontend/nginx-security.conf`). The prototype's `@import url('https://fonts.googleapis.com/...')`
+would be blocked -- silently, with the page just falling back to a system face. Inter and
+JetBrains Mono come from `@fontsource*`, which emits local woff2. Inter has no CJK coverage
+and this app is bilingual, so `--font-sans` lists Noto Sans SC directly behind it and the
+browser falls back per glyph; Latin renders in Inter and Chinese in Noto within one run of
+text.
+
+#### Shape, depth, and the ratchet
+
+`--shape-control` 8px / `--shape-card` 12px / `--shape-panel` 16px / `--shape-pill`, and
+`--elev-1..3`, defined in `core/elevation.css` and mirrored into `@theme inline` so
+`rounded-card` and `shadow-elev-2` exist as utilities. **Do not delete `elevation.css`**: it
+is both the source of those five utilities and the design-scale ratchet's escape hatch.
+
+`npm run lint:design` is a ratchet over `.css` files only -- Tailwind classes in `.tsx` are
+invisible to it, so migrating a sheet drives its count to zero. Two rules that point in
+opposite directions: **deleting a stylesheet is free** (the check iterates `current` and
+looks the baseline up as a dictionary, so a stale entry is never visited -- the opposite of
+the Python side's `KNOWN_OFFENDERS`), but **moving one is not** (the new path is compared
+against `{0,0}`, so every literal in it counts at once). The baseline went from 53 files /
+135 radii / 191 shadows to 1 / 1 / 4.
+
+#### A class name that matches no rule
+
+`IntegrationsPanel` rendered as raw browser defaults -- unstyled fields, bullet
+lists, a bare `<h2>` -- inside an otherwise finished settings drawer, from the
+2026-09-07 purge until 2026-09-08. It carried `integrations-panel` and
+`runtime-panel-empty`, and the sheets defining those were among the 73 deleted.
+
+**Nothing reported it, and nothing could have.** A class name matching no rule is
+invisible to eslint, to `tsc`, to the tests, to `lint:design` (which reads `.css`
+only) and to the contrast audit (which measures what *is* painted). It survived a
+whole change of visual language and two contrast passes. This is
+`core/surfaces.css` from the other side: that sweep found 28 of 39 selectors
+matching no element, and this is an element carrying a name no selector defines.
+
+`npm run lint:classes` (`frontend/scripts/check-dead-classes.mjs`) closes it, and
+runs in CI **after the build**, because the question can only be asked of what the
+browser receives: `dist/assets/*.css` plus the critical CSS inlined into
+`dist/index.html`. It found 8 names; six were vestigial labels on elements
+Tailwind already styled completely (`chat-window`, `toast-stack`, `profile-page`
+...) and were removed, and two were the real defect.
+
+Four things about building it are worth more than the finding:
+
+- **Ask the build, not the stylesheets.** Most class names here are utilities no
+  `.css` file declares, so "grep the stylesheets" answers the wrong question.
+- **The inlined critical CSS is part of the answer.** `vite-plugin-inline-critical`
+  never emits it as an asset, so reading `dist/assets/` alone reports
+  `app-loading` -- which `core/critical.css` really does define -- as dead. A
+  blind spot in a dead-code finder is how a live rule gets deleted.
+- **Tailwind escapes the dot in a fractional utility** (`gap-1.5` is
+  `.gap-1\.5`), so the first port compared against raw text and called the entire
+  spacing scale dead: 34 findings, all wrong. The delivered CSS has its
+  backslashes stripped before matching.
+- **Collect class names from `className` positions, not every string literal.**
+  The first version matched any hyphenated literal and reported 134 hits --
+  package names, model ids, `aria-*` attributes, DOM ids, ReactFlow edge ids,
+  `cva` variant keys. A list that is 95% noise gets skimmed once and ignored.
+
+And the one that matters most: **narrowed to `className`, the second version read
+`className="a b"` by searching the already-unquoted value for QUOTED strings,
+found none, and scanned 198 tokens instead of 386** -- so it reported the two
+names known to be dead as clean. A scan that silently stops matching makes every
+later assertion pass. It is verified against a planted class each time it is
+changed, the same rule this file applies to the contrast auditor and the
+sensitive-content gate.
+
+The rewrite that followed is what the panel should have been: `Input`, `Label`,
+`Badge` and `Button` primitives, the same `<details>` + count badge shape as the
+memory panel beside it, and `IntegrationsPanel.test.tsx` (7) where there had been
+no test at all. Its five fields had each carried the same 200-character class
+string copied inline, already drifted from `components/ui/input.tsx` -- `focus:`
+where the primitive uses `focus-visible:`, and no height.
+
+**Two things the browser found that no static check would have.** The connector
+rows showed list markers: the memory panel escapes them only because its `<li>`
+happens to be `display: flex`, which is incidental, so both lists say `list-none`
+now. And a test asserting the form trims its input could not pass --
+`pattern="[a-z][a-z0-9_-]{0,63}"` is implicitly anchored, so a padded id fails
+constraint validation and the handler's `.trim()` never runs for that field. The
+code was right and the test was wrong; it says so where it types a clean id.
+
+The audit over both panels: **47 nodes, one failure at 2.08** -- the `Test` button
+of a *disabled* connector, which is WCAG 1.4.3's inactive-component exemption and
+the same category as the four disabled pagination buttons already recorded. Both
+enabled ones measure 5.28.
+
+#### Verifying a visual change
+
+`npm run lint`, `type-check`, `lint:design`, `test`, `build`, `lint:classes` is what CI
+runs (the last after the build, which it needs). Two things it
+does not, and this kind of change needs both:
+
+**`npm run screenshots`** -- eight states, run before and after and compared as a pair. It
+needs `SHOT_PASSWORD` for a real account: without it the run dies on
+`waiting for locator('.page-shell')`, because the sign-in fails and the shell never
+mounts. That error names the selector, not the credential, so it reads as a broken
+selector when it is a missing password. It
+earned its place again here: the missing preflight border reset above was visible in the
+first capture and invisible to all 56 tests. It hard-codes six selectors, all of which the
+rewrite deliberately preserved: `.page-shell`, `.page-shell.sidebar-collapsed`, `.sidebar`
+and its `.open` class (read with `classList.contains`, because a panel translated
+off-canvas still reports as visible), and the accessible names `sessions and tools`,
+`sign in`, `collapse all` / `expand all`, plus the `Username` / `Password` placeholders.
+Rename any of those and update the script in the same commit.
+
+**A contrast audit in a real browser** (`frontend/scripts/contrast-audit.js` -- paste it into
+the console of the FRONTED tab, then `__probe()` before believing `__audit()`), measuring
+resolved colours rather than reading CSS.
+The three traps this repo already recorded all make an auditor report a PASS it has not
+earned -- `color-mix()` computes to `color(srgb r g b / a)` and not `rgba()`; `opacity` is
+not in `getComputedStyle().color` and has to be multiplied down the ancestor chain; and a
+background tab does not advance CSS animations.
+
+**A fourth turned up here, and unlike the others it reports a FAILURE that is not there.**
+A non-painting tab does not advance CSS *transitions* either, and does not fire
+`requestAnimationFrame` at all. An element caught mid-transition keeps its intermediate
+computed value forever: the sidebar's backdrop read `opacity: 0` while open, and the
+enabled New-session button read `opacity: 0.5` -- a leftover from the `disabled:opacity-50`
+it had while sessions loaded, frozen by `transition-all`. Both looked like real 2.35:1
+failures and survived a nine-second wait and a full reload. What settles it is that
+*no CSS rule matching the element sets that value*; what fixes it is forcing a paint --
+taking a screenshot -- immediately before measuring. Do that per page, every time.
+
+Report what was *skipped* too: a count of nodes checked is the only thing that separates
+"clean" from "did not look". And prove the scanner can fail before believing it -- planting
+three probes (a plain low-contrast node, amber on its own `color-mix` tint, and a node
+dimmed only by an ancestor's `opacity`) is what showed the first version was silently
+skipping the second.
+
+After the fixes: **514 nodes across six pages, zero failures**, and a second pass over the
+rewritten console on 2026-09-07 -- **1,356 nodes across its ten tabs, zero non-exempt
+failures** -- plus the categories checked by hand because the scanner skips a gradient
+backdrop: white text on `--brand-gradient` (5.02 and 7.09 at its two stops), the
+architecture diagram's five ReactFlow node types (worst 4.59), and the eight-to-nine nodes
+per admin tab that sit directly on the aurora, which are `--text-main` or `--text-muted`
+and are covered by the measurements above.
+
+**Two more traps turned up the moment the console adopted `glass-card`, and both were
+fatal to the audit rather than to the app.**
+
+- **A translucent surface sends the walk to the page ground, and the ground is a
+  gradient.** `glass-card` is `rgba(255,255,255,0.98)` -- alpha under 1, so compositing
+  continues past it, reaches the aurora and bails. The whole console became unmeasurable
+  the instant it started using the design's own surface: 4 nodes checked on the landing
+  page against 122 skipped. The aurora is RESOLVED now rather than bailed on. Each pool is
+  `radial-gradient(circle at X% Y%, C 0%, transparent N%)`; CSS sizes an unqualified
+  `circle` farthest-corner and the alpha falls linearly to the N% stop, so the four can be
+  evaluated over a grid and the darkest pixel used as the base.
+
+  **The first attempt at that was wrong in the expensive direction.** Compositing all four
+  pools at full alpha gives `rgb(251,216,142)` and reports `--text-muted` at 4.05 -- a
+  failure. No pixel has that colour; the pools sit at four different corners. Solving the
+  gradients properly gives `rgb(252,235,203)` and 4.74, which passes. A worst case that
+  cannot occur generates work that did not need doing, and would have darkened a token for
+  nothing.
+
+  Keying the bail-out on `body` is also not enough: `LandingPage` paints the same aurora on
+  its own `.landing-root`, which skipped 84 of that page's 88 nodes. The check is on the
+  gradient, not the element.
+
+- **A non-painting tab never settles a transition, and waiting does not fix it.** The
+  console's tab pills read `rgb(152,147,144)` -- between white and `--text-muted`, set by
+  no rule -- through a nine-second wait, a full reload and a forced paint. Disabling
+  transitions and animations for the duration of the audit is what settles it; every
+  element then computes the value a reader actually sees. That is strictly better than the
+  "force a paint first" advice this file used to give.
+
+Two real findings came out of the second pass. An `aria-hidden` ellipsis in the pagination
+was painted in `--text-faint` at 2.52 -- `aria-hidden` hides text from a screen reader, not
+from a reader. And `surfaces.css` was still focusing every unclassed control with
+`rgba(79,70,229,0.12)`, indigo, from the palette this theme replaced; it is an ELEMENT
+selector, so it reached exactly the controls carrying no Tailwind ring of their own.
+
+After both passes: **1,387 nodes across the console's ten tabs, 88 on the landing page, 91
+on architecture, 86 on the deck, 30 on analytics -- zero non-exempt failures.** Exempt: four
+disabled pagination buttons. Skipped and hand-checked: white on `--brand-gradient` (5.02 and
+7.09 at its two stops) and the 34 ReactFlow diagram nodes (worst 4.59). One real finding came out of it and is worth stating as a rule: **an alpha
+tint of a colour has no fixed contrast**, because what shows through it depends on what is
+behind. `.admin-state-icon` paired `color-mix(in srgb, var(--success) 16%, transparent)`
+with `color: var(--success)` -- 4.82 over white, but 4.34 over the aurora wash the console
+actually sits on. The opaque `--success-surface` / `--warning-surface` / `--info-surface`
+tokens exist for exactly this pairing and do not move.
+
+**What not to reach for.** No CSS-in-JS runtime and no second component library. Do not add
+a pixel-diff CI gate -- without a pinned font stack and a seeded corpus it fails on the day
+someone upgrades Chromium, not the day the UI breaks. Do not "fix" a cascade problem by
+re-freezing the design baseline.
+
+#### Migrating a stylesheet is not adopting a design
+
+The console was moved off hand-written CSS on 2026-09-07 and **the first pass got
+the wrong half of the job**. It rewrote the console's OWN visual language in
+Tailwind -- the sci-fi corner bracket on every panel, a status dot on every KPI
+label, an amber tick before every heading, `auto-fit minmax()` grids -- all
+inherited from `admin/*.css`. Every check passed: the CSS was gone, the tokens
+were amber, contrast was clean. And the console still did not look like the
+design, because none of those ornaments are in it.
+
+Measured against the prototype's admin view, which is the check that would have
+caught it:
+
+| | prototype | first pass |
+|---|---|---|
+| panel surface | `glass-card` x30 | 0 -- opaque `bg-surface` |
+| corner bracket | none | on every panel |
+| KPI tile | label / mono value / **note** (21 of them) | label / value, plus a dot |
+| block heading | `text-xs font-bold uppercase tracking-wider` | the same, behind an amber tick |
+| grids | `grid-cols-2 md:grid-cols-3 lg:grid-cols-6` | `auto-fit minmax()` x4 |
+| header | ONE `glass-panel` bar holding title, subtitle and the tab rail | a `PageHeader` plus a separate tray |
+| section root | a bare `space-y-6` stack of sibling cards | one outer panel, cards nested inside it |
+
+**The rule: when the target is a new visual language, "which classes does this
+element have" is not the question -- "which of the design's parts does this
+element have" is.** `grep -c glass-card src/pages/admin` returns 0 and takes a
+second; nothing in lint, type-check, tests, the design ratchet or the contrast
+audit reports it, because every one of them measures the code against itself.
+
+The second pass is what the table's left column describes. `AdminPanel` is
+`glass-card rounded-card p-4` and nothing else; `KpiCard` gained the `note` line
+and lost the dot; `SectionHead`/`SubTitle`/`AdminBlock` titles are plain
+uppercase; the grids take a column count; `AdminPage` builds the one-bar header
+itself and each section is a bare stack. `AdminPanel` survives for the one thing
+that genuinely is a single card -- the prototype builds its Delegation form that
+way -- and `AdminSystemMonitor` keeps a card per chart, which is that shape
+already.
+
+#### A help panel is a claim about the code
+
+`KeyboardHelp` has listed `Ctrl+K`, `Ctrl+N`, `Ctrl+B`, `Ctrl+W` and `Ctrl+R` since it was
+written. **None of them existed.** The only keydown handler in the whole frontend was the
+one that opens that same sheet (`?` and `Ctrl+/`), plus `Ctrl+Enter` in the composer. Five
+documented shortcuts, zero implementations, and nothing anywhere reported it -- a shortcut
+that does nothing is indistinguishable from one you pressed wrong, which is why this
+survived. It predates the 2026-09-07 rewrite; `git show HEAD:./src/components/KeyboardHelp.tsx`
+has the same list and the same absent handlers.
+
+Three are implemented now in `hooks/useAppShortcuts.ts`, mounted by `AppShell` so they work
+on every signed-in route rather than on the chat page alone -- `?` used to work on one route
+out of five, because the listener lived in the sheet and the sheet lived in `ChatPage`.
+
+**`Ctrl+W` and `Ctrl+R` are deliberately not implemented and no longer documented.** The
+browser owns them (close tab, reload) and a page cannot reliably take them back, so
+promising them promises something the user experiences as the page eating a keystroke.
+Their toggles live in the composer and the command palette instead.
+`useAppShortcuts.test.tsx` asserts that pairing in both directions -- the keys that must
+work, and the two that must be left alone -- and was verified able to fail by deleting the
+`Ctrl+K` and `Ctrl+B` branches, which reproduces the pre-fix state exactly.
+
+**The palette is the reason two of those keys are worth having.** `components/CommandPalette.tsx`
+(cmdk, which was a dependency this rewrite installed and then never imported) puts the five
+routes, the session list, the settings and session-management drawers, the shortcut sheet,
+the language toggle and sign-out behind one keystroke. Nothing in it is new capability; what
+was missing was any way to reach the chat-only drawers from the other four views.
+
+**Both overlays are hand-rolled, so neither got dismissal for free, and one lost it in this
+change.** `KeyboardHelp` implemented Escape inside its own key listener; moving that listener
+into `useAppShortcuts` dropped Escape and nothing failed. cmdk's bare `Command` never had it
+-- the string "Escape" does not appear in its bundle, since `Command.Dialog` is the wrapper
+that handles dismissal. `hooks/useDismissable.ts` gives both Escape and focus restore, and is
+pinned by test. It does **not** trap focus; if either overlay grows past a list of commands,
+that is the point to reach for `@radix-ui/react-dialog` rather than to extend this.
+
+**`Esc` was the sixth**, and the subtlest, because it half worked. The sheet called it
+"clear input"; the handler called `onStop()` and only `while (isSending)`, so in the ordinary
+case -- a half-typed question, nothing streaming -- the key did nothing at all, and in the
+case where it did fire it did something other than what the row said. Both meanings are
+worth having, so both are implemented and both are documented: Escape cancels the run while
+one streams, and clears the draft otherwise. It claims neither when there is nothing to
+undo, so a parent overlay can still take it.
+
+**The guard is the point, not the six fixes.** `components/keyboardShortcuts.ts` is the
+shipped list as DATA, and `keyboardShortcuts.test.tsx` fires every row of it at a live
+handler -- `useAppShortcuts` on `window` for an `app` shortcut, the real `ChatComposer` for
+a `composer` one -- and requires each to be claimed. A row added with nothing behind it
+fails; a handler deleted while its row stays fails; and `BROWSER_OWNED` asserts the reverse
+for `Ctrl+W`/`Ctrl+R`/`Ctrl+T`, which must be neither documented nor claimed. Parametrized
+per shortcut, so a failure names the key. Verified able to fail by putting the `Ctrl+W` row
+back exactly as it used to ship: two tests go red, one from each direction.
+
+That is what was missing before. The documentation was a literal inside the component and
+the handlers were in another file; there was no place where the two met, so nothing could
+notice they disagreed for the entire life of the component.
+
+`Shift+Enter` is the one row asserted the other way round: it is the textarea's own newline,
+so what must hold is that nothing claims it.
+
+One ordering detail worth keeping: `autoFocus` is applied by React during the commit, before
+any passive effect, so a hook that records "what had focus before" in a `useEffect` records
+the overlay's own input. The palette focuses its input from an effect ordered after
+`useDismissable` instead.
+
+#### What is left
+
+
+
+The console was the last route on hand-written CSS and is now Tailwind like the rest
+(2026-09-07). `styles/pages/` is deleted -- five sheets and their entry, 2,118 lines --
+along with `core/tokens.css`, whose only remaining job was feeding them non-colour scales.
+`src/styles/` is **nine files**: `main.css`, six in `core/` (theme-amber, critical,
+reset, elevation, surfaces, app-utilities) and two component sheets kept on purpose.
+This paragraph said "four files" until 2026-09-08, counting the groups rather than
+the files -- worth naming, because the number a reader checks a claim against is the
+one that has to be right.
+
+The console's vocabulary lives in `pages/admin/components/`:
+
+- `AdminPrimitives.tsx` -- `AdminPanel`, `SectionHead`, `SubTitle`, `AdminBlock`,
+  `KpiGrid`/`KpiCard`, `TrendRow`, `TwoCol`/`OpsGrid`/`SectionBlock`, `ControlsRow`,
+  `FilterGrid`/`FilterRow`, `AdminField`, `Hint`, `Muted`, `RowActions`, `StatePanel`,
+  `StateIcon`, `CellStack`, `AuditBadge`, `AdminSkeleton`.
+- `adminClasses.ts` -- the class *strings*: `ADMIN_FIELD`, `ADMIN_TABLE`,
+  `ADMIN_TABLE_WRAP`, `ADMIN_TABLE_WIDE`, `ADMIN_CODE`, and the recharts chrome
+  (`CHART_TOOLTIP` / `CHART_GRID` / `CHART_AXIS`, which were copied into five dashboards).
+
+**They are two files for the lint reason, not a taste one.** `ADMIN_TABLE` is built by
+`.join(" ")` -- a call expression -- and `react-refresh/only-export-components` lets a
+component file export literal constants only, so each one in `AdminPrimitives.tsx` would
+cost a warning against a budget that sits at exactly its ceiling. Same rule that already
+splits `buttonVariants.ts` out of `button.tsx`.
+
+**A table is styled by one class string of arbitrary variants**
+(`[&_thead_th]:…`, `[&_tbody_tr:nth-child(2n)]:…`), not a wrapper component per cell.
+Table styling is descendant styling by nature; a `<TableCell>` per `<td>` would have meant
+editing several hundred cells across five tables to change nothing about the output. It
+still lands in `utilities` and still merges through `cn()`.
+
+**The user table's four sticky columns carry their `left` offsets as written-out
+utilities**, beside the written-out widths they are the running total of. Two derived
+numbers that must agree are worse than one pair sitting side by side.
+
+**`core/surfaces.css` lost 28 of its 39 selectors in the same pass**, and that is the more
+general lesson. It exists to apply the elevation language to class names a Tailwind class
+list cannot reach, and it was written against the vocabulary of 73 stylesheets --
+`.sidebar-module`, `.agent-mode-card`, `.session-item`, `.modal-content`, the `.admin-shell`
+block. Nothing renders any of those now. What remains is the part that still has a job:
+`input, textarea, select` as ELEMENT selectors (since `reset.css` is the preflight, an
+unclassed field has nothing else to give it a shape), plus the five class names that are
+behavioural hooks rather than styling -- `.page-shell`, `.bubble`, `.composer-panel`,
+`.reactflow-wrapper` -- each styled from here because the rule reaches a descendant
+or a container whose class list is assembled elsewhere, with `.page-shell` additionally
+read by `scripts/screenshots.mjs`.
+
+**The naive way to find those 28 says all 39 are alive**, because `grep -l 'card' src`
+matches `KpiCard`. A class name has to be matched as a whole token inside a string literal,
+and the literal is not always a `className=` attribute -- `cn()` takes bare strings, `cva()`
+tables hold them, and a couple are built as `` `sidebar ${open ? "open" : ""}` ``. Collecting
+every whitespace-delimited token of every string literal in `src/` over-approximates what
+the app can emit, which is the safe direction for a deletion.
+
+Five defects surfaced while converting, and every one is the same shape this file keeps
+recording -- a rule that matched nothing:
+
+- `AdminOpsDataTables` wrapped its two tables in `.audit-wrap` / `.audit-table`. Neither
+  selector has ever existed; the sheet defines `.audit-table-wrap` and `.admin-audit-table`.
+  Both tables had been rendering with no border, no header fill and no zebra since they were
+  written.
+- `AdminOpsDiagnostics` used `badge badge-success` / `badge-danger` / `badge-info`, whose
+  sheet was deleted in the first pass of this rewrite -- so the modifiers were inert. They
+  are `<Badge variant>` now.
+- `AdminSystemMonitor`'s four recharts blocks carried a hardcoded cool-slate palette
+  (`#0f172a` tooltips, `#334155` grid, `#94a3b8` axes) that the amber pass never reached,
+  because it reads CSS files and these are JSX props.
+- `exportUtils.tsx`'s CSV and JSON buttons were `className="secondary tiny-btn"`, a
+  stylesheet deleted in the first pass of this rewrite -- so both had been rendering as bare
+  text beside every export-capable dashboard. They are `<Button variant="secondary">` now.
+- `surfaces.css`'s input focus ring was `rgba(79, 70, 229, 0.12)`, indigo, from the palette
+  this theme replaced. It is an ELEMENT selector, so it reached every control carrying no
+  Tailwind `focus:ring-*` of its own -- a range slider, a bare checkbox -- which is why a
+  cool blue glow survived an amber sweep on exactly the controls nobody had focused.
+
+`ChatTopbar.tsx` went with them: it was replaced by `TopNav` in the shell pass and left in
+the tree with no importer.
+
+#### Is the stylesheet migration finished?
+
+Measured on 2026-09-08 rather than asserted, because three of the numbers in this file
+had gone stale and one had never been right:
+
+| | |
 |---|---|
-| a box that will not scroll | `getComputedStyle(el).minHeight` — `100vh` with `overflow:auto` is an unbounded box, so the *document* scrolls instead |
-| something covering something else | `getBoundingClientRect()` on both, plus their `z-index` (the floating controls sit at 10002, the sidebar at 1000) |
-| a control eating the phone | `rect.height / window.innerHeight` at 375x812 |
-| text nobody can read | the contrast ratio of the two *resolved* colours; 1.0 is a blank rectangle |
+| stylesheets under `src/` | **9**, 1,194 lines (from 79 / 15,781) |
+| class names in `src/` resolving to no rule | **0** of 379 (`npm run lint:classes`) |
+| class selectors in those 9 files matching nothing | **0** of 29 |
+| inline styles | **4**, every one a computed value |
+| `components/ui/` primitives | 8 |
+| `tailwind.config.js`, `components.json`, `tw:` prefix | none (the two `tw:` hits are comments *about* dropping it) |
+| design-scale ratchet | 1 file / 1 radius / 4 shadows, all in `data-flow.css` |
 
-*Is it a11y state?* Read the accessibility tree, not the pixels. `aria-expanded` /
-`aria-pressed` on a toggle is invisible in a screenshot and obvious in the tree.
+So: yes, with the last three findings closed in that pass.
 
-**A contrast auditor's bugs all fail in the same direction: they report a pass.**
-The 2026-09-05/06 sweep took the app from 130-odd failures to two deliberate
-exemptions (a logotype, which 1.4.3 exempts, and a disabled button, which it also
-exempts) -- but every defect found in the auditor itself had been quietly marking
-something readable, which is worse than not having run it. Six were fixed on the
-first pass (it read `backgroundColor` and never gradients, flagged emoji, read
-`background-clip: text` backwards, treated translucent gradient stops as opaque,
-and merged multi-layer backgrounds); three more turned up on the admin pages, and
-these are the ones worth writing down because nothing about them looks wrong:
+**`.topbar-menu-trigger` matched nothing, and three places said otherwise.** `ChatTopbar`
+and `TopbarMenu` were deleted in the shell pass, taking the only element that carried it
+-- but the rule stayed in `surfaces.css`, the comment above it named two readers, and it
+sat in `check-dead-classes.mjs`'s escape list, which is the file whose job is finding
+exactly this. The comment is the worst of the three: a reader checks it and stops.
 
-- **`color-mix()` computes to `color(srgb r g b / a)`, not `rgba()`.** A parser
-  that only knows `rgba()` returns null for it, the tint is skipped, and the text
-  is scored against the surface *underneath* the tint. Every status badge in
-  `ops.css` therefore measured as passing. This matters here specifically because
-  the house pattern is `color-mix(in srgb, var(--x) 20%, transparent)` with
-  `color: var(--x)` on top -- a colour on a pale version of itself, which is the
-  binding constraint on all four status tokens.
-- **`opacity` is not in `getComputedStyle(el).color`.** It applies at paint, on
-  the element *and every ancestor*, so the foreground alpha has to be multiplied
-  down the chain. Folding it in immediately found a 4.61:1 token being taken to
-  2.47 by an `opacity: 0.6` on the same rule.
-- **A background browser tab never advances CSS animations.** `.auth-card` enters
-  on `slideUp` with `animation-fill-mode: none` over a base of `opacity: 0`, so in
-  a background tab every node on the login card computes to opacity 0 and is
-  skipped as invisible. The audit reported 2 nodes checked and zero failures. Any
-  audit that walks the DOM has to run in the fronted tab, and has to report what
-  it *skipped* -- a count of nodes checked is the only thing that shows the
-  difference between "clean" and "did not look". The same applies to React Flow,
-  which renders nodes `visibility: hidden` until it has measured them, so the
-  34-node architecture diagram needs to be scrolled into view and waited for.
+One of those claimed readers had also stopped being one. `useSectionToggle` used to do
+`querySelectorAll(".execution-trace-panel, .tool-approval-panel, .composer-panel")` and
+now returns state; its own docstring says so. A comment naming a reader is a claim with a
+shelf life.
 
-Two rules follow. **Measure against the surface the text actually lands on**, never
-against white: `--accent`, `--text-tertiary` and `--chat-text-secondary` each took
-three iterations because the first two were measured on white and failed on
-`#fafbfc`, then on `#ddebff`. And **prove the scanner can fail before believing a
-pass** -- plant a node at a known-bad ratio, confirm it is reported, remove it. That
-is the same rule this file records for the sensitive-content gate and for
-`test_a_mismatched_scope_returns_nothing`, and it is the only reason the zero above
-means anything.
+**So the escape list now polices itself**: an entry naming a class `src/` no longer emits
+fails the check. Same rule as `SECRET_BASELINE` and `KNOWN_OFFENDERS` -- an exemption list
+can only shrink -- and verified by putting the stale entry back.
 
-**`npm run screenshots` captures the app's states to PNG** (`frontend/scripts/screenshots.mjs`,
-Playwright + Chromium): desktop 1440x900 and phone 375x812, signed in and signed out, sidebar
-open and closed, workbench collapsed and expanded — eight files. Both servers must be up
-(`.claude/launch.json` starts them as `backend` and `frontend`); credentials come from
-`SHOT_USER` / `SHOT_PASSWORD` so nothing usable is committed, and `SHOT_OUT` redirects the
-output when you do not want eight more PNGs in the tree.
+The third finding was one inline style that was not a computed value:
+`style={{ borderRadius: "var(--composer-radius-inner)" }}` is a utility nobody wrote, and
+is `rounded-[var(--composer-radius-inner)]` now, on the same element. That restores this
+file's "every one a computed value" to being true.
 
-The protocol is the whole point: **run it before and after a change and look at the pair.**
-It is deliberately **not a CI gate** — pixel gating needs a seeded corpus and a pinned font
-stack, and without those it fails on the day somebody upgrades Chromium rather than the day
-the UI breaks. It earned its place on the first run, twice: a floating control covering the
-sidebar's own Collapse button, and a `padding-left` that pushed the brand block into the
-button at the other end of the same row. Both were obvious on screen and invisible to every
-suite, which were all green throughout.
+**Two sweeps, opposite directions, and both are needed.** `lint:classes` asks "does this
+class name resolve to a rule" and found `IntegrationsPanel`'s two; the selector sweep asks
+"does this rule match anything the app can emit" and found `.topbar-menu-trigger`. Neither
+sees the other's defect. The selector sweep is a scratch script rather than a gate,
+because it over-approximates what the app emits on purpose -- the safe direction when the
+output is "consider deleting this rule" -- and it reported `.animated` in `data-flow.css`,
+which ReactFlow applies itself from `animated: true` on an edge. A finding list that needs
+a human is not a gate.
 
-**What vitest cannot do here, in principle.** jsdom has no layout engine, and it fails
-*convincingly*: `getBoundingClientRect()` returns all zeros, `offsetHeight` is 0, `matchMedia`
-is not a function — while `getComputedStyle(el).height` cheerfully returns the **declared**
-`200px` that no layout ever computed. So a component test pins class names, ARIA and
-behaviour, and can never see a clipped panel, an overlap, or a composer taking 68% of a
-phone screen. That is the line between `npm test` and `npm run screenshots`, and it is why
-both exist.
+#### What is not done
 
-**What not to reach for.** No CSS-in-JS runtime and no second component library: this app
-already runs two systems — the 73 legacy sheets and Tailwind — and is spending down to one.
-A third makes it three. Do not add a pixel-diff CI gate for the reason above, and do not
-"fix" a cascade problem by re-freezing the design baseline.
+- `components/data-flow.css` keeps five categorical node colours for the ReactFlow diagram.
+  Those are deliberately not amber: a diagram distinguishes node *types* by hue, and
+  collapsing them to one brand colour would lose the distinction. All five clear AA with
+  white text (worst 4.59).
+- `components/charts.css` is one rule and cannot become a utility: recharts writes the
+  series colour as an INLINE style on its legend label, and an inline style beats every
+  cascade layer -- only `!important` reaches it.
+- The design-scale ratchet is down to **1 file / 1 radius / 4 shadows**, all inside
+  `data-flow.css`.
+- `components/ui/` holds 8 primitives, not 19. Eleven were written because shadcn/ui ships
+  them -- dialog, select, table, tabs, switch, checkbox, progress, scroll-area, separator,
+  skeleton, tooltip -- and nothing ever imported one; they went on 2026-09-07 with the nine
+  Radix packages they carried, plus `axios` and `framer-motion`, which had been unimported
+  since before this rewrite. The check is one line and worth repeating before a release:
+  a component is dead if no OTHER file imports its module, which is not the same question as
+  whether its own file mentions it.
+- `TopbarMenu.tsx` went with `ChatTopbar`, which the shell pass replaced and left in the
+  tree with no importer.
+- The eslint ratchet is 20, down from 25. Four of the five it lost were `catch (e) {}` with
+  the binding unused; each is a deliberate silent catch and each now uses the optional catch
+  binding, so the syntax says so rather than a comment. The comments were checked before
+  being trusted -- `pinSession` and `deleteSession` really do report through
+  `handleApiError` before re-throwing, so `SessionList` catching to reset a spinner is
+  correct.
+
+**The top bar's live readout is built, and what it took to make it honest is the point.**
+The prototype's `Latency: 184ms` / `Cache Hit: 89.4%` is hardcoded demo text. This system
+has no cache-hit metric, and the only figure available is the corpus-wide average from
+`/api/analytics/overview` -- not "your last request", which is what a bare "Latency" in a
+top bar reads as. So the labels say *average*, the second slot carries success rate, which
+this system does measure, and the strip renders for admins only, because that endpoint is
+gated on `ADMIN_OPS_MANAGE` and a control permanently empty for everyone else reads as
+broken rather than absent.
+
+**It renders nothing until there are samples, and that is the load-bearing line.**
+`RetrievalLogger` answers an empty log with `avg_total_time_ms: 0, success_rate: 0`, which
+rendered as "Success: 0.0%" in warning amber -- a bar telling every reader on every page
+that the system was failing, when what it meant was that nobody had asked it anything. The
+guard is on `total_queries`, not on the values, because no samples is not zero performance.
+`TopNavMetrics.test.tsx` pins the empty case and the failed-fetch case; a decorative readout
+must never be able to break the bar it sits in.
+
+The prototype's separate Integrations button was deliberately not built: it is a second name
+for a destination this app already has -- `IntegrationsPanel` is a section of the settings
+drawer, which the palette opens.
+
+**Thirteen translation keys were missing from BOTH locales.** i18next returns the inline
+`defaultValue` when a key is absent, so the Chinese UI rendered the English string --
+silently, forever, in an application whose reason for existing is that it works in Chinese.
+Among them: all five top-bar view names, `auth.signIn`, `common.logout` and
+`sessionManagement.title`, which the top bar had been falling back on since the shell pass.
+`i18n/locales.test.ts` walks every literal `t("...")` in `src/` against both files and
+checks three things -- every asked key exists in each locale, the two locales hold the same
+key set, and no long Chinese value is byte-identical to its English one (a key copied rather
+than translated). It opens by asserting the scan found at least 200 keys, because a scan
+that stops matching makes every later assertion pass vacuously.
+
+**36 literal inline styles were still hiding in two admin files and three error boundaries.**
+`style={{ width: "60px", textAlign: "center" }}` on a `<th>` is a utility that was not
+written; a bar's `width: ${pct}%` is data and stays. The three error boundaries were the last
+surfaces on the palette this theme replaced -- `#007bff` buttons on `#f8f9fa` cards, written
+as `var(--bg-primary, #fff)` pairs whose variables no longer exist, so what rendered was
+always the fallback. They are the only thing a reader sees when the page they were on has
+broken, and the amber pass had never reached them. Four inline styles remain in `src/`, every
+one a computed value.
+
+#### Two pre-existing defects found while verifying this
+
+Neither was caused by the refactor; both were found by opening a surface that had not been
+opened during it.
+
+- **`/model-catalog` was never in the Vite dev proxy.** Vite's SPA fallback answered it with
+  `index.html`, so the settings drawer parsed a web page as a model catalogue. Added to
+  `vite.config.ts` alongside its `/app/`-prefixed twin.
+- **`catalog?.providers[x]` guarded `catalog` but not `providers`**, so that malformed
+  response threw and `ChatErrorBoundary` swallowed the entire chat page. Now
+  `catalog?.providers?.[x]`. A drawer that cannot load its options should render without
+  them, not take the page down.
+
+### The query guard's Redis fallback could not catch a Redis failure
+
+Fixed 2026-09-07, and found by running four chat queries at once: three returned
+**500**, from `_within_user_rate` straight out through the endpoint. The guard has a
+memory backend for exactly this, and five handlers documented as "Redis is not
+answering, degrade to memory". Every one of them read
+`except (ValueError, TypeError, OSError)`.
+
+**None of them could fire.** `redis.exceptions.TimeoutError` and `...ConnectionError`
+derive from `RedisError(Exception)`; neither is an `OSError`. The trap is worth naming
+because it is the kind that survives review: **redis-py's `ConnectionError` shadows the
+builtin, and the builtin *is* an `OSError`** -- so a reader asking "does `except OSError`
+cover a connection error?" gets yes for the wrong class. `_redis_unavailable_errors()`
+is now the one definition, resolved once and lazily so redis stays an optional install,
+and `retrievers/hybrid/caching.py` already had the correct form
+(`except redis.ConnectionError, redis.TimeoutError`) three directories away.
+
+**Catching it was necessary and not sufficient.** `_effective_backend()` asks only
+whether a client object exists, so a client that had failed every command was still
+chosen: each later request paid the socket timeout again, and `stats()` -- which feeds
+`/health` -- went on reporting `backend: "redis"` through an outage the guard was
+silently absorbing. An operator reading that page during exactly this failure would have
+been told the opposite of what runs. A failed command now takes the same path a failed
+connection already had: `_drop_redis_client()` plus the cooldown. The outage costs one
+timeout per cooldown rather than one per request, and `/health` says `memory` because
+that is what is serving.
+
+Two details in `tests/services/test_query_guard_redis_fallback.py` are load-bearing.
+It patches the module's `_REDIS_CLIENT` rather than stubbing `_get_redis_client`, because
+a stubbed getter keeps handing back the client the fix is supposed to drop -- the test
+would pass on the broken code. And it asserts the count of handlers, five, because the
+first sweep of that file found three by reading and missed two: four of five fixed looks
+exactly like a complete change. Verified able to fail by restoring the shipped form --
+seven of eleven go red.
+
+**The zero-CPU hang this investigation started from did not reproduce.** `/health` had
+stopped answering earlier in the day with the signature recorded under Common Issues
+(process alive, 31 threads, no CPU, thirteen queued localhost connections, no outbound
+socket), and the documented fix for it -- `_resolve_ddgs_eagerly` plus `_CLIENT_LOCK` --
+is present in `app/tools/web/search.py`. Fifteen queries under `faulthandler.dump_traceback_later`
+produced no wedge and no thread parked in ddgs, primp or `logging`. So the 500s were a
+second, unrelated defect on the same endpoint, and the hang remains open: if it recurs,
+the stack dump is the evidence to capture, `python -X faulthandler` plus
+`dump_traceback_later(15, repeat=True)` being enough without adding py-spy to the
+environment.
 
 ### Regular expressions
 
@@ -1975,7 +2786,7 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-06 there are 1522 tests covering the chat round trip,
+back-filling effort. As of 2026-09-08 there are 1585 tests covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -2003,7 +2814,11 @@ and reports which scorer ran, a governed read tool whose summary cannot carry an
 instruction, one administrative view of a user rather than six copies of its SELECT --
 whose derived columns are asserted to be derived, since `AdminUserSummary` defaults every
 one of them to `False` and so cannot tell a dropped column from a false value -- a new
-user's reported credit balance being the balance stored, and the China-specific PII
+user's reported credit balance being the balance stored, a first run that creates an
+administrator without shipping a password and without promoting whoever holds the name,
+a record of the long-term memories
+held about a user that is bigger than the working set one session is given and can be deleted
+from any of them, and the China-specific PII
 patterns that had never existed --
 pinned by what each identifier is *called*, not only that it is caught, since three of them
 were already caught under the wrong name -- and by an adversarial false-positive pass, which is
@@ -2090,7 +2905,7 @@ confirming after a clarified query would have re-sent a stale question.
 any identity change: the stores outlive a logout, so a field added to a store but forgotten
 in its `INITIAL_STATE` would show the next person on a shared browser the previous user's
 data. The test discovers fields rather than listing them, so it catches that drift.
-That suite is 56 tests across 9 files — small, and deliberately aimed at the things a
+That suite is 127 tests across 13 files — small, and deliberately aimed at the things a
 screenshot cannot check. `AdminConfigEditor.test.tsx` is the newest: it pins that a value
 pinned in the process environment renders disabled, and that only edited fields are sent —
 posting the whole form would turn a page load into a write of every value, and a stale read
@@ -2100,7 +2915,7 @@ or every later query in the file finds two of everything.
 
 Note: do not use `len(app.routes)` to count endpoints. FastAPI 0.138+ stores an
 `_IncludedRouter` wrapper in `app.routes` instead of flattening child routes, so that number
-varies by version. Count OpenAPI operations instead; the current baseline is 154 (CI asserts a >= 140 floor).
+varies by version. Count OpenAPI operations instead; the current baseline is 157 (CI asserts a >= 140 floor).
 It read 153 until 2026-09-06 and had been 154 for some time before that — a number in this file that
 nothing recomputes goes stale the way the test count did.
 
