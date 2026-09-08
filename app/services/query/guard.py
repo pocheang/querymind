@@ -16,6 +16,35 @@ from app.services.security.rate_limiter import SlidingWindowLimiter
 logger = logging.getLogger(__name__)
 
 
+def _redis_unavailable_errors() -> tuple[type[BaseException], ...]:
+    """What "Redis is not answering" is actually raised as.
+
+    `redis.exceptions.TimeoutError` and `...ConnectionError` derive from
+    `RedisError(Exception)`, NOT from `OSError` -- and redis-py's
+    `ConnectionError` shadows the builtin, which is an `OSError`, so reading
+    `except OSError` as covering a connection failure is wrong in exactly the
+    way that looks right. Every handler below that means "degrade to memory"
+    uses this tuple.
+
+    Resolved once and cached: the guard is on the request path and redis is an
+    optional install, so this must neither import per call nor require redis.
+    """
+
+    global _REDIS_ERRORS
+    if _REDIS_ERRORS is None:
+        base: tuple[type[BaseException], ...] = (ValueError, TypeError, OSError)
+        try:
+            import redis  # type: ignore
+
+            _REDIS_ERRORS = (*base, redis.RedisError)
+        except ImportError:
+            _REDIS_ERRORS = base
+    return _REDIS_ERRORS
+
+
+_REDIS_ERRORS: tuple[type[BaseException], ...] | None = None
+
+
 class QueryRateLimitedError(RuntimeError):
     pass
 
@@ -53,6 +82,20 @@ def _drop_redis_client() -> None:
             logger.debug(f"Redis cleanup failed while dropping the client: {cleanup_error}")
         _REDIS_CLIENT = None
     _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
+
+
+def _redis_command_failed(where: str, error: BaseException) -> None:
+    """Treat a failed command exactly as a failed connection.
+
+    Without this the client survives its own unusability: `_effective_backend`
+    only asks whether a client exists, so every later request pays the socket
+    timeout again and `/health` goes on reporting `backend: redis` through an
+    outage the guard is silently absorbing.
+    """
+
+    logger.debug("query_guard_redis_%s_failed error=%s", where, str(error))
+    with _REDIS_LOCK:
+        _drop_redis_client()
 
 
 def _connect_redis():
@@ -179,8 +222,8 @@ class QueryLoadGuard:
                 try:
                     inflight = int(client.get(_INFLIGHT_KEY) or 0)
                     waiting = int(client.get(_WAITING_KEY) or 0)
-                except (ValueError, TypeError, OSError) as e:
-                    logger.debug(f"Failed to get query guard stats from Redis: {e}")
+                except _redis_unavailable_errors() as e:
+                    _redis_command_failed("stats", e)
                     inflight = 0
                     waiting = 0
             return {
@@ -317,8 +360,8 @@ class QueryLoadGuard:
                 raise QueryRateLimitedError("query rate limit exceeded")
         except QueryRateLimitedError:
             raise
-        except (ValueError, TypeError, OSError) as e:
-            logger.debug("query_guard_rate_check_failed user=%s error=%s", key_ref(user_key), str(e))
+        except _redis_unavailable_errors() as e:
+            _redis_command_failed("rate_check", e)
             return False
         return True
 
@@ -338,8 +381,8 @@ class QueryLoadGuard:
                 return True
             client.decr(_INFLIGHT_KEY)
             return False
-        except (ValueError, TypeError, OSError) as e:
-            logger.debug(f"Redis inflight increment failed: {e}")
+        except _redis_unavailable_errors() as e:
+            _redis_command_failed("inflight_incr", e)
             return None
 
     def _join_queue(self, client, slot: _RedisSlot) -> bool:
@@ -358,8 +401,8 @@ class QueryLoadGuard:
             return True
         except QueryOverloadedError:
             raise
-        except (ValueError, TypeError, OSError) as e:
-            logger.debug(f"Redis waiting queue increment failed: {e}")
+        except _redis_unavailable_errors() as e:
+            _redis_command_failed("waiting_incr", e)
             return False
 
     def _release_redis_slot(self, client, slot: _RedisSlot, user_key: str) -> None:
@@ -379,10 +422,14 @@ class QueryLoadGuard:
         try:
             client.decr(key)
             return
-        except (ValueError, TypeError, OSError) as e:
+        except _redis_unavailable_errors() as e:
+            # Louder than the others on purpose: this key outlives the request
+            # that incremented it, so a lost decrement costs the cluster that
+            # much capacity until it expires.
             logger.warning(
                 "query_guard_%s_decr_failed user=%s error=%s", name, key_ref(user_key), str(e), exc_info=True
             )
+            _redis_command_failed("decr", e)
 
         try:
             current = int(client.get(key) or 0)
