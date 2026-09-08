@@ -43,6 +43,7 @@ class AuditAction(StrEnum):
     MESSAGE_UPDATE = "message.update"
     MESSAGE_DELETE = "message.delete"
     MEMORY_LONG_DELETE = "memory.long.delete"
+    MEMORY_LONG_PURGE = "memory.long.purge"
 
     # Documents and uploads
     UPLOAD_CREATE = "upload.create"

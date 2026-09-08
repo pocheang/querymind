@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -6,13 +7,15 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.domain.knowledge import MemoryItem
-from app.memory.resolver import MemoryResolver
+from app.memory.resolver import MemoryResolver, memory_is_expired
 from app.services.sessions.history import validate_session_id
 
 try:
     from rank_bm25 import BM25Okapi
 except ImportError:  # pragma: no cover - dependency fallback
     BM25Okapi = None  # type: ignore[assignment]
+
+logger = logging.getLogger(__name__)
 
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_\\-]+|[\\u4e00-\\u9fff]")
 
@@ -270,26 +273,94 @@ class MemoryStore:
         self._write(session_id, data)
         return candidate
 
-    def delete_long_term(self, session_id: str, candidate_id: str) -> bool:
-        session_id = validate_session_id(session_id)
-        data = self.get_session_payload(session_id)
-        hit = False
-        for item in data.get("candidates", []):
-            if str(item.get("candidate_id")) != candidate_id:
-                continue
-            if item.get("deleted"):
-                return False
-            item["deleted"] = True
-            hit = True
-            break
-        if not hit:
+    def list_all(self) -> list[dict[str, Any]]:
+        """Every memory stored for this user, not the set one session would use.
+
+        `list_long_term` answers a different question -- which memories reach
+        the model for THIS conversation -- and caps at LONG_TERM_TOP_N. Nine
+        stored memories listed as five, and as a different five depending on
+        which session asked. Somebody asking what the system remembers about
+        them has to be shown all of it, or the page is a claim the data behind
+        it does not support.
+
+        Reads every payload rather than the global one alone. A candidate lives
+        in the global payload and in the session that promoted it, and the two
+        can disagree -- rows written before the global store existed are
+        session-only, and `list_long_term` still feeds those to the model. A
+        memory is listed if any copy of it is live, because a live copy is one
+        the model can still be given.
+        """
+
+        rows: dict[str, dict[str, Any]] = {}
+        for session_id in self._payload_ids():
+            data = self._load_payload(session_id)
+            for item in (data or {}).get("candidates", []) or []:
+                candidate_id = str(item.get("candidate_id") or "")
+                if candidate_id and not item.get("deleted"):
+                    rows.setdefault(candidate_id, item)
+        return sorted(
+            rows.values(),
+            key=lambda row: str(row.get("updated_at") or row.get("created_at") or ""),
+            reverse=True,
+        )
+
+    def forget(self, memory_id: str) -> bool:
+        """Remove one memory from everywhere this store keeps it.
+
+        Expiring a single copy is not enough in either direction. Dropping only
+        the session copy leaves the global one, which `list_long_term` merges
+        back in; dropping only the global one leaves the session copy, which
+        `list_long_term` reads first. Either way the memory stays listed and
+        stays in the prompt, so "delete" would report success and change
+        nothing the user can see.
+        """
+
+        memory_id = str(memory_id or "").strip()
+        if not memory_id:
             return False
-        data["updated_at"] = _now_iso()
-        self._recompute_long_term_ids(data)
-        self._write(session_id, data)
-        if session_id != GLOBAL_MEMORY_SESSION_ID:
-            self._expire_in_payload(GLOBAL_MEMORY_SESSION_ID, candidate_id)
-        return True
+        # Not `any(...)` with a generator: it short-circuits, and the second
+        # copy has to be expired too.
+        return any([self._expire_in_payload(sid, memory_id) for sid in self._payload_ids()])
+
+    def forget_all(self) -> int:
+        """Forget every memory this user has, and report how many that was.
+
+        Counted by distinct id rather than by row: a memory is normally held
+        twice, and reporting 18 deleted to somebody who was shown 9 reads as
+        data they were never told about.
+        """
+
+        forgotten: set[str] = set()
+        for session_id in self._payload_ids():
+            data = self._load_payload(session_id)
+            if data is None:
+                continue
+            changed = False
+            for item in data.get("candidates", []) or []:
+                candidate_id = str(item.get("candidate_id") or "")
+                if not candidate_id or item.get("deleted"):
+                    continue
+                item["deleted"] = True
+                forgotten.add(candidate_id)
+                changed = True
+            if changed:
+                data["updated_at"] = _now_iso()
+                self._recompute_long_term_ids(data)
+                self._write(session_id, data)
+        return len(forgotten)
+
+    def delete_long_term(self, session_id: str, candidate_id: str) -> bool:
+        """Forget a memory the caller was shown against `session_id`.
+
+        The session id is validated and then deliberately not used to narrow
+        the search. `list_long_term` merges the global set into every session's
+        list, so a session lists memories its own payload does not hold; this
+        used to search that payload alone and answered 404 for two of the five
+        rows it had just returned.
+        """
+
+        validate_session_id(session_id)
+        return self.forget(candidate_id)
 
     def upsert_memory(self, item: MemoryItem) -> MemoryItem:
         normalized = self.resolver.normalize_item(item)
@@ -308,6 +379,34 @@ class MemoryStore:
             "candidates": [],
             "long_term_ids": [],
         }
+
+    def _payload_ids(self) -> list[str]:
+        """Every session this store holds a payload for, `_global` included."""
+
+        ids: list[str] = []
+        for path in sorted(self.base_dir.glob("*.json")):
+            try:
+                ids.append(validate_session_id(path.stem))
+            except ValueError:
+                # Not a payload this store wrote. Skipping it is safer than
+                # letting one stray filename hide every real memory.
+                logger.warning("memory_store_skipping_unrecognised_payload name=%s", path.name)
+        return ids
+
+    def _load_payload(self, session_id: str) -> dict[str, Any] | None:
+        """One payload, or None when it cannot be read.
+
+        A payload this store cannot parse holds no memory it can show and none
+        it can delete, and one such file must not take the others with it:
+        `list_all` would raise on a corrupt sibling, and `forget` would abort
+        before reaching the second copy of the memory it was asked to remove.
+        """
+
+        try:
+            return self.get_session_payload(session_id)
+        except (OSError, ValueError) as error:
+            logger.warning("memory_store_unreadable_payload session=%s error=%s", session_id, str(error))
+            return None
 
     def _write(self, session_id: str, payload: dict[str, Any]) -> None:
         session_id = validate_session_id(session_id)
@@ -342,7 +441,9 @@ class MemoryStore:
         return dict(candidate)
 
     def _expire_in_payload(self, session_id: str, memory_id: str) -> bool:
-        data = self.get_session_payload(session_id)
+        data = self._load_payload(session_id)
+        if data is None:
+            return False
         found = False
         for item in data.get("candidates", []):
             if str(item.get("candidate_id")) == memory_id and not item.get("deleted"):
@@ -413,6 +514,7 @@ def _normalized_memory_content(row: dict[str, Any]) -> str:
 
 __all__ = [
     "MemoryStore",
+    "memory_is_expired",
     "build_long_term_memory_context",
     "build_memory_context",
     "build_short_term_memory_context",

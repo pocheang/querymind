@@ -17,7 +17,7 @@ from app.api.routes.admin import users as admin_users
 from app.api.routes.admin import web_activity as web_activity_admin
 from app.api.routes.operations import agent_health, agent_tracking, analytics, evaluation, health
 from app.api.routes.optimization import performance as optimization_performance
-from app.api.routes.public import auth, clarification, connectors, documents, orchestration, prompts
+from app.api.routes.public import auth, clarification, connectors, documents, memories, orchestration, prompts
 from app.api.routes.public import query as advanced_rag
 from app.api.routes.public import sessions as public_sessions
 
@@ -29,6 +29,7 @@ ROUTER_MODULES = (
     clarification,
     connectors,
     public_sessions,
+    memories,
     sessions_management,
     documents,
     prompts,

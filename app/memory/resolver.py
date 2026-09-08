@@ -93,7 +93,7 @@ class MemoryResolver:
         conflict_count = 0
         for item in (*long_term, *current_context):
             item = self.normalize_item(item)
-            if item.memory_id in superseded or _expired(item, active_now):
+            if item.memory_id in superseded or memory_is_expired(item.expires_at, active_now):
                 expired_count += 1
                 continue
             key = item.memory_key or _semantic_key(item.kind, item.content)
@@ -175,16 +175,25 @@ def _expiry(kind: MemoryKind, now: datetime, settings: Settings) -> datetime | N
     return None
 
 
-def _expired(item: MemoryItem, now: datetime) -> bool:
-    if not item.expires_at:
+def memory_is_expired(expires_at: str | None, now: datetime | None = None) -> bool:
+    """Whether a memory's TTL has passed, read from its stored timestamp.
+
+    Takes the timestamp rather than a `MemoryItem` so `MemoryStore` can ask the
+    same question of a raw row -- including the legacy rows
+    `memory_item_from_row` refuses, which are still stored and still listed. A
+    timestamp that cannot be parsed counts as expired: an unusable expiry is
+    not a reason to keep feeding a memory to the model.
+    """
+
+    if not expires_at:
         return False
     try:
-        expires = datetime.fromisoformat(item.expires_at)
-        if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=UTC)
-        return expires <= now
+        expires = datetime.fromisoformat(str(expires_at))
     except ValueError:
         return True
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=UTC)
+    return expires <= (now or datetime.now(UTC))
 
 
 def _updated_at(item: MemoryItem) -> datetime:
@@ -199,4 +208,4 @@ def _normalized(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
-__all__ = ["MemoryResolution", "MemoryResolver"]
+__all__ = ["MemoryResolution", "MemoryResolver", "memory_is_expired"]

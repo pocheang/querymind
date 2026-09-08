@@ -153,6 +153,18 @@ def update_session(
 
 @router.get("/{session_id}/memories/long", response_model=list[LongTermMemoryItem])
 def list_long_term_memories(session_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)):
+    """The memories THIS conversation would be given, not everything stored.
+
+    `list_long_term` returns `long_term_ids`, capped at `LONG_TERM_TOP_N`, and
+    merges the global set in -- so the answer is a working set and it differs by
+    which session asks. Measured on ten promotions: nine stored, five returned
+    here, and a different five for `_global`.
+
+    `GET /api/v1/memories` is the record. Do not build a "what does this system
+    remember about me" surface on this endpoint; that is the mistake the memory
+    router exists to correct.
+    """
+
     session_id = _require_valid_session_id(session_id)
     _require_permission(user, Permission.SESSION_READ, request, "session", resource_id=session_id)
     rows = _memory_store_for_user(user).list_long_term(session_id)
@@ -163,6 +175,15 @@ def list_long_term_memories(session_id: str, request: Request, user: dict[str, A
 def delete_long_term_memory(
     session_id: str, memory_id: str, request: Request, user: dict[str, Any] = Depends(_require_user)
 ):
+    """Forget a memory the caller was shown against this session.
+
+    The session id no longer narrows the search: this endpoint used to look
+    only in that session's own payload while the listing above merges the
+    global set into every session, so it answered 404 for rows it had just
+    returned. `DELETE /api/v1/memories/{memory_id}` is the same operation
+    without the session in the path.
+    """
+
     session_id = _require_valid_session_id(session_id)
     _require_permission(user, Permission.SESSION_READ, request, "session", resource_id=session_id)
     ok = _memory_store_for_user(user).delete_long_term(session_id=session_id, candidate_id=memory_id)

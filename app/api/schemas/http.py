@@ -191,6 +191,40 @@ class LongTermMemoryItem(BaseModel):
     created_at: str | None = None
 
 
+class StoredMemoryItem(BaseModel):
+    """One memory this system holds about the caller.
+
+    Deliberately not `LongTermMemoryItem`, which describes a different thing:
+    that model is a row of the working set one conversation would be given, and
+    reusing it here would imply the session endpoint returns the whole record.
+    This one carries what somebody auditing their own data needs and the other
+    silently drops -- `kind` says why it was kept, `content` is the memory
+    itself rather than the exchange it came from, and `active` says whether it
+    still reaches the model.
+    """
+
+    memory_id: str
+    kind: str = ""
+    content: str = ""
+    score: float = 0.0
+    active: bool = True
+    created_at: str | None = None
+    updated_at: str | None = None
+    expires_at: str | None = None
+    source_session_id: str | None = None
+
+
+class StoredMemoryList(BaseModel):
+    memories: list[StoredMemoryItem] = Field(default_factory=list)
+    total: int = 0
+
+
+class ForgetMemoryResponse(BaseModel):
+    ok: bool = True
+    memory_id: str = ""
+    forgotten: int = 0
+
+
 class UploadResponse(BaseModel):
     ok: bool = True
     filenames: list[str] = Field(default_factory=list)
