@@ -1,12 +1,18 @@
 {
   "app": {
     "title": "智询 QueryMind",
-    "subtitle": "企业级智能问答引擎"
+    "subtitle": "企业级智能问答引擎",
+    "tagline": "多智能体 RAG 运维台"
   },
   "nav": {
     "home": "首页",
     "dataFlow": "数据流",
-    "logout": "登出"
+    "logout": "登出",
+    "deck": "运维台",
+    "analytics": "数据分析",
+    "admin": "管理控制台",
+    "architecture": "系统架构",
+    "landing": "产品展示"
   },
   "auth": {
     "login": "登录",
@@ -21,7 +27,8 @@
     "loginFailed": "登录失败",
     "registerSuccess": "注册成功",
     "registerFailed": "注册失败",
-    "invalidRedirect": "无效的重定向地址"
+    "invalidRedirect": "无效的重定向地址",
+    "signIn": "登录"
   },
   "query": {
     "searching": "搜索中...",
@@ -398,7 +405,9 @@
     "retry": "重试",
     "noData": "暂无数据",
     "required": "必需",
-    "optional": "可选"
+    "optional": "可选",
+    "clear": "清空",
+    "logout": "退出登录"
   },
   "language": {
     "en": "English",
@@ -474,6 +483,31 @@
       "connectError": "无法连接集成。",
       "updateError": "无法更新集成。",
       "testError": "无法测试集成。"
+    },
+    "memory": {
+      "ariaLabel": "长期记忆",
+      "title": "长期记忆",
+      "description": "你提到的偏好、事实和待办会被存为长期记忆，并在后续提问时加入上下文。下面是这个账号目前存下的全部内容。",
+      "loading": "正在读取长期记忆…",
+      "empty": "目前没有存下关于你的任何记忆。",
+      "expired": "已过期",
+      "forgotten": "已删除该条记忆。",
+      "forgotAll": "已删除 {{count}} 条记忆。",
+      "forgetAll": "全部删除",
+      "forgettingAll": "正在删除…",
+      "forgetAllTitle": "删除全部长期记忆？",
+      "forgetAllPrompt": "这会永久删除全部 {{count}} 条记忆，之后的回答不再使用它们。",
+      "forgetAllConfirm": "全部删除",
+      "forgetOne": "删除记忆：{{content}}",
+      "loadError": "无法读取长期记忆。",
+      "forgetError": "删除这条记忆失败。",
+      "kind": {
+        "preference": "偏好",
+        "stableFact": "事实",
+        "task": "待办提醒",
+        "explicitRemember": "你要求记住",
+        "other": "其他"
+      }
     }
   },
   "pages": {
@@ -498,7 +532,51 @@
       "workflowTitle": "查询请求流转图",
       "workflowSubtitle": "全链路了解查询如何被安全审查、意图解析、多路检索并最终合成答复。",
       "ctaTitle": "准备好释放本地知识库的潜力了吗？",
-      "ctaSubtitle": "在数分钟内，快速部署安全、高效、私密的多智能体知识库助手。"
+      "ctaSubtitle": "在数分钟内，快速部署安全、高效、私密的多智能体知识库助手。",
+      "navFeatures": "功能特性",
+      "navWorkflow": "运行流程",
+      "navTiers": "检索分级",
+      "navArchitecture": "系统架构",
+      "heroName": "智询 QueryMind",
+      "heroTagline": "企业级智能问答引擎",
+      "featuresHeadingLead": "六大生产级",
+      "featuresHeadingAccent": "核心能力",
+      "tiersHeadingLead": "分层执行",
+      "tiersHeadingAccent": "检索系统",
+      "tiersSubtitle": "根据查询复杂度与并发负载，自适应调度不同的执行策略，保障系统在高并发下的稳定性。",
+      "metricResponseTime": "响应时间",
+      "metricRetrievalDepth": "检索深度",
+      "metricMaxTokens": "限制 Tokens",
+      "tierFastDesc": "适合简单事实性检索",
+      "tierBalancedDesc": "常规业务知识问答",
+      "tierDeepDesc": "复杂推演、多跳关联分析",
+      "capVectorDb": "本地向量数据库检索",
+      "capBm25": "BM25 关键词匹配",
+      "capWebFallback": "互联网搜索回退",
+      "capMultiHopGraph": "多跳知识图谱推理",
+      "capHybrid": "向量与 BM25 混合检索",
+      "capRrf": "RRF 倒数排名融合",
+      "capConditionalWeb": "条件网络搜索回退",
+      "capDeepGraph": "深层图谱邻居推理",
+      "capMaxDepth": "最大深度向量与图谱检索",
+      "capReranker": "BGE 交叉编码重排",
+      "capActiveWeb": "主动联网搜索增强",
+      "capNeo4jPaths": "Neo4j 实体关系路径提取",
+      "step1Title": "安全接入与防护",
+      "step1Body": "用户查询提交后，通过 RBAC 身份校验与安全网关，清洗 SQL 注入、有害指令，执行速率限制防护。",
+      "step2Title": "智能路由决策",
+      "step2Body": "Router 节点基于本地大模型理解问题意图，进行中文 NLP 预处理和查询去重，并决定最佳检索模式。",
+      "step3Title": "多智能体并行检索",
+      "step3Body": "向量 RAG 检索 ChromaDB、图谱 RAG 检索 Neo4j 实体、网络 RAG 并行抓取，获取多路证据上下文。",
+      "step4Title": "答案合成与流式吐出",
+      "step4Body": "Synthesis 代理整合证据链与上下文，生成带有引用标注的最终答复，并通过 SSE 管道流式推送至前端。",
+      "archHeadingLead": "全链路",
+      "archHeadingAccent": "系统架构图",
+      "archSubtitle": "系统底层基于 ReactFlow 渲染，直观展现多智能体协作、存储持久化、安全边界及治理运维模块的连接路径。",
+      "archPreviewHint": "交互式预览：支持拖动和缩放",
+      "footerFeatures": "功能",
+      "footerFlow": "流转",
+      "footerTiers": "分级"
     },
     "login": {
       "headline": "QueryMind\n智询平台",
@@ -590,7 +668,8 @@
       "retrievals": "检索次数",
       "avgScore": "平均分",
       "exportJson": "导出 JSON",
-      "exportCsv": "导出 CSV"
+      "exportCsv": "导出 CSV",
+      "avgResponseNote": "检索：{{retrieval}}ms"
     },
     "admin": {
       "console": "管理控制台",
@@ -639,12 +718,11 @@
         "send": "发送消息",
         "newline": "换行",
         "clear": "清空输入框",
-        "focusSearch": "聚焦到搜索框",
         "newSession": "新建会话",
         "toggleSidebar": "切换侧边栏",
-        "toggleWeb": "切换联网检索",
-        "toggleReasoning": "切换推理增强",
-        "showHelp": "显示快捷键帮助"
+        "showHelp": "显示快捷键帮助",
+        "commandPalette": "打开命令面板",
+        "stop": "停止生成"
       }
     },
     "workbench": {
@@ -737,7 +815,9 @@
       "deleteTemplateConfirm": "删除模板：{{title}}？",
       "promptDeleted": "提示词已删除",
       "deletePromptFailed": "删除提示词失败",
-      "unknownError": "未知错误"
+      "unknownError": "未知错误",
+      "failed": "失败",
+      "ready": "就绪"
     },
     "messages": {
       "logLabel": "对话消息",
@@ -780,7 +860,8 @@
         "failed": "失败",
         "skipped": "未执行",
         "approval_required": "等待你确认"
-      }
+      },
+      "thoughtFor": "思考了 {{seconds}} 秒"
     },
     "apiSettings": {
       "title": "模型 API 设置",
@@ -891,6 +972,21 @@
       "hideSections": "隐藏输入区域",
       "moreOptions": "更多选项",
       "sessionManagementMenu": "会话管理"
+    },
+    "commandPalette": {
+      "title": "命令面板",
+      "open": "命令面板（Ctrl+K）",
+      "placeholder": "输入命令或搜索…",
+      "empty": "没有匹配的命令",
+      "navigate": "前往",
+      "actions": "操作",
+      "sessions": "会话",
+      "account": "账户",
+      "switchLanguage": "切换语言"
+    },
+    "topNav": {
+      "avgLatency": "平均延迟",
+      "successRate": "成功率"
     }
   },
   "architecture": {
@@ -1074,7 +1170,8 @@
     "conflictResolution": "冲突解决",
     "messagesImported": "导入消息数",
     "metadataImported": "元数据已导入",
-    "contextImported": "上下文已导入"
+    "contextImported": "上下文已导入",
+    "title": "会话管理"
   },
   "chat": {
     "badges": {

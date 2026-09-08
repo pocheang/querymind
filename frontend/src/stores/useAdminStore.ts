@@ -8,17 +8,8 @@ import type {
   SystemLogEntry,
 } from "@/types/api";
 
-type Section =
-  | "ops"
-  | "monitor"
-  | "rag"
-  | "models"
-  | "admins"
-  | "users"
-  | "audit"
-  | "syslog"
-  | "webactivity"
-  | "agentquality";
+export type Section =
+  "ops" | "monitor" | "rag" | "models" | "admins" | "users" | "audit" | "syslog" | "webactivity" | "agentquality";
 
 export interface AdminState {
   section: Section;
@@ -89,7 +80,9 @@ export interface AdminState {
   setSystemLogs: (val: SystemLogEntry[] | ((prev: SystemLogEntry[]) => SystemLogEntry[])) => void;
   setOps: (val: OpsOverview | null | ((prev: OpsOverview | null) => OpsOverview | null)) => void;
   setBenchmarkTrends: (val: BenchmarkTrendItem[] | ((prev: BenchmarkTrendItem[]) => BenchmarkTrendItem[])) => void;
-  setModelSettings: (val: AdminModelSettingsView | null | ((prev: AdminModelSettingsView | null) => AdminModelSettingsView | null)) => void;
+  setModelSettings: (
+    val: AdminModelSettingsView | null | ((prev: AdminModelSettingsView | null) => AdminModelSettingsView | null)
+  ) => void;
 
   setStatusText: (val: string | ((prev: string) => string)) => void;
   setError: (val: string | ((prev: string) => string)) => void;
@@ -128,7 +121,14 @@ export interface AdminState {
   setOpsAutoRefresh: (val: boolean | ((prev: boolean) => boolean)) => void;
 
   setModelApiKey: (val: string | ((prev: string) => string)) => void;
-  setModelTestResult: (val: { type: "success" | "error"; message: string } | null | ((prev: { type: "success" | "error"; message: string } | null) => { type: "success" | "error"; message: string } | null)) => void;
+  setModelTestResult: (
+    val:
+      | { type: "success" | "error"; message: string }
+      | null
+      | ((
+          prev: { type: "success" | "error"; message: string } | null
+        ) => { type: "success" | "error"; message: string } | null)
+  ) => void;
 
   setAdminUsername: (val: string | ((prev: string) => string)) => void;
   setAdminPassword: (val: string | ((prev: string) => string)) => void;

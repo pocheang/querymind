@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { OpsOverview } from "@/types/api";
+import { KpiCard, KpiGrid } from "./components/AdminPrimitives";
 
 type Props = {
   ops: OpsOverview;
@@ -29,22 +30,16 @@ export function AdminOpsKpiCards({ ops }: Readonly<Props>) {
 
   return (
     <>
-      <div className="ops-kpi-grid ops-kpi-grid-primary">
+      <KpiGrid cols={6}>
         {primary.map(([label, value]) => (
-          <div className="ops-kpi-card" key={String(label)}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </div>
+          <KpiCard key={String(label)} label={label} value={value} />
         ))}
-      </div>
-      <div className="ops-kpi-grid ops-kpi-grid-secondary">
+      </KpiGrid>
+      <KpiGrid cols={5}>
         {secondary.map(([label, value]) => (
-          <div className="ops-kpi-card" key={String(label)}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </div>
+          <KpiCard key={String(label)} label={label} value={value} />
         ))}
-      </div>
+      </KpiGrid>
     </>
   );
 }

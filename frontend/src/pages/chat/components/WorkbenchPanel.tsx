@@ -1,4 +1,7 @@
 import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { WorkbenchModule } from "@/pages/chat/components/WorkbenchModule";
 import { useTranslation } from "react-i18next";
 import type React from "react";
 import type { IndexedFileSummary, PromptTemplate } from "@/types/api";
@@ -115,7 +118,9 @@ export function WorkbenchPanel({
 
   const allToolsCollapsed = Object.values(toolsCollapsed).every(Boolean);
   const indexedCount = documents.length;
-  const indexingCount = documents.filter((doc) => ["pending", "indexing"].includes(String(doc.indexing_status || ""))).length;
+  const indexingCount = documents.filter((doc) =>
+    ["pending", "indexing"].includes(String(doc.indexing_status || ""))
+  ).length;
   const readyCount = documents.filter((doc) => String(doc.indexing_status || "ready") === "ready").length;
   const failedCount = documents.filter((doc) => String(doc.indexing_status || "") === "failed").length;
   const moduleStatus = {
@@ -139,164 +144,139 @@ export function WorkbenchPanel({
   };
 
   return (
-    <div className="sidebar-tools">
-      <div className="sidebar-group-title sidebar-group-title-with-action">
-        <span>{t("components.workbench.workbench")}</span>
-        <button type="button" className="sidebar-group-action" onClick={toggleAllTools}>
+    /* max-h keeps this from starving the session list above it: as a
+       shrink-0 flex child with no bound, an expanded workbench took the whole
+       column and collapsed the sessions to 5px. */
+    <div className="flex max-h-[45%] shrink-0 flex-col gap-2 overflow-y-auto border-t border-line-subtle px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+          {t("components.workbench.workbench")}
+        </span>
+        <Button variant="ghost" size="xs" onClick={toggleAllTools}>
           {allToolsCollapsed ? t("components.workbench.expandAll") : t("components.workbench.collapseAll")}
-        </button>
+        </Button>
       </div>
 
-      <section className="panel sidebar-module">
-        <button
-          type="button"
-          className="sidebar-module-toggle"
-          aria-expanded={!toolsCollapsed.agents}
-          onClick={() => toggleToolSection("agents")}
-        >
-          <div className="sidebar-module-copy">
-            <strong>{t("components.workbench.agentWorkbench")}</strong>
-            <small>{t("components.workbench.agentWorkbenchDesc")}</small>
-          </div>
-          <span className={`sidebar-module-status ${agentClassHint ? "status-locked" : "status-auto"}`}>
-            {moduleStatus.agents}
-          </span>
-          <span className="sidebar-module-chevron" aria-hidden="true" />
-        </button>
-        {!toolsCollapsed.agents && (
-          <div className="sidebar-module-body">
-            <AgentWorkbench
-              agentClassHint={agentClassHint}
-              agentModes={agentModes}
-              agentDistribution={agentDistribution}
-              onSwitchAgentMode={onSwitchAgentMode}
-            />
-          </div>
-        )}
-      </section>
+      <WorkbenchModule
+        title={t("components.workbench.agentWorkbench")}
+        description={t("components.workbench.agentWorkbenchDesc")}
+        status={moduleStatus.agents}
+        statusVariant={agentClassHint ? "warning" : "success"}
+        accent="brand"
+        open={!toolsCollapsed.agents}
+        onToggle={() => toggleToolSection("agents")}
+      >
+        <AgentWorkbench
+          agentClassHint={agentClassHint}
+          agentModes={agentModes}
+          agentDistribution={agentDistribution}
+          onSwitchAgentMode={onSwitchAgentMode}
+        />
+      </WorkbenchModule>
 
-      <section className="panel sidebar-module">
-        <button
-          type="button"
-          className="sidebar-module-toggle"
-          aria-expanded={!toolsCollapsed.pdf}
-          onClick={() => toggleToolSection("pdf")}
-        >
-          <div className="sidebar-module-copy">
-            <strong>{t("components.workbench.pdfWorkbench")}</strong>
-            <small>{t("components.workbench.pdfWorkbenchDesc")}</small>
-          </div>
-          <span className="sidebar-module-status status-files">{moduleStatus.pdf}</span>
-          <span className="sidebar-module-chevron" aria-hidden="true" />
-        </button>
-        {!toolsCollapsed.pdf && (
-          <div className="sidebar-module-body">
-            <PdfWorkbench
-              pdfDocuments={pdfDocuments}
-              pdfNeedingReindex={pdfNeedingReindex}
-              pdfTargetFile={pdfTargetFile}
-              onPdfTargetFileChange={onPdfTargetFileChange}
-              onSwitchAgentMode={onSwitchAgentMode}
-              onDraftQuestion={onDraftQuestion}
-            />
-          </div>
-        )}
-      </section>
+      <WorkbenchModule
+        title={t("components.workbench.pdfWorkbench")}
+        description={t("components.workbench.pdfWorkbenchDesc")}
+        status={moduleStatus.pdf}
+        statusVariant="info"
+        accent="info"
+        open={!toolsCollapsed.pdf}
+        onToggle={() => toggleToolSection("pdf")}
+      >
+        <PdfWorkbench
+          pdfDocuments={pdfDocuments}
+          pdfNeedingReindex={pdfNeedingReindex}
+          pdfTargetFile={pdfTargetFile}
+          onPdfTargetFileChange={onPdfTargetFileChange}
+          onSwitchAgentMode={onSwitchAgentMode}
+          onDraftQuestion={onDraftQuestion}
+        />
+      </WorkbenchModule>
 
-      <section className="panel sidebar-module">
-        <button
-          type="button"
-          className="sidebar-module-toggle"
-          aria-expanded={!toolsCollapsed.docs}
-          onClick={() => toggleToolSection("docs")}
-        >
-          <div className="sidebar-module-copy">
-            <strong>{t("components.workbench.knowledgeBase")}</strong>
-            <small>{t("components.workbench.knowledgeBaseDesc")}</small>
+      <WorkbenchModule
+        title={t("components.workbench.knowledgeBase")}
+        description={t("components.workbench.knowledgeBaseDesc")}
+        status={moduleStatus.docs}
+        statusVariant="success"
+        accent="success"
+        open={!toolsCollapsed.docs}
+        onToggle={() => toggleToolSection("docs")}
+      >
+        <div className="grid grid-cols-4 gap-1.5">
+          <div className="rounded-control border border-line bg-surface p-1.5 text-center">
+            <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+              {t("components.workbench.indexed")}
+            </span>
+            <strong className="block font-mono text-xs font-bold text-brand-text">{indexedCount}</strong>
           </div>
-          <span className="sidebar-module-status status-docs">{moduleStatus.docs}</span>
-          <span className="sidebar-module-chevron" aria-hidden="true" />
-        </button>
-        {!toolsCollapsed.docs && (
-          <div className="sidebar-module-body">
-            <div className="sidebar-kb-metrics">
-              <div className="sidebar-kb-card">
-                <span>{t("components.workbench.indexed")}</span>
-                <strong>{indexedCount}</strong>
-              </div>
-              <div className="sidebar-kb-card">
-                <span>{t("components.workbench.pending")}</span>
-                <strong>{indexingCount}</strong>
-              </div>
-              <div className="sidebar-kb-card">
-                <span>Ready</span>
-                <strong>{readyCount}</strong>
-              </div>
-              <div className="sidebar-kb-card">
-                <span>Failed</span>
-                <strong>{failedCount}</strong>
-              </div>
-            </div>
-            <DocumentsPanel
-              documents={documents}
-              docsLoading={docsLoading}
-              uploading={uploading}
-              uploadInfo={uploadInfo}
-              uploadProgress={uploadProgress}
-              uploadProgressText={uploadProgressText}
-              uploadVisibility={uploadVisibility}
-              docDropActive={docDropActive}
-              canUploadAndManageDocs={canUploadAndManageDocs}
-              isAdmin={isAdmin}
-              user={user as UserIdentity | null}
-              fileInputRef={fileInputRef}
-              onRefreshDocuments={onRefreshDocuments}
-              onUploadVisibilityChange={onUploadVisibilityChange}
-              onMainUploadChange={onMainUploadChange}
-              onDocsDrop={onDocsDrop}
-              onDocDropActiveChange={onDocDropActiveChange}
-              onReindexDocument={onReindexDocument}
-              onDeleteDocument={onDeleteDocument}
-            />
+          <div className="rounded-control border border-line bg-surface p-1.5 text-center">
+            <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+              {t("components.workbench.pending")}
+            </span>
+            <strong className="block font-mono text-xs font-bold text-brand-text">{indexingCount}</strong>
           </div>
-        )}
-      </section>
+          <div className="rounded-control border border-line bg-surface p-1.5 text-center">
+            <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+              {t("components.workbench.ready", "Ready")}
+            </span>
+            <strong className="block font-mono text-xs font-bold text-brand-text">{readyCount}</strong>
+          </div>
+          <div className="rounded-control border border-line bg-surface p-1.5 text-center">
+            <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+              {t("components.workbench.failed", "Failed")}
+            </span>
+            <strong className="block font-mono text-xs font-bold text-brand-text">{failedCount}</strong>
+          </div>
+        </div>
+        <DocumentsPanel
+          documents={documents}
+          docsLoading={docsLoading}
+          uploading={uploading}
+          uploadInfo={uploadInfo}
+          uploadProgress={uploadProgress}
+          uploadProgressText={uploadProgressText}
+          uploadVisibility={uploadVisibility}
+          docDropActive={docDropActive}
+          canUploadAndManageDocs={canUploadAndManageDocs}
+          isAdmin={isAdmin}
+          user={user as UserIdentity | null}
+          fileInputRef={fileInputRef}
+          onRefreshDocuments={onRefreshDocuments}
+          onUploadVisibilityChange={onUploadVisibilityChange}
+          onMainUploadChange={onMainUploadChange}
+          onDocsDrop={onDocsDrop}
+          onDocDropActiveChange={onDocDropActiveChange}
+          onReindexDocument={onReindexDocument}
+          onDeleteDocument={onDeleteDocument}
+        />
+      </WorkbenchModule>
 
-      <section className="panel sidebar-module">
-        <button
-          type="button"
-          className="sidebar-module-toggle"
-          aria-expanded={!toolsCollapsed.prompts}
-          onClick={() => toggleToolSection("prompts")}
-        >
-          <div className="sidebar-module-copy">
-            <strong>{t("components.workbench.promptLibrary")}</strong>
-            <small>{t("components.workbench.promptLibraryDesc")}</small>
-          </div>
-          <span className="sidebar-module-status status-saved">{moduleStatus.prompts}</span>
-          <span className="sidebar-module-chevron" aria-hidden="true" />
-        </button>
-        {!toolsCollapsed.prompts && (
-          <div className="sidebar-module-body">
-            <PromptTemplates
-              prompts={prompts}
-              promptsLoading={promptsLoading}
-              promptTitle={promptTitle}
-              promptContent={promptContent}
-              editingPromptId={editingPromptId}
-              promptCheckInfo={promptCheckInfo}
-              onRefreshPrompts={onRefreshPrompts}
-              onPromptTitleChange={onPromptTitleChange}
-              onPromptContentChange={onPromptContentChange}
-              onCheckPrompt={onCheckPrompt}
-              onSavePrompt={onSavePrompt}
-              onUsePrompt={onUsePrompt}
-              onEditPrompt={onEditPrompt}
-              onDeletePrompt={onDeletePrompt}
-            />
-          </div>
-        )}
-      </section>
+      <WorkbenchModule
+        title={t("components.workbench.promptLibrary")}
+        description={t("components.workbench.promptLibraryDesc")}
+        status={moduleStatus.prompts}
+        statusVariant="brand"
+        accent="warning"
+        open={!toolsCollapsed.prompts}
+        onToggle={() => toggleToolSection("prompts")}
+      >
+        <PromptTemplates
+          prompts={prompts}
+          promptsLoading={promptsLoading}
+          promptTitle={promptTitle}
+          promptContent={promptContent}
+          editingPromptId={editingPromptId}
+          promptCheckInfo={promptCheckInfo}
+          onRefreshPrompts={onRefreshPrompts}
+          onPromptTitleChange={onPromptTitleChange}
+          onPromptContentChange={onPromptContentChange}
+          onCheckPrompt={onCheckPrompt}
+          onSavePrompt={onSavePrompt}
+          onUsePrompt={onUsePrompt}
+          onEditPrompt={onEditPrompt}
+          onDeletePrompt={onDeletePrompt}
+        />
+      </WorkbenchModule>
     </div>
   );
 }

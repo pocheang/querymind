@@ -1,12 +1,18 @@
 {
   "app": {
     "title": "QueryMind",
-    "subtitle": "Enterprise Intelligent Q&A Engine"
+    "subtitle": "Enterprise Intelligent Q&A Engine",
+    "tagline": "Multi-Agent RAG Operations Deck"
   },
   "nav": {
     "home": "Home",
     "dataFlow": "Data Flow",
-    "logout": "Logout"
+    "logout": "Logout",
+    "deck": "Operations Deck",
+    "analytics": "Analytics",
+    "admin": "Admin Console",
+    "architecture": "Architecture",
+    "landing": "Showcase"
   },
   "auth": {
     "login": "Login",
@@ -21,7 +27,8 @@
     "loginFailed": "Login failed",
     "registerSuccess": "Registration successful",
     "registerFailed": "Registration failed",
-    "invalidRedirect": "Invalid redirect URL"
+    "invalidRedirect": "Invalid redirect URL",
+    "signIn": "Sign in"
   },
   "query": {
     "searching": "Searching...",
@@ -398,7 +405,9 @@
     "retry": "Retry",
     "noData": "No data available",
     "required": "Required",
-    "optional": "Optional"
+    "optional": "Optional",
+    "clear": "Clear",
+    "logout": "Sign out"
   },
   "language": {
     "en": "English",
@@ -474,6 +483,31 @@
       "connectError": "Unable to connect integration.",
       "updateError": "Unable to update integration.",
       "testError": "Unable to test integration."
+    },
+    "memory": {
+      "ariaLabel": "Long-term memory",
+      "title": "Long-term memory",
+      "description": "Preferences, facts and reminders you mention are kept as long-term memories and added to the context of later questions. This is everything stored for your account.",
+      "loading": "Loading stored memories...",
+      "empty": "Nothing is stored about you yet.",
+      "expired": "Expired",
+      "forgotten": "Memory deleted.",
+      "forgotAll": "Deleted {{count}} memories.",
+      "forgetAll": "Delete all",
+      "forgettingAll": "Deleting...",
+      "forgetAllTitle": "Delete every memory?",
+      "forgetAllPrompt": "This permanently removes all {{count}} stored memories. Later answers will no longer use them.",
+      "forgetAllConfirm": "Delete all",
+      "forgetOne": "Delete memory: {{content}}",
+      "loadError": "Could not load stored memories.",
+      "forgetError": "Could not delete that memory.",
+      "kind": {
+        "preference": "Preference",
+        "stableFact": "Fact",
+        "task": "Reminder",
+        "explicitRemember": "You asked to remember",
+        "other": "Other"
+      }
     }
   },
   "pages": {
@@ -498,7 +532,51 @@
       "workflowTitle": "Request Execution Flow",
       "workflowSubtitle": "How queries are processed securely, analyzed, routed, retrieved, and synthesized.",
       "ctaTitle": "Ready to Unlock Your Local Knowledge?",
-      "ctaSubtitle": "Deploy a secure, powerful, and private multi-agent copilot in minutes."
+      "ctaSubtitle": "Deploy a secure, powerful, and private multi-agent copilot in minutes.",
+      "navFeatures": "Features",
+      "navWorkflow": "Execution Flow",
+      "navTiers": "Retrieval Tiers",
+      "navArchitecture": "Architecture",
+      "heroName": "QueryMind",
+      "heroTagline": "Enterprise Intelligent Q&A Engine",
+      "featuresHeadingLead": "Six Production-Grade",
+      "featuresHeadingAccent": "Core Pillars",
+      "tiersHeadingLead": "Tiered Execution",
+      "tiersHeadingAccent": "Retrieval System",
+      "tiersSubtitle": "Dynamically adapt execution strategies based on query complexity and system load to ensure stable performance.",
+      "metricResponseTime": "Response Time",
+      "metricRetrievalDepth": "Retrieval Depth",
+      "metricMaxTokens": "Max Tokens",
+      "tierFastDesc": "Best for simple factual lookups",
+      "tierBalancedDesc": "Standard Q&A workflows",
+      "tierDeepDesc": "Multi-step relational reasoning",
+      "capVectorDb": "Local Vector DB retrieval",
+      "capBm25": "BM25 keyword matching",
+      "capWebFallback": "Internet search fallback",
+      "capMultiHopGraph": "Multi-hop Graph reasoning",
+      "capHybrid": "Vector & BM25 hybrid search",
+      "capRrf": "RRF candidate blending",
+      "capConditionalWeb": "Conditional web search",
+      "capDeepGraph": "Deep Graph reasoning",
+      "capMaxDepth": "Max-depth Vector & Graph retrieval",
+      "capReranker": "BGE reranker precision ranking",
+      "capActiveWeb": "Active web research fallback",
+      "capNeo4jPaths": "Neo4j relationship mapping",
+      "step1Title": "Secure Gate & Guards",
+      "step1Body": "Requests go through authentication, role checks, rate limiting, SQL injection protection, and input sanitization.",
+      "step2Title": "Router Agent Routing",
+      "step2Body": "The Router analyzes query intent, applies NLP preprocessing/deduplication, and selects optimal agents.",
+      "step3Title": "Parallel Search Operations",
+      "step3Body": "Vector RAG (ChromaDB), Graph RAG (Neo4j), and Web Research search in parallel to retrieve multi-source evidence.",
+      "step4Title": "Answer Synthesis & SSE Streaming",
+      "step4Body": "The Synthesis agent compiles evidence with grounding, adds citations, and streams answers using SSE to the browser.",
+      "archHeadingLead": "Full-Link",
+      "archHeadingAccent": "System Architecture",
+      "archSubtitle": "A fully interactive architecture graph rendering data flows, storage blocks, security scopes, and pipelines.",
+      "archPreviewHint": "Interactive preview: drag & zoom",
+      "footerFeatures": "Features",
+      "footerFlow": "Flow",
+      "footerTiers": "Tiers"
     },
     "login": {
       "headline": "QueryMind\nPlatform",
@@ -590,7 +668,8 @@
       "retrievals": "Retrievals",
       "avgScore": "Average score",
       "exportJson": "Export JSON",
-      "exportCsv": "Export CSV"
+      "exportCsv": "Export CSV",
+      "avgResponseNote": "Retrieval: {{retrieval}}ms"
     },
     "admin": {
       "console": "Admin Console",
@@ -639,12 +718,11 @@
         "send": "Send message",
         "newline": "New line",
         "clear": "Clear input",
-        "focusSearch": "Focus search box",
         "newSession": "New session",
         "toggleSidebar": "Toggle sidebar",
-        "toggleWeb": "Toggle web search",
-        "toggleReasoning": "Toggle reasoning",
-        "showHelp": "Show shortcut help"
+        "showHelp": "Show shortcut help",
+        "commandPalette": "Open the command palette",
+        "stop": "Stop generating"
       }
     },
     "workbench": {
@@ -737,7 +815,9 @@
       "deleteTemplateConfirm": "Delete template: {{title}}?",
       "promptDeleted": "Prompt deleted",
       "deletePromptFailed": "Failed to delete prompt",
-      "unknownError": "Unknown error"
+      "unknownError": "Unknown error",
+      "failed": "Failed",
+      "ready": "Ready"
     },
     "messages": {
       "logLabel": "Conversation messages",
@@ -780,7 +860,8 @@
         "failed": "failed",
         "skipped": "not run",
         "approval_required": "awaiting your confirmation"
-      }
+      },
+      "thoughtFor": "Thought for {{seconds}}s"
     },
     "apiSettings": {
       "title": "Model API Settings",
@@ -891,6 +972,21 @@
       "hideSections": "Hide Input Area",
       "moreOptions": "More Options",
       "sessionManagementMenu": "Session Management"
+    },
+    "commandPalette": {
+      "title": "Command palette",
+      "open": "Command palette (Ctrl+K)",
+      "placeholder": "Type a command or search…",
+      "empty": "No matching command",
+      "navigate": "Go to",
+      "actions": "Actions",
+      "sessions": "Sessions",
+      "account": "Account",
+      "switchLanguage": "Switch language"
+    },
+    "topNav": {
+      "avgLatency": "Avg latency",
+      "successRate": "Success"
     }
   },
   "architecture": {
@@ -1074,7 +1170,8 @@
     "conflictResolution": "Conflict Resolution",
     "messagesImported": "Messages Imported",
     "metadataImported": "Metadata Imported",
-    "contextImported": "Context Imported"
+    "contextImported": "Context Imported",
+    "title": "Session management"
   },
   "chat": {
     "badges": {

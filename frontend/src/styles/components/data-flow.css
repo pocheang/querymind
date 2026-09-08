@@ -1,5 +1,5 @@
 /* Imported from a component, so there is no import site to carry the
-   layer -- it is declared here instead. See styles/tailwind.css. */
+   layer -- it is declared here instead. See styles/main.css. */
 @layer legacy {
   /* ============================================
      React Flow Data Visualization
@@ -146,7 +146,7 @@
 
   /* Background */
   .reactflow-wrapper .react-flow__background {
-    background: var(--background);
+    background: var(--bg-page);
   }
 
   /* Attribution */
@@ -178,7 +178,6 @@
       display: none;
     }
   }
-
 }
 
 /* --------------------------------------------

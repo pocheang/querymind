@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronsLeft, KeyRound, LogOut, Settings2, User as UserIcon } from "lucide-react";
 import type React from "react";
+
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { PromptTemplate } from "@/types/api";
 import type { UserIdentity } from "@/types/auth";
 import { SessionList } from "@/pages/chat/components/SessionList";
@@ -141,71 +145,54 @@ export function ChatSidebar({
       promptCheckInfo: s.promptCheckInfo,
     }))
   );
-  const isDesktop = typeof window !== "undefined" ? window.innerWidth > 1080 : true;
-  const showCompactRail = sidebarCollapsed && isDesktop;
-  const [sessionSearchRequest, setSessionSearchRequest] = useState(0);
-
-  const handleCreateFromRail = async () => {
-    onToggleSidebarCollapsed();
-    await onCreateSession();
-  };
-
-  const handleSearchFromRail = () => {
-    setSessionSearchRequest((current) => current + 1);
-    onToggleSidebarCollapsed();
-  };
-
-  if (showCompactRail) {
-    return (
-      <aside className="sidebar sidebar-rail" aria-label={t("components.chat.railLabel")}>
-        <div className="sidebar-rail-actions">
-          <button type="button" className="sidebar-rail-btn active" onClick={onToggleSidebarCollapsed} title={t("components.chat.expandRail")}>
-            <span className="rail-icon rail-icon-panel" aria-hidden="true" />
-          </button>
-          <button type="button" className="sidebar-rail-btn" onClick={() => void handleCreateFromRail()} title={t("components.chat.newSessionFromRail")}>
-            <span className="rail-icon rail-icon-edit" aria-hidden="true" />
-          </button>
-          <button type="button" className="sidebar-rail-btn" onClick={handleSearchFromRail} title={t("components.chat.searchFromRail")}>
-            <span className="rail-icon rail-icon-search" aria-hidden="true" />
-          </button>
-        </div>
-        <div className="sidebar-rail-footer">
-          <button type="button" className="sidebar-rail-user" onClick={onToggleSidebarCollapsed} title={t("components.chat.accountFromRail")}>
-            {user?.username?.charAt(0).toUpperCase() || "U"}
-          </button>
-        </div>
-      </aside>
-    );
-  }
-
   return (
-    <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-      <div className="sidebar-shell">
-        <div className="sidebar-header">
-          <div className="sidebar-brand-mark" aria-hidden="true">
-            <span>R</span>
-          </div>
-          <div className="sidebar-brand-block">
-            <span className="sidebar-brand-kicker">{t("components.chat.brandKicker")}</span>
-            <div className="brand">QueryMind</div>
-            <p className="muted">{t("components.chat.sidebarDescription")}</p>
-          </div>
-          <button type="button" className="sidebar-collapse-btn" onClick={onToggleSidebarCollapsed}>
-            {t("components.chat.collapse")}
-          </button>
+    /* `sidebar` and `open` are behavioural hooks kept for scripts/screenshots.mjs,
+       which reads `classList.contains("open")` rather than a visibility check --
+       a panel translated off-canvas still reports as visible. Everything
+       visual is Tailwind.
+
+       Two mechanisms, one panel: below 1080px it is an off-canvas drawer
+       driven by `sidebarOpen`; at or above it, an in-flow column that
+       `sidebarCollapsed` slides out and un-gaps with a negative margin. */
+    <aside
+      className={cn(
+        "sidebar glass-panel absolute inset-y-0 left-0 z-30 flex w-80 shrink-0 flex-col border-y-0 border-l-0 shadow-elev-3",
+        "transition-[transform,margin-left,opacity] duration-300 ease-[var(--ease-standard)]",
+        "sidebar:relative sidebar:shadow-none",
+        sidebarOpen && "open",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full",
+        sidebarCollapsed
+          ? "sidebar:pointer-events-none sidebar:-ml-80 sidebar:-translate-x-full sidebar:opacity-0"
+          : "sidebar:translate-x-0 sidebar:opacity-100"
+      )}
+      aria-label={t("components.chat.sessions")}
+    >
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line-subtle px-3 py-2.5">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink">
+            {t("components.chat.sessions")}
+            <Badge variant="brand" size="xs" mono>
+              {sessions.length}
+            </Badge>
+          </span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onToggleSidebarCollapsed}
+            title={t("components.chat.collapse")}
+          >
+            <ChevronsLeft aria-hidden="true" />
+            <span className="sr-only">{t("components.chat.collapse")}</span>
+          </Button>
         </div>
 
-        <div className="sidebar-history">
-          <div className="sidebar-group-title">
-            <span>{t("components.chat.sessions")}</span>
-          </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <SessionList
             sessions={sessions}
             sessionLoading={sessionLoading}
             currentSessionId={currentSessionId}
             busySessionId={busySessionId}
             isCreatingSession={isCreatingSession}
-            searchRequestKey={sessionSearchRequest}
             user={user}
             onCreateSession={onCreateSession}
             onLoadSession={onLoadSession}
@@ -260,29 +247,56 @@ export function ChatSidebar({
           onDeletePrompt={onDeletePrompt}
         />
 
-        <div className="sidebar-footer">
-          <div className="sidebar-user-info">
-            <div className="sidebar-user-avatar">{user?.username?.charAt(0).toUpperCase() || "U"}</div>
-            <div className="sidebar-user-details">
-              <div className="sidebar-user-name">{user?.username || t("components.chat.userFallback")}</div>
-              <div className="sidebar-user-role">{user?.role || "user"}</div>
-            </div>
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line-subtle px-3 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="relative shrink-0">
+              <span className="flex size-8 items-center justify-center rounded-control border border-brand-border bg-brand-surface text-[11px] font-bold text-brand-text">
+                {user?.username?.charAt(0).toUpperCase() || "U"}
+              </span>
+              <span
+                className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-pill border-2 border-white bg-success"
+                aria-hidden="true"
+              />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[11px] font-semibold leading-tight text-ink">
+                {user?.username || t("components.chat.userFallback")}
+              </span>
+              <Badge variant="brand" size="xs" mono className="mt-0.5 uppercase tracking-wider">
+                {user?.role || "user"}
+              </Badge>
+            </span>
           </div>
-          <div className="sidebar-user-actions">
-            <Link to="/app/profile" className="sidebar-user-action-btn" title={t("components.chat.profile")}>
-              <span>{t("components.chat.profile")}</span>
-            </Link>
-            <Link to="/app/change-password" className="sidebar-user-action-btn" title={t("components.chat.password")}>
-              <span>{t("components.chat.password")}</span>
-            </Link>
-            {isAdmin && (
-              <Link to="/app/admin" className="sidebar-user-action-btn sidebar-user-action-admin" title={t("components.chat.admin")}>
-                <span>{t("components.chat.admin")}</span>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <Button asChild variant="ghost" size="icon-sm" title={t("components.chat.profile")}>
+              <Link to="/app/profile">
+                <UserIcon aria-hidden="true" />
+                <span className="sr-only">{t("components.chat.profile")}</span>
               </Link>
+            </Button>
+            <Button asChild variant="ghost" size="icon-sm" title={t("components.chat.password")}>
+              <Link to="/app/change-password">
+                <KeyRound aria-hidden="true" />
+                <span className="sr-only">{t("components.chat.password")}</span>
+              </Link>
+            </Button>
+            {isAdmin && (
+              <Button asChild variant="ghost" size="icon-sm" title={t("components.chat.admin")}>
+                <Link to="/app/admin">
+                  <Settings2 aria-hidden="true" />
+                  <span className="sr-only">{t("components.chat.admin")}</span>
+                </Link>
+              </Button>
             )}
-            <button type="button" className="sidebar-user-action-btn" onClick={() => void onLogout()} title={t("components.chat.logout")}>
-              <span>{t("components.chat.logout")}</span>
-            </button>
+            <Button
+              variant="destructive-ghost"
+              size="icon-sm"
+              onClick={() => void onLogout()}
+              title={t("components.chat.logout")}
+            >
+              <LogOut aria-hidden="true" />
+              <span className="sr-only">{t("components.chat.logout")}</span>
+            </Button>
           </div>
         </div>
       </div>

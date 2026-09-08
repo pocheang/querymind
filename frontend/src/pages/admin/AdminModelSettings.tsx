@@ -12,6 +12,30 @@ import type {
   ModelProvider,
   ProviderCatalogEntry,
 } from "@/types/api";
+import { Button } from "@/components/ui/button";
+import {
+  AdminBlock,
+  AdminField,
+  AdminSkeleton,
+  KpiCard,
+  KpiGrid,
+  Muted,
+  RowActions,
+  SectionHead,
+  StatePanel,
+  TwoCol,
+} from "./components/AdminPrimitives";
+import { cn } from "@/lib/utils";
+
+/**
+ * The notice above the form. Its two variants differ only in accent, so they
+ * share one box: a `--warning` variant emitted by the component but never
+ * declared renders as the ordinary informational banner, which is the
+ * class-name drift this project has already shipped once.
+ */
+const BANNER = "mt-5 flex items-start gap-3 rounded-card border border-line border-l-[3px] p-4";
+const BANNER_MARK =
+  "flex-none rounded border px-[7px] py-1 font-mono text-[11px] font-extrabold tracking-[0.12em]";
 
 const PROVIDERS: ModelProvider[] = ["local", "ollama", "openai", "deepseek", "anthropic", "custom"];
 
@@ -135,64 +159,78 @@ export function AdminModelSettings({
   );
 
   return (
-    <main className="panel ops-wrap admin-model-console">
-      <div className="section-head">
-        <div>
-          <strong>{t("admin.ui.globalModelConfig", "Global model configuration")}</strong>
-          <p className="admin-form-hint">
-            {catalog ? `Provider catalog ${catalog.version}` : t("admin.ui.catalogFallback", "Using verified fallback catalog")}
-          </p>
-        </div>
-        <div className="row-actions">
-          <button type="button" className="secondary tiny-btn" onClick={onRefresh}>{t("common.refresh", "Refresh")}</button>
-          <button type="button" className="secondary tiny-btn" onClick={onTest} disabled={modelTesting || modelSaving}>
+    <main className="space-y-6">
+      <SectionHead
+        title={t("admin.ui.globalModelConfig", "Global model configuration")}
+        description={
+          <span className="font-mono">
+            {catalog
+              ? `Provider catalog ${catalog.version}`
+              : t("admin.ui.catalogFallback", "Using verified fallback catalog")}
+          </span>
+        }
+      >
+        <RowActions>
+          <Button variant="secondary" size="xs" onClick={onRefresh}>{t("common.refresh", "Refresh")}</Button>
+          <Button variant="secondary" size="xs" onClick={onTest} disabled={modelTesting || modelSaving}>
             {modelTesting ? t("admin.ui.testing", "Testing") : t("admin.ui.connectionTest", "Connection test")}
-          </button>
-          <button type="button" className="tiny-btn" onClick={onSave} disabled={modelSaving || modelTesting}>
+          </Button>
+          <Button size="xs" onClick={onSave} disabled={modelSaving || modelTesting}>
             {modelSaving ? t("admin.ui.saving", "Saving") : t("admin.ui.saveConfig", "Save config")}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </RowActions>
+      </SectionHead>
 
-      {modelLoading && <div className="skeleton-list" />}
-      {!modelLoading && !modelSettings && <div className="admin-state-panel is-error">Model settings are unavailable.</div>}
+      {modelLoading && <AdminSkeleton />}
+      {!modelLoading && !modelSettings && <StatePanel tone="error">Model settings are unavailable.</StatePanel>}
 
       {!modelLoading && modelSettings && (
         <>
-          <div className="ops-kpi-grid ops-kpi-grid-secondary">
-            <div className="ops-kpi-card"><span>Override</span><strong>{modelSettings.enabled ? "Enabled" : "Disabled"}</strong></div>
-            <div className="ops-kpi-card"><span>Provider</span><strong>{metadata?.label || provider}</strong></div>
-            <div className="ops-kpi-card"><span>Chat</span><strong>{modelSettings.chat_model || "-"}</strong></div>
-            <div className="ops-kpi-card"><span>Embedding</span><strong>{supportsEmbeddings ? modelSettings.embedding_model || "-" : "Existing pipeline"}</strong></div>
-          </div>
+          <KpiGrid cols={5}>
+            <KpiCard label="Override" value={modelSettings.enabled ? "Enabled" : "Disabled"} />
+            <KpiCard label="Provider" value={metadata?.label || provider} />
+            <KpiCard label="Chat" value={<span className="text-sm">{modelSettings.chat_model || "-"}</span>} />
+            <KpiCard
+              label="Embedding"
+              value={
+                <span className="text-sm">
+                  {supportsEmbeddings ? modelSettings.embedding_model || "-" : "Existing pipeline"}
+                </span>
+              }
+            />
+          </KpiGrid>
 
           {effective && effective.length > 0 && (
-            <div className="admin-effective-panel">
-              <div className="admin-effective-head">
-                <strong>{t("admin.ui.effectiveConfig", "Effective configuration")}</strong>
-                <span>
-                  {t(
-                    "admin.ui.effectiveConfigNote",
-                    "What the next question will actually use, not what is stored.",
-                  )}
-                </span>
-              </div>
-              <ul className="admin-effective-list">
+            <AdminBlock
+              className="mt-5"
+              title={
+                <>
+                  {t("admin.ui.effectiveConfig", "Effective configuration")}
+                  <span className="ml-2 font-normal normal-case tracking-normal text-ink-muted">
+                    {t(
+                      "admin.ui.effectiveConfigNote",
+                      "What the next question will actually use, not what is stored.",
+                    )}
+                  </span>
+                </>
+              }
+            >
+              <ul className="grid list-none gap-2 p-0">
                 {effective.map((item) => (
                   <li key={item.component} className={effectiveRow({ status: item.status })}>
-                    <span className="admin-effective-name">{item.component}</span>
+                    <span className="text-xs font-semibold text-ink">{item.component}</span>
                     <span className={effectiveStatusPill({ status: item.status })}>{item.status}</span>
-                    <span className="admin-effective-value">{item.configured}</span>
-                    <p className="admin-effective-detail">{item.detail}</p>
+                    <span className="text-xs text-ink-muted [overflow-wrap:anywhere]">{item.configured}</span>
+                    <p className="col-span-full m-0 text-[11px] text-ink-muted">{item.detail}</p>
                   </li>
                 ))}
               </ul>
-            </div>
+            </AdminBlock>
           )}
 
           {modelSettings.environment_pinned && (
-            <div className="admin-model-banner admin-model-banner-warning" role="status">
-              <span className="admin-model-banner-mark">!</span>
+            <div className={cn(BANNER, "border-l-warning bg-warning-surface")} role="status">
+              <span className={cn(BANNER_MARK, "border-warning text-warning")}>!</span>
               <div>
                 <strong>
                   {t(
@@ -211,18 +249,23 @@ export function AdminModelSettings({
             </div>
           )}
 
-          <div className="admin-model-banner">
-            <span className="admin-model-banner-mark">API</span>
+          <div className={cn(BANNER, "border-l-info bg-info-surface")}>
+            <span className={cn(BANNER_MARK, "border-info text-info")}>API</span>
             <div>
               <strong>{metadata?.note || "Provider settings are validated by the backend before activation."}</strong>
               {selected?.deprecated_after && <p>Deprecated after {new Date(selected.deprecated_after).toLocaleString()}</p>}
             </div>
           </div>
 
-          <div className="ops-two-col admin-section-head-offset">
-            <label className="ops-auto-refresh">
-              <input type="checkbox" checked={Boolean(modelSettings.enabled)} onChange={(event) => onPatch({ enabled: event.target.checked })} />
-              <span>
+          <TwoCol className="mt-6">
+            <label className="flex cursor-pointer select-none items-start gap-2 rounded-control border border-transparent px-3 py-2 transition-colors hover:border-brand-border hover:bg-brand-surface">
+              <input
+                className="mt-0.5 size-4 shrink-0 accent-[var(--brand)]"
+                type="checkbox"
+                checked={Boolean(modelSettings.enabled)}
+                onChange={(event) => onPatch({ enabled: event.target.checked })}
+              />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
                 {t(
                   "admin.ui.enableGlobalModelOverride",
                   "Enable global model override (replaces every user's own API settings)",
@@ -230,38 +273,54 @@ export function AdminModelSettings({
               </span>
             </label>
             <AdminFormSelect label={t("admin.ui.backendType", "Backend type")} value={provider} onChange={(value) => changeProvider(value as ModelProvider)} options={providerOptions} />
-          </div>
+          </TwoCol>
 
           {provider !== "local" && (
-            <div className="ops-two-col">
+            <TwoCol>
               <AdminFormField label="Base URL" value={modelSettings.base_url} onChange={(value) => onPatch({ base_url: value })} placeholder="https://api.example.com/v1" required />
               <AdminFormField label="API Key" type="password" value={modelApiKey} onChange={onApiKeyChange} placeholder={modelSettings.api_key_masked ? `Saved: ${modelSettings.api_key_masked}` : "Stored securely after save"} required={requiresApiKey} />
-            </div>
+            </TwoCol>
           )}
 
-          <div className="ops-two-col">
+          <TwoCol>
             {renderModelField(t("admin.ui.chatModel", "Chat model"), modelSettings.chat_model, chatOptions, (value) => onPatch({ chat_model: value }))}
             {renderModelField(t("admin.ui.reasoningModel", "Reasoning model"), modelSettings.reasoning_model, reasoningOptions, (value) => onPatch({ reasoning_model: value }))}
-          </div>
+          </TwoCol>
 
-          <div className="ops-two-col">
+          <TwoCol>
             {supportsEmbeddings ? renderModelField(t("admin.ui.embeddingModel", "Embedding model"), modelSettings.embedding_model, embeddingOptions, (value) => onPatch({ embedding_model: value })) : (
-              <div className="admin-state-panel">
-                <strong>Embedding pipeline unchanged</strong>
-                <p className="muted">This provider has no embedding endpoint. Existing vectors and the configured environment embedding model remain active.</p>
-              </div>
+              <StatePanel>
+                <strong className="text-xs font-bold text-ink">Embedding pipeline unchanged</strong>
+                <Muted>This provider has no embedding endpoint. Existing vectors and the configured environment embedding model remain active.</Muted>
+              </StatePanel>
             )}
             <AdminFormField label="Max Tokens" type="number" value={String(modelSettings.max_tokens)} onChange={(value) => onPatch({ max_tokens: Number(value) || 2048 })} />
-          </div>
+          </TwoCol>
 
-          <label className="admin-field admin-model-slider">
-            <span>Temperature {Number(modelSettings.temperature || 0).toFixed(1)}</span>
-            <input type="range" min={0} max={1} step={0.1} value={modelSettings.temperature} onChange={(event) => onPatch({
-              temperature: normalizeModelTemperature(Number(event.target.value), modelSettings.temperature),
-            })} />
-          </label>
+          <AdminField
+            className="gap-2.5"
+            label={`Temperature ${Number(modelSettings.temperature || 0).toFixed(1)}`}
+          >
+            <input
+              className="w-full accent-[var(--brand)]"
+              type="range"
+              min={0}
+              max={1}
+              step={0.1}
+              value={modelSettings.temperature}
+              onChange={(event) =>
+                onPatch({
+                  temperature: normalizeModelTemperature(Number(event.target.value), modelSettings.temperature),
+                })
+              }
+            />
+          </AdminField>
 
-          {modelTestResult && <div className={`admin-state-panel ${modelTestResult.type === "error" ? "is-error" : "is-success"}`}>{modelTestResult.message}</div>}
+          {modelTestResult && (
+            <StatePanel tone={modelTestResult.type === "error" ? "error" : "success"}>
+              {modelTestResult.message}
+            </StatePanel>
+          )}
         </>
       )}
     </main>

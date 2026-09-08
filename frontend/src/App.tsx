@@ -26,9 +26,15 @@ function clearUserState() {
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(({ LoginPage }) => ({ default: LoginPage })));
 const ChatPage = lazy(() => import("@/pages/ChatPage").then(({ ChatPage }) => ({ default: ChatPage })));
 const AdminPage = lazy(() => import("@/pages/AdminPage").then(({ AdminPage }) => ({ default: AdminPage })));
-const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage").then(({ AnalyticsPage }) => ({ default: AnalyticsPage })));
-const ArchitecturePage = lazy(() => import("@/pages/ArchitecturePage").then(({ ArchitecturePage }) => ({ default: ArchitecturePage })));
-const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage").then(({ ChangePasswordPage }) => ({ default: ChangePasswordPage })));
+const AnalyticsPage = lazy(() =>
+  import("@/pages/AnalyticsPage").then(({ AnalyticsPage }) => ({ default: AnalyticsPage }))
+);
+const ArchitecturePage = lazy(() =>
+  import("@/pages/ArchitecturePage").then(({ ArchitecturePage }) => ({ default: ArchitecturePage }))
+);
+const ChangePasswordPage = lazy(() =>
+  import("@/pages/ChangePasswordPage").then(({ ChangePasswordPage }) => ({ default: ChangePasswordPage }))
+);
 const ProfilePage = lazy(() => import("@/pages/ProfilePage").then(({ ProfilePage }) => ({ default: ProfilePage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(({ NotFoundPage }) => ({ default: NotFoundPage })));
 const LandingPage = lazy(() => import("@/pages/LandingPage").then(({ LandingPage }) => ({ default: LandingPage })));
@@ -124,63 +130,39 @@ export function App() {
         // TODO: Send to error tracking service (e.g., Sentry)
       }}
     >
-      {/* Tailwind v4 smoke test - hidden element verifying tw: prefix and theme variables */}
-      <div
-        className="tw:hidden tw:flex tw:bg-surface tw:text-text-primary"
-        data-testid="tailwind-smoke-test"
-        aria-hidden="true"
-      />
       <ToastProvider>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
-          <Route
-            path="/app/login"
-            element={renderGuestOnly(<LoginPage onLogin={loginSuccess} />)}
-          />
-          <Route
-            path="/app"
-            element={renderProtected(
-              <ChatErrorBoundary>
-                <ChatPage user={user} onLogout={logout} onUserRefresh={refreshUser} />
-              </ChatErrorBoundary>,
-            )}
-          />
-          <Route
-            path="/app/admin"
-            element={renderProtected(
-              <AdminErrorBoundary>
-                <AdminPage user={user} onLogout={logout} />
-              </AdminErrorBoundary>,
-              permissions.canAccessAdmin,
-            )}
-          />
-          <Route
-            path="/app/analytics"
-            element={renderProtected(
-              <AnalyticsPage user={user} onLogout={logout} />,
-              permissions.canViewAnalytics,
-            )}
-          />
-          <Route
-            path="/app/change-password"
-            element={renderProtected(<ChangePasswordPage />)}
-          />
-          <Route
-            path="/app/profile"
-            element={renderProtected(<ProfilePage user={user} onUserUpdated={setUser} />)}
-          />
-          <Route
-            path="/app/architecture"
-            element={<ArchitecturePage isLoggedIn={!!user} />}
-          />
-          <Route
-            path="/"
-            element={<LandingPage isLoggedIn={!!user} />}
-          />
-          <Route path="*" element={<NotFoundPage pathname={location.pathname} />} />
-        </Routes>
-      </Suspense>
-    </ToastProvider>
+            <Route path="/app/login" element={renderGuestOnly(<LoginPage onLogin={loginSuccess} />)} />
+            <Route
+              path="/app"
+              element={renderProtected(
+                <ChatErrorBoundary>
+                  <ChatPage user={user} onLogout={logout} onUserRefresh={refreshUser} />
+                </ChatErrorBoundary>
+              )}
+            />
+            <Route
+              path="/app/admin"
+              element={renderProtected(
+                <AdminErrorBoundary>
+                  <AdminPage user={user} onLogout={logout} />
+                </AdminErrorBoundary>,
+                permissions.canAccessAdmin
+              )}
+            />
+            <Route
+              path="/app/analytics"
+              element={renderProtected(<AnalyticsPage user={user} onLogout={logout} />, permissions.canViewAnalytics)}
+            />
+            <Route path="/app/change-password" element={renderProtected(<ChangePasswordPage />)} />
+            <Route path="/app/profile" element={renderProtected(<ProfilePage user={user} onUserUpdated={setUser} />)} />
+            <Route path="/app/architecture" element={<ArchitecturePage isLoggedIn={!!user} />} />
+            <Route path="/" element={<LandingPage isLoggedIn={!!user} />} />
+            <Route path="*" element={<NotFoundPage pathname={location.pathname} />} />
+          </Routes>
+        </Suspense>
+      </ToastProvider>
     </ErrorBoundary>
   );
 }

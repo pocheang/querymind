@@ -24,7 +24,7 @@ export function ChatMessages({
   onEditMessage,
   onRemoveMessage,
   onCreateSession,
-  onNavigateToArchitecture
+  onNavigateToArchitecture,
 }: Readonly<Props>) {
   const { t } = useTranslation();
 
@@ -39,7 +39,13 @@ export function ChatMessages({
   });
 
   return (
-    <section className="chat-window" ref={containerRef} role="log" aria-live="polite" aria-label={t("components.messages.logLabel")}>
+    <section
+      className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4 sm:p-6"
+      ref={containerRef}
+      role="log"
+      aria-live="polite"
+      aria-label={t("components.messages.logLabel")}
+    >
       {messages.length === 0 && (
         <WelcomeScreen
           documentsCount={documentsCount}
@@ -48,14 +54,16 @@ export function ChatMessages({
           onNavigateToArchitecture={onNavigateToArchitecture}
         />
       )}
-      {messages.map((message, index) => (
-        <MessageCard
-          key={message.message_id ?? `${message.role}-${message.created_at ?? "undated"}-${index}`}
-          message={message}
-          onEditMessage={onEditMessage}
-          onRemoveMessage={onRemoveMessage}
-        />
-      ))}
+      <div className="mx-auto w-full max-w-4xl space-y-6">
+        {messages.map((message, index) => (
+          <MessageCard
+            key={message.message_id ?? `${message.role}-${message.created_at ?? "undated"}-${index}`}
+            message={message}
+            onEditMessage={onEditMessage}
+            onRemoveMessage={onRemoveMessage}
+          />
+        ))}
+      </div>
     </section>
   );
 }

@@ -2,6 +2,8 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/button";
+
 type Props = {
   isOpen: boolean;
   title: string;
@@ -67,22 +69,27 @@ export function PromptDialog({
     // inner stopPropagation handler that used to exist only to undo this one.
     // Escape is wired above and is the keyboard route.
     <div
-      className="confirm-dialog-overlay"
+      className="confirm-dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm"
       role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}
     >
-      <div className="confirm-dialog prompt-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <div className="confirm-dialog-header">
-          <h3 className="confirm-dialog-title" id={titleId}>{title}</h3>
-        </div>
-        <div className="confirm-dialog-body">
-          <p className="confirm-dialog-message">{message}</p>
+      <div
+        className="glass-panel w-full max-w-md space-y-3 rounded-panel border-brand-border-strong p-5 shadow-elev-3 animate-in fade-in-0 zoom-in-95"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
+        <h3 className="text-sm font-bold text-ink" id={titleId}>
+          {title}
+        </h3>
+        <div className="space-y-2">
+          <p className="text-xs leading-relaxed text-ink-muted">{message}</p>
           {multiline ? (
             <textarea
               ref={inputRef as React.RefObject<HTMLTextAreaElement>}
-              className="prompt-dialog-input prompt-dialog-textarea"
+              className="w-full resize-none rounded-control border border-brand-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-faint focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
               value={value}
               placeholder={placeholder}
               rows={5}
@@ -98,7 +105,7 @@ export function PromptDialog({
             <input
               ref={inputRef as React.RefObject<HTMLInputElement>}
               type={inputType}
-              className="prompt-dialog-input"
+              className="w-full rounded-control border border-brand-border bg-surface px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-faint focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
               value={value}
               placeholder={placeholder}
               onChange={(event) => setValue(event.target.value)}
@@ -111,21 +118,13 @@ export function PromptDialog({
             />
           )}
         </div>
-        <div className="confirm-dialog-footer">
-          <button
-            type="button"
-            className="confirm-dialog-btn confirm-dialog-btn-cancel"
-            onClick={onCancel}
-          >
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <Button variant="secondary" size="sm" onClick={onCancel}>
             {cancelText || t("common.cancel")}
-          </button>
-          <button
-            type="button"
-            className="confirm-dialog-btn confirm-dialog-btn-confirm"
-            onClick={() => onConfirm(value)}
-          >
+          </Button>
+          <Button size="sm" onClick={() => onConfirm(value)}>
             {confirmText || t("common.confirm")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

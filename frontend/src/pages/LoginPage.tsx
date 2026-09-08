@@ -1,4 +1,10 @@
 import { useMemo, useState } from "react";
+import { Boxes, Search, ShieldCheck } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { BrandMark } from "@/components/layout/BrandMark";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { authApi } from "@/lib/api";
@@ -15,11 +21,15 @@ import {
 } from "@/lib/rememberedUsername";
 
 // Route-specific CSS (code-split by Vite)
-import "@/styles/pages/auth-entry.css";
 
 type Props = {
   onLogin: (user: AuthUser) => void;
 };
+
+/** Validation hint: neutral until the field has been touched. */
+function hintClass(valid: boolean, touched: boolean) {
+  return cn("text-[10px]", !touched ? "text-ink-muted" : valid ? "text-success" : "text-danger");
+}
 
 export function LoginPage({ onLogin }: Readonly<Props>) {
   const { t } = useTranslation();
@@ -35,7 +45,7 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
   const loginValid = useMemo(() => validateUsername(username) && password.length > 0, [username, password]);
   const registerValid = useMemo(
     () => validateUsername(username) && validatePassword(password) && password === confirmPassword,
-    [username, password, confirmPassword],
+    [username, password, confirmPassword]
   );
 
   const setMode = (newMode: "login" | "register") => {
@@ -48,12 +58,12 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
 
   const login = async () => {
     if (!loginValid) {
-      setError(t('auth.loginFailed'));
+      setError(t("auth.loginFailed"));
       return;
     }
     setLoading(true);
     setError("");
-    setStatus(t('query.searching'));
+    setStatus(t("query.searching"));
     try {
       const data = await authApi.login(username.trim(), password);
       if (rememberMe) {
@@ -63,7 +73,7 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
       }
       onLogin(data.user);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('auth.loginFailed'));
+      setError(e instanceof Error ? e.message : t("auth.loginFailed"));
     } finally {
       setLoading(false);
       setStatus("");
@@ -72,15 +82,15 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
 
   const register = async () => {
     if (!registerValid) {
-      setError(t('auth.registerFailed'));
+      setError(t("auth.registerFailed"));
       return;
     }
     setLoading(true);
     setError("");
-    setStatus(t('query.searching'));
+    setStatus(t("query.searching"));
     try {
       const data = await authApi.register(username.trim(), password);
-      setStatus(`${t('auth.registerSuccess')}: ${data.username}`);
+      setStatus(`${t("auth.registerSuccess")}: ${data.username}`);
       setTimeout(() => {
         setSearchParams({ mode: "login" });
         setPassword("");
@@ -88,7 +98,7 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
         setStatus("");
       }, 1500);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('auth.registerFailed'));
+      setError(e instanceof Error ? e.message : t("auth.registerFailed"));
     } finally {
       setLoading(false);
     }
@@ -96,19 +106,19 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
 
   const handleGoogleLogin = () => {
     // Validate return URL to prevent open redirect attacks
-    const returnUrl = new URLSearchParams(window.location.search).get('return') || '/app';
+    const returnUrl = new URLSearchParams(window.location.search).get("return") || "/app";
     const allowedOrigins = [window.location.origin];
 
     // Ensure return URL is relative or same-origin
-    if (returnUrl.startsWith('http://') || returnUrl.startsWith('https://') || returnUrl.startsWith('//')) {
+    if (returnUrl.startsWith("http://") || returnUrl.startsWith("https://") || returnUrl.startsWith("//")) {
       try {
         const parsed = new URL(returnUrl, window.location.origin);
-        if (!allowedOrigins.some(origin => parsed.origin === origin)) {
-          setError(t('auth.invalidRedirect'));
+        if (!allowedOrigins.some((origin) => parsed.origin === origin)) {
+          setError(t("auth.invalidRedirect"));
           return;
         }
       } catch {
-        setError(t('auth.invalidRedirect'));
+        setError(t("auth.invalidRedirect"));
         return;
       }
     }
@@ -122,92 +132,82 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
   };
 
   return (
-    <div className="auth-root">
-      <div className="auth-toolbar">
+    <div className="auth-root flex min-h-screen items-center justify-center p-4">
+      <div className="absolute right-4 top-4 z-10">
         <LanguageToggle />
       </div>
 
-      <main className="auth-card">
-        <section className="auth-intro auth-intro-primary">
-          <div className="badge">{t('app.title')}</div>
-          <div className="auth-intro-copy">
-            <h1>
+      <main className="glass-panel grid w-full max-w-4xl overflow-hidden rounded-panel shadow-elev-3 md:grid-cols-2">
+        {/* Left: the pitch. Hidden on phones, where the form is the whole job. */}
+        <section className="relative hidden flex-col justify-between gap-6 bg-[image:var(--brand-gradient)] p-8 text-white md:flex">
+          <div className="flex items-center gap-2">
+            <BrandMark />
+            <span className="text-sm font-bold tracking-tight">{t("app.title")}</span>
+          </div>
+
+          <div className="space-y-3">
+            <h1 className="text-2xl font-bold leading-tight tracking-tight">
               {t("pages.login.headline")
                 .split("\n")
                 .map((line) => (
-                  <span key={line}>
+                  <span key={line} className="block">
                     {line}
-                    <br />
                   </span>
                 ))}
             </h1>
-            <p>{t('app.subtitle')}</p>
+            <p className="text-xs leading-relaxed text-white/80">{t("app.subtitle")}</p>
           </div>
 
-          <div className="auth-feature-stack">
-            <div className="auth-feature-card">
-              <span className="auth-feature-icon auth-feature-icon-purple" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M9 3h6v3h3v4h-2V8H8v2H6V6h3V3Zm-1 9h8v7H8v-7Zm4-4a2 2 0 1 0 0 4a2 2 0 0 0 0-4Z" />
-                </svg>
-              </span>
-              <span>{t('features.multiAgent')}</span>
-            </div>
-            <div className="auth-feature-card">
-              <span className="auth-feature-icon auth-feature-icon-blue" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M10.5 4a6.5 6.5 0 1 1-4.03 11.6L3 19l1.4 1.4l3.4-3.47A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9a4.5 4.5 0 0 0 0-9Z" />
-                </svg>
-              </span>
-              <span>{t('features.hybridSearch')}</span>
-            </div>
-            <div className="auth-feature-card">
-              <span className="auth-feature-icon auth-feature-icon-amber" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4V7Z" />
-                </svg>
-              </span>
-              <span>{t('features.enterpriseSecurity')}</span>
-            </div>
-          </div>
-
-          <div className="auth-intro-orb auth-intro-orb-large" aria-hidden="true" />
-          <div className="auth-intro-orb auth-intro-orb-small" aria-hidden="true" />
+          <ul className="space-y-2">
+            {[
+              { icon: Boxes, label: t("features.multiAgent") },
+              { icon: Search, label: t("features.hybridSearch") },
+              { icon: ShieldCheck, label: t("features.enterpriseSecurity") },
+            ].map(({ icon: Icon, label }) => (
+              <li key={label} className="flex items-center gap-2 rounded-control bg-white/10 px-3 py-2 text-[11px]">
+                <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                {label}
+              </li>
+            ))}
+          </ul>
         </section>
 
-        <section className="auth-form">
-          <div className="auth-form-header">
-            <h2>{mode === "register" ? t('auth.register') : t('auth.login')}</h2>
-            <p className="auth-form-subtitle">{t('app.subtitle')}</p>
+        {/* Right: the form. */}
+        <section className="space-y-3 bg-surface p-6 sm:p-8">
+          <div className="space-y-1">
+            <h2 className="text-lg font-bold tracking-tight text-ink">
+              {mode === "register" ? t("auth.register") : t("auth.login")}
+            </h2>
+            <p className="text-[11px] text-ink-muted">{t("app.subtitle")}</p>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="username">{t('auth.username')}</label>
+          <div className="space-y-1">
+            <Label htmlFor="username">{t("auth.username")}</Label>
             <AuthInput
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder={t('auth.username')}
+              placeholder={t("auth.username")}
               autoComplete="username"
               icon="user"
             />
-            <div className={`hint ${validateUsername(username) ? "ok" : username.length > 0 ? "error" : ""}`}>
+            <p className={hintClass(validateUsername(username), username.length > 0)}>
               {username.length === 0
                 ? t("pages.login.usernameHint")
                 : validateUsername(username)
                   ? t("pages.login.usernameValid")
                   : t("pages.login.invalidFormat")}
-            </div>
+            </p>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="password">{t('auth.password')}</label>
+          <div className="space-y-1">
+            <Label htmlFor="password">{t("auth.password")}</Label>
             <AuthInput
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('auth.password')}
+              placeholder={t("auth.password")}
               autoComplete={mode === "register" ? "new-password" : "current-password"}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -217,24 +217,24 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
               }}
               icon="lock"
             />
-            <div className={`hint ${validatePassword(password) ? "ok" : password.length > 0 ? "error" : ""}`}>
+            <p className={hintClass(validatePassword(password), password.length > 0)}>
               {password.length === 0
                 ? t("pages.login.passwordHint")
                 : validatePassword(password)
                   ? t("pages.login.passwordValid")
                   : t("pages.login.weakPassword")}
-            </div>
+            </p>
           </div>
 
           {mode === "register" && (
-            <div className="input-group">
-              <label htmlFor="confirmPassword">{t('auth.confirmPassword')}</label>
+            <div className="space-y-1">
+              <Label htmlFor="confirmPassword">{t("auth.confirmPassword")}</Label>
               <AuthInput
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder={t('auth.confirmPassword')}
+                placeholder={t("auth.confirmPassword")}
                 autoComplete="new-password"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void register();
@@ -242,99 +242,89 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
                 icon="lock"
               />
               {confirmPassword.length > 0 && (
-                <div className={`hint ${password === confirmPassword ? "ok" : "error"}`}>
+                <p className={hintClass(password === confirmPassword, true)}>
                   {password === confirmPassword
                     ? t("pages.changePassword.confirmMatch")
                     : t("pages.changePassword.confirmMismatch")}
-                </div>
+                </p>
               )}
             </div>
           )}
 
           {mode === "login" && (
-            <div className="row-actions auth-extra-row">
-              <label className="auth-checkline">
-                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-                {t("pages.login.rememberMe")}
-              </label>
-            </div>
+            <label className="flex items-center gap-2 text-[11px] text-ink-muted">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="size-3.5 accent-[var(--brand)]"
+              />
+              {t("pages.login.rememberMe")}
+            </label>
           )}
 
-          <div className="action-grid auth-action-grid-single">
-            {mode === "login" ? (
-              <button
-                type="button"
-                className="primary-action-btn auth-button-full"
-                disabled={!loginValid || loading}
-                onClick={() => void login()}
-              >
-                {loading ? t('query.searching') : t('auth.loginButton')}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="primary-action-btn auth-button-full"
-                disabled={!registerValid || loading}
-                onClick={() => void register()}
-              >
-                {loading ? t('query.searching') : t('auth.registerButton')}
-              </button>
-            )}
-          </div>
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={mode === "login" ? !loginValid || loading : !registerValid || loading}
+            onClick={() => (mode === "login" ? void login() : void register())}
+          >
+            {loading ? t("query.searching") : mode === "login" ? t("auth.loginButton") : t("auth.registerButton")}
+          </Button>
 
-          <div className="auth-mode-switch">
-            {mode === "login" ? (
-              <button
-                type="button"
-                className="text-link-btn auth-mode-switch-btn"
-                onClick={() => setMode("register")}
-              >
-                {t("auth.switchToRegister")}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="text-link-btn auth-mode-switch-btn"
-                onClick={() => setMode("login")}
-              >
-                {t("auth.switchToLogin")}
-              </button>
-            )}
+          <div className="text-center">
+            <Button variant="link" size="sm" onClick={() => setMode(mode === "login" ? "register" : "login")}>
+              {mode === "login" ? t("auth.switchToRegister") : t("auth.switchToLogin")}
+            </Button>
           </div>
 
           {mode === "login" && (
             <>
-              <div className="divider">
-                <span>{t("pages.login.socialDivider")}</span>
+              <div className="flex items-center gap-2">
+                <span className="h-px flex-1 bg-line" />
+                <span className="text-[10px] text-ink-muted">{t("pages.login.socialDivider")}</span>
+                <span className="h-px flex-1 bg-line" />
               </div>
 
-              <div className="social-grid">
-                <button type="button" className="social-btn google-btn" onClick={handleGoogleLogin}>
-                  <span className="social-icon social-icon-google" aria-hidden="true">
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={handleGoogleLogin}>
+                  <span className="font-bold text-brand-accent" aria-hidden="true">
                     G
-                  </span>{" "}
+                  </span>
                   Google
-                </button>
-                <button type="button" className="social-btn github-btn" onClick={handleGitHubLogin}>
-                  <span className="social-icon social-icon-github" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.1.68-.21.68-.48v-1.68c-2.77.6-3.35-1.18-3.35-1.18c-.45-1.15-1.1-1.46-1.1-1.46c-.9-.61.07-.6.07-.6c1 .07 1.52 1.02 1.52 1.02c.88 1.5 2.3 1.07 2.86.82c.09-.64.35-1.08.64-1.32c-2.21-.25-4.54-1.11-4.54-4.93c0-1.09.39-1.98 1.03-2.67c-.11-.25-.45-1.27.1-2.64c0 0 .84-.27 2.75 1.02A9.53 9.53 0 0 1 12 6.84a9.5 9.5 0 0 1 2.5.34c1.9-1.29 2.74-1.02 2.74-1.02c.56 1.37.22 2.39.11 2.64c.64.69 1.03 1.58 1.03 2.67c0 3.83-2.33 4.67-4.55 4.92c.36.31.68.92.68 1.86v2.76c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" />
-                    </svg>
-                  </span>{" "}
+                </Button>
+                <Button variant="outline" onClick={handleGitHubLogin}>
+                  <svg className="size-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.1.68-.21.68-.48v-1.68c-2.77.6-3.35-1.18-3.35-1.18c-.45-1.15-1.1-1.46-1.1-1.46c-.9-.61.07-.6.07-.6c1 .07 1.52 1.02 1.52 1.02c.88 1.5 2.3 1.07 2.86.82c.09-.64.35-1.08.64-1.32c-2.21-.25-4.54-1.11-4.54-4.93c0-1.09.39-1.98 1.03-2.67c-.11-.25-.45-1.27.1-2.64c0 0 .84-.27 2.75 1.02A9.53 9.53 0 0 1 12 6.84a9.5 9.5 0 0 1 2.5.34c1.9-1.29 2.74-1.02 2.74-1.02c.56 1.37.22 2.39.11 2.64c.64.69 1.03 1.58 1.03 2.67c0 3.83-2.33 4.67-4.55 4.92c.36.31.68.92.68 1.86v2.76c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" />
+                  </svg>
                   GitHub
-                </button>
+                </Button>
               </div>
             </>
           )}
 
-          <div className="auth-footer">
-            <Link className="text-link" to="/app/architecture">
-              {t('dataFlow.title')}
+          <div className="text-center">
+            <Link className="text-[11px] text-brand-text hover:underline" to="/app/architecture">
+              {t("dataFlow.title")}
             </Link>
           </div>
 
-          {status && <div className="status success">{status}</div>}
-          {error && <div className="status error">{error}</div>}
+          {status && (
+            <p
+              className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-[11px] text-success"
+              role="status"
+            >
+              {status}
+            </p>
+          )}
+          {error && (
+            <p
+              className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+              role="alert"
+            >
+              {error}
+            </p>
+          )}
         </section>
       </main>
     </div>

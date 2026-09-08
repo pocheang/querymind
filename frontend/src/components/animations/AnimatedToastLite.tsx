@@ -8,14 +8,26 @@
  * @created 2026-08-16
  */
 
-import { useEffect, useState, createContext, useContext, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import './AnimatedToastLite.css';
+import { useEffect, useState, createContext, useContext, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+/** Icon and tone per severity. Both are needed: colour alone does not carry
+    meaning, and these sit on a warm ground where a tint is easy to miss. */
+const ICONS = { info: Info, success: CheckCircle2, warning: AlertTriangle, error: XCircle } as const;
+const TONE = {
+  info: "border-info-border bg-info-surface/95 text-info",
+  success: "border-success-border bg-success-surface/95 text-success",
+  warning: "border-warning-border bg-warning-surface/95 text-warning",
+  error: "border-danger-border bg-danger-surface/95 text-danger",
+} as const;
 
 export interface Toast {
   id: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: "info" | "success" | "warning" | "error";
   duration?: number;
 }
 
@@ -25,7 +37,7 @@ interface AnimatedToastLiteProps {
   onClose: (id: string) => void;
 }
 
-export function AnimatedToastLite({ toast, index, onClose }: Readonly<AnimatedToastLiteProps>) {
+export function AnimatedToastLite({ toast, index: _index, onClose }: Readonly<AnimatedToastLiteProps>) {
   const { t } = useTranslation();
   const [isPaused, setIsPaused] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
@@ -43,13 +55,6 @@ export function AnimatedToastLite({ toast, index, onClose }: Readonly<AnimatedTo
     return () => clearTimeout(timer);
   }, [toast.id, duration, isPaused, isExiting, onClose]);
 
-  const icons = {
-    info: 'ℹ️',
-    success: '✓',
-    warning: '⚠️',
-    error: '✗',
-  };
-
   const handleClick = () => {
     if (!isExiting) {
       setIsExiting(true);
@@ -57,34 +62,39 @@ export function AnimatedToastLite({ toast, index, onClose }: Readonly<AnimatedTo
     }
   };
 
+  const Icon = ICONS[toast.type];
+
   return (
     <div
-      className={`toast-lite toast-lite--${toast.type} ${isExiting ? 'toast-lite--exiting' : ''}`}
-      style={{
-        '--toast-index': index,
-      } as React.CSSProperties}
+      className={cn(
+        "pointer-events-auto relative flex w-72 items-start gap-2 overflow-hidden rounded-card border p-2.5 shadow-elev-2 backdrop-blur-md",
+        "animate-in fade-in-0 slide-in-from-top-2 duration-300",
+        TONE[toast.type],
+        isExiting && "animate-out fade-out-0 slide-out-to-top-2 duration-300"
+      )}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       role="alert"
       aria-live="polite"
     >
-      <span className="toast-lite__icon">{icons[toast.type]}</span>
-      <span className="toast-lite__message">{toast.message}</span>
+      <Icon className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1 text-[11px] leading-relaxed">{toast.message}</span>
       <button
-        className="toast-lite__close"
+        type="button"
+        className="shrink-0 rounded-control p-0.5 opacity-60 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
         onClick={handleClick}
-        aria-label={t('toast.close')}
+        aria-label={t("toast.close")}
       >
-        ✕
+        <X className="size-3" aria-hidden="true" />
       </button>
 
-      {/* 进度条 */}
+      {/* The auto-dismiss countdown. `--toast-duration` is read by the one
+          keyframe this component still needs -- a width animation cannot be
+          expressed as a utility because its duration is a prop. */}
       {!isPaused && !isExiting && (
-        <div
-          className="toast-lite__progress"
-          style={{
-            '--toast-duration': `${duration}ms`,
-          } as React.CSSProperties}
+        <span
+          className="toast-progress absolute inset-x-0 bottom-0 h-0.5 origin-left bg-current opacity-40"
+          style={{ "--toast-duration": `${duration}ms` } as React.CSSProperties}
         />
       )}
     </div>
@@ -99,14 +109,9 @@ interface ToastContainerProps {
 
 export function ToastContainer({ toasts, onClose }: Readonly<ToastContainerProps>) {
   return (
-    <div className="toast-lite-container">
+    <div className="pointer-events-none fixed right-5 top-5 z-50 flex flex-col gap-2">
       {toasts.map((toast, index) => (
-        <AnimatedToastLite
-          key={toast.id}
-          toast={toast}
-          index={index}
-          onClose={onClose}
-        />
+        <AnimatedToastLite key={toast.id} toast={toast} index={index} onClose={onClose} />
       ))}
     </div>
   );
@@ -115,7 +120,7 @@ export function ToastContainer({ toasts, onClose }: Readonly<ToastContainerProps
 // Toast Context 和 Hook
 interface ToastContextValue {
   toasts: Toast[];
-  addToast: (message: string, type: Toast['type'], duration?: number) => void;
+  addToast: (message: string, type: Toast["type"], duration?: number) => void;
   removeToast: (id: string) => void;
 }
 
@@ -124,7 +129,7 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export function ToastProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = useCallback((message: string, type: Toast['type'], duration?: number) => {
+  const addToast = useCallback((message: string, type: Toast["type"], duration?: number) => {
     const id = `toast-${crypto.randomUUID()}`;
     const newToast: Toast = { id, message, type, duration };
 
@@ -148,13 +153,13 @@ export function useToast() {
   const context = useContext(ToastContext);
 
   if (!context) {
-    throw new Error('useToast must be used within ToastProvider');
+    throw new Error("useToast must be used within ToastProvider");
   }
 
   return {
-    info: (message: string, duration?: number) => context.addToast(message, 'info', duration),
-    success: (message: string, duration?: number) => context.addToast(message, 'success', duration),
-    warning: (message: string, duration?: number) => context.addToast(message, 'warning', duration),
-    error: (message: string, duration?: number) => context.addToast(message, 'error', duration),
+    info: (message: string, duration?: number) => context.addToast(message, "info", duration),
+    success: (message: string, duration?: number) => context.addToast(message, "success", duration),
+    warning: (message: string, duration?: number) => context.addToast(message, "warning", duration),
+    error: (message: string, duration?: number) => context.addToast(message, "error", duration),
   };
 }

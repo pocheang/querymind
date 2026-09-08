@@ -1,17 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
+
 import { SessionSearch, SessionMetadataEditor, SessionExportImport } from "@/components/SessionManagement";
 import type { SessionMessage } from "@/types/api";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 type Tab = "search" | "metadata" | "exportImport";
-
-let modalStylesLoaded = false;
-async function loadModalStyles() {
-  if (!modalStylesLoaded) {
-    await import("@/styles/components/modals.css");
-    modalStylesLoaded = true;
-  }
-}
 
 type Props = {
   isOpen: boolean;
@@ -23,18 +19,20 @@ type Props = {
 
 /**
  * Advanced session management: tag/category search across sessions, metadata
- * editing (tags/category/description + auto-tag extraction) for the current
- * session, and export/import. Reuses the ApiSettings side-panel visual
- * pattern (.api-settings-overlay/.api-settings-panel) for consistency with
- * the app's one established modal style rather than inventing a new one.
+ * editing for the current session, and export/import.
+ *
+ * Deliberately the same right-hand drawer shape as `ApiSettings` -- the app has
+ * one established modal form and this is it, rather than a second one.
  */
-export function SessionManagementModal({ isOpen, onClose, currentSessionId, messages, onSelectSession }: Readonly<Props>) {
+export function SessionManagementModal({
+  isOpen,
+  onClose,
+  currentSessionId,
+  messages,
+  onSelectSession,
+}: Readonly<Props>) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("search");
-
-  useEffect(() => {
-    if (isOpen) void loadModalStyles();
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -43,67 +41,81 @@ export function SessionManagementModal({ isOpen, onClose, currentSessionId, mess
     onClose();
   };
 
+  const tabs: Array<{ key: Tab; label: string; disabled?: boolean; title?: string }> = [
+    { key: "search", label: t("sessionManagement.searchSessions") },
+    {
+      key: "metadata",
+      label: t("sessionManagement.editMetadata"),
+      disabled: !currentSessionId,
+      title: currentSessionId ? undefined : t("sessionManagement.noSessionToExport"),
+    },
+    {
+      key: "exportImport",
+      label: `${t("sessionManagement.exportSession")} / ${t("sessionManagement.importSession")}`,
+    },
+  ];
+
   return (
     <>
       <button
         type="button"
-        className="api-settings-overlay"
+        className="fixed inset-0 z-40 bg-stone-900/40 backdrop-blur-sm"
         onClick={onClose}
         aria-label={t("common.close")}
       />
       <aside
-        className="api-settings-panel"
+        className="glass-panel fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-y-0 border-r-0 shadow-elev-3 animate-in slide-in-from-right duration-300"
         role="dialog"
         aria-modal="true"
         aria-labelledby="session-management-title"
       >
-        <header className="settings-header">
-          <div className="settings-header-content">
-            <div className="settings-icon" aria-hidden="true">SM</div>
-            <div>
-              <h2 id="session-management-title" className="settings-title">
-                {t("sessionManagement.searchSessions")}
-              </h2>
-            </div>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-line-subtle p-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              className="flex size-9 shrink-0 items-center justify-center rounded-card bg-[image:var(--brand-gradient)] font-mono text-[10px] font-bold text-white shadow-elev-1"
+              aria-hidden="true"
+            >
+              SM
+            </span>
+            <h2 id="session-management-title" className="truncate text-sm font-bold text-ink">
+              {t("sessionManagement.searchSessions")}
+            </h2>
           </div>
-          <button type="button" className="close-btn" onClick={onClose} aria-label={t("common.close")}>
-            <span aria-hidden="true">x</span>
-          </button>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("common.close")}>
+            <X aria-hidden="true" />
+          </Button>
         </header>
 
-        <div className="session-management-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "search"}
-            className={`session-management-tab ${tab === "search" ? "active" : ""}`}
-            onClick={() => setTab("search")}
+        <div className="shrink-0 px-4 pt-3">
+          <div
+            role="tablist"
+            className="flex items-center gap-0.5 rounded-control border border-line bg-surface-muted p-1"
           >
-            {t("sessionManagement.searchSessions")}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "metadata"}
-            className={`session-management-tab ${tab === "metadata" ? "active" : ""}`}
-            onClick={() => setTab("metadata")}
-            disabled={!currentSessionId}
-            title={currentSessionId ? undefined : t("sessionManagement.noSessionToExport")}
-          >
-            {t("sessionManagement.editMetadata")}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "exportImport"}
-            className={`session-management-tab ${tab === "exportImport" ? "active" : ""}`}
-            onClick={() => setTab("exportImport")}
-          >
-            {t("sessionManagement.exportSession")} / {t("sessionManagement.importSession")}
-          </button>
+            {tabs.map(({ key, label, disabled, title }) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                disabled={disabled}
+                title={title}
+                onClick={() => setTab(key)}
+                className={cn(
+                  "flex-1 rounded-control px-2 py-1 text-[11px] font-medium transition-all",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                  tab === key
+                    ? "bg-surface font-bold text-brand-text-strong shadow-elev-1"
+                    : "text-ink-muted hover:text-brand-text"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="settings-content">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {tab === "search" && <SessionSearch onSelectSession={handleSelectSession} />}
           {tab === "metadata" && currentSessionId && (
             <SessionMetadataEditor sessionId={currentSessionId} messages={messages} />

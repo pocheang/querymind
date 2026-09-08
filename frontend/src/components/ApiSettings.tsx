@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Info, X } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { IntegrationsPanel } from "@/features/integrations/IntegrationsPanel";
+import { MemoryPanel } from "@/features/memory/MemoryPanel";
 import { appApi } from "@/lib/api";
 import type { ModelCatalogResponse } from "@/types/api";
 import { ApiSettingsFormFields } from "./ApiSettingsFormFields";
@@ -22,15 +26,7 @@ import {
   applyProviderDefaults,
   parseApiResponse,
 } from "./apiSettingsUtils";
-
-let modalStylesLoaded = false;
-async function loadModalStyles() {
-  if (!modalStylesLoaded) {
-    await import("@/styles/components/modals.css");
-    await import("@/styles/components/dropdowns.css");
-    modalStylesLoaded = true;
-  }
-}
+import { Button } from "@/components/ui/button";
 
 type Props = {
   isOpen: boolean;
@@ -48,7 +44,7 @@ export function ApiSettings({ isOpen, onClose }: Readonly<Props>) {
   const [catalog, setCatalog] = useState<ModelCatalogResponse | null>(null);
 
   const selectedModels = useMemo(() => {
-    const catalogModels = catalog?.providers[config.provider]?.models
+    const catalogModels = catalog?.providers?.[config.provider]?.models
       .filter((model) => model.roles.includes("chat") || model.roles.includes("reasoning"))
       .map((model) => model.id);
     return catalogModels?.length ? catalogModels : PROVIDER_MODELS[config.provider] || [];
@@ -69,7 +65,10 @@ export function ApiSettings({ isOpen, onClose }: Readonly<Props>) {
         setConfig(parseApiResponse(response.settings));
       }
     } catch (error) {
-      setResult({ type: "error", message: error instanceof Error ? error.message : t("components.apiSettings.loadFailed") });
+      setResult({
+        type: "error",
+        message: error instanceof Error ? error.message : t("components.apiSettings.loadFailed"),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +76,6 @@ export function ApiSettings({ isOpen, onClose }: Readonly<Props>) {
 
   useEffect(() => {
     if (isOpen) {
-      void loadModalStyles();
       void loadSettings();
     } else {
       setIsLoading(true);
@@ -91,11 +89,11 @@ export function ApiSettings({ isOpen, onClose }: Readonly<Props>) {
   };
 
   const changeProvider = (provider: Provider) => {
-    patchConfig(applyProviderDefaults(provider, catalog?.providers[provider]));
+    patchConfig(applyProviderDefaults(provider, catalog?.providers?.[provider]));
   };
 
-  const applyPreset = (preset: typeof QUICK_PRESETS[number]) => {
-    const defaults = applyProviderDefaults(preset.provider, catalog?.providers[preset.provider]);
+  const applyPreset = (preset: (typeof QUICK_PRESETS)[number]) => {
+    const defaults = applyProviderDefaults(preset.provider, catalog?.providers?.[preset.provider]);
     patchConfig({ ...defaults, model: preset.model });
   };
 
@@ -123,7 +121,10 @@ export function ApiSettings({ isOpen, onClose }: Readonly<Props>) {
         });
       }
     } catch (error) {
-      setResult({ type: "error", message: error instanceof Error ? error.message : t("components.apiSettings.checkFailed") });
+      setResult({
+        type: "error",
+        message: error instanceof Error ? error.message : t("components.apiSettings.checkFailed"),
+      });
     } finally {
       setIsChecking(false);
     }
@@ -145,7 +146,10 @@ export function ApiSettings({ isOpen, onClose }: Readonly<Props>) {
       setResult({ type: "success", message: t("components.apiSettings.saveSuccess") });
       window.setTimeout(onClose, 900);
     } catch (error) {
-      setResult({ type: "error", message: error instanceof Error ? error.message : t("components.apiSettings.saveFailed") });
+      setResult({
+        type: "error",
+        message: error instanceof Error ? error.message : t("components.apiSettings.saveFailed"),
+      });
     } finally {
       setIsSaving(false);
     }
@@ -155,45 +159,58 @@ export function ApiSettings({ isOpen, onClose }: Readonly<Props>) {
 
   return (
     <>
+      {/* Scenery. A button rather than a div so the drawer is dismissible by
+          pointer without a keyboard trap; Escape and the header's close button
+          are the keyboard routes. */}
       <button
         type="button"
-        className="api-settings-overlay"
+        className="fixed inset-0 z-40 bg-stone-900/40 backdrop-blur-sm"
         onClick={onClose}
         aria-label={t("components.apiSettings.close")}
       />
-      <aside className="api-settings-panel" role="dialog" aria-modal="true" aria-labelledby="api-settings-title">
-        <header className="settings-header">
-          <div className="settings-header-content">
-            <div className="settings-icon" aria-hidden="true">API</div>
-            <div>
-              <h2 id="api-settings-title" className="settings-title">{t("components.apiSettings.title")}</h2>
-              <p className="settings-subtitle">{t("components.apiSettings.subtitle")}</p>
+      <aside
+        className="glass-panel fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-y-0 border-r-0 shadow-elev-3 animate-in slide-in-from-right duration-300"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="api-settings-title"
+      >
+        <header className="flex shrink-0 items-start justify-between gap-2 border-b border-line-subtle p-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              className="flex size-9 shrink-0 items-center justify-center rounded-card bg-[image:var(--brand-gradient)] font-mono text-[10px] font-bold text-white shadow-elev-1"
+              aria-hidden="true"
+            >
+              API
+            </span>
+            <div className="min-w-0">
+              <h2 id="api-settings-title" className="text-sm font-bold text-ink">
+                {t("components.apiSettings.title")}
+              </h2>
+              <p className="truncate text-[11px] text-ink-muted">{t("components.apiSettings.subtitle")}</p>
             </div>
           </div>
-          <button type="button" className="close-btn" onClick={onClose} aria-label={t("components.apiSettings.close")}>
-            <span aria-hidden="true">x</span>
-          </button>
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("components.apiSettings.close")}>
+            <X aria-hidden="true" />
+          </Button>
         </header>
 
-        <div className="settings-content">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
           {isLoading ? (
-            <div className="settings-loading">{t("components.apiSettings.loading")}</div>
+            <p className="py-8 text-center text-xs text-ink-muted">{t("components.apiSettings.loading")}</p>
           ) : (
             <>
               {config.globalOverrideEnabled && (
-                <div className="global-override-notice">
-                  <span className="notice-icon" aria-hidden="true">ℹ️</span>
-                  <div className="notice-content">
-                    <strong>{t("components.apiSettings.globalOverrideNotice")}</strong>
-                    <p>
+                <div className="flex gap-2 rounded-card border border-warning-border bg-warning-surface p-2.5">
+                  <Info className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden="true" />
+                  <div className="min-w-0 space-y-1 text-[11px]">
+                    <strong className="block text-ink">{t("components.apiSettings.globalOverrideNotice")}</strong>
+                    <p className="text-ink-muted">
                       {t("components.apiSettings.globalOverrideDesc", {
                         provider: config.globalProvider,
                         model: config.globalModel,
                       })}
                     </p>
-                    <p className="muted">
-                      {t("components.apiSettings.globalOverrideHint")}
-                    </p>
+                    <p className="text-ink-muted">{t("components.apiSettings.globalOverrideHint")}</p>
                   </div>
                 </div>
               )}
@@ -221,22 +238,34 @@ export function ApiSettings({ isOpen, onClose }: Readonly<Props>) {
                 onConfigChange={patchConfig}
               />
 
-              <div className="settings-section">
-                <IntegrationsPanel />
-              </div>
+              <IntegrationsPanel />
 
-              {result && <div className={`test-result ${result.type}`}>{result.message}</div>}
+              <MemoryPanel />
+
+              {result && (
+                <p
+                  role="status"
+                  className={cn(
+                    "rounded-control border px-2.5 py-1.5 text-[11px]",
+                    result.type === "success"
+                      ? "border-success-border bg-success-surface text-success"
+                      : "border-danger-border bg-danger-surface text-danger"
+                  )}
+                >
+                  {result.message}
+                </p>
+              )}
             </>
           )}
         </div>
 
-        <footer className="settings-footer">
-          <button type="button" className="api-btn secondary" onClick={handleCheck} disabled={isChecking || isSaving}>
+        <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-line-subtle p-4">
+          <Button variant="secondary" size="sm" onClick={handleCheck} disabled={isChecking || isSaving}>
             {isChecking ? t("components.apiSettings.checking") : t("components.apiSettings.check")}
-          </button>
-          <button type="button" className="api-btn primary" onClick={handleSave} disabled={isSaving || isChecking}>
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={isSaving || isChecking}>
             {isSaving ? t("components.apiSettings.saving") : t("components.apiSettings.save")}
-          </button>
+          </Button>
         </footer>
       </aside>
     </>

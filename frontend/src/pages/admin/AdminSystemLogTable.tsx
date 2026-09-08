@@ -3,6 +3,19 @@ import { AdminFormField, AdminFormSelect } from "@/components/AdminFormField";
 import { AdminPagination } from "@/components/AdminPagination";
 import { useTranslation } from "react-i18next";
 import type { SystemLogEntry } from "@/types/api";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import {
+  AdminSkeleton,
+  AuditBadge,
+  CellStack,
+  FilterGrid,
+  Hint,
+  RowActions,
+  SectionHead,
+  StatePanel,
+} from "./components/AdminPrimitives";
+import { ADMIN_FIELD, ADMIN_TABLE, ADMIN_TABLE_WIDE, ADMIN_TABLE_WRAP } from "./components/adminClasses";
 
 type Props = {
   systemLogs: SystemLogEntry[];
@@ -23,6 +36,18 @@ type Props = {
   onSystemLogPageChange: (page: number) => void;
   onSystemLogPageSizeChange: (size: number) => void;
 };
+
+/** A logger name or a source location: one mono line in a warm chip. */
+const LOG_CODE =
+  "inline-flex min-h-[26px] max-w-full items-center overflow-hidden text-ellipsis whitespace-nowrap " +
+  "rounded-control border border-brand-border bg-brand-surface px-2.5 font-mono text-[11px] leading-tight text-ink";
+
+/**
+ * A message or a stack trace. These are the two cells in this table that WRAP
+ * -- `ADMIN_TABLE_WIDE` elides everything to one line, which is right for an
+ * id and useless for a traceback -- clamped to three lines.
+ */
+const LOG_TEXT = "line-clamp-3 whitespace-normal break-words text-xs leading-relaxed [overflow-wrap:anywhere]";
 
 export function AdminSystemLogTable({
   systemLogs,
@@ -45,13 +70,6 @@ export function AdminSystemLogTable({
 }: Readonly<Props>) {
   const { t } = useTranslation();
 
-  const getSeverityTone = (level?: string | null) => {
-    const normalized = String(level || "").toLowerCase();
-    if (normalized === "critical" || normalized === "error") return "high";
-    if (normalized === "warning" || normalized === "warn") return "warning";
-    return "info";
-  };
-
   const formatLocation = (entry: SystemLogEntry) => {
     const parts = [entry.module, entry.func ? `${entry.func}()` : null, entry.line ? `L${entry.line}` : null].filter(Boolean);
     return parts.length > 0 ? parts.join(" / ") : "-";
@@ -65,20 +83,25 @@ export function AdminSystemLogTable({
   }, [systemLogs, systemLogCurrentPage, systemLogPageSize]);
 
   return (
-    <main className="panel admin-audit-panel">
-      <div className="section-head">
-        <strong>{t("admin.ui.systemLogs")}</strong>
-        <div className="row-actions admin-audit-head-actions">
-          <select value={systemLogLimit} onChange={(e) => onSystemLogLimitChange(Number(e.target.value) || 200)}>
+    <main className="space-y-6">
+      <SectionHead title={t("admin.ui.systemLogs")}>
+<RowActions className="flex-nowrap justify-end gap-1.5 rounded-card border border-line bg-brand-surface-hover p-1">
+          <select
+            className={ADMIN_FIELD + " w-auto min-w-32 shrink-0 font-mono font-semibold"}
+            value={systemLogLimit}
+            onChange={(e) => onSystemLogLimitChange(Number(e.target.value) || 200)}
+          >
             <option value={100}>{t("admin.ui.last100")}</option>
             <option value={200}>{t("admin.ui.last200")}</option>
             <option value={500}>{t("admin.ui.last500")}</option>
           </select>
-          <button type="button" className="secondary tiny-btn" onClick={onRefresh}>{t("common.refresh")}</button>
-        </div>
-      </div>
-      <p className="muted admin-audit-hint">{t("admin.ui.systemLogHint")}</p>
-      <div className="ops-two-col admin-filter-grid">
+          <Button variant="secondary" size="xs" onClick={onRefresh}>
+            {t("common.refresh")}
+          </Button>
+        </RowActions>
+      </SectionHead>
+      <Hint>{t("admin.ui.systemLogHint")}</Hint>
+      <FilterGrid>
         <AdminFormSelect
           label={t("admin.ui.severity")}
           value={systemLogLevel}
@@ -97,22 +120,22 @@ export function AdminSystemLogTable({
           onChange={onSystemLogLoggerChange}
           placeholder={t("admin.ui.loggerExample")}
         />
-      </div>
-      <div className="ops-two-col admin-filter-grid">
+      </FilterGrid>
+      <FilterGrid>
         <AdminFormField
           label={t("admin.ui.keyword")}
           value={systemLogKeyword}
           onChange={onSystemLogKeywordChange}
           placeholder={t("admin.ui.keywordPlaceholder")}
         />
-        <div className="row-actions admin-audit-quick-actions">
-          <button type="button" className="secondary tiny-btn" onClick={onClearFilters}>
+        <RowActions className="self-end">
+          <Button variant="secondary" size="xs" onClick={onClearFilters}>
             {t("admin.ui.clear")}
-          </button>
-        </div>
-      </div>
-      {loadingSystemLogs && <div className="skeleton-list" />}
-      {!loadingSystemLogs && systemLogs.length === 0 && <div className="status">{t("admin.ui.systemLogEmpty")}</div>}
+          </Button>
+        </RowActions>
+      </FilterGrid>
+      {loadingSystemLogs && <AdminSkeleton />}
+      {!loadingSystemLogs && systemLogs.length === 0 && <StatePanel>{t("admin.ui.systemLogEmpty")}</StatePanel>}
       {!loadingSystemLogs && systemLogs.length > 0 && (
         <>
           <AdminPagination
@@ -123,49 +146,59 @@ export function AdminSystemLogTable({
             onPageSizeChange={onSystemLogPageSizeChange}
             pageSizeOptions={[20, 50, 100]}
           />
-          <div className="audit-table-wrap">
-            <table className="table admin-audit-table admin-system-log-table">
+          <div className={ADMIN_TABLE_WRAP}>
+            <table className={cn(ADMIN_TABLE, ADMIN_TABLE_WIDE, "min-w-[1360px]")}>
               <thead>
                 <tr>
-                  <th>{t("admin.ui.time")}</th>
-                  <th>{t("admin.ui.severity")}</th>
-                  <th>Logger</th>
-                  <th>{t("admin.ui.location")}</th>
-                  <th>{t("admin.ui.message")}</th>
-                  <th>{t("admin.ui.exception")}</th>
+                  <th className="w-[170px]">{t("admin.ui.time")}</th>
+                  <th className="w-[110px]">{t("admin.ui.severity")}</th>
+                  <th className="w-[220px]">Logger</th>
+                  <th className="w-[240px]">{t("admin.ui.location")}</th>
+                  <th className="w-[320px]">{t("admin.ui.message")}</th>
+                  <th className="w-[320px]">{t("admin.ui.exception")}</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedSystemLogs.map((x, idx) => (
                   <tr key={`${x.created_at}-${idx}`}>
                     <td>
-                      <div className="audit-cell-stack">
-                        <span className="audit-time">{formatAuditTime(x.created_at)}</span>
-                      </div>
+                      <span className="font-mono text-[11px] text-ink-muted">{formatAuditTime(x.created_at)}</span>
                     </td>
                     <td>
-                      <span className={`audit-badge audit-severity-${getSeverityTone(x.level)}`}>
-                        {x.level || "-"}
+                      <AuditBadge value={x.level} kind="severity" />
+                    </td>
+                    <td>
+                      <CellStack>
+                        <span className={LOG_CODE} title={x.logger || "-"}>
+                          {x.logger || "-"}
+                        </span>
+                        {x.thread ? (
+                          <span className="truncate font-mono text-[11px] text-ink-muted" title={x.thread}>
+                            thread: {x.thread}
+                          </span>
+                        ) : null}
+                      </CellStack>
+                    </td>
+                    <td>
+                      <span className={LOG_CODE} title={formatLocation(x)}>
+                        {formatLocation(x)}
                       </span>
                     </td>
                     <td>
-                      <div className="audit-cell-stack">
-                        <span className="system-log-code" title={x.logger || "-"}>{x.logger || "-"}</span>
-                        {x.thread ? <span className="audit-sub" title={x.thread}>thread: {x.thread}</span> : null}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="audit-cell-stack">
-                        <span className="system-log-code" title={formatLocation(x)}>{formatLocation(x)}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="system-log-text system-log-message" title={x.message || "-"}>
+                      <div className={cn(LOG_TEXT, "text-ink")} title={x.message || "-"}>
                         {x.message || "-"}
                       </div>
                     </td>
                     <td>
-                      <div className={`system-log-text system-log-exception ${x.exception ? "has-exception" : "is-empty"}`} title={x.exception || "-"}>
+                      <div
+                        className={cn(
+                          LOG_TEXT,
+                          x.exception
+                            ? "rounded-control border border-danger-border bg-danger-surface px-2.5 py-2 text-ink-muted"
+                            : "text-ink-muted",
+                        )}
+                        title={x.exception || "-"}
+                      >
                         {x.exception || "-"}
                       </div>
                     </td>

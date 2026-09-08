@@ -1,133 +1,123 @@
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { OpsOverview } from "@/types/api";
+import { Badge } from "@/components/ui/badge";
+import { AdminBlock, Muted, SectionHead, TwoCol } from "./components/AdminPrimitives";
 
 type Props = {
   ops: OpsOverview;
 };
 
+/** One `label -> value` line in the environment list. */
+function DiagRow({ label, value, fallback }: Readonly<{ label: string; value?: string | null; fallback: string }>) {
+  const missing = !value || value === "null" || value === "undefined";
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-line py-2 last:border-b-0">
+      <span className="shrink-0 font-medium text-ink">{label}</span>
+      {missing ? (
+        <span className="italic text-ink-muted">{fallback}</span>
+      ) : (
+        <code className="min-w-0 truncate font-mono text-[11px] text-ink-muted" title={value}>
+          {value}
+        </code>
+      )}
+    </div>
+  );
+}
+
+function ServiceStatus({ ok, error }: Readonly<{ ok: boolean; error?: string }>): ReactNode {
+  if (ok) return <Badge variant="success">✓ OK</Badge>;
+  return (
+    <Badge variant="danger" title={error || "Unknown error"}>
+      ✗ {error || "Error"}
+    </Badge>
+  );
+}
+
 export function AdminOpsDiagnostics({ ops }: Readonly<Props>) {
   const { t } = useTranslation();
-
-  const renderValue = (value: string | undefined | null, defaultText = "-") => {
-    if (!value || value === "" || value === "null" || value === "undefined") {
-      return <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>{defaultText}</span>;
-    }
-    return <code style={{ fontSize: 'var(--text-sm)' }}>{value}</code>;
-  };
-
-  const renderStatus = (ok: boolean, error?: string) => {
-    if (ok) {
-      return <span className="badge badge-success">✓ OK</span>;
-    }
-    return (
-      <span className="badge badge-danger" title={error || "Unknown error"}>
-        ✗ {error || "Error"}
-      </span>
-    );
-  };
+  const services = Object.entries(ops.services || {});
 
   return (
     <>
-      <div className="section-head" style={{ marginTop: 'var(--space-4)' }}>
-        <strong>{t("admin.ui.diagnostics", "System Diagnostics")}</strong>
-      </div>
-      <p className="muted" style={{ marginTop: -2, marginBottom: 'var(--space-4)' }}>
+      <SectionHead title={t("admin.ui.diagnostics", "System Diagnostics")} className="mt-4" />
+      <Muted className="-mt-0.5 mb-4">
         {t("admin.ui.diagnosticsHint", "System environment, model configuration, and service status")}
-      </p>
+      </Muted>
 
-      <div className="ops-two-col">
-        {/* Environment & Models */}
-        <div className="ops-trend-list">
-          <strong>{t("admin.ui.environmentModels", "Environment & Models")}</strong>
-          <div className="ops-diagnostic-list" style={{ marginTop: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-light)' }}>
-              <span style={{ fontWeight: 500 }}>Python</span>
-              {renderValue(ops.diagnostics?.python_executable, "Not configured")}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-light)' }}>
-              <span style={{ fontWeight: 500 }}>{t("admin.ui.pythonVersion", "Python Version")}</span>
-              {renderValue(ops.diagnostics?.python_version, "Unknown")}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-light)' }}>
-              <span style={{ fontWeight: 500 }}>{t("admin.ui.condaEnv", "Conda Environment")}</span>
-              {renderValue(ops.diagnostics?.conda_env, "Not using Conda")}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-light)' }}>
-              <span style={{ fontWeight: 500 }}>Conda Prefix</span>
-              {renderValue(ops.diagnostics?.conda_prefix, "N/A")}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-light)' }}>
-              <span style={{ fontWeight: 500 }}>{t("admin.ui.modelBackend", "Model Backend")}</span>
-              {renderValue(ops.diagnostics?.model_backend, "Not configured")}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-light)' }}>
-              <span style={{ fontWeight: 500 }}>{t("admin.ui.reasoningBackend", "Reasoning Backend")}</span>
-              {renderValue(ops.diagnostics?.reasoning_model_backend, "Same as model backend")}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-light)' }}>
-              <span style={{ fontWeight: 500 }}>Ollama URL</span>
-              {renderValue(ops.diagnostics?.ollama_base_url, "Not configured")}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border-light)' }}>
-              <span style={{ fontWeight: 500 }}>{t("admin.ui.chatModel", "Chat Model")}</span>
-              {renderValue(ops.diagnostics?.ollama_chat_model, "Default model")}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: 'var(--space-2) 0' }}>
-              <span style={{ fontWeight: 500 }}>Embedding Model</span>
-              {renderValue(ops.diagnostics?.ollama_embed_model, "Default embedding")}
-            </div>
+      <TwoCol>
+        <AdminBlock titleAs="strong" title={t("admin.ui.environmentModels", "Environment & Models")}>
+          <div className="text-xs">
+            <DiagRow label="Python" value={ops.diagnostics?.python_executable} fallback="Not configured" />
+            <DiagRow
+              label={t("admin.ui.pythonVersion", "Python Version")}
+              value={ops.diagnostics?.python_version}
+              fallback="Unknown"
+            />
+            <DiagRow
+              label={t("admin.ui.condaEnv", "Conda Environment")}
+              value={ops.diagnostics?.conda_env}
+              fallback="Not using Conda"
+            />
+            <DiagRow label="Conda Prefix" value={ops.diagnostics?.conda_prefix} fallback="N/A" />
+            <DiagRow
+              label={t("admin.ui.modelBackend", "Model Backend")}
+              value={ops.diagnostics?.model_backend}
+              fallback="Not configured"
+            />
+            <DiagRow
+              label={t("admin.ui.reasoningBackend", "Reasoning Backend")}
+              value={ops.diagnostics?.reasoning_model_backend}
+              fallback="Same as model backend"
+            />
+            <DiagRow label="Ollama URL" value={ops.diagnostics?.ollama_base_url} fallback="Not configured" />
+            <DiagRow
+              label={t("admin.ui.chatModel", "Chat Model")}
+              value={ops.diagnostics?.ollama_chat_model}
+              fallback="Default model"
+            />
+            <DiagRow label="Embedding Model" value={ops.diagnostics?.ollama_embed_model} fallback="Default embedding" />
           </div>
-        </div>
+        </AdminBlock>
 
-        {/* Service Status */}
-        <div className="ops-trend-list">
-          <strong>{t("admin.ui.keyServiceDetails", "Service Status & Details")}</strong>
-          <div className="ops-diagnostic-list" style={{ marginTop: 'var(--space-3)' }}>
-            {Object.entries(ops.services || {}).length > 0 ? (
-              Object.entries(ops.services || {}).map(([name, service]) => (
-                <div
-                  key={`svc-detail-${name}`}
-                  style={{
-                    padding: 'var(--space-3)',
-                    marginBottom: 'var(--space-2)',
-                    background: 'var(--surface-hover)',
-                    borderRadius: 'var(--radius-md)',
-                    border: `1px solid ${service.ok ? 'var(--success)' : 'var(--danger)'}`
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-                    <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{name}</span>
-                    {renderStatus(service.ok, service.error)}
-                  </div>
-                  {service.path && (
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: 'var(--space-1)' }}>
-                      <strong>Path:</strong> <code style={{ fontSize: 'var(--text-xs)' }}>{service.path}</code>
-                    </div>
-                  )}
-                  {service.models && service.models.length > 0 && (
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: 'var(--space-1)' }}>
-                      <strong>Models:</strong> {service.models.map((model, idx) => (
-                        <span key={idx} className="badge badge-info" style={{ marginLeft: 'var(--space-1)', fontSize: '10px' }}>
-                          {model}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+        <AdminBlock titleAs="strong" title={t("admin.ui.keyServiceDetails", "Service Status & Details")}>
+          {services.length === 0 ? (
+            <p className="p-6 text-center italic text-ink-muted">
+              {t("admin.ui.noServiceData", "No service data available")}
+            </p>
+          ) : (
+            services.map(([name, service]) => (
+              <div
+                key={`svc-detail-${name}`}
+                className={`mb-2 rounded-control border bg-surface-hover p-3 ${
+                  service.ok ? "border-success-border" : "border-danger-border"
+                }`}
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-ink">{name}</span>
+                  <ServiceStatus ok={service.ok} error={service.error} />
                 </div>
-              ))
-            ) : (
-              <div style={{
-                padding: 'var(--space-6)',
-                textAlign: 'center',
-                color: 'var(--text-tertiary)',
-                fontStyle: 'italic'
-              }}>
-                {t("admin.ui.noServiceData", "No service data available")}
+                {service.path && (
+                  <p className="mt-1 truncate text-[11px] text-ink-muted">
+                    <strong className="font-semibold">Path:</strong>{" "}
+                    <code className="font-mono">{service.path}</code>
+                  </p>
+                )}
+                {service.models && service.models.length > 0 && (
+                  <p className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-ink-muted">
+                    <strong className="font-semibold">Models:</strong>
+                    {service.models.map((model) => (
+                      <Badge key={model} variant="info" size="xs" mono>
+                        {model}
+                      </Badge>
+                    ))}
+                  </p>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-      </div>
+            ))
+          )}
+        </AdminBlock>
+      </TwoCol>
     </>
   );
 }

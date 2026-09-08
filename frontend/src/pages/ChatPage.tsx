@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  AGENT_MODES,
-  type AgentClassHint,
-} from "@/pages/chat/constants";
+import { AGENT_MODES, type AgentClassHint } from "@/pages/chat/constants";
 import type { Props } from "@/pages/chat/types";
 import type { PendingApproval } from "@/types/api";
 import { useChatStore } from "@/stores/useChatStore";
+import { AppShell } from "@/components/layout/AppShell";
+import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PromptDialog } from "@/components/PromptDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePromptDialog } from "@/hooks/usePromptDialog";
-import { ChatTopbar } from "@/pages/chat/components/ChatTopbar";
 import { ChatMessages } from "@/pages/chat/components/ChatMessages";
 import { ChatComposer } from "@/pages/chat/components/ChatComposer";
 import { ClarificationPrompt } from "@/pages/chat/components/ClarificationPrompt";
@@ -29,15 +27,11 @@ import { useClarification } from "@/pages/chat/hooks/useClarification";
 import { useSettingsPolling } from "@/pages/chat/hooks/useSettingsPolling";
 import { useAutoRefresh } from "@/pages/chat/hooks/useAutoRefresh";
 import { useAutoScroll } from "@/pages/chat/hooks/useAutoScroll";
-import { KeyboardHelp } from "@/components/KeyboardHelp";
 import { generateSmartPrompts } from "@/pages/chat/utils/smartPrompts";
 import type { UserIdentity } from "@/types/auth";
 import { ChatRuntimePanels } from "@/pages/chat/components/ChatRuntimePanels";
 import { SectionToggleButton } from "@/pages/chat/components/SectionToggleButton";
-import { useSectionToggle, useTopbarToggle } from "@/hooks/useSectionToggle";
-
-// Route-specific CSS (code-split by Vite)
-import "@/styles/pages/chat-entry.css";
+import { useSectionToggle } from "@/hooks/useSectionToggle";
 
 export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
   const [executionId, setExecutionId] = useState<string | null>(null);
@@ -53,29 +47,37 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
   const [sessionManagementOpen, setSessionManagementOpen] = useState(false);
   const permissionUser: UserIdentity | null = user;
   const { sectionsHidden, toggleSections } = useSectionToggle();
-  const { topbarHidden, toggleTopbar } = useTopbarToggle();
 
   const {
-    sidebarOpen, setSidebarOpen,
-    sidebarCollapsed, setSidebarCollapsed,
-    sessions, setSessions,
+    sidebarOpen,
+    setSidebarOpen,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    sessions,
+    setSessions,
     setSessionLoading,
-    currentSessionId, setCurrentSessionId,
-    messages, setMessages,
+    currentSessionId,
+    setCurrentSessionId,
+    messages,
+    setMessages,
     setBusySessionId,
     setIsCreatingSession,
     setQuestion,
-    isSending, setIsSending,
+    isSending,
+    setIsSending,
     setRunStatus,
     setAgentClassHint,
-    pdfTargetFile, setPdfTargetFile,
-    documents, setDocuments,
+    pdfTargetFile,
+    setPdfTargetFile,
+    documents,
+    setDocuments,
     setDocsLoading,
     setUploading,
     setUploadInfo,
     setUploadProgress,
     setUploadProgressText,
-    uploadVisibility, setUploadVisibility,
+    uploadVisibility,
+    setUploadVisibility,
     setDocDropActive,
     setComposerDropActive,
     setPrompts,
@@ -84,9 +86,11 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     setPromptContent,
     setEditingPromptId,
     setPromptCheckInfo,
-    toasts, setToasts,
+    toasts,
+    setToasts,
     setError,
-    settingsOpen, setSettingsOpen,
+    settingsOpen,
+    setSettingsOpen,
     fileInputRef,
     chatUploadInputRef,
     questionRef,
@@ -99,13 +103,7 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
   const dragHandlers = useDragHandlers(setComposerDropActive);
 
   const computed = useChatComputed({ documents, user });
-  const {
-    isAdmin,
-    canUploadAndManageDocs,
-    pdfDocuments,
-    pdfNeedingReindex,
-    agentDistribution,
-  } = computed;
+  const { isAdmin, canUploadAndManageDocs, pdfDocuments, pdfNeedingReindex, agentDistribution } = computed;
 
   const closeSidebar = () => {
     if (pdfDocuments.length > 0) setSidebarOpen(false);
@@ -173,8 +171,7 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     setQuestion,
     onExecutionId: setExecutionId,
     onCreditsChanged: onUserRefresh,
-    onPendingApproval: (approval, question) =>
-      setPendingApproval(approval ? { approval, question } : null),
+    onPendingApproval: (approval, question) => setPendingApproval(approval ? { approval, question } : null),
   });
 
   // Clarification logic extracted to custom hook
@@ -203,7 +200,7 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     let sessionId = currentSessionId;
 
     try {
-      sessionId = sessionId || await messageActions.ensureSessionForAsk();
+      sessionId = sessionId || (await messageActions.ensureSessionForAsk());
       if (!sessionId) {
         setIsSending(false);
         setRunStatus("");
@@ -288,20 +285,23 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
   }, [messages]);
 
   return (
-    <>
-      <ChatTopbar
-        sidebarCollapsed={sidebarCollapsed}
-        user={permissionUser}
-        topbarHidden={topbarHidden}
-        sectionsHidden={sectionsHidden}
-        onToggleSidebar={handleSidebarToggle}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenSessionManagement={() => setSessionManagementOpen(true)}
-        onToggleTopbar={toggleTopbar}
-        onToggleSections={toggleSections}
-      />
-
-      <div className={`page-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+    <AppShell
+      user={permissionUser}
+      onLogout={onLogout}
+      onOpenSettings={() => setSettingsOpen(true)}
+      onOpenSessionManagement={() => setSessionManagementOpen(true)}
+      onNewSession={() => void actions.createSession()}
+    >
+      {/* `page-shell` and `sidebar-collapsed` survive as behavioural hooks
+          rather than as styling: scripts/screenshots.mjs uses the first as its
+          "signed in" signal and the pair as its desktop sidebar open/closed
+          test. The layout itself is Tailwind. */}
+      <div
+        className={cn(
+          "page-shell relative flex min-h-0 flex-1 overflow-hidden",
+          sidebarCollapsed && "sidebar-collapsed"
+        )}
+      >
         <ChatSidebar
           agentModes={AGENT_MODES}
           agentDistribution={agentDistribution}
@@ -312,7 +312,9 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
           user={permissionUser}
           fileInputRef={fileInputRef}
           onToggleSidebarCollapsed={handleSidebarToggle}
-          onCreateSession={async () => { await actions.createSession(); }}
+          onCreateSession={async () => {
+            await actions.createSession();
+          }}
           onLoadSession={actions.loadSession}
           onDeleteSession={actions.deleteSession}
           onRenameSession={actions.renameSession}
@@ -349,12 +351,15 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
             convenience, and the sidebar's own Collapse button is the route that
             a keyboard already has. */}
         <div
-          className={`backdrop ${sidebarOpen ? "show" : ""}`}
+          className={cn(
+            "absolute inset-0 z-20 bg-stone-900/40 backdrop-blur-sm transition-opacity sidebar:hidden",
+            sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
+          )}
           role="presentation"
           onClick={() => setSidebarOpen(false)}
         />
 
-        <main className="main">
+        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <ChatMessages
             messages={messages}
             containerRef={chatScrollRef}
@@ -362,44 +367,48 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
             sessionsCount={sessions.length}
             onEditMessage={(msg) => messageActions.editMessage(msg)}
             onRemoveMessage={messageActions.removeMessage}
-            onCreateSession={async () => { await actions.createSession(); }}
-            onNavigateToArchitecture={() => window.location.href = '/app/architecture'}
+            onCreateSession={async () => {
+              await actions.createSession();
+            }}
+            onNavigateToArchitecture={() => (window.location.href = "/app/architecture")}
           />
 
-          <ChatRuntimePanels
-            executionId={executionId}
-            pendingApproval={pendingApproval?.approval ?? null}
-            onApproved={async (token) => {
-              const question = pendingApproval?.question;
-              setPendingApproval(null);
-              if (!question) return;
-              await messageActions.ask({
-                question,
-                isSending: false,
-                sessionId: currentSessionId || undefined,
-                approvalToken: token,
-              });
-            }}
-            onDismissApproval={() => setPendingApproval(null)}
-            onDraft={(text) => {
-              if (!text) return;
-              // Only the in-flight bubble; the completed message keeps whatever
-              // the query response settled on.
-              setMessages((prev) => {
-                const index = prev.findIndex(
-                  (message) => message.message_id === "local-assistant-stream" && !message.content,
-                );
-                // Returning `prev` unchanged lets React bail out of the render.
-                // Mapping unconditionally builds a new array every time, so
-                // every fragment re-rendered the whole message list even when
-                // there was no streaming bubble to write into.
-                if (index === -1) return prev;
-                const next = [...prev];
-                next[index] = { ...next[index], content: text };
-                return next;
-              });
-            }}
-          />
+          {!sectionsHidden && (
+            <ChatRuntimePanels
+              executionId={executionId}
+              pendingApproval={pendingApproval?.approval ?? null}
+              onApproved={async (token) => {
+                const question = pendingApproval?.question;
+                setPendingApproval(null);
+                if (!question) return;
+                await messageActions.ask({
+                  question,
+                  isSending: false,
+                  sessionId: currentSessionId || undefined,
+                  approvalToken: token,
+                });
+              }}
+              onDismissApproval={() => setPendingApproval(null)}
+              onDraft={(text) => {
+                if (!text) return;
+                // Only the in-flight bubble; the completed message keeps whatever
+                // the query response settled on.
+                setMessages((prev) => {
+                  const index = prev.findIndex(
+                    (message) => message.message_id === "local-assistant-stream" && !message.content
+                  );
+                  // Returning `prev` unchanged lets React bail out of the render.
+                  // Mapping unconditionally builds a new array every time, so
+                  // every fragment re-rendered the whole message list even when
+                  // there was no streaming bubble to write into.
+                  if (index === -1) return prev;
+                  const next = [...prev];
+                  next[index] = { ...next[index], content: text };
+                  return next;
+                });
+              }}
+            />
+          )}
 
           {clarification && clarification.action === "NEED_CLARIFICATION" && clarification.clarification && (
             <ClarificationPrompt
@@ -411,28 +420,27 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
             />
           )}
 
-          <ChatComposer
-            questionRef={questionRef}
-            chatUploadInputRef={chatUploadInputRef}
-            isSending={isSending || !!clarification}
-            quickPrompts={smartQuickPrompts}
-            onAsk={async () => {
-              if (clarification) return;
-              await handleSendWithClarification(useChatStore.getState().question);
-            }}
-            onStop={() => messageActions.stopCurrentRun(isSending)}
-            onComposerDragEnter={dragHandlers.onComposerDragEnter}
-            onComposerDragOver={dragHandlers.onComposerDragOver}
-            onComposerDragLeave={dragHandlers.onComposerDragLeave}
-            onComposerDrop={fileUploadHandlers.onComposerDrop}
-            onChatUploadChange={fileUploadHandlers.onChatUploadChange}
-          />
+          {!sectionsHidden && (
+            <ChatComposer
+              questionRef={questionRef}
+              chatUploadInputRef={chatUploadInputRef}
+              isSending={isSending || !!clarification}
+              quickPrompts={smartQuickPrompts}
+              onAsk={async () => {
+                if (clarification) return;
+                await handleSendWithClarification(useChatStore.getState().question);
+              }}
+              onStop={() => messageActions.stopCurrentRun(isSending)}
+              onComposerDragEnter={dragHandlers.onComposerDragEnter}
+              onComposerDragOver={dragHandlers.onComposerDragOver}
+              onComposerDragLeave={dragHandlers.onComposerDragLeave}
+              onComposerDrop={fileUploadHandlers.onComposerDrop}
+              onChatUploadChange={fileUploadHandlers.onChatUploadChange}
+            />
+          )}
         </main>
 
-        <ToastStack
-          toasts={toasts}
-          onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
-        />
+        <ToastStack toasts={toasts} onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
         <SectionToggleButton sectionsHidden={sectionsHidden} onToggle={toggleSections} />
         <ApiSettings isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <ConfirmDialog
@@ -465,8 +473,7 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
           messages={messages}
           onSelectSession={(sessionId) => void actions.loadSession(sessionId)}
         />
-        <KeyboardHelp />
       </div>
-    </>
+    </AppShell>
   );
 }

@@ -1,5 +1,7 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
 
+import { Button } from "@/components/ui/button";
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -37,34 +39,20 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div style={{
-          padding: "2rem",
-          textAlign: "center",
-          backgroundColor: "var(--bg-error, #fee)",
-          border: "1px solid var(--border-error, #fcc)",
-          borderRadius: "8px",
-          margin: "2rem auto",
-          maxWidth: "600px"
-        }}>
-          <h2 style={{ color: "var(--text-error, #c33)", marginBottom: "1rem" }}>
-            Something went wrong
-          </h2>
-          <p style={{ marginBottom: "1rem", color: "var(--text-muted, #666)" }}>
+        /* Amber like the rest of the app. This was the one surface the
+           restyling never reached, and it is the only thing a reader sees
+           when something breaks -- it was still painting `#007bff` on `#fee`
+           from the palette this theme replaced, behind `var(--x, fallback)`
+           pairs whose variables no longer exist, so the fallbacks were what
+           rendered. */
+        <div className="mx-auto my-8 max-w-xl rounded-panel border border-danger-border bg-danger-surface p-8 text-center">
+          <h2 className="mb-4 text-sm font-bold text-danger">Something went wrong</h2>
+          <p className="mb-4 text-xs text-ink-muted">
             {this.state.error?.message || "An unexpected error occurred"}
           </p>
-          <button
-            onClick={this.handleReset}
-            style={{
-              padding: "0.5rem 1rem",
-              backgroundColor: "var(--primary, #007bff)",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
+          <Button size="sm" onClick={this.handleReset}>
             Try Again
-          </button>
+          </Button>
         </div>
       );
     }

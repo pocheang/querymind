@@ -6,17 +6,18 @@
  * relevance scores and matched tags highlighting.
  */
 
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import {
-  sessionManagementApi,
-  SearchQuery,
-  SearchResult,
-  SessionCategory,
-} from '../../services/sessionManagement';
-import { TagInput } from './TagInput';
-import './SessionSearch.css';
+import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { sessionManagementApi, SearchQuery, SearchResult, SessionCategory } from "../../services/sessionManagement";
+import { TagInput } from "./TagInput";
 import { activateOnKey } from "@/lib/a11y";
+import { Search, SlidersHorizontal } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface SessionSearchProps {
   onSelectSession?: (sessionId: string) => void;
@@ -28,13 +29,13 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
   const [showFilters, setShowFilters] = useState(false);
 
   // Search query state
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<SessionCategory | null>(null);
   const [minQueries, setMinQueries] = useState<number | undefined>();
   const [maxQueries, setMaxQueries] = useState<number | undefined>();
-  const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'query_count'>('updated_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState<"updated_at" | "created_at" | "query_count">("updated_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Results state
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -42,13 +43,7 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
   const [page, setPage] = useState(0);
   const [pageSize] = useState(20);
 
-  const categories: SessionCategory[] = [
-    'research',
-    'development',
-    'debugging',
-    'learning',
-    'other',
-  ];
+  const categories: SessionCategory[] = ["research", "development", "debugging", "learning", "other"];
 
   // Search on mount and when filters change
   useEffect(() => {
@@ -75,7 +70,7 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
       setResults(response.results);
       setTotal(response.total);
     } catch (error) {
-      console.error('Search failed:', error);
+      console.error("Search failed:", error);
       setResults([]);
       setTotal(0);
     } finally {
@@ -89,13 +84,13 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSearchClick();
     }
   };
 
   const handleClearFilters = () => {
-    setSearchText('');
+    setSearchText("");
     setSelectedTags([]);
     setSelectedCategory(null);
     setMinQueries(undefined);
@@ -112,82 +107,70 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
   const totalPages = Math.ceil(total / pageSize);
 
-  return (
-    <div className="session-search">
-      {/* Header */}
-      <div className="search-header">
-        <h3 className="search-title">{t('sessionManagement.searchSessions')}</h3>
+  const SELECT =
+    "h-7 rounded-control border border-brand-border bg-surface px-1.5 text-[11px] text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]";
 
-        {/* Search Box */}
-        <div className="search-box">
-          <div className="search-input-wrapper">
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        <h3 className="text-xs font-bold text-ink">{t("sessionManagement.searchSessions")}</h3>
+
+        <div className="flex items-center gap-1.5">
+          <label className="field-shell flex flex-1 items-center gap-1.5 rounded-control border border-brand-border bg-surface px-2.5 py-1.5 transition-all focus-within:border-brand-accent focus-within:ring-2 focus-within:ring-[var(--brand-ring)]">
+            <Search className="size-3.5 shrink-0 text-ink-faint" aria-hidden="true" />
             <input
               type="text"
-              className="search-input"
+              className="w-full bg-transparent text-xs text-ink placeholder:text-ink-faint focus-visible:outline-none"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={t('sessionManagement.searchPlaceholder')}
+              placeholder={t("sessionManagement.searchPlaceholder")}
               disabled={loading}
             />
-            <svg className="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <button
-            className="search-button"
-            onClick={handleSearchClick}
-            disabled={loading}
-          >
-            {loading ? t('common.searching') : t('common.search')}
-          </button>
+          </label>
+          <Button size="sm" onClick={handleSearchClick} disabled={loading}>
+            {loading ? t("common.searching") : t("common.search")}
+          </Button>
         </div>
       </div>
 
-      {/* Filters Section */}
-      <div className="filters-section">
-        <button
-          className="filters-toggle"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <svg className="filters-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          {showFilters ? t('common.hideFilters') : t('common.showFilters')}
-        </button>
+      <div className="space-y-2">
+        <Button variant="ghost" size="xs" onClick={() => setShowFilters(!showFilters)}>
+          <SlidersHorizontal className="size-3" aria-hidden="true" />
+          {showFilters ? t("common.hideFilters") : t("common.showFilters")}
+        </Button>
 
         {showFilters && (
-          <div className="filters-content">
-            <div className="filters-grid">
-              {/* Tags Filter */}
-              <div className="filter-group">
-                <label className="filter-label">{t('sessionManagement.filterByTags')}</label>
+          <div className="space-y-2 rounded-card border border-line bg-surface-inset p-2.5">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>{t("sessionManagement.filterByTags")}</Label>
                 <TagInput
                   value={selectedTags}
                   onChange={setSelectedTags}
-                  placeholder={t('sessionManagement.selectTags')}
+                  placeholder={t("sessionManagement.selectTags")}
                   maxTags={5}
                 />
               </div>
 
-              {/* Category Filter */}
-              <div className="filter-group">
-                <label className="filter-label">{t('sessionManagement.filterByCategory')}</label>
+              <div className="space-y-1.5">
+                <Label htmlFor="filter-category">{t("sessionManagement.filterByCategory")}</Label>
                 <select
-                  className="filter-select"
-                  value={selectedCategory || ''}
+                  id="filter-category"
+                  className={cn(SELECT, "h-8 w-full text-xs")}
+                  value={selectedCategory || ""}
                   onChange={(e) => setSelectedCategory((e.target.value || null) as SessionCategory | null)}
                 >
-                  <option value="">{t('sessionManagement.allCategories')}</option>
-                  {categories.map(cat => (
+                  <option value="">{t("sessionManagement.allCategories")}</option>
+                  {categories.map((cat) => (
                     <option key={cat} value={cat}>
                       {t(`sessionManagement.categories.${cat}`)}
                     </option>
@@ -195,120 +178,105 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
                 </select>
               </div>
 
-              {/* Min Queries */}
-              <div className="filter-group">
-                <label className="filter-label">{t('sessionManagement.minQueries')}</label>
-                <input
-                  type="number"
-                  className="filter-input"
-                  value={minQueries || ''}
-                  onChange={(e) => setMinQueries(e.target.value ? Number.parseInt(e.target.value, 10) : undefined)}
-                  min={0}
-                  placeholder="0"
-                />
-              </div>
-
-              {/* Max Queries */}
-              <div className="filter-group">
-                <label className="filter-label">{t('sessionManagement.maxQueries')}</label>
-                <input
-                  type="number"
-                  className="filter-input"
-                  value={maxQueries || ''}
-                  onChange={(e) => setMaxQueries(e.target.value ? Number.parseInt(e.target.value, 10) : undefined)}
-                  min={0}
-                  placeholder="∞"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-min">{t("sessionManagement.minQueries")}</Label>
+                  <Input
+                    id="filter-min"
+                    type="number"
+                    value={minQueries || ""}
+                    onChange={(e) => setMinQueries(e.target.value ? Number.parseInt(e.target.value, 10) : undefined)}
+                    min={0}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="filter-max">{t("sessionManagement.maxQueries")}</Label>
+                  <Input
+                    id="filter-max"
+                    type="number"
+                    value={maxQueries || ""}
+                    onChange={(e) => setMaxQueries(e.target.value ? Number.parseInt(e.target.value, 10) : undefined)}
+                    min={0}
+                    placeholder="&#8734;"
+                  />
+                </div>
               </div>
             </div>
 
-            <div style={{ marginTop: '12px', textAlign: 'right' }}>
-              <button
-                className="filters-toggle"
-                onClick={handleClearFilters}
-                style={{ fontSize: '13px' }}
-              >
-                {t('common.clearFilters')}
-              </button>
+            <div className="text-right">
+              <Button variant="ghost" size="xs" onClick={handleClearFilters}>
+                {t("common.clearFilters")}
+              </Button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Results */}
       {!loading && results.length > 0 && (
         <>
-          <div className="results-header">
-            <div className="results-count">
-              {t('sessionManagement.resultsCount', { count: total })}
-            </div>
-            <div className="sort-controls">
-              <span className="sort-label">{t('common.sortBy')}:</span>
-              <select
-                className="sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-              >
-                <option value="updated_at">{t('sessionManagement.sortUpdated')}</option>
-                <option value="created_at">{t('sessionManagement.sortCreated')}</option>
-                <option value="query_count">{t('sessionManagement.sortQueries')}</option>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold text-ink">
+              {t("sessionManagement.resultsCount", { count: total })}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-ink-muted">{t("common.sortBy")}:</span>
+              <select className={SELECT} value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+                <option value="updated_at">{t("sessionManagement.sortUpdated")}</option>
+                <option value="created_at">{t("sessionManagement.sortCreated")}</option>
+                <option value="query_count">{t("sessionManagement.sortQueries")}</option>
               </select>
-              <select
-                className="sort-select"
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as any)}
-              >
-                <option value="desc">{t('common.descending')}</option>
-                <option value="asc">{t('common.ascending')}</option>
+              <select className={SELECT} value={sortOrder} onChange={(e) => setSortOrder(e.target.value as any)}>
+                <option value="desc">{t("common.descending")}</option>
+                <option value="asc">{t("common.ascending")}</option>
               </select>
             </div>
           </div>
 
-          <div className="results-list">
-            {results.map(result => (
+          <div className="space-y-1.5">
+            {results.map((result) => (
               <div
                 key={result.session_id}
-                className="result-card"
+                className="cursor-pointer rounded-card border border-line bg-surface p-2.5 transition-all hover:border-brand-border-strong hover:bg-brand-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                 role="button"
                 tabIndex={0}
                 onClick={() => handleResultClick(result.session_id)}
                 onKeyDown={activateOnKey(() => handleResultClick(result.session_id))}
               >
-                <div className="result-header">
-                  <div className="result-session-id">{result.session_id}</div>
-                  <div className="result-score">
-                    {t('sessionManagement.score')}: {result.score.toFixed(2)}
-                  </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-mono text-[11px] font-semibold text-ink">{result.session_id}</span>
+                  <Badge variant="brand" size="xs" mono>
+                    {t("sessionManagement.score")}: {result.score.toFixed(2)}
+                  </Badge>
                 </div>
 
                 {result.metadata.description && (
-                  <div className="result-description">{result.metadata.description}</div>
+                  <p className="mt-1 line-clamp-2 text-[11px] text-ink-muted">{result.metadata.description}</p>
                 )}
 
-                <div className="result-meta">
-                  <div className="result-meta-item">
-                    <span>{t('sessionManagement.category')}:</span>
-                    <span>{result.metadata.category ? t(`sessionManagement.categories.${result.metadata.category}`) : '-'}</span>
+                <dl className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-ink-muted">
+                  <div className="flex gap-1">
+                    <dt>{t("sessionManagement.category")}:</dt>
+                    <dd className="text-ink">
+                      {result.metadata.category ? t(`sessionManagement.categories.${result.metadata.category}`) : "-"}
+                    </dd>
                   </div>
-                  <div className="result-meta-item">
-                    <span>{t('sessionManagement.queries')}:</span>
-                    <span>{result.metadata.query_count}</span>
+                  <div className="flex gap-1">
+                    <dt>{t("sessionManagement.queries")}:</dt>
+                    <dd className="font-mono text-ink">{result.metadata.query_count}</dd>
                   </div>
-                  <div className="result-meta-item">
-                    <span>{t('common.updated')}:</span>
-                    <span>{formatDate(result.metadata.updated_at)}</span>
+                  <div className="flex gap-1">
+                    <dt>{t("common.updated")}:</dt>
+                    <dd className="font-mono text-ink">{formatDate(result.metadata.updated_at)}</dd>
                   </div>
-                </div>
+                </dl>
 
                 {result.metadata.tags.length > 0 && (
-                  <div className="result-tags">
-                    {result.metadata.tags.map(tag => (
-                      <span
-                        key={tag}
-                        className={`result-tag ${result.matched_tags?.includes(tag) ? 'matched' : ''}`}
-                      >
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {result.metadata.tags.map((tag) => (
+                      <Badge key={tag} variant={result.matched_tags?.includes(tag) ? "brand" : "neutral"} size="pill">
                         {tag}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 )}
@@ -316,39 +284,27 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
             ))}
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="pagination">
-              <button
-                className="pagination-button"
-                onClick={() => setPage(page - 1)}
-                disabled={page === 0}
-              >
-                {t('common.previous')}
-              </button>
-              <div className="pagination-info">
-                {t('common.pageOf', { current: page + 1, total: totalPages })}
-              </div>
-              <button
-                className="pagination-button"
-                onClick={() => setPage(page + 1)}
-                disabled={page >= totalPages - 1}
-              >
-                {t('common.next')}
-              </button>
+            <div className="flex items-center justify-between gap-2 border-t border-line-subtle pt-2">
+              <Button variant="secondary" size="xs" onClick={() => setPage(page - 1)} disabled={page === 0}>
+                {t("common.previous")}
+              </Button>
+              <span className="font-mono text-[10px] text-ink-muted">
+                {t("common.pageOf", { current: page + 1, total: totalPages })}
+              </span>
+              <Button variant="secondary" size="xs" onClick={() => setPage(page + 1)} disabled={page >= totalPages - 1}>
+                {t("common.next")}
+              </Button>
             </div>
           )}
         </>
       )}
 
-      {/* Empty State */}
       {!loading && results.length === 0 && (
-        <div className="empty-state">
-          <svg className="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <h4 className="empty-state-title">{t('sessionManagement.noResults')}</h4>
-          <p className="empty-state-description">{t('sessionManagement.tryDifferentSearch')}</p>
+        <div className="space-y-1.5 py-8 text-center">
+          <Search className="mx-auto size-6 text-ink-faint" strokeWidth={1.5} aria-hidden="true" />
+          <h4 className="text-xs font-semibold text-ink">{t("sessionManagement.noResults")}</h4>
+          <p className="text-[11px] text-ink-muted">{t("sessionManagement.tryDifferentSearch")}</p>
         </div>
       )}
     </div>

@@ -1,4 +1,8 @@
 import { useTranslation } from "react-i18next";
+import { RefreshCw } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type React from "react";
 import type { IndexedFileSummary } from "@/types/api";
 import type { UserIdentity } from "@/types/auth";
@@ -54,20 +58,24 @@ export function DocumentsPanel({
   const nonPdfDocuments = documents.filter((doc) => !PDF_FILE_RE.test(doc.filename || ""));
 
   return (
-    <section className="panel">
-      <div className="section-head">
-        <strong>{t("components.workbench.documents")}</strong>
-        <button type="button" className="secondary tiny-btn" onClick={() => void onRefreshDocuments()}>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+          {t("components.workbench.documents")}
+        </span>
+        <Button variant="ghost" size="xs" onClick={() => void onRefreshDocuments()}>
+          <RefreshCw className="size-3" aria-hidden="true" />
           {t("components.workbench.refresh")}
-        </button>
+        </Button>
       </div>
 
       {canUploadAndManageDocs && (
-        <div className="upload-box">
+        <div className="space-y-1.5 rounded-control border border-line bg-surface p-2">
           {isAdmin && (
             <select
               value={uploadVisibility}
               onChange={(event) => onUploadVisibilityChange((event.target.value as "private" | "public") || "private")}
+              className="w-full rounded-control border border-brand-border bg-surface px-2 py-1 text-[11px] text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
             >
               <option value="private">{t("components.workbench.private")}</option>
               <option value="public">{t("components.workbench.public")}</option>
@@ -79,18 +87,23 @@ export function DocumentsPanel({
             multiple
             onChange={(event) => void onMainUploadChange(event)}
             accept=".md,.txt,.pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp"
+            className="w-full text-[10px] text-ink-muted file:mr-2 file:rounded-control file:border-0 file:bg-brand-surface file:px-2 file:py-1 file:text-[10px] file:font-semibold file:text-brand-text"
           />
-          <div className="muted">
+          <p className="text-[10px] text-ink-muted">
             {uploading ? t("components.workbench.uploading") : t("components.workbench.uploadSupport")}
-          </div>
-          {uploadInfo && <div className="hint">{uploadInfo}</div>}
+          </p>
+          {uploadInfo && <p className="text-[10px] text-brand-text">{uploadInfo}</p>}
           {(uploading || uploadProgress > 0) && (
-            <div className="progress-wrap">
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${Math.round(uploadProgress)}%` }} />
+            <div className="space-y-1">
+              <div className="h-1.5 w-full overflow-hidden rounded-pill bg-brand-surface-hover">
+                <div
+                  className="h-full rounded-pill bg-[image:var(--brand-gradient)] transition-[width]"
+                  style={{ width: `${Math.round(uploadProgress)}%` }}
+                />
               </div>
-              <div className="progress-text">
-                {uploadProgressText || t("components.workbench.uploadProgress", { progress: Math.round(uploadProgress) })}
+              <div className="font-mono text-[10px] text-ink-muted">
+                {uploadProgressText ||
+                  t("components.workbench.uploadProgress", { progress: Math.round(uploadProgress) })}
               </div>
             </div>
           )}
@@ -99,7 +112,12 @@ export function DocumentsPanel({
 
       {canUploadAndManageDocs && (
         <div
-          className={`dropzone ${docDropActive ? "dragover" : ""}`}
+          className={cn(
+            "cursor-pointer rounded-control border-2 border-dashed p-2.5 text-center text-[10px] transition-colors",
+            docDropActive
+              ? "border-brand-accent bg-brand-surface-hover text-brand-text"
+              : "border-brand-border bg-brand-surface/30 text-ink-muted hover:bg-brand-surface/60"
+          )}
           onDragEnter={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -121,10 +139,20 @@ export function DocumentsPanel({
         </div>
       )}
 
-      {docsLoading && <div className="skeleton-list" />}
-      {!docsLoading && documents.length === 0 && <div className="muted">{t("components.workbench.noIndexedDocuments")}</div>}
+      {docsLoading && (
+        <div className="space-y-1.5">
+          {[0, 1].map((row) => (
+            <div key={row} className="h-12 animate-pulse rounded-control bg-brand-surface-hover" />
+          ))}
+        </div>
+      )}
+      {!docsLoading && documents.length === 0 && (
+        <p className="py-3 text-center text-[10px] text-ink-muted">{t("components.workbench.noIndexedDocuments")}</p>
+      )}
       {!docsLoading && pdfDocuments.length > 0 && (
-        <div className="doc-subtitle">{t("components.workbench.pdfImageDocs", { count: pdfDocuments.length })}</div>
+        <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+          {t("components.workbench.pdfImageDocs", { count: pdfDocuments.length })}
+        </p>
       )}
       {!docsLoading &&
         pdfDocuments.map((doc) => (
@@ -139,7 +167,9 @@ export function DocumentsPanel({
           />
         ))}
       {!docsLoading && nonPdfDocuments.length > 0 && (
-        <div className="doc-subtitle">{t("components.workbench.otherDocs", { count: nonPdfDocuments.length })}</div>
+        <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+          {t("components.workbench.otherDocs", { count: nonPdfDocuments.length })}
+        </p>
       )}
       {!docsLoading &&
         nonPdfDocuments.map((doc) => (
@@ -153,6 +183,6 @@ export function DocumentsPanel({
             onDeleteDocument={onDeleteDocument}
           />
         ))}
-    </section>
+    </div>
   );
 }

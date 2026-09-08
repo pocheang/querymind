@@ -14,6 +14,19 @@ import {
   YAxis,
 } from "recharts";
 import type { OpsOverview } from "@/types/api";
+import { Badge } from "@/components/ui/badge";
+import {
+  AdminBlock,
+  KpiCard,
+  KpiGrid,
+  Muted,
+  SectionBlock,
+  SectionHead,
+  StateIcon,
+  StatePanel,
+  TwoCol,
+} from "./components/AdminPrimitives";
+import { ADMIN_TABLE, ADMIN_TABLE_WRAP, CHART_AXIS, CHART_GRID, CHART_TOOLTIP } from "./components/adminClasses";
 
 type Props = {
   ops: OpsOverview;
@@ -21,6 +34,9 @@ type Props = {
 };
 
 const COLORS = ["#5b8cff", "#4fc3f7", "#8b7aff", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
+
+/** Cells that hold an id, a path or a stack trace: mono, one line, elided. */
+const MONO_CELL = "truncate font-mono";
 
 export function AdminOpsDataTables({ ops, formatAuditTime }: Readonly<Props>) {
   const { t } = useTranslation();
@@ -61,68 +77,78 @@ export function AdminOpsDataTables({ ops, formatAuditTime }: Readonly<Props>) {
 
   return (
     <>
-      <div className="section-head admin-section-head-offset">
-        <strong>{t("admin.ui.recentFailedRequests", "Recent Failed Requests")}</strong>
-      </div>
+      <SectionHead className="mt-6" title={t("admin.ui.recentFailedRequests", "Recent Failed Requests")} />
 
       {recentFailures.length > 0 ? (
-        <section className="admin-section-subblock">
-          <div className="ops-two-col">
-            <div className="chart-container">
-              <h3 className="chart-title">{t("admin.ui.failureByStatus", "Failures by Status Code")}</h3>
+        <SectionBlock className="mt-4 gap-4">
+          <TwoCol>
+            <AdminBlock titleAs="h3" title={t("admin.ui.failureByStatus", "Failures by Status Code")}>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie data={statusChartData} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={70} labelLine={false}>
-                    {statusChartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Pie
+                    data={statusChartData}
+                    dataKey="count"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={70}
+                    labelLine={false}
+                  >
+                    {statusChartData.map((entry) => (
+                      <Cell
+                        key={entry.status}
+                        fill={COLORS[Object.keys(failuresByStatus).indexOf(entry.status) % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
+            </AdminBlock>
 
-            <div className="chart-container">
-              <h3 className="chart-title">{t("admin.ui.failureTimeline", "Failure Timeline")}</h3>
+            <AdminBlock titleAs="h3" title={t("admin.ui.failureTimeline", "Failure Timeline")}>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={failureTimeline}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                  <XAxis dataKey="time" stroke="var(--text-tertiary)" fontSize={11} />
-                  <YAxis stroke="var(--text-tertiary)" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--surface)",
-                      border: "1px solid var(--border-medium)",
-                      borderRadius: "var(--radius-md)",
-                    }}
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+                  <XAxis dataKey="time" stroke={CHART_AXIS} fontSize={11} />
+                  <YAxis stroke={CHART_AXIS} fontSize={11} />
+                  <Tooltip contentStyle={CHART_TOOLTIP} />
+                  <Line
+                    type="monotone"
+                    dataKey="duration"
+                    stroke="var(--danger)"
+                    strokeWidth={2}
+                    dot={{ fill: "var(--danger)" }}
+                    name="Duration (ms)"
                   />
-                  <Line type="monotone" dataKey="duration" stroke="var(--danger)" strokeWidth={2} dot={{ fill: "var(--danger)" }} name="Duration (ms)" />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
-          </div>
+            </AdminBlock>
+          </TwoCol>
 
-          <div className="audit-wrap">
-            <table className="audit-table">
+          <div className={ADMIN_TABLE_WRAP}>
+            <table className={ADMIN_TABLE}>
               <thead>
                 <tr>
-                  <th style={{ width: "140px" }}>{t("admin.ui.time", "Time")}</th>
-                  <th style={{ width: "200px" }}>{t("admin.ui.path", "Path")}</th>
-                  <th style={{ width: "80px", textAlign: "center" }}>{t("admin.ui.statusCode", "Status")}</th>
-                  <th style={{ width: "100px", textAlign: "right" }}>{t("admin.ui.duration", "Duration")}</th>
+                  <th className="w-36">{t("admin.ui.time", "Time")}</th>
+                  <th className="w-52">{t("admin.ui.path", "Path")}</th>
+                  <th className="w-20 text-center">{t("admin.ui.statusCode", "Status")}</th>
+                  <th className="w-24 text-right">{t("admin.ui.duration", "Duration")}</th>
                   <th>{t("admin.ui.error", "Error")}</th>
                 </tr>
               </thead>
               <tbody>
                 {recentFailures.map((item, index) => (
                   <tr key={`${item.ts}-${index}`}>
-                    <td style={{ fontSize: "var(--text-xs)", fontFamily: "monospace" }}>{formatAuditTime(item.ts)}</td>
-                    <td style={{ fontSize: "var(--text-sm)", fontFamily: "monospace" }}>{item.path}</td>
-                    <td style={{ textAlign: "center" }}>
-                      <span className="badge badge-danger">{item.status_code}</span>
+                    <td className={MONO_CELL}>{formatAuditTime(item.ts)}</td>
+                    <td className={MONO_CELL}>{item.path}</td>
+                    <td className="text-center">
+                      <Badge variant="danger" mono>
+                        {item.status_code}
+                      </Badge>
                     </td>
-                    <td style={{ textAlign: "right", fontFamily: "monospace" }}>{item.duration_ms}ms</td>
-                    <td style={{ fontSize: "var(--text-sm)", maxWidth: "400px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.error || "-"}>
+                    <td className="text-right font-mono">{item.duration_ms}ms</td>
+                    <td className="max-w-[400px] truncate" title={item.error || "-"}>
                       {item.error || "-"}
                     </td>
                   </tr>
@@ -130,75 +156,69 @@ export function AdminOpsDataTables({ ops, formatAuditTime }: Readonly<Props>) {
               </tbody>
             </table>
           </div>
-        </section>
+        </SectionBlock>
       ) : (
-        <div className="admin-state-panel is-success">
-          <div className="admin-state-icon">OK</div>
-          <p>{t("admin.ui.noFailedRequests", "No failed requests")}</p>
-          <p className="muted">{t("admin.ui.systemHealthy", "System is running smoothly")}</p>
-        </div>
+        <StatePanel tone="success">
+          <StateIcon tone="success">OK</StateIcon>
+          <p className="text-ink">{t("admin.ui.noFailedRequests", "No failed requests")}</p>
+          <Muted>{t("admin.ui.systemHealthy", "System is running smoothly")}</Muted>
+        </StatePanel>
       )}
 
-      <div className="section-head admin-section-head-offset">
-        <strong>{t("admin.ui.recentCriticalErrors", "Recent Critical Errors")}</strong>
-      </div>
+      <SectionHead className="mt-6" title={t("admin.ui.recentCriticalErrors", "Recent Critical Errors")} />
 
       {recentErrors.length > 0 ? (
-        <section className="admin-section-subblock">
-          <div className="ops-two-col">
-            <div className="chart-container">
-              <h3 className="chart-title">{t("admin.ui.errorByLogger", "Errors by Logger")}</h3>
+        <SectionBlock className="mt-4 gap-4">
+          <TwoCol>
+            <AdminBlock titleAs="h3" title={t("admin.ui.errorByLogger", "Errors by Logger")}>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={loggerChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                  <XAxis dataKey="logger" stroke="var(--text-tertiary)" fontSize={10} angle={-45} textAnchor="end" height={60} />
-                  <YAxis stroke="var(--text-tertiary)" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--surface)",
-                      border: "1px solid var(--border-medium)",
-                      borderRadius: "var(--radius-md)",
-                    }}
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+                  <XAxis
+                    dataKey="logger"
+                    stroke={CHART_AXIS}
+                    fontSize={10}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
                   />
+                  <YAxis stroke={CHART_AXIS} fontSize={11} />
+                  <Tooltip contentStyle={CHART_TOOLTIP} />
                   <Bar dataKey="count" fill="var(--danger)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </AdminBlock>
 
-            <div className="chart-container">
-              <h3 className="chart-title">{t("admin.ui.errorSummary", "Error Summary")}</h3>
-              <div className="ops-kpi-grid ops-kpi-grid-secondary">
-                <div className="ops-kpi-card">
-                  <span>{t("admin.ui.totalErrors", "Total Errors")}</span>
-                  <strong style={{ color: "var(--danger)" }}>{recentErrors.length}</strong>
-                </div>
-                <div className="ops-kpi-card">
-                  <span>{t("admin.ui.uniqueLoggers", "Unique Loggers")}</span>
-                  <strong>{Object.keys(errorsByLogger).length}</strong>
-                </div>
-              </div>
-            </div>
-          </div>
+            <AdminBlock titleAs="h3" title={t("admin.ui.errorSummary", "Error Summary")}>
+              <KpiGrid cols={5} className="mb-0">
+                <KpiCard label={t("admin.ui.totalErrors", "Total Errors")} value={recentErrors.length} tone="danger" />
+                <KpiCard
+                  label={t("admin.ui.uniqueLoggers", "Unique Loggers")}
+                  value={Object.keys(errorsByLogger).length}
+                />
+              </KpiGrid>
+            </AdminBlock>
+          </TwoCol>
 
-          <div className="audit-wrap">
-            <table className="audit-table">
+          <div className={ADMIN_TABLE_WRAP}>
+            <table className={ADMIN_TABLE}>
               <thead>
                 <tr>
-                  <th style={{ width: "140px" }}>{t("admin.ui.time", "Time")}</th>
-                  <th style={{ width: "150px" }}>Logger</th>
+                  <th className="w-36">{t("admin.ui.time", "Time")}</th>
+                  <th className="w-40">Logger</th>
                   <th>{t("admin.ui.message", "Message")}</th>
-                  <th style={{ width: "250px" }}>{t("admin.ui.exception", "Exception")}</th>
+                  <th className="w-64">{t("admin.ui.exception", "Exception")}</th>
                 </tr>
               </thead>
               <tbody>
                 {recentErrors.map((item, index) => (
                   <tr key={`${item.created_at}-${index}`}>
-                    <td style={{ fontSize: "var(--text-xs)", fontFamily: "monospace" }}>{formatAuditTime(item.created_at)}</td>
-                    <td style={{ fontSize: "var(--text-sm)", fontFamily: "monospace" }}>{item.logger || "-"}</td>
-                    <td style={{ fontSize: "var(--text-sm)", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.message || "-"}>
+                    <td className={MONO_CELL}>{formatAuditTime(item.created_at)}</td>
+                    <td className={MONO_CELL}>{item.logger || "-"}</td>
+                    <td className="max-w-[300px] truncate" title={item.message || "-"}>
                       {item.message || "-"}
                     </td>
-                    <td style={{ fontSize: "var(--text-xs)", fontFamily: "monospace", maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.exception || "-"}>
+                    <td className="max-w-[250px] truncate font-mono" title={item.exception || "-"}>
                       {item.exception || "-"}
                     </td>
                   </tr>
@@ -206,13 +226,13 @@ export function AdminOpsDataTables({ ops, formatAuditTime }: Readonly<Props>) {
               </tbody>
             </table>
           </div>
-        </section>
+        </SectionBlock>
       ) : (
-        <div className="admin-state-panel is-success">
-          <div className="admin-state-icon">OK</div>
-          <p>{t("admin.ui.noCriticalErrors", "No critical errors")}</p>
-          <p className="muted">{t("admin.ui.noErrorsDetected", "No errors detected in the system")}</p>
-        </div>
+        <StatePanel tone="success">
+          <StateIcon tone="success">OK</StateIcon>
+          <p className="text-ink">{t("admin.ui.noCriticalErrors", "No critical errors")}</p>
+          <Muted>{t("admin.ui.noErrorsDetected", "No errors detected in the system")}</Muted>
+        </StatePanel>
       )}
     </>
   );

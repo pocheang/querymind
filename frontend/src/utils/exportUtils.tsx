@@ -58,6 +58,8 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 
 // React组件：导出按钮
 import { useTranslation } from "react-i18next";
+import { FileJson, FileSpreadsheet } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ExportButtonsProps {
   data: Array<Record<string, unknown>>;
@@ -79,23 +81,23 @@ export function ExportButtons({ data, filename, onExport }: Readonly<ExportButto
   };
 
   return (
-    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-      <button
-        type="button"
-        className="secondary tiny-btn"
-        onClick={handleExportCSV}
-        title={t("admin.export.csv", "Export as CSV")}
-      >
-        📊 CSV
-      </button>
-      <button
-        type="button"
-        className="secondary tiny-btn"
+    /* `secondary tiny-btn` until 2026-09-07, which is a stylesheet that was
+       deleted with the button sheets -- so both buttons had been rendering as
+       bare text beside every export-capable dashboard. */
+    <div className="flex gap-2">
+      <Button variant="secondary" size="xs" onClick={handleExportCSV} title={t("admin.export.csv", "Export as CSV")}>
+        <FileSpreadsheet className="size-3.5" aria-hidden="true" />
+        CSV
+      </Button>
+      <Button
+        variant="secondary"
+        size="xs"
         onClick={handleExportJSON}
         title={t("admin.export.json", "Export as JSON")}
       >
-        📄 JSON
-      </button>
+        <FileJson className="size-3.5" aria-hidden="true" />
+        JSON
+      </Button>
     </div>
   );
 }

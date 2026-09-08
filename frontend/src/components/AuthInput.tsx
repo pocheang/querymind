@@ -1,4 +1,5 @@
 import type { ChangeEvent, KeyboardEvent } from "react";
+import { Lock, Mail, User } from "lucide-react";
 
 interface AuthInputProps {
   id: string;
@@ -11,18 +12,15 @@ interface AuthInputProps {
   icon: "user" | "lock" | "email";
 }
 
-const ICONS = {
-  user: (
-    <path d="M12 12a4 4 0 1 0-4-4a4 4 0 0 0 4 4Zm0 2c-3.33 0-6 2.02-6 4.5V20h12v-1.5c0-2.48-2.67-4.5-6-4.5Z" />
-  ),
-  lock: (
-    <path d="M17 9h-1V7a4 4 0 1 0-8 0v2H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4V7Z" />
-  ),
-  email: (
-    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5l-8-5V6l8 5l8-5v2z" />
-  )
-};
+const ICONS = { user: User, lock: Lock, email: Mail } as const;
 
+/**
+ * A text field with a leading icon, for the auth pages.
+ *
+ * `placeholder` stays required and stays the literal it was: scripts/
+ * screenshots.mjs finds these fields with `getByPlaceholder("Username")` and
+ * `getByPlaceholder("Password")`.
+ */
 export function AuthInput({
   id,
   type = "text",
@@ -31,15 +29,13 @@ export function AuthInput({
   placeholder,
   autoComplete,
   onKeyDown,
-  icon
+  icon,
 }: Readonly<AuthInputProps>) {
+  const Icon = ICONS[icon];
+
   return (
-    <div className="auth-input-shell">
-      <span className="auth-input-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" focusable="false">
-          {ICONS[icon]}
-        </svg>
-      </span>
+    <div className="field-shell flex items-center gap-2 rounded-control border border-brand-border bg-surface px-2.5 py-2 transition-all focus-within:border-brand-accent focus-within:ring-2 focus-within:ring-[var(--brand-ring)]">
+      <Icon className="size-4 shrink-0 text-brand-accent" aria-hidden="true" />
       <input
         id={id}
         type={type}
@@ -48,6 +44,7 @@ export function AuthInput({
         placeholder={placeholder}
         autoComplete={autoComplete}
         onKeyDown={onKeyDown}
+        className="w-full bg-transparent text-xs text-ink placeholder:text-ink-faint focus-visible:outline-none"
       />
     </div>
   );

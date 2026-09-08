@@ -26,8 +26,10 @@ export function useSettingsPolling({ onNotify }: UseSettingsPollingOptions) {
             model: res.settings.global_model || "",
           };
         }
-      } catch (e) {
-        // Silent catch - initial fetch failure is not critical
+      } catch {
+        // The first read only seeds the comparison baseline; failing it means
+        // the next poll reports no change, which is the right answer when we
+        // never learned what the previous state was.
       }
     })();
 
@@ -54,8 +56,10 @@ export function useSettingsPolling({ onNotify }: UseSettingsPollingOptions) {
             }
             lastOverrideStateRef.current = { enabled, provider, model };
           }
-        } catch (e) {
-          // Silent catch - polling failure is not critical
+        } catch {
+          // A missed poll costs one notice about an admin changing the global
+          // model override. Surfacing it every 25s would be worse than the
+          // thing it reports.
         }
       })();
     }, 25000);

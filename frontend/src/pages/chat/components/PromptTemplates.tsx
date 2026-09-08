@@ -1,4 +1,9 @@
 import { useTranslation } from "react-i18next";
+import { RefreshCw } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import type { PromptTemplate } from "@/types/api";
 
 type Props = {
@@ -37,53 +42,72 @@ export function PromptTemplates({
   const { t } = useTranslation();
 
   return (
-    <section className="panel">
-      <div className="section-head">
-        <strong>{t("components.workbench.promptTemplates")}</strong>
-        <button type="button" className="secondary tiny-btn" onClick={() => void onRefreshPrompts()}>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+          {t("components.workbench.promptTemplates")}
+        </span>
+        <Button variant="ghost" size="xs" onClick={() => void onRefreshPrompts()}>
+          <RefreshCw className="size-3" aria-hidden="true" />
           {t("components.workbench.refresh")}
-        </button>
+        </Button>
       </div>
-      <input value={promptTitle} onChange={(event) => onPromptTitleChange(event.target.value)} placeholder={t("components.workbench.templateTitle")} />
-      <textarea
+
+      <Input
+        value={promptTitle}
+        onChange={(event) => onPromptTitleChange(event.target.value)}
+        placeholder={t("components.workbench.templateTitle")}
+      />
+      <Textarea
         value={promptContent}
         onChange={(event) => onPromptContentChange(event.target.value)}
         placeholder={t("components.workbench.promptPlaceholder")}
         rows={4}
       />
-      <div className="row-actions">
-        <button type="button" className="secondary tiny-btn" onClick={() => void onCheckPrompt()}>
+
+      <div className="flex flex-wrap gap-1">
+        <Button variant="secondary" size="xs" onClick={() => void onCheckPrompt()}>
           {t("components.workbench.check")}
-        </button>
-        <button type="button" className="tiny-btn" onClick={() => void onSavePrompt()}>
+        </Button>
+        <Button size="xs" onClick={() => void onSavePrompt()}>
           {editingPromptId ? t("components.workbench.update") : t("components.workbench.save")}
-        </button>
+        </Button>
       </div>
-      {promptCheckInfo && <div className="hint">{promptCheckInfo}</div>}
-      {promptsLoading && <div className="skeleton-list" />}
-      {!promptsLoading && prompts.length === 0 && <div className="muted">{t("components.workbench.noTemplates")}</div>}
+
+      {promptCheckInfo && <p className="text-[10px] text-brand-text">{promptCheckInfo}</p>}
+
+      {promptsLoading && (
+        <div className="space-y-1.5">
+          {[0, 1].map((row) => (
+            <div key={row} className="h-10 animate-pulse rounded-control bg-brand-surface-hover" />
+          ))}
+        </div>
+      )}
+
+      {!promptsLoading && prompts.length === 0 && (
+        <p className="py-3 text-center text-[10px] text-ink-muted">{t("components.workbench.noTemplates")}</p>
+      )}
+
       {!promptsLoading &&
         prompts.map((prompt) => (
-          <div key={prompt.prompt_id} className="prompt-row">
-            <div>
-              <div>{prompt.title}</div>
-              <small className="muted">
-                agent={prompt.agent_class || "general"} | {(prompt.content || "").slice(0, 72)}
-              </small>
-            </div>
-            <div className="row-actions">
-              <button type="button" className="secondary tiny-btn" onClick={() => onUsePrompt(prompt)}>
+          <div key={prompt.prompt_id} className="rounded-control border border-line bg-surface p-2">
+            <p className="truncate text-[11px] font-medium text-ink">{prompt.title}</p>
+            <p className="mt-0.5 truncate font-mono text-[10px] text-ink-muted">
+              agent={prompt.agent_class || "general"} | {(prompt.content || "").slice(0, 72)}
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              <Button variant="soft" size="xs" onClick={() => onUsePrompt(prompt)}>
                 {t("components.workbench.use")}
-              </button>
-              <button type="button" className="secondary tiny-btn" onClick={() => onEditPrompt(prompt)}>
+              </Button>
+              <Button variant="secondary" size="xs" onClick={() => onEditPrompt(prompt)}>
                 {t("components.workbench.edit")}
-              </button>
-              <button type="button" className="danger tiny-btn" onClick={() => void onDeletePrompt(prompt)}>
+              </Button>
+              <Button variant="destructive-ghost" size="xs" onClick={() => void onDeletePrompt(prompt)}>
                 {t("components.workbench.delete")}
-              </button>
+              </Button>
             </div>
           </div>
         ))}
-    </section>
+    </div>
   );
 }

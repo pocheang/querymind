@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
 
+import { Badge } from "@/components/ui/badge";
+
 import type { RetrievalSourceOutcome, SessionMessageMetadata } from "@/types/api";
 
 type Props = {
@@ -40,31 +42,48 @@ export function MetadataBadges({ metadata }: Readonly<Props>) {
   const sources = sourceChips(metadata);
 
   return (
-    <div className="chips">
-      {metadata.route && <span className="chip">route: {metadata.route}</span>}
-      {metadata.execution_route && <span className="chip">exec: {metadata.execution_route}</span>}
-      {metadata.route === "smalltalk_fast" && <span className="chip">smalltalk-fast</span>}
-      {metadata.agent_class && <span className="chip">agent: {metadata.agent_class}</span>}
+    <div className="flex flex-wrap items-center gap-1">
+      {metadata.route && (
+        <Badge variant="neutral" mono>
+          route: {metadata.route}
+        </Badge>
+      )}
+      {metadata.execution_route && (
+        <Badge variant="neutral" mono>
+          exec: {metadata.execution_route}
+        </Badge>
+      )}
+      {metadata.route === "smalltalk_fast" && <Badge variant="info">smalltalk-fast</Badge>}
+      {metadata.agent_class && (
+        <Badge variant="info" mono>
+          agent: {metadata.agent_class}
+        </Badge>
+      )}
       {sources.length === 0 ? (
-        <span className="chip">{t("chat.badges.noSources")}</span>
+        <Badge variant="outline">{t("chat.badges.noSources")}</Badge>
       ) : (
         sources.map((outcome) => (
-          <span
+          <Badge
             key={outcome.source}
-            className={outcome.count > 0 ? "chip" : "chip chip-muted"}
+            variant={outcome.count > 0 ? "success" : "outline"}
+            mono
             title={t("chat.badges.sourceDetail", { source: outcome.source, count: outcome.count })}
           >
             {outcome.source}
             {outcome.count > 0 ? ` ${outcome.count}` : ""}
-          </span>
+          </Badge>
         ))
       )}
-      {latency && <span className="chip">time: {latency}</span>}
-      {metadata.current_status && <span className="chip">status: {metadata.current_status}</span>}
+      {latency && (
+        <Badge variant="brand" mono>
+          {latency}
+        </Badge>
+      )}
+      {metadata.current_status && <Badge variant="neutral">{metadata.current_status}</Badge>}
       {(metadata.graph_entities || []).slice(0, 6).map((entity) => (
-        <span key={entity} className="chip">
+        <Badge key={entity} variant="brand" mono>
           {entity}
-        </span>
+        </Badge>
       ))}
     </div>
   );

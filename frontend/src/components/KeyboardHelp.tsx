@@ -1,105 +1,110 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import "@/styles/components/keyboard-help.css";
+import { X } from "lucide-react";
 
-interface Shortcut {
-  keys: string[];
-  description: string;
-  category: string;
-}
+import { Button } from "@/components/ui/button";
+import { useDismissable } from "@/hooks/useDismissable";
+import { SHORTCUTS, type ShortcutSpec } from "@/components/keyboardShortcuts";
 
-export function KeyboardHelp() {
+/**
+ * The shortcut sheet.
+ *
+ * Controlled, and mounted by `AppShell` -- it used to hold its own `isOpen`
+ * and its own key listener, which meant `?` worked on the chat page and
+ * nowhere else, and nothing but a keystroke could ever open it. The listener
+ * lives in `useAppShortcuts` now, beside the handlers for the shortcuts this
+ * sheet describes, so the documentation and the behaviour are edited together.
+ *
+ * **Every row below is implemented.** The list used to carry `Ctrl+K`,
+ * `Ctrl+N`, `Ctrl+B`, `Ctrl+W` and `Ctrl+R` against an app whose only handler
+ * was the one that opened this sheet. Three are real now; the two the browser
+ * owns are gone rather than faked, and their toggles live in the composer and
+ * the command palette.
+ */
+type Row = ShortcutSpec & { description: string; category: string };
+
+export function KeyboardHelp({ open, onClose }: Readonly<{ open: boolean; onClose: () => void }>) {
   const { t } = useTranslation();
-  const [isOpen, setIsOpen] = useState(false);
-  const shortcuts = useMemo<Shortcut[]>(
-    () => [
-      { keys: ["Ctrl", "Enter"], description: t("components.keyboard.shortcuts.send"), category: t("components.keyboard.categories.message") },
-      { keys: ["Shift", "Enter"], description: t("components.keyboard.shortcuts.newline"), category: t("components.keyboard.categories.message") },
-      { keys: ["Esc"], description: t("components.keyboard.shortcuts.clear"), category: t("components.keyboard.categories.message") },
-      { keys: ["Ctrl", "K"], description: t("components.keyboard.shortcuts.focusSearch"), category: t("components.keyboard.categories.navigation") },
-      { keys: ["Ctrl", "N"], description: t("components.keyboard.shortcuts.newSession"), category: t("components.keyboard.categories.navigation") },
-      { keys: ["Ctrl", "B"], description: t("components.keyboard.shortcuts.toggleSidebar"), category: t("components.keyboard.categories.navigation") },
-      { keys: ["Ctrl", "W"], description: t("components.keyboard.shortcuts.toggleWeb"), category: t("components.keyboard.categories.options") },
-      { keys: ["Ctrl", "R"], description: t("components.keyboard.shortcuts.toggleReasoning"), category: t("components.keyboard.categories.options") },
-      { keys: ["?"], description: t("components.keyboard.shortcuts.showHelp"), category: t("components.keyboard.categories.other") },
-      { keys: ["Ctrl", "/"], description: t("components.keyboard.shortcuts.showHelp"), category: t("components.keyboard.categories.other") },
-    ],
-    [t],
+  useDismissable(open, onClose);
+  const shortcuts = useMemo<Row[]>(
+    () => SHORTCUTS.map((spec) => ({ ...spec, description: t(spec.descriptionKey), category: t(spec.categoryKey) })),
+    [t]
   );
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "?" && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-        const target = event.target as HTMLElement;
-        if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA") {
-          event.preventDefault();
-          setIsOpen(true);
-        }
-      } else if ((event.ctrlKey || event.metaKey) && event.key === "/") {
-        event.preventDefault();
-        setIsOpen(true);
-      }
-
-      if (event.key === "Escape" && isOpen) {
-        setIsOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
-
   const groupedShortcuts = useMemo(() => {
-    return shortcuts.reduce((acc, shortcut) => {
-      if (!acc[shortcut.category]) acc[shortcut.category] = [];
-      acc[shortcut.category].push(shortcut);
-      return acc;
-    }, {} as Record<string, Shortcut[]>);
+    return shortcuts.reduce(
+      (acc, shortcut) => {
+        if (!acc[shortcut.category]) acc[shortcut.category] = [];
+        acc[shortcut.category].push(shortcut);
+        return acc;
+      },
+      {} as Record<string, Row[]>
+    );
   }, [shortcuts]);
 
-  if (!isOpen) return null;
+  if (!open) return null;
 
   return (
     <>
-      <div className="keyboard-help-backdrop" onClick={() => setIsOpen(false)} aria-hidden="true" />
-      <div className="keyboard-help-modal" role="dialog" aria-modal="true" aria-labelledby="keyboard-help-title">
-        <div className="keyboard-help-header">
-          <h2 id="keyboard-help-title">{t("components.keyboard.title")}</h2>
-          <button
-            type="button"
-            className="keyboard-help-close"
-            onClick={() => setIsOpen(false)}
+      <div
+        className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        className="glass-panel fixed left-1/2 top-1/2 z-50 flex max-h-[80vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col rounded-panel border-brand-border-strong shadow-elev-3 animate-in fade-in-0 zoom-in-95"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="keyboard-help-title"
+      >
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line-subtle p-4">
+          <h2 id="keyboard-help-title" className="text-sm font-bold text-ink">
+            {t("components.keyboard.title")}
+          </h2>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
             aria-label={t("components.keyboard.close")}
           >
-            ×
-          </button>
+            <X aria-hidden="true" />
+          </Button>
         </div>
 
-        <div className="keyboard-help-content">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
           {Object.entries(groupedShortcuts).map(([category, items]) => (
-            <div key={category} className="keyboard-help-section">
-              <h3 className="keyboard-help-category">{category}</h3>
-              <div className="keyboard-help-list">
+            <section key={category} className="space-y-1.5">
+              <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">{category}</h3>
+              <dl className="space-y-1">
                 {items.map((shortcut) => (
-                  <div key={`${category}-${shortcut.keys.join("-")}`} className="keyboard-help-item">
-                    <div className="keyboard-help-keys">
-                      {shortcut.keys.map((key, index) => (
-                        <span key={key}>
-                          <kbd className="keyboard-key">{key}</kbd>
-                          {index < shortcut.keys.length - 1 && <span className="keyboard-plus">+</span>}
+                  <div
+                    key={`${category}-${shortcut.keys.join("-")}-${shortcut.description}`}
+                    className="flex items-center justify-between gap-3 rounded-control border border-line bg-surface px-2 py-1.5"
+                  >
+                    <dt className="flex shrink-0 items-center gap-1">
+                      {shortcut.keys.map((key: string, index: number) => (
+                        <span key={key} className="flex items-center gap-1">
+                          <kbd className="rounded border border-line-strong bg-surface-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink">
+                            {key}
+                          </kbd>
+                          {index < shortcut.keys.length - 1 && (
+                            <span className="text-[10px] text-ink-faint" aria-hidden="true">
+                              +
+                            </span>
+                          )}
                         </span>
                       ))}
-                    </div>
-                    <span className="keyboard-help-description">{shortcut.description}</span>
+                    </dt>
+                    <dd className="min-w-0 flex-1 text-right text-[11px] text-ink-muted">{shortcut.description}</dd>
                   </div>
                 ))}
-              </div>
-            </div>
+              </dl>
+            </section>
           ))}
         </div>
 
-        <div className="keyboard-help-footer">
-          <p className="keyboard-help-hint">{t("components.keyboard.footer")}</p>
+        <div className="shrink-0 border-t border-line-subtle p-3">
+          <p className="text-center text-[10px] text-ink-muted">{t("components.keyboard.footer")}</p>
         </div>
       </div>
     </>

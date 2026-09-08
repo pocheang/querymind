@@ -1,5 +1,4 @@
-import { useTranslation } from "react-i18next";
-import { AnimatedButtonLite as AnimatedButton } from "@/components/animations/AnimatedButtonLite";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   quickPrompts: string[];
@@ -10,49 +9,37 @@ type Props = {
   onClearQuestion: () => void;
 };
 
+/**
+ * Suggested follow-ups, above the composer.
+ *
+ * Stop and Clear used to live here; they are controls of the composer, not
+ * suggestions, and they now sit in its toolbar where the design puts them.
+ * The props stay so the one call site is unchanged.
+ */
 export function QuickActions({
   quickPrompts,
-  question,
+  question: _question,
   isSending,
   onPromptPick,
-  onStop,
-  onClearQuestion,
+  onStop: _onStop,
+  onClearQuestion: _onClearQuestion,
 }: Readonly<Props>) {
-  const { t } = useTranslation();
+  if (quickPrompts.length === 0) return null;
 
   return (
-    <div className="quick-actions">
+    <div className="flex flex-wrap items-center gap-1.5 no-scrollbar">
       {quickPrompts.map((prompt) => (
-        <AnimatedButton
+        <Button
           key={prompt}
+          variant="secondary"
+          size="xs"
+          className="max-w-full truncate rounded-pill font-normal"
           onClick={() => onPromptPick(prompt)}
-          variant="ghost"
-          size="small"
-          className="quick-action-btn"
+          disabled={isSending}
         >
           {prompt}
-        </AnimatedButton>
+        </Button>
       ))}
-      {isSending && (
-        <AnimatedButton
-          onClick={onStop}
-          variant="danger"
-          size="small"
-          className="quick-action-btn"
-        >
-          {t("components.chat.stop")}
-        </AnimatedButton>
-      )}
-      {question && !isSending && (
-        <AnimatedButton
-          onClick={onClearQuestion}
-          variant="secondary"
-          size="small"
-          className="quick-action-btn"
-        >
-          {t("components.chat.clear")}
-        </AnimatedButton>
-      )}
     </div>
   );
 }

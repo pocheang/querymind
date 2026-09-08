@@ -13,6 +13,25 @@ import {
   YAxis,
 } from "recharts";
 import type { AuditLogEntry } from "@/types/api";
+import { cn } from "@/lib/utils";
+import {
+  AdminBlock,
+  AuditBadge,
+  CellStack,
+  KpiCard,
+  KpiGrid,
+  SectionHead,
+  TwoCol,
+} from "./components/AdminPrimitives";
+import {
+  ADMIN_CODE,
+  ADMIN_TABLE,
+  ADMIN_TABLE_WIDE,
+  ADMIN_TABLE_WRAP,
+  CHART_AXIS,
+  CHART_GRID,
+  CHART_TOOLTIP,
+} from "./components/adminClasses";
 
 type Props = {
   logs: AuditLogEntry[];
@@ -20,6 +39,9 @@ type Props = {
 };
 
 const COLORS = ["#5b8cff", "#4fc3f7", "#8b7aff", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
+
+/** A one-line mono cell: a timestamp, an ip, a secondary id. */
+const MONO_CELL = "truncate font-mono text-[11px] text-ink-muted";
 
 export function AdminAuditLogTable({ logs, formatAuditTime }: Readonly<Props>) {
   const { t } = useTranslation();
@@ -62,178 +84,154 @@ export function AdminAuditLogTable({ logs, formatAuditTime }: Readonly<Props>) {
     };
   }, [logs]);
 
+  const successRate =
+    logs.length > 0 ? ((logs.filter((log) => log.result === "success").length / logs.length) * 100).toFixed(1) : 0;
+
   return (
-    <div className="audit-table-wrap">
+    <div className="space-y-6">
       {logs.length > 0 && (
         <>
-          <div className="section-head">
-            <strong>{t("admin.ui.auditStatistics", "Audit Statistics")}</strong>
-          </div>
+          <SectionHead title={t("admin.ui.auditStatistics", "Audit Statistics")} />
 
-          <div className="ops-two-col">
-            <div className="chart-container">
-              <h3 className="chart-title">{t("admin.ui.byCategory", "Events by Category")}</h3>
+          <TwoCol>
+            <AdminBlock titleAs="h3" title={t("admin.ui.byCategory", "Events by Category")}>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie data={stats.byCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} labelLine={false}>
-                    {stats.byCategory.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Pie
+                    data={stats.byCategory}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={70}
+                    labelLine={false}
+                  >
+                    {stats.byCategory.map((entry, index) => (
+                      <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
+            </AdminBlock>
 
-            <div className="chart-container">
-              <h3 className="chart-title">{t("admin.ui.bySeverity", "Events by Severity")}</h3>
+            <AdminBlock titleAs="h3" title={t("admin.ui.bySeverity", "Events by Severity")}>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={stats.bySeverity}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                  <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={11} />
-                  <YAxis stroke="var(--text-tertiary)" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--surface)",
-                      border: "1px solid var(--border-medium)",
-                      borderRadius: "var(--radius-md)",
-                    }}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+                  <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={11} />
+                  <YAxis stroke={CHART_AXIS} fontSize={11} />
+                  <Tooltip contentStyle={CHART_TOOLTIP} />
                   <Bar dataKey="value" fill="var(--accent)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
-          </div>
+            </AdminBlock>
+          </TwoCol>
 
-          <div className="ops-two-col admin-section-block">
-            <div className="chart-container">
-              <h3 className="chart-title">{t("admin.ui.byResult", "Events by Result")}</h3>
+          <TwoCol className="mt-6">
+            <AdminBlock titleAs="h3" title={t("admin.ui.byResult", "Events by Result")}>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={stats.byResult}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                  <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={11} />
-                  <YAxis stroke="var(--text-tertiary)" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--surface)",
-                      border: "1px solid var(--border-medium)",
-                      borderRadius: "var(--radius-md)",
-                    }}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+                  <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={11} />
+                  <YAxis stroke={CHART_AXIS} fontSize={11} />
+                  <Tooltip contentStyle={CHART_TOOLTIP} />
                   <Bar dataKey="value" fill="var(--info)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </AdminBlock>
 
-            <div className="chart-container">
-              <h3 className="chart-title">{t("admin.ui.topActors", "Top Actors")}</h3>
+            <AdminBlock titleAs="h3" title={t("admin.ui.topActors", "Top Actors")}>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={stats.byActor} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
-                  <XAxis type="number" stroke="var(--text-tertiary)" fontSize={11} />
-                  <YAxis dataKey="name" type="category" stroke="var(--text-tertiary)" fontSize={10} width={100} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--surface)",
-                      border: "1px solid var(--border-medium)",
-                      borderRadius: "var(--radius-md)",
-                    }}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+                  <XAxis type="number" stroke={CHART_AXIS} fontSize={11} />
+                  <YAxis dataKey="name" type="category" stroke={CHART_AXIS} fontSize={10} width={100} />
+                  <Tooltip contentStyle={CHART_TOOLTIP} />
                   <Bar dataKey="value" fill="var(--warning)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
-          </div>
+            </AdminBlock>
+          </TwoCol>
 
-          <div className="ops-kpi-grid ops-kpi-grid-primary">
-            <div className="ops-kpi-card">
-              <span>{t("admin.ui.totalEvents", "Total Events")}</span>
-              <strong>{logs.length}</strong>
-            </div>
-            <div className="ops-kpi-card">
-              <span>{t("admin.ui.uniqueActors", "Unique Actors")}</span>
-              <strong>{new Set(logs.map((log) => log.actor_user_id)).size}</strong>
-            </div>
-            <div className="ops-kpi-card">
-              <span>{t("admin.ui.successRate", "Success Rate")}</span>
-              <strong style={{ color: "var(--success)" }}>
-                {logs.length > 0 ? ((logs.filter((log) => log.result === "success").length / logs.length) * 100).toFixed(1) : 0}%
-              </strong>
-            </div>
-            <div className="ops-kpi-card">
-              <span>{t("admin.ui.failureCount", "Failures")}</span>
-              <strong style={{ color: "var(--danger)" }}>{logs.filter((log) => log.result === "failure").length}</strong>
-            </div>
-          </div>
+          <KpiGrid cols={6} className="mt-5">
+            <KpiCard label={t("admin.ui.totalEvents", "Total Events")} value={logs.length} />
+            <KpiCard
+              label={t("admin.ui.uniqueActors", "Unique Actors")}
+              value={new Set(logs.map((log) => log.actor_user_id)).size}
+            />
+            <KpiCard label={t("admin.ui.successRate", "Success Rate")} value={`${successRate}%`} tone="success" />
+            <KpiCard
+              label={t("admin.ui.failureCount", "Failures")}
+              value={logs.filter((log) => log.result === "failure").length}
+              tone="danger"
+            />
+          </KpiGrid>
 
-          <div className="section-head">
-            <strong>{t("admin.ui.detailedLogs", "Detailed Audit Logs")}</strong>
-          </div>
+          <SectionHead title={t("admin.ui.detailedLogs", "Detailed Audit Logs")} />
         </>
       )}
 
-      <table className="table admin-audit-table">
+      <div className={ADMIN_TABLE_WRAP}>
+        <table className={cn(ADMIN_TABLE, ADMIN_TABLE_WIDE, "min-w-[1760px]")}>
         <thead>
           <tr>
-            <th style={{ width: "140px" }}>{t("admin.ui.time")}</th>
-            <th style={{ width: "140px" }}>{t("admin.ui.actor")}</th>
-            <th style={{ width: "180px" }}>{t("admin.ui.action")}</th>
-            <th style={{ width: "100px", textAlign: "center" }}>{t("admin.ui.category")}</th>
-            <th style={{ width: "80px", textAlign: "center" }}>{t("admin.ui.severity")}</th>
-            <th style={{ width: "200px" }}>{t("admin.ui.resource")}</th>
-            <th style={{ width: "80px", textAlign: "center" }}>{t("admin.ui.result")}</th>
-            <th style={{ width: "120px" }}>IP</th>
-            <th>{t("admin.ui.detail")}</th>
+            <th className="min-w-[170px]">{t("admin.ui.time")}</th>
+            <th className="min-w-[260px]">{t("admin.ui.actor")}</th>
+            <th className="min-w-[220px]">{t("admin.ui.action")}</th>
+            <th className="w-[100px] text-center">{t("admin.ui.category")}</th>
+            <th className="w-20 text-center">{t("admin.ui.severity")}</th>
+            <th className="min-w-[260px]">{t("admin.ui.resource")}</th>
+            <th className="w-20 text-center">{t("admin.ui.result")}</th>
+            <th className="min-w-[110px]">IP</th>
+            <th className="min-w-[360px]">{t("admin.ui.detail")}</th>
           </tr>
         </thead>
         <tbody>
           {logs.map((entry) => (
             <tr key={entry.event_id}>
-              <td style={{ fontSize: "var(--text-xs)", fontFamily: "monospace" }}>{formatAuditTime(entry.created_at)}</td>
-              <td className="audit-actor">
-                <div className="audit-cell-stack">
-                  <span className="audit-id" style={{ fontSize: "var(--text-sm)", fontWeight: 600 }} title={entry.actor_user_id || "-"}>
+              <td className={MONO_CELL}>{formatAuditTime(entry.created_at)}</td>
+              <td>
+                <CellStack>
+                  <span className="truncate font-mono text-[11px] font-semibold" title={entry.actor_user_id || "-"}>
                     {entry.actor_user_id || "-"}
                   </span>
-                  <span className="audit-sub" style={{ fontSize: "var(--text-xs)" }}>{entry.actor_role || "-"}</span>
-                </div>
+                  <span className={MONO_CELL}>{entry.actor_role || "-"}</span>
+                </CellStack>
               </td>
-              <td className="audit-action">
-                <span className="audit-code" style={{ fontSize: "var(--text-sm)" }} title={entry.action || "-"}>
+              <td>
+                <span className={ADMIN_CODE} title={entry.action || "-"}>
                   {entry.action || "-"}
                 </span>
               </td>
-              <td style={{ textAlign: "center" }}>
-                <span className="audit-badge" style={{ fontSize: "var(--text-xs)" }}>{entry.event_category || "-"}</span>
+              <td className="text-center">
+                <AuditBadge value={entry.event_category} />
               </td>
-              <td style={{ textAlign: "center" }}>
-                <span className={`audit-badge audit-severity-${(entry.severity || "none").toLowerCase()}`}>
-                  {entry.severity || "-"}
-                </span>
+              <td className="text-center">
+                <AuditBadge value={entry.severity} kind="severity" />
               </td>
-              <td className="audit-resource">
-                <div className="audit-cell-stack">
-                  <span className="audit-code" style={{ fontSize: "var(--text-sm)" }} title={entry.resource_type || "-"}>
+              <td>
+                <CellStack>
+                  <span className={ADMIN_CODE} title={entry.resource_type || "-"}>
                     {entry.resource_type || "-"}
                   </span>
-                  <span className="audit-sub" style={{ fontSize: "var(--text-xs)" }} title={entry.resource_id || "-"}>
+                  <span className={MONO_CELL} title={entry.resource_id || "-"}>
                     {entry.resource_id || "-"}
                   </span>
-                </div>
+                </CellStack>
               </td>
-              <td style={{ textAlign: "center" }}>
-                <span className={`audit-badge audit-result-${(entry.result || "none").toLowerCase()}`}>
-                  {entry.result || "-"}
-                </span>
+              <td className="text-center">
+                <AuditBadge value={entry.result} kind="result" />
               </td>
-              <td className="audit-ip" style={{ fontSize: "var(--text-xs)", fontFamily: "monospace" }}>{entry.ip || "-"}</td>
-              <td className="audit-detail" style={{ fontSize: "var(--text-sm)", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={entry.detail || "-"}>
+              <td className={MONO_CELL}>{entry.ip || "-"}</td>
+              <td className="max-w-[300px] truncate text-[11px] text-ink-muted" title={entry.detail || "-"}>
                 {entry.detail || "-"}
               </td>
             </tr>
           ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

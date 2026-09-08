@@ -5,104 +5,146 @@
    page imports such as pages/admin/*.css, or component-level dynamic imports.
 */
 
-/* Core foundation */
-@import "./core/tokens.css" layer(legacy);
-@import "./core/reset.css" layer(legacy);
-@import "./core/utilities.css" layer(legacy);
-/* The elevation language, then the surfaces that speak it. Global so
-   login, admin and the architecture page match chat. */
+/* Cascade order, lowest first. `legacy` is the hand-written stylesheets still
+   being migrated away; `design` is the elevation/shape language. Utilities sit
+   highest so a Tailwind class written in a component applies without anyone
+   having to out-specify the CSS it replaces -- that is what makes incremental
+   migration possible at all.
 
-/* Tailwind v4.
-   These directives sit in the entry rather than in a file it imports:
-   `@source` cannot be nested, and with the directives one level down the
-   plugin had no source list at all -- it emitted zero bytes of utility CSS,
-   which is why the four `tw:` class names already in the codebase did
-   nothing. */
-/* Cascade order, lowest first. `legacy` is the 73 hand-written stylesheets;
-   `design` is the elevation/shape language. Utilities sit highest so a
-   Tailwind class written in a component applies without anyone having to
-   out-specify the CSS it replaces -- that is what makes incremental
-   migration possible at all. */
+   This statement and the @imports below it must stay at the ROOT of this file.
+   `@source` cannot be nested inside an import, and with the Tailwind
+   directives one level down the plugin has no source list at all -- it emits
+   zero bytes of utility CSS. That has already shipped once. */
 @layer theme, legacy, components, design, utilities;
 
-@import "tailwindcss/theme.css" layer(theme) prefix(tw);
-@import "tailwindcss/utilities.css" layer(utilities) prefix(tw);
+/* Tailwind v4, unprefixed.
 
-/* Every @import in this file sits above, because CSS requires them to precede
-   all rules except @charset and @layer statements -- and `@theme` below is a
-   rule. The component imports lived under it until 2026-09-02: invalid CSS
-   that worked only because Vite inlines them at build time. Order *within* a
-   layer still matters; order *between* them does not, since every import
-   names its layer explicitly. */
+   The `tw:` prefix was dropped when shadcn/ui landed: `tailwind-merge` parses
+   class names against Tailwind's own conflict table and does not understand a
+   prefix, so `cn()` would have silently degraded from "later class wins" to
+   plain concatenation -- which is the entire reason `cn()` exists. The
+   19 hand-written look-alike classes that used to live in core/utilities.css
+   (.rounded-md, .shadow-sm, .text-primary, .bg-surface, ...) were deleted in
+   the same commit; they shared names with real Tailwind utilities but carried
+   different values, and `utilities` outranks `legacy`, so leaving them would
+   have changed ~8 call sites' appearance with nothing reporting it. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 
-/* Atomic shared components */
-@import "./components/buttons/index.css" layer(legacy);
-@import "./components/forms/index.css" layer(legacy);
-@import "./components/badges.css" layer(legacy);
-@import "./components/skeletons.css" layer(legacy);
+/* Enter/exit animations for the Radix primitives (`animate-in`, `fade-in-0`,
+   `zoom-in-95`, `slide-in-from-*`). This is the Tailwind v4 replacement for
+   `tailwindcss-animate`, which is a v3 PostCSS plugin and cannot load here.
+   Not layered: it registers its own `@utility` rules and a `@theme inline`
+   block, both of which Tailwind places itself. */
+@import "tw-animate-css";
+
+/* Self-hosted webfonts. The production CSP is `font-src 'self' data:`
+   (app/api/transport/middleware.py, public/_headers, nginx-security.conf all
+   agree), so the design prototype's Google Fonts @import would be blocked --
+   and blocked silently, with the page just falling back to a system face. */
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
+/* Core foundation.
+
+   `core/tokens.css` used to be imported here, ahead of theme-amber.css, to
+   feed the hand-written stylesheets their non-colour scales. Both it and its
+   last reader are gone -- the admin console's five sheets were the last, and
+   the handful of inline `var(--text-sm)` styles left behind are utilities now.
+   Sizes, spacing and radii come from Tailwind's own theme; colours come from
+   the block below. */
+@import "./core/theme-amber.css" layer(theme);
+@import "./core/reset.css" layer(legacy);
+
+/* Shared component CSS used to live here: buttons, forms, badges, cards,
+   tables, dialogs, the clarification prompt and the thinking indicator.
+   Every one of those is a `components/ui/*` primitive now.
+
+   The button and form sheets in particular had to go rather than merely stop
+   being used: they styled the bare `button`, `input` and `textarea` ELEMENTS,
+   so they reached every control in the app including the new ones. Utilities
+   outrank `legacy`, but only for properties they set -- a `button` rule
+   declaring `display: inline-flex; white-space: nowrap` survived a class list
+   that never mentions either, which is what collapsed the sidebar's agent
+   cards onto one overflowing line. */
+/* `.recharts-legend-item-text` is the one rule here that cannot become a
+   utility: recharts writes the series colour as an INLINE style on the label,
+   and an inline style beats every cascade layer -- only `!important` reaches
+   it. See the file's own header. */
 @import "./components/charts.css" layer(legacy);
-@import "./components/spinners.css" layer(legacy);
-
-/* Composite shared components */
-@import "./components/cards.css" layer(legacy);
-@import "./components/tables.css" layer(legacy);
-@import "./components/confirm-dialog.css" layer(legacy);
-@import "./components/clarification-prompt.css" layer(legacy);
-@import "./components/thinking-indicator.css" layer(legacy);
-
 /* The elevation language, then the surfaces that speak it. */
 @import "./core/elevation.css" layer(design);
 @import "./core/surfaces.css" layer(design);
 
+/* Custom utilities (`aurora-bg`, `glass-panel`, `glass-card`, ...). Declared
+   with v4's `@utility`, so this import must NOT name a layer -- Tailwind puts
+   them in `utilities` itself. */
+@import "./core/app-utilities.css";
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-bg-secondary: var(--bg-secondary);
-  --color-bg-tertiary: var(--bg-tertiary);
+  /* Surfaces */
+  --color-page: var(--bg-page);
+  --color-panel: var(--bg-panel);
+  --color-card: var(--bg-card);
   --color-surface: var(--surface);
   --color-surface-hover: var(--surface-hover);
-  --color-surface-active: var(--surface-active);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-tertiary: var(--text-tertiary);
-  --color-text-inverse: var(--text-inverse);
-  --color-border-light: var(--border-light);
-  --color-border-medium: var(--border-medium);
-  --color-border-strong: var(--border-strong);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-accent-light: var(--accent-light);
-  --color-accent-soft: var(--accent-soft);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-inset: var(--surface-inset);
+
+  /* Brand, split by role. `brand` is the only one that may carry white text;
+     `brand-accent` is the only one that may not be used as text. See the
+     header of core/theme-amber.css for the measured ratios. */
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-active: var(--brand-active);
+  --color-brand-text: var(--brand-text);
+  --color-brand-text-strong: var(--brand-text-strong);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-surface-hover: var(--brand-surface-hover);
+  --color-brand-border: var(--brand-border);
+  --color-brand-border-strong: var(--brand-border-strong);
+
+  /* Text */
+  --color-ink: var(--text-main);
+  --color-ink-muted: var(--text-muted);
+  --color-ink-faint: var(--text-faint);
+  --color-ink-inverse: var(--text-inverse);
+
+  /* Borders */
+  --color-line: var(--border-neutral);
+  --color-line-strong: var(--border-neutral-strong);
+  --color-line-panel: var(--border-panel);
+  --color-line-card: var(--border-card);
+  --color-line-subtle: var(--border-subtle);
+
+  /* Status */
   --color-success: var(--success);
-  --color-success-light: var(--success-light);
+  --color-success-surface: var(--success-surface);
+  --color-success-border: var(--success-border);
   --color-warning: var(--warning);
-  --color-warning-light: var(--warning-light);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-border: var(--warning-border);
   --color-danger: var(--danger);
-  --color-danger-light: var(--danger-light);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-border: var(--danger-border);
   --color-info: var(--info);
-  --color-info-light: var(--info-light);
+  --color-info-surface: var(--info-surface);
+  --color-info-border: var(--info-border);
+
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
-  --radius-2xl: var(--radius-2xl);
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
-  --shadow-2xl: var(--shadow-2xl);
-  --shadow-brand-sm: var(--shadow-brand-sm);
-  --shadow-brand-md: var(--shadow-brand-md);
-  --shadow-brand-lg: var(--shadow-brand-lg);
-  --breakpoint-mobile-tight: 32.5rem;
-  --breakpoint-sidebar: 67.5rem;
 
   /* The shape and depth scale, exposed as utilities. Written here as well as
-     in core/elevation.css so `tw:rounded-card` and `tw:shadow-elev-1` exist:
+     in core/elevation.css so `rounded-card` and `shadow-elev-1` exist:
      `@theme` is what turns a variable into a class Tailwind can emit, and
-     without it the scale is a convention that only a code review enforces. */
+     without it the scale is a convention that only a code review enforces.
+
+     This is also the design-scale ratchet's escape hatch -- scripts/
+     check-design-scale.mjs treats any `var(...)` radius or shadow as on-scale,
+     so deleting elevation.css would break both at once. */
   --radius-control: var(--shape-control);
   --radius-card: var(--shape-card);
   --radius-panel: var(--shape-panel);
@@ -111,6 +153,12 @@
   --shadow-elev-1: var(--elev-1);
   --shadow-elev-2: var(--elev-2);
   --shadow-elev-3: var(--elev-3);
+
+  --ease-standard: var(--ease-standard);
+  --ease-arrive: var(--ease-arrive);
+
+  --breakpoint-mobile-tight: 32.5rem;
+  --breakpoint-sidebar: 67.5rem;
 }
 
 @source "../**/*.{ts,tsx}";

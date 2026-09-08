@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
-import "@/styles/components/welcome-screen.css";
-import { AnimatedButtonLite as AnimatedButton } from "@/components/animations/AnimatedButtonLite";
+import { ArrowUpRight, Boxes, FileText, Globe, Images, Layers, Plus, Route, Zap } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/layout/BrandMark";
 
 type Props = {
   documentsCount?: number;
@@ -13,105 +15,83 @@ export function WelcomeScreen({
   documentsCount = 0,
   sessionsCount = 0,
   onCreateSession,
-  onNavigateToArchitecture
+  onNavigateToArchitecture,
 }: Readonly<Props>) {
   const { t } = useTranslation();
 
+  const stats = [
+    { icon: FileText, value: documentsCount, label: t("components.chat.knowledgeDocs") },
+    { icon: Layers, value: sessionsCount, label: t("components.chat.historySessions") },
+    { icon: Boxes, value: 4, label: t("components.chat.agentModes") },
+  ];
+
+  const features = [
+    { icon: Zap, title: t("components.chat.smartRetrieval"), desc: t("components.chat.smartRetrievalDesc") },
+    { icon: Globe, title: t("components.chat.webResearch"), desc: t("components.chat.webResearchDesc") },
+    { icon: Images, title: t("components.chat.multimodal"), desc: t("components.chat.multimodalDesc") },
+    { icon: Route, title: t("components.chat.evidenceTrace"), desc: t("components.chat.evidenceTraceDesc") },
+  ];
+
   return (
-    <div className="welcome-screen">
-      <div className="welcome-header">
-        <span className="welcome-badge">{t("components.chat.welcomeBadge")}</span>
-        <h2 className="welcome-title">{t("components.chat.welcomeTitle")}</h2>
-        <p className="welcome-subtitle">{t("components.chat.welcomeSubtitle")}</p>
+    <div className="mx-auto w-full max-w-2xl space-y-6 py-10 text-center">
+      <BrandMark size="lg" className="mx-auto ring-brand-surface-hover" />
+
+      <div className="space-y-2">
+        <h2 className="text-2xl font-bold tracking-tight text-ink">{t("components.chat.welcomeTitle")}</h2>
+        <p className="mx-auto max-w-lg text-xs text-ink-muted sm:text-sm">{t("components.chat.welcomeSubtitle")}</p>
       </div>
 
-      <div className="welcome-stats">
-        <div className="stat-card">
-          <div className="stat-icon" aria-hidden="true">▣</div>
-          <div className="stat-content">
-            <div className="stat-value">{documentsCount}</div>
-            <div className="stat-label">{t("components.chat.knowledgeDocs")}</div>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {stats.map(({ icon: Icon, value, label }) => (
+          <span
+            key={label}
+            className="inline-flex items-center gap-1.5 rounded-pill border border-brand-border bg-brand-surface px-3 py-1"
+          >
+            <Icon className="size-3.5 text-brand-accent" aria-hidden="true" />
+            <span className="font-mono text-xs font-bold text-brand-text">{value}</span>
+            <span className="text-[11px] text-ink-muted">{label}</span>
+          </span>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <Button size="lg" onClick={onCreateSession}>
+          <Plus className="size-4" strokeWidth={2.5} aria-hidden="true" />
+          {t("components.chat.startConversation")}
+        </Button>
+        <Button size="lg" variant="secondary" onClick={onNavigateToArchitecture}>
+          <Boxes className="size-4" aria-hidden="true" />
+          {t("components.chat.viewArchitecture")}
+        </Button>
+      </div>
+
+      {/* The starter grid from the design: two columns of tappable cards that
+          each name a capability and say what it does. */}
+      <div className="grid grid-cols-1 gap-3 pt-2 text-left sm:grid-cols-2">
+        {features.map(({ icon: Icon, title, desc }) => (
+          <div
+            key={title}
+            className="group rounded-card border border-line bg-surface p-3.5 shadow-elev-1 transition-all hover:border-brand-border-strong hover:bg-brand-surface/70"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-ink group-hover:text-brand-text">
+                <Icon className="size-3.5 text-brand-accent" aria-hidden="true" />
+                {title}
+              </span>
+              <ArrowUpRight
+                className="size-3.5 shrink-0 text-ink-faint group-hover:text-brand-accent"
+                aria-hidden="true"
+              />
+            </div>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">{desc}</p>
           </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" aria-hidden="true">◫</div>
-          <div className="stat-content">
-            <div className="stat-value">{sessionsCount}</div>
-            <div className="stat-label">{t("components.chat.historySessions")}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" aria-hidden="true">◆</div>
-          <div className="stat-content">
-            <div className="stat-value">4</div>
-            <div className="stat-label">{t("components.chat.agentModes")}</div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="welcome-actions">
-        <AnimatedButton
-          onClick={onCreateSession}
-          variant="primary"
-          size="large"
-          className="welcome-action-btn"
-        >
-          <span className="action-icon" aria-hidden="true">+</span>
-          <span className="action-text">{t("components.chat.startConversation")}</span>
-        </AnimatedButton>
-
-        <AnimatedButton
-          onClick={onNavigateToArchitecture}
-          variant="secondary"
-          size="large"
-          className="welcome-action-btn"
-        >
-          <span className="action-icon" aria-hidden="true">▦</span>
-          <span className="action-text">{t("components.chat.viewArchitecture")}</span>
-        </AnimatedButton>
-      </div>
-
-      <div className="welcome-features">
-        <div className="feature-card">
-          <div className="feature-icon" aria-hidden="true">⌁</div>
-          <h4 className="feature-title">{t("components.chat.smartRetrieval")}</h4>
-          <p className="feature-desc">{t("components.chat.smartRetrievalDesc")}</p>
-        </div>
-
-        <div className="feature-card">
-          <div className="feature-icon" aria-hidden="true">◎</div>
-          <h4 className="feature-title">{t("components.chat.webResearch")}</h4>
-          <p className="feature-desc">{t("components.chat.webResearchDesc")}</p>
-        </div>
-
-        <div className="feature-card">
-          <div className="feature-icon" aria-hidden="true">□</div>
-          <h4 className="feature-title">{t("components.chat.multimodal")}</h4>
-          <p className="feature-desc">{t("components.chat.multimodalDesc")}</p>
-        </div>
-
-        <div className="feature-card">
-          <div className="feature-icon" aria-hidden="true">∞</div>
-          <h4 className="feature-title">{t("components.chat.evidenceTrace")}</h4>
-          <p className="feature-desc">{t("components.chat.evidenceTraceDesc")}</p>
-        </div>
-      </div>
-
-      <div className="welcome-tips">
-        <div className="tip-item">
-          <span className="tip-icon" aria-hidden="true">i</span>
-          <span className="tip-text">{t("components.chat.tipSend")}</span>
-        </div>
-        <div className="tip-item">
-          <span className="tip-icon" aria-hidden="true">↑</span>
-          <span className="tip-text">{t("components.chat.tipUpload")}</span>
-        </div>
-        <div className="tip-item">
-          <span className="tip-icon" aria-hidden="true">◎</span>
-          <span className="tip-text">{t("components.chat.tipAgent")}</span>
-        </div>
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-1 text-[10px] text-ink-muted">
+        <span>{t("components.chat.tipSend")}</span>
+        <span>{t("components.chat.tipUpload")}</span>
+        <span>{t("components.chat.tipAgent")}</span>
       </div>
     </div>
   );

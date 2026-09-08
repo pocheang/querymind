@@ -1,6 +1,9 @@
 import { useEffect, useId } from "react";
 import { useTranslation } from "react-i18next";
 
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
 type Props = {
   isOpen: boolean;
   title: string;
@@ -45,36 +48,42 @@ export function ConfirmDialog({
     // dismissing on a click that landed on the backdrop itself replaces the
     // inner stopPropagation handler that used to exist only to undo this one.
     // Escape is wired above and is the keyboard route.
+    //
+    // Deliberately NOT a Radix AlertDialog. This element's contract --
+    // `.confirm-dialog-overlay`, role="presentation", no tabindex, and the
+    // click/Escape split above -- is asserted by ConfirmDialog.test.tsx and was
+    // arrived at on purpose; Radix supplies a different one. Only the paint
+    // changed here.
     <div
-      className="confirm-dialog-overlay"
+      className="confirm-dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm"
       role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}
     >
-      <div className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <div className="confirm-dialog-header">
-          <h3 className="confirm-dialog-title" id={titleId}>{title}</h3>
-        </div>
-        <div className="confirm-dialog-body">
-          <p className="confirm-dialog-message">{message}</p>
-        </div>
-        <div className="confirm-dialog-footer">
-          <button
-            type="button"
-            className="confirm-dialog-btn confirm-dialog-btn-cancel"
-            onClick={onCancel}
-          >
+      <div
+        className="glass-panel w-full max-w-sm space-y-3 rounded-panel border-brand-border-strong p-5 shadow-elev-3 animate-in fade-in-0 zoom-in-95"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
+        <h3 className="text-sm font-bold text-ink" id={titleId}>
+          {title}
+        </h3>
+        <p className="text-xs leading-relaxed text-ink-muted">{message}</p>
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <Button variant="secondary" size="sm" onClick={onCancel}>
             {cancelText || t("common.cancel")}
-          </button>
-          <button
-            type="button"
-            className={`confirm-dialog-btn confirm-dialog-btn-confirm ${isDanger ? "danger" : ""}`}
+          </Button>
+          <Button
+            variant={isDanger ? "destructive" : "default"}
+            size="sm"
+            className={cn(isDanger && "danger")}
             onClick={onConfirm}
             autoFocus
           >
             {confirmText || t("common.confirm")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

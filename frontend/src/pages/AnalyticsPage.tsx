@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { Download, RefreshCw } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -15,18 +20,32 @@ import {
   YAxis,
 } from "recharts";
 import type { AuthUser } from "@/types/api";
-import { LanguageToggle } from "@/components/LanguageToggle";
 import { analyticsApi, type AgentStats, type AnalyticsOverview, type DocumentStats } from "@/lib/analytics-api";
-import "@/styles/pages/analytics.css";
 
 type Props = {
   user: AuthUser | null;
   onLogout: () => Promise<void>;
 };
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
+/* Categorical series colours, read off the amber theme rather than the
+   Recharts defaults so a chart sits in the same palette as the page around
+   it. Each is a token this app already ships and has already measured. */
+const COLORS = ["var(--brand)", "var(--info)", "var(--warning)", "var(--success)"];
+const SERIES = { primary: "var(--brand)", secondary: "var(--info)", tertiary: "var(--warning)" };
 
-export function AnalyticsPage({ onLogout }: Readonly<Props>) {
+/* Recharts renders its chrome as inline SVG/DOM, so its styling has to be
+   passed as props rather than reached with a class. */
+const TOOLTIP_STYLE = {
+  background: "var(--surface)",
+  border: "1px solid var(--brand-border)",
+  borderRadius: "var(--shape-control)",
+  fontSize: "11px",
+  color: "var(--text-main)",
+} as const;
+const AXIS_TICK = { fill: "var(--text-muted)", fontSize: 10 } as const;
+const LEGEND_STYLE = { fontSize: "11px" } as const;
+
+export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
   const { t } = useTranslation();
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [agents, setAgents] = useState<AgentStats[]>([]);
@@ -67,9 +86,11 @@ export function AnalyticsPage({ onLogout }: Readonly<Props>) {
 
   if (loading && !overview) {
     return (
-      <div className="analytics-loading">
-        <p>{t("pages.analytics.loading")}</p>
-      </div>
+      <AppShell user={user} onLogout={onLogout} scroll>
+        <div className="flex flex-1 items-center justify-center">
+          <p className="text-xs text-ink-muted">{t("pages.analytics.loading")}</p>
+        </div>
+      </AppShell>
     );
   }
 
@@ -94,58 +115,70 @@ export function AnalyticsPage({ onLogout }: Readonly<Props>) {
   }));
 
   return (
-    <div className="analytics-page">
-      <header className="analytics-header">
-        <div className="analytics-header-content">
-          <h2>{t("pages.analytics.title")}</h2>
-          <p>{t("pages.analytics.subtitle")}</p>
+    <AppShell user={user} onLogout={onLogout} scroll>
+      <PageHeader
+        title={t("pages.analytics.dashboard")}
+        description={t("pages.analytics.subtitle")}
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => void fetchData()}>
+              <RefreshCw className={cn("size-3.5", loading && "animate-spin")} aria-hidden="true" />
+              {loading ? t("pages.analytics.refreshing") : t("common.refresh")}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleExport("json")}>
+              <Download className="size-3.5" aria-hidden="true" />
+              {t("pages.analytics.exportJson")}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleExport("csv")}>
+              <Download className="size-3.5" aria-hidden="true" />
+              {t("pages.analytics.exportCsv")}
+            </Button>
+          </>
+        }
+      />
+
+      <div className="mx-auto w-full max-w-6xl space-y-4 p-4 sm:p-6">
+        {error && (
+          <p
+            className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+
+        {/* KPI tiles: the design's fixed three-line rhythm -- uppercase micro
+            label, big mono number, optional note. */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { label: t("pages.analytics.totalQueries"), value: overview?.total_queries ?? 0 },
+            {
+              label: t("pages.analytics.successRate"),
+              value: overview?.success_rate ? `${overview.success_rate.toFixed(1)}%` : "0%",
+            },
+            {
+              label: t("pages.analytics.avgResponseTime"),
+              value: overview?.avg_total_time_ms ? `${overview.avg_total_time_ms.toFixed(0)}ms` : "0ms",
+              note: overview?.avg_retrieval_time_ms
+                ? t("pages.analytics.avgResponseNote", { retrieval: overview.avg_retrieval_time_ms.toFixed(0) })
+                : undefined,
+            },
+            {
+              label: t("pages.analytics.avgRetrievedDocs"),
+              value: overview?.avg_retrieved_count ? overview.avg_retrieved_count.toFixed(1) : "0",
+            },
+          ].map(({ label, value, note }) => (
+            <Card key={label} className="p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">{label}</p>
+              <p className="mt-1 font-mono text-2xl font-bold text-brand-text-strong">{value}</p>
+              {note && <p className="mt-0.5 text-[10px] text-ink-muted">{note}</p>}
+            </Card>
+          ))}
         </div>
-        <div className="analytics-header-actions">
-          <LanguageToggle />
-          <Link to="/app/admin" className="back-btn">
-            {t("pages.analytics.backToAdmin")}
-          </Link>
-          <button onClick={() => void onLogout()} className="logout-btn" type="button">
-            {t("nav.logout")}
-          </button>
-        </div>
-      </header>
 
-      <div className="analytics-content">
-        {error && <div className="status error">{error}</div>}
-
-        <div className="analytics-title-bar">
-          <h1>{t("pages.analytics.dashboard")}</h1>
-          <button onClick={() => void fetchData()} className="refresh-btn" type="button">
-            {loading ? t("pages.analytics.refreshing") : t("common.refresh")}
-          </button>
-        </div>
-
-        <div className="analytics-stats-grid">
-          <div className="stat-card-analytics blue">
-            <h3>{t("pages.analytics.totalQueries")}</h3>
-            <p>{overview?.total_queries || 0}</p>
-          </div>
-
-          <div className="stat-card-analytics green">
-            <h3>{t("pages.analytics.successRate")}</h3>
-            <p>{overview?.success_rate ? `${overview.success_rate.toFixed(1)}%` : "0%"}</p>
-          </div>
-
-          <div className="stat-card-analytics yellow">
-            <h3>{t("pages.analytics.avgResponseTime")}</h3>
-            <p>{overview?.avg_total_time_ms ? `${overview.avg_total_time_ms.toFixed(0)}ms` : "0ms"}</p>
-          </div>
-
-          <div className="stat-card-analytics orange">
-            <h3>{t("pages.analytics.avgRetrievedDocs")}</h3>
-            <p>{overview?.avg_retrieved_count ? overview.avg_retrieved_count.toFixed(1) : "0"}</p>
-          </div>
-        </div>
-
-        <div className="analytics-charts-grid">
-          <div className="chart-card">
-            <h2>{t("pages.analytics.agentDistribution")}</h2>
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <Card className="p-4">
+            <h2 className="mb-2 text-xs font-bold text-ink">{t("pages.analytics.agentDistribution")}</h2>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -155,58 +188,48 @@ export function AnalyticsPage({ onLogout }: Readonly<Props>) {
                   labelLine={false}
                   label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
                   outerRadius={80}
-                  fill="#8884d8"
                   dataKey="value"
                 >
                   {agentDistributionData.map((_entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
               </PieChart>
             </ResponsiveContainer>
-          </div>
+          </Card>
 
-          <div className="chart-card">
-            <h2>{t("pages.analytics.agentPerformance")}</h2>
+          <Card className="p-4">
+            <h2 className="mb-2 text-xs font-bold text-ink">{t("pages.analytics.agentPerformance")}</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={agentPerformanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="queries" fill="#0088FE" name={t("pages.analytics.queryCount")} />
-                <Bar dataKey="success_rate" fill="#00C49F" name={t("pages.analytics.successRatePercent")} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-neutral)" />
+                <XAxis dataKey="name" tick={AXIS_TICK} />
+                <YAxis tick={AXIS_TICK} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Legend wrapperStyle={LEGEND_STYLE} />
+                <Bar dataKey="queries" fill={SERIES.primary} name={t("pages.analytics.queryCount")} />
+                <Bar dataKey="success_rate" fill={SERIES.secondary} name={t("pages.analytics.successRatePercent")} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </Card>
         </div>
 
-        <div className="chart-card-full">
-          <h2>{t("pages.analytics.topDocuments")}</h2>
+        <Card className="p-4">
+          <h2 className="mb-2 text-xs font-bold text-ink">{t("pages.analytics.topDocuments")}</h2>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart data={documentHeatmapData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="name" type="category" width={200} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="retrievals" fill="#0088FE" name={t("pages.analytics.retrievals")} />
-              <Bar dataKey="avg_score" fill="#FFBB28" name={t("pages.analytics.avgScore")} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-neutral)" />
+              <XAxis type="number" tick={AXIS_TICK} />
+              <YAxis dataKey="name" type="category" width={200} tick={AXIS_TICK} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <Legend wrapperStyle={LEGEND_STYLE} />
+              <Bar dataKey="retrievals" fill={SERIES.primary} name={t("pages.analytics.retrievals")} />
+              <Bar dataKey="avg_score" fill={SERIES.tertiary} name={t("pages.analytics.avgScore")} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-
-        <div className="analytics-export-actions">
-          <button onClick={() => handleExport("json")} className="export-btn json" type="button">
-            {t("pages.analytics.exportJson")}
-          </button>
-          <button onClick={() => handleExport("csv")} className="export-btn csv" type="button">
-            {t("pages.analytics.exportCsv")}
-          </button>
-        </div>
+        </Card>
       </div>
-    </div>
+    </AppShell>
   );
 }

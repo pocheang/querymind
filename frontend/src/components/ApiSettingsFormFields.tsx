@@ -1,6 +1,10 @@
 import { useTranslation } from "react-i18next";
+
 import { normalizeModelTemperature } from "@/lib/model-temperature";
 import type { ApiConfig } from "./apiSettingsConstants";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Props = {
   config: ApiConfig;
@@ -11,6 +15,29 @@ type Props = {
   onShowApiKeyToggle: () => void;
   onConfigChange: (patch: Partial<ApiConfig>) => void;
 };
+
+const SLIDER =
+  "w-full cursor-pointer accent-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]";
+
+/** Label plus the live value, the design's slider header. */
+function ValueLabel({ htmlFor, children, value }: Readonly<{ htmlFor: string; children: string; value: string }>) {
+  return (
+    <Label htmlFor={htmlFor} className="flex items-center justify-between gap-2">
+      <span>{children}</span>
+      <span className="font-mono normal-case tracking-normal text-brand-text">{value}</span>
+    </Label>
+  );
+}
+
+function SliderScale({ marks }: Readonly<{ marks: string[] }>) {
+  return (
+    <div className="flex items-center justify-between font-mono text-[10px] text-ink-faint">
+      {marks.map((mark) => (
+        <span key={mark}>{mark}</span>
+      ))}
+    </div>
+  );
+}
 
 export function ApiSettingsFormFields({
   config,
@@ -25,36 +52,38 @@ export function ApiSettingsFormFields({
 
   return (
     <>
-      <section className="settings-section">
-        <div className="settings-note">{t("components.apiSettings.note")}</div>
-      </section>
+      <p className="rounded-control border border-brand-border bg-brand-surface/60 px-2.5 py-2 text-[11px] leading-relaxed text-ink-muted">
+        {t("components.apiSettings.note")}
+      </p>
 
       {requiresApiKey && (
-        <section className="settings-section">
-          <label className="section-label" htmlFor="api-key-input">{t("components.apiSettings.apiKey")}</label>
-          <div className="input-with-action">
-            <input
+        <section className="space-y-1.5">
+          <Label htmlFor="api-key-input">{t("components.apiSettings.apiKey")}</Label>
+          <div className="flex items-center gap-1.5">
+            <Input
               id="api-key-input"
               type={showApiKey ? "text" : "password"}
-              className="api-input-field"
-              placeholder={config.apiKeyMasked ? t("components.apiSettings.saved", { value: config.apiKeyMasked }) : "sk-..."}
+              className="font-mono"
+              placeholder={
+                config.apiKeyMasked ? t("components.apiSettings.saved", { value: config.apiKeyMasked }) : "sk-..."
+              }
               value={config.apiKey}
               onChange={(e) => onConfigChange({ apiKey: e.target.value, apiKeyMasked: "" })}
             />
-            <button type="button" className="input-action-btn" onClick={onShowApiKeyToggle}>
+            <Button variant="secondary" size="sm" onClick={onShowApiKeyToggle}>
               {showApiKey ? t("components.apiSettings.hide") : t("components.apiSettings.show")}
-            </button>
+            </Button>
           </div>
         </section>
       )}
 
       {requiresBaseUrl && (
-        <section className="settings-section">
-          <label className="section-label" htmlFor="base-url-input">{t("components.apiSettings.baseUrl")}</label>
-          <input
+        <section className="space-y-1.5">
+          <Label htmlFor="base-url-input">{t("components.apiSettings.baseUrl")}</Label>
+          <Input
             id="base-url-input"
             type="text"
-            className="api-input-field"
+            className="font-mono"
             placeholder="https://api.example.com/v1"
             value={config.baseUrl}
             onChange={(e) => onConfigChange({ baseUrl: e.target.value })}
@@ -62,24 +91,26 @@ export function ApiSettingsFormFields({
         </section>
       )}
 
-      <section className="settings-section">
-        <label className="section-label" htmlFor="model-input">{t("components.apiSettings.model")}</label>
+      <section className="space-y-1.5">
+        <Label htmlFor="model-input">{t("components.apiSettings.model")}</Label>
         {selectedModels.length > 0 ? (
           <select
             id="model-input"
-            className="api-select"
             value={config.model}
             onChange={(e) => onConfigChange({ model: e.target.value })}
+            className="h-8 w-full rounded-control border border-brand-border bg-surface px-2 font-mono text-xs text-ink transition-colors focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
           >
             {selectedModels.map((model) => (
-              <option key={model} value={model}>{model}</option>
+              <option key={model} value={model}>
+                {model}
+              </option>
             ))}
           </select>
         ) : (
-          <input
+          <Input
             id="model-input"
             type="text"
-            className="api-input-field"
+            className="font-mono"
             placeholder="model-name"
             value={config.model}
             onChange={(e) => onConfigChange({ model: e.target.value })}
@@ -87,50 +118,48 @@ export function ApiSettingsFormFields({
         )}
       </section>
 
-      <section className="settings-section">
-        <label className="section-label" htmlFor="temperature-input">
+      <section className="space-y-1.5">
+        <ValueLabel htmlFor="temperature-input" value={Number(config.temperature).toFixed(1)}>
           {t("components.apiSettings.temperature")}
-          <span className="label-value">{Number(config.temperature).toFixed(1)}</span>
-        </label>
+        </ValueLabel>
         <input
           id="temperature-input"
           type="range"
-          className="api-slider"
+          className={SLIDER}
           min="0"
           max="1"
           step="0.1"
           value={config.temperature}
-          onChange={(e) => onConfigChange({
-            temperature: normalizeModelTemperature(Number(e.target.value), config.temperature),
-          })}
+          onChange={(e) =>
+            onConfigChange({
+              temperature: normalizeModelTemperature(Number(e.target.value), config.temperature),
+            })
+          }
         />
-        <div className="slider-labels">
-          <span>{t("components.apiSettings.stable")}</span>
-          <span>{t("components.apiSettings.balanced")}</span>
-          <span>{t("components.apiSettings.creative")}</span>
-        </div>
+        <SliderScale
+          marks={[
+            t("components.apiSettings.stable"),
+            t("components.apiSettings.balanced"),
+            t("components.apiSettings.creative"),
+          ]}
+        />
       </section>
 
-      <section className="settings-section">
-        <label className="section-label" htmlFor="max-tokens-input">
+      <section className="space-y-1.5">
+        <ValueLabel htmlFor="max-tokens-input" value={String(config.maxTokens)}>
           {t("components.apiSettings.maxTokens")}
-          <span className="label-value">{config.maxTokens}</span>
-        </label>
+        </ValueLabel>
         <input
           id="max-tokens-input"
           type="range"
-          className="api-slider"
+          className={SLIDER}
           min="256"
           max="131072"
           step="1024"
           value={config.maxTokens}
           onChange={(e) => onConfigChange({ maxTokens: Number(e.target.value) })}
         />
-        <div className="slider-labels">
-          <span>256</span>
-          <span>65536</span>
-          <span>131072</span>
-        </div>
+        <SliderScale marks={["256", "65536", "131072"]} />
       </section>
     </>
   );

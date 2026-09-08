@@ -1,0 +1,256 @@
+/* ============================================
+   Warm golden amber theme (暖金琥珀)
+
+   Ported from the QueryMind NextGen design prototype. The prototype declares
+   a `[data-theme]` engine and then collapses it to a single theme; the
+   indirection is kept here so a second theme is a drop-in, not a rewrite.
+
+   ---------------------------------------------------------------------
+   The prototype's amber does not clear WCAG AA, and this file corrects it.
+
+   Measured, not eyeballed (white ground / as a fill carrying white text --
+   the two are the same number):
+
+       amber-500 #f59e0b   2.15   fails
+       amber-600 #d97706   3.19   fails   <- the prototype's primary
+       amber-700 #b45309   5.02   passes  <- the smallest step that works
+       amber-800 #92400e   7.09   passes
+
+   So the prototype's primary button (`from-amber-500 to-amber-600` + white
+   text, 2.15-3.19), its active tag chip (`bg-amber-500` + white, 2.15) and
+   its metadata text (`stone-400`, 2.41 on this page background) are all
+   below AA. Rather than change the hue, each role moves down one step --
+   the same "smallest darkening, hue and saturation held" correction
+   `tokens.css` already documents for the blue theme it replaces.
+
+   The split is by ROLE, which is why there are three amber tokens where the
+   prototype had one:
+
+     --brand         a fill that carries white text        5.02
+     --brand-text    amber used AS text on a light ground  6.79-7.09
+     --brand-accent  icons, borders, decoration only       3.05, never text
+
+   `--brand-accent` keeps the prototype's exact #d97706, so the parts of the
+   design that read as "amber" -- icon strokes, hairlines, the glow -- are
+   unchanged. Only ink and fills moved.
+
+   Two deliberate exemptions, both allowed by 1.4.3:
+     - `--brand-mark-gradient` is the bright prototype gradient, used only
+       behind the logo glyph and the assistant avatar. A logotype is exempt,
+       and dulling it costs the design its most recognisable element.
+     - `--text-faint` is placeholder-only. Darkening a placeholder makes an
+       empty field look filled; the contrast minimum does not apply there.
+       Never use it for content -- `--text-muted` is the floor for that.
+   ============================================ */
+
+:root,
+[data-theme="amber"] {
+  --theme-name: "amber";
+
+  /* ---- Brand, split by role (see header) ---- */
+  --brand: #b45309;
+  --brand-hover: #92400e;
+  --brand-active: #78350f;
+  --brand-text: #92400e;
+  --brand-text-strong: #78350f;
+  --brand-accent: #d97706;
+  --brand-surface: #fffbeb;
+  --brand-surface-hover: #fef3c7;
+  --brand-border: #fde68a;
+  --brand-border-strong: #fcd34d;
+  --brand-ring: rgba(217, 119, 6, 0.2);
+
+  /* Carries white text -- both stops clear AA (5.02 / 7.09). */
+  --brand-gradient: linear-gradient(135deg, #b45309, #92400e);
+  /* Decorative only: logo mark, assistant avatar. Never put text on it. */
+  --brand-mark-gradient: linear-gradient(to top right, #d97706, #f59e0b, #eab308);
+
+  /* ---- Surfaces ---- */
+  --bg-page: #fdfaf0;
+  --bg-panel: rgba(255, 253, 245, 0.96);
+  --bg-card: rgba(255, 255, 255, 0.98);
+  --surface: #ffffff;
+  --surface-hover: #fffbeb;
+  --surface-muted: #faf9f7;
+  --surface-inset: rgba(250, 250, 249, 0.7);
+
+  /* ---- Borders ----
+     Soft, low-contrast and often alpha: separation in this design comes from
+     depth and from the warm ground, not from outlines. These are dividers,
+     not state indicators, so 1.4.11's 3:1 does not apply to them. Anything
+     that DOES carry state (a focus ring, a selected row) uses --brand-* or
+     --brand-ring, which do clear it. */
+  --border-panel: rgba(245, 222, 179, 0.75);
+  --border-card: rgba(254, 240, 138, 0.75);
+  --border-subtle: rgba(254, 243, 199, 0.75);
+  --border-neutral: rgba(231, 229, 228, 0.9);
+  --border-neutral-strong: #d6d3d1;
+
+  /* ---- Text ---- */
+  --text-main: #292524;
+  /* 4.82:1 on the darkest point of the aurora wash, 5.32 on the flat page and
+     5.56 on a white card. Was #78716c (stone-500), which measures 4.59 on the
+     flat page but only 4.16 where the aurora pools are strongest -- and the
+     shell paints that wash behind every surface, so the flat-page number was
+     never the one that mattered. Darkened by the smallest step that clears AA
+     against the wash, hue and saturation held. */
+  --text-muted: #6e6762;
+  --text-faint: #a8a29e;
+  --text-inverse: #ffffff;
+
+  /* ---- Aurora page wash ---- */
+  --aurora-1: rgba(245, 158, 11, 0.16);
+  --aurora-2: rgba(251, 191, 36, 0.18);
+  --aurora-3: rgba(253, 224, 71, 0.15);
+  --aurora-4: rgba(249, 115, 22, 0.1);
+
+  /* ---- Composer ring ----
+     The prototype builds the composer's "border" as a 1.5px gradient padding
+     on an outer wrapper, not as a border-color. Outer and inner radii are a
+     pair: 1.5rem outside, 1.4rem inside, the 0.1rem delta being exactly that
+     padding. Change one and you must change the other. */
+  --composer-glow: linear-gradient(135deg, rgba(245, 158, 11, 0.4), rgba(251, 191, 36, 0.35), rgba(249, 115, 22, 0.35));
+  --composer-glow-focus: linear-gradient(
+    135deg,
+    rgba(245, 158, 11, 0.85),
+    rgba(251, 191, 36, 0.8),
+    rgba(249, 115, 22, 0.75)
+  );
+  --composer-shadow: 0 10px 30px -10px rgba(245, 158, 11, 0.22);
+  --composer-radius-outer: 1.5rem;
+  --composer-radius-inner: 1.4rem;
+
+  /* ---- Scrollbar ---- */
+  --scrollbar-thumb: rgba(245, 158, 11, 0.25);
+  --scrollbar-thumb-hover: rgba(217, 119, 6, 0.55);
+
+  /* ---- Status ----
+     Carried over unchanged from the blue theme's palette: each value was
+     already measured there as the smallest darkening that clears 4.5:1 as
+     text, as a white-text fill, and on its own pale tint. Re-verified on the
+     warm surfaces this theme introduces: every one sits above 5.4 as text on
+     the page, the panel, a card and `--brand-surface`, and above 5.3 on its
+     own pale tint. */
+  --success: #0a704e;
+  --success-surface: #d1fae5;
+  --success-border: #a7f3d0;
+  --warning: #895806;
+  --warning-surface: #fef3c7;
+  --warning-border: #fde68a;
+  --danger: #bd1010;
+  --danger-surface: #fee2e2;
+  --danger-border: #fecaca;
+  --info: #046c7e;
+  --info-surface: #cffafe;
+  --info-border: #a5f3fc;
+
+  /* ---- Typography ----
+     Inter has no CJK coverage and this app is bilingual, so the Chinese
+     faces sit directly behind it in the same stack rather than in a separate
+     token nobody remembers to apply. Both families are self-hosted via
+     @fontsource: the production CSP is `font-src 'self' data:`, so the
+     prototype's Google Fonts @import would be blocked -- silently, with the
+     page simply falling back. */
+  --font-sans:
+    "Inter Variable", "Inter", "Noto Sans SC", "Microsoft YaHei UI", "PingFang SC", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* ---- Motion ----
+     The prototype uses exactly two custom curves. Standard for anything that
+     moves between two resting states; expo-out for anything that arrives. */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-arrive: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+
+  /* ---- Compatibility aliases ----
+     Names the surviving legacy stylesheets still read. They are pointed at
+     the amber tokens so a sheet that has not been migrated yet inherits the
+     new theme instead of rendering in the old blue one. Delete an alias when
+     its last reader goes. */
+  --bg: var(--bg-page);
+  --bg-secondary: var(--surface-muted);
+  --bg-tertiary: var(--surface);
+  --surface-active: var(--brand-surface-hover);
+  --text-primary: var(--text-main);
+  --text-secondary: var(--text-muted);
+  --text-tertiary: var(--text-muted);
+  --border-light: var(--border-neutral);
+  --border-medium: var(--border-neutral-strong);
+  --border-strong: var(--border-neutral-strong);
+  --accent: var(--brand);
+  --accent-hover: var(--brand-hover);
+  --accent-light: var(--brand-surface);
+  --accent-soft: var(--brand-ring);
+  --success-light: var(--success-surface);
+  --warning-light: var(--warning-surface);
+  --danger-light: var(--danger-surface);
+  --info-light: var(--info-surface);
+  --border: var(--border-neutral);
+  --muted: var(--text-muted);
+  --text: var(--text-main);
+  --ok: var(--success);
+  --panel: var(--surface);
+  --panel-strong: var(--surface-muted);
+  --bg-soft: var(--surface-hover);
+  --gradient-primary: var(--brand-gradient);
+  --gradient-brand: var(--brand-mark-gradient);
+}
+
+/* The page ground.
+
+   Also written in core/critical.css, which is inlined into <head> at build
+   time so first paint is already warm. That copy is unlayered and therefore
+   wins in production; this one is what applies in dev, where the inline
+   plugin does not run (`apply: 'build'`). Keep the two in step -- a
+   difference between them shows up only as a flash on a cold load. */
+body {
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at 10% 12%, var(--aurora-1) 0%, transparent 45%),
+    radial-gradient(circle at 90% 15%, var(--aurora-2) 0%, transparent 42%),
+    radial-gradient(circle at 50% 90%, var(--aurora-3) 0%, transparent 50%),
+    radial-gradient(circle at 82% 76%, var(--aurora-4) 0%, transparent 38%), var(--bg-page);
+  background-attachment: fixed;
+  font-family: var(--font-sans);
+  /* The design is 12px-first: `text-xs` is the body size, not a modifier.
+     Setting it once here is what keeps it out of several hundred class
+     strings. */
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+/* The warm ground wants a warm scrollbar; the default is a cool grey that
+   reads as a smudge on #fdfaf0. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--shape-pill);
+  transition: background var(--duration-base) ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}

@@ -1,5 +1,7 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
 
+import { Button } from "@/components/ui/button";
+
 interface Props {
   children: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
@@ -50,67 +52,26 @@ export class ChatErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "100vh",
-            padding: "2rem",
-            backgroundColor: "var(--bg-primary, #fff)",
-          }}
-        >
-          <div
-            style={{
-              maxWidth: "500px",
-              textAlign: "center",
-              backgroundColor: "var(--bg-secondary, #f8f9fa)",
-              padding: "2rem",
-              borderRadius: "12px",
-              border: "1px solid var(--border-color, #dee2e6)",
-            }}
-          >
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>💬</div>
-            <h2 style={{ marginBottom: "1rem", color: "var(--text-primary, #212529)" }}>
-              Chat Error
-            </h2>
-            <p style={{ marginBottom: "1.5rem", color: "var(--text-secondary, #6c757d)" }}>
+        <div className="aurora-bg flex min-h-screen flex-col items-center justify-center p-8">
+          <div className="glass-card w-full max-w-lg rounded-panel p-8 text-center">
+            <div className="mb-4 text-5xl" aria-hidden="true">
+              💬
+            </div>
+            <h2 className="mb-4 text-sm font-bold text-ink">Chat Error</h2>
+            <p className="mb-6 text-xs text-ink-muted">
               The chat encountered an error. Your conversation data is safe.
             </p>
             {this.state.error && (
-              <details style={{ marginBottom: "1.5rem", textAlign: "left" }}>
-                <summary style={{ cursor: "pointer", marginBottom: "0.5rem" }}>
-                  Error details
-                </summary>
-                <pre
-                  style={{
-                    fontSize: "0.85rem",
-                    padding: "0.5rem",
-                    backgroundColor: "var(--bg-code, #f5f5f5)",
-                    borderRadius: "4px",
-                    overflow: "auto",
-                  }}
-                >
+              <details className="mb-6 text-left">
+                <summary className="mb-2 cursor-pointer text-[11px] text-ink-muted">Error details</summary>
+                <pre className="overflow-auto rounded-control bg-surface-muted p-2 font-mono text-[11px] text-ink">
                   {this.state.error.message}
                 </pre>
               </details>
             )}
-            <button
-              onClick={this.handleReset}
-              style={{
-                padding: "0.75rem 1.5rem",
-                backgroundColor: "var(--primary, #007bff)",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontSize: "1rem",
-                fontWeight: "500",
-              }}
-            >
+            <Button size="sm" onClick={this.handleReset}>
               Return to Chat
-            </button>
+            </Button>
           </div>
         </div>
       );

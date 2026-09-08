@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { BarChart3 } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { AppShell } from "@/components/layout/AppShell";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
-import { LanguageToggle } from "@/components/LanguageToggle";
+import { useNavigate } from "react-router-dom";
 import type { AuthUser } from "@/types/api";
+import type { Section } from "@/stores/useAdminStore";
 import { AdminAgentQualityDashboard } from "@/pages/admin/AdminAgentQualityDashboard";
 import { AdminAuditLogManagement } from "@/pages/admin/AdminAuditLogManagement";
 import { AdminCreateForm } from "@/pages/admin/AdminCreateForm";
@@ -21,12 +26,29 @@ import { PromptDialog } from "@/components/PromptDialog";
 import { usePromptDialog } from "@/hooks/usePromptDialog";
 
 // Route-specific CSS (code-split by Vite)
-import "@/styles/pages/admin-entry.css";
+import { StatePanel } from "@/pages/admin/components/AdminPrimitives";
 
 type Props = {
   user: AuthUser | null;
   onLogout: () => Promise<void>;
 };
+
+/* The console's ten sections, in the order they are shown. A table rather
+   than ten near-identical buttons: the previous form encoded "selected" as an
+   EMPTY className and "not selected" as "secondary", which only reads
+   correctly if you already know the convention. */
+const ADMIN_SECTIONS: ReadonlyArray<{ key: Section; labelKey: string; fallback?: string }> = [
+  { key: "ops", labelKey: "pages.admin.sections.ops" },
+  { key: "monitor", labelKey: "pages.admin.sections.monitor", fallback: "Runtime Monitor" },
+  { key: "rag", labelKey: "pages.admin.sections.rag" },
+  { key: "models", labelKey: "pages.admin.sections.models" },
+  { key: "webactivity", labelKey: "pages.admin.sections.webactivity", fallback: "Web Activity" },
+  { key: "agentquality", labelKey: "pages.admin.sections.agentquality", fallback: "Agent Quality" },
+  { key: "admins", labelKey: "pages.admin.sections.admins" },
+  { key: "users", labelKey: "pages.admin.sections.users" },
+  { key: "audit", labelKey: "pages.admin.sections.audit" },
+  { key: "syslog", labelKey: "pages.admin.sections.syslog" },
+];
 
 export function AdminPage({ user, onLogout }: Readonly<Props>) {
   const { t } = useTranslation();
@@ -50,11 +72,14 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
   });
 
   const actionMax = useMemo(() => Math.max(1, ...(state.ops?.top_actions || []).map((x) => x.count)), [state.ops]);
-  const resourceMax = useMemo(() => Math.max(1, ...(state.ops?.top_resource_types || []).map((x) => x.count)), [state.ops]);
+  const resourceMax = useMemo(
+    () => Math.max(1, ...(state.ops?.top_resource_types || []).map((x) => x.count)),
+    [state.ops]
+  );
   const errorMax = useMemo(() => Math.max(1, ...(state.ops?.top_error_reasons || []).map((x) => x.count)), [state.ops]);
   const hourlyMax = useMemo(() => Math.max(1, ...(state.ops?.hourly || []).map((x) => x.count)), [state.ops]);
 
-  const openClassEditor = (u: typeof state.users[0]) => {
+  const openClassEditor = (u: (typeof state.users)[0]) => {
     state.setEditingUser(u);
     state.setEditBu(u.business_unit || "");
     state.setEditDept(u.department || "");
@@ -85,7 +110,15 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
     // The directive has to be the last line of this comment, or it points
     // at the comment instead of the code.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.auditLimit, state.auditActorUserId, state.auditActionKeyword, state.auditEventCategory, state.auditSeverity, state.auditResult, state.users.length]);
+  }, [
+    state.auditLimit,
+    state.auditActorUserId,
+    state.auditActionKeyword,
+    state.auditEventCategory,
+    state.auditSeverity,
+    state.auditResult,
+    state.users.length,
+  ]);
 
   useEffect(() => {
     if (isAdmin) void actions.loadOps();
@@ -122,7 +155,14 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
   // Reset audit pagination when filters change
   useEffect(() => {
     setAuditPage(1);
-  }, [state.auditLimit, state.auditActorUserId, state.auditActionKeyword, state.auditEventCategory, state.auditSeverity, state.auditResult]);
+  }, [
+    state.auditLimit,
+    state.auditActorUserId,
+    state.auditActionKeyword,
+    state.auditEventCategory,
+    state.auditSeverity,
+    state.auditResult,
+  ]);
 
   // Reset system log pagination when filters change
   useEffect(() => {
@@ -130,7 +170,7 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
   }, [state.systemLogLevel, state.systemLogLogger, state.systemLogKeyword]);
 
   return (
-    <div className="admin-shell">
+    <AppShell user={user} onLogout={onLogout} scroll>
       <PromptDialog
         isOpen={promptDialog.isOpen}
         title={promptDialog.options?.title || ""}
@@ -140,46 +180,70 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
         onConfirm={promptDialog.handleConfirm}
         onCancel={promptDialog.handleCancel}
       />
-      <header className="topbar">
-        <div>
-          <h2>{t("pages.admin.console")}</h2>
-          <p className="muted">{t("pages.admin.subtitle")}</p>
+      {/* Title, subtitle and the section rail share one glass bar, which is
+          how the design prototype builds this view: the tabs are the page's
+          primary navigation, not a control strip under a heading. */}
+      <div className="glass-panel flex shrink-0 flex-col gap-2 border-x-0 border-t-0 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-sm font-bold tracking-tight text-ink">{t("pages.admin.console")}</h1>
+          <p className="text-[11px] text-ink-muted">{t("pages.admin.subtitle")}</p>
         </div>
-        <div className="top-actions">
-          <LanguageToggle />
-          <button className="secondary" type="button" onClick={() => navigate('/app/analytics')}>
+
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <div
+              className="no-scrollbar flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0"
+              role="tablist"
+              aria-label={t("pages.admin.console")}
+            >
+              {ADMIN_SECTIONS.map(({ key, labelKey, fallback }) => {
+                const active = state.section === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    className={cn(
+                      "whitespace-nowrap rounded-control px-2.5 py-1 text-xs transition-all",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                      active
+                        ? "bg-[image:var(--brand-gradient)] font-semibold text-white shadow-elev-1"
+                        : "font-medium text-ink-muted hover:bg-brand-surface hover:text-brand-text"
+                    )}
+                    onClick={() => state.setSection(key)}
+                  >
+                    {fallback ? t(labelKey, fallback) : t(labelKey)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <Button
+            className="shrink-0"
+            variant="secondary"
+            size="xs"
+            onClick={() => navigate("/app/analytics")}
+          >
+            <BarChart3 className="size-3.5" aria-hidden="true" />
             {t("pages.admin.viewAnalytics")}
-          </button>
-          <Link className="secondary link-btn" to="/app">{t("pages.admin.backToChat")}</Link>
-          <button type="button" className="primary-action-btn" onClick={() => void onLogout()}>
-            {t("nav.logout")}
-          </button>
+          </Button>
         </div>
-      </header>
+      </div>
 
       {!isAdmin && (
-        <main className="panel">
-          <div className="status error">{t("pages.admin.noPermission")}</div>
-        </main>
+        <div className="p-4 sm:p-6">
+          <p
+            className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+            role="alert"
+          >
+            {t("pages.admin.noPermission")}
+          </p>
+        </div>
       )}
 
       {isAdmin && (
-        <>
-          <main className="panel">
-            <div className="row-actions wrap admin-section-tabs">
-              <button type="button" className={state.section === "ops" ? "" : "secondary"} onClick={() => state.setSection("ops")}>{t("pages.admin.sections.ops")}</button>
-              <button type="button" className={state.section === "monitor" ? "" : "secondary"} onClick={() => state.setSection("monitor")}>{t("pages.admin.sections.monitor", "Runtime Monitor")}</button>
-              <button type="button" className={state.section === "rag" ? "" : "secondary"} onClick={() => state.setSection("rag")}>{t("pages.admin.sections.rag")}</button>
-              <button type="button" className={state.section === "models" ? "" : "secondary"} onClick={() => state.setSection("models")}>{t("pages.admin.sections.models")}</button>
-              <button type="button" className={state.section === "webactivity" ? "" : "secondary"} onClick={() => state.setSection("webactivity")}>{t("pages.admin.sections.webactivity", "Web Activity")}</button>
-              <button type="button" className={state.section === "agentquality" ? "" : "secondary"} onClick={() => state.setSection("agentquality")}>{t("pages.admin.sections.agentquality", "Agent Quality")}</button>
-              <button type="button" className={state.section === "admins" ? "" : "secondary"} onClick={() => state.setSection("admins")}>{t("pages.admin.sections.admins")}</button>
-              <button type="button" className={state.section === "users" ? "" : "secondary"} onClick={() => state.setSection("users")}>{t("pages.admin.sections.users")}</button>
-              <button type="button" className={state.section === "audit" ? "" : "secondary"} onClick={() => state.setSection("audit")}>{t("pages.admin.sections.audit")}</button>
-              <button type="button" className={state.section === "syslog" ? "" : "secondary"} onClick={() => state.setSection("syslog")}>{t("pages.admin.sections.syslog")}</button>
-            </div>
-          </main>
-
+        <div className="space-y-6 p-4 sm:p-6">
           {state.section === "admins" && (
             <AdminCreateForm
               adminUsername={state.adminUsername}
@@ -200,7 +264,6 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
               onCreateAdmin={() => void actions.createAdmin()}
             />
           )}
-
 
           {state.section === "monitor" && <AdminSystemMonitor />}
           {state.section === "ops" && (
@@ -365,11 +428,17 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
               </option>
             ))}
           </datalist>
-        </>
+        </div>
       )}
 
-      {state.statusText && <div className="status">{state.statusText}</div>}
-      {state.error && <div className="status error">{state.error}</div>}
-    </div>
+      {state.statusText && (
+        <StatePanel className="mx-4 mb-4 font-mono sm:mx-6">{state.statusText}</StatePanel>
+      )}
+      {state.error && (
+        <StatePanel tone="error" className="mx-4 mb-4 font-mono sm:mx-6">
+          {state.error}
+        </StatePanel>
+      )}
+    </AppShell>
   );
 }

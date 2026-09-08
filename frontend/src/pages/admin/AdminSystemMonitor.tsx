@@ -17,6 +17,17 @@ import {
 } from "recharts";
 import type { AdminRuntimeSnapshot } from "@/types/api";
 import { adminOpsApi } from "@/lib/admin-ops-api";
+import { Button } from "@/components/ui/button";
+import {
+  AdminPanel,
+  KpiCard,
+  KpiGrid,
+  OpsGrid,
+  RowActions,
+  StatePanel,
+  SubTitle,
+} from "./components/AdminPrimitives";
+import { CHART_AXIS, CHART_GRID, CHART_TOOLTIP } from "./components/adminClasses";
 
 export function AdminSystemMonitor() {
   const { t } = useTranslation();
@@ -50,32 +61,32 @@ export function AdminSystemMonitor() {
 
   if (loading && !snapshot) {
     return (
-      <main className="panel">
-        <div className="status">{t("common.loading", "Loading...")}</div>
+      <main className="space-y-6">
+        <StatePanel>{t("common.loading", "Loading...")}</StatePanel>
       </main>
     );
   }
 
   if (error && !snapshot) {
     return (
-      <main className="panel">
-        <div className="status error">{error}</div>
-        <button type="button" onClick={() => void loadSnapshot()}>
+      <main className="space-y-6">
+        <StatePanel tone="error">{error}</StatePanel>
+        <Button size="sm" onClick={() => void loadSnapshot()}>
           {t("common.retry", "Retry")}
-        </button>
+        </Button>
       </main>
     );
   }
 
   if (!snapshot) {
     return (
-      <main className="panel">
-        <div className="status">{t("common.noData", "No data available")}</div>
+      <main className="space-y-6">
+        <StatePanel>{t("common.noData", "No data available")}</StatePanel>
       </main>
     );
   }
 
-  const statusClass = snapshot.status === "healthy" ? "success" : "error";
+  const healthy = snapshot.status === "healthy";
 
   // Prepare chart data
   const resourceData = [
@@ -91,93 +102,89 @@ export function AdminSystemMonitor() {
   }));
 
   return (
-    <>
-      <main className="panel">
-        <div className="row-actions">
-          <h3>{t("admin.systemMonitor.title", "Runtime Monitor")}</h3>
-          <div className="row-actions">
-            <label>
+    <main className="space-y-6">
+      <AdminPanel>
+        <RowActions className="mb-4 justify-between">
+          <SubTitle>{t("admin.systemMonitor.title", "Runtime Monitor")}</SubTitle>
+          <RowActions>
+            <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
               <input
+                className="size-4 shrink-0 accent-[var(--brand)]"
                 type="checkbox"
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
               />
               {t("admin.systemMonitor.autoRefresh", "Auto-refresh (3s)")}
             </label>
-            <button type="button" className="secondary" onClick={() => void loadSnapshot()} disabled={loading}>
+            <Button variant="secondary" size="sm" onClick={() => void loadSnapshot()} disabled={loading}>
               {loading ? t("common.loading", "Loading...") : t("common.refresh", "Refresh")}
-            </button>
-          </div>
-        </div>
+            </Button>
+          </RowActions>
+        </RowActions>
 
-        {error && <div className="status error">{error}</div>}
+        {error && <StatePanel tone="error">{error}</StatePanel>}
 
-        <div className="ops-kpi-grid ops-kpi-grid-primary">
-          <div className={`ops-kpi-card ${statusClass === 'success' ? 'is-success' : 'is-danger'}`}>
-            <span>{t("admin.systemMonitor.systemStatus", "System Status")}</span>
-            <strong>{snapshot.status.toUpperCase()}</strong>
-            <p style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: 'var(--admin-text-tertiary)' }}>
-              {new Date(snapshot.generated_at).toLocaleTimeString()}
-            </p>
-          </div>
+        <KpiGrid cols={6} className="mb-0">
+          <KpiCard
+            label={t("admin.systemMonitor.systemStatus", "System Status")}
+            value={
+              <>
+                {snapshot.status.toUpperCase()}
+                <span className="mt-1 block text-[11px] font-normal text-ink-muted">
+                  {new Date(snapshot.generated_at).toLocaleTimeString()}
+                </span>
+              </>
+            }
+            tone={healthy ? "success" : "danger"}
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.cpu", "CPU")}
+            value={`${snapshot.resources.cpu_percent.toFixed(1)}%`}
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.memory", "Memory")}
+            value={`${snapshot.resources.memory_percent.toFixed(1)}%`}
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.disk", "Disk")}
+            value={`${snapshot.resources.disk_percent.toFixed(1)}%`}
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.totalRequests", "Total Requests")}
+            value={
+              <>
+                {snapshot.traffic.requests_total}
+                <span className="mt-1 block text-[11px] font-normal text-ink-muted">
+                  {t("admin.systemMonitor.last", "Last")} {snapshot.traffic.window_seconds}s
+                </span>
+              </>
+            }
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.avgResponse", "Avg Response")}
+            value={`${snapshot.traffic.avg_response_ms.toFixed(1)} ms`}
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.errorRate", "Error Rate")}
+            value={`${snapshot.traffic.error_rate_percent.toFixed(2)}%`}
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.activeRequests", "Active Requests")}
+            value={snapshot.traffic.active_requests}
+          />
+        </KpiGrid>
+      </AdminPanel>
 
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.cpu", "CPU")}</span>
-            <strong>{snapshot.resources.cpu_percent.toFixed(1)}%</strong>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.memory", "Memory")}</span>
-            <strong>{snapshot.resources.memory_percent.toFixed(1)}%</strong>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.disk", "Disk")}</span>
-            <strong>{snapshot.resources.disk_percent.toFixed(1)}%</strong>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.totalRequests", "Total Requests")}</span>
-            <strong>{snapshot.traffic.requests_total}</strong>
-            <p style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: 'var(--admin-text-tertiary)' }}>
-              {t("admin.systemMonitor.last", "Last")} {snapshot.traffic.window_seconds}s
-            </p>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.avgResponse", "Avg Response")}</span>
-            <strong>{snapshot.traffic.avg_response_ms.toFixed(1)} ms</strong>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.errorRate", "Error Rate")}</span>
-            <strong>{snapshot.traffic.error_rate_percent.toFixed(2)}%</strong>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.activeRequests", "Active Requests")}</span>
-            <strong>{snapshot.traffic.active_requests}</strong>
-          </div>
-        </div>
-      </main>
-
-      <div className="admin-ops-grid">
-        <main className="panel">
-          <h3>{t("admin.systemMonitor.resources", "System Resources")}</h3>
+      <OpsGrid>
+        <AdminPanel>
+          <SubTitle>{t("admin.systemMonitor.resources", "System Resources")}</SubTitle>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={resourceData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '14px' }} />
-              <YAxis stroke="#94a3b8" domain={[0, 100]} style={{ fontSize: '14px' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+              <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={14} />
+              <YAxis stroke={CHART_AXIS} domain={[0, 100]} fontSize={14} />
               <Tooltip
-                contentStyle={{
-                  background: "#0f172a",
-                  border: "1px solid #334155",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.3)"
-                }}
-                labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
-                itemStyle={{ color: "#cbd5e1" }}
+                contentStyle={CHART_TOOLTIP}
                 formatter={(value: unknown) => [`${Number(value).toFixed(1)}%`, 'Usage']}
               />
               <Bar dataKey="value" radius={[8, 8, 0, 0]}>
@@ -187,10 +194,10 @@ export function AdminSystemMonitor() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </main>
+        </AdminPanel>
 
-        <main className="panel">
-          <h3>{t("admin.systemMonitor.trafficMetrics", "Traffic Metrics")}</h3>
+        <AdminPanel>
+          <SubTitle>{t("admin.systemMonitor.trafficMetrics", "Traffic Metrics")}</SubTitle>
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart
               data={[
@@ -212,17 +219,11 @@ export function AdminSystemMonitor() {
                   <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '14px' }} />
-              <YAxis stroke="#94a3b8" style={{ fontSize: '14px' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+              <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={14} />
+              <YAxis stroke={CHART_AXIS} fontSize={14} />
               <Tooltip
-                contentStyle={{
-                  background: "#0f172a",
-                  border: "1px solid #334155",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.3)"
-                }}
-                labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
+                contentStyle={CHART_TOOLTIP}
               />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
               <Area
@@ -243,35 +244,28 @@ export function AdminSystemMonitor() {
               />
             </AreaChart>
           </ResponsiveContainer>
-        </main>
-      </div>
+        </AdminPanel>
+      </OpsGrid>
 
-      <div className="admin-ops-grid">
-        <main className="panel">
-          <h3>{t("admin.systemMonitor.serviceLatency", "Service Latency")}</h3>
+      <OpsGrid>
+        <AdminPanel>
+          <SubTitle>{t("admin.systemMonitor.serviceLatency", "Service Latency")}</SubTitle>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={servicesData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '14px' }} />
-              <YAxis stroke="#94a3b8" style={{ fontSize: '14px' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+              <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={14} />
+              <YAxis stroke={CHART_AXIS} fontSize={14} />
               <Tooltip
-                contentStyle={{
-                  background: "#0f172a",
-                  border: "1px solid #334155",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.3)"
-                }}
-                labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
-                itemStyle={{ color: "#cbd5e1" }}
+                contentStyle={CHART_TOOLTIP}
                 formatter={(value: unknown) => [`${Number(value)} ms`, 'Latency']}
               />
               <Bar dataKey="latency" fill="#10b981" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </main>
+        </AdminPanel>
 
-        <main className="panel">
-          <h3>{t("admin.systemMonitor.responseTime", "Response Time")}</h3>
+        <AdminPanel>
+          <SubTitle>{t("admin.systemMonitor.responseTime", "Response Time")}</SubTitle>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart
               data={[
@@ -280,18 +274,11 @@ export function AdminSystemMonitor() {
               ]}
               margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '14px' }} />
-              <YAxis stroke="#94a3b8" style={{ fontSize: '14px' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+              <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={14} />
+              <YAxis stroke={CHART_AXIS} fontSize={14} />
               <Tooltip
-                contentStyle={{
-                  background: "#0f172a",
-                  border: "1px solid #334155",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.3)"
-                }}
-                labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
-                itemStyle={{ color: "#cbd5e1" }}
+                contentStyle={CHART_TOOLTIP}
                 formatter={(value: unknown) => [`${Number(value).toFixed(1)} ms`, 'Response Time']}
               />
               <Line
@@ -304,62 +291,65 @@ export function AdminSystemMonitor() {
               />
             </LineChart>
           </ResponsiveContainer>
-        </main>
-      </div>
+        </AdminPanel>
+      </OpsGrid>
 
-      <main className="panel">
-        <h3>{t("admin.systemMonitor.serviceStatus", "Service Health")}</h3>
-        <div className="admin-service-grid">
+      <AdminPanel>
+        <SubTitle>{t("admin.systemMonitor.serviceStatus", "Service Health")}</SubTitle>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Object.entries(snapshot.services).map(([name, health]) => (
-            <div key={name} className={`admin-service-card ${health.ok ? 'is-online' : 'is-offline'}`}>
-              <div className="admin-service-signal"></div>
-              <div style={{ minWidth: 0 }}>
-                <strong>{name}</strong>
-                <p>
+            <div
+              key={name}
+              className="grid min-w-0 grid-cols-[auto_1fr_auto] items-center gap-3 rounded-card border border-line bg-surface p-4"
+            >
+              <span
+                className={
+                  "size-2.5 shrink-0 rounded-pill " +
+                  (health.ok
+                    ? "bg-success shadow-[0_0_12px_color-mix(in_srgb,var(--success)_65%,transparent)]"
+                    : "bg-danger shadow-[0_0_12px_color-mix(in_srgb,var(--danger)_55%,transparent)]")
+                }
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <strong className="block truncate text-xs capitalize text-ink">{name}</strong>
+                <p className="mt-1 truncate text-[11px] text-ink-muted">
                   {health.required ? t("common.required", "Required") : t("common.optional", "Optional")}
                   {health.latency_ms !== undefined && ` • ${health.latency_ms}ms`}
                 </p>
               </div>
-              <code>{health.ok ? "OK" : "FAILED"}</code>
+              <code className="font-mono text-[11px] text-ink-muted">{health.ok ? "OK" : "FAILED"}</code>
             </div>
           ))}
         </div>
-      </main>
+      </AdminPanel>
 
-      <main className="panel">
-        <h3>{t("admin.systemMonitor.model", "Model Configuration")}</h3>
-        <div className="ops-kpi-grid ops-kpi-grid-secondary">
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.enabled", "Enabled")}</span>
-            <strong>{snapshot.model.enabled ? t("common.yes", "是") : t("common.no", "否")}</strong>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.provider", "Provider")}</span>
-            <strong>{snapshot.model.provider}</strong>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.chatModel", "Chat Model")}</span>
-            <strong style={{ fontSize: 'var(--text-lg)' }}>{snapshot.model.chat_model}</strong>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.reasoningModel", "Reasoning Model")}</span>
-            <strong style={{ fontSize: 'var(--text-lg)' }}>{snapshot.model.reasoning_model}</strong>
-          </div>
-
-          <div className="ops-kpi-card">
-            <span>{t("admin.systemMonitor.embeddingModel", "Embedding Model")}</span>
-            <strong style={{ fontSize: 'var(--text-lg)' }}>{snapshot.model.embedding_model || "-"}</strong>
-          </div>
-
-          <div className="ops-kpi-card" style={{ gridColumn: 'span 2' }}>
-            <span>{t("admin.systemMonitor.baseUrl", "Base URL")}</span>
-            <strong style={{ fontSize: 'var(--text-sm)', wordBreak: 'break-all' }}>{snapshot.model.base_url}</strong>
-          </div>
-        </div>
-      </main>
-    </>
+      <AdminPanel>
+        <SubTitle>{t("admin.systemMonitor.model", "Model Configuration")}</SubTitle>
+        <KpiGrid cols={5} className="mb-0">
+          <KpiCard
+            label={t("admin.systemMonitor.enabled", "Enabled")}
+            value={snapshot.model.enabled ? t("common.yes", "是") : t("common.no", "否")}
+          />
+          <KpiCard label={t("admin.systemMonitor.provider", "Provider")} value={snapshot.model.provider} />
+          <KpiCard
+            label={t("admin.systemMonitor.chatModel", "Chat Model")}
+            value={<span className="text-sm">{snapshot.model.chat_model}</span>}
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.reasoningModel", "Reasoning Model")}
+            value={<span className="text-sm">{snapshot.model.reasoning_model}</span>}
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.embeddingModel", "Embedding Model")}
+            value={<span className="text-sm">{snapshot.model.embedding_model || "-"}</span>}
+          />
+          <KpiCard
+            label={t("admin.systemMonitor.baseUrl", "Base URL")}
+            value={<span className="text-xs [overflow-wrap:anywhere]">{snapshot.model.base_url}</span>}
+          />
+        </KpiGrid>
+      </AdminPanel>
+    </main>
   );
 }

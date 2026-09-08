@@ -4,27 +4,6 @@ import tailwindcss from "@tailwindcss/vite";
 // @ts-ignore - JavaScript plugin without type definitions
 import inlineCriticalCSS from './vite-plugin-inline-critical.js';
 
-function isCss(id: string) {
-  return id.endsWith(".css");
-}
-
-function isChatRouteCss(id: string) {
-  return (
-    id.includes('pages/chat-entry.css') ||
-    id.includes('pages/chat.css') ||
-    id.includes('pages/chat-responsive.css') ||
-    id.includes('themes/light/chat.css') ||
-    id.includes('components/topbar') ||
-    id.includes('components/sidebar') ||
-    id.includes('components/welcome-screen.css') ||
-    id.includes('features/messages.css') ||
-    id.includes('features/composer') ||
-    id.includes('features/citations.css') ||
-    id.includes('features/graph.css') ||
-    id.includes('features/process.css')
-  );
-}
-
 function createBackendProxy(rewriteAppBase = false) {
   return {
     target: "http://127.0.0.1:8000",
@@ -43,34 +22,12 @@ export default defineConfig({
       "@": "/src",
     },
   },
+  /* No `manualChunks` for CSS any more. Every rule here named a stylesheet
+     that no longer exists -- the chat, auth, profile, modal and admin route
+     sheets are all Tailwind now -- and a chunking rule that matches nothing is
+     one more thing to read. `cssCodeSplit` still splits per dynamic import. */
   build: {
     cssCodeSplit: true,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // Component-level CSS splitting (Phase 4)
-          if (isCss(id) && id.includes('components/modals.css')) {
-            return 'modal-styles';
-          }
-          if (isCss(id) && id.includes('components/dropdowns.css')) {
-            return 'dropdown-styles';
-          }
-          // Route-specific CSS splitting (Phase 3)
-          if (isCss(id) && (id.includes('pages/auth-entry.css') || id.includes('pages/auth/'))) {
-            return 'auth-styles';
-          }
-          if (isCss(id) && isChatRouteCss(id)) {
-            return 'chat-styles';
-          }
-          if (isCss(id) && (id.includes('pages/admin-entry.css') || id.includes('pages/admin/'))) {
-            return 'admin-styles';
-          }
-          if (isCss(id) && id.includes('pages/profile')) {
-            return 'profile-styles';
-          }
-        }
-      }
-    }
   },
   server: {
     port: 5173,
@@ -98,6 +55,10 @@ export default defineConfig({
       "/query": createBackendProxy(),
       "/admin": createBackendProxy(),
       "/user": createBackendProxy(),
+      // Fetched by `services/api/admin.ts::modelCatalog`. Without an entry
+      // here Vite's SPA fallback answers it with index.html, and the settings
+      // drawer then reads `providers` off a parsed HTML page.
+      "/model-catalog": createBackendProxy(),
       "/api/v1": createBackendProxy(),
       "/api": createBackendProxy(),
       "/app/auth": createBackendProxy(true),
@@ -108,6 +69,7 @@ export default defineConfig({
       "/app/query": createBackendProxy(true),
       // Note: /app/admin is handled by frontend router, not proxied to backend
       "/app/user": createBackendProxy(true),
+      "/app/model-catalog": createBackendProxy(true),
       "/app/api": createBackendProxy(true),
     },
   },

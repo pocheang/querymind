@@ -1,29 +1,62 @@
-/* Minimal first-paint CSS inlined by vite-plugin-inline-critical.
-   Full component/page styling lives in the normal CSS chunks. */
+/* Minimal first-paint CSS, inlined into <head> by vite-plugin-inline-critical.
+   Full component/page styling lives in the normal CSS chunks.
+
+   READ THIS BEFORE EDITING.
+
+   This file is inlined verbatim and, because the plugin runs with
+   `order: 'post'`, its <style> tag lands AFTER the <link rel="stylesheet">
+   Vite injects. Nothing in here is wrapped in `@layer`, and an unlayered
+   declaration beats every cascade layer -- including `utilities`. So the
+   `body`, `html`, `*` and `#root` rules below cannot be overridden by any
+   Tailwind class: `<body className="aurora-bg">` would lose silently.
+
+   Two consequences:
+
+     1. The aurora wash is painted here rather than by the `aurora-bg`
+        utility. That is deliberate and is the better arrangement anyway --
+        the warm ground is up before the stylesheet loads, so there is no
+        flash of a different background.
+     2. The token values below are a SECOND COPY of the ones in
+        core/theme-amber.css. Change a colour there and it must change here
+        too, or first paint renders in the old palette for a frame.
+
+   Keep this file small. Anything added here is permanently unoverridable. */
 
 :root {
-  --bg: #fafbfc;
-  --bg-secondary: #f5f7fa;
+  --bg-page: #fdfaf0;
   --surface: #ffffff;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  /* Content, not decoration: 4.61:1 on white. Was #94a3b8 at 2.56:1, which is
-     below AA for any text and was being used for metric labels, struck-through
-     feature rows and status lines. The pale value survives as `--text-faint`
-     for placeholders, where the contrast minimum does not apply -- darkening a
-     placeholder makes an empty field look filled. Mirrors the split
-     `themes/light/contrast.css` already made for the chat theme. */
-  --text-tertiary: #5f6976;
-  --text-faint: #94a3b8;
-  --border-light: #e2e8f0;
-  /* 4.62:1 on white, as text and as a fill carrying white text alike. Was
-     #3b82f6 at 3.68:1 -- the value `contrast.css` had already measured and
-     replaced, but only inside `.page-shell`. Darkened by the smallest amount
-     that clears AA, so the hue is unchanged. */
-  --accent: #2f66c1;
-  --accent-hover: #2563eb;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Brand, split by role -- see core/theme-amber.css for the measured WCAG
+     ratios. Only --brand may carry white text (5.02:1); --brand-accent is
+     decoration only (3.05:1) and must never be used as text. */
+  --brand: #b45309;
+  --brand-hover: #92400e;
+  --brand-accent: #d97706;
+
+  --text-main: #292524;
+  /* 4.82:1 on the darkest point of the aurora wash, 5.32 on the flat page and
+     5.56 on a white card. Was #78716c (stone-500), which measures 4.59 on the
+     flat page but only 4.16 where the aurora pools are strongest -- and the
+     shell paints that wash behind every surface, so the flat-page number was
+     never the one that mattered. Darkened by the smallest step that clears AA
+     against the wash, hue and saturation held. */
+  --text-muted: #6e6762;
+  --border-neutral: rgba(231, 229, 228, 0.9);
+
+  --aurora-1: rgba(245, 158, 11, 0.16);
+  --aurora-2: rgba(251, 191, 36, 0.18);
+  --aurora-3: rgba(253, 224, 71, 0.15);
+  --aurora-4: rgba(249, 115, 22, 0.1);
+
+  --font-sans:
+    "Inter Variable", "Inter", "Noto Sans SC", "Microsoft YaHei UI", "PingFang SC", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+
+  /* Aliases so an unmigrated stylesheet loaded before main.css still reads
+     something warm rather than falling back to an unset variable. */
+  --bg: var(--bg-page);
+  --text-primary: var(--text-main);
+  --accent: var(--brand);
 }
 
 * {
@@ -43,14 +76,22 @@ html {
   text-rendering: optimizeLegibility;
 }
 
+/* The aurora page wash. Mirrors the `aurora-bg` utility in
+   core/app-utilities.css; both exist because that utility cannot reach <body>
+   past this file (see the header). */
 body {
-  color: var(--text-primary);
+  color: var(--text-main);
   background:
-    radial-gradient(circle at top center, color-mix(in srgb, var(--accent) 9%, transparent), transparent 34%),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg-secondary) 100%);
+    radial-gradient(circle at 10% 12%, var(--aurora-1) 0%, transparent 45%),
+    radial-gradient(circle at 90% 15%, var(--aurora-2) 0%, transparent 42%),
+    radial-gradient(circle at 50% 90%, var(--aurora-3) 0%, transparent 50%),
+    radial-gradient(circle at 82% 76%, var(--aurora-4) 0%, transparent 38%), var(--bg-page);
+  background-attachment: fixed;
   font-family: var(--font-sans);
+  /* The design is 12px-first. Setting it once here rather than per element is
+     what keeps `text-xs` out of several hundred class strings. */
+  font-size: 0.75rem;
   line-height: 1.6;
-  transition: background-color var(--transition-base), color var(--transition-base);
 }
 
 button,
@@ -62,5 +103,5 @@ select {
 
 .app-loading {
   min-height: 100vh;
-  background: var(--bg);
+  background: var(--bg-page);
 }

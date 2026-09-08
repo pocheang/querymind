@@ -1,5 +1,7 @@
 import { AdminFormField } from "@/components/AdminFormField";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { AdminPanel, Hint, SectionHead, TwoCol } from "./components/AdminPrimitives";
 
 type Props = {
   adminUsername: string;
@@ -41,10 +43,10 @@ export function AdminCreateForm({
   const { t } = useTranslation();
 
   return (
-    <main className="panel admin-create-panel">
-      <div className="section-head"><strong>{t("admin.ui.createAdmin")}</strong></div>
-      <p className="muted admin-create-hint">{t("admin.ui.createAdminHint")}</p>
-      <div className="ops-two-col admin-create-grid">
+    <AdminPanel as="main" className="mx-auto grid max-w-3xl gap-3 p-6">
+      <SectionHead title={t("admin.ui.createAdmin")} />
+      <Hint>{t("admin.ui.createAdminHint")}</Hint>
+      <TwoCol className="gap-3.5">
         <AdminFormField
           label={t("admin.ui.adminUsername")}
           value={adminUsername}
@@ -58,8 +60,8 @@ export function AdminCreateForm({
           onChange={onAdminPasswordChange}
           placeholder={t("admin.ui.passwordRules")}
         />
-      </div>
-      <div className="ops-two-col admin-create-grid">
+      </TwoCol>
+      <TwoCol className="gap-3.5">
         <AdminFormField
           label={t("admin.ui.confirmPassword")}
           type="password"
@@ -74,8 +76,8 @@ export function AdminCreateForm({
           onChange={onAdminApprovalTokenChange}
           placeholder={t("admin.ui.myApprovalTokenPlaceholder")}
         />
-      </div>
-      <div className="ops-two-col admin-create-grid">
+      </TwoCol>
+      <TwoCol className="gap-3.5">
         <AdminFormField
           label={t("admin.ui.newAdminToken")}
           type="password"
@@ -89,20 +91,20 @@ export function AdminCreateForm({
           onChange={onAdminTicketIdChange}
           placeholder={t("admin.ui.ticketExample")}
         />
-      </div>
-      <div className="ops-two-col admin-create-grid">
+      </TwoCol>
+      <TwoCol className="gap-3.5">
         <AdminFormField
           label={t("admin.ui.reason")}
           value={adminReason}
           onChange={onAdminReasonChange}
           placeholder={t("admin.ui.reasonPlaceholder")}
         />
-        <div className="admin-create-actions">
-          <button type="button" className="primary-action-btn" disabled={creatingAdmin} onClick={onCreateAdmin}>
+        <div className="grid items-end">
+          <Button className="h-10 w-full" size="sm" disabled={creatingAdmin} onClick={onCreateAdmin}>
             {creatingAdmin ? t("admin.ui.creating") : t("admin.ui.createAdmin")}
-          </button>
+          </Button>
         </div>
-      </div>
-    </main>
+      </TwoCol>
+    </AdminPanel>
   );
 }

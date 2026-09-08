@@ -5,6 +5,17 @@ import { AdminAuditLogTable } from "@/pages/admin/AdminAuditLogTable";
 import { AdminFormSelect } from "@/components/AdminFormField";
 import { AdminPagination } from "@/components/AdminPagination";
 import { ACTION_KEYWORD_OPTIONS } from "@/pages/admin/constants";
+import { Button } from "@/components/ui/button";
+import {
+  AdminField,
+  AdminSkeleton,
+  FilterGrid,
+  Hint,
+  RowActions,
+  SectionHead,
+  StatePanel,
+} from "./components/AdminPrimitives";
+import { ADMIN_FIELD } from "./components/adminClasses";
 
 
 type Props = {
@@ -72,32 +83,40 @@ export function AdminAuditLogManagement({
   }, [logs, currentPage, pageSize]);
 
   return (
-    <main className="panel admin-audit-panel">
-      <div className="section-head">
-        <strong>{t("admin.auditLog")}</strong>
-        <div className="row-actions admin-audit-head-actions">
-          <select value={auditLimit} onChange={(e) => onAuditLimitChange(Number(e.target.value) || 200)}>
+    <main className="space-y-6">
+      <SectionHead title={t("admin.auditLog")}>
+<RowActions className="flex-nowrap justify-end gap-1.5 rounded-card border border-line bg-brand-surface-hover p-1">
+          <select
+            className={ADMIN_FIELD + " w-auto min-w-32 shrink-0 font-mono font-semibold"}
+            value={auditLimit}
+            onChange={(e) => onAuditLimitChange(Number(e.target.value) || 200)}
+          >
             <option value={100}>{t("admin.ui.last100")}</option>
             <option value={200}>{t("admin.ui.last200")}</option>
             <option value={500}>{t("admin.ui.last500")}</option>
           </select>
-          <button type="button" className="secondary tiny-btn" onClick={onRefresh}>{t("common.refresh")}</button>
-        </div>
-      </div>
+          <Button variant="secondary" size="xs" onClick={onRefresh}>
+            {t("common.refresh")}
+          </Button>
+        </RowActions>
+      </SectionHead>
 
-      <p className="muted admin-audit-hint">{t("admin.ui.auditHint")}</p>
+      <Hint>{t("admin.ui.auditHint")}</Hint>
 
       {!hasExactActorMatch && (
-        <p className="muted admin-audit-hint admin-audit-match-hint">
-          {t("admin.ui.actorFuzzyHint")}
-        </p>
+        <Hint className="-mt-1.5 text-info">{t("admin.ui.actorFuzzyHint")}</Hint>
       )}
 
-      <div className="ops-two-col admin-filter-grid">
-        <label className="admin-field">
-          <span>{t("admin.ui.actor")}</span>
-          <input list="actor-user-options" placeholder={t("admin.ui.actorPlaceholder")} value={auditActorUserId} onChange={(e) => onAuditActorUserIdChange(e.target.value)} />
-        </label>
+      <FilterGrid>
+        <AdminField label={t("admin.ui.actor")}>
+          <input
+            className={ADMIN_FIELD}
+            list="actor-user-options"
+            placeholder={t("admin.ui.actorPlaceholder")}
+            value={auditActorUserId}
+            onChange={(e) => onAuditActorUserIdChange(e.target.value)}
+          />
+        </AdminField>
         <AdminFormSelect
           label={t("admin.ui.action")}
           value={auditActionKeyword}
@@ -107,9 +126,9 @@ export function AdminAuditLogManagement({
             ...ACTION_KEYWORD_OPTIONS.map((action) => ({ value: action, label: action })),
           ]}
         />
-      </div>
+      </FilterGrid>
 
-      <div className="ops-two-col admin-filter-grid">
+      <FilterGrid>
         <AdminFormSelect
           label={t("admin.ui.category")}
           value={auditEventCategory}
@@ -134,9 +153,9 @@ export function AdminAuditLogManagement({
             { value: "high", label: "high" },
           ]}
         />
-      </div>
+      </FilterGrid>
 
-      <div className="ops-two-col admin-filter-grid">
+      <FilterGrid>
         <AdminFormSelect
           label={t("admin.ui.result")}
           value={auditResult}
@@ -148,16 +167,18 @@ export function AdminAuditLogManagement({
             { value: "denied", label: "denied" },
           ]}
         />
-        <div className="row-actions admin-audit-quick-actions">
-          <button type="button" className="secondary tiny-btn" onClick={() => onAuditResultChange("failed")}>{t("admin.ui.failedOnly")}</button>
-          <button type="button" className="secondary tiny-btn" onClick={() => onAuditSeverityChange("high")}>{t("admin.ui.highRiskOnly")}</button>
-          <button type="button" className="secondary tiny-btn" onClick={onClearFilters}>{t("admin.ui.clear")}</button>
-        </div>
-      </div>
+        <RowActions className="self-end">
+          <Button variant="secondary" size="xs" onClick={() => onAuditResultChange("failed")}>{t("admin.ui.failedOnly")}</Button>
+          <Button variant="secondary" size="xs" onClick={() => onAuditSeverityChange("high")}>{t("admin.ui.highRiskOnly")}</Button>
+          <Button variant="secondary" size="xs" onClick={onClearFilters}>
+            {t("admin.ui.clear")}
+          </Button>
+        </RowActions>
+      </FilterGrid>
 
-      {loadingLogs && <div className="skeleton-list" />}
-      {!loadingLogs && <p className="muted admin-audit-scroll-hint">{t("admin.ui.auditScrollHint")}</p>}
-      {!loadingLogs && logs.length === 0 && <div className="status">{t("admin.ui.auditEmpty")}</div>}
+      {loadingLogs && <AdminSkeleton />}
+      {!loadingLogs && <Hint className="-mt-0.5 mb-0.5">{t("admin.ui.auditScrollHint")}</Hint>}
+      {!loadingLogs && logs.length === 0 && <StatePanel>{t("admin.ui.auditEmpty")}</StatePanel>}
       {!loadingLogs && logs.length > 0 && (
         <>
           <AdminPagination

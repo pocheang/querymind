@@ -148,7 +148,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       # Gates on errors. The threshold is a ratchet at the current warning
-      # count (25: react-refresh, exhaustive-deps, unused-vars, explicit-any),
+      # count (24: react-refresh, exhaustive-deps, unused-vars, explicit-any),
       # so no new warning can land while those are worked through separately.
       # Lower it as they are fixed; never raise it.
       - name: Lint
@@ -178,3 +178,11 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # After the build on purpose: it compares every class name in src/ against
+      # the CSS the browser actually receives, which does not exist until then.
+      # `IntegrationsPanel` carried two names with no rule through a whole visual
+      # rewrite and two contrast audits, because lint, tsc and the tests are all
+      # blind to a class that matches nothing.
+      - name: Dead classes
+        run: npm run lint:classes

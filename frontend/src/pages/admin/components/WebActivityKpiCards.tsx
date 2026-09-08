@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { KpiCard, KpiGrid } from "./AdminPrimitives";
 
 interface Stats {
   total_searches: number;
@@ -17,13 +18,22 @@ export function WebActivityKpiCards({ stats }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (
-    <div className="ops-kpi-grid ops-kpi-grid-primary">
-      <div className="ops-kpi-card"><span>{t("admin.webActivity.totalSearches", "Total Searches")}</span><strong>{stats.total_searches}</strong></div>
-      <div className="ops-kpi-card"><span>{t("admin.webActivity.successRate", "Success Rate")}</span><strong>{(stats.success_rate * 100).toFixed(1)}%</strong></div>
-      <div className="ops-kpi-card"><span>{t("admin.webActivity.uniqueUsers", "Unique Users")}</span><strong>{stats.unique_users}</strong></div>
-      <div className="ops-kpi-card"><span>{t("admin.webActivity.uniqueWebsites", "Unique Websites")}</span><strong>{stats.unique_websites}</strong></div>
-      <div className="ops-kpi-card"><span>{t("admin.webActivity.avgQueryLength", "Avg Query Length")}</span><strong>{stats.avg_query_length.toFixed(0)}</strong></div>
-      <div className="ops-kpi-card"><span>{t("admin.webActivity.avgSearchTime", "Avg Search Time")}</span><strong>{stats.avg_search_time.toFixed(2)}s</strong></div>
-    </div>
+    <KpiGrid cols={6}>
+      <KpiCard label={t("admin.webActivity.totalSearches", "Total Searches")} value={stats.total_searches} />
+      <KpiCard
+        label={t("admin.webActivity.successRate", "Success Rate")}
+        value={`${(stats.success_rate * 100).toFixed(1)}%`}
+      />
+      <KpiCard label={t("admin.webActivity.uniqueUsers", "Unique Users")} value={stats.unique_users} />
+      <KpiCard label={t("admin.webActivity.uniqueWebsites", "Unique Websites")} value={stats.unique_websites} />
+      <KpiCard
+        label={t("admin.webActivity.avgQueryLength", "Avg Query Length")}
+        value={stats.avg_query_length.toFixed(0)}
+      />
+      <KpiCard
+        label={t("admin.webActivity.avgSearchTime", "Avg Search Time")}
+        value={`${stats.avg_search_time.toFixed(2)}s`}
+      />
+    </KpiGrid>
   );
 }

@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 
 type AdminPaginationProps = {
   totalItems: number;
@@ -27,17 +28,20 @@ export function AdminPagination({
   const safeCurrentPage = Math.max(1, Math.min(currentPage, safeTotalPages));
 
   return (
-    <nav aria-label={t("admin.ui.pagination", "Pagination")} className="admin-pagination">
-      <div className="admin-pagination-info">
-        {t("admin.ui.totalItems", { count: totalItems })}
-      </div>
-      <div className="admin-pagination-controls">
-        <div className="admin-pagination-select-wrap">
+    <nav
+      aria-label={t("admin.ui.pagination", "Pagination")}
+      className="flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle pt-2 text-[11px]"
+    >
+      <span className="text-ink-muted">{t("admin.ui.totalItems", { count: totalItems })}</span>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-1.5 text-ink-muted">
           <span>{t("admin.ui.showPerPage")}</span>
           <select
             value={safePageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value) || pageSizeOptions[0])}
             aria-label={t("admin.ui.itemsPerPage", "Items per page")}
+            className="h-6 rounded-control border border-brand-border bg-surface px-1.5 text-[11px] text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
           >
             {pageSizeOptions.map((option) => (
               <option key={option} value={option}>
@@ -46,18 +50,20 @@ export function AdminPagination({
             ))}
           </select>
           <span>{t("admin.ui.items")}</span>
-        </div>
-        <div className="admin-pagination-pages">
-          <button
-            type="button"
-            className="admin-pagination-btn"
+        </label>
+
+        <div className="flex items-center gap-0.5">
+          <Button
+            variant="secondary"
+            size="xs"
             disabled={safeCurrentPage === 1}
             aria-disabled={safeCurrentPage === 1}
             aria-label={t("common.previous") || "Previous page"}
             onClick={() => onPageChange(Math.max(1, safeCurrentPage - 1))}
           >
             {t("common.previous")}
-          </button>
+          </Button>
+
           {Array.from({ length: safeTotalPages }).map((_, idx) => {
             const pageNum = idx + 1;
             if (safeTotalPages > MAX_VISIBLE_PAGES) {
@@ -66,7 +72,10 @@ export function AdminPagination({
               if (!isNearCurrent && !isFirstOrLast) {
                 if (pageNum === 2 || pageNum === safeTotalPages - 1) {
                   return (
-                    <span key={pageNum} style={{ padding: "0 4px", opacity: 0.5 }} aria-hidden="true">
+                    /* `--text-faint` is placeholder-only -- it measures 2.52
+                       here, and `aria-hidden` hides this from a screen reader,
+                       not from a sighted reader. */
+                    <span key={pageNum} className="px-1 text-ink-muted" aria-hidden="true">
                       ...
                     </span>
                   );
@@ -74,29 +83,32 @@ export function AdminPagination({
                 return null;
               }
             }
+            const current = safeCurrentPage === pageNum;
             return (
-              <button
+              <Button
                 key={pageNum}
-                type="button"
-                className={`admin-pagination-btn ${safeCurrentPage === pageNum ? "active" : ""}`}
+                variant={current ? "flat" : "ghost"}
+                size="xs"
+                className="min-w-6 font-mono"
                 onClick={() => onPageChange(pageNum)}
                 aria-label={t("admin.ui.goToPage", { page: pageNum }) || `Go to page ${pageNum}`}
-                aria-current={safeCurrentPage === pageNum ? "page" : undefined}
+                aria-current={current ? "page" : undefined}
               >
                 {pageNum}
-              </button>
+              </Button>
             );
           })}
-          <button
-            type="button"
-            className="admin-pagination-btn"
+
+          <Button
+            variant="secondary"
+            size="xs"
             disabled={safeCurrentPage === safeTotalPages}
             aria-disabled={safeCurrentPage === safeTotalPages}
             aria-label={t("common.next") || "Next page"}
             onClick={() => onPageChange(Math.min(safeTotalPages, safeCurrentPage + 1))}
           >
             {t("common.next")}
-          </button>
+          </Button>
         </div>
       </div>
     </nav>

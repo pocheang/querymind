@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { OpsOverview } from "@/types/api";
+import { AdminBlock, TrendRow, TwoCol } from "./components/AdminPrimitives";
 
 type Props = {
   ops: OpsOverview;
@@ -9,80 +10,68 @@ type Props = {
   hourlyMax: number;
 };
 
+const share = (count: number, max: number) => Math.max(4, (count / max) * 100);
+
 export function AdminOpsTrendCharts({ ops, actionMax, resourceMax, errorMax, hourlyMax }: Readonly<Props>) {
   const { t } = useTranslation();
 
   return (
     <>
-      <div className="ops-two-col">
-        <div className="ops-trend-list">
-          <strong>{t("admin.ui.topActions")}</strong>
+      <TwoCol>
+        <AdminBlock title={t("admin.ui.topActions")} titleAs="strong">
           {ops.top_actions.map((item) => (
-            <div key={item.action} className="ops-trend-row">
-              <span>{item.action}</span>
-              <div className="ops-trend-bar">
-                <div className="ops-trend-fill" style={{ width: `${Math.max(4, (item.count / actionMax) * 100)}%` }} />
-              </div>
-              <strong>{item.count}</strong>
-            </div>
+            <TrendRow key={item.action} label={item.action} value={item.count} percent={share(item.count, actionMax)} />
           ))}
-        </div>
-        <div className="ops-trend-list">
-          <strong>{t("admin.ui.topResources")}</strong>
+        </AdminBlock>
+        <AdminBlock title={t("admin.ui.topResources")} titleAs="strong">
           {ops.top_resource_types.map((item) => (
-            <div key={item.resource_type} className="ops-trend-row">
-              <span>{item.resource_type}</span>
-              <div className="ops-trend-bar">
-                <div className="ops-trend-fill" style={{ width: `${Math.max(4, (item.count / resourceMax) * 100)}%` }} />
-              </div>
-              <strong>{item.count}</strong>
-            </div>
+            <TrendRow
+              key={item.resource_type}
+              label={item.resource_type}
+              value={item.count}
+              percent={share(item.count, resourceMax)}
+            />
           ))}
-        </div>
-      </div>
+        </AdminBlock>
+      </TwoCol>
 
-      <div className="ops-two-col">
-        <div className="ops-trend-list">
-          <strong>{t("admin.ui.topErrors")}</strong>
+      <TwoCol>
+        <AdminBlock title={t("admin.ui.topErrors")} titleAs="strong">
           {ops.top_error_reasons.map((item) => (
-            <div key={item.reason} className="ops-trend-row">
-              <span title={item.reason}>{item.reason.slice(0, 18)}</span>
-              <div className="ops-trend-bar">
-                <div className="ops-trend-fill" style={{ width: `${Math.max(4, (item.count / errorMax) * 100)}%` }} />
-              </div>
-              <strong>{item.count}</strong>
-            </div>
+            <TrendRow
+              key={item.reason}
+              label={item.reason.slice(0, 18)}
+              title={item.reason}
+              value={item.count}
+              percent={share(item.count, errorMax)}
+            />
           ))}
-        </div>
-        <div className="ops-trend-list">
-          <strong>{t("admin.ui.serviceHealth")}</strong>
+        </AdminBlock>
+        <AdminBlock title={t("admin.ui.serviceHealth")} titleAs="strong">
           {Object.entries(ops.services || {}).map(([name, service]) => (
-            <div key={name} className="ops-trend-row">
-              <span>{name}</span>
-              <strong>
-                {service.ok
+            <TrendRow
+              key={name}
+              label={name}
+              value={
+                service.ok
                   ? t("admin.ui.healthy", { latency: service.latency_ms ?? 0 })
-                  : t("admin.ui.unhealthy", { error: service.error || "unknown" })}
-              </strong>
-            </div>
+                  : t("admin.ui.unhealthy", { error: service.error || "unknown" })
+              }
+            />
           ))}
-        </div>
-      </div>
+        </AdminBlock>
+      </TwoCol>
 
-      <div className="ops-trend-list">
-        <strong>{t("admin.ui.hourlyTrend")}</strong>
+      <AdminBlock title={t("admin.ui.hourlyTrend")} titleAs="strong">
         {ops.hourly.map((item) => (
-          <div key={item.bucket} className="ops-trend-row">
-            <span>{item.bucket.slice(11, 16)}</span>
-            <div className="ops-trend-bar">
-              <div className="ops-trend-fill" style={{ width: `${Math.max(4, (item.count / hourlyMax) * 100)}%` }} />
-            </div>
-            <strong>
-              {item.count}/{item.errors}
-            </strong>
-          </div>
+          <TrendRow
+            key={item.bucket}
+            label={item.bucket.slice(11, 16)}
+            value={`${item.count}/${item.errors}`}
+            percent={share(item.count, hourlyMax)}
+          />
         ))}
-      </div>
+      </AdminBlock>
     </>
   );
 }

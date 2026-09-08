@@ -1,0 +1,133 @@
+/* ============================================
+   Custom utilities
+
+   Tailwind v4's `@utility` directive, not the v3 `@layer utilities { .x {} }`
+   form. The difference matters here: `@utility` registers the class with
+   Tailwind itself, so it lands in the real `utilities` layer, participates in
+   `@source` scanning, and -- the reason it is worth doing at all -- can be
+   overridden from a call site the same way any other utility can.
+
+   Most of these earn their place because writing them as utility strings is
+   strictly worse to read: each is a multi-layer gradient or a backdrop
+   filter, not a single declaration. `field-shell` is here for a different
+   reason -- it styles a DESCENDANT, which a class list on the wrapper cannot
+   say for itself.
+   ============================================ */
+
+/* The page wash. Four soft radial pools over the warm base, matching the
+   design prototype's `.aurora-bg` exactly. */
+@utility aurora-bg {
+  background:
+    radial-gradient(circle at 10% 12%, var(--aurora-1) 0%, transparent 45%),
+    radial-gradient(circle at 90% 15%, var(--aurora-2) 0%, transparent 42%),
+    radial-gradient(circle at 50% 90%, var(--aurora-3) 0%, transparent 50%),
+    radial-gradient(circle at 82% 76%, var(--aurora-4) 0%, transparent 38%), var(--bg-page);
+  color: var(--text-main);
+}
+
+/* A field that draws the focus affordance for the control inside it.
+
+   `core/surfaces.css` gives every `input, textarea, select` a 3px
+   `:focus-visible` ring. That is right for an UNCLASSED field -- `reset.css` is
+   this app's preflight, so nothing else would show focus at all -- but it also
+   reaches the bare input inside a bordered wrapper, and then two elements draw
+   an affordance for one control. Measured on the login field: three concentric
+   amber marks on focus, the wrapper's 2px ring outside its 1px accent border
+   and the input's own 3px ring inside it.
+
+   The wrapper is the field a reader sees, so the wrapper keeps the ring and
+   the control gives its up. `@utility` output lands in the `utilities` layer,
+   which outranks `design` where surfaces.css sits, so this wins on layer order
+   rather than on specificity -- the element rule scores higher and it does not
+   matter.
+
+   Focus is NOT removed, only moved: every call site pairs this with
+   `focus-within:` styling of its own, and `AuthInput.test.tsx` asserts the
+   pairing so a wrapper cannot end up showing nothing. */
+@utility field-shell {
+  & :is(input, textarea, select):focus-visible {
+    box-shadow: none;
+  }
+}
+
+/* Frosted chrome: the top nav, the sidebar, modals, the composer body.
+   Unlike the prototype's version this sets `border-width` and `border-style`
+   as well as the colour. There, `.glass-panel` set only `border-color`, so
+   every call site had to remember to add `border border-amber-200/80` -- and
+   the Tailwind border-colour utility then fought the class for which colour
+   won. Owning all three properties makes `glass-panel` mean one thing. */
+@utility glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-panel);
+}
+
+/* Content surfaces: cards, tiles, the assistant message body. Lighter blur
+   and a warmer border than the chrome above it. */
+@utility glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border-card);
+  box-shadow: var(--elev-1);
+}
+
+/* Horizontal rails -- tag filters, tab strips -- that should scroll without
+   showing a bar over the warm ground. */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* The composer's gradient ring. The "border" is 1.5px of padding on a
+   gradient background, so the inner surface must use --composer-radius-inner
+   and this must use --composer-radius-outer; the delta between them IS the
+   padding. Focus brightens the gradient and lifts the whole capsule. */
+@utility composer-ring {
+  position: relative;
+  padding: 1.5px;
+  border-radius: var(--composer-radius-outer);
+  background: var(--composer-glow);
+  box-shadow: var(--composer-shadow);
+  transition: all var(--duration-slow) var(--ease-standard);
+
+  &:focus-within {
+    background: var(--composer-glow-focus);
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-ring:focus-within {
+    transform: none;
+  }
+}
+
+/* The toast auto-dismiss countdown.
+ *
+ * Not a utility: its duration comes from a prop, passed as the inline custom
+ * property `--toast-duration`, so the keyframe has to be a real rule. This is
+ * the only animation in the app whose timing is data. */
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.toast-progress {
+  animation: toast-progress var(--toast-duration, 4000ms) linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-progress {
+    animation: none;
+  }
+}

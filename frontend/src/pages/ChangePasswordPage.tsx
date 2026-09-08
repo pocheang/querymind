@@ -1,4 +1,9 @@
 import { useMemo, useState } from "react";
+
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
@@ -8,7 +13,10 @@ import { AuthInput } from "@/components/AuthInput";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { PasswordRequirements } from "@/components/PasswordRequirements";
 
-import "@/styles/pages/auth-entry.css";
+/** Validation hint: neutral until the field has been touched. */
+function hintClass(valid: boolean, touched: boolean) {
+  return cn("text-[10px]", !touched ? "text-ink-muted" : valid ? "text-success" : "text-danger");
+}
 
 export function ChangePasswordPage() {
   const { t } = useTranslation();
@@ -49,30 +57,31 @@ export function ChangePasswordPage() {
   };
 
   return (
-    <div className="auth-root">
-      <div className="auth-toolbar">
+    <div className="auth-root flex min-h-screen items-center justify-center p-4">
+      <div className="absolute right-4 top-4 z-10">
         <LanguageToggle />
       </div>
 
-      <main className="auth-card change-password-card">
-        <section className="auth-intro auth-intro-security">
-          <div className="badge">{t("pages.changePassword.badge")}</div>
-          <div className="auth-intro-copy">
-            <h1>{t("pages.changePassword.title")}</h1>
-            <p>{t("pages.changePassword.description")}</p>
+      <main className="glass-panel grid w-full max-w-3xl overflow-hidden rounded-panel shadow-elev-3 md:grid-cols-2">
+        <section className="hidden flex-col gap-4 bg-[image:var(--brand-gradient)] p-8 text-white md:flex">
+          <Badge variant="solid" size="pill" className="w-fit border-white/30 bg-white/15 uppercase tracking-wider">
+            {t("pages.changePassword.badge")}
+          </Badge>
+          <div className="space-y-2">
+            <h1 className="text-xl font-bold tracking-tight">{t("pages.changePassword.title")}</h1>
+            <p className="text-xs leading-relaxed text-white/80">{t("pages.changePassword.description")}</p>
           </div>
-
           <PasswordRequirements password={newPassword} />
         </section>
 
-        <section className="auth-form">
-          <div className="auth-form-header">
-            <h2>{t("pages.changePassword.formTitle")}</h2>
-            <p className="auth-form-subtitle">{t("pages.changePassword.formSubtitle")}</p>
+        <section className="space-y-3 bg-surface p-6 sm:p-8">
+          <div className="space-y-1">
+            <h2 className="text-lg font-bold tracking-tight text-ink">{t("pages.changePassword.formTitle")}</h2>
+            <p className="text-[11px] text-ink-muted">{t("pages.changePassword.formSubtitle")}</p>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="old-password">{t("pages.changePassword.currentPassword")}</label>
+          <div className="space-y-1">
+            <Label htmlFor="old-password">{t("pages.changePassword.currentPassword")}</Label>
             <AuthInput
               id="old-password"
               type="password"
@@ -82,15 +91,13 @@ export function ChangePasswordPage() {
               autoComplete="current-password"
               icon="lock"
             />
-            <div className={`hint ${oldPassword.length > 0 ? "ok" : ""}`}>
-              {oldPassword.length > 0
-                ? t("pages.changePassword.currentReady")
-                : t("pages.changePassword.currentHint")}
-            </div>
+            <p className={hintClass(oldPassword.length > 0, oldPassword.length > 0)}>
+              {oldPassword.length > 0 ? t("pages.changePassword.currentReady") : t("pages.changePassword.currentHint")}
+            </p>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="new-password">{t("pages.changePassword.newPassword")}</label>
+          <div className="space-y-1">
+            <Label htmlFor="new-password">{t("pages.changePassword.newPassword")}</Label>
             <AuthInput
               id="new-password"
               type="password"
@@ -100,17 +107,17 @@ export function ChangePasswordPage() {
               autoComplete="new-password"
               icon="lock"
             />
-            <div className={`hint ${validatePassword(newPassword) ? "ok" : newPassword.length > 0 ? "error" : ""}`}>
+            <p className={hintClass(validatePassword(newPassword), newPassword.length > 0)}>
               {validatePassword(newPassword)
                 ? t("pages.changePassword.newValid")
                 : newPassword.length > 0
                   ? t("pages.changePassword.newInvalid")
                   : t("pages.changePassword.newHint")}
-            </div>
+            </p>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="confirm-password">{t("pages.changePassword.confirmPassword")}</label>
+          <div className="space-y-1">
+            <Label htmlFor="confirm-password">{t("pages.changePassword.confirmPassword")}</Label>
             <AuthInput
               id="confirm-password"
               type="password"
@@ -123,39 +130,46 @@ export function ChangePasswordPage() {
               }}
               icon="lock"
             />
-            <div
-              className={`hint ${
-                confirmPassword.length > 0 ? (newPassword === confirmPassword ? "ok" : "error") : ""
-              }`}
-            >
+            <p className={hintClass(newPassword === confirmPassword, confirmPassword.length > 0)}>
               {confirmPassword.length === 0
                 ? t("pages.changePassword.confirmHint")
                 : newPassword === confirmPassword
                   ? t("pages.changePassword.confirmMatch")
                   : t("pages.changePassword.confirmMismatch")}
-            </div>
+            </p>
           </div>
 
           {oldPassword === newPassword && newPassword.length > 0 && (
-            <div className="alert alert-warning">{t("pages.changePassword.samePassword")}</div>
+            <p className="rounded-control border border-warning-border bg-warning-surface px-2.5 py-1.5 text-[11px] text-warning">
+              {t("pages.changePassword.samePassword")}
+            </p>
           )}
 
-          <div className="action-grid">
-            <button
-              type="button"
-              className="primary-action-btn"
-              disabled={!formValid || loading}
-              onClick={() => void changePassword()}
-            >
+          <div className="flex items-center gap-2">
+            <Button className="flex-1" disabled={!formValid || loading} onClick={() => void changePassword()}>
               {loading ? t("pages.changePassword.submitting") : t("pages.changePassword.submit")}
-            </button>
-            <button type="button" className="secondary auth-secondary-btn" onClick={() => navigate("/app")}>
+            </Button>
+            <Button variant="secondary" onClick={() => navigate("/app")}>
               {t("pages.changePassword.cancel")}
-            </button>
+            </Button>
           </div>
 
-          {status && <div className="status success">{status}</div>}
-          {error && <div className="status error">{error}</div>}
+          {status && (
+            <p
+              className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-[11px] text-success"
+              role="status"
+            >
+              {status}
+            </p>
+          )}
+          {error && (
+            <p
+              className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+              role="alert"
+            >
+              {error}
+            </p>
+          )}
         </section>
       </main>
     </div>

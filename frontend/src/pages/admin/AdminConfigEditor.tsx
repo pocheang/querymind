@@ -3,6 +3,9 @@ import { useTranslation } from "react-i18next";
 
 import { adminConfigApi } from "@/services/api/admin";
 import type { ConfigField } from "@/types/api";
+import { Button } from "@/components/ui/button";
+import { Muted, RowActions, SectionHead } from "./components/AdminPrimitives";
+import { ADMIN_TABLE } from "./components/adminClasses";
 
 /**
  * The configuration page, generated from the server's schema.
@@ -28,10 +31,10 @@ import type { ConfigField } from "@/types/api";
  * hardest thing on it to read.
  */
 const LAYER_STYLES: Record<ConfigField["layer"], string> = {
-  environment: "tw:bg-warning-light tw:text-warning",
-  "config-centre": "tw:bg-accent-soft tw:text-accent",
-  "runtime-file": "tw:bg-bg-secondary tw:text-text-secondary tw:border tw:border-border-light",
-  default: "tw:bg-bg-secondary tw:text-text-secondary tw:border tw:border-border-light",
+  environment: "bg-warning-surface text-warning",
+  "config-centre": "bg-brand-surface text-brand-text",
+  "runtime-file": "bg-surface-muted text-ink-muted border border-line",
+  default: "bg-surface-muted text-ink-muted border border-line",
 };
 
 function asInputValue(value: ConfigField["value"]): string {
@@ -94,30 +97,28 @@ export function AdminConfigEditor() {
   }, [edits, t]);
 
   return (
-    <section className="tw:rounded-panel tw:shadow-elev-1 tw:bg-surface tw:p-4">
-      <div className="section-head">
-        <strong>{t("admin.config.title")}</strong>
-        <div className="row-actions">
-          <button type="button" className="secondary tiny-btn" onClick={() => void load()} disabled={loading}>
+    <section className="rounded-panel shadow-elev-1 bg-surface p-4">
+      <SectionHead title={t("admin.config.title")}>
+<RowActions>
+          <Button variant="secondary" size="xs" onClick={() => void load()} disabled={loading}>
             {t("common.refresh")}
-          </button>
-          <button type="button" className="tiny-btn" onClick={() => void save()} disabled={!dirty || saving}>
+          </Button>
+          <Button size="xs" onClick={() => void save()} disabled={!dirty || saving}>
             {saving ? t("admin.ui.running") : t("admin.config.save", { count: Object.keys(edits).length })}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </RowActions></SectionHead>
 
-      {!centreEnabled && <p className="muted">{t("admin.config.noCentre")}</p>}
+      {!centreEnabled && <Muted>{t("admin.config.noCentre")}</Muted>}
       {message && (
-        <p className={message.kind === "error" ? "tw:text-danger" : "tw:text-success"} role="status">
+        <p className={message.kind === "error" ? "text-danger" : "text-success"} role="status">
           {message.text}
         </p>
       )}
 
       {groups.map(([group, groupFields]) => (
-        <div key={group} className="tw:mt-4">
-          <h4 className="tw:text-text-secondary tw:text-sm tw:uppercase">{t(`admin.config.group.${group}`, group)}</h4>
-          <table className="table">
+        <div key={group} className="mt-4">
+          <h4 className="text-ink-muted text-sm uppercase">{t(`admin.config.group.${group}`, group)}</h4>
+          <table className={ADMIN_TABLE}>
             <tbody>
               {groupFields.map((field) => {
                 const editable = field.editable_here && centreEnabled;
@@ -126,17 +127,17 @@ export function AdminConfigEditor() {
                   <tr key={field.alias}>
                     <td>
                       <code>{field.alias}</code>
-                      <div className="muted">{field.summary}</div>
+                      <Muted>{field.summary}</Muted>
                     </td>
                     <td>
-                      <span className={`tw:rounded-pill tw:px-2 tw:py-0.5 tw:text-xs ${LAYER_STYLES[field.layer]}`}>
+                      <span className={`rounded-pill px-2 py-0.5 text-xs ${LAYER_STYLES[field.layer]}`}>
                         {field.layer}
                       </span>
-                      {field.requires_restart && <span className="muted"> {t("admin.config.needsRestart")}</span>}
+                      {field.requires_restart && <Muted> {t("admin.config.needsRestart")}</Muted>}
                     </td>
                     <td>
                       {field.type === "bool" ? (
-                        <input
+                        <input className="size-3.5 shrink-0 accent-[var(--brand)]"
                           type="checkbox"
                           aria-label={field.alias}
                           disabled={!editable}
@@ -149,7 +150,7 @@ export function AdminConfigEditor() {
                         <input
                           type="text"
                           aria-label={field.alias}
-                          className="tw:rounded-control"
+                          className="rounded-control"
                           disabled={!editable}
                           value={current}
                           onChange={(event) =>

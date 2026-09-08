@@ -5,10 +5,12 @@
  * Displays tags as chips with remove functionality.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
-import { sessionManagementApi } from '../../services/sessionManagement';
-import './TagInput.css';
+import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { sessionManagementApi } from "../../services/sessionManagement";
+import { X } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 interface TagInputProps {
   value: string[];
@@ -18,15 +20,9 @@ interface TagInputProps {
   disabled?: boolean;
 }
 
-export const TagInput: React.FC<TagInputProps> = ({
-  value,
-  onChange,
-  placeholder,
-  maxTags = 10,
-  disabled = false,
-}) => {
+export const TagInput: React.FC<TagInputProps> = ({ value, onChange, placeholder, maxTags = 10, disabled = false }) => {
   const { t } = useTranslation();
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -46,8 +42,8 @@ export const TagInput: React.FC<TagInputProps> = ({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const loadAllTags = async () => {
@@ -55,7 +51,7 @@ export const TagInput: React.FC<TagInputProps> = ({
       const tags = await sessionManagementApi.getAllTags();
       setAllTags(tags);
     } catch (error) {
-      console.error('Failed to load tags:', error);
+      console.error("Failed to load tags:", error);
     }
   };
 
@@ -66,8 +62,8 @@ export const TagInput: React.FC<TagInputProps> = ({
     if (newInput.trim()) {
       // Filter suggestions: exclude already selected tags, match input
       const filtered = allTags
-        .filter(tag => !value.includes(tag))
-        .filter(tag => tag.toLowerCase().includes(newInput.toLowerCase()))
+        .filter((tag) => !value.includes(tag))
+        .filter((tag) => tag.toLowerCase().includes(newInput.toLowerCase()))
         .slice(0, 5);
 
       setSuggestions(filtered);
@@ -78,10 +74,10 @@ export const TagInput: React.FC<TagInputProps> = ({
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && input.trim()) {
+    if (e.key === "Enter" && input.trim()) {
       e.preventDefault();
       addTag(input.trim());
-    } else if (e.key === 'Backspace' && !input && value.length > 0) {
+    } else if (e.key === "Backspace" && !input && value.length > 0) {
       // Remove last tag on backspace when input is empty
       removeTag(value[value.length - 1]);
     }
@@ -95,7 +91,7 @@ export const TagInput: React.FC<TagInputProps> = ({
     const normalizedTag = tag.toLowerCase().trim();
     if (normalizedTag && !value.includes(normalizedTag)) {
       onChange([...value, normalizedTag]);
-      setInput('');
+      setInput("");
       setShowSuggestions(false);
 
       // Add to allTags if new
@@ -106,7 +102,7 @@ export const TagInput: React.FC<TagInputProps> = ({
   };
 
   const removeTag = (tag: string) => {
-    onChange(value.filter(t => t !== tag));
+    onChange(value.filter((t) => t !== tag));
   };
 
   const handleSuggestionClick = (tag: string) => {
@@ -115,58 +111,61 @@ export const TagInput: React.FC<TagInputProps> = ({
   };
 
   return (
-    <div className="tag-input-container" ref={containerRef}>
-      <div className={`tag-input-wrapper ${disabled ? 'disabled' : ''}`}>
-        {/* Selected tags */}
-        <div className="tag-list">
-          {value.map(tag => (
-            <span key={tag} className="tag-chip">
-              {tag}
-              {!disabled && (
-                <button
-                  type="button"
-                  className="tag-remove"
-                  onClick={() => removeTag(tag)}
-                  aria-label={t('sessionManagement.removeTag')}
-                >
-                  ×
-                </button>
-              )}
-            </span>
-          ))}
-        </div>
+    <div className="relative" ref={containerRef}>
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-1.5 rounded-control border border-brand-border bg-surface p-1.5 transition-all",
+          "field-shell focus-within:border-brand-accent focus-within:ring-2 focus-within:ring-[var(--brand-ring)]",
+          disabled && "cursor-not-allowed opacity-60"
+        )}
+      >
+        {value.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 rounded-pill border border-brand-border bg-brand-surface px-2 py-0.5 text-[11px] font-medium text-brand-text"
+          >
+            {tag}
+            {!disabled && (
+              <button
+                type="button"
+                className="rounded-pill text-brand-accent transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+                onClick={() => removeTag(tag)}
+                aria-label={t("sessionManagement.removeTag")}
+              >
+                <X className="size-3" aria-hidden="true" />
+              </button>
+            )}
+          </span>
+        ))}
 
-        {/* Input */}
         {!disabled && value.length < maxTags && (
           <input
             ref={inputRef}
             type="text"
-            className="tag-input"
+            className="min-w-24 flex-1 bg-transparent px-1 text-xs text-ink placeholder:text-ink-faint focus-visible:outline-none"
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleInputKeyDown}
             onFocus={() => input.trim() && setShowSuggestions(suggestions.length > 0)}
-            placeholder={value.length === 0 ? placeholder : ''}
+            placeholder={value.length === 0 ? placeholder : ""}
             disabled={disabled}
           />
         )}
       </div>
 
-      {/* Tag count indicator */}
       {value.length > 0 && (
-        <div className="tag-count">
-          {value.length} / {maxTags} {t('sessionManagement.tags')}
-        </div>
+        <p className="mt-1 font-mono text-[10px] text-ink-muted">
+          {value.length} / {maxTags} {t("sessionManagement.tags")}
+        </p>
       )}
 
-      {/* Autocomplete suggestions */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="tag-suggestions">
-          {suggestions.map(tag => (
+        <div className="glass-panel absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-card p-1 shadow-elev-3">
+          {suggestions.map((tag) => (
             <button
               key={tag}
               type="button"
-              className="tag-suggestion"
+              className="block w-full rounded-control px-2 py-1.5 text-left text-[11px] text-ink transition-colors hover:bg-brand-surface hover:text-brand-text focus-visible:outline-none focus-visible:bg-brand-surface"
               onClick={() => handleSuggestionClick(tag)}
             >
               {tag}

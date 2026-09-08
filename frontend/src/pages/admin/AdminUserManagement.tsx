@@ -3,6 +3,18 @@ import { useTranslation } from "react-i18next";
 import { AdminUserTable } from "@/pages/admin/AdminUserTable";
 import { AdminPagination } from "@/components/AdminPagination";
 import type { AdminUserSummary } from "@/types/api";
+import { Button } from "@/components/ui/button";
+import {
+  AdminField,
+  AdminPanel,
+  AdminSkeleton,
+  FilterGrid,
+  Hint,
+  RowActions,
+  SectionHead,
+  TwoCol,
+} from "./components/AdminPrimitives";
+import { ADMIN_FIELD, ADMIN_TABLE_WRAP } from "./components/adminClasses";
 
 type Props = {
   users: AdminUserSummary[];
@@ -98,72 +110,64 @@ export function AdminUserManagement({
   }, [filteredUsers, currentPage, pageSize]);
 
   return (
-    <main className="panel admin-users-panel">
-      <div className="section-head">
-        <strong>{t("admin.userManagement")}</strong>
-        <button type="button" className="secondary tiny-btn" onClick={onLoadUsers}>{t("common.refresh")}</button>
-      </div>
-      <p className="muted admin-users-hint">{t("admin.ui.usersHint")}</p>
+    <main className="space-y-6">
+      <SectionHead title={t("admin.userManagement")}>
+<Button variant="secondary" size="xs" onClick={onLoadUsers}>{t("common.refresh")}</Button></SectionHead>
+      <Hint>{t("admin.ui.usersHint")}</Hint>
 
-      <div className="ops-two-col admin-filter-grid">
-        <label className="admin-field">
-          <span>{t("admin.ui.search")}</span>
-          <input placeholder={t("admin.ui.userSearchPlaceholder")} value={kw} onChange={(e) => onKwChange(e.target.value)} />
-        </label>
-        <label className="admin-field">
-          <span>{t("admin.ui.role")}</span>
-          <select value={fRole} onChange={(e) => onFRoleChange(e.target.value)}>
+      <FilterGrid>
+        <AdminField label={t("admin.ui.search")}>
+          <input className={ADMIN_FIELD} placeholder={t("admin.ui.userSearchPlaceholder")} value={kw} onChange={(e) => onKwChange(e.target.value)} />
+        </AdminField>
+        <AdminField label={t("admin.ui.role")}>
+          <select className={ADMIN_FIELD} value={fRole} onChange={(e) => onFRoleChange(e.target.value)}>
             <option value="">{t("admin.ui.allRoles")}</option>
             <option value="admin">admin</option>
             <option value="analyst">analyst</option>
             <option value="viewer">viewer</option>
           </select>
-        </label>
-      </div>
+        </AdminField>
+      </FilterGrid>
 
-      <div className="ops-two-col admin-filter-grid">
-        <label className="admin-field">
-          <span>{t("admin.ui.status")}</span>
-          <select value={fStatus} onChange={(e) => onFStatusChange(e.target.value)}>
+      <FilterGrid>
+        <AdminField label={t("admin.ui.status")}>
+          <select className={ADMIN_FIELD} value={fStatus} onChange={(e) => onFStatusChange(e.target.value)}>
             <option value="">{t("admin.ui.allStatuses")}</option>
             <option value="active">active</option>
             <option value="disabled">disabled</option>
           </select>
-        </label>
-        <label className="admin-field">
-          <span>{t("admin.ui.onlineStatus")}</span>
-          <select value={fOnline} onChange={(e) => onFOnlineChange(e.target.value)}>
+        </AdminField>
+        <AdminField label={t("admin.ui.onlineStatus")}>
+          <select className={ADMIN_FIELD} value={fOnline} onChange={(e) => onFOnlineChange(e.target.value)}>
             <option value="">{t("admin.ui.allOnlineStatuses")}</option>
             <option value="online_10m">{t("admin.ui.online10m")}</option>
             <option value="online">{t("admin.ui.online")}</option>
             <option value="offline">{t("admin.ui.offline")}</option>
           </select>
-        </label>
-      </div>
+        </AdminField>
+      </FilterGrid>
 
       {editingUser && (
-        <div className="panel" style={{ marginBottom: 12 }}>
-          <div className="section-head">
-            <strong>{t("admin.ui.userClassification", { username: editingUser.username })}</strong>
-            <button type="button" className="secondary tiny-btn" onClick={() => onEditingUserChange(null)}>{t("common.cancel")}</button>
-          </div>
-          <div className="ops-two-col">
-            <input placeholder={t("admin.ui.businessUnit")} value={editBu} onChange={(e) => onEditBuChange(e.target.value)} />
-            <input placeholder={t("admin.ui.department")} value={editDept} onChange={(e) => onEditDeptChange(e.target.value)} />
-          </div>
-          <div className="ops-two-col">
-            <input placeholder={t("admin.ui.userType")} value={editType} onChange={(e) => onEditTypeChange(e.target.value)} />
-            <input placeholder={t("admin.ui.dataScope")} value={editScope} onChange={(e) => onEditScopeChange(e.target.value)} />
-          </div>
-          <div className="row-actions">
-            <button type="button" className="primary-action-btn" disabled={savingClass} onClick={onSaveClass}>
+        <AdminPanel as="div" className="mb-3">
+          <SectionHead title={t("admin.ui.userClassification", { username: editingUser.username })}>
+<Button variant="secondary" size="xs" onClick={() => onEditingUserChange(null)}>{t("common.cancel")}</Button></SectionHead>
+          <TwoCol>
+            <input className={ADMIN_FIELD} placeholder={t("admin.ui.businessUnit")} value={editBu} onChange={(e) => onEditBuChange(e.target.value)} />
+            <input className={ADMIN_FIELD} placeholder={t("admin.ui.department")} value={editDept} onChange={(e) => onEditDeptChange(e.target.value)} />
+          </TwoCol>
+          <TwoCol>
+            <input className={ADMIN_FIELD} placeholder={t("admin.ui.userType")} value={editType} onChange={(e) => onEditTypeChange(e.target.value)} />
+            <input className={ADMIN_FIELD} placeholder={t("admin.ui.dataScope")} value={editScope} onChange={(e) => onEditScopeChange(e.target.value)} />
+          </TwoCol>
+          <RowActions>
+            <Button size="sm" disabled={savingClass} onClick={onSaveClass}>
               {savingClass ? t("admin.ui.saving") : t("admin.ui.saveClassification")}
-            </button>
-          </div>
-        </div>
+            </Button>
+          </RowActions>
+        </AdminPanel>
       )}
 
-      {loadingUsers && <div className="skeleton-list" />}
+      {loadingUsers && <AdminSkeleton />}
       {!loadingUsers && (
         <>
           {filteredUsers.length > 0 && (
@@ -179,7 +183,7 @@ export function AdminUserManagement({
               }}
             />
           )}
-          <div className="user-table-wrap">
+          <div className={ADMIN_TABLE_WRAP}>
             <AdminUserTable
               users={paginatedUsers}
               roleOptions={roleOptions}

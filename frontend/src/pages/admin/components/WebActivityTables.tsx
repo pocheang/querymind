@@ -1,5 +1,7 @@
 // Web activity detail tables.
 import { useTranslation } from "react-i18next";
+import { SectionBlock, SubTitle } from "./AdminPrimitives";
+import { ADMIN_TABLE, ADMIN_TABLE_WRAP } from "./adminClasses";
 
 interface User {
   user_id: string;
@@ -42,20 +44,20 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
   return (
     <>
       {usersData.length > 0 && (
-        <section className="admin-section-block">
-          <h3 className="section-subtitle">
+        <SectionBlock>
+          <SubTitle>
             {t("admin.webActivity.topUsers", "Top Active Users")}
-          </h3>
-          <div className="audit-wrap">
-            <table className="audit-table">
+          </SubTitle>
+          <div className={ADMIN_TABLE_WRAP}>
+            <table className={ADMIN_TABLE}>
               <thead>
                 <tr>
-                  <th style={{ width: "60px", textAlign: "center" }}>#</th>
+                  <th className="w-[60px] text-center">#</th>
                   <th>{t("admin.webActivity.userId", "User ID")}</th>
-                  <th style={{ width: "120px", textAlign: "right" }}>
+                  <th className="w-[120px] text-right">
                     {t("admin.webActivity.searchCount", "Searches")}
                   </th>
-                  <th style={{ width: "100px", textAlign: "center" }}>
+                  <th className="w-[100px] text-center">
                     {t("admin.webActivity.activity", "Status")}
                   </th>
                 </tr>
@@ -63,12 +65,12 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
               <tbody>
                 {usersData.map((user, index) => (
                   <tr key={user.user_id}>
-                    <td style={{ textAlign: "center", fontWeight: 600, color: "var(--text-secondary)" }}>
+                    <td className="text-center font-semibold text-ink-muted">
                       {index + 1}
                     </td>
-                    <td style={{ fontFamily: "monospace", fontSize: "var(--text-sm)" }}>{user.user_id}</td>
-                    <td style={{ textAlign: "right", fontWeight: 600 }}>{user.search_count}</td>
-                    <td style={{ textAlign: "center" }}>
+                    <td className="font-mono">{user.user_id}</td>
+                    <td className="text-right font-semibold">{user.search_count}</td>
+                    <td className="text-center">
                       <span className={`badge badge-${user.search_count > 5 ? "success" : "warning"}`}>
                         {user.search_count > 5
                           ? t("admin.webActivity.active", "Active")
@@ -80,24 +82,24 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
               </tbody>
             </table>
           </div>
-        </section>
+        </SectionBlock>
       )}
 
       {websitesData.length > 0 && (
-        <section className="admin-section-block">
-          <h3 className="section-subtitle">
+        <SectionBlock>
+          <SubTitle>
             {t("admin.webActivity.websiteDetails", "Website Access Details")}
-          </h3>
-          <div className="audit-wrap">
-            <table className="audit-table">
+          </SubTitle>
+          <div className={ADMIN_TABLE_WRAP}>
+            <table className={ADMIN_TABLE}>
               <thead>
                 <tr>
-                  <th style={{ width: "60px", textAlign: "center" }}>#</th>
+                  <th className="w-[60px] text-center">#</th>
                   <th>{t("admin.webActivity.domain", "Domain")}</th>
-                  <th style={{ width: "100px", textAlign: "right" }}>
+                  <th className="w-[100px] text-right">
                     {t("admin.webActivity.visitCount", "Visits")}
                   </th>
-                  <th style={{ width: "120px", textAlign: "center" }}>
+                  <th className="w-[120px] text-center">
                     {t("admin.webActivity.trustScore", "Trust")}
                   </th>
                 </tr>
@@ -113,7 +115,7 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
 
                   return (
                     <tr key={website.domain}>
-                      <td style={{ textAlign: "center", fontWeight: 600, color: "var(--text-secondary)" }}>
+                      <td className="text-center font-semibold text-ink-muted">
                         {index + 1}
                       </td>
                       <td>
@@ -121,13 +123,13 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
                           href={`https://${website.domain}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="admin-link-inline"
+                          className="font-mono text-xs text-brand-text no-underline hover:underline"
                         >
                           {website.domain}
                         </a>
                       </td>
-                      <td style={{ textAlign: "right", fontWeight: 600 }}>{website.visit_count}</td>
-                      <td style={{ textAlign: "center" }}>
+                      <td className="text-right font-semibold">{website.visit_count}</td>
+                      <td className="text-center">
                         <span className={`badge badge-${trustLevel}`}>
                           {(website.avg_trust_score * 100).toFixed(0)}%
                         </span>
@@ -138,25 +140,25 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
               </tbody>
             </table>
           </div>
-        </section>
+        </SectionBlock>
       )}
 
       {alerts.length > 0 && (
-        <section className="admin-section-block">
-          <h3 className="section-subtitle">
+        <SectionBlock>
+          <SubTitle>
             {t("admin.webActivity.securityAlerts", "Security Alerts (24h)")}
-          </h3>
-          <div className="audit-wrap">
-            <table className="audit-table">
+          </SubTitle>
+          <div className={ADMIN_TABLE_WRAP}>
+            <table className={ADMIN_TABLE}>
               <thead>
                 <tr>
-                  <th style={{ width: "160px" }}>{t("admin.webActivity.time", "Time")}</th>
-                  <th style={{ width: "80px", textAlign: "center" }}>
+                  <th className="w-40">{t("admin.webActivity.time", "Time")}</th>
+                  <th className="w-20 text-center">
                     {t("admin.webActivity.level", "Level")}
                   </th>
-                  <th style={{ width: "180px" }}>{t("admin.webActivity.rule", "Rule")}</th>
+                  <th className="w-[180px]">{t("admin.webActivity.rule", "Rule")}</th>
                   <th>{t("admin.webActivity.message", "Message")}</th>
-                  <th style={{ width: "120px", textAlign: "right" }}>
+                  <th className="w-[120px] text-right">
                     {t("admin.webActivity.value", "Value")}
                   </th>
                 </tr>
@@ -164,17 +166,17 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
               <tbody>
                 {alerts.map((alert) => (
                   <tr key={`${alert.timestamp}-${alert.rule_name}`}>
-                    <td style={{ fontSize: "var(--text-xs)", fontFamily: "monospace" }}>
+                    <td className="font-mono text-[11px]">
                       {formatAlertTime(alert.timestamp)}
                     </td>
-                    <td style={{ textAlign: "center" }}>
+                    <td className="text-center">
                       <span className={`badge badge-${alert.level === "critical" ? "danger" : alert.level}`}>
                         {alert.level.toUpperCase()}
                       </span>
                     </td>
-                    <td style={{ fontSize: "var(--text-sm)" }}>{alert.rule_name}</td>
-                    <td style={{ fontSize: "var(--text-sm)" }}>{alert.message}</td>
-                    <td style={{ textAlign: "right", fontFamily: "monospace", fontSize: "var(--text-sm)" }}>
+                    <td>{alert.rule_name}</td>
+                    <td>{alert.message}</td>
+                    <td className="text-right font-mono">
                       {alert.metric_value} / {alert.threshold}
                     </td>
                   </tr>
@@ -182,7 +184,7 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
               </tbody>
             </table>
           </div>
-        </section>
+        </SectionBlock>
       )}
     </>
   );

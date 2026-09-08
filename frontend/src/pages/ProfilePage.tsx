@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import type { AuthUser } from "@/types/api";
 import { authApi } from "@/lib/auth-api";
-
-import "@/styles/pages/profile.css";
 
 type Props = {
   user: AuthUser | null;
@@ -47,95 +52,112 @@ export function ProfilePage({ user, onUserUpdated }: Readonly<Props>) {
 
   if (!user) {
     return (
-      <div className="profile-page">
-        <div className="profile-card">
-          <p>{t("pages.profile.loginRequired")}</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <Card className="p-6">
+          <p className="text-xs text-ink-muted">{t("pages.profile.loginRequired")}</p>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="profile-page">
-      <div className="profile-header">
-        <button type="button" className="back-btn" onClick={() => navigate("/app")}>
-          ← {t("pages.profile.back")}
-        </button>
-        <h1>{t("pages.profile.title")}</h1>
+    <div className="mx-auto w-full max-w-2xl space-y-4 p-4 sm:p-6">
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/app")}>
+          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          {t("pages.profile.back")}
+        </Button>
+        <h1 className="text-sm font-bold tracking-tight text-ink">{t("pages.profile.title")}</h1>
         <LanguageToggle />
       </div>
 
-      <div className="profile-card">
-        <div className="profile-avatar-section">
-          <div className="profile-avatar">{user.username.charAt(0).toUpperCase()}</div>
-          <div className="profile-info">
-            <h2>{user.username}</h2>
-            <p className="profile-username">@{user.username}</p>
-            <span className="profile-badge">
+      <Card className="space-y-4 p-5">
+        <div className="flex items-center gap-3">
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-panel bg-[image:var(--brand-gradient)] text-lg font-bold text-white shadow-elev-2">
+            {user.username.charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-bold text-ink">{user.username}</h2>
+            <p className="truncate font-mono text-[11px] text-ink-muted">@{user.username}</p>
+            <Badge variant="brand" size="pill" className="mt-1 uppercase tracking-wider">
               {user.role === "admin" ? t("pages.profile.admin") : t("pages.profile.user")}
-            </span>
+            </Badge>
           </div>
         </div>
 
-        <div className="profile-section">
-          <h3>{t("pages.profile.basicInfo")}</h3>
+        <div className="space-y-3 border-t border-line-subtle pt-4">
+          <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+            {t("pages.profile.basicInfo")}
+          </h3>
 
-          <div className="form-group">
-            <label htmlFor="username">{t("pages.profile.username")}</label>
-            <input id="username" type="text" value={email} disabled className="disabled-input" />
-            <div className="hint">{t("pages.profile.usernameHint")}</div>
+          <div className="space-y-1">
+            <Label htmlFor="username">{t("pages.profile.username")}</Label>
+            <Input id="username" type="text" value={email} disabled />
+            <p className="text-[10px] text-ink-muted">{t("pages.profile.usernameHint")}</p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="display-name">{t("pages.profile.displayName")}</label>
-            <input
+          <div className="space-y-1">
+            <Label htmlFor="display-name">{t("pages.profile.displayName")}</Label>
+            <Input
               id="display-name"
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={t("pages.profile.displayNamePlaceholder")}
             />
-            <div className="hint">{t("pages.profile.displayNameHint")}</div>
+            <p className="text-[10px] text-ink-muted">{t("pages.profile.displayNameHint")}</p>
           </div>
         </div>
 
-        <div className="profile-section">
-          <h3>{t("pages.profile.accountInfo")}</h3>
+        <div className="space-y-2 border-t border-line-subtle pt-4">
+          <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+            {t("pages.profile.accountInfo")}
+          </h3>
 
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">{t("pages.profile.userId")}</span>
-              <span className="info-value">{user.user_id}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">{t("pages.profile.role")}</span>
-              <span className="info-value">{user.role}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">{t("pages.profile.status")}</span>
-              <span className="info-value status-active">{user.status}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">{t("pages.profile.credits")}</span>
-              <span className="info-value">
-                {user.role.toLowerCase() === "admin" ? t("pages.profile.unlimitedCredits") : user.credit_balance}
-              </span>
-            </div>
-          </div>
+          <dl className="grid grid-cols-2 gap-2">
+            {[
+              { label: t("pages.profile.userId"), value: user.user_id },
+              { label: t("pages.profile.role"), value: user.role },
+              { label: t("pages.profile.status"), value: user.status },
+              {
+                label: t("pages.profile.credits"),
+                value: user.role.toLowerCase() === "admin" ? t("pages.profile.unlimitedCredits") : user.credit_balance,
+              },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-control border border-line bg-surface p-2">
+                <dt className="text-[10px] uppercase tracking-wider text-ink-muted">{label}</dt>
+                <dd className="mt-0.5 truncate font-mono text-[11px] font-semibold text-ink">{value}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
 
-        <div className="profile-actions">
-          <button type="button" onClick={handleSave} disabled={loading} className="primary-action-btn">
+        <div className="flex items-center gap-2 border-t border-line-subtle pt-4">
+          <Button onClick={handleSave} disabled={loading}>
             {loading ? t("pages.profile.saving") : t("pages.profile.saveChanges")}
-          </button>
-          <button type="button" onClick={() => navigate("/app/change-password")} className="secondary">
+          </Button>
+          <Button variant="secondary" onClick={() => navigate("/app/change-password")}>
             {t("pages.profile.changePassword")}
-          </button>
+          </Button>
         </div>
 
-        {status && <div className="status success">{status}</div>}
-        {error && <div className="status error">{error}</div>}
-      </div>
+        {status && (
+          <p
+            className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-[11px] text-success"
+            role="status"
+          >
+            {status}
+          </p>
+        )}
+        {error && (
+          <p
+            className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+      </Card>
     </div>
   );
 }

@@ -1,20 +1,44 @@
 /* ============================================
    Surfaces
 
-   Applies the elevation language to the surface classes an audit of the
-   rendered pages actually found, rather than to the 238 border declarations in
-   the stylesheets -- most of which never reach a visible edge.
+   Applies the elevation language to the class names the app still emits.
 
-   Every rule is prefixed `:root[data-theme] :is(.page-shell, body)`. That is
-   not decoration: the app's own surface rules are written as `.page-shell X`
-   (0,2,0) and `:root[data-theme="light"] .page-shell X` (0,3,1), and a plain
-   `.panel` selector loses to both. The prefix scores 0,3,1, ties the highest of
-   them and wins on order. `:is(.page-shell, body)` covers chat and every other
-   route with one selector; `[data-theme]` without a value covers both themes.
+   It used to carry 39 selectors, normalising the surface vocabulary of the 73
+   hand-written stylesheets. Twenty-eight of them name classes nothing renders
+   any more -- `.sidebar-module`, `.agent-mode-card`, `.session-item`,
+   `.modal-content`, the whole `.admin-shell` block -- and were removed on
+   2026-09-07. A rule that matches nothing is not harmless: it is the shape of
+   the defect this project has shipped twice (a `.tiny-btn.danger` no component
+   emitted, an `.audit-wrap` the console never wrote), and keeping thirty of
+   them here is thirty places for the next reader to reason from.
 
-   A cascade layer would have said this more clearly, but it cannot work here:
-   `AnimatedButtonLite.css` is imported from its component and is therefore
-   unlayered, and unlayered rules beat every layer regardless of specificity.
+   What is left is what a Tailwind class list cannot say for itself:
+
+   - `input, textarea, select` are ELEMENT selectors, so they reach every
+     control including ones written with no class at all. Since `core/reset.css`
+     is this app's preflight and strips the UA appearance, something has to give
+     an unclassed field its shape back.
+   - `.page-shell`, `.bubble`, `.composer-panel` and `.reactflow-wrapper` are
+     names a call site cannot style for itself: each rule reaches a DESCENDANT
+     or applies to a container whose class list is assembled elsewhere.
+     `.page-shell` is additionally read by `scripts/screenshots.mjs`, which is
+     why renaming it breaks that script by design.
+
+     `.topbar-menu-trigger` was here too, listed as a hook `useSectionToggle`
+     read. It was neither by then: `ChatTopbar` and `TopbarMenu` had been
+     deleted in the shell pass, and `useSectionToggle` had already stopped
+     reaching into the document -- its own docstring says so. So the rule
+     matched nothing, and the comment asserted two readers for an element that
+     did not exist, which is worse than the rule: a reader checks the comment
+     and stops. Removed 2026-09-08, found by sweeping selectors against what
+     `src/` can emit.
+
+   Every rule is prefixed `:root[data-theme] :is(.page-shell, body)`, which
+   scores 0,3,1 and beats the `:root[data-theme="light"] .page-shell X` form
+   the old sheets used, on order. That mattered when there were sheets to beat;
+   it is kept because `layer(design)` still sits below `utilities`, so a
+   Tailwind class in a component still wins over anything here -- which is the
+   right way round.
 
    The rule throughout: a surface is separated by depth; an outline survives
    only where it does a job depth cannot.
@@ -27,58 +51,18 @@
    its pixel, so nothing shifts by 2px when this wins.
    -------------------------------------------- */
 
-:root[data-theme] :is(.page-shell, body) :is(.panel, .card, .bubble, .citation-card, .sidebar-module, .agent-mode-card, .pdf-kpi-card, .sidebar-kb-card, .modal-content, .confirm-dialog) {
+:root[data-theme] :is(.page-shell, body) .bubble {
   border-color: transparent;
   border-radius: var(--shape-card);
-  box-shadow: var(--elev-1);
   transition:
     box-shadow 0.18s ease,
     transform 0.18s ease,
     background-color 0.18s ease;
 }
 
-/* Large containers read as one plane, so they take the wider radius. */
-:root[data-theme] :is(.page-shell, body) :is(.modal-content, .confirm-dialog, .composer-panel) {
+/* A large container reads as one plane, so it takes the wider radius. */
+:root[data-theme] :is(.page-shell, body) .composer-panel {
   border-radius: var(--shape-panel);
-}
-
-:root[data-theme] :is(.page-shell, body) :is(.modal-content, .confirm-dialog) {
-  box-shadow: var(--elev-3);
-}
-
-/* --------------------------------------------
-   Interactive surfaces lift
-
-   Only what responds to a click. A message bubble is not clickable, and
-   raising it on hover promises an interaction that does not exist.
-   -------------------------------------------- */
-
-:root[data-theme] :is(.page-shell, body) :is(.card, .agent-mode-card, .pdf-kpi-card, .session-item):hover {
-  box-shadow: var(--elev-2);
-  transform: translateY(var(--lift));
-}
-
-:root[data-theme] :is(.page-shell, body) :is(.agent-mode-card, .session-item):active {
-  transform: translateY(0);
-  box-shadow: var(--elev-1);
-}
-
-/* --------------------------------------------
-   Controls
-
-   Buttons and chips sit *on* a surface rather than being one, so they carry no
-   shadow: stacking depth on depth is what makes a dense panel look noisy. They
-   keep their own fill and border -- flattening those is what turned the
-   suggestion chips into bare text on the background.
-   -------------------------------------------- */
-
-:root[data-theme] :is(.page-shell, body) :is(.chip, .tiny-btn, .quick-action-btn) {
-  border-radius: var(--shape-control);
-  box-shadow: none;
-}
-
-:root[data-theme] :is(.page-shell, body) :is(.chip, .sidebar-module-status, .session-count, .badge) {
-  border-radius: var(--shape-pill);
 }
 
 /* --------------------------------------------
@@ -86,6 +70,13 @@
 
    An input with no boundary is not restraint, it is a field the reader cannot
    find. Softly outlined, with the accent reserved for focus.
+
+   The focus ring was `rgba(79, 70, 229, 0.12)` -- indigo, from the palette
+   this theme replaced -- until 2026-09-07. It reached every control that does
+   not carry a Tailwind `focus:ring-*` of its own (a range slider, a bare
+   checkbox), so a cool blue glow was still appearing under an amber theme on
+   exactly the controls nobody had looked at. It is `--brand-ring` now, which
+   is what every classed field already focuses to.
    -------------------------------------------- */
 
 :root[data-theme] :is(.page-shell, body) :is(input, textarea, select) {
@@ -93,109 +84,19 @@
   box-shadow: none;
 }
 
-:root[data-theme] :is(.page-shell, body) :is(input, textarea, select):focus {
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
-}
-
-/* --------------------------------------------
-   Dividers
-
-   The one place an outline survives: separating rows *within* one surface,
-   where there is no depth difference to express.
-   -------------------------------------------- */
-
-:root[data-theme] .page-shell .sidebar-tools .sidebar-module + .sidebar-module {
-  border-top: 1px solid var(--hairline);
-}
-
-/* --------------------------------------------
-   Selection is a fill, not a frame
-   -------------------------------------------- */
-
-:root[data-theme] :is(.page-shell, body) :is(.agent-mode-card, .session-item, .mode-card).active {
-  border-color: transparent;
-  background: rgba(79, 70, 229, 0.07);
-  box-shadow: var(--elev-1);
+:root[data-theme] :is(.page-shell, body) :is(input, textarea, select):focus-visible {
+  box-shadow: 0 0 0 3px var(--brand-ring);
 }
 
 /* --------------------------------------------
    The tail
 
-   A DOM sweep after the first pass found 30 elements still outside the scale,
-   at 6, 9, 10, 14 and 15px. Named here rather than left alone: a scale with a
-   long tail is the same problem as no scale, just less obvious. Each lands on
-   the step that matches its job -- a control, a card, or a large container.
+   The ReactFlow frame, kept on the shape scale so it does not drift off it.
+   `react-flow__*` is deliberately absent -- those are diagram nodes from a
+   third party, content rather than chrome, and restyling them would change
+   what the picture says rather than how the app is dressed.
    -------------------------------------------- */
 
-:root[data-theme] :is(.page-shell, body) :is(
-    .sidebar-module-toggle,
-    .sidebar-user-action-btn,
-    .sidebar-collapse-btn,
-    .session-create-btn,
-    .session-menu-btn,
-    .list-main-btn,
-    .topbar-menu-trigger,
-    .secondary
-  ) {
-  border-radius: var(--shape-control);
-}
-
-:root[data-theme] :is(.page-shell, body) :is(details, .sidebar-user-info, .sidebar-brand-mark) {
+:root[data-theme] body .reactflow-wrapper {
   border-radius: var(--shape-card);
 }
-
-/* The module rows are segments of one list; only its ends are rounded, and
-   `modules-refined.css` owns that. */
-:root[data-theme] .page-shell .sidebar-tools .sidebar-module-toggle {
-  border-radius: 0;
-}
-
-/* --------------------------------------------
-   Other routes
-
-   The architecture and admin pages carry their own class vocabulary, so the
-   list above does not reach them. Their chrome joins the scale here.
-
-   `react-flow__*` is deliberately absent. Those are diagram nodes from a third
-   party -- content, not chrome -- and restyling them would be changing what
-   the picture says, not how the app is dressed.
-   -------------------------------------------- */
-
-:root[data-theme] body :is(.architecture-page, .architecture-shell, .admin-page) li,
-:root[data-theme] body :is(.diagram-block, .reactflow-wrapper, .top-actions) {
-  border-radius: var(--shape-card);
-}
-
-:root[data-theme] body :is(.architecture-page, .architecture-shell) .topbar {
-  border-radius: var(--shape-panel);
-}
-
-/* --------------------------------------------
-   Admin
-
-   Eleven radii in five stylesheets, but most of them are not surfaces. Sorted
-   by what the element *is* rather than by its number:
-
-   left alone -- `::before` accent bars (1-2px), `.ops-trend-bar` / `-fill`
-   (3px, a chart), the tab underline, and the scrollbar thumb and track (99px).
-   None of those is chrome, and rounding a data bar to a card radius changes
-   what the chart looks like it is saying.
-
-   also left alone -- `.audit-code` and `.system-log-code`. A small radius on
-   an inline code span is a convention, and 8px on a short span reads as a
-   button.
-   -------------------------------------------- */
-
-:root[data-theme] body .admin-shell :is(.tiny-btn, .admin-pagination-btn, .admin-model-banner-mark),
-:root[data-theme] body .admin-shell :is(.table td select, .admin-pagination-select-wrap select) {
-  border-radius: var(--shape-control);
-}
-
-:root[data-theme] body .admin-shell .audit-badge {
-  border-radius: var(--shape-pill);
-}
-
-:root[data-theme] body .admin-shell .admin-audit-head-actions {
-  border-radius: var(--shape-card);
-}
-

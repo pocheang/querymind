@@ -5,17 +5,22 @@
  * Supports automatic tag extraction from messages.
  */
 
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   sessionManagementApi,
   SessionMetadata,
   SessionCategory,
   UpdateMetadataRequest,
-} from '../../services/sessionManagement';
-import { ApiError } from '@/services/http/client';
-import { TagInput } from './TagInput';
-import './SessionMetadataEditor.css';
+} from "../../services/sessionManagement";
+import { ApiError } from "@/services/http/client";
+import { TagInput } from "./TagInput";
+import { Loader2, Tag } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface SessionMetadataEditorProps {
   sessionId: string;
@@ -39,17 +44,11 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
 
   const [tags, setTags] = useState<string[]>([]);
   const [category, setCategory] = useState<SessionCategory | null>(null);
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState("");
   const [autoTags, setAutoTags] = useState<string[]>([]);
 
   // Category options
-  const categories: SessionCategory[] = [
-    'research',
-    'development',
-    'debugging',
-    'learning',
-    'other',
-  ];
+  const categories: SessionCategory[] = ["research", "development", "debugging", "learning", "other"];
 
   // Load existing metadata on mount
   useEffect(() => {
@@ -64,13 +63,13 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
       const metadata = await sessionManagementApi.getMetadata(sessionId);
       setTags(metadata.tags);
       setCategory(metadata.category);
-      setDescription(metadata.description || '');
+      setDescription(metadata.description || "");
       setAutoTags(metadata.auto_tags);
     } catch (err: unknown) {
       // Metadata may not exist yet, which is fine
       if (!(err instanceof ApiError && err.status === 404)) {
-        console.error('Failed to load metadata:', err);
-        setError(t('sessionManagement.errorLoadingMetadata'));
+        console.error("Failed to load metadata:", err);
+        setError(t("sessionManagement.errorLoadingMetadata"));
       }
     } finally {
       setLoading(false);
@@ -79,7 +78,7 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
 
   const handleExtractTags = async () => {
     if (messages.length === 0) {
-      setError(t('sessionManagement.noMessagesToExtract'));
+      setError(t("sessionManagement.noMessagesToExtract"));
       return;
     }
 
@@ -92,8 +91,8 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      console.error('Failed to extract tags:', err);
-      setError(t('sessionManagement.errorExtractingTags'));
+      console.error("Failed to extract tags:", err);
+      setError(t("sessionManagement.errorExtractingTags"));
     } finally {
       setExtracting(false);
     }
@@ -118,8 +117,8 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
         onSave(metadata);
       }
     } catch (err) {
-      console.error('Failed to save metadata:', err);
-      setError(t('sessionManagement.errorSavingMetadata'));
+      console.error("Failed to save metadata:", err);
+      setError(t("sessionManagement.errorSavingMetadata"));
     } finally {
       setSaving(false);
     }
@@ -135,58 +134,59 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
   };
 
   if (loading) {
-    return (
-      <div className="metadata-editor">
-        <div style={{ textAlign: 'center', padding: '40px 0', color: '#6b7280' }}>
-          {t('sessionManagement.loadingMetadata')}...
-        </div>
-      </div>
-    );
+    return <p className="py-10 text-center text-xs text-ink-muted">{t("sessionManagement.loadingMetadata")}...</p>;
   }
 
   return (
-    <div className="metadata-editor">
-      {/* Header */}
-      <div className="metadata-editor-header">
-        <h3 className="metadata-editor-title">
-          {t('sessionManagement.editMetadata')}
-        </h3>
-      </div>
+    <div className="space-y-3">
+      <h3 className="text-xs font-bold text-ink">{t("sessionManagement.editMetadata")}</h3>
 
-      {/* Error/Success Messages */}
-      {error && <div className="error-message">{error}</div>}
-      {success && <div className="success-message">{t('sessionManagement.savedSuccessfully')}</div>}
+      {error && (
+        <p
+          role="alert"
+          className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+        >
+          {error}
+        </p>
+      )}
+      {success && (
+        <p
+          role="status"
+          className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-[11px] text-success"
+        >
+          {t("sessionManagement.savedSuccessfully")}
+        </p>
+      )}
 
-      {/* Form */}
-      <form className="metadata-editor-form" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-        {/* Tags */}
-        <div className="form-group">
-          <label className="form-label">
-            {t('sessionManagement.tags')}
-          </label>
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSave();
+        }}
+      >
+        <div className="space-y-1.5">
+          <Label>{t("sessionManagement.tags")}</Label>
           <TagInput
             value={tags}
             onChange={setTags}
-            placeholder={t('sessionManagement.tagsPlaceholder')}
+            placeholder={t("sessionManagement.tagsPlaceholder")}
             maxTags={10}
             disabled={saving}
           />
         </div>
 
-        {/* Category */}
-        <div className="form-group">
-          <label className="form-label" htmlFor="category">
-            {t('sessionManagement.category')}
-          </label>
+        <div className="space-y-1.5">
+          <Label htmlFor="category">{t("sessionManagement.category")}</Label>
           <select
             id="category"
-            className="form-select"
-            value={category || ''}
+            value={category || ""}
             onChange={(e) => setCategory((e.target.value || null) as SessionCategory | null)}
             disabled={saving}
+            className="h-8 w-full rounded-control border border-brand-border bg-surface px-2 text-xs text-ink transition-colors focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] disabled:opacity-60"
           >
-            <option value="">{t('sessionManagement.selectCategory')}</option>
-            {categories.map(cat => (
+            <option value="">{t("sessionManagement.selectCategory")}</option>
+            {categories.map((cat) => (
               <option key={cat} value={cat}>
                 {t(`sessionManagement.categories.${cat}`)}
               </option>
@@ -194,81 +194,57 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
           </select>
         </div>
 
-        {/* Description */}
-        <div className="form-group">
-          <label className="form-label" htmlFor="description">
-            {t('sessionManagement.description')}
-          </label>
-          <textarea
+        <div className="space-y-1.5">
+          <Label htmlFor="description">{t("sessionManagement.description")}</Label>
+          <Textarea
             id="description"
-            className="form-input form-textarea"
+            rows={4}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('sessionManagement.descriptionPlaceholder')}
+            placeholder={t("sessionManagement.descriptionPlaceholder")}
             maxLength={500}
             disabled={saving}
           />
-          <div className="tag-count">
-            {description.length} / 500
-          </div>
+          <p className="text-right font-mono text-[10px] text-ink-muted">{description.length} / 500</p>
         </div>
 
-        {/* Auto Tags */}
-        <div className="form-group">
-          <div className="auto-tags-section">
-            <div className="auto-tags-label">
-              <svg className="auto-tags-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              {t('sessionManagement.autoTags')}
-            </div>
+        <div className="space-y-2 rounded-card border border-line bg-surface-inset p-2.5">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+            <Tag className="size-3 text-brand-accent" aria-hidden="true" />
+            {t("sessionManagement.autoTags")}
+          </p>
 
-            {autoTags.length > 0 ? (
-              <div className="auto-tags-list">
-                {autoTags.map(tag => (
-                  <span key={tag} className="auto-tag">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div className="auto-tags-empty">
-                {t('sessionManagement.noAutoTags')}
-              </div>
-            )}
-
-            <div style={{ marginTop: '12px' }}>
-              <button
-                type="button"
-                className="extract-tags-button"
-                onClick={handleExtractTags}
-                disabled={extracting || messages.length === 0}
-              >
-                {extracting && <span className="loading-spinner" />}
-                {t('sessionManagement.extractTags')}
-              </button>
+          {autoTags.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {autoTags.map((tag) => (
+                <Badge key={tag} variant="neutral" size="pill">
+                  {tag}
+                </Badge>
+              ))}
             </div>
-          </div>
+          ) : (
+            <p className="text-[11px] text-ink-muted">{t("sessionManagement.noAutoTags")}</p>
+          )}
+
+          <Button
+            variant="secondary"
+            size="xs"
+            onClick={handleExtractTags}
+            disabled={extracting || messages.length === 0}
+          >
+            {extracting && <Loader2 className="size-3 animate-spin" aria-hidden="true" />}
+            {t("sessionManagement.extractTags")}
+          </Button>
         </div>
 
-        {/* Actions */}
-        <div className="metadata-actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleCancel}
-            disabled={saving}
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={saving}
-          >
-            {saving && <span className="loading-spinner" />}
-            {t('common.save')}
-          </button>
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={handleCancel} disabled={saving}>
+            {t("common.cancel")}
+          </Button>
+          <Button type="submit" size="sm" disabled={saving}>
+            {saving && <Loader2 className="size-3 animate-spin" aria-hidden="true" />}
+            {t("common.save")}
+          </Button>
         </div>
       </form>
     </div>

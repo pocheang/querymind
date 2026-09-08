@@ -1,4 +1,7 @@
 import { useTranslation } from "react-i18next";
+import { Eye, EyeOff } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 type Props = {
   sectionsHidden: boolean;
@@ -7,20 +10,24 @@ type Props = {
 
 export function SectionToggleButton({ sectionsHidden, onToggle }: Readonly<Props>) {
   const { t } = useTranslation();
+  const label = sectionsHidden ? t("components.chat.showSections") : t("components.chat.hideSections");
 
   return (
-    <button
-      type="button"
-      className="section-toggle-btn"
+    <Button
+      variant="secondary"
+      size="sm"
+      className="fixed right-4 top-[4.25rem] z-30 shadow-elev-2"
       onClick={onToggle}
-      title={sectionsHidden ? t("components.chat.showSections") : t("components.chat.hideSections")}
-      aria-label={sectionsHidden ? t("components.chat.showSections") : t("components.chat.hideSections")}
+      title={label}
+      aria-label={label}
       aria-pressed={sectionsHidden}
     >
-      <span className="icon" aria-hidden="true">
-        {sectionsHidden ? "👁️" : "🙈"}
-      </span>
-      <span>{sectionsHidden ? t("components.chat.showSections") : t("components.chat.hideSections")}</span>
-    </button>
+      {sectionsHidden ? (
+        <Eye className="size-3.5" aria-hidden="true" />
+      ) : (
+        <EyeOff className="size-3.5" aria-hidden="true" />
+      )}
+      <span className="hidden sm:inline">{label}</span>
+    </Button>
   );
 }

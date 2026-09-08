@@ -1,6 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { AdminConfigEditor } from "@/pages/admin/AdminConfigEditor";
 import type { BenchmarkTrendItem } from "@/types/api";
+import { Button } from "@/components/ui/button";
+import { Muted, RowActions, SectionHead } from "./components/AdminPrimitives";
+import { ADMIN_TABLE } from "./components/adminClasses";
 
 interface Props {
   benchmarkTrends: BenchmarkTrendItem[];
@@ -24,29 +27,25 @@ export function AdminRagSettings({
   const { t } = useTranslation();
 
   return (
-    <main className="panel ops-wrap">
+    <main className="space-y-6">
       <AdminConfigEditor />
 
-      <div className="section-head">
-        <strong>{t("admin.ui.ragOps")}</strong>
-        <div className="row-actions">
-          <button type="button" className="secondary tiny-btn" onClick={onRefresh}>{t("common.refresh")}</button>
-          <button type="button" className="secondary tiny-btn" onClick={onReloadConfig}>{t("admin.ui.hotReloadConfig")}</button>
-          <button type="button" className="secondary tiny-btn" onClick={onExportAuditReport}>{t("admin.ui.exportAuditReport")}</button>
-        </div>
-      </div>
+      <SectionHead title={t("admin.ui.ragOps")}>
+<RowActions>
+          <Button variant="secondary" size="xs" onClick={onRefresh}>{t("common.refresh")}</Button>
+          <Button variant="secondary" size="xs" onClick={onReloadConfig}>{t("admin.ui.hotReloadConfig")}</Button>
+          <Button variant="secondary" size="xs" onClick={onExportAuditReport}>{t("admin.ui.exportAuditReport")}</Button>
+        </RowActions></SectionHead>
 
-      <div className="section-head" style={{ marginTop: 8 }}>
-        <strong>{t("admin.ui.benchmarkTrend")}</strong>
-        <div className="row-actions">
-          <button type="button" className="secondary tiny-btn" disabled={benchmarkRunning} onClick={onRunBenchmark}>
+      <SectionHead title={t("admin.ui.benchmarkTrend")} className="mt-2">
+<RowActions>
+          <Button variant="secondary" size="xs" disabled={benchmarkRunning} onClick={onRunBenchmark}>
             {benchmarkRunning ? t("admin.ui.running") : t("admin.ui.runBenchmark")}
-          </button>
-        </div>
-      </div>
-      {benchmarkTrends.length === 0 && <p className="muted">{t("admin.ui.noTrend")}</p>}
+          </Button>
+        </RowActions></SectionHead>
+      {benchmarkTrends.length === 0 && <Muted>{t("admin.ui.noTrend")}</Muted>}
       {benchmarkTrends.length > 0 && (
-        <table className="table">
+        <table className={ADMIN_TABLE}>
           <thead>
             <tr>
               <th>{t("admin.ui.time")}</th>

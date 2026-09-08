@@ -1,6 +1,16 @@
 /* ============================================
-   Global Reset & Base Styles
-   Modern Design System - 2026
+   Global reset and base element styles
+
+   This file IS the preflight: main.css imports `tailwindcss/theme.css` and
+   `tailwindcss/utilities.css` but not `tailwindcss/preflight.css`, so nothing
+   else zeroes margins or normalises form controls.
+
+   It deliberately does NOT set the body background, font family or font size.
+   Those live in core/theme-amber.css (which loads in dev and production) and
+   are mirrored in core/critical.css (inlined at build time for first paint).
+   This file used to carry a third copy, which is how the app kept rendering
+   the old cool-blue gradient after the amber theme landed -- the value was
+   right, the rule that won was the stale one.
    ============================================ */
 
 * {
@@ -9,18 +19,45 @@
   padding: 0;
 }
 
+/* Borders start at zero width and are opted into.
+ *
+ * This is the one piece of Tailwind's preflight this file has to reproduce:
+ * a utility like `border` sets `border-width` and expects the STYLE to already
+ * be `solid`, so without this `border border-brand-border` paints nothing.
+ * The deleted `components/forms/*` sheet used to hide the gap by giving every
+ * input an explicit border of its own; once it went, Chromium's UA default
+ * showed through instead -- a dark inset frame inside every amber field and a
+ * grey box around every link-styled button.
+ *
+ * Safe against the remaining hand-written sheets: `*` has specificity 0, so
+ * any rule that names a class still wins, and the one file that sets only
+ * `border-color` (data-flow.css, on the ReactFlow node types) sets the width
+ * on a lower-specificity selector in the same file.
+ */
+*,
+::before,
+::after {
+  border-width: 0;
+  border-style: solid;
+  border-color: var(--border-neutral);
+}
+
+/* Form controls inherit their typography and colour rather than taking the
+   platform's. `font: inherit` alone is not enough -- Chromium also supplies a
+   colour and a background. */
+button,
+input,
+select,
+textarea {
+  background-color: transparent;
+  background-image: none;
+  color: inherit;
+}
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-}
-
-html[data-language="en"] {
-  --font-sans: var(--font-sans-en);
-}
-
-html[data-language="zh"] {
-  --font-sans: var(--font-sans-zh);
 }
 
 html,
@@ -30,17 +67,12 @@ body,
   min-height: 100%;
 }
 
-body {
-  font-family: var(--font-sans);
-  font-size: var(--text-base);
-  line-height: 1.6;
-  color: var(--text-primary);
-  background:
-    radial-gradient(circle at top center, color-mix(in srgb, var(--accent) 9%, transparent), transparent 34%),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg-secondary) 100%);
-  transition: background-color var(--transition-base), color var(--transition-base);
-}
-
+/* Only the line height varies by language. The font stack does not: Inter has
+   no CJK coverage, so `--font-sans` lists it ahead of Noto Sans SC and the
+   browser falls back per glyph -- Latin renders in Inter, Chinese in Noto,
+   in the same run of text. The previous `html[data-language]` rules swapped
+   `--font-sans` wholesale to stacks that predate Inter, which silently undid
+   the webfont on every page. */
 html[data-language="zh"] body {
   line-height: 1.68;
 }
@@ -49,33 +81,33 @@ html[data-language="en"] body {
   line-height: 1.58;
 }
 
-h1, h2, h3, h4, h5, h6 {
+/* Deliberately no `color` here. Headings inherit it, which is what lets a
+   heading on the brand gradient be white: an element rule setting
+   `color: var(--text-main)` beats inheritance, and put dark ink on the amber
+   CTA banner at 2.82:1 with nothing in the markup to explain why. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   margin: 0;
   font-weight: 600;
   line-height: 1.3;
-  color: var(--text-primary);
 }
-
-h1 { font-size: var(--text-3xl); }
-h2 { font-size: var(--text-2xl); }
-h3 { font-size: var(--text-xl); }
-h4 { font-size: var(--text-lg); }
-h5 { font-size: var(--text-base); }
-h6 { font-size: var(--text-sm); }
 
 p {
   margin: 0;
-  color: var(--text-secondary);
 }
 
 a {
-  color: var(--accent);
+  color: var(--brand-text);
   text-decoration: none;
-  transition: color var(--transition-fast);
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
 a:hover {
-  color: var(--accent-hover);
+  color: var(--brand-text-strong);
 }
 
 button {
@@ -83,6 +115,8 @@ button {
   cursor: pointer;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: inherit;
 }

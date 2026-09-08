@@ -5,6 +5,8 @@ import { ExportButtons } from "@/utils/exportUtils";
 import { WebActivityKpiCards } from "./components/WebActivityKpiCards";
 import { WebActivityCharts } from "./components/WebActivityCharts";
 import { WebActivityTables } from "./components/WebActivityTables";
+import { Button } from "@/components/ui/button";
+import { AdminSkeleton, RowActions, SectionHead, StatePanel } from "./components/AdminPrimitives";
 
 interface WebActivityStats {
   summary: {
@@ -86,36 +88,38 @@ export function AdminWebActivityDashboard() {
   };
 
   if (loading) {
-    return <main className="panel ops-wrap"><div className="skeleton-list" /></main>;
+    return (
+      <main className="space-y-6">
+        <AdminSkeleton />
+      </main>
+    );
   }
 
   if (error) {
     return (
-      <main className="panel ops-wrap">
-        <div className="section-head"><strong>{t("admin.webActivity.title", "Web Search Activity")}</strong></div>
-        <div className="admin-state-panel is-error">
+      <main className="space-y-6">
+        <SectionHead title={t("admin.webActivity.title", "Web Search Activity")}></SectionHead>
+        <StatePanel tone="error">
           <p>{error}</p>
-          <button type="button" onClick={handleRetry} className="secondary tiny-btn">{t("admin.webActivity.retry", "Retry")}</button>
-        </div>
+          <Button variant="secondary" size="xs" onClick={handleRetry}>{t("admin.webActivity.retry", "Retry")}</Button>
+        </StatePanel>
       </main>
     );
   }
 
   return (
-    <main className="panel ops-wrap">
-      <div className="section-head">
-        <strong>{t("admin.webActivity.title", "Web Search Activity")}</strong>
-        <div className="row-actions">
+    <main className="space-y-6">
+      <SectionHead title={t("admin.webActivity.title", "Web Search Activity")}>
+<RowActions>
           <ExportButtons
             data={stats ? [{ ...stats.summary, top_users: usersData, top_websites: websitesData }] : []}
             filename={`web-activity-${new Date().toISOString().split("T")[0]}`}
           />
-          <button type="button" className="secondary tiny-btn" onClick={() => void fetchData()}>{t("admin.webActivity.refresh", "Refresh")}</button>
-        </div>
-      </div>
+          <Button variant="secondary" size="xs" onClick={() => void fetchData()}>{t("admin.webActivity.refresh", "Refresh")}</Button>
+        </RowActions></SectionHead>
 
-      <label className="ops-auto-refresh">
-        <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+      <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 whitespace-nowrap rounded-control border border-transparent px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted transition-colors hover:border-brand-border hover:bg-brand-surface">
+        <input className="size-3.5 shrink-0 accent-[var(--brand)]" type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
         <span>{t("admin.ui.autoRefresh30")}</span>
       </label>
 

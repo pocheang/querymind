@@ -2,11 +2,11 @@ import { AnimatedToastLite } from "@/components/animations/AnimatedToastLite";
 import type { Toast } from "@/pages/chat/types";
 
 // 将Chat的Toast类型映射到AnimatedToastLite的类型
-function mapToastKind(kind: string): 'info' | 'success' | 'warning' | 'error' {
-  if (kind === 'success') return 'success';
-  if (kind === 'warning') return 'warning';
-  if (kind === 'error' || kind === 'danger') return 'error';
-  return 'info';
+function mapToastKind(kind: string): "info" | "success" | "warning" | "error" {
+  if (kind === "success") return "success";
+  if (kind === "warning") return "warning";
+  if (kind === "error" || kind === "danger") return "error";
+  return "info";
 }
 
 interface ToastStackProps {
@@ -30,26 +30,9 @@ export function ToastStack({ toasts, onRemove }: Readonly<ToastStackProps>) {
   };
 
   return (
-    <div
-      className="toast-stack"
-      style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        zIndex: 9999,
-        pointerEvents: 'none',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-      }}
-    >
+    <div className="pointer-events-none fixed right-5 top-5 z-50 flex flex-col gap-3">
       {animatedToasts.map((toast, index) => (
-        <AnimatedToastLite
-          key={toast.id}
-          toast={toast}
-          index={index}
-          onClose={handleClose}
-        />
+        <AnimatedToastLite key={toast.id} toast={toast} index={index} onClose={handleClose} />
       ))}
     </div>
   );

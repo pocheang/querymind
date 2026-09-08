@@ -15,6 +15,8 @@ export const ACTION_KEYWORD_OPTIONS = [
   "auth.logout",
   "session.create",
   "session.delete",
+  "memory.long.delete",
+  "memory.long.purge",
   "query.load_guard",
   "query.credit_reserve",
   "document.upload",
