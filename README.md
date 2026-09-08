@@ -117,19 +117,42 @@ export OPENAI_API_KEY=sk-...
 The database needs no initialisation step: every store creates its own SQLite schema on
 first use, under `data/`.
 
-**4. Create a local administrator** (optional, for the admin pages):
-
-```bash
-python scripts/create_admin.py     # prints a generated password once
-```
-
-**5. Start backend:**
+**4. Start backend:**
 
 ```bash
 uvicorn app.api.main:app --reload --port 8000
 ```
 
-**6. Start frontend (new terminal):**
+**The first start creates an administrator and prints its password once**, because
+an installation with no admin account cannot open the console that manages it:
+
+```
+====================================================================
+  A first administrator was created: admin
+  password: <generated, shown once>
+====================================================================
+```
+
+That line goes to the terminal (and `docker logs`) and nowhere else -- the password
+is stored only as a hash and is deliberately kept out of the log buffer the admin
+console can read. Save it, sign in, change it.
+
+There is **no default password**: a shipped credential is a shipped vulnerability.
+To choose your own, export `ADMIN_PASSWORD` (at least 12 characters, with upper,
+lower, a digit and a symbol) before the first start; `ADMIN_USERNAME` renames the
+account from `admin`. Neither belongs in `config/env/*` -- those are read into
+settings, not exported, and a credential in a tracked file is a credential in
+everyone's checkout.
+
+Later starts create nothing. If every administrator is later disabled or removed, the
+next start makes one again, which is the recovery path. To reset a forgotten
+password without touching the database by hand:
+
+```bash
+python scripts/create_admin.py --reset-password
+```
+
+**5. Start frontend (new terminal):**
 
 ```bash
 cd frontend
@@ -137,7 +160,7 @@ npm install
 npm run dev
 ```
 
-**7. Access:**
+**6. Access:**
 - Frontend: http://localhost:5173
 - API Docs: http://localhost:8000/docs
 

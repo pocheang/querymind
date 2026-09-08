@@ -1,12 +1,17 @@
 #!/usr/bin/env python
-"""Create (or reset) the local development administrator.
+"""Create the first administrator, or reset one's password.
 
     conda run -n rag-local python scripts/create_admin.py
+    conda run -n rag-local python scripts/create_admin.py --reset-password
 
-The account is a **development fixture**, not a deployment step. It exists so the
-admin surface can be opened and looked at on a checkout: before this there was no
-account with the `admin` role at all, so `/admin/config/schema`, the ops pages and
-the user management screens could not be exercised by anyone.
+**The server does the creating half itself now**, on any start that finds no
+active administrator (`app/services/auth/bootstrap.py`, reached from the
+lifespan), so a first run no longer needs this script. It stays for the two
+things a running server will not do for you: resetting a forgotten password, and
+adding an administrator under a chosen name without a restart.
+
+Both paths go through `ensure_admin_account`, so the script and the server
+cannot disagree about what an administrator is.
 
 The password comes from `ADMIN_PASSWORD` when it is set, and is otherwise
 generated and printed **once**. It is never written to a file in the repository,
@@ -25,40 +30,11 @@ from __future__ import annotations
 
 import argparse
 import os
-import secrets
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
-
-LOWER = "abcdefghijkmnopqrstuvwxyz"  # no l
-UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ"  # no I, O
-DIGITS = "23456789"  # no 0, 1
-SPECIAL = "!@#$%^&*_+-=?"
-
-
-def generate_password(length: int = 20) -> str:
-    """A password that satisfies the policy by construction, not by retrying.
-
-    Ambiguous glyphs are left out because this one gets read off a terminal and
-    typed into a browser.
-    """
-
-    alphabet = LOWER + UPPER + DIGITS + SPECIAL
-    required = [
-        secrets.choice(LOWER),
-        secrets.choice(UPPER),
-        secrets.choice(DIGITS),
-        secrets.choice(SPECIAL),
-    ]
-    rest = [secrets.choice(alphabet) for _ in range(max(length - len(required), 0))]
-    chars = required + rest
-    # Shuffle so the guaranteed characters are not always in the same positions.
-    for i in range(len(chars) - 1, 0, -1):
-        j = secrets.randbelow(i + 1)
-        chars[i], chars[j] = chars[j], chars[i]
-    return "".join(chars)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -73,19 +49,16 @@ def main(argv: list[str] | None = None) -> int:
 
     from app.core.config import get_settings
     from app.services.auth.auth_service import AuthDBService
+    from app.services.auth.bootstrap import (
+        AdminBootstrapError,
+        ensure_admin_account,
+        generate_password,
+    )
     from app.services.auth.password_utils import generate_salt, hash_password
     from app.services.auth.validation import validate_password
 
     settings = get_settings()
     service = AuthDBService()
-
-    supplied = os.getenv("ADMIN_PASSWORD", "")
-    password = supplied or generate_password()
-    try:
-        validate_password(password)
-    except ValueError as exc:
-        print(f"ADMIN_PASSWORD does not meet the policy: {exc}", file=sys.stderr)
-        return 1
 
     with service._connect() as conn:
         row = conn.execute(
@@ -97,34 +70,59 @@ def main(argv: list[str] | None = None) -> int:
         print("Pass --reset-password to set a new password.")
         return 0
 
-    if row is not None:
-        # `change_password` verifies the old password, which a reset does not
-        # have, so the hash is rewritten with the same primitives the service
-        # uses to create one. Keeping the user_id matters: it owns documents.
-        salt = generate_salt()
-        with service._connect() as conn:
-            conn.execute(
-                "UPDATE users SET salt = ?, password_hash = ? WHERE user_id = ?",
-                (salt, hash_password(password, salt), row[0]),
-            )
-            conn.commit()
-        action = "password reset for"
-    else:
-        service.create_user_with_role(username=args.username, password=password, role="admin")
-        action = "created"
+    if row is None:
+        # The same call the server makes on a first run, so the script and the
+        # startup path cannot disagree about what an administrator is. It
+        # returns None when one already exists, which is why the reset branch
+        # below stays separate rather than being folded into it.
+        try:
+            created = ensure_admin_account(service, username=args.username)
+        except AdminBootstrapError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        if created is None:
+            print("An administrator already exists; this script creates the first one.")
+            print(f"Pass --username {args.username} --reset-password to set a password instead.")
+            return 0
+        # `settings.users_path` does not exist and never did -- `Settings` has
+        # `app_db_path`. This line raised AttributeError *after* the account was
+        # created, so the script reported a failure having succeeded, and the
+        # generated password printed below was lost with it: an admin account
+        # nobody could sign in to, and no way to find out. Found 2026-09-06 by
+        # running it.
+        print(f"created administrator '{created.username}' in {settings.app_db_path}")
+        if created.generated_password:
+            print(f"password: {created.generated_password}")
+            print("\nThis is printed once and stored only as a hash. Save it now.")
+        else:
+            print("password: (taken from ADMIN_PASSWORD)")
+        return 0
 
-    # `settings.users_path` does not exist and never did -- `Settings` has
-    # `app_db_path`. This line raised AttributeError *after* the account was
-    # created, so the script reported a failure having succeeded, and the
-    # generated password printed below was lost with it: an admin account nobody
-    # could sign in to and no way to find out. Found on 2026-09-06 by running it.
-    print(f"{action} administrator '{args.username}' in {settings.app_db_path}")
+    supplied = os.getenv("ADMIN_PASSWORD", "")
+    password = supplied or generate_password()
+    try:
+        validate_password(password)
+    except ValueError as exc:
+        print(f"ADMIN_PASSWORD does not meet the policy: {exc}", file=sys.stderr)
+        return 1
+
+    # `change_password` verifies the old password, which a reset does not have,
+    # so the hash is rewritten with the same primitives the service uses to
+    # create one. Keeping the user_id matters: it owns documents.
+    salt = generate_salt()
+    with service._connect() as conn:
+        conn.execute(
+            "UPDATE users SET salt = ?, password_hash = ? WHERE user_id = ?",
+            (salt, hash_password(password, salt), row[0]),
+        )
+        conn.commit()
+
+    print(f"password reset for administrator '{args.username}' in {settings.app_db_path}")
     if supplied:
         print("password: (taken from ADMIN_PASSWORD)")
     else:
         print(f"password: {password}")
         print("\nThis is printed once and stored only as a hash. Save it now.")
-    print("\nDevelopment fixture. Do not reuse this account or password anywhere real.")
     return 0
 
 

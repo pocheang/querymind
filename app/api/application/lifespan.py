@@ -33,6 +33,39 @@ _auto_ingest_thread: threading.Thread | None = None
 _cache_initialized = False
 
 
+def _bootstrap_administrator() -> None:
+    """Make sure a first run can open the admin console.
+
+    Skipped under pytest: a test run must not write an account into the
+    developer's `data/app.db`, and the behaviour is driven directly by
+    `tests/services/test_admin_bootstrap.py`, which is a better test of it than
+    a side effect of starting an app would be.
+
+    A failure here is reported and does not stop startup -- an installation
+    that cannot create an administrator is still an installation that answers
+    questions -- but it is logged at ERROR, because the alternative is a server
+    that looks healthy and has no way in.
+    """
+
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return
+
+    from app.services.auth.bootstrap import AdminBootstrapError, describe_bootstrap, ensure_admin_account
+
+    try:
+        created = ensure_admin_account()
+    except AdminBootstrapError as exc:
+        logger.error("No administrator exists and one could not be created: %s", exc)
+        return
+    except Exception as exc:  # pragma: no cover - a broken database is its own problem
+        logger.error("Administrator bootstrap failed: %s", exc)
+        return
+
+    if created is not None:
+        # stderr, not the logger: see `describe_bootstrap`.
+        print(describe_bootstrap(created), file=sys.stderr, flush=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage backend lifecycle (replaces deprecated on_event hooks)."""
@@ -50,6 +83,11 @@ async def lifespan(app: FastAPI):
         str(settings.ollama_base_url or ""),
         str(settings.ollama_chat_model or ""),
     )
+
+    # A checkout with no administrator cannot open the console that manages it,
+    # and until 2026-09-08 that was every checkout. See
+    # `app/services/auth/bootstrap.py` for why there is no default password.
+    _bootstrap_administrator()
 
     query_runtime.shadow_queue.start()
 

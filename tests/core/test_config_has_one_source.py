@@ -51,6 +51,10 @@ ALLOWED: dict[str, str] = {
     "app/api/application/lifespan.py::lifespan": "conda environment diagnostics",
     "app/api/deps/admin.py::_runtime_diagnostics_summary": "conda environment diagnostics",
     "app/api/deps/auth.py::_resolve_pytest_header_user": "test-run detection",
+    "app/api/application/lifespan.py::_bootstrap_administrator": "test-run detection",
+    # A bootstrap credential must not become a Settings field, for the same
+    # reason NACOS_PASSWORD is not one: a field can reach a config endpoint.
+    "app/services/auth/bootstrap.py::ensure_admin_account": "first-run admin credential",
 }
 
 
