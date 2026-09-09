@@ -17,7 +17,16 @@ except ImportError:  # pragma: no cover - dependency fallback
 
 logger = logging.getLogger(__name__)
 
-TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_\\-]+|[\\u4e00-\\u9fff]")
+# Doubly escaped until 2026-09-09, which made this match NO Chinese at all: in a
+# raw string `\\u4e00` is a literal backslash followed by `u`, so the second
+# class was a handful of ASCII punctuation rather than a CJK range. Long-term
+# memory retrieval therefore had no tokens to score for a Chinese question and
+# fell through to "the two most recent memories" every time -- silently, in the
+# feature whose whole point is remembering what a person told it.
+#
+# Every string literal in the tree was checked; this was the only one. The guard
+# is `tests/services/test_memory_tokenizer_matches_chinese.py`.
+TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_\-]+|[一-鿿]")
 
 
 def tokenize(text: str) -> list[str]:
@@ -120,24 +129,26 @@ def retrieve_relevant_long_term_memories(
 
     ranked_indexes: list[int] = []
     if query_tokens and any(tokenized):
-        if BM25Okapi is not None:
-            bm25 = BM25Okapi(tokenized)
-            scores = bm25.get_scores(query_tokens)
-            ranked = sorted(
-                ((idx, float(score)) for idx, score in enumerate(scores) if float(score) > 0),
-                key=lambda x: x[1],
-                reverse=True,
-            )
-            ranked_indexes = [idx for idx, _score in ranked[: max(1, top_k)]]
-        else:
-            query_set = set(query_tokens)
-            overlap_scores = []
-            for idx, doc_tokens in enumerate(tokenized):
-                score = len(query_set.intersection(set(doc_tokens)))
-                if score > 0:
-                    overlap_scores.append((idx, float(score)))
-            overlap_scores.sort(key=lambda x: x[1], reverse=True)
-            ranked_indexes = [idx for idx, _score in overlap_scores[: max(1, top_k)]]
+        # Membership and ranking are separate questions, and conflating them is
+        # what `score > 0` did. BM25 IDF goes to zero for a term present in half
+        # the corpus and negative above that, so on a SMALL set every score
+        # collapses -- measured on two memories, the relevant one and an
+        # unrelated one both scored exactly 0.0, the filter dropped both, and
+        # retrieval fell back to recency. `LONG_TERM_TOP_N` is 5, so a memory
+        # set is small by design and this was the normal case, not an edge one.
+        #
+        # CLAUDE.md already records this for the main BM25 path: a document is a
+        # candidate if it shares a term with the query, and BM25 only orders the
+        # candidates.
+        query_set = set(query_tokens)
+        candidates = [idx for idx, doc_tokens in enumerate(tokenized) if query_set.intersection(doc_tokens)]
+        if candidates:
+            if BM25Okapi is not None:
+                scores = BM25Okapi(tokenized).get_scores(query_tokens)
+                candidates.sort(key=lambda idx: float(scores[idx]), reverse=True)
+            else:
+                candidates.sort(key=lambda idx: len(query_set.intersection(tokenized[idx])), reverse=True)
+            ranked_indexes = candidates[: max(1, top_k)]
 
     if ranked_indexes:
         return [active[idx] for idx in ranked_indexes]
