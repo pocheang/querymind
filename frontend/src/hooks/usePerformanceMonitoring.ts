@@ -109,11 +109,12 @@ export function usePerformanceMonitoring(enabled: boolean = true) {
 
     // Measure page load time
     const reportPageLoad = () => {
-      if (window.performance && window.performance.timing) {
-        const timing = window.performance.timing;
-        const loadTime = timing.loadEventEnd - timing.navigationStart;
-        console.log(`[Performance] Page Load Time: ${loadTime}ms`);
-      }
+      // `performance.timing` is deprecated and its epoch-based numbers have to
+      // be subtracted to mean anything. A navigation entry is already relative
+      // to the navigation start, so `loadEventEnd` IS the load time.
+      const [navigation] = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
+      if (!navigation) return;
+      console.log(`[Performance] Page Load Time: ${Math.round(navigation.loadEventEnd)}ms`);
     };
     window.addEventListener("load", reportPageLoad);
 

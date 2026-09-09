@@ -190,8 +190,8 @@ export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
                   outerRadius={80}
                   dataKey="value"
                 >
-                  {agentDistributionData.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {agentDistributionData.map((entry, index) => (
+                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={TOOLTIP_STYLE} />

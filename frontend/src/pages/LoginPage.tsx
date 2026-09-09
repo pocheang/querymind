@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Boxes, Search, ShieldCheck } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { fieldHintClass, fieldHintState } from "@/lib/fieldHint";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { BrandMark } from "@/components/layout/BrandMark";
@@ -26,21 +26,21 @@ type Props = {
   onLogin: (user: AuthUser) => void;
 };
 
-/** Validation hint: neutral until the field has been touched. */
-function hintClass(valid: boolean, touched: boolean) {
-  return cn("text-[10px]", !touched ? "text-ink-muted" : valid ? "text-success" : "text-danger");
-}
-
 export function LoginPage({ onLogin }: Readonly<Props>) {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const mode = searchParams.get("mode") === "register" ? "register" : "login";
+  const submitLabel = mode === "login" ? t("auth.loginButton") : t("auth.registerButton");
 
   const [username, setUsername] = useState(rememberedUsername());
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(hasRememberedUsername());
   const { status, setStatus, error, setError, loading, setLoading } = useFormState();
+
+  const usernameHint = fieldHintState(username.length > 0, validateUsername(username));
+  const passwordHint = fieldHintState(password.length > 0, validatePassword(password));
+  const confirmHint = fieldHintState(confirmPassword.length > 0, password === confirmPassword);
 
   const loginValid = useMemo(() => validateUsername(username) && password.length > 0, [username, password]);
   const registerValid = useMemo(
@@ -191,12 +191,14 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
               autoComplete="username"
               icon="user"
             />
-            <p className={hintClass(validateUsername(username), username.length > 0)}>
-              {username.length === 0
-                ? t("pages.login.usernameHint")
-                : validateUsername(username)
-                  ? t("pages.login.usernameValid")
-                  : t("pages.login.invalidFormat")}
+            <p className={fieldHintClass(usernameHint)}>
+              {
+                {
+                  untouched: t("pages.login.usernameHint"),
+                  valid: t("pages.login.usernameValid"),
+                  invalid: t("pages.login.invalidFormat"),
+                }[usernameHint]
+              }
             </p>
           </div>
 
@@ -217,12 +219,14 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
               }}
               icon="lock"
             />
-            <p className={hintClass(validatePassword(password), password.length > 0)}>
-              {password.length === 0
-                ? t("pages.login.passwordHint")
-                : validatePassword(password)
-                  ? t("pages.login.passwordValid")
-                  : t("pages.login.weakPassword")}
+            <p className={fieldHintClass(passwordHint)}>
+              {
+                {
+                  untouched: t("pages.login.passwordHint"),
+                  valid: t("pages.login.passwordValid"),
+                  invalid: t("pages.login.weakPassword"),
+                }[passwordHint]
+              }
             </p>
           </div>
 
@@ -242,7 +246,7 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
                 icon="lock"
               />
               {confirmPassword.length > 0 && (
-                <p className={hintClass(password === confirmPassword, true)}>
+                <p className={fieldHintClass(confirmHint)}>
                   {password === confirmPassword
                     ? t("pages.changePassword.confirmMatch")
                     : t("pages.changePassword.confirmMismatch")}
@@ -269,7 +273,7 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
             disabled={mode === "login" ? !loginValid || loading : !registerValid || loading}
             onClick={() => (mode === "login" ? void login() : void register())}
           >
-            {loading ? t("query.searching") : mode === "login" ? t("auth.loginButton") : t("auth.registerButton")}
+            {loading ? t("query.searching") : submitLabel}
           </Button>
 
           <div className="text-center">

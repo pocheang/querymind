@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { cn } from "@/lib/utils";
+import { fieldHintClass, fieldHintState } from "@/lib/fieldHint";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,11 +13,6 @@ import { AuthInput } from "@/components/AuthInput";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { PasswordRequirements } from "@/components/PasswordRequirements";
 
-/** Validation hint: neutral until the field has been touched. */
-function hintClass(valid: boolean, touched: boolean) {
-  return cn("text-[10px]", !touched ? "text-ink-muted" : valid ? "text-success" : "text-danger");
-}
-
 export function ChangePasswordPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -25,6 +20,10 @@ export function ChangePasswordPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const { status, setStatus, error, setError, loading, setLoading } = useFormState();
+
+  const newPasswordHint = fieldHintState(newPassword.length > 0, validatePassword(newPassword));
+  const confirmHint = fieldHintState(confirmPassword.length > 0, newPassword === confirmPassword);
+  const oldPasswordHint = fieldHintState(oldPassword.length > 0, oldPassword.length > 0);
 
   const formValid = useMemo(() => {
     return (
@@ -91,7 +90,7 @@ export function ChangePasswordPage() {
               autoComplete="current-password"
               icon="lock"
             />
-            <p className={hintClass(oldPassword.length > 0, oldPassword.length > 0)}>
+            <p className={fieldHintClass(oldPasswordHint)}>
               {oldPassword.length > 0 ? t("pages.changePassword.currentReady") : t("pages.changePassword.currentHint")}
             </p>
           </div>
@@ -107,12 +106,14 @@ export function ChangePasswordPage() {
               autoComplete="new-password"
               icon="lock"
             />
-            <p className={hintClass(validatePassword(newPassword), newPassword.length > 0)}>
-              {validatePassword(newPassword)
-                ? t("pages.changePassword.newValid")
-                : newPassword.length > 0
-                  ? t("pages.changePassword.newInvalid")
-                  : t("pages.changePassword.newHint")}
+            <p className={fieldHintClass(newPasswordHint)}>
+              {
+                {
+                  untouched: t("pages.changePassword.newHint"),
+                  valid: t("pages.changePassword.newValid"),
+                  invalid: t("pages.changePassword.newInvalid"),
+                }[newPasswordHint]
+              }
             </p>
           </div>
 
@@ -130,12 +131,14 @@ export function ChangePasswordPage() {
               }}
               icon="lock"
             />
-            <p className={hintClass(newPassword === confirmPassword, confirmPassword.length > 0)}>
-              {confirmPassword.length === 0
-                ? t("pages.changePassword.confirmHint")
-                : newPassword === confirmPassword
-                  ? t("pages.changePassword.confirmMatch")
-                  : t("pages.changePassword.confirmMismatch")}
+            <p className={fieldHintClass(confirmHint)}>
+              {
+                {
+                  untouched: t("pages.changePassword.confirmHint"),
+                  valid: t("pages.changePassword.confirmMatch"),
+                  invalid: t("pages.changePassword.confirmMismatch"),
+                }[confirmHint]
+              }
             </p>
           </div>
 

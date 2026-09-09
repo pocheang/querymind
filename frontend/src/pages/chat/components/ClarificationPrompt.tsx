@@ -72,11 +72,11 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
         <p className="text-xs text-ink">{question.question}</p>
 
         <div className="space-y-1.5">
-          {question.options.map((option, index) => {
+          {question.options.map((option) => {
             const selected = selectedOption === option && !useCustom;
             return (
               <button
-                key={index}
+                key={option}
                 type="button"
                 className={cn(
                   "flex w-full items-center gap-2 rounded-control border p-2 text-left text-[11px] transition-all",

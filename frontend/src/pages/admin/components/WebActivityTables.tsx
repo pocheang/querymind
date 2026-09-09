@@ -38,6 +38,13 @@ function formatAlertTime(timestamp: string) {
   });
 }
 
+/** A threshold ladder reads as a ladder; nested ternaries do not. */
+function trustTone(score: number): "success" | "warning" | "danger" {
+  if (score >= 0.8) return "success";
+  if (score >= 0.5) return "warning";
+  return "danger";
+}
+
 export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<Props>) {
   const { t } = useTranslation();
 
@@ -106,12 +113,7 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
               </thead>
               <tbody>
                 {websitesData.map((website, index) => {
-                  const trustLevel =
-                    website.avg_trust_score >= 0.8
-                      ? "success"
-                      : website.avg_trust_score >= 0.5
-                        ? "warning"
-                        : "danger";
+                  const trustLevel = trustTone(website.avg_trust_score);
 
                   return (
                     <tr key={website.domain}>

@@ -232,8 +232,8 @@ export function AdminAgentQualityDashboard() {
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie data={errorData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} labelLine={false}>
-                    {errorData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {errorData.map((entry, index) => (
+                      <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />

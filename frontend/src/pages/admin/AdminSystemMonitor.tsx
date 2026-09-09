@@ -188,8 +188,8 @@ export function AdminSystemMonitor() {
                 formatter={(value: unknown) => [`${Number(value).toFixed(1)}%`, 'Usage']}
               />
               <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                {resourceData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                {resourceData.map((entry) => (
+                  <Cell key={entry.name} fill={entry.fill} />
                 ))}
               </Bar>
             </BarChart>

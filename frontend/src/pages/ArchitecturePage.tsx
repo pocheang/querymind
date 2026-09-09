@@ -69,8 +69,8 @@ export function ArchitecturePage({ isLoggedIn }: Readonly<Props>) {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-1.5">
-                  {(t(`architecture.content.${key}`, { returnObjects: true }) as string[]).map((item, i) => (
-                    <li key={i} className="flex gap-1.5 text-[11px] leading-relaxed text-ink-muted">
+                  {(t(`architecture.content.${key}`, { returnObjects: true }) as string[]).map((item) => (
+                    <li key={item} className="flex gap-1.5 text-[11px] leading-relaxed text-ink-muted">
                       <span className="mt-1 size-1 shrink-0 rounded-pill bg-brand-accent" aria-hidden="true" />
                       {item}
                     </li>

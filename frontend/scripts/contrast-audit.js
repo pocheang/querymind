@@ -48,7 +48,7 @@
   const L = (c) => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
   const ratio = (a, b) => { const x = L(a), y = L(b), hi = Math.max(x, y), lo = Math.min(x, y); return (hi + 0.05) / (lo + 0.05); };
 
-  const hex = (s) => { const h = s.trim().replace("#", ""); return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16), a: 1 }; };
+  const hex = (s) => { const h = s.trim().replace("#", ""); return { r: Number.parseInt(h.slice(0, 2), 16), g: Number.parseInt(h.slice(2, 4), 16), b: Number.parseInt(h.slice(4, 6), 16), a: 1 }; };
 
   /** The darkest pixel the aurora actually paints, at this viewport. */
   const auroraDarkest = () => {
@@ -94,7 +94,7 @@
   };
 
   const audit = (base) => {
-    const eop = (el) => { let o = 1, n = el; while (n && n.nodeType === 1) { const v = parseFloat(getComputedStyle(n).opacity); if (!Number.isNaN(v)) o *= v; n = n.parentElement; } return o; };
+    const eop = (el) => { let o = 1, n = el; while (n && n.nodeType === 1) { const v = Number.parseFloat(getComputedStyle(n).opacity); if (!Number.isNaN(v)) o *= v; n = n.parentElement; } return o; };
     const backdrop = (el) => {
       const layers = []; let n = el;
       while (n && n.nodeType === 1) {
@@ -130,8 +130,8 @@
       if (bd.gradient) { res.gradient.push({ text: text.slice(0, 24), on: bd.on }); bump("gradient-backdrop"); continue; }
       const fg = over({ ...fgRaw, a: fgRaw.a * op }, bd.color);
       const r = ratio(fg, bd.color);
-      const px = parseFloat(cs.fontSize);
-      const need = px >= 24 || (px >= 18.66 && parseInt(cs.fontWeight, 10) >= 700) ? 3 : 4.5;
+      const px = Number.parseFloat(cs.fontSize);
+      const need = px >= 24 || (px >= 18.66 && Number.parseInt(cs.fontWeight, 10) >= 700) ? 3 : 4.5;
       res.checked++;
       if (r < need) {
         res.failures.push({
