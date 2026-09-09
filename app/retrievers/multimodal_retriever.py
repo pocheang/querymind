@@ -360,7 +360,7 @@ def _to_evidence_item(row: RetrievalResult) -> EvidenceItem | None:
     if isinstance(raw_acl, str):
         raw_acl = tuple(value.strip() for value in raw_acl.split(",") if value.strip())
     raw_modality = str(row.modality or "text")
-    modality = "image" if raw_modality == "image" else "table" if raw_modality == "table" else "text"
+    modality = raw_modality if raw_modality in {"image", "table"} else "text"
     image_id = str(metadata.get("image_id") or row.id or "").strip() if modality == "image" else None
     try:
         return EvidenceItem(

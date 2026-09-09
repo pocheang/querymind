@@ -6,13 +6,12 @@ import type React from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { PromptTemplate } from "@/types/api";
+import type { IndexedFileSummary, PromptTemplate } from "@/types/api";
 import type { UserIdentity } from "@/types/auth";
 import { SessionList } from "@/pages/chat/components/SessionList";
 import { WorkbenchPanel } from "@/pages/chat/components/WorkbenchPanel";
 import { useChatStore } from "@/stores/useChatStore";
 import { useShallow } from "zustand/react/shallow";
-import type { IndexedFileSummary } from "@/types/api";
 
 type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 

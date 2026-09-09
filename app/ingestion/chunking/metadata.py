@@ -225,9 +225,7 @@ def calculate_importance_score(text: str, chunk_type: ChunkType, metadata: dict[
     Returns:
         Importance score
     """
-    score = 0.5  # 基础分数
-
-    # 类型加权
+    # 类型加权（默认 0.5，与下方 `.get` 的回退值一致）
     type_weights = {
         "heading": 0.9,
         "definition": 0.8,

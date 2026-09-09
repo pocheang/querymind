@@ -164,7 +164,13 @@ if (staleExemptions.length) {
   console.error("and tells the next reader the class is still in use.");
   process.exit(1);
 }
-const dead = [...tokens].filter(([token]) => !new RegExp(`\\.${token.replace(/\./g, "\\.")}(?![\\w-])`).test(css));
+// `String.raw` so the pattern reads as the regex it becomes. Every escape here
+// is load-bearing -- Tailwind escapes the dot in a fractional utility, so
+// `gap-1.5` is delivered as `.gap-1\.5`, and an earlier version of this line
+// that compared against raw text called the whole spacing scale dead.
+const dead = [...tokens].filter(
+  ([token]) => !new RegExp(String.raw`\.${token.replace(/\./g, String.raw`\.`)}(?![\w-])`).test(css)
+);
 
 console.log(`class names reaching a className : ${tokens.size}`);
 console.log(`present in the delivered CSS     : ${tokens.size - dead.length}`);

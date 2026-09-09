@@ -101,7 +101,7 @@
         const cs = getComputedStyle(n);
         if (cs.backgroundImage && cs.backgroundImage !== "none") {
           if (n === document.body || n === document.documentElement) break;
-          return { gradient: true, on: n.tagName + "." + (typeof n.className === "string" ? n.className.split(/\s+/)[0] : "") };
+          return { gradient: true, on: n.tagName + "." + (n.className?.split?.(/\s+/)?.[0] ?? "") };
         }
         const c = parse(cs.backgroundColor);
         if (c && c.a > 0) { layers.push(c); if (c.a >= 0.999) break; }

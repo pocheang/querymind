@@ -372,7 +372,7 @@ def rebuild_file_index(
         candidates = [Path(source)]
     else:
         candidates = [settings.uploads_path / filename, settings.docs_path / filename]
-        candidates.extend([p for p in settings.docs_path.rglob(filename)])
+        candidates.extend(settings.docs_path.rglob(filename))
     existing_map: dict[str, Path] = {}
     for p in candidates:
         if p.exists() and p.is_file():

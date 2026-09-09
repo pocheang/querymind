@@ -47,12 +47,22 @@ def serialize_execution_event(event: ExecutionEvent) -> str:
     return f"event: execution_event\ndata: {payload}\n\n"
 
 
+def _trace_status(status: str) -> str:
+    """Collapse the tracker's vocabulary onto the three the trace shows.
+
+    Anything that is not a recognised failure or a completion is reported
+    as skipped, so an unknown status can never read as success.
+    """
+
+    if status in {"failed", "error"}:
+        return "failed"
+    return "completed" if status == "completed" else "skipped"
+
+
 def _trace_event(step: AgentStep) -> ExecutionEvent:
     """Map legacy tracker detail to a non-sensitive, immutable trace event."""
     stage = next((value for prefix, value in _STAGE_BY_AGENT if step.agent_name.lower().startswith(prefix)), "rag")
-    status = (
-        "failed" if step.status in {"failed", "error"} else "completed" if step.status == "completed" else "skipped"
-    )
+    status = _trace_status(step.status)
     return ExecutionEvent(
         stage=stage,
         status=status,

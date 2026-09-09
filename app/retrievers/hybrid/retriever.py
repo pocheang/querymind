@@ -33,7 +33,6 @@ def hybrid_search_with_diagnostics(
     """
     with traced_span("retrieval.hybrid_search", {}):
         settings = get_settings()
-        flags = strategy_flags()
         strict_threshold = float(getattr(settings, "vector_similarity_threshold", 0.2) or 0.2)
         relaxed_threshold = float(getattr(settings, "vector_similarity_relaxed_threshold", 0.05) or 0.05)
         degraded = False

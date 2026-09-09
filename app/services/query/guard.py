@@ -315,7 +315,7 @@ class QueryLoadGuard:
 
         slot = _RedisSlot(user_rate_key=f"qguard:rate:{user_key}")
         try:
-            if self._reserve_redis_slot(client, slot, user_key):
+            if self._reserve_redis_slot(client, slot):
                 yield
             else:
                 # Redis stopped answering partway through. Degrading to the
@@ -326,7 +326,7 @@ class QueryLoadGuard:
         finally:
             self._release_redis_slot(client, slot, user_key)
 
-    def _reserve_redis_slot(self, client, slot: _RedisSlot, user_key: str) -> bool:
+    def _reserve_redis_slot(self, client, slot: _RedisSlot) -> bool:
         """Take a slot, or say the cluster counters are unusable.
 
         Returns False only for "Redis is not answering" -- a refusal is an

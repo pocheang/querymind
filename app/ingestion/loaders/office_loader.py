@@ -230,7 +230,7 @@ def _ppt_image_pages(archive: zipfile.ZipFile) -> dict[str, int]:
 
 def _rows_to_markdown(rows: list[list[object]]) -> str:
     normalized = [[_cell(value) for value in row] for row in rows]
-    normalized = [row for row in normalized if any(cell for cell in row)]
+    normalized = [row for row in normalized if any(row)]
     if not normalized:
         return ""
     width = max(len(row) for row in normalized)

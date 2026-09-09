@@ -55,10 +55,10 @@ def _bootstrap_administrator() -> None:
     try:
         created = ensure_admin_account()
     except AdminBootstrapError as exc:
-        logger.error("No administrator exists and one could not be created: %s", exc)
+        logger.exception("No administrator exists and one could not be created: %s", exc)
         return
     except Exception as exc:  # pragma: no cover - a broken database is its own problem
-        logger.error("Administrator bootstrap failed: %s", exc)
+        logger.exception("Administrator bootstrap failed: %s", exc)
         return
 
     if created is not None:
@@ -85,7 +85,7 @@ def _purge_retired_user_model_settings() -> None:
     try:
         cleared = purge_user_api_settings()
     except Exception as exc:  # pragma: no cover - a broken database is its own problem
-        logger.error("Could not clear retired per-user model settings: %s", exc)
+        logger.exception("Could not clear retired per-user model settings: %s", exc)
         return
 
     if cleared:

@@ -24,7 +24,7 @@ export default function inlineCriticalCSS() {
 
         try {
           const criticalCSS = readFileSync(criticalPath, 'utf-8');
-          const sanitizedCSS = criticalCSS.replace(/<\/style>/gi, '<\\/style>');
+          const sanitizedCSS = criticalCSS.replace(/<\/style>/gi, String.raw`<\/style>`);
 
           const transformed = html.replace(
             /<\/head>/i,

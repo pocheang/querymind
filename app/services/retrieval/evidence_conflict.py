@@ -78,7 +78,7 @@ def _has_neg(text: str) -> bool:
 
 def _tokenize(text: str) -> set[str]:
     """Tokenize text and filter out common stop words (used for caching)."""
-    tokens = {x for x in re.findall(r"[a-zA-Z_]{4,}", text)}
+    tokens = set(re.findall(r"[a-zA-Z_]{4,}", text))
     # Filter stop words
     return {x for x in tokens if x not in {"this", "that", "with", "from", "have", "will", "should"}}
 
