@@ -247,11 +247,39 @@ def reported_complexities(export: Path) -> dict[tuple[str, int], int]:
     return found
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _repository_file(rel: str) -> Path | None:
+    """Resolve a path NAMED BY THE EXPORT, inside this repository, or refuse it.
+
+    The component paths come out of a SonarCloud API response -- a network
+    document -- and are then opened. Nothing stops one containing `../..` or an
+    absolute path somewhere else, so this is a real traversal and not a
+    hypothetical one (`pythonsecurity:S8707`, raised against this file the day
+    it landed).
+
+    Resolving first and then requiring the result to sit under the repository is
+    the check that actually holds: testing the string for `..` before resolving
+    is defeated by a symlink, and by `a/../../b` normalising to something the
+    substring test never saw.
+    """
+
+    candidate = (REPO_ROOT / rel).resolve()
+    if candidate.suffix != ".py":
+        return None
+    try:
+        candidate.relative_to(REPO_ROOT)
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
+
+
 def _score_at(rel: str, line: int) -> tuple[str, int] | None:
     """This scorer's answer for the function Sonar named, or None if it is gone."""
 
-    path = Path(rel)
-    if not path.exists():
+    path = _repository_file(rel)
+    if path is None:
         return None
     node = next((n for n in functions_in(path) if n.lineno == line), None)
     return None if node is None else (node.name, score_function(node))

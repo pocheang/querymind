@@ -141,6 +141,44 @@ def test_the_scorer_does_not_trip_its_own_rule():
     assert over == [], f"the complexity tool is itself too complex: {over}"
 
 
+@pytest.mark.parametrize(
+    ("label", "candidate"),
+    [
+        ("climbs out with ..", "../../../../etc/passwd"),
+        ("climbs out mid-path", "app/../../etc/passwd"),
+        ("an absolute path elsewhere", "/etc/passwd"),
+        ("a windows absolute path", "C:/Windows/win.ini"),
+        ("not python at all", "CLAUDE.md"),
+        ("inside the repo but absent", "app/does/not/exist.py"),
+    ],
+)
+def test_a_path_from_the_export_cannot_escape_the_repository(label, candidate):
+    """The component paths come out of a network response and are then opened.
+
+    `pythonsecurity:S8707` raised this against the file the day it landed, and
+    it is a real traversal rather than a hypothetical one: nothing stops a
+    SonarCloud export -- or a hand-edited copy of one -- naming `../../` or an
+    absolute path somewhere else.
+
+    Resolving first and then requiring the result to sit under the repository is
+    what actually holds. Checking the string for `..` before resolving is
+    defeated by a symlink, and by `a/../../b` normalising to something the
+    substring test never saw -- which is why the second case above is here.
+    """
+
+    assert cc._repository_file(candidate) is None, label
+
+
+def test_a_real_repository_file_still_resolves():
+    """The guard has to refuse without also refusing everything."""
+
+    resolved = cc._repository_file("app/core/config.py")
+
+    assert resolved is not None
+    assert resolved.name == "config.py"
+    assert resolved.is_file()
+
+
 def test_it_reads_a_sonar_export_the_way_the_api_returns_one():
     """`reported_complexities` parses the live response shape, so a change to
     it fails here rather than silently validating against nothing."""
