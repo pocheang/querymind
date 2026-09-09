@@ -192,6 +192,14 @@ def auth_service(monkeypatch: pytest.MonkeyPatch) -> Iterator[object]:
     Deliberately not pytest's temporary-path fixture, for the reason
     `tests/services/test_admin_bootstrap.py` gives: its basetemp root needs
     permissions that are not available on every Windows checkout.
+
+    **It supplies its own encryption key, and that is not incidental.**
+    `set_user_metadata` encrypts the api-settings payload, and
+    `_api_settings_data_key` refuses to invent a key -- auto-generation is
+    disabled on purpose. A developer machine has one in `.runtime/`, so
+    omitting it here passed locally and failed on every fresh clone and in CI,
+    which is exactly the trap CLAUDE.md records for `test_dev_compose_is_usable`.
+    The three suites under `tests/mcp/` already did this; this one did not.
     """
 
     from app.core.config import get_settings
@@ -199,6 +207,7 @@ def auth_service(monkeypatch: pytest.MonkeyPatch) -> Iterator[object]:
 
     root = Path(tempfile.mkdtemp(prefix="querymind-model-config-"))
     monkeypatch.setenv("APP_DB_PATH", str(root / "app.db"))
+    monkeypatch.setenv("API_SETTINGS_ENCRYPTION_KEY", "test-key-for-retired-user-model-settings")
     get_settings.cache_clear()
     try:
         yield AuthDBService()
