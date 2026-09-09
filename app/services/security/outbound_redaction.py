@@ -230,7 +230,7 @@ def _should_passthrough_string(parent_key: str, value: str) -> bool:
 
 
 def redact_texts_for_provider(texts: list[str], *, provider: str, for_embeddings: bool = False) -> list[str]:
-    values = [str(item or "") for item in list(texts or [])]
+    values = [str(item or "") for item in texts or []]
     if not is_external_provider(provider) or not outbound_redaction_enabled(for_embeddings=for_embeddings):
         return values
     state = _RedactionState()

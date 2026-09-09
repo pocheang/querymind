@@ -34,7 +34,7 @@ def _extract_json(text: str) -> dict[str, Any] | None:
     try:
         data = json.loads(match.group(0))
         return data if isinstance(data, dict) else None
-    except (json.JSONDecodeError, ValueError) as error:
+    except ValueError as error:
         logger.debug(f"Failed to extract JSON from text: {error}")
         return None
 

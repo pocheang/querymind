@@ -86,7 +86,7 @@ def _source_score(url: str, allowlist: list[str]) -> float:
 
     # No allowlist - use TLD-based trust scoring with stricter thresholds
     # High trust domains
-    if host.endswith(".gov") or host.endswith(".edu"):
+    if host.endswith((".gov", ".edu")):
         return 0.9
     # Medium trust domains
     if host.endswith(".org"):

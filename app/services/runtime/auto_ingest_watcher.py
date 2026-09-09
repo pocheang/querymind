@@ -135,6 +135,8 @@ class AutoIngestWatcher:
                 if prev == sig:
                     ready_paths.append((path, sig))
 
+        # `list()` is required (python:S7504 says otherwise): the body
+        # pops from this dict, so iterating it live raises RuntimeError.
         for key in list(self._last_seen_signatures.keys()):
             if key not in current_keys:
                 self._last_seen_signatures.pop(key, None)

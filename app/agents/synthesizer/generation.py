@@ -230,7 +230,7 @@ def _extract_json(text: str) -> dict:
         return {}
     try:
         data = json.loads(match.group(0))
-    except (json.JSONDecodeError, ValueError) as e:
+    except ValueError as e:
         logger.debug(f"Failed to parse JSON: {e}")
         return {}
     return data if isinstance(data, dict) else {}

@@ -89,7 +89,7 @@ def _extract_json_array(text: str) -> list[dict]:
     try:
         data = json.loads(match.group(0))
         return data if isinstance(data, list) else []
-    except (json.JSONDecodeError, ValueError) as e:
+    except ValueError as e:
         logger.debug(f"Failed to parse JSON array from LLM response: {e}")
         return []
 

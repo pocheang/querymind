@@ -12,7 +12,7 @@ def classify_audit_event(action: str, result: str) -> tuple[str, str]:
 
     if action_lc.startswith("auth."):
         category = "auth"
-    elif action_lc.startswith("query.") or action_lc.startswith("document."):
+    elif action_lc.startswith(("query.", "document.")):
         category = "data"
     elif action_lc.startswith("admin."):
         category = "admin"

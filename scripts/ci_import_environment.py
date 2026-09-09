@@ -71,6 +71,9 @@ def pytest_configure(config) -> None:  # noqa: ARG001 - pytest plugin hook signa
     file exists to prevent.
     """
 
+    # `list()` is required, not redundant (python:S7504 says otherwise):
+    # the body deletes from `sys.modules`, and iterating a dict while
+    # deleting from it raises RuntimeError.
     for name in list(sys.modules):
         if name.split(".", 1)[0] in BLOCKED_IMPORTS:
             del sys.modules[name]

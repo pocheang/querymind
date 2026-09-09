@@ -49,7 +49,7 @@ def wait_for_health(timeout: float, interval: float) -> bool:
             with urllib.request.urlopen(TARGET, timeout=min(10.0, max(interval, 1.0))) as response:
                 if 200 <= response.status < 400:
                     return True
-        except (OSError, urllib.error.URLError):
+        except OSError:
             pass
         time.sleep(interval)
     return False

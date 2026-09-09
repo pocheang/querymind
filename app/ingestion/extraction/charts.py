@@ -131,7 +131,7 @@ def extract_chart_data_with_vision(
         # Resize image if too large (prevent memory issues)
         image_bytes = _resize_image_if_needed(image_bytes)
 
-        if model.startswith("gpt-4") or model.startswith("gpt"):
+        if model.startswith("gpt"):
             provider = "openai"
         elif model.startswith("claude"):
             provider = "anthropic"

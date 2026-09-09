@@ -89,11 +89,11 @@ def _is_probably_valid_upload_signature(suffix: str, head: bytes) -> bool:
     if suffix in {".jpg", ".jpeg"}:
         return prefix.startswith(b"\xff\xd8\xff")
     if suffix == ".gif":
-        return prefix.startswith(b"GIF87a") or prefix.startswith(b"GIF89a")
+        return prefix.startswith((b"GIF87a", b"GIF89a"))
     if suffix == ".bmp":
         return prefix.startswith(b"BM")
     if suffix in {".tif", ".tiff"}:
-        return prefix.startswith(b"II*\x00") or prefix.startswith(b"MM\x00*")
+        return prefix.startswith((b"II*\x00", b"MM\x00*"))
     if suffix == ".webp":
         return len(prefix) >= 12 and prefix.startswith(b"RIFF") and prefix[8:12] == b"WEBP"
     if suffix in {".docx", ".pptx", ".xlsx"}:

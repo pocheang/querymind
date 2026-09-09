@@ -38,7 +38,7 @@ def extract_charts_from_pdf(path: Path, use_vision: bool = True, vision_model: s
     settings = get_settings()
     api_key = None
     if use_vision:
-        if vision_model.startswith("gpt-4") or vision_model.startswith("gpt"):
+        if vision_model.startswith("gpt"):
             api_key = settings.openai_api_key
             if not api_key:
                 logger.warning("OpenAI API key not configured, chart extraction will fail")

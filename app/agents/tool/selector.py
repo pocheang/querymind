@@ -181,7 +181,7 @@ def _selection_from_response(
         return ToolSelection(call=None, reason="tool selector returned no decision")
     try:
         data = json.loads(match.group(0))
-    except (json.JSONDecodeError, ValueError):
+    except ValueError:
         return ToolSelection(call=None, reason="tool selector returned malformed JSON")
     if not isinstance(data, dict):
         return ToolSelection(call=None, reason="tool selector returned malformed JSON")

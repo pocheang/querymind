@@ -117,7 +117,7 @@ def _is_heading(text: str, metadata: dict[str, Any]) -> bool:
 def _is_code_block(text: str) -> bool:
     """检查是否为代码块"""
     # 代码块标记
-    if text.startswith("```") or text.startswith("    "):
+    if text.startswith(("```", "    ")):
         return True
 
     # 包含大量编程关键字
@@ -184,7 +184,7 @@ def _is_list(text: str) -> bool:
 def _is_quote(text: str) -> bool:
     """检查是否为引用"""
     # 引用标记
-    if text.startswith(">") or text.startswith("「") or text.startswith('"'):
+    if text.startswith((">", "「", '"')):
         return True
 
     # 包含引用关键词

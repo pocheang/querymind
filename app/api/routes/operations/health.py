@@ -35,7 +35,7 @@ def _check_ollama_ready() -> dict[str, Any]:
             resp = client.get(url)
             resp.raise_for_status()
             payload = resp.json()
-        models = [str(x.get("name", "") or "") for x in list((payload or {}).get("models", []) or []) if x]
+        models = [str(x.get("name", "") or "") for x in (payload or {}).get("models", []) or [] if x]
         latency = int((time.perf_counter() - start) * 1000)
         return {
             "ok": True,

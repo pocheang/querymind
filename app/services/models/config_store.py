@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.domain.text import normalize_string
 from app.services.auth.auth_service import AuthDBService
 from app.services.models.catalog import get_model_catalog, provider_defaults, provider_supports_embeddings
-from app.services.security.network import OutboundURLValidationError, validate_api_base_url_for_provider
+from app.services.security.network import validate_api_base_url_for_provider
 
 GLOBAL_MODEL_SETTINGS_KEY = "global_model_settings"
 # The users table still carries this key on rows written before 2026-09-08, when
@@ -153,7 +153,7 @@ def get_global_model_settings() -> dict[str, Any]:
         return default_global_model_settings()
     try:
         return _normalize_global_model_settings(stored)
-    except (ValueError, OutboundURLValidationError):
+    except ValueError:  # includes OutboundURLValidationError, which derives from it
         safe = default_global_model_settings()
         safe["enabled"] = False
         return safe

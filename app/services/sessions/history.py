@@ -384,7 +384,7 @@ class HistoryStore:
                 return None
             try:
                 data = json.loads(str(row[0] or ""))
-            except (json.JSONDecodeError, ValueError) as e:
+            except ValueError as e:
                 logger.warning(f"Failed to parse session data for {session_id}: {e}")
                 return None
             return data if isinstance(data, dict) else None
@@ -414,7 +414,7 @@ class HistoryStore:
             for row in out:
                 try:
                     data = json.loads(str(row[0] or ""))
-                except (json.JSONDecodeError, ValueError) as e:
+                except ValueError as e:
                     logger.debug(f"Skipping invalid session data: {e}")
                     continue
                 if isinstance(data, dict):
@@ -448,6 +448,9 @@ class HistoryStore:
                 return
             self._last_tier_ts = now_ts
             cutoff = datetime.now(UTC) - timedelta(days=self._hot_days)
+            # `list()` is required (python:S7504 says otherwise): the body
+            # moves files out of this directory with `path.replace`, and a
+            # live `glob` over a directory being modified is undefined.
             for path in list(self.base_dir.glob("*.json")):
                 try:
                     data = json.loads(path.read_text(encoding="utf-8"))

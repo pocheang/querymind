@@ -19,7 +19,7 @@ def _module_status(component: str, module_name: str) -> dict[str, Any]:
     """Return a lightweight health report without importing the component."""
     try:
         available = importlib.util.find_spec(module_name) is not None
-    except (ImportError, ModuleNotFoundError, ValueError) as exc:
+    except (ImportError, ValueError) as exc:
         logger.warning("Unable to inspect %s health: %s", component, exc)
         available = False
 
