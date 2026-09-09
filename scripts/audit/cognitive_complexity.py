@@ -233,6 +233,29 @@ def report(targets: list[str], threshold: int) -> int:
 _REPORTED_RE = re.compile(r"from (\d+) to the (\d+) allowed")
 
 
+def _export_path(raw: str) -> Path:
+    """Resolve the export, refusing anything outside the working tree.
+
+    The other half of `pythonsecurity:S8707`: `_repository_file` bounds the
+    paths named *inside* the export, and this bounds the export itself. The
+    rule frames the risk as an agent running the tool with an argument it did
+    not choose, which is exactly how this repository is operated, so it is
+    worth honouring rather than waving away as "a developer's own CLI".
+
+    Resolve first, then contain -- a `..` check on the string is defeated by a
+    symlink. `.json` because that is the only thing this reads.
+    """
+
+    candidate = Path(raw).resolve()
+    roots = (Path.cwd().resolve(), REPO_ROOT)
+    inside = any(candidate == root or root in candidate.parents for root in roots)
+    if candidate.suffix != ".json" or not inside:
+        raise SystemExit(f"refusing to read {raw!r}: expected a .json file under the working tree")
+    if not candidate.is_file():
+        raise SystemExit(f"no such export: {raw!r}")
+    return candidate
+
+
 def reported_complexities(export: Path) -> dict[tuple[str, int], int]:
     """The value Sonar reported for each S3776 finding, keyed by file and line."""
 
@@ -285,10 +308,16 @@ def _score_at(rel: str, line: int) -> tuple[str, int] | None:
     return None if node is None else (node.name, score_function(node))
 
 
-def validate(export: Path) -> int:
-    """Score every S3776 finding Sonar reported and compare, exactly."""
+def validate(raw_export: str) -> int:
+    """Score every S3776 finding Sonar reported and compare, exactly.
 
-    expected = reported_complexities(export)
+    The path is contained here, at the boundary, rather than inside
+     -- that one parses a document it is handed, and
+    putting the check in it made the parser untestable without writing into
+    the working tree.
+    """
+
+    expected = reported_complexities(_export_path(raw_export))
     agree, disagree, missing = 0, [], []
     for (rel, line), want in sorted(expected.items()):
         scored = _score_at(rel, line)
@@ -315,7 +344,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.validate:
-        return validate(Path(args.validate))
+        return validate(args.validate)
     return report(args.targets or ["app"], args.over)
 
 

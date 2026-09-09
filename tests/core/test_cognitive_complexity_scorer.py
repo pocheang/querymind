@@ -169,6 +169,45 @@ def test_a_path_from_the_export_cannot_escape_the_repository(label, candidate):
     assert cc._repository_file(candidate) is None, label
 
 
+@pytest.mark.parametrize(
+    "candidate",
+    ["../../etc/passwd", "/etc/passwd", "C:/Windows/win.ini", "CLAUDE.md", "notes.txt"],
+)
+def test_the_export_path_itself_is_contained(candidate):
+    """The other half of the same rule.
+
+    `_repository_file` bounds the paths named INSIDE the export; this bounds
+    the export. SonarCloud frames the risk as an agent running the tool with an
+    argument it did not choose, which is how this repository is operated.
+    """
+
+    with pytest.raises(SystemExit):
+        cc._export_path(candidate)
+
+
+def test_an_export_under_the_working_tree_is_accepted(monkeypatch):
+    """Refusing has to stop short of refusing the ordinary case.
+
+    Deliberately not `tmp_path`: its basetemp root needs permissions that are
+    not available on every Windows checkout, which the rest of this suite
+    already works around the same way.
+    """
+
+    import shutil
+    import tempfile
+
+    root = Path(tempfile.mkdtemp(prefix="querymind-export-")).resolve()
+    try:
+        monkeypatch.chdir(root)
+        export = root / "issues.json"
+        export.write_text("{}", encoding="utf-8")
+
+        assert cc._export_path("issues.json") == export.resolve()
+    finally:
+        monkeypatch.undo()
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_a_real_repository_file_still_resolves():
     """The guard has to refuse without also refusing everything."""
 
