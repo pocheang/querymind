@@ -102,13 +102,18 @@ def test_a_duplicate_is_refused_by_the_primary_key(db_path):
     repository = ConnectorMetadataRepository(db_path)
     repository.create(_metadata())
 
+    duplicate = _metadata()
+
     with pytest.raises(ValueError, match="already exists"):
-        repository.create(_metadata())
+        repository.create(duplicate)
 
 
 def test_replacing_something_that_is_not_there_raises(db_path):
+    repository = ConnectorMetadataRepository(db_path)
+    absent = _metadata()
+
     with pytest.raises(KeyError):
-        ConnectorMetadataRepository(db_path).replace(_metadata())
+        repository.replace(absent)
 
 
 def test_one_owner_never_sees_another_owners_connector(db_path):

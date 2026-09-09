@@ -117,5 +117,8 @@ def test_a_short_result_list_is_an_error_not_a_truncation() -> None:
         def batch_retrieve(self, batch: list[tuple[str, str]]) -> list[RetrievalResult]:
             return [RetrievalResult(query_id="q-1", query_text="one", retrieved_docs=["/docs/a.md"], latency_ms=1.0)]
 
+    service = EvaluationService()
+    retriever = _ShortRetriever()
+
     with pytest.raises(ValueError):
-        EvaluationService().evaluate_system(_ShortRetriever(), queries, "short")
+        service.evaluate_system(retriever, queries, "short")

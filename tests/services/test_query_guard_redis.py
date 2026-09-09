@@ -101,6 +101,8 @@ def test_a_slot_is_taken_and_given_back(redis: _FakeRedis) -> None:
 def test_the_slot_comes_back_even_when_the_body_raises(redis: _FakeRedis) -> None:
     guard = _guard()
 
+    # See the note in `test_query_guard_async.py`: the raise inside is the
+    # assertion, not a second thing that might throw.
     with pytest.raises(ValueError):
         with guard.acquire("user-1"):
             raise ValueError("boom")

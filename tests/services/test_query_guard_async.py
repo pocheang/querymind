@@ -67,6 +67,10 @@ async def test_slot_is_released_after_the_block():
 @pytest.mark.asyncio
 async def test_slot_is_released_when_the_body_raises():
     guard = _guard()
+    # `python:S5778` flags two invocations here and the second one IS the
+    # assertion: what this pins is that the context manager lets the error
+    # through and still gives the permit back. Hoisting it out would test
+    # nothing.
     with pytest.raises(ValueError):
         async with guard.acquire_async("u1"):
             raise ValueError("boom")

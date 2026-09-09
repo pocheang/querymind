@@ -105,9 +105,11 @@ async def test_a_stage_without_a_fallback_still_fails_the_request():
     stages rely on."""
     runtime = _runtime()
 
+    state = _state()
+
     with pytest.raises(StageTimeoutError):
         await runtime._run_stage(
-            _state(),
+            state,
             event_stage="output_filter",
             timeout_stage="output_filter",
             operation=_hang,

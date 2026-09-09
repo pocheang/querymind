@@ -140,8 +140,11 @@ class TestARealFailureStillRaises:
     def test_a_thrown_retriever_is_still_a_failure(self) -> None:
         """The fix must not make retrieval failures silent -- that would trade one
         bug for a worse one."""
+        service = _service(vector=_broken, bm25=_broken)
+        scope = _scope("/uploads/alice/notes.pdf")
+
         with pytest.raises(RetrievalFailureError):
-            _retrieve(_service(vector=_broken, bm25=_broken), _scope("/uploads/alice/notes.pdf"), "vector", "bm25")
+            _retrieve(service, scope, "vector", "bm25")
 
     def test_a_failure_alongside_a_scope_skip_is_still_judged(self) -> None:
         """Mixed case: the graph store is not configured (never attempted) and
@@ -156,14 +159,11 @@ class TestARealFailureStillRaises:
         of test: one whose subject is the environment.
         """
 
+        service = _service(vector=_broken, bm25=_broken, graph=None)
+        scope = _scope("/uploads/alice/notes.pdf")
+
         with pytest.raises(RetrievalFailureError):
-            _retrieve(
-                _service(vector=_broken, bm25=_broken, graph=None),
-                _scope("/uploads/alice/notes.pdf"),
-                "vector",
-                "bm25",
-                "graph",
-            )
+            _retrieve(service, scope, "vector", "bm25", "graph")
 
     def test_partial_success_is_still_acceptable(self) -> None:
         context = _retrieve(_service(vector=_ok, bm25=_broken), _scope("/uploads/alice/notes.pdf"), "vector", "bm25")

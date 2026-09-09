@@ -61,8 +61,10 @@ class TestAnIdentifierIsLoggedByReference:
 class TestACachePrefixIsAName:
     @pytest.mark.parametrize("prefix", ["*", "?", "a*", "[abc]", "", "a" * 65, "with space", "a:b"])
     def test_a_pattern_is_refused(self, prefix: str) -> None:
+        manager = CacheManager()
+
         with pytest.raises(ValueError, match="cache prefix"):
-            asyncio.run(CacheManager().clear_prefix(prefix))
+            asyncio.run(manager.clear_prefix(prefix))
 
     @pytest.mark.parametrize("prefix", ["retrieval", "route-decisions", "a", "A_1-b"])
     def test_a_name_is_accepted(self, prefix: str) -> None:

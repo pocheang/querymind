@@ -88,8 +88,11 @@ async def test_resolver_rejects_a_caller_asking_for_someone_elses_source():
     """A caller cannot widen its own scope by naming another user's document."""
     request = _alice(RequestScope(allowed_sources=frozenset({BOB_DOC})))
 
+    runtime = _runtime()
+    state = _state(request)
+
     with pytest.raises(Exception) as excinfo:
-        await _runtime().privacy_permission(_state(request))
+        await runtime.privacy_permission(state)
 
     assert isinstance(excinfo.value.__cause__ or excinfo.value, AccessScopeError | PermissionError)
 

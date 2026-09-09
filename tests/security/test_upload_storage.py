@@ -153,8 +153,10 @@ async def test_an_empty_file_is_dropped_quietly(roots: _Roots) -> None:
 
 @pytest.mark.asyncio
 async def test_a_file_over_the_per_file_cap_is_refused_and_names_itself(roots: _Roots) -> None:
+    uploads = [_Upload("big.txt", b"x" * 200)]
+
     with pytest.raises(UploadPayloadTooLargeError) as excinfo:
-        await _store(roots, [_Upload("big.txt", b"x" * 200)], max_file_bytes=64)
+        await _store(roots, uploads, max_file_bytes=64)
 
     assert excinfo.value.filename == "big.txt"
 
@@ -171,8 +173,10 @@ async def test_files_that_together_exceed_the_request_cap_are_refused(roots: _Ro
 async def test_a_file_whose_signature_does_not_match_its_extension_is_refused(roots: _Roots) -> None:
     """The extension is the caller's claim; the first bytes are the evidence."""
 
+    uploads = [_Upload("report.pdf", b"not really a pdf")]
+
     with pytest.raises(UploadInvalidFileError, match="report.pdf"):
-        await _store(roots, [_Upload("report.pdf", b"not really a pdf")])
+        await _store(roots, uploads)
 
 
 @pytest.mark.asyncio
@@ -239,8 +243,10 @@ async def test_a_write_failure_is_reported_as_one(roots: _Roots, monkeypatch: py
 
     monkeypatch.setattr(dedup_module, "_replace_file_atomically", refuse)
 
+    uploads = [_Upload("notes.txt", b"x")]
+
     with pytest.raises(UploadWriteError, match="notes.txt"):
-        await _store(roots, [_Upload("notes.txt", b"x")])
+        await _store(roots, uploads)
 
 
 @pytest.mark.asyncio

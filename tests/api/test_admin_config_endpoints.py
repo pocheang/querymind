@@ -110,29 +110,38 @@ def test_saving_without_a_configuration_centre_is_refused(monkeypatch):
     monkeypatch.setattr(config_reload, "remote_config_enabled", lambda: False)
     payload = admin_config.ConfigValues(values={"TOP_K": "9"})
 
+    request = _request()
+
     with pytest.raises(HTTPException) as excinfo:
-        admin_config.admin_save_config(payload, _request(), ADMIN)
+        admin_config.admin_save_config(payload, request, ADMIN)
     assert "NACOS_ENABLED" in str(excinfo.value.detail)
 
 
 def test_an_empty_change_is_refused(_centre):
+    payload = admin_config.ConfigValues(values={})
+    request = _request()
+
     with pytest.raises(HTTPException, match="no values"):
-        admin_config.admin_save_config(admin_config.ConfigValues(values={}), _request(), ADMIN)
+        admin_config.admin_save_config(payload, request, ADMIN)
 
 
 def test_a_field_that_is_not_editable_is_refused(_centre):
     payload = admin_config.ConfigValues(values={"APP_DB_PATH": "/tmp/anything"})
 
+    request = _request()
+
     with pytest.raises(HTTPException, match="not editable"):
-        admin_config.admin_save_config(payload, _request(), ADMIN)
+        admin_config.admin_save_config(payload, request, ADMIN)
     assert _centre.published == []
 
 
 def test_a_badly_typed_value_is_refused_before_it_is_written(_centre):
     payload = admin_config.ConfigValues(values={"TOP_K": "fifteen"})
 
+    request = _request()
+
     with pytest.raises(HTTPException, match="TOP_K"):
-        admin_config.admin_save_config(payload, _request(), ADMIN)
+        admin_config.admin_save_config(payload, request, ADMIN)
     assert _centre.published == []
 
 
@@ -142,8 +151,10 @@ def test_a_value_pinned_in_the_environment_is_refused(monkeypatch, _centre):
     monkeypatch.setenv("TOP_K", "11")
     payload = admin_config.ConfigValues(values={"TOP_K": "9"})
 
+    request = _request()
+
     with pytest.raises(HTTPException, match="pinned in the process environment"):
-        admin_config.admin_save_config(payload, _request(), ADMIN)
+        admin_config.admin_save_config(payload, request, ADMIN)
     assert _centre.published == []
 
 
@@ -203,8 +214,10 @@ def test_an_unknown_data_id_is_refused(monkeypatch, _centre):
     monkeypatch.delenv("TOP_K", raising=False)
     payload = admin_config.ConfigValues(values={"TOP_K": "9"}, data_id="somewhere-else")
 
+    request = _request()
+
     with pytest.raises(HTTPException, match="unknown data id"):
-        admin_config.admin_save_config(payload, _request(), ADMIN)
+        admin_config.admin_save_config(payload, request, ADMIN)
 
 
 def test_a_centre_that_rejects_the_write_is_reported(monkeypatch, _centre):
@@ -214,8 +227,10 @@ def test_a_centre_that_rejects_the_write_is_reported(monkeypatch, _centre):
     _centre.accepts = False
     payload = admin_config.ConfigValues(values={"TOP_K": "9"}, data_id="querymind-retrieval")
 
+    request = _request()
+
     with pytest.raises(HTTPException, match="did not accept"):
-        admin_config.admin_save_config(payload, _request(), ADMIN)
+        admin_config.admin_save_config(payload, request, ADMIN)
 
 
 def test_a_successful_save_reloads_the_runtime(monkeypatch, _centre):
