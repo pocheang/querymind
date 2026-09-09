@@ -3372,6 +3372,44 @@ Sixteen patterns in this repository backtracked super-linearly (`S8786`, fixed
   streaming redactor already used.
 - **A possessive quantifier** (`[ \t]++`, Python 3.11+) where backtracking into
   the run could never succeed anyway, so the bound would be arbitrary.
+- **A lookbehind forbidding a start inside the run** -- `(?<![.!?])[.!?]++\s+`.
+
+**That last one is not a fourth flavour of the same idea, and reading it as one
+is what left two patterns quadratic through the 2026-09-03 pass** (fixed
+2026-09-09, found because SonarCloud went on flagging them). A possessive
+quantifier stops the engine backtracking *within* one attempt. It does nothing
+about that attempt being **restarted at the next offset**, and for a run of one
+repeated character that is the whole cost: given `[.!?]++\s+` and n dots, the
+engine starts at dot 1, swallows the run, fails on the whitespace, starts at dot
+2, and so on. O(n^2), with no backtracking anywhere. Measured on
+`app/ingestion/processing/coreference.py::split_into_sentences` and
+`app/agents/synthesizer/citations.py::_tidy_spacing`:
+
+```
+              n=2000    n=4000    n=8000
+possessive    11.2ms    30.0ms   138.9ms    x12.4 for a x4 input
++ lookbehind   0.04ms    0.08ms    0.15ms    x3.7  -- linear
+```
+
+Forbidding a start inside the run costs nothing, because the leftmost scan would
+have taken the match at the front of the run anyway -- verified as identical
+output over 4012 generated inputs before landing, which is the "diff the old and
+the new" rule this section already gives. A dotted leader in a table of contents
+is how a real document reaches the first one.
+
+**Two of that rule's four findings were false positives and were left alone.**
+`PATTERN_HEADERS` and `PATTERN_LISTS` (`app/agents/rag/config.py`) are anchored
+`^...$` under MULTILINE, so the scan restarts only at a line start; measured,
+they are linear. `tests/services/test_regex_scan_is_bounded.py` pins the two
+real ones -- **not by timing**, which is a bad thing to assert on in CI, but by
+the property that removed the cost.
+
+**Its first version could not fail, which is worth more than the fix.** The
+property test compiled a copy of the pattern written out as a constant in the
+test, so deleting the lookbehind from the shipped code left it green: it was
+asserting that its own string contains a lookbehind. It extracts the literal
+from the module source and compiles *that* now. Verified by deleting both
+lookbehinds -- four tests redden, where the first version managed two.
 
 **Two of the sixteen were wrong, not merely slow, and for the same reason:
 `\s` matches a newline.** Under `re.MULTILINE` that let a pattern anchored with
@@ -3396,7 +3434,7 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-09 there are 1693 tests covering the chat round trip,
+back-filling effort. As of 2026-09-09 there are 1705 tests covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3493,7 +3531,51 @@ it was written to land dormant -- but three things follow that are easy to misre
   took `new_reliability_rating` to C and failed the gate on 2026-09-05 -- correct, and far
   more sensitive than "new code" suggests.
 - Ratings are otherwise A across the board: **0 bugs, 0 vulnerabilities, 0 security
-  hotspots**, against 570 code smells (118 critical) and ~65 hours of debt.
+  hotspots**, against **370** code smells (96 critical) and ~44 hours of debt
+  (re-measured 2026-09-09 from `api/measures/component`; this line read 570 and
+  ~65h, which was the 2026-09-05 figure, and `ncloc` had drifted from 82,875 to
+  73,461 in the same way).
+
+**A finding is a question, not an instruction, and a third of the ones acted on in
+the 2026-09-09 pass were answered "no".** Worth recording per rule, because each
+wrong answer had a different shape:
+
+- **`python:S125` (5 of 5 refused).** Every one is a **Chinese comment**, not
+  commented-out code -- `# 密码已改但token轮换失败`, `# 安全修复：严格验证后才拼接PRAGMA语句`,
+  `# kid:secret;`. The detector is trained on Latin-script code and reads a
+  colon or a semicolon in CJK prose as syntax. Deleting explanatory comments in
+  the one language this application exists to work in, to satisfy that, would be
+  the worst trade in this file.
+- **`python:S7504` (3 of 6 refused).** Each refused loop mutates what it
+  iterates -- `del sys.modules[name]`, `self._last_seen_signatures.pop(key)`,
+  `path.replace(target)` moving files out of the directory being globbed. The
+  `list()` is what makes the loop legal; removing it raises `RuntimeError` or
+  walks a directory being modified. The rule does not model mutation during
+  iteration, so a sweep that "fixed" all six would have shipped three crashes.
+  The three that stay now carry a comment saying why, naming the rule, so the
+  next sweep does not have to rediscover it.
+- **`python:S8786` (2 of 4 refused)** -- see Regular expressions above; the other
+  two are anchored and measured linear.
+- **`python:S8513` (2 of 8 answered differently than asked).**
+  `model.startswith("gpt-4") or model.startswith("gpt")` is subsumed by its own
+  second test, so the tuple form the rule asks for would have preserved a dead
+  clause while going green. Both are `startswith("gpt")` now.
+
+**And one finding was worth far more than the rule that raised it.** A
+`python:S1481` on a discarded `token_ok` led to two functions named
+`validate_and_check_approval_token` -- one in `app/api/deps/admin.py`, one in
+`app/services/security/admin_security.py` -- **taking their arguments in
+different orders** (`audit_callback` third against `action` third). Nothing
+imported the first; all three admin call sites take the second. Dead code, but
+the dangerous shape of it: writing the wrong order passes an action name where
+the audit callback belongs, and it fails at the moment a refusal is being
+recorded. Deleted, with
+`tests/security/test_approval_token_has_one_definition.py` pinning that there is
+one definition **and** that a rejected token raises rather than returning
+`False` -- which is the property that makes discarding the boolean safe at all.
+That is the same lesson this file already records for `python:S1192`: the
+duplicated literal is rarely the defect, and reading the sites together is what
+exposes one that is.
 
 Turning the scanner on means adding `SONAR_TOKEN` **and** switching Automatic Analysis off
 in SonarCloud -- the scanner refuses to run while it is enabled -- and deciding what New
