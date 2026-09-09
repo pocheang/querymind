@@ -91,6 +91,15 @@ class ConnectorMetadataRepository:
             ).fetchall()
         return tuple(_from_row(row) for row in rows)
 
+    def delete(self, connector_id: str, owner_id: str) -> bool:
+        """Remove one owner's connector row. Idempotent, like the credential half."""
+        with self._connect() as conn:
+            removed = conn.execute(
+                "DELETE FROM connector_metadata WHERE owner_id = ? AND connector_id = ?",
+                (owner_id, connector_id),
+            ).rowcount
+        return bool(removed)
+
     def replace(self, metadata: ConnectorMetadata) -> ConnectorMetadata:
         with self._connect() as conn:
             updated = conn.execute(

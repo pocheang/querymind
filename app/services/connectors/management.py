@@ -81,6 +81,29 @@ class ConnectorManagementService:
         enabled = self._repository.replace(metadata.model_copy(update={"status": "enabled"}))
         return ConnectorView.from_metadata(enabled)
 
+    def delete(self, connector_id: str, owner_id: str) -> None:
+        """Remove a connector and the credential it holds.
+
+        The other four operations here keep the connector's identity on purpose
+        -- `disable` exists so a suspect integration can be stopped without
+        losing the record of it. This one is the opposite need and there was no
+        way to express it: a connector holds an encrypted third-party secret its
+        owner handed over, and until 2026-09-09 they could stop it, restart it
+        and probe it, but never take it back.
+
+        **The credential goes first.** Neither store can enrol in the other's
+        transaction -- they are two connections on the app database, which is the
+        store pattern this codebase uses deliberately -- so an interrupted
+        delete leaves one of two residues, and they are not equally bad. Metadata
+        gone with the credential left behind is an encrypted secret nothing can
+        name, which is exactly the state this method exists to make impossible.
+        Metadata left with the credential gone is a connector its owner can see
+        and delete again, and both halves are idempotent so that retry works.
+        """
+        metadata = self._require(connector_id, owner_id)
+        self._credentials.forget(metadata.credential_id, owner_id=owner_id)
+        self._repository.delete(connector_id, owner_id)
+
     async def test(self, connector_id: str, owner_id: str) -> ConnectorProbeResult:
         metadata = self._require(connector_id, owner_id)
         if metadata.status != "enabled":

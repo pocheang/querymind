@@ -1,12 +1,21 @@
 import { type ComponentProps, type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plug } from "lucide-react";
+import { Plug, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createConnector, listConnectors, setConnectorEnabled, testConnector, type ConnectorView } from "./api";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import {
+  createConnector,
+  deleteConnector,
+  listConnectors,
+  setConnectorEnabled,
+  testConnector,
+  type ConnectorView,
+} from "./api";
 
 /**
  * Governed connectors, in the settings drawer beside long-term memory.
@@ -55,6 +64,7 @@ export function IntegrationsPanel() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const confirmDialog = useConfirmDialog();
 
   // Loads once. `t` is deliberately absent from the dependency list and from
   // the body: react-i18next returns a new `t` when the language changes, so a
@@ -142,6 +152,33 @@ export function IntegrationsPanel() {
     }
   };
 
+  const remove = async (connector: ConnectorView) => {
+    // Asks first, unlike disable: this destroys a third-party secret the server
+    // cannot show back, so there is nothing to restore it from.
+    const confirmed = await confirmDialog.confirm({
+      title: t("features.integrations.removeTitle"),
+      message: t("features.integrations.removePrompt", { name: connector.name }),
+      confirmText: t("features.integrations.remove"),
+      isDanger: true,
+    });
+    if (!confirmed) return;
+
+    setBusyId(connector.connector_id);
+    setNotice(null);
+    try {
+      await deleteConnector(connector.connector_id);
+      setConnectors((items) => items.filter((item) => item.connector_id !== connector.connector_id));
+      setNotice({ tone: "success", text: t("features.integrations.removed", { name: connector.name }) });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : t("features.integrations.removeError"),
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const field = (key: keyof Draft, label: string, extra: ComponentProps<typeof Input> = {}) => (
     <div className="space-y-1">
       <Label htmlFor={`connector-${key}`}>{label}</Label>
@@ -217,6 +254,16 @@ export function IntegrationsPanel() {
                       >
                         {t("features.integrations.test")}
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => void remove(connector)}
+                        disabled={busyId !== null}
+                        aria-label={t("features.integrations.removeNamed", { name: connector.name })}
+                        title={t("features.integrations.remove")}
+                      >
+                        <Trash2 className="size-3.5 text-danger" aria-hidden="true" />
+                      </Button>
                     </div>
                   </div>
                 </li>
@@ -263,6 +310,16 @@ export function IntegrationsPanel() {
           )}
         </div>
       </details>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.options?.title ?? ""}
+        message={confirmDialog.options?.message ?? ""}
+        confirmText={confirmDialog.options?.confirmText}
+        isDanger={confirmDialog.options?.isDanger}
+        onConfirm={confirmDialog.handleConfirm}
+        onCancel={confirmDialog.handleCancel}
+      />
     </section>
   );
 }

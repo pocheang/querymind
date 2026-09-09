@@ -49,6 +49,18 @@ export function setConnectorEnabled(connectorId: string, enabled: boolean): Prom
   );
 }
 
+/**
+ * Remove a connector and the encrypted credential it holds. 204, so no body.
+ *
+ * `setConnectorEnabled` stops one being used; this is the only thing that takes
+ * the secret back, which is why it asks for confirmation at the call site.
+ */
+export function deleteConnector(connectorId: string): Promise<void> {
+  return authRequest<void>(`/api/v1/connectors/${encodeURIComponent(connectorId)}`, {
+    method: "DELETE",
+  });
+}
+
 export function testConnector(connectorId: string): Promise<ConnectorProbeResult> {
   return authRequest<ConnectorProbeResult>(
     `/api/v1/connectors/${encodeURIComponent(connectorId)}/test`,

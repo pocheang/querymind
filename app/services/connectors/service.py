@@ -34,6 +34,16 @@ class ConnectorCredentialService:
             display_value=stored.display_value,
         )
 
+    def forget(self, credential_id: str, *, owner_id: str) -> bool:
+        """Destroy a stored secret. There is no other way to reach it.
+
+        `resolve` is the only reader and it decrypts; nothing returns the
+        ciphertext, so once this row is gone the secret is gone. That is the
+        point: a connector holds a third-party credential its owner handed over,
+        and until 2026-09-09 they could disable it but never take it back.
+        """
+        return self._repository.delete_for_owner(credential_id, owner_id)
+
     def resolve(self, credential_id: str, *, owner_id: str) -> str:
         """Resolve plaintext internally only after an owner check."""
         credential = self._repository.get_for_owner(credential_id, owner_id)

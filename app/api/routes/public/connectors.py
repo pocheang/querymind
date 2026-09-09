@@ -82,6 +82,19 @@ async def create_connector(
         raise bad_request(str(exc)) from exc
 
 
+@router.delete("/{connector_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_connector(
+    connector_id: ConnectorIdPath,
+    actor: RequestActor = Depends(require_request_actor),
+    service: ConnectorManagementService = Depends(get_connector_service),
+) -> None:
+    """Delete one owner-scoped connector together with its stored credential."""
+    try:
+        service.delete(connector_id, _owner_id(actor))
+    except KeyError as exc:
+        raise not_found("Connector") from exc
+
+
 @router.post("/{connector_id}/disable", response_model=ConnectorView)
 async def disable_connector(
     connector_id: ConnectorIdPath,

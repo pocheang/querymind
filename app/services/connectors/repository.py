@@ -76,6 +76,21 @@ class CredentialRepository:
             )
         return credential
 
+    def delete_for_owner(self, credential_id: str, owner_id: str) -> bool:
+        """Remove one credential, filtering by owner in the query itself.
+
+        Owner-scoped for the same reason `get_for_owner` is: a wrong id must not
+        be able to reach a row at all, rather than reaching one and being
+        refused afterwards. Idempotent -- a second call returns False rather
+        than raising, so a retry after a half-finished delete works.
+        """
+        with self._connect() as conn:
+            removed = conn.execute(
+                "DELETE FROM connector_credentials WHERE credential_id = ? AND owner_id = ?",
+                (credential_id, owner_id),
+            ).rowcount
+        return bool(removed)
+
     def get_for_owner(self, credential_id: str, owner_id: str) -> ConnectorCredential | None:
         """Filter by owner in the query, so a wrong id cannot return a row at all."""
         with self._connect() as conn:

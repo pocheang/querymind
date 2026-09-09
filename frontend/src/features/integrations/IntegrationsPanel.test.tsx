@@ -29,11 +29,13 @@ const listConnectors = vi.fn();
 const createConnector = vi.fn();
 const setConnectorEnabled = vi.fn();
 const testConnector = vi.fn();
+const deleteConnector = vi.fn();
 vi.mock("@/features/integrations/api", () => ({
   listConnectors: (signal?: AbortSignal) => listConnectors(signal),
   createConnector: (input: unknown) => createConnector(input),
   setConnectorEnabled: (id: string, enabled: boolean) => setConnectorEnabled(id, enabled),
   testConnector: (id: string) => testConnector(id),
+  deleteConnector: (id: string) => deleteConnector(id),
 }));
 
 function connector(overrides: Partial<ConnectorView> = {}): ConnectorView {
@@ -58,6 +60,7 @@ beforeEach(() => {
   createConnector.mockReset();
   setConnectorEnabled.mockReset().mockResolvedValue(connector({ status: "disabled" }));
   testConnector.mockReset().mockResolvedValue({ status: "passed", message: "reachable" });
+  deleteConnector.mockReset().mockResolvedValue(undefined);
 });
 
 afterEach(cleanup);
@@ -127,6 +130,39 @@ describe("the integrations panel", () => {
     ]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
+  });
+
+  it("asks before destroying a connector, then removes it from the list", async () => {
+    // Deleting is not disabling: it destroys a third-party secret the server
+    // cannot show back, and there was no way to do it at all until 2026-09-09.
+    render(<IntegrationsPanel />);
+    await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(2));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "features.integrations.removeNamed:Atlas CI" })
+    );
+
+    expect(deleteConnector).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "features.integrations.remove" }));
+
+    expect(deleteConnector).toHaveBeenCalledWith("atlas_ci");
+    await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(1));
+    expect(screen.queryByText("Atlas CI")).toBeNull();
+  });
+
+  it("destroys nothing when the confirmation is declined", async () => {
+    // The half worth pinning: an irreversible action that fires anyway makes
+    // the dialog decoration.
+    render(<IntegrationsPanel />);
+    await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(2));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "features.integrations.removeNamed:Atlas CI" })
+    );
+    await userEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+
+    expect(deleteConnector).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
   it("sends the trimmed form and splits the host list", async () => {
