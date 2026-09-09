@@ -133,72 +133,20 @@ class RuntimeMetrics:
             }
 
     def render_prometheus(self) -> str:
+        """The exposition format, six series kinds in a fixed order.
+
+        Flat and labelled are the same series written two ways, so each pair
+        shares a renderer and differs only in whether a label set is appended.
+        """
+
         s = self.snapshot()
         lines: list[str] = []
-
-        # Legacy flat counters
-        for k, v in sorted((s.get("counters") or {}).items()):
-            name = _metric_name(k)
-            lines.append(f"# TYPE {name} counter")
-            lines.append(f"{name} {float(v):.6f}")
-
-        # Labeled counters
-        for metric_name, label_data in sorted((s.get("labeled_counters") or {}).items()):
-            prom_name = _metric_name(metric_name)
-            lines.append(f"# TYPE {prom_name} counter")
-            for label_key, label_values in sorted(label_data.items()):
-                for label_value, count in sorted(label_values.items()):
-                    label_str = f'{label_key}="{label_value}"'
-                    lines.append(f"{prom_name}{{{label_str}}} {float(count):.6f}")
-
-        # Legacy flat gauges
-        for k, v in sorted((s.get("gauges") or {}).items()):
-            name = _metric_name(k)
-            lines.append(f"# TYPE {name} gauge")
-            lines.append(f"{name} {float(v):.6f}")
-
-        # Labeled gauges
-        for metric_name, label_data in sorted((s.get("labeled_gauges") or {}).items()):
-            prom_name = _metric_name(metric_name)
-            lines.append(f"# TYPE {prom_name} gauge")
-            for label_key, label_values in sorted(label_data.items()):
-                for label_value, gauge_value in sorted(label_values.items()):
-                    label_str = f'{label_key}="{label_value}"'
-                    lines.append(f"{prom_name}{{{label_str}}} {float(gauge_value):.6f}")
-
-        # Legacy flat histograms
-        for k, values in sorted((s.get("hist") or {}).items()):
-            name = _metric_name(k)
-            if not values:
-                continue
-            arr = sorted(float(x) for x in values)
-            count = len(arr)
-            total = sum(arr)
-            lines.append(f"# TYPE {name}_seconds summary")
-            for q in (0.5, 0.9, 0.95, 0.99):
-                idx = min(count - 1, max(0, int(q * (count - 1))))
-                lines.append(f'{name}_seconds{{quantile="{q}"}} {arr[idx]:.6f}')
-            lines.append(f"{name}_seconds_sum {total:.6f}")
-            lines.append(f"{name}_seconds_count {count}")
-
-        # Labeled histograms
-        for metric_name, label_data in sorted((s.get("labeled_hist") or {}).items()):
-            prom_name = _metric_name(metric_name)
-            lines.append(f"# TYPE {prom_name}_seconds summary")
-            for label_key, label_values in sorted(label_data.items()):
-                for label_value, values in sorted(label_values.items()):
-                    if not values:
-                        continue
-                    arr = sorted(float(x) for x in values)
-                    count = len(arr)
-                    total = sum(arr)
-                    label_str = f'{label_key}="{label_value}"'
-                    for q in (0.5, 0.9, 0.95, 0.99):
-                        idx = min(count - 1, max(0, int(q * (count - 1))))
-                        lines.append(f'{prom_name}_seconds{{quantile="{q}",{label_str}}} {arr[idx]:.6f}')
-                    lines.append(f"{prom_name}_seconds_sum{{{label_str}}} {total:.6f}")
-                    lines.append(f"{prom_name}_seconds_count{{{label_str}}} {count}")
-
+        lines += _flat_series(s.get("counters"), "counter")
+        lines += _labeled_series(s.get("labeled_counters"), "counter")
+        lines += _flat_series(s.get("gauges"), "gauge")
+        lines += _labeled_series(s.get("labeled_gauges"), "gauge")
+        lines += _flat_histograms(s.get("hist"))
+        lines += _labeled_histograms(s.get("labeled_hist"))
         lines.append(f"process_time_seconds {time.time():.6f}")
         return "\n".join(lines) + "\n"
 
@@ -210,3 +158,84 @@ def _metric_name(name: str) -> str:
     if out[0].isdigit():
         out = f"m_{out}"
     return out
+
+
+_QUANTILES = (0.5, 0.9, 0.95, 0.99)
+
+
+def _flat_series(values, kind: str) -> list[str]:
+    """An unlabelled counter or gauge: a TYPE line and a value line each."""
+
+    lines: list[str] = []
+    for key, value in sorted((values or {}).items()):
+        name = _metric_name(key)
+        lines.append(f"# TYPE {name} {kind}")
+        lines.append(f"{name} {float(value):.6f}")
+    return lines
+
+
+def _labeled_series(data, kind: str) -> list[str]:
+    """The same series carrying one label pair; the TYPE line is written once."""
+
+    lines: list[str] = []
+    for metric_name, label_data in sorted((data or {}).items()):
+        prom_name = _metric_name(metric_name)
+        lines.append(f"# TYPE {prom_name} {kind}")
+        for label_key, label_values in sorted(label_data.items()):
+            for label_value, value in sorted(label_values.items()):
+                lines.append(f'{prom_name}{{{label_key}="{label_value}"}} {float(value):.6f}')
+    return lines
+
+
+def _summary_body(name: str, values, label_str: str = "") -> list[str]:
+    """Quantiles, sum and count for one histogram, labelled or not.
+
+    The quantile index is a position in the sorted sample, not an interpolation
+    -- which is what makes this a Prometheus *summary* rather than a histogram,
+    and is preserved exactly.
+    """
+
+    arr = sorted(float(x) for x in values)
+    count = len(arr)
+    inner = f",{label_str}" if label_str else ""
+    braces = f"{{{label_str}}}" if label_str else ""
+    lines = [
+        f'{name}_seconds{{quantile="{q}"{inner}}} {arr[min(count - 1, max(0, int(q * (count - 1))))]:.6f}'
+        for q in _QUANTILES
+    ]
+    lines.append(f"{name}_seconds_sum{braces} {sum(arr):.6f}")
+    lines.append(f"{name}_seconds_count{braces} {count}")
+    return lines
+
+
+def _flat_histograms(hist) -> list[str]:
+    """An empty sample emits nothing at all, TYPE line included."""
+
+    lines: list[str] = []
+    for key, values in sorted((hist or {}).items()):
+        if not values:
+            continue
+        name = _metric_name(key)
+        lines.append(f"# TYPE {name}_seconds summary")
+        lines += _summary_body(name, values)
+    return lines
+
+
+def _labeled_histograms(data) -> list[str]:
+    """Here the TYPE line IS emitted even when every sample is empty.
+
+    That asymmetry with `_flat_histograms` is the shipped behaviour and is kept
+    deliberately; a metric declared with no series is valid exposition, and
+    changing it would move bytes a scraper already parses.
+    """
+
+    lines: list[str] = []
+    for metric_name, label_data in sorted((data or {}).items()):
+        prom_name = _metric_name(metric_name)
+        lines.append(f"# TYPE {prom_name}_seconds summary")
+        for label_key, label_values in sorted(label_data.items()):
+            for label_value, values in sorted(label_values.items()):
+                if not values:
+                    continue
+                lines += _summary_body(prom_name, values, f'{label_key}="{label_value}"')
+    return lines

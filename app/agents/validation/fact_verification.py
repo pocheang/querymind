@@ -313,6 +313,85 @@ def extract_claims(answer: str, config: FactVerificationConfig | None = None) ->
     return claims
 
 
+_CITATION_RE = re.compile(r"(\w+):(\w+)")
+_ENGLISH_WORD_RE = re.compile(r"\b[a-z]{4,}\b")
+_CJK_WORD_RE = re.compile(r"[\u4e00-\u9fff]{2,}")
+
+
+def _cited_contents(citations: list[str], source_docs: list[dict]) -> list[str]:
+    """The text of every source document a citation resolves to.
+
+    Page matching is lenient on purpose: a document that records no page still
+    matches a citation that names one, because the alternative is treating a
+    thin index as a missing citation.
+    """
+
+    contents: list[str] = []
+    for citation in citations:
+        match = _CITATION_RE.match(citation)
+        if not match:
+            continue
+        doc_id, page = match.group(1), match.group(2)
+        for doc in source_docs:
+            if doc.get("doc_id", doc.get("id", "")) != doc_id:
+                continue
+            doc_page = doc.get("page", "")
+            if page and doc_page and doc_page != page:
+                continue
+            content = doc.get("content", doc.get("text", ""))
+            if content:
+                contents.append(content)
+                break
+    return contents
+
+
+def _content_words(text: str) -> set[str]:
+    """Content-bearing words: English of four letters or more, CJK runs of two.
+
+    Both scripts, because a bilingual claim scored on English alone reads as
+    ungrounded -- the failure this project already records for the NLI scorer.
+    """
+
+    return set(_ENGLISH_WORD_RE.findall(text.lower())) | set(_CJK_WORD_RE.findall(text))
+
+
+def _facts_agree(claim_text: str, source_text: str, config: FactVerificationConfig) -> tuple[bool, bool]:
+    """Do the claim's numbers and dates appear in the cited text?
+
+    Vacuously true when the claim states none, which is why the caller has to
+    check `claim_numbers` before turning a True into a boost.
+    """
+
+    claim_numbers = _extract_numbers(claim_text)
+    claim_dates = _extract_dates(claim_text)
+    source_numbers = _extract_numbers(source_text)
+    source_dates = _extract_dates(source_text)
+
+    numbers_match = True
+    if claim_numbers:
+        numbers_match = bool(source_numbers) and all(
+            any(_numbers_match(cn, sn, config.number_tolerance) for sn in source_numbers) for cn in claim_numbers
+        )
+
+    dates_match = True
+    if claim_dates:
+        dates_match = bool(source_dates) and any(cd == sd for cd in claim_dates for sd in source_dates)
+
+    return numbers_match, dates_match
+
+
+def _overlap_boost(overlap: float, config: FactVerificationConfig) -> float:
+    """A ladder, so only the highest band that applies pays out."""
+
+    if overlap > config.high_overlap_threshold:
+        return config.high_overlap_boost
+    if overlap > config.medium_overlap_threshold:
+        return config.medium_overlap_boost
+    if overlap > config.low_overlap_threshold:
+        return config.low_overlap_boost
+    return 0.0
+
+
 def check_citation_support(
     claim_text: str, citations: list[str], source_docs: list[dict], config: FactVerificationConfig | None = None
 ) -> tuple[bool, float]:
@@ -330,122 +409,38 @@ def check_citation_support(
     """
     if config is None:
         config = FactVerificationConfig()
-
     if not citations:
-        # No citations - cannot verify
         return False, config.no_citation_confidence
-
     if not source_docs:
-        # No source docs available
         return False, 0.0
 
-    # Find cited documents
-    cited_contents = []
-    for citation in citations:
-        # Parse citation: doc1:p3 -> doc_id=doc1, page=p3
-        match = re.match(r"(\w+):(\w+)", citation)
-        if not match:
-            continue
-
-        doc_id = match.group(1)
-        page = match.group(2)
-
-        # Find matching source doc
-        for doc in source_docs:
-            doc_doc_id = doc.get("doc_id", doc.get("id", ""))
-            doc_page = doc.get("page", "")
-
-            # Match doc_id (page matching is lenient - if page not specified in doc, match on doc_id only)
-            if doc_doc_id == doc_id:
-                # If both have pages specified, they must match
-                if page and doc_page and doc_page != page:
-                    continue
-                # Otherwise, match on doc_id
-                content = doc.get("content", doc.get("text", ""))
-                if content:
-                    cited_contents.append(content)
-                    break
-
+    cited_contents = _cited_contents(citations, source_docs)
     if not cited_contents:
-        # Citations not found in source docs
         return False, config.missing_citation_confidence
 
-    # Check if claim content appears in cited sources
-    # Use keyword overlap and fact matching
-    claim_lower = claim_text.lower()
-    source_text = " ".join(cited_contents).lower()
-
-    # Extract key facts from claim
+    source_text = " ".join(cited_contents)
     claim_numbers = _extract_numbers(claim_text)
     claim_dates = _extract_dates(claim_text)
+    numbers_match, dates_match = _facts_agree(claim_text, source_text, config)
 
-    source_numbers = _extract_numbers(" ".join(cited_contents))
-    source_dates = _extract_dates(" ".join(cited_contents))
+    claim_words = _content_words(claim_text)
+    overlap = len(claim_words & _content_words(source_text)) / len(claim_words) if claim_words else 0
 
-    # Check numbers match
-    numbers_match = True
-    if claim_numbers:
-        numbers_match = (
-            all(any(_numbers_match(cn, sn, config.number_tolerance) for sn in source_numbers) for cn in claim_numbers)
-            if source_numbers
-            else False
-        )
-
-    # Check dates match
-    dates_match = True
-    if claim_dates:
-        # For date matching, check for exact matches (not substring)
-        dates_match = any(cd == sd for cd in claim_dates for sd in source_dates) if source_dates else False
-
-    # Check negation consistency
-    claim_has_negation = _has_negation(claim_text)
-    source_has_negation = _has_negation(source_text)
-
-    # Extract content words for semantic overlap (include Chinese)
-    # Remove common stop words and focus on meaningful content
-    claim_words = set(re.findall(r"\b[a-z]{4,}\b", claim_lower))  # English 4+ chars
-    claim_chinese = set(re.findall(r"[一-鿿]{2,}", claim_text))
-    claim_words.update(claim_chinese)
-
-    source_words = set(re.findall(r"\b[a-z]{4,}\b", source_text))  # English 4+ chars
-    source_chinese = set(re.findall(r"[一-鿿]{2,}", " ".join(cited_contents)))
-    source_words.update(source_chinese)
-
-    # Word overlap ratio
-    overlap = len(claim_words & source_words) / len(claim_words) if claim_words else 0
-
-    # Calculate confidence
     confidence = config.base_confidence
-
-    # Boost if facts match
     if numbers_match and claim_numbers:
         confidence += config.number_match_boost
     if dates_match and claim_dates:
         confidence += config.date_match_boost
-
-    # Boost for word overlap
-    if overlap > config.high_overlap_threshold:
-        confidence += config.high_overlap_boost
-    elif overlap > config.medium_overlap_threshold:
-        confidence += config.medium_overlap_boost
-    elif overlap > config.low_overlap_threshold:
-        confidence += config.low_overlap_boost
-
-    # Penalize negation mismatch
-    if claim_has_negation != source_has_negation:
+    confidence += _overlap_boost(overlap, config)
+    if _has_negation(claim_text) != _has_negation(source_text.lower()):
         confidence -= config.negation_mismatch_penalty
-
-    # Penalize number/date mismatch (strong penalty for fact errors)
     if not numbers_match and claim_numbers:
         confidence -= config.number_mismatch_penalty
     if not dates_match and claim_dates:
         confidence -= config.date_mismatch_penalty
 
     confidence = max(0.0, min(1.0, confidence))
-
-    is_supported = confidence >= config.min_support_confidence
-
-    return is_supported, confidence
+    return confidence >= config.min_support_confidence, confidence
 
 
 async def verify_claim_against_source(
