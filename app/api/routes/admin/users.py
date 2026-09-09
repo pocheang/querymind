@@ -158,7 +158,7 @@ def admin_create_user_as_admin(
     actor_user_id = str(user.get("user_id", ""))
 
     # Security: Validate approval token (single-use, timing-attack resistant)
-    token_ok, token_mode = validate_and_check_approval_token(
+    _, token_mode = validate_and_check_approval_token(
         approval_token, actor_user_id, AuditAction.ADMIN_USER_CREATE_ADMIN, _audit, request, user
     )
 
@@ -226,7 +226,7 @@ def admin_reset_user_approval_token(
     actor_user_id = str(user.get("user_id", ""))
 
     # Security: Validate approval token
-    token_ok, token_mode = validate_and_check_approval_token(
+    _, token_mode = validate_and_check_approval_token(
         approval_token, actor_user_id, AuditAction.ADMIN_USER_RESET_APPROVAL_TOKEN, _audit, request, user, user_id
     )
 
@@ -283,7 +283,7 @@ def admin_reset_user_password(
     actor_user_id = str(user.get("user_id", ""))
 
     # Security: Validate approval token
-    token_ok, token_mode = validate_and_check_approval_token(
+    _, token_mode = validate_and_check_approval_token(
         approval_token, actor_user_id, AuditAction.ADMIN_USER_RESET_PASSWORD, _audit, request, user, user_id
     )
 

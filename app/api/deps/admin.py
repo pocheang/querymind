@@ -75,7 +75,7 @@ def _check_ollama_ready() -> dict[str, Any]:
             resp = client.get(url)
             resp.raise_for_status()
             payload = resp.json()
-        models = [str(x.get("name", "") or "") for x in list((payload or {}).get("models", []) or []) if x]
+        models = [str(x.get("name", "") or "") for x in (payload or {}).get("models", []) or [] if x]
         latency = int((time.perf_counter() - start) * 1000)
         return {
             "ok": True,
@@ -155,49 +155,16 @@ def _runtime_diagnostics_summary(get_request_metrics_fn) -> dict[str, Any]:
 
 
 # Security-related helper functions for admin operations
-
-
-def validate_and_check_approval_token(
-    approval_token: str, actor_user_id: str, audit_callback: callable, request: Any, user: dict[str, Any], action: str
-) -> tuple[bool, str]:
-    """
-    Validate approval token and handle errors (prevent information disclosure).
-
-    Args:
-        approval_token: Approval token to validate
-        actor_user_id: User ID performing the operation
-        audit_callback: Audit log callback function
-        request: FastAPI request object
-        user: User information
-        action: Operation type
-
-    Returns:
-        (token_ok, token_mode) tuple
-
-    Raises:
-        HTTPException: If token is invalid or configuration is missing
-    """
-    from app.api.transport.errors import forbidden
-    from app.services.security.admin_token_tracker import get_token_tracker, validate_admin_approval_token
-
-    configured_hash = str(getattr(settings, "admin_create_approval_token_hash", "") or "").strip().lower()
-
-    tracker = get_token_tracker()
-    token_ok, token_mode = validate_admin_approval_token(approval_token, configured_hash, actor_user_id, tracker)
-
-    # Unified error handling, no configuration information leakage
-    if not token_ok:
-        audit_callback(
-            request,
-            action=action,
-            resource_type="user",
-            result="failed",
-            user=user,
-            detail=f"approval_failed; mode={token_mode}",
-        )
-        raise forbidden("unauthorized")
-
-    return token_ok, token_mode
+#
+# `validate_and_check_approval_token` used to live here as well as in
+# `app/services/security/admin_security.py`, with the two taking their arguments
+# in DIFFERENT ORDERS -- `(token, actor, audit_callback, request, user, action)`
+# here against `(token, actor, action, audit_callback, request, user, ...)`
+# there. Nothing imported this copy; every call site takes the other one. Two
+# definitions of "is this approval token valid" is the divergence this project
+# keeps deleting, and this pair was the dangerous shape of it: writing the wrong
+# order passes an action name where the audit callback belongs, which fails at
+# the point the failure is being recorded.
 
 
 def handle_service_exception(
