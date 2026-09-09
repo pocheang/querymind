@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
+import { shouldForgetSession } from "@/lib/sessionRecovery";
 import type { AuthUser } from "@/types/api";
 import { ToastProvider } from "@/components/animations/AnimatedToastLite";
 import { getPermissionCheck } from "@/hooks/usePermissions";
@@ -73,8 +74,12 @@ export function App() {
     authApi
       .me()
       .then(setUser)
-      .catch(() => {
-        authApi.setToken("");
+      .catch((error: unknown) => {
+        // Only an authentication failure destroys the token. This used to clear
+        // it on any rejection, so a restarting backend or a woken laptop signed
+        // the user out and made them type a password again -- see
+        // `shouldForgetSession` for why that is the wrong trade.
+        if (shouldForgetSession(error)) authApi.setToken("");
         clearUserState();
         setUser(null);
       })
