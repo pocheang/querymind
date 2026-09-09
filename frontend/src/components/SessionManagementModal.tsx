@@ -21,7 +21,7 @@ type Props = {
  * Advanced session management: tag/category search across sessions, metadata
  * editing for the current session, and export/import.
  *
- * Deliberately the same right-hand drawer shape as `ApiSettings` -- the app has
+ * Deliberately the same right-hand drawer shape as `SettingsDrawer` -- the app has
  * one established modal form and this is it, rather than a second one.
  */
 export function SessionManagementModal({

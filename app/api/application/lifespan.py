@@ -66,6 +66,32 @@ def _bootstrap_administrator() -> None:
         print(describe_bootstrap(created), file=sys.stderr, flush=True)
 
 
+def _purge_retired_user_model_settings() -> None:
+    """Clear per-user model configurations left over from before 2026-09-08.
+
+    Skipped under pytest for the reason `_bootstrap_administrator` is: a test
+    run must not write to the developer's `data/app.db`.
+
+    A failure is logged and does not stop startup -- the values are already
+    unreadable by anything, so a server that could not clear them is still a
+    correct server, just one still holding credentials it has no use for.
+    """
+
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return
+
+    from app.services.models.config_store import purge_user_api_settings
+
+    try:
+        cleared = purge_user_api_settings()
+    except Exception as exc:  # pragma: no cover - a broken database is its own problem
+        logger.error("Could not clear retired per-user model settings: %s", exc)
+        return
+
+    if cleared:
+        logger.info("Cleared retired per-user model settings from %d account(s)", cleared)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage backend lifecycle (replaces deprecated on_event hooks)."""
@@ -88,6 +114,11 @@ async def lifespan(app: FastAPI):
     # and until 2026-09-08 that was every checkout. See
     # `app/services/auth/bootstrap.py` for why there is no default password.
     _bootstrap_administrator()
+
+    # Models are configured by an administrator, for everyone. Accounts that
+    # went through the retired per-user settings page still hold an encrypted
+    # provider key nothing reads.
+    _purge_retired_user_model_settings()
 
     query_runtime.shadow_queue.start()
 

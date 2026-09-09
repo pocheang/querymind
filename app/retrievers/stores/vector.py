@@ -195,6 +195,31 @@ def _verify_sources(matches, allowed_sources: list[str]):
     return kept
 
 
+class EmbeddingDimensionMismatch(RuntimeError):
+    """The store was built by a different embedding model than the one now loaded.
+
+    A Chroma collection is dimension-locked, so switching embedders -- from the
+    384-dimension hash fallback to a 1024-dimension semantic model, say -- makes
+    every query fail against an existing store. Chroma's own message names two
+    numbers and no remedy, which reads as a corrupt database rather than a
+    configuration change that needs a reindex.
+    """
+
+
+def _as_dimension_mismatch(error: Exception) -> Exception:
+    """Turn Chroma's dimension complaint into one that says what to do."""
+
+    text = str(error).lower()
+    if "dimension" not in text:
+        return error
+    return EmbeddingDimensionMismatch(
+        "The vector store was built with a different embedding model, so its vectors "
+        "are a different size than the one now loaded. Rebuild the index (admin console "
+        "-> Knowledge Base -> reindex, or POST /admin/ops/reindex) after changing "
+        f"LOCAL_EMBED_MODEL or the embedding provider. Original error: {error}"
+    )
+
+
 def similarity_search(
     query: str,
     k: int | None = None,
@@ -250,11 +275,14 @@ def similarity_search(
             # paths. The owner metadata is written independently at ingest, so
             # requiring both narrows what a wrong source list can reach.
             where = source_clause if owner is None else {"$and": [source_clause, _owner_clause(owner)]}
-            matches = store.similarity_search_with_relevance_scores(
-                query,
-                k=k or settings.top_k,
-                filter=where,
-            )
+            try:
+                matches = store.similarity_search_with_relevance_scores(
+                    query,
+                    k=k or settings.top_k,
+                    filter=where,
+                )
+            except Exception as error:
+                raise _as_dimension_mismatch(error) from error
             return _verify_sources(matches, allowed_sources)
 
         # 仅在显式允许时才不使用过滤（系统级操作）

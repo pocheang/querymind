@@ -3,6 +3,8 @@
 import logging
 import os
 import re
+import shutil
+import sys
 from io import BytesIO
 from pathlib import Path
 
@@ -11,6 +13,54 @@ from langchain_core.documents import Document
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+# Where Tesseract puts itself when nobody adds it to PATH. Its Windows installer
+# does not, which is the single most common reason a machine with Tesseract
+# installed reports OCR as unavailable -- the binary is right there and the
+# process cannot see it. Homebrew and the Debian package do add it, so those
+# entries only matter for an unusual prefix.
+#
+# Forward slashes on purpose: `Path` and `shutil.which` both accept them on
+# Windows, and a backslash literal here is one shell heredoc away from becoming
+# something else. That is not hypothetical -- the first version of this tuple
+# shipped `Tesseract-OCR\tesseract.exe` with the `\t` already collapsed to a
+# TAB, so it resolved to nothing and read entirely normally until `cat -A`.
+_TESSERACT_FALLBACK_PATHS = (
+    "C:/Program Files/Tesseract-OCR/tesseract.exe",
+    "C:/Program Files (x86)/Tesseract-OCR/tesseract.exe",
+    "/opt/homebrew/bin/tesseract",
+    "/usr/local/bin/tesseract",
+    "/usr/bin/tesseract",
+)
+
+
+def resolve_tesseract_command(settings=None) -> str | None:
+    """The Tesseract binary this process can actually run, or None.
+
+    One definition, because the admin console's status panel and the ingestion
+    path must agree: a panel reporting "unavailable" over an OCR that works, or
+    "active" over one that does not, is worse than either state.
+
+    `TESSERACT_CMD` wins when an operator set it -- an explicit choice is not
+    second-guessed, and reporting it as missing is the right answer if it is.
+    """
+
+    settings = settings or get_settings()
+    configured = str(getattr(settings, "tesseract_cmd", "") or "").strip()
+    if configured:
+        return configured if shutil.which(configured) else None
+
+    found = shutil.which("tesseract")
+    if found:
+        return found
+
+    for candidate in _TESSERACT_FALLBACK_PATHS:
+        if candidate.startswith(("C:", "c:")) and not sys.platform.startswith("win"):
+            continue
+        if Path(candidate).is_file():
+            return candidate
+    return None
 
 
 def normalize_ocr_text(text: str) -> str:
@@ -201,8 +251,9 @@ def ocr_image_bytes(
 
     if settings.tessdata_prefix:
         os.environ["TESSDATA_PREFIX"] = settings.tessdata_prefix
-    if settings.tesseract_cmd:
-        pytesseract.pytesseract.tesseract_cmd = settings.tesseract_cmd
+    resolved_command = resolve_tesseract_command(settings)
+    if resolved_command:
+        pytesseract.pytesseract.tesseract_cmd = resolved_command
 
     ocr_text, ocr_variant, ocr_psm, ocr_error = run_ocr_with_candidates(
         image=image,

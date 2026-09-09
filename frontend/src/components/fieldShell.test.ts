@@ -72,12 +72,22 @@ describe("field-shell", () => {
     }
   );
 
-  it("is declared once, as a utility rather than a class list", () => {
-    // It styles a DESCENDANT, which no class list on the wrapper can express --
-    // which is why it is `@utility` and why a second copy would be silent.
+  it("is declared once, and inside a named layer", () => {
+    // It styles a DESCENDANT, which no class list on the wrapper can express,
+    // so it lives in CSS rather than in a className, and a second copy of it
+    // would be silent.
+    //
+    // The layer is the load-bearing half. `app-utilities.css` is imported
+    // WITHOUT a layer, because `@utility` is what places its rules in
+    // Tailwind's `utilities` layer -- so a plain rule here that does not name
+    // one is UNLAYERED and outranks every cascade layer, including the
+    // utilities a call site would use to override it. This was written as
+    // `@utility field-shell { & ... }` until `css:S8776` pointed out that `&`
+    // has no scoping root in a file a CSS parser reads as plain CSS; the
+    // rewrite is only safe because the layer is named explicitly.
     const css = readFileSync(join(SRC, "styles/core/app-utilities.css"), "utf8");
-    expect(css.match(/@utility field-shell\b/g)).toHaveLength(1);
-    expect(css).toMatch(/box-shadow:\s*none/);
+    expect(css.match(/\.field-shell[^{]*\{/g) ?? []).toHaveLength(1);
+    expect(css).toMatch(/@layer utilities\s*\{\s*\.field-shell[^}]*box-shadow:\s*none/);
   });
 });
 

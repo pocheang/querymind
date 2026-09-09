@@ -24,7 +24,7 @@ from app.api.deps.auth import (
 from app.api.deps.sessions import (
     _history_store_for_user,
 )
-from app.api.schemas import AdminModelSettingsResponse, UserApiSettings, UserApiSettingsView
+from app.api.schemas import AdminModelSettingsResponse
 from app.api.transport.errors import bad_request, forbidden, rate_limited, service_unavailable
 from app.api.utils.auth_helpers import (
     _audit,
@@ -37,7 +37,7 @@ from app.api.utils.string_utils import normalize_string
 from app.core.config import Settings, get_settings
 from app.services.agent_classifier import classify_agent_class
 from app.services.auth.user_manager import InsufficientCreditsError
-from app.services.models.config_store import get_global_model_settings, public_global_model_settings
+from app.services.models.config_store import public_global_model_settings
 from app.services.prompts.store import PromptStore
 from app.services.query.guard import QueryLoadGuard, QueryOverloadedError, QueryRateLimitedError
 from app.services.runtime.auto_ingest_watcher import AutoIngestWatcher
@@ -318,48 +318,6 @@ def _normalize_prompt_fields(title: str, content: str) -> tuple[str, str]:
         raise bad_request("invalid content after sanitization")
 
     return t, c
-
-
-def _mask_api_key(api_key: str) -> str:
-    """Mask an API key for display."""
-    value = str(api_key or "").strip()
-    if not value:
-        return ""
-    if len(value) <= 8:
-        return "*" * len(value)
-    return f"{value[:4]}{'*' * (len(value) - 8)}{value[-4:]}"
-
-
-def _api_settings_view(settings_data: UserApiSettings) -> UserApiSettingsView:
-    """Convert API settings to view model."""
-    from app.api.schemas import UserApiSettingsView
-
-    global_settings = get_global_model_settings()
-    global_enabled = bool(global_settings.get("enabled", False))
-
-    global_provider = global_settings.get("provider") if global_enabled else None
-    global_model = global_settings.get("chat_model") if global_enabled else None
-
-    if global_enabled:
-        effective_provider = global_settings.get("provider", "local")
-        effective_model = global_settings.get("chat_model", "")
-    else:
-        effective_provider = settings_data.provider
-        effective_model = settings_data.model
-
-    return UserApiSettingsView(
-        provider=normalize_string(settings_data.provider, lowercase=True) or "local",
-        api_key_masked=_mask_api_key(settings_data.api_key),
-        base_url=str(settings_data.base_url or "").strip(),
-        model=str(settings_data.model or "").strip(),
-        temperature=float(settings_data.temperature),
-        max_tokens=int(settings_data.max_tokens),
-        global_override_enabled=global_enabled,
-        global_provider=global_provider,
-        global_model=global_model,
-        effective_provider=effective_provider,
-        effective_model=effective_model,
-    )
 
 
 def _admin_model_settings_view(settings_data: dict[str, Any]) -> AdminModelSettingsResponse:

@@ -44,8 +44,12 @@
    Focus is NOT removed, only moved: every call site pairs this with
    `focus-within:` styling of its own, and `AuthInput.test.tsx` asserts the
    pairing so a wrapper cannot end up showing nothing. */
-@utility field-shell {
-  & :is(input, textarea, select):focus-visible {
+/* Written out rather than nested under `@utility`, and the layer is named
+   rather than left to the import: this file is imported unlayered, so a plain
+   rule here would beat every cascade layer instead of sitting in `utilities`
+   with the rest. Same reason applies to the two below. */
+@layer utilities {
+  .field-shell :is(input, textarea, select):focus-visible {
     box-shadow: none;
   }
 }
@@ -78,8 +82,10 @@
 @utility no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
 
-  &::-webkit-scrollbar {
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
 }
@@ -95,8 +101,10 @@
   background: var(--composer-glow);
   box-shadow: var(--composer-shadow);
   transition: all var(--duration-slow) var(--ease-standard);
+}
 
-  &:focus-within {
+@layer utilities {
+  .composer-ring:focus-within {
     background: var(--composer-glow-focus);
     transform: translateY(-1px);
   }

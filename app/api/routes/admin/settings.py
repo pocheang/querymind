@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, Request
 from app.api.application.config_reload import apply_config_reload
 from app.api.dependencies import (
     _admin_model_settings_view,
-    _api_settings_view,
     _audit,
     _require_permission,
     _require_user,
@@ -16,14 +15,13 @@ from app.api.dependencies import (
     runtime_metrics,
 )
 from app.api.schemas import (
+    ActiveModelResponse,
     AdminModelSettings,
     AdminModelSettingsResponse,
     EffectiveModelComponent,
     EffectiveModelConfigResponse,
     ModelCatalogResponse,
-    UserApiSettings,
-    UserApiSettingsResponse,
-    UserApiSettingsTestResponse,
+    ModelSettingsTestResponse,
 )
 from app.api.transport.errors import bad_request, internal_error
 from app.services.models.catalog import CATALOG_VERSION, get_model_catalog
@@ -33,16 +31,9 @@ from app.services.models.config_store import (
     get_global_model_settings,
     global_model_settings_probe_payload,
     public_global_model_settings,
-    user_api_settings_probe_payload,
-)
-from app.services.models.config_store import (
-    get_user_api_settings as get_user_api_settings_service,
-)
-from app.services.models.config_store import (
-    save_user_api_settings as save_user_api_settings_service,
 )
 from app.services.models.effective import effective_model_configuration
-from app.services.models.runtime import probe_chat_model_configuration
+from app.services.models.runtime import active_admin_chat_model, probe_chat_model_configuration
 from app.services.observability.alerting import emit_alert
 from app.services.security.audit_actions import AuditAction
 from app.services.security.network import OutboundURLValidationError
@@ -140,7 +131,7 @@ def admin_save_model_settings(
     return response
 
 
-@router.post("/admin/model-settings/test", response_model=UserApiSettingsTestResponse)
+@router.post("/admin/model-settings/test", response_model=ModelSettingsTestResponse)
 def admin_test_model_settings(
     req: AdminModelSettings,
     request: Request,
@@ -172,7 +163,7 @@ def admin_test_model_settings(
             user=user,
             detail=f"provider={result['provider']}; model={result['model']}; latency_ms={result['latency_ms']}; reason={result['message']}",
         )
-    return UserApiSettingsTestResponse(**result)
+    return ModelSettingsTestResponse(**result)
 
 
 @router.post("/admin/config/reload")
@@ -204,55 +195,13 @@ def admin_reload_config(request: Request, user: dict[str, Any] = Depends(_requir
     }
 
 
-@router.get("/user/api-settings", response_model=UserApiSettingsResponse)
-def get_user_api_settings(user: dict[str, Any] = Depends(_require_user)):
-    """Get user's API settings."""
-    user_id = user["user_id"]
-    user_settings = UserApiSettings(**get_user_api_settings_service(user_id))
-    return UserApiSettingsResponse(ok=True, settings=_api_settings_view(user_settings))
+@router.get("/user/active-model", response_model=ActiveModelResponse)
+def get_active_model(user: dict[str, Any] = Depends(_require_user)):
+    """Report the model an administrator has configured for everyone.
 
-
-@router.post("/user/api-settings", response_model=UserApiSettingsResponse)
-def save_user_api_settings(
-    req_settings: UserApiSettings, request: Request, user: dict[str, Any] = Depends(_require_user)
-):
-    """Save the authenticated user's API settings."""
-    user_id = user["user_id"]
-    try:
-        saved = save_user_api_settings_service(user_id, req_settings.model_dump())
-    except OutboundURLValidationError as e:
-        raise bad_request(f"unsafe base_url: {e}")
-    except ValueError as e:
-        raise bad_request(str(e))
-    return UserApiSettingsResponse(ok=True, settings=_api_settings_view(UserApiSettings(**saved)))
-
-
-@router.post("/user/api-settings/test", response_model=UserApiSettingsTestResponse)
-def test_user_api_settings(req: UserApiSettings, request: Request, user: dict[str, Any] = Depends(_require_user)):
-    """Test the authenticated user's API settings."""
-    try:
-        probe_payload = user_api_settings_probe_payload(req.model_dump())
-    except OutboundURLValidationError as e:
-        raise bad_request(f"unsafe base_url: {e}")
-    except ValueError as e:
-        raise bad_request(str(e))
-    result = probe_chat_model_configuration(probe_payload, success_message="API connectivity test succeeded")
-    if result["ok"]:
-        _audit(
-            request,
-            action=AuditAction.USER_API_SETTINGS_TEST,
-            resource_type="settings",
-            result="success",
-            user=user,
-            detail=f"provider={result['provider']}; model={result['model']}; latency_ms={result['latency_ms']}",
-        )
-    else:
-        _audit(
-            request,
-            action=AuditAction.USER_API_SETTINGS_TEST,
-            resource_type="settings",
-            result="failed",
-            user=user,
-            detail=f"provider={result['provider']}; model={result['model']}; latency_ms={result['latency_ms']}; reason={result['message']}",
-        )
-    return UserApiSettingsTestResponse(**result)
+    Read-only on purpose. Models are configured by administrators and applied to
+    every user; this replaced `/user/api-settings`, which let any signed-in user
+    save a provider, key and model, reported them saved, and was never once
+    consulted when answering their questions.
+    """
+    return ActiveModelResponse(**active_admin_chat_model())

@@ -253,6 +253,11 @@ class IndexedFileSummary(BaseModel):
     agent_class: str = "general"
     in_uploads: bool = False
     exists_on_disk: bool = False
+    # Whether THIS caller may reindex or delete the row. The client used to infer
+    # it and got it wrong: every document in the shared corpus was listed with
+    # Reindex / Del Index / Del File buttons, and all three answered 404, because
+    # manageability is "under uploads_path" and the shared corpus never is.
+    can_manage: bool = False
     indexing_status: str = "ready"
     indexing_stage: str = "complete"
     indexing_error: str = ""
@@ -285,39 +290,19 @@ class IndexHealthResponse(BaseModel):
     documents: list[dict[str, Any]] = Field(default_factory=list)
 
 
-class UserApiSettings(BaseModel):
-    provider: str = Field(
-        default="local", description="API provider: local, openai, anthropic, deepseek, ollama, custom"
-    )
-    api_key: str = Field(default="", description="API key (encrypted in storage)")
-    base_url: str = Field(default="", description="Base URL for API")
-    model: str = Field(default="", description="Model name")
-    temperature: float = Field(default=0.7, ge=0.0, le=1.0, description="Temperature")
-    max_tokens: int = Field(default=2048, ge=256, le=131072, description="Max tokens")
+class ActiveModelResponse(BaseModel):
+    """What model is answering, for a reader who cannot change it."""
 
-
-class UserApiSettingsView(BaseModel):
-    provider: str = Field(
-        default="local", description="API provider: local, openai, anthropic, deepseek, ollama, custom"
-    )
-    api_key_masked: str = Field(default="", description="Masked API key")
-    base_url: str = Field(default="", description="Base URL for API")
-    model: str = Field(default="", description="Model name")
-    temperature: float = Field(default=0.7, ge=0.0, le=1.0, description="Temperature")
-    max_tokens: int = Field(default=2048, ge=256, le=131072, description="Max tokens")
-    global_override_enabled: bool = False
-    global_provider: str | None = None
-    global_model: str | None = None
-    effective_provider: str = ""
-    effective_model: str = ""
-
-
-class UserApiSettingsResponse(BaseModel):
     ok: bool = True
-    settings: UserApiSettingsView
+    managed_by_admin: bool = Field(
+        default=False,
+        description="True when an administrator has a global model configuration in effect",
+    )
+    provider: str = Field(default="", description="Provider of that configuration; empty when none is in effect")
+    model: str = Field(default="", description="Chat model of that configuration; empty when none is in effect")
 
 
-class UserApiSettingsTestResponse(BaseModel):
+class ModelSettingsTestResponse(BaseModel):
     ok: bool = True
     reachable: bool = False
     provider: str
@@ -356,12 +341,11 @@ class ModelCatalogResponse(BaseModel):
 class AdminModelSettings(BaseModel):
     enabled: bool = Field(
         default=False,
-        # Says what it does, not what would be gentler. `get_chat_model` resolves
-        # `global_override or user_override`, so an enabled global config wins
-        # over a user's own -- their personal key stops being used and their
-        # queries bill the org's account. The old wording ("to users without
-        # personal overrides") described the opposite.
-        description="Apply this global model config to every user, overriding their personal API settings",
+        # Says what it does, not what would be gentler. There is no per-user
+        # model configuration for this to compete with -- that surface was
+        # removed on 2026-09-08 -- so what this switches between is the
+        # administrator's configuration and the deployment's own environment.
+        description="Apply this model configuration to every user; when off, the deployment environment is used",
     )
     provider: str = Field(
         default="local", description="API provider: local, openai, anthropic, deepseek, ollama, custom"

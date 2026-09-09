@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AdminFormField, AdminFormSelect } from "@/components/AdminFormField";
 import { appApi } from "@/lib/api";
@@ -91,12 +91,21 @@ export function AdminModelSettings({
   const { t } = useTranslation();
   const [catalog, setCatalog] = useState<ModelCatalogResponse | null>(null);
   const [effective, setEffective] = useState<EffectiveModelComponent[] | null>(null);
+  const [effectiveNonce, setEffectiveNonce] = useState(0);
+  const wasSaving = useRef(false);
 
   useEffect(() => {
     let active = true;
-    // Probing loads the optional models, so this is fetched once on mount rather
-    // than on every patch. A failure leaves the panel out: it is a diagnostic,
-    // and it must not stop an admin from saving settings.
+    // Probing loads the optional models, so this is NOT fetched on every patch.
+    // It is fetched on mount, on Refresh, and on the falling edge of a save --
+    // the three moments an admin is asking what is true now.
+    //
+    // Refetching after a save is the part that was missing. The dependency list
+    // was `[]`, so the panel kept the answer it got at mount: save a provider
+    // and it went on reporting "No provider is configured" while the stored
+    // configuration strip directly above it said Anthropic. Two contradictory
+    // claims on one page, and the stale one was the panel whose entire job is
+    // to be the authoritative answer to "what will the next question use".
     void appApi
       .adminEffectiveModelConfig()
       .then((data) => {
@@ -108,7 +117,19 @@ export function AdminModelSettings({
     return () => {
       active = false;
     };
-  }, []);
+  }, [effectiveNonce]);
+
+  // A save that has just finished, not one that is starting: the endpoint has to
+  // be asked after the write lands, or it answers with what it is replacing.
+  useEffect(() => {
+    if (wasSaving.current && !modelSaving) setEffectiveNonce((n) => n + 1);
+    wasSaving.current = modelSaving;
+  }, [modelSaving]);
+
+  const refreshAll = useCallback(() => {
+    setEffectiveNonce((n) => n + 1);
+    onRefresh();
+  }, [onRefresh]);
 
   useEffect(() => {
     let active = true;
@@ -171,7 +192,7 @@ export function AdminModelSettings({
         }
       >
         <RowActions>
-          <Button variant="secondary" size="xs" onClick={onRefresh}>{t("common.refresh", "Refresh")}</Button>
+          <Button variant="secondary" size="xs" onClick={refreshAll}>{t("common.refresh", "Refresh")}</Button>
           <Button variant="secondary" size="xs" onClick={onTest} disabled={modelTesting || modelSaving}>
             {modelTesting ? t("admin.ui.testing", "Testing") : t("admin.ui.connectionTest", "Connection test")}
           </Button>
@@ -268,7 +289,7 @@ export function AdminModelSettings({
               <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
                 {t(
                   "admin.ui.enableGlobalModelOverride",
-                  "Enable global model override (replaces every user's own API settings)",
+                  "Apply this model configuration to every user (when off, the deployment's own environment is used)",
                 )}
               </span>
             </label>

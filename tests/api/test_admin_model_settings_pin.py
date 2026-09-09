@@ -91,12 +91,14 @@ def test_the_api_key_is_never_returned(pinned: None):
 
 
 def test_the_enabled_flag_describes_what_it_actually_does():
-    """`get_chat_model` resolves `global_override or user_override`, so an enabled
-    global config wins over a user's own settings -- their key stops being used.
+    """The switch chooses between the administrator's configuration and the
+    deployment's environment -- and must not promise a per-user configuration.
 
-    The description used to say it applied "to users without personal overrides",
-    which is the opposite, and an admin ticking that box on that promise would
-    silently move every user's traffic onto the org's account.
+    It once read "to users without personal overrides", which was the opposite
+    of the code: an enabled global config won over every user's own settings.
+    Per-user model configuration was removed on 2026-09-08, so the wording that
+    replaced it -- "overriding their personal API settings" -- became wrong the
+    other way round, describing a thing users no longer have.
     """
 
     from app.api.schemas import AdminModelSettings
@@ -104,4 +106,96 @@ def test_the_enabled_flag_describes_what_it_actually_does():
     description = AdminModelSettings.model_fields["enabled"].description or ""
 
     assert "without personal overrides" not in description
-    assert "overriding" in description.lower()
+    assert "personal" not in description.lower()
+    assert "every user" in description.lower()
+
+
+def test_the_checkbox_a_human_reads_says_the_same_thing():
+    """The label beside the switch is a separate string, and it drifted.
+
+    `test_the_enabled_flag_describes_what_it_actually_does` above checks the
+    schema description -- which no administrator ever sees. What they read is an
+    i18n string in the frontend, and on 2026-09-08 that string was left saying
+    the switch "replaces every user's own API settings" **after** per-user model
+    configuration was deleted. So the backend test passed, and the checkbox
+    promised a thing that no longer existed, in both locales.
+
+    Found by opening the page rather than by any check: the two ends had no
+    place where they met. This is that place.
+    """
+
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2] / "frontend" / "src"
+    key = "enableGlobalModelOverride"
+
+    labels = {}
+    for locale in ("en", "zh"):
+        data = json.loads((root / "i18n" / "locales" / f"{locale}.json").read_text(encoding="utf-8"))
+        labels[locale] = data["admin"]["ui"][key]
+
+    # The inline `defaultValue` renders whenever the key is missing, so it has to
+    # be checked too -- it is a second copy of the same claim.
+    component = (root / "pages" / "admin" / "AdminModelSettings.tsx").read_text(encoding="utf-8")
+    assert key in component, "the label key moved; this guard is now pointing at nothing"
+
+    forbidden_en = ("personal", "own api settings", "their own")
+    forbidden_zh = ("\u4e2a\u4eba", "\u81ea\u5df1\u7684 API")
+
+    assert not any(word in labels["en"].lower() for word in forbidden_en), (
+        f"the English checkbox promises a per-user configuration: {labels['en']!r}"
+    )
+    assert not any(word in labels["zh"] for word in forbidden_zh), (
+        f"the Chinese checkbox promises a per-user configuration: {labels['zh']!r}"
+    )
+    assert not any(word in component.lower() for word in forbidden_en), (
+        "the inline defaultValue in AdminModelSettings.tsx still promises a per-user configuration"
+    )
+    # Both locales must say what it does do, not merely avoid the wrong claim.
+    assert "every user" in labels["en"].lower()
+    assert "\u6240\u6709\u7528\u6237" in labels["zh"]
+
+
+def test_the_effective_panel_does_not_promise_a_per_user_configuration(monkeypatch: pytest.MonkeyPatch):
+    """A third copy of the same claim, in the panel that exists to be authoritative.
+
+    `/admin/model-settings/effective` answers "what will the next question use".
+    Both of its chat branches described a per-user configuration -- "including
+    those with personal settings" when the global one is on, and "Users with
+    personal API settings use their own" when it is off -- which stopped being
+    true on 2026-09-08 and stayed on screen.
+
+    Three surfaces described one switch: the schema, the checkbox and this. Each
+    was corrected in a different pass, which is the argument for asserting all
+    three in one place.
+    """
+
+    from app.services.models import effective as effective_module
+
+    forbidden = ("personal settings", "personal api settings")
+
+    monkeypatch.setattr(effective_module, "_local_backend_forced", lambda: False, raising=False)
+
+    for enabled in (True, False):
+        stored = {
+            "enabled": enabled,
+            "provider": "anthropic",
+            "chat_model": "claude-sonnet-5",
+            "api_key": "placeholder-credential-value",
+            "base_url": "https://relay.example.invalid",
+            "reasoning_model": "",
+            "embedding_model": "",
+            "temperature": 0.7,
+            "max_tokens": 2048,
+        }
+        monkeypatch.setattr(effective_module, "get_settings", effective_module.get_settings)
+        import app.services.models.config_store as config_store
+
+        monkeypatch.setattr(config_store, "get_global_model_settings", lambda s=stored: s)
+
+        chat = effective_module._chat()
+        detail = chat.detail.lower()
+        assert not any(word in detail for word in forbidden), (
+            f"the effective panel promises a per-user configuration with enabled={enabled}: {chat.detail!r}"
+        )

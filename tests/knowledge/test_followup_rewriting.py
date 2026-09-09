@@ -167,7 +167,7 @@ class TestThePrompt:
         original = rule_rewrite.get_chat_model
         rule_rewrite.get_chat_model = lambda *a, **k: _Model()
         try:
-            with request_context(timeout_ms=5_000, overload_mode=False, api_settings=None):
+            with request_context(timeout_ms=5_000, overload_mode=False):
                 rule_rewrite._llm_rewrite(query, conversation)
         finally:
             rule_rewrite.get_chat_model = original

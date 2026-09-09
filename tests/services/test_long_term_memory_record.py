@@ -117,7 +117,14 @@ def test_the_record_does_not_depend_on_which_session_asks(store: MemoryStore) ->
     """`list_long_term` gives a different five per session; a record cannot."""
 
     assert _ids(store.list_long_term("session-a")) != _ids(store.list_long_term("_global"))
-    assert store.list_all() == store.list_all()
+
+    # Bound to two names rather than compared inline: `x() == x()` is what
+    # `python:S5863` exists to catch and the rule is right that it is usually a
+    # mistake. Here the repetition IS the assertion -- the record must not
+    # depend on when it is asked -- so the intent belongs in the code.
+    first_reading = store.list_all()
+    second_reading = store.list_all()
+    assert first_reading == second_reading
 
 
 # --- deleting what was shown ------------------------------------------------

@@ -176,7 +176,11 @@ if (dead.length === 0) {
 }
 console.error("\nThese class names render as nothing. Style the element, drop the name, or");
 console.error("add it to BEHAVIOURAL with a note saying what reads it:\n");
-for (const [token, files] of dead.sort()) {
+// Sorted by the token explicitly. `dead` holds [string, Set] pairs, and a
+// bare `.sort()` orders by each element's STRING form -- "token,[object Set]"
+// -- which happens to read as alphabetical today and stops the moment the
+// shape changes. That is what `javascript:S2871` is for.
+for (const [token, files] of [...dead].sort((left, right) => left[0].localeCompare(right[0]))) {
   console.error(`  ${token.padEnd(26)} ${[...files].map((f) => basename(f)).join(", ")}`);
 }
 process.exit(1);

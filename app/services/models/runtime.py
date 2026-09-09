@@ -1,10 +1,12 @@
 import hashlib
 import json
+import logging
 import math
 import os
 import re
 import time
 from functools import lru_cache
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -12,13 +14,16 @@ from app.core.config import get_settings
 from app.domain.text import normalize_string
 from app.services.models.catalog import provider_supports_embeddings
 from app.services.models.config_store import get_global_model_settings
-from app.services.runtime.request_context import get_request_api_settings, request_context
+from app.services.runtime.request_context import request_context
 from app.services.security.network import validate_api_base_url_for_provider
 from app.services.security.outbound_redaction import (
     is_external_provider,
     redact_messages_for_provider,
+    redact_messages_with_restorer,
     redact_texts_for_provider,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _norm_temp(temperature: float | None) -> float:
@@ -101,6 +106,119 @@ class LocalHashEmbeddings:
 
     def embed_query(self, text: str) -> list[float]:
         return self._embed(text)
+
+
+def _local_model_location(name: str) -> str:
+    """A model id, a path, or the same id already sitting in a ModelScope cache.
+
+    `LOCAL_EMBED_MODEL` takes either an identifier or a directory, and an
+    identifier is resolved against the Hugging Face cache. On a network where
+    `cdn-lfs.huggingface.co` does not resolve -- which is where this application
+    is most often deployed -- the model cannot arrive that way at all, and
+    ModelScope is the route that works. It lays the same repository out under
+    its own cache, so looking there costs one `is_dir()` and means the shipped
+    default works whichever tool fetched it.
+
+    A path the caller gave is returned untouched: an explicit location is not
+    second-guessed.
+    """
+
+    candidate = Path(name)
+    if candidate.is_dir():
+        return str(candidate)
+
+    modelscope = Path.home() / ".cache" / "modelscope" / "hub" / "models" / name
+    if modelscope.is_dir():
+        logger.info("Using the ModelScope copy of %s", name)
+        return str(modelscope)
+    legacy = Path.home() / ".cache" / "modelscope" / "hub" / name
+    if legacy.is_dir():
+        logger.info("Using the ModelScope copy of %s", name)
+        return str(legacy)
+    return name
+
+
+@lru_cache(maxsize=1)
+def _load_local_embedder():
+    """The local semantic embedding model, or None if it is not on this machine.
+
+    Copies `_load_cross_encoder` deliberately, including `local_files_only=True`:
+    a model that was never downloaded must degrade, not start an unbounded
+    download inside a request. The caller falls back to `LocalHashEmbeddings`.
+    """
+
+    settings = get_settings()
+    name = str(settings.local_embed_model or "").strip()
+    if not name:
+        return None
+    try:
+        from sentence_transformers import SentenceTransformer
+
+        model = SentenceTransformer(_local_model_location(name), local_files_only=True)
+        logger.info("Loaded local embedding model: %s", name)
+        return model
+    except ImportError as error:
+        logger.warning("sentence-transformers not installed, embeddings stay lexical: %s", error)
+        return None
+    except (OSError, ValueError):
+        logger.warning(
+            "Local embedding model '%s' is not present, so embeddings fall back to hash buckets. "
+            "Download it once with: from sentence_transformers import SentenceTransformer; "
+            "SentenceTransformer('%s')",
+            name,
+            name,
+        )
+        return None
+    except RuntimeError as error:
+        logger.warning("Failed to load local embedding model '%s': %s", name, error)
+        return None
+
+
+class LocalSemanticEmbeddings:
+    """Sentence-Transformers bi-encoder embeddings for the offline backend.
+
+    This is the difference between vector search that finds a paraphrase and one
+    that matches "little more than exact overlap", which is what
+    `LocalHashEmbeddings` does and what the admin console reports it as.
+
+    Synchronous on purpose: every caller already reaches embeddings from a
+    worker thread (`asyncio.to_thread`), and this repository's rule is that
+    nothing reached that way may drive an event loop.
+    """
+
+    def __init__(self, model, name: str):
+        self._model = model
+        self.model_name = name
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        vectors = self._model.encode(
+            [str(text or "") for text in texts],
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        return [list(map(float, vector)) for vector in vectors]
+
+    def embed_query(self, text: str) -> list[float]:
+        vector = self._model.encode(
+            str(text or ""),
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        return list(map(float, vector))
+
+
+def local_embedding_backend() -> tuple[str, str]:
+    """What the local embedding path will actually use: (kind, name).
+
+    `kind` is "semantic" or "hash". The admin console reports this rather than
+    assuming, because "a model is configured" and "a model is on this machine"
+    are different facts and only the second one changes any answer.
+    """
+
+    model = _load_local_embedder()
+    if model is None:
+        return "hash", "local hash embeddings"
+    return "semantic", str(get_settings().local_embed_model or "")
 
 
 class LocalEvidenceChatModel:
@@ -429,22 +547,56 @@ class AnthropicRelayChatModel:
 
 
 class OutboundRedactedChatModel:
-    """Proxy that redacts prompt content before external model calls."""
+    """Proxy that redacts prompt content before external model calls, and puts
+    the redacted values back in the reply.
+
+    The model is shown `<URL_7>` and writes it back: a real answer carried a
+    reference line reading `[1] <URL_7>`, a token that means nothing to a reader,
+    directly above the pipeline's own list showing the actual link. Redaction
+    keeps a value from the *provider*, not from the person who asked -- it is
+    their own document -- so the reply is restored.
+
+    The mapping lives and dies inside one call. See
+    `redact_messages_with_restorer` for why that is the point rather than an
+    implementation detail.
+    """
 
     def __init__(self, inner, *, provider: str):
         self._inner = inner
         self.provider = str(provider or "").strip().lower()
 
+    @staticmethod
+    def _restored(reply, restore):
+        """Put the values back into whatever shape the client returned."""
+
+        content = getattr(reply, "content", None)
+        if isinstance(content, str):
+            restored = restore(content)
+            if restored != content:
+                try:
+                    reply.content = restored
+                except (AttributeError, ValueError):
+                    return restored
+            return reply
+        if isinstance(reply, str):
+            return restore(reply)
+        return reply
+
     def invoke(self, messages):
-        return self._inner.invoke(redact_messages_for_provider(messages, provider=self.provider))
+        payload, restore = redact_messages_with_restorer(messages, provider=self.provider)
+        return self._restored(self._inner.invoke(payload), restore)
 
     async def ainvoke(self, messages):
-        payload = redact_messages_for_provider(messages, provider=self.provider)
+        payload, restore = redact_messages_with_restorer(messages, provider=self.provider)
         if hasattr(self._inner, "ainvoke"):
-            return await self._inner.ainvoke(payload)
-        return self._inner.invoke(payload)
+            return self._restored(await self._inner.ainvoke(payload), restore)
+        return self._restored(self._inner.invoke(payload), restore)
 
     def stream(self, messages):
+        # Deliberately NOT restored per chunk: a token can straddle a chunk
+        # boundary, and half of one substituted is worse than the whole of one
+        # left alone. Streamed fragments are a draft the frontend replaces with
+        # the answer from the query response, which comes through `invoke`.
         payload = redact_messages_for_provider(messages, provider=self.provider)
         yield from self._inner.stream(payload)
 
@@ -484,8 +636,17 @@ def _wrap_embedding_model_for_provider(model, *, provider: str):
     return model
 
 
-def _request_chat_override() -> dict:
-    raw = get_request_api_settings() or {}
+def _explicit_chat_override(raw: dict) -> dict:
+    """Normalize a model configuration handed in directly by a caller.
+
+    Only the connectivity probe reaches this, and it is handed the configuration
+    an administrator has typed but not yet saved. Until 2026-09-08 the probe
+    published that payload into a ContextVar and let `get_chat_model` pick it
+    up -- and `get_chat_model` consults the *saved* global configuration first,
+    so pressing Test on a new provider while a global configuration was already
+    enabled probed the old one and reported its success as this one's. Building
+    the model from the argument removes the question.
+    """
     provider = str(raw.get("provider", "") or "").strip().lower()
     model = str(raw.get("model", "") or "").strip()
     if not provider or not model:
@@ -574,6 +735,23 @@ def _global_embedding_override() -> dict:
     }
 
 
+def active_admin_chat_model() -> dict[str, object]:
+    """Name the model an administrator has configured for everyone, if any is in effect.
+
+    Consults the environment pin as well as the saved configuration: with
+    `MODEL_BACKEND=local` set in the real process environment `get_chat_model`
+    discards the global override outright, so reporting that override as active
+    would tell a reader the opposite of what answers their question.
+
+    Empty means no administrator configuration is in effect and the deployment's
+    own environment is answering -- not that nothing is.
+    """
+    override = {} if _local_backend_forced() else _global_chat_override()
+    if not override:
+        return {"managed_by_admin": False, "provider": "", "model": ""}
+    return {"managed_by_admin": True, "provider": str(override["provider"]), "model": str(override["model"])}
+
+
 def _safe_int(value, default: int = 0) -> int:
     try:
         return int(value)
@@ -635,7 +813,11 @@ def _build_chat_model_cached(
                     base_url=anthropic_base_url,
                     temperature=temperature,
                     max_tokens=max_tokens if max_tokens > 0 else 2048,
-                    streaming=True,  # Enable real-time streaming
+                    # No `streaming` flag: this adapter streams by having a
+                    # `stream()` method, not by being told to. Passing one was a
+                    # `TypeError` at construction, so this branch -- the only
+                    # reason the class exists -- had never once run.
+                    timeout_seconds=request_timeout_seconds,
                 ),
                 provider=provider,
             )
@@ -684,6 +866,9 @@ def _build_embedding_model_cached(
     ollama_base_url: str,
 ):
     if backend == "local":
+        model = _load_local_embedder()
+        if model is not None:
+            return LocalSemanticEmbeddings(model, str(get_settings().local_embed_model or ""))
         return LocalHashEmbeddings()
 
     if backend == "openai":
@@ -704,33 +889,58 @@ def _build_embedding_model_cached(
     )
 
 
+def _chat_model_from_override(
+    override: dict,
+    *,
+    temperature: float | None,
+    openai_fallback_model: str,
+    ollama_fallback_model: str,
+    anthropic_fallback_model: str,
+):
+    """Build a chat model from an already-normalized override.
+
+    The fallback model names differ between the chat and the reasoning role, so
+    they are arguments; everything else about assembling an overridden model is
+    the same and was duplicated three ways before 2026-09-08.
+    """
+    settings = get_settings()
+    provider = str(override["provider"])
+    backend = _normalize_backend(str(override.get("backend") or provider))
+    effective_temperature = temperature if temperature is not None else override.get("temperature")
+    model = str(override["model"])
+    api_key = str(override.get("api_key", "") or "")
+    base_url = str(override.get("base_url", "") or "")
+    return _build_chat_model_cached(
+        provider=provider,
+        backend=backend,
+        temperature=_normalize_runtime_temperature(provider, effective_temperature),
+        openai_model=model if backend == "openai" else openai_fallback_model,
+        openai_api_key=api_key if backend == "openai" else str(settings.openai_api_key or ""),
+        openai_base_url=base_url if backend == "openai" else str(settings.openai_base_url or ""),
+        ollama_model=model if backend == "ollama" else ollama_fallback_model,
+        ollama_base_url=base_url if backend == "ollama" else settings.ollama_base_url,
+        anthropic_model=model if backend == "anthropic" else anthropic_fallback_model,
+        anthropic_api_key=api_key if backend == "anthropic" else str(settings.anthropic_api_key or ""),
+        anthropic_base_url=base_url if backend == "anthropic" else "",
+        max_tokens=_safe_int(override.get("max_tokens"), 0),
+        request_timeout_seconds=float(settings.llm_request_timeout_seconds),
+    )
+
+
 def get_chat_model(temperature: float | None = None):
     settings = get_settings()
-    # Priority: Global admin settings (when enabled) > User settings > Environment variables
-    global_override = {} if _local_backend_forced() else _global_chat_override()
-    user_override = _request_chat_override()
-    override = global_override or user_override
+    # Model configuration belongs to an administrator and applies to every user.
+    # There is no per-user configuration to fall back to: the surface that used
+    # to collect one was removed on 2026-09-08, having never been consulted on
+    # the answer path.
+    override = {} if _local_backend_forced() else _global_chat_override()
     if override:
-        provider = str(override["provider"])
-        backend = _normalize_backend(str(override.get("backend") or provider))
-        effective_temperature = temperature if temperature is not None else override.get("temperature")
-        model = str(override["model"])
-        api_key = str(override.get("api_key", "") or "")
-        base_url = str(override.get("base_url", "") or "")
-        return _build_chat_model_cached(
-            provider=provider,
-            backend=backend,
-            temperature=_normalize_runtime_temperature(provider, effective_temperature),
-            openai_model=model if backend == "openai" else settings.openai_chat_model,
-            openai_api_key=api_key if backend == "openai" else str(settings.openai_api_key or ""),
-            openai_base_url=base_url if backend == "openai" else str(settings.openai_base_url or ""),
-            ollama_model=model if backend == "ollama" else settings.ollama_chat_model,
-            ollama_base_url=base_url if backend == "ollama" else settings.ollama_base_url,
-            anthropic_model=model if backend == "anthropic" else settings.anthropic_chat_model,
-            anthropic_api_key=api_key if backend == "anthropic" else str(settings.anthropic_api_key or ""),
-            anthropic_base_url=base_url if backend == "anthropic" else "",
-            max_tokens=_safe_int(override.get("max_tokens"), 0),
-            request_timeout_seconds=float(settings.llm_request_timeout_seconds),
+        return _chat_model_from_override(
+            override,
+            temperature=temperature,
+            openai_fallback_model=settings.openai_chat_model,
+            ollama_fallback_model=settings.ollama_chat_model,
+            anthropic_fallback_model=settings.anthropic_chat_model,
         )
     return _build_chat_model_cached(
         provider=str(settings.model_backend or ""),
@@ -783,37 +993,15 @@ def get_embedding_model():
 
 def get_reasoning_model(temperature: float | None = None):
     settings = get_settings()
-    # Priority: Global admin settings (when enabled) > User settings > Environment variables
-    global_override = {} if _local_backend_forced() else _global_reasoning_override()
-    user_override = _request_chat_override()
-    override = global_override or user_override
+    # Administrator configuration, applied to every user. See `get_chat_model`.
+    override = {} if _local_backend_forced() else _global_reasoning_override()
     if override:
-        provider = str(override["provider"])
-        backend = _normalize_backend(str(override.get("backend") or provider))
-        effective_temperature = temperature if temperature is not None else override.get("temperature")
-        model = str(override["model"])
-        api_key = str(override.get("api_key", "") or "")
-        base_url = str(override.get("base_url", "") or "")
-        return _build_chat_model_cached(
-            provider=provider,
-            backend=backend,
-            temperature=_normalize_runtime_temperature(provider, effective_temperature),
-            openai_model=model
-            if backend == "openai"
-            else (settings.openai_reasoning_model or settings.openai_chat_model),
-            openai_api_key=api_key if backend == "openai" else str(settings.openai_api_key or ""),
-            openai_base_url=base_url if backend == "openai" else str(settings.openai_base_url or ""),
-            ollama_model=model
-            if backend == "ollama"
-            else (settings.ollama_reasoning_model or settings.ollama_chat_model),
-            ollama_base_url=base_url if backend == "ollama" else settings.ollama_base_url,
-            anthropic_model=model
-            if backend == "anthropic"
-            else (settings.anthropic_reasoning_model or settings.anthropic_chat_model),
-            anthropic_api_key=api_key if backend == "anthropic" else str(settings.anthropic_api_key or ""),
-            anthropic_base_url=base_url if backend == "anthropic" else "",
-            max_tokens=_safe_int(override.get("max_tokens"), 0),
-            request_timeout_seconds=float(settings.llm_request_timeout_seconds),
+        return _chat_model_from_override(
+            override,
+            temperature=temperature,
+            openai_fallback_model=(settings.openai_reasoning_model or settings.openai_chat_model),
+            ollama_fallback_model=(settings.ollama_reasoning_model or settings.ollama_chat_model),
+            anthropic_fallback_model=(settings.anthropic_reasoning_model or settings.anthropic_chat_model),
         )
     backend = _normalize_backend(settings.reasoning_model_backend or settings.model_backend)
     return _build_chat_model_cached(
@@ -836,13 +1024,27 @@ def get_reasoning_model(temperature: float | None = None):
 
 
 def probe_chat_model_configuration(api_settings: dict, *, success_message: str) -> dict[str, object]:
-    """Run the settings connectivity probe within the usual request runtime scope."""
+    """Probe the configuration passed in -- never the one that is saved.
+
+    This is the button pressed *before* saving, so answering from stored
+    settings would report a success for something nobody typed.
+    """
     provider = str(api_settings["provider"])
     model_name = str(api_settings["model"])
     started = time.perf_counter()
     try:
-        with request_context(timeout_ms=12000, overload_mode=False, api_settings=api_settings):
-            model = get_chat_model(temperature=float(api_settings["temperature"]))
+        settings = get_settings()
+        override = _explicit_chat_override(api_settings)
+        if not override:
+            raise ValueError("a provider and a model are required to test a configuration")
+        with request_context(timeout_ms=12000, overload_mode=False):
+            model = _chat_model_from_override(
+                override,
+                temperature=float(api_settings["temperature"]),
+                openai_fallback_model=settings.openai_chat_model,
+                ollama_fallback_model=settings.ollama_chat_model,
+                anthropic_fallback_model=settings.anthropic_chat_model,
+            )
             probe_result = model.invoke(
                 [("system", "You are a connectivity probe. Reply with exactly OK."), ("human", "Reply with OK.")]
             )

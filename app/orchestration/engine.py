@@ -30,7 +30,7 @@ from app.orchestration.timeout_control import (
     get_timeout_config,
 )
 from app.privacy.service import PrivacyService
-from app.services.runtime.request_context import get_request_api_settings, request_context
+from app.services.runtime.request_context import request_context
 from app.services.security.access_scope import AccessScopeResolver
 
 Router = Callable[[OrchestrationRequest], Awaitable[RouteDecision]]
@@ -231,11 +231,7 @@ class OrchestrationEngine:
             # request path had ever set: `remaining_seconds()` returned None, and
             # `_llm_rewrite` treats None as "no time", so QUERY_REWRITE_WITH_LLM
             # was a switch that could not turn anything on.
-            with request_context(
-                timeout_ms=max(1, budget.remaining_ms()),
-                overload_mode=False,
-                api_settings=get_request_api_settings(),
-            ):
+            with request_context(timeout_ms=max(1, budget.remaining_ms()), overload_mode=False):
                 return await self._run_workflow(request, reporter, budget)
         finally:
             current_execution_id.reset(execution_token)

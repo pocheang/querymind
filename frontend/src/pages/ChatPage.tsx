@@ -14,7 +14,7 @@ import { ChatComposer } from "@/pages/chat/components/ChatComposer";
 import { ClarificationPrompt } from "@/pages/chat/components/ClarificationPrompt";
 import { ToastStack } from "@/pages/chat/components/ToastStack";
 import { ChatSidebar } from "@/pages/chat/components/ChatSidebar";
-import { ApiSettings } from "@/components/ApiSettings";
+import { SettingsDrawer } from "@/components/SettingsDrawer";
 import { SessionManagementModal } from "@/components/SessionManagementModal";
 import { useChatActions } from "@/pages/chat/hooks/useChatActions";
 import { useFileUpload } from "@/pages/chat/hooks/useFileUpload";
@@ -442,7 +442,7 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
 
         <ToastStack toasts={toasts} onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
         <SectionToggleButton sectionsHidden={sectionsHidden} onToggle={toggleSections} />
-        <ApiSettings isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <SettingsDrawer isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <ConfirmDialog
           isOpen={confirmDialog.isOpen}
           title={confirmDialog.options?.title || ""}

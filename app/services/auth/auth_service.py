@@ -743,6 +743,31 @@ class AuthDBService:
             conn.execute("UPDATE users SET settings = ? WHERE user_id = ?", (json.dumps(settings), user_id))
             conn.commit()
 
+    def clear_user_metadata_key(self, key: str) -> int:
+        """Remove one settings key from every user row; return how many carried it.
+
+        For retiring a setting rather than for editing one. Idempotent: a run
+        that finds nothing writes nothing and returns 0.
+        """
+        cleared = 0
+        with self._connect() as conn:
+            rows = conn.execute("SELECT user_id, settings FROM users WHERE settings IS NOT NULL").fetchall()
+            for row in rows:
+                try:
+                    settings_data = json.loads(row["settings"]) if row["settings"] else {}
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                if not isinstance(settings_data, dict) or key not in settings_data:
+                    continue
+                settings_data.pop(key, None)
+                conn.execute(
+                    "UPDATE users SET settings = ? WHERE user_id = ?",
+                    (json.dumps(settings_data), row["user_id"]),
+                )
+                cleared += 1
+            conn.commit()
+        return cleared
+
     def get_system_metadata(self, key: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             row = conn.execute("SELECT value FROM system_settings WHERE key = ?", (key,)).fetchone()

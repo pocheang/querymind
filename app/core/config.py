@@ -231,6 +231,15 @@ class Settings(BaseSettings):
 
     enable_reranker: bool = Field(default=True, alias="ENABLE_RERANKER")
     reranker_model_name: str = Field(default="BAAI/bge-reranker-v2-m3", alias="RERANKER_MODEL_NAME")
+    # The local semantic embedding model, used when MODEL_BACKEND is `local` and
+    # no administrator configuration supplies an embedding provider. Loaded with
+    # `local_files_only=True` like the reranker, so an absent model degrades to
+    # `LocalHashEmbeddings` rather than starting a download inside a request.
+    #
+    # CHANGING THIS REQUIRES A REINDEX. Embedding dimensions differ between
+    # models (hash is 384, bge-m3 is 1024) and a Chroma collection is
+    # dimension-locked, so an existing store must be rebuilt.
+    local_embed_model: str = Field(default="BAAI/bge-m3", alias="LOCAL_EMBED_MODEL")
     reranker_top_n: int = Field(default=5, alias="RERANKER_TOP_N")
 
     # LLM-powered features

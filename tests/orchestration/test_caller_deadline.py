@@ -99,7 +99,7 @@ class TestTheRequestContextIsPublished:
 
         assert remaining_seconds() is None
 
-        with request_context(timeout_ms=5_000, overload_mode=False, api_settings=None):
+        with request_context(timeout_ms=5_000, overload_mode=False):
             seen = remaining_seconds()
 
         assert seen is not None and 0 < seen <= 5.0

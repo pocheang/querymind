@@ -1,6 +1,7 @@
 """HTTP request and response schemas."""
 
 from app.api.schemas.http import (
+    ActiveModelResponse,
     AdminCreateAdminRequest,
     AdminCreditAddRequest,
     AdminModelSettings,
@@ -28,6 +29,7 @@ from app.api.schemas.http import (
     MessageUpdateRequest,
     ModelCatalogItem,
     ModelCatalogResponse,
+    ModelSettingsTestResponse,
     PromptCheckRequest,
     PromptCheckResponse,
     PromptTemplate,
@@ -40,15 +42,12 @@ from app.api.schemas.http import (
     StoredMemoryItem,
     StoredMemoryList,
     UploadResponse,
-    UserApiSettings,
-    UserApiSettingsResponse,
-    UserApiSettingsTestResponse,
-    UserApiSettingsView,
 )
 
 __all__ = [
     "AdminCreateAdminRequest",
     "AdminCreditAddRequest",
+    "ActiveModelResponse",
     "AdminModelSettings",
     "EffectiveModelComponent",
     "EffectiveModelConfigResponse",
@@ -74,6 +73,7 @@ __all__ = [
     "MessageUpdateRequest",
     "ModelCatalogItem",
     "ModelCatalogResponse",
+    "ModelSettingsTestResponse",
     "PromptCheckRequest",
     "PromptCheckResponse",
     "PromptTemplate",
@@ -86,8 +86,4 @@ __all__ = [
     "StoredMemoryList",
     "SessionSummary",
     "UploadResponse",
-    "UserApiSettings",
-    "UserApiSettingsResponse",
-    "UserApiSettingsTestResponse",
-    "UserApiSettingsView",
 ]

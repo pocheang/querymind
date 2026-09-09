@@ -74,20 +74,45 @@ function recordOrUndefined(value: unknown): Record<string, unknown> | undefined 
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
 }
 
+/**
+ * How long a question may take, declared to BOTH ends.
+ *
+ * The client used to abort at the shared 30s default while the server's own
+ * budget is `STAGE_TIMEOUT_TOTAL_MS` (120s) and synthesis alone may take 30s.
+ * So any question that ran longer than a single stage's allowance -- routine
+ * once a real model answers through a relay rather than the offline stand-in --
+ * was killed in the browser and reported as "Request timed out", while the
+ * server went on working and returned a perfectly good 200 that nothing read.
+ *
+ * `timeout_ms` narrows the server's budget and never extends it, so the server
+ * reaches its own deadline first and answers with its degradation path -- a
+ * real answer, marked degraded, with stage diagnostics. The client's abort is
+ * the outer bound and exists only for a connection that has genuinely died,
+ * which is why it sits a margin ABOVE the server's. If the two were equal the
+ * race would be decided by scheduling.
+ */
+const QUERY_DEADLINE_MS = 90_000;
+const QUERY_ABORT_MS = QUERY_DEADLINE_MS + 15_000;
+
 export const queryApi = {
   async advanced(input: AdvancedQueryInput): Promise<NormalizedQueryResult> {
-    const res = await authFetch("/api/advanced-rag/query", {
-      method: "POST",
-      signal: input.signal,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: input.query,
-        ...(input.sessionId ? { session_id: input.sessionId } : {}),
-        enable_decomposition: input.enableDecomposition,
-        enable_self_rag: input.enableSelfRag,
-        ...(input.approvalToken ? { approval_token: input.approvalToken } : {}),
-      }),
-    });
+    const res = await authFetch(
+      "/api/advanced-rag/query",
+      {
+        method: "POST",
+        signal: input.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: input.query,
+          ...(input.sessionId ? { session_id: input.sessionId } : {}),
+          enable_decomposition: input.enableDecomposition,
+          enable_self_rag: input.enableSelfRag,
+          timeout_ms: QUERY_DEADLINE_MS,
+          ...(input.approvalToken ? { approval_token: input.approvalToken } : {}),
+        }),
+      },
+      { timeoutMs: QUERY_ABORT_MS },
+    );
     const payload = await parseOrThrow<AdvancedQueryResponse>(res);
     const metadata = recordOrUndefined(payload.metadata) ?? {};
     return {

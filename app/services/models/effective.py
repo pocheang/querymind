@@ -7,8 +7,10 @@ documented and collectively invisible:
 * `MODEL_BACKEND=local` in the process environment discards the global override
   entirely (`_local_backend_forced`), so a saved OpenAI configuration can be
   stored and inert at once.
-* A user's personal API settings are used when no global override is enabled, so
-  "the configured model" is not one value for the whole deployment.
+* With no administrator configuration enabled, the deployment's own environment
+  answers -- which is a different model from the one the page has stored, and
+  says so. (Until 2026-09-08 a user's personal API settings were a third
+  answer here; that surface is gone, and models are an administrator's.)
 * The reranker and the NLI cross-encoder are both loaded with
   `local_files_only=True`. A model that was never downloaded does not raise --
   it returns `None`, and retrieval quietly falls back to lexical scoring while
@@ -30,6 +32,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from app.core.config import get_settings
+from app.services.models.catalog import provider_supports_embeddings
 
 ComponentStatus = Literal["active", "degraded", "disabled", "unavailable"]
 
@@ -71,7 +74,7 @@ def _chat() -> EffectiveComponent:
             status="active",
             configured=str(stored["chat_model"]),
             source="admin global override",
-            detail="The global override is on, so it applies to every user, including those with personal settings.",
+            detail="This administrator configuration is on, so every user's questions go to it.",
             metadata={"provider": str(stored["provider"])},
         )
 
@@ -98,17 +101,60 @@ def _chat() -> EffectiveComponent:
         status="active",
         configured=str(model or backend),
         source="MODEL_BACKEND",
-        detail="Users with personal API settings use their own; no global override is enabled.",
+        detail="No administrator configuration is enabled, so the deployment's own environment answers.",
         metadata={"provider": backend},
     )
 
 
 def _embedding() -> EffectiveComponent:
-    from app.services.models.runtime import _normalize_backend
+    from app.services.models.config_store import get_global_model_settings
+    from app.services.models.runtime import _local_backend_forced, _normalize_backend
 
     settings = get_settings()
+
+    # `get_embedding_model()` consults the administrator configuration before the
+    # environment, and this did not -- so an admin who configured OpenAI got
+    # OpenAI embeddings and a panel still reporting "local hash embeddings,
+    # degraded". Providers with no embedding endpoint (anthropic, deepseek) fall
+    # through deliberately: `_global_embedding_override` returns nothing for
+    # them, so the environment really is what runs.
+    stored = get_global_model_settings()
+    if not _local_backend_forced() and bool(stored.get("enabled", False)):
+        provider = str(stored.get("provider", "") or "").strip().lower()
+        model = str(stored.get("embedding_model", "") or "").strip()
+        if provider and model and provider_supports_embeddings(provider):
+            return EffectiveComponent(
+                component="embedding",
+                status="active",
+                configured=model,
+                source="admin global override",
+                detail="Chunks are embedded with this model; changing it requires a reindex.",
+                metadata={"provider": provider},
+            )
+
     backend = _normalize_backend(settings.model_backend)
     if backend == "local":
+        from app.services.models.runtime import local_embedding_backend
+
+        # "A model is configured" and "a model is on this machine" are different
+        # facts, and only the second one changes an answer -- the local path is
+        # loaded with `local_files_only=True`, so a name in the settings proves
+        # nothing. This asks what will actually be built.
+        kind, name = local_embedding_backend()
+        if kind == "semantic":
+            return EffectiveComponent(
+                component="embedding",
+                status="active",
+                configured=name,
+                source="LOCAL_EMBED_MODEL",
+                detail=(
+                    "A local semantic model embeds chunks and queries, so vector search "
+                    "finds paraphrases rather than overlapping words. Changing it requires "
+                    "a reindex: embedding dimensions differ between models and a Chroma "
+                    "collection is dimension-locked."
+                ),
+                metadata={"provider": "local"},
+            )
         return EffectiveComponent(
             component="embedding",
             status="degraded",
@@ -116,7 +162,8 @@ def _embedding() -> EffectiveComponent:
             source="MODEL_BACKEND",
             detail=(
                 "Deterministic hash embeddings, not a semantic model: vector search will "
-                "match on little more than exact overlap."
+                f"match on little more than exact overlap. '{settings.local_embed_model}' is "
+                "configured but not present on this machine; download it once to switch."
             ),
         )
     model = settings.openai_embed_model if backend == "openai" else settings.ollama_embed_model
@@ -306,10 +353,11 @@ def _ocr() -> EffectiveComponent:
     Its absence is the reason captioning matters, so the two read together.
     """
 
-    import shutil
+    from app.ingestion.extraction.ocr import resolve_tesseract_command
 
     settings = get_settings()
-    command = str(getattr(settings, "tesseract_cmd", "") or "") or "tesseract"
+    configured = str(getattr(settings, "tesseract_cmd", "") or "").strip()
+    command = configured or "tesseract"
     try:
         import pytesseract  # noqa: F401
     except ImportError:
@@ -323,23 +371,27 @@ def _ocr() -> EffectiveComponent:
                 "external captioning backend is blocked too, since it masks with the same OCR."
             ),
         )
-    if shutil.which(command) is None:
+    # The same resolver ingestion uses, so this panel cannot report "unavailable"
+    # over an OCR that works, or "active" over one that does not.
+    resolved = resolve_tesseract_command(settings)
+    if resolved is None:
         return EffectiveComponent(
             component="ocr",
             status="unavailable",
             configured=command,
             source="TESSERACT_CMD",
             detail=(
-                f"pytesseract is installed but '{command}' is not on PATH, so OCR reads nothing. "
-                "Images stay searchable through a *local* captioning backend; an external one "
-                "is blocked, because the same Tesseract masks the image before it is sent."
+                f"pytesseract is installed but '{command}' cannot be found -- not on PATH and not "
+                "at a standard install location -- so OCR reads nothing. Images stay searchable "
+                "through a *local* captioning backend; an external one is blocked, because the "
+                "same Tesseract masks the image before it is sent."
             ),
         )
     return EffectiveComponent(
         component="ocr",
         status="active",
-        configured=command,
-        source="TESSERACT_CMD",
+        configured=resolved,
+        source="TESSERACT_CMD" if configured else "found on this machine",
         detail="Text is read out of images during ingestion.",
     )
 

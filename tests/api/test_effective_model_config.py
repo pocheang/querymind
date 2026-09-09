@@ -38,13 +38,55 @@ def _by_component(monkeypatch, **overrides):
     return {item.component: item for item in effective_model_configuration()}
 
 
+DISABLED_GLOBAL_CONFIG = {
+    "enabled": False,
+    "provider": "local",
+    "api_key": "",
+    "base_url": "",
+    "chat_model": "",
+    "reasoning_model": "",
+    "embedding_model": "",
+    "temperature": 0.7,
+    "max_tokens": 2048,
+}
+
+
 @pytest.fixture(autouse=True)
 def _no_optional_models(monkeypatch):
-    """Neither optional model is loaded, which is the fresh-checkout state."""
+    """Neither optional model is loaded, which is the fresh-checkout state.
+
+    The stored global configuration is stubbed here too, and that part is not a
+    convenience. `_chat()` reads it from `APP_DB_PATH`, so without this the
+    environment-branch tests below assert against whatever the developer last
+    saved in the admin console -- they passed for months and then failed the
+    first time somebody configured a provider on their own machine, which is a
+    test reporting the database rather than the code.
+    """
+
+    import app.services.models.config_store as config_store
+    from app.services.models import runtime
 
     monkeypatch.setattr("app.retrievers.reranker._load_cross_encoder", lambda: None)
     monkeypatch.setattr("app.agents.validation.nli.load_nli_cross_encoder", lambda: None)
+    # The local embedding model is stubbed absent for the same reason the stored
+    # configuration is: `_load_local_embedder` looks on the developer's disk, so
+    # without this the embedding assertions below report whichever models happen
+    # to be cached on the machine running them. That is a test reporting the
+    # environment rather than the code, and it went red the day bge-m3 was
+    # downloaded here. `tests/services/test_local_semantic_embeddings.py` covers
+    # the present case.
+    monkeypatch.setattr(runtime, "_load_local_embedder", lambda: None)
+    monkeypatch.setattr(config_store, "get_global_model_settings", lambda: dict(DISABLED_GLOBAL_CONFIG))
     monkeypatch.delenv("MODEL_BACKEND", raising=False)
+
+
+def _with_stored_config(monkeypatch, **overrides):
+    """Give `_chat()` an administrator configuration to read."""
+
+    import app.services.models.config_store as config_store
+
+    stored = {**DISABLED_GLOBAL_CONFIG, **overrides}
+    monkeypatch.setattr(config_store, "get_global_model_settings", lambda: dict(stored))
 
 
 def test_every_component_in_the_pipeline_is_reported():
@@ -122,6 +164,26 @@ def test_a_configured_provider_is_active(monkeypatch):
 
     assert components["chat"].status == "active"
     assert components["chat"].configured == "gpt-5.5"
+
+
+def test_an_enabled_administrator_configuration_is_what_chat_reports(monkeypatch):
+    """The branch a configured deployment actually takes, and it had no test.
+
+    Its `detail` also promised a per-user configuration -- "including those with
+    personal settings" -- for a day after that surface was deleted, which nothing
+    here would have caught.
+    """
+
+    _with_stored_config(monkeypatch, enabled=True, provider="anthropic", chat_model="claude-sonnet-5")
+
+    chat = _by_component(monkeypatch, model_backend="local")["chat"]
+
+    # The stored configuration wins over the environment, which is the whole
+    # point of the switch: `model_backend="local"` is what a fresh checkout has.
+    assert chat.status == "active"
+    assert chat.configured == "claude-sonnet-5"
+    assert chat.metadata["provider"] == "anthropic"
+    assert "personal" not in chat.detail.lower()
 
 
 def test_an_environment_pin_is_reported_as_degraded_chat(monkeypatch):
@@ -231,11 +293,26 @@ def test_a_missing_pytesseract_is_unavailable_and_says_which_half(monkeypatch):
     assert ocr.source == "pytesseract"
 
 
+def _no_tesseract_anywhere(monkeypatch):
+    """A machine that genuinely has none.
+
+    Stubbing `shutil.which` alone stopped being enough once the resolver started
+    probing standard install locations -- on a developer machine with Tesseract
+    installed, this test then asserted `unavailable` against a resolver that
+    correctly found it. Both halves have to be absent to mean what the test says.
+    """
+
+    import app.ingestion.extraction.ocr as ocr_module
+
+    monkeypatch.setattr("shutil.which", lambda _cmd: None)
+    monkeypatch.setattr(ocr_module, "_TESSERACT_FALLBACK_PATHS", ())
+
+
 def test_a_missing_binary_is_unavailable_and_says_so(monkeypatch):
     """The half that fails on a fresh machine, and the reason captioning matters."""
 
     _pytesseract(monkeypatch, installed=True)
-    monkeypatch.setattr("shutil.which", lambda _cmd: None)
+    _no_tesseract_anywhere(monkeypatch)
 
     ocr = _by_component(monkeypatch)["ocr"]
 
@@ -252,6 +329,62 @@ def test_present_tesseract_is_active(monkeypatch):
     monkeypatch.setattr("shutil.which", lambda _cmd: "/usr/bin/tesseract")
 
     assert _by_component(monkeypatch)["ocr"].status == "active"
+
+
+def test_tesseract_installed_but_not_on_path_is_found(monkeypatch):
+    """The state a Windows machine is in the moment Tesseract is installed.
+
+    Its installer does not add itself to PATH, so `shutil.which` says no while
+    the binary sits at a standard location -- and this panel reported
+    `unavailable` over an OCR that would have worked the moment anything looked
+    one directory further.
+    """
+
+    import shutil as shutil_module
+    import tempfile
+    from pathlib import Path
+
+    import app.ingestion.extraction.ocr as ocr_module
+
+    # Not pytest's `tmp_path`: its basetemp root needs permissions that are not
+    # available on every Windows checkout, which this repository has hit three
+    # times now -- most recently on the first run of this very test.
+    root = Path(tempfile.mkdtemp(prefix="querymind-tesseract-"))
+    binary = root / "tesseract.exe"
+    binary.write_text("", encoding="utf-8")
+
+    _pytesseract(monkeypatch, installed=True)
+    monkeypatch.setattr("shutil.which", lambda _cmd: None)
+    monkeypatch.setattr(ocr_module, "_TESSERACT_FALLBACK_PATHS", (str(binary),))
+
+    ocr = _by_component(monkeypatch)["ocr"]
+
+    assert ocr.status == "active"
+    assert ocr.configured == str(binary)
+    # Says where it came from, because "found on this machine" and "an operator
+    # set TESSERACT_CMD" are different facts for anyone reproducing a report.
+    assert ocr.source == "found on this machine"
+
+    shutil_module.rmtree(root, ignore_errors=True)
+
+
+def test_an_explicit_tesseract_cmd_is_not_second_guessed(monkeypatch):
+    """An operator's explicit choice wins, and its absence is reported.
+
+    Falling back to a standard location when TESSERACT_CMD points at something
+    missing would silently run a different binary than the one configured.
+    """
+
+    import app.ingestion.extraction.ocr as ocr_module
+
+    _pytesseract(monkeypatch, installed=True)
+    monkeypatch.setattr("shutil.which", lambda cmd: None)
+    monkeypatch.setattr(ocr_module, "_TESSERACT_FALLBACK_PATHS", ("/usr/bin/tesseract",))
+
+    ocr = _by_component(monkeypatch, tesseract_cmd="/nowhere/tesseract")["ocr"]
+
+    assert ocr.status == "unavailable"
+    assert ocr.configured == "/nowhere/tesseract"
 
 
 def test_an_external_caption_backend_needs_the_masking_detector(monkeypatch):
