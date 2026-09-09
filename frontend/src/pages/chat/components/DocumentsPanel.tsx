@@ -7,6 +7,7 @@ import type React from "react";
 import type { IndexedFileSummary } from "@/types/api";
 import type { UserIdentity } from "@/types/auth";
 import { DocumentItem } from "./DocumentItem";
+import { UPLOAD_ACCEPT_ATTRIBUTE } from "@/lib/uploadFormats";
 
 const PDF_FILE_RE = /\.(pdf|png|jpe?g|bmp|tiff?|webp)$/i;
 
@@ -86,7 +87,7 @@ export function DocumentsPanel({
             type="file"
             multiple
             onChange={(event) => void onMainUploadChange(event)}
-            accept=".md,.txt,.pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp"
+            accept={UPLOAD_ACCEPT_ATTRIBUTE}
             className="w-full text-[10px] text-ink-muted file:mr-2 file:rounded-control file:border-0 file:bg-brand-surface file:px-2 file:py-1 file:text-[10px] file:font-semibold file:text-brand-text"
           />
           <p className="text-[10px] text-ink-muted">

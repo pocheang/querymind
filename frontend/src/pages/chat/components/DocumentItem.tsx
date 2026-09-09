@@ -23,8 +23,18 @@ export function DocumentItem({
   onDeleteDocument,
 }: Readonly<Props>) {
   const { t } = useTranslation();
-  const canManage =
-    canUploadAndManageDocs || isAdmin || !doc.owner_user_id || (!!currentUserId && doc.owner_user_id === currentUserId);
+  // The server answers this per row (`can_manage`), from the same predicate the
+  // reindex and delete endpoints enforce, so an offered button is a request that
+  // will be accepted. The client used to guess with four clauses, and one of
+  // them -- `!doc.owner_user_id`, "nobody owns it, so anyone may manage it" --
+  // was exactly backwards for the shared corpus: a `data/docs/` file has no
+  // owner and is manageable by NOBODY, since manageability means "under
+  // uploads_path". Every shared-corpus document therefore showed Reindex,
+  // Del Index and Del File, and all three answered 404.
+  //
+  // The role check still applies: a role that may not manage documents at all
+  // does not get buttons for the ones it happens to own.
+  const canManage = doc.can_manage && (canUploadAndManageDocs || isAdmin || !!currentUserId);
   const indexingStatus = doc.indexing_status || "ready";
   // Was four hardcoded English words in a bilingual app.
   const statusLabel = t(`components.workbench.status.${indexingStatus}`, {

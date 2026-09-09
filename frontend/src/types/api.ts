@@ -162,6 +162,8 @@ export type IndexedFileSummary = {
   visibility?: Known<"private" | "public">;
   exists_on_disk?: boolean;
   in_uploads?: boolean;
+  /** Whether this caller may reindex or delete this row; answered by the server. */
+  can_manage?: boolean;
   document_id?: string | null;
   indexing_status?: Known<"pending" | "indexing" | "ready" | "failed" | "error">;
   indexing_stage?: string;

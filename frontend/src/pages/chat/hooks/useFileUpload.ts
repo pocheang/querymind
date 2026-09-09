@@ -1,5 +1,7 @@
 import type React from "react";
-import { SUPPORTED_CHAT_RE, SUPPORTED_DOC_RE } from "@/pages/chat/constants";
+import { useTranslation } from "react-i18next";
+
+import { CHAT_ACCEPT_RE, UPLOAD_ACCEPT_RE, partitionUploads } from "@/lib/uploadFormats";
 
 interface UseFileUploadProps {
   canUploadAndManageDocs: boolean;
@@ -16,10 +18,29 @@ export function useFileUpload({
   notify,
   uploadFiles,
 }: UseFileUploadProps) {
+  const { t } = useTranslation();
+
+  /**
+   * Upload what is accepted and SAY what was not.
+   *
+   * Each caller used to warn only when every file had been rejected
+   * (`if (!files.length)`), so a `.docx` dropped beside two PDFs uploaded the
+   * PDFs and lost the third without a word. And the three messages were
+   * hardcoded English in a bilingual application.
+   */
+  const uploadAccepted = async (files: File[], pattern: RegExp, hintKey: string) => {
+    const { accepted, rejected } = partitionUploads(files, pattern);
+    if (rejected.length) {
+      notify(t(hintKey, { files: rejected.join("、") }), "warn");
+    }
+    if (!accepted.length) return;
+    await handleUploadFiles(accepted);
+  };
+
   const handleUploadFiles = async (files: File[]) => {
     if (!files.length) return;
     if (!canUploadAndManageDocs) {
-      notify("Upload permission denied", "warn");
+      notify(t("chat.upload.permissionDenied"), "warn");
       return;
     }
     await uploadFiles(files);
@@ -30,36 +51,21 @@ export function useFileUpload({
   };
 
   const onChatUploadChange = async (evt: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(evt.target.files || []).filter((f) => SUPPORTED_CHAT_RE.test(f.name));
-    if (!files.length) {
-      notify("This area supports PDF/image files only", "warn");
-      return;
-    }
-    await handleUploadFiles(files);
+    await uploadAccepted(Array.from(evt.target.files || []), CHAT_ACCEPT_RE, "chat.upload.chatOnly");
   };
 
   const onDocsDrop = async (evt: React.DragEvent<HTMLDivElement>) => {
     evt.preventDefault();
     evt.stopPropagation();
     setDocDropActive(false);
-    const files = Array.from(evt.dataTransfer.files || []).filter((f) => SUPPORTED_DOC_RE.test(f.name));
-    if (!files.length) {
-      notify("Only .md / .txt / .pdf / image files are supported", "warn");
-      return;
-    }
-    await handleUploadFiles(files);
+    await uploadAccepted(Array.from(evt.dataTransfer.files || []), UPLOAD_ACCEPT_RE, "chat.upload.docsOnly");
   };
 
   const onComposerDrop = async (evt: React.DragEvent<HTMLElement>) => {
     evt.preventDefault();
     evt.stopPropagation();
     setComposerDropActive(false);
-    const files = Array.from(evt.dataTransfer.files || []).filter((f) => SUPPORTED_CHAT_RE.test(f.name));
-    if (!files.length) {
-      notify("This area supports PDF/image files only", "warn");
-      return;
-    }
-    await handleUploadFiles(files);
+    await uploadAccepted(Array.from(evt.dataTransfer.files || []), CHAT_ACCEPT_RE, "chat.upload.chatOnly");
   };
 
   return {

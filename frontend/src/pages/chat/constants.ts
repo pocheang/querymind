@@ -7,8 +7,14 @@ export const QUICK_PROMPTS = [
   "用 general 模式做管理摘要：用 5 条要点汇报当前风险状态",
 ];
 
-export const SUPPORTED_DOC_RE = /\.(md|txt|pdf|png|jpe?g|bmp|tiff?|webp)$/i;
-export const SUPPORTED_CHAT_RE = /\.(pdf|png|jpe?g|bmp|tiff?|webp)$/i;
+// `SUPPORTED_DOC_RE` and `SUPPORTED_CHAT_RE` lived here and were a third and
+// fourth copy of the upload format list, both narrower than the server and than
+// the pickers -- see `lib/uploadFormats.ts`, which now derives every accept
+// attribute and every matcher from one place.
+//
+// `PDF_FILE_RE` stays because it answers a different question: not "may this be
+// uploaded" but "does this belong in the PDF workbench", which is about how a
+// document is read rather than whether it is allowed.
 export const PDF_FILE_RE = /\.(pdf|png|jpe?g|bmp|tiff?|webp)$/i;
 
 export type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";

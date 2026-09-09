@@ -18,8 +18,59 @@ type Props = {
   onSwitchAgentMode: (mode: AgentClassHint) => void;
 };
 
+/**
+ * The five agent cards, in the reader's language.
+ *
+ * `AGENT_MODES` carries English `title`/`desc` literals and the component
+ * rendered them straight, so switching to Chinese translated the whole sidebar
+ * around these five cards and left them in English -- in an application whose
+ * reason for existing is that it works in Chinese.
+ *
+ * `i18n/locales.test.ts` scans for LITERAL `t("...")` calls, so this is a switch
+ * of literal keys rather than `t(`agentModes.${mode.key}.title`)`. An
+ * interpolated key is invisible to that scan, and a locale entry missing behind
+ * one renders English forever with nothing reporting it -- which is the same
+ * failure, one level down.
+ *
+ * The constant's English stays as the fallback, so a key that has not landed yet
+ * shows a word rather than a key path.
+ */
+function useAgentModeLabels() {
+  const { t } = useTranslation();
+  return (mode: AgentMode) => {
+    switch (mode.key) {
+      case "cybersecurity":
+        return {
+          title: t("agentModes.cybersecurity.title", mode.title),
+          desc: t("agentModes.cybersecurity.desc", mode.desc),
+        };
+      case "artificial_intelligence":
+        return {
+          title: t("agentModes.artificialIntelligence.title", mode.title),
+          desc: t("agentModes.artificialIntelligence.desc", mode.desc),
+        };
+      case "pdf_text":
+        return {
+          title: t("agentModes.pdfText.title", mode.title),
+          desc: t("agentModes.pdfText.desc", mode.desc),
+        };
+      case "general":
+        return {
+          title: t("agentModes.general.title", mode.title),
+          desc: t("agentModes.general.desc", mode.desc),
+        };
+      default:
+        return {
+          title: t("agentModes.auto.title", mode.title),
+          desc: t("agentModes.auto.desc", mode.desc),
+        };
+    }
+  };
+}
+
 export function AgentWorkbench({ agentClassHint, agentModes, agentDistribution, onSwitchAgentMode }: Readonly<Props>) {
   const { t } = useTranslation();
+  const labelFor = useAgentModeLabels();
 
   return (
     <div className="space-y-2">
@@ -30,6 +81,7 @@ export function AgentWorkbench({ agentClassHint, agentModes, agentDistribution, 
       <div className="grid grid-cols-1 gap-1.5">
         {agentModes.map((mode) => {
           const active = agentClassHint === mode.key;
+          const label = labelFor(mode);
           return (
             <button
               key={mode.title}
@@ -46,12 +98,12 @@ export function AgentWorkbench({ agentClassHint, agentModes, agentDistribution, 
                  is carried by colour alone and is not announced at all. */
               aria-pressed={active}
               onClick={() => onSwitchAgentMode(mode.key)}
-              title={`${mode.title}: ${mode.desc}`}
+              title={`${label.title}: ${label.desc}`}
             >
               <strong className={cn("block text-[11px]", active ? "text-brand-text-strong" : "text-ink")}>
-                {mode.title}
+                {label.title}
               </strong>
-              <span className="mt-0.5 block text-[10px] leading-snug text-ink-muted">{mode.desc}</span>
+              <span className="mt-0.5 block text-[10px] leading-snug text-ink-muted">{label.desc}</span>
             </button>
           );
         })}

@@ -132,12 +132,20 @@ def _approved_upload_visibility(requested_visibility: str, user: dict[str, Any])
 def list_documents(request: Request, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, Permission.DOCUMENT_READ, request, "document")
     rows = _list_visible_documents_for_user(user)
-    return merge_visible_document_status(
+    summaries = merge_visible_document_status(
         rows,
         user_id=str(user.get("user_id", "")),
         role=str(user.get("role", "viewer")),
         approved_sources={str(row.get("source", "") or "") for row in rows},
     )
+    # Answered by the same predicate `_resolve_manageable_document` enforces, so
+    # a button the client offers is a request the server will accept. Visible is
+    # wider than manageable -- the shared corpus is readable by everyone and
+    # writable by no one -- and the client cannot derive that rule for itself.
+    for summary in summaries:
+        source = str(getattr(summary, "source", "") or "").strip()
+        summary.can_manage = bool(source) and _is_source_manageable_for_user(source, user)
+    return summaries
 
 
 @router.delete("/documents/{filename}", response_model=FileIndexActionResponse)

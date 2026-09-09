@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { QuickActions } from "@/pages/chat/components/QuickActions";
 import { useChatStore } from "@/stores/useChatStore";
 import { useTextareaAutoResize } from "@/pages/chat/hooks/useTextareaAutoResize";
+import { CHAT_ACCEPT_ATTRIBUTE } from "@/lib/uploadFormats";
 
 type Props = {
   questionRef: React.MutableRefObject<HTMLTextAreaElement | null>;
@@ -127,7 +128,7 @@ export function ChatComposer({
                   ref={chatUploadInputRef}
                   type="file"
                   multiple
-                  accept=".pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp"
+                  accept={CHAT_ACCEPT_ATTRIBUTE}
                   className="sr-only"
                   onChange={(event) => void onChatUploadChange(event)}
                   aria-label={t("components.chat.uploadFilesAria")}
