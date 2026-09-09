@@ -36,8 +36,8 @@ ruff format .                       # Format code
 ```
 
 Note (2026-08-28, counts refreshed 2026-09-05): `tests/` and `scripts/` were cleared ahead
-of the v0.7 rewrite. `scripts/` was down to one file then and holds eight now — `audit/frontend_audit.py`,
-`audit/reachability.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`,
+of the v0.7 rewrite. `scripts/` was down to one file then and holds nine now — `audit/frontend_audit.py`,
+`audit/cognitive_complexity.py`, `audit/reachability.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`,
 `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py` — each added with the thing it verifies,
 and still no `scripts/init_db.py`. `tests/` is being rebuilt incrementally alongside bug fixes — see
 Testing Strategy below.
@@ -3434,7 +3434,7 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-09 there are 1705 tests covering the chat round trip,
+back-filling effort. As of 2026-09-09 there are 1723 tests covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3576,6 +3576,34 @@ one definition **and** that a rejected token raises rather than returning
 That is the same lesson this file already records for `python:S1192`: the
 duplicated literal is rarely the defect, and reading the sites together is what
 exposes one that is.
+
+**`python:S3776` is measurable locally now**, which is the difference between
+refactoring against a number and refactoring against a hunch.
+`scripts/audit/cognitive_complexity.py` implements the scoring rules and
+`--validate` checks itself against a SonarCloud issue export: it reproduces all
+75 of the project's open findings exactly. Four rules were settled by
+measurement rather than by reading the white paper -- comprehensions cost
+nothing (74/75, against 48 for charging their `if` clauses), `try/else` costs one
+while `finally` costs nothing (74/75, against 71 for charging both), and the one
+worth knowing: **`elif x:` and `else:` holding a nested `if x:` produce the same
+AST**, a lone `If` in `orelse`, and do not cost the same. Only `col_offset`
+separates them, and getting it wrong was worth 8 points on one function.
+
+It scores itself clean, which `reachability.py` did not -- that one landed as
+three S3776 findings of its own. `test_the_scorer_does_not_trip_its_own_rule`
+keeps it that way. **Target 13, not 15**, when refactoring against it: the tool
+agrees with Sonar today, and leaving two points of headroom means a rule
+difference cannot resurrect a finding.
+
+**The 2026-09-09 pass closed 71 findings and refused 12**, leaving 370 - 71.
+Fixed: `S5713` (9), `S8513` (8), `S8409` (7), `S1172` (6), `S7773` (6), `S1066`
+(5), `S6479` (5), `S3358` (8), `S8410` (4), `S1874` (4), `S1481` (4), `S7504`
+(3), `S8786` (2). The untouched buckets and why: `S3776` (75) is a project, not
+a sweep, and now has a tool; `S7503` (26) is the correct-but-unfixable set this
+file already describes; `S6819` (18) wants `<dialog>` where `ConfirmDialog`'s
+contract is deliberate and pinned by test; `S6353` (9) wants `\w` for
+`[A-Za-z0-9_]`, and **`\w` matches CJK** -- the same trap that made the NLI
+scorer read a whole Chinese clause as one token.
 
 Turning the scanner on means adding `SONAR_TOKEN` **and** switching Automatic Analysis off
 in SonarCloud -- the scanner refuses to run while it is enabled -- and deciding what New
