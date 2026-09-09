@@ -250,6 +250,88 @@ def detect_number_hallucinations(answer: str, source_text: str) -> list[Hallucin
     return issues
 
 
+# Entity-shaped words that are never entities.
+_COMMON_ENGLISH_ENTITIES = {
+    "The",
+    "A",
+    "An",
+    "In",
+    "On",
+    "At",
+    "To",
+    "For",
+    "Of",
+    "With",
+    "CEO",
+    "CFO",
+    "CTO",
+    "COO",
+    "President",
+    "Director",
+    "Manager",
+    "Company",
+    "Corporation",
+    "Inc",
+    "Ltd",
+    "LLC",
+}
+
+_COMMON_CHINESE_ENTITIES = {
+    "首席执行",
+    "执行官",
+    "担任",
+    "公司",
+    "成立",
+    "实现",
+    "年成",
+    "月日",
+    "年月",
+    "融资",
+    "美元",
+    "收入",
+    "达到",
+    "增长",
+}
+
+_CJK_RUN_RE = re.compile(r"[\u4e00-\u9fff]+")
+_CHINESE_NAME_RE = re.compile(r"[\u4e00-\u9fff]{2}$")
+_CHINESE_PHRASE_RE = re.compile(r"[\u4e00-\u9fff]{3,4}$")
+
+
+def _entity_is_in_source(entity: str, source_text: str, source_entities: set[str]) -> bool:
+    """Is this entity present in the source, allowing for partial Chinese forms?
+
+    Chinese entities routinely appear as a substring of one another -- the
+    source says a name and the answer says the name plus a role -- so
+    containment counts in BOTH directions. English is matched word-wise
+    instead, because a multi-word name is grounded when all of its words are.
+    """
+
+    if _CJK_RUN_RE.match(entity):
+        if entity in source_text:
+            return True
+        return any(src in entity or entity in src for src in source_entities)
+
+    if " " in entity:
+        return all(word in source_text for word in entity.split())
+    return entity in source_text
+
+
+def _likely_proper_noun(entity: str) -> bool:
+    """Narrow the miss list to what a reader would call a name.
+
+    Two CJK characters is the shape of a personal name; three or four is only a
+    name when it is not one of the common phrases above. Anything else has to be
+    multi-word to qualify.
+    """
+
+    if " " in entity:
+        return True
+    if _CHINESE_NAME_RE.match(entity):
+        return True
+    return bool(_CHINESE_PHRASE_RE.match(entity)) and entity not in _COMMON_CHINESE_ENTITIES
+
+
 def detect_entity_hallucinations(answer: str, source_text: str) -> list[HallucinationPattern]:
     """
     Detect entity mismatches between answer and source.
@@ -266,129 +348,30 @@ def detect_entity_hallucinations(answer: str, source_text: str) -> list[Hallucin
     if not answer or not source_text:
         return []
 
-    issues = []
-
     answer_entities = _extract_entities(answer)
-    source_entities = _extract_entities(source_text)
-
     if not answer_entities:
         return []
+    source_entities = _extract_entities(source_text)
 
-    # Common words to ignore (not real entities)
-    common_words = {
-        "The",
-        "A",
-        "An",
-        "In",
-        "On",
-        "At",
-        "To",
-        "For",
-        "Of",
-        "With",
-        "CEO",
-        "CFO",
-        "CTO",
-        "COO",
-        "President",
-        "Director",
-        "Manager",
-        "Company",
-        "Corporation",
-        "Inc",
-        "Ltd",
-        "LLC",
+    mismatched = {
+        entity
+        for entity in answer_entities - source_entities
+        if entity not in _COMMON_ENGLISH_ENTITIES and entity not in _COMMON_CHINESE_ENTITIES
     }
+    truly_missing = {e for e in mismatched if not _entity_is_in_source(e, source_text, source_entities)}
+    likely_names = {e for e in truly_missing if _likely_proper_noun(e)}
 
-    # Chinese common titles/roles to ignore
-    chinese_common = {
-        "首席执行",
-        "执行官",
-        "担任",
-        "公司",
-        "成立",
-        "实现",
-        "年成",
-        "月日",
-        "年月",
-        "融资",
-        "美元",
-        "收入",
-        "达到",
-        "增长",
-    }
-
-    # Find entities in answer not in source (exact match)
-    mismatched = answer_entities - source_entities
-
-    # Filter out common words
-    mismatched = {e for e in mismatched if e not in common_words and e not in chinese_common}
-
-    # Check for substring/partial matches in source
-    # Chinese entities often appear as substrings (李明 in source, 李明担任 in answer)
-    truly_missing = set()
-    for entity in mismatched:
-        found_in_source = False
-
-        if re.match(r"[一-鿿]+", entity):
-            # Chinese entity: check if it appears as substring in source
-            # OR if any source entity is a substring of it
-            if entity in source_text:
-                found_in_source = True
-            else:
-                # Check if any source entity is a substring of this entity
-                # (e.g., "李明" in source, "李明担任" in answer)
-                for src_entity in source_entities:
-                    if src_entity in entity or entity in src_entity:
-                        found_in_source = True
-                        break
-        else:
-            # English entity: check if all words appear in source
-            if " " in entity:
-                # Multi-word: check if all words appear in source
-                words = entity.split()
-                if not all(word in source_text for word in words):
-                    truly_missing.add(entity)
-                    continue
-                else:
-                    found_in_source = True
-            else:
-                # Single word: check if it appears in source as substring
-                if entity not in source_text:
-                    truly_missing.add(entity)
-                    continue
-                else:
-                    found_in_source = True
-
-        if not found_in_source:
-            truly_missing.add(entity)
-
-    # Focus on likely proper nouns (multi-word names or Chinese person names)
-    # For Chinese, focus on 2-char entities (typical person names like 李明, 王伟)
-    likely_names = set()
-    for e in truly_missing:
-        if " " in e:
-            # Multi-word English names
-            likely_names.add(e)
-        elif re.match(r"[一-鿿]{2}$", e):
-            # Chinese 2-char entities - typical person names
-            likely_names.add(e)
-        elif re.match(r"[一-鿿]{3,4}$", e):
-            # Chinese 3-4 char entities - check if NOT a common phrase
-            if e not in chinese_common:
-                likely_names.add(e)
-
-    if likely_names:
-        issues.append(
-            HallucinationPattern(
-                pattern_type="entity_mismatch",
-                severity="medium",
-                content=f"Entities not in source: {', '.join(sorted(likely_names))}",
-                suggestion="Verify entity names against source",
-            )
+    if not likely_names:
+        return []
+    named = ", ".join(sorted(likely_names))
+    return [
+        HallucinationPattern(
+            pattern_type="entity_mismatch",
+            severity="medium",
+            content=f"Entities not in source: {named}",
+            suggestion="Verify entity names against source",
         )
-
-    return issues
+    ]
 
 
 def detect_negation_hallucinations(answer: str, source_text: str) -> list[HallucinationPattern]:

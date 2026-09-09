@@ -119,6 +119,139 @@ def _fetch_paths(
     }
 
 
+def _lookup_tokens(question: str, use_robust_extraction: bool | None) -> list[str]:
+    """The query terms, from robust extraction when it is on and available.
+
+    Robust extraction is best-effort by design: a failure here means a thinner
+    query, not a failed one, so it falls back to the same tokenization the
+    legacy path uses rather than propagating.
+    """
+
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    if use_robust_extraction is None:
+        use_robust_extraction = settings.graph_entity_extraction_robust
+
+    if use_robust_extraction:
+        try:
+            from app.graph.knowledge.entity_extraction import extract_entities
+
+            extracted = extract_entities(question, use_llm=settings.graph_entity_extraction_use_llm)
+            return [_normalize_token(e["text"]) for e in extracted if _normalize_token(e["text"])]
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).warning("Robust entity extraction failed, using fallback: %s", e)
+
+    raw_tokens = TOKEN_PATTERN.findall(question)
+    return [_normalize_token(t) for t in raw_tokens if _normalize_token(t)]
+
+
+def _normalized_entities(entities) -> tuple[list[dict], list[str]]:
+    """Entities with their relations cleaned, plus the RAW names to look up.
+
+    The two lists are returned together because they must stay aligned, and
+    they are not the same strings: the lookup uses the name as stored, while
+    the result carries the normalized one.
+    """
+
+    normalized_entities: list[dict] = []
+    lookup_entity_names: list[str] = []
+    for row in entities:
+        raw_entity_name = str(row.get("entity", "")).strip()
+        entity_name = _normalize_entity_name(raw_entity_name)
+        if not entity_name:
+            continue
+        normalized_rels = []
+        for rel in row.get("relations", []) or []:
+            relation = str(rel.get("relation", "")).strip()
+            other = _normalize_entity_name(str(rel.get("other", "")).strip())
+            weight = _relation_weight(relation)
+            if not other or weight <= 0:
+                continue
+            normalized_rels.append({"relation": relation, "other": other, "weight": weight})
+        normalized_entities.append({"entity": entity_name, "relations": normalized_rels})
+        lookup_entity_names.append(raw_entity_name)
+    return normalized_entities, lookup_entity_names
+
+
+def _neighbor_rows(client, entities_to_lookup: list[str], allowed_sources) -> list[dict]:
+    """One row per distinct (entity, relation, other), noisy relations dropped."""
+
+    rows_out: list[dict] = []
+    seen: set[tuple[str, str, str]] = set()
+    for rows in _fetch_neighbors(client, entities_to_lookup, allowed_sources).values():
+        for row in rows:
+            entity = _normalize_entity_name(str(row.get("entity", "")).strip())
+            relation = str(row.get("relation", "")).strip()
+            other = _normalize_entity_name(str(row.get("other", "")).strip())
+            weight = _relation_weight(relation)
+            if not entity or not other or weight <= 0:
+                continue
+            key = (entity, relation.lower(), other)
+            if key in seen:
+                continue
+            seen.add(key)
+            rows_out.append({"entity": entity, "relation": relation, "other": other, "weight": weight})
+    return rows_out
+
+
+def _path_rows(client, entities_to_lookup: list[str], allowed_sources) -> list[dict]:
+    """Two-hop paths, weighted by the mean of the two relation weights."""
+
+    rows_out: list[dict] = []
+    seen: set[tuple[str, str, str, str, str]] = set()
+    for paths in _fetch_paths(client, entities_to_lookup, allowed_sources).values():
+        for p in paths:
+            source = _normalize_entity_name(str(p.get("source", "")).strip())
+            middle = _normalize_entity_name(str(p.get("middle", "")).strip())
+            target = _normalize_entity_name(str(p.get("target", "")).strip())
+            rel1 = str(p.get("rel1", "")).strip()
+            rel2 = str(p.get("rel2", "")).strip()
+            w1 = _relation_weight(rel1)
+            w2 = _relation_weight(rel2)
+            if not source or not middle or not target or w1 <= 0 or w2 <= 0:
+                continue
+            pkey = (source, rel1.lower(), middle, rel2.lower(), target)
+            if pkey in seen:
+                continue
+            seen.add(pkey)
+            rows_out.append(
+                {
+                    "source": source,
+                    "rel1": rel1,
+                    "middle": middle,
+                    "rel2": rel2,
+                    "target": target,
+                    "weight": (w1 + w2) / 2.0,
+                }
+            )
+    return rows_out
+
+
+def _mean_weight(rows: list[dict], limit: int) -> float:
+    weights = [float(x.get("weight", 0.0)) for x in rows[:limit]]
+    return min(1.0, sum(weights) / len(weights)) if weights else 0.0
+
+
+def _graph_signal_score(entities: list[dict], neighbors: list[dict], paths: list[dict]) -> float:
+    """A weighted mean over only the components that produced anything.
+
+    Renormalizing by the weight actually spent is what keeps a graph with no
+    paths from scoring lower than one with none *and* no neighbours.
+    """
+
+    parts = (
+        (entities, 0.3, min(1.0, len(entities) / 4.0)),
+        (neighbors, 0.4, _mean_weight(neighbors, 12)),
+        (paths, 0.3, _mean_weight(paths, 8)),
+    )
+    weighted_sum = sum(weight * score for rows, weight, score in parts if rows)
+    total_weight = sum(weight for rows, weight, _ in parts if rows)
+    return (weighted_sum / total_weight) if total_weight > 0 else 0.0
+
+
 def graph_lookup(
     question: str, allowed_sources: list[str] | None = None, use_robust_extraction: bool | None = None
 ) -> dict:
@@ -133,36 +266,7 @@ def graph_lookup(
     Returns:
         Dictionary with entities, neighbors, paths, and graph_signal_score
     """
-    # Determine whether to use robust extraction (from config if not specified)
-    if use_robust_extraction is None:
-        from app.core.config import get_settings
-
-        settings = get_settings()
-        use_robust_extraction = settings.graph_entity_extraction_robust
-
-    # Extract entities using robust extraction or fallback to simple tokenization
-    if use_robust_extraction:
-        try:
-            from app.graph.knowledge.entity_extraction import extract_entities
-
-            # Extract entities (LLM usage controlled by config)
-            use_llm = settings.graph_entity_extraction_use_llm
-            extracted = extract_entities(question, use_llm=use_llm)
-            # Use extracted entity texts as tokens
-            tokens = [e["text"] for e in extracted]
-            # Normalize tokens
-            tokens = [_normalize_token(t) for t in tokens if _normalize_token(t)]
-        except Exception as e:
-            # Fallback to simple tokenization on error
-            import logging
-
-            logging.getLogger(__name__).warning("Robust entity extraction failed, using fallback: %s", e)
-            raw_tokens = TOKEN_PATTERN.findall(question)
-            tokens = [_normalize_token(t) for t in raw_tokens if _normalize_token(t)]
-    else:
-        # Legacy simple tokenization
-        raw_tokens = TOKEN_PATTERN.findall(question)
-        tokens = [_normalize_token(t) for t in raw_tokens if _normalize_token(t)]
+    tokens = _lookup_tokens(question, use_robust_extraction)
 
     with bulkhead("neo4j"):
         client = Neo4jClient()
@@ -171,97 +275,17 @@ def graph_lookup(
                 "neo4j.search_entities",
                 lambda: client.search_entities(tokens, limit=8, allowed_sources=allowed_sources),
             )
-            normalized_entities = []
-            lookup_entity_names = []
-            for row in entities:
-                raw_entity_name = str(row.get("entity", "")).strip()
-                entity_name = _normalize_entity_name(raw_entity_name)
-                if not entity_name:
-                    continue
-                normalized_rels = []
-                for rel in row.get("relations", []) or []:
-                    relation = str(rel.get("relation", "")).strip()
-                    other = _normalize_entity_name(str(rel.get("other", "")).strip())
-                    weight = _relation_weight(relation)
-                    if not other or weight <= 0:
-                        continue
-                    normalized_rels.append({"relation": relation, "other": other, "weight": weight})
-                normalized_entities.append({"entity": entity_name, "relations": normalized_rels})
-                lookup_entity_names.append(raw_entity_name)
+            normalized_entities, lookup_entity_names = _normalized_entities(entities)
 
-            neighbor_rows = []
-            seen_neighbor: set[tuple[str, str, str]] = set()
-            path_rows = []
-            seen_path: set[tuple[str, str, str, str, str]] = set()
             entities_to_lookup = lookup_entity_names[:3]
+            neighbor_rows = _neighbor_rows(client, entities_to_lookup, allowed_sources) if entities_to_lookup else []
+            path_rows = _path_rows(client, entities_to_lookup, allowed_sources) if entities_to_lookup else []
 
-            if entities_to_lookup:
-                neighbors_by_entity = _fetch_neighbors(client, entities_to_lookup, allowed_sources)
-                for rows in neighbors_by_entity.values():
-                    for row in rows:
-                        entity = _normalize_entity_name(str(row.get("entity", "")).strip())
-                        relation = str(row.get("relation", "")).strip()
-                        other = _normalize_entity_name(str(row.get("other", "")).strip())
-                        weight = _relation_weight(relation)
-                        if not entity or not other or weight <= 0:
-                            continue
-                        key = (entity, relation.lower(), other)
-                        if key in seen_neighbor:
-                            continue
-                        seen_neighbor.add(key)
-                        neighbor_rows.append({"entity": entity, "relation": relation, "other": other, "weight": weight})
-
-                paths_by_entity = _fetch_paths(client, entities_to_lookup, allowed_sources)
-                for paths in paths_by_entity.values():
-                    for p in paths:
-                        source = _normalize_entity_name(str(p.get("source", "")).strip())
-                        middle = _normalize_entity_name(str(p.get("middle", "")).strip())
-                        target = _normalize_entity_name(str(p.get("target", "")).strip())
-                        rel1 = str(p.get("rel1", "")).strip()
-                        rel2 = str(p.get("rel2", "")).strip()
-                        w1 = _relation_weight(rel1)
-                        w2 = _relation_weight(rel2)
-                        if not source or not middle or not target or w1 <= 0 or w2 <= 0:
-                            continue
-                        pkey = (source, rel1.lower(), middle, rel2.lower(), target)
-                        if pkey in seen_path:
-                            continue
-                        seen_path.add(pkey)
-                        path_rows.append(
-                            {
-                                "source": source,
-                                "rel1": rel1,
-                                "middle": middle,
-                                "rel2": rel2,
-                                "target": target,
-                                "weight": (w1 + w2) / 2.0,
-                            }
-                        )
-
-            entity_score = min(1.0, len(normalized_entities) / 4.0)
-            neighbor_weights = [float(x.get("weight", 0.0)) for x in neighbor_rows[:12]]
-            neighbor_score = min(1.0, (sum(neighbor_weights) / len(neighbor_weights))) if neighbor_weights else 0.0
-            path_weights = [float(x.get("weight", 0.0)) for x in path_rows[:8]]
-            path_score = min(1.0, (sum(path_weights) / len(path_weights))) if path_weights else 0.0
-
-            total_weight = 0.0
-            weighted_sum = 0.0
-            if normalized_entities:
-                weighted_sum += 0.3 * entity_score
-                total_weight += 0.3
-            if neighbor_rows:
-                weighted_sum += 0.4 * neighbor_score
-                total_weight += 0.4
-            if path_rows:
-                weighted_sum += 0.3 * path_score
-                total_weight += 0.3
-
-            graph_signal_score = (weighted_sum / total_weight) if total_weight > 0 else 0.0
             return {
                 "entities": normalized_entities,
                 "neighbors": neighbor_rows,
                 "paths": path_rows,
-                "graph_signal_score": graph_signal_score,
+                "graph_signal_score": _graph_signal_score(normalized_entities, neighbor_rows, path_rows),
             }
         finally:
             client.close()

@@ -469,7 +469,53 @@ class AnthropicRelayChatModel:
             "Content-Type": "application/json",
         }
 
+    @staticmethod
+    def _content_blocks(content) -> str | None:
+        """Anthropic's shape: a list of blocks, each carrying `text`.
+
+        None rather than "" when nothing was found, so an empty block list
+        falls through to the next shape instead of answering with silence.
+        """
+
+        if not isinstance(content, list):
+            return None
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                text = block.get("text")
+                if text is None and isinstance(block.get("content"), str):
+                    text = block.get("content")
+                if text is not None:
+                    parts.append(str(text))
+        return "".join(parts) if parts else None
+
+    @staticmethod
+    def _first_choice(choices) -> str | None:
+        """OpenAI's shape, which a relay often speaks instead of Anthropic's."""
+
+        if not isinstance(choices, list) or not choices:
+            return None
+        first = choices[0]
+        if not isinstance(first, dict):
+            return None
+        message = first.get("message")
+        if isinstance(message, dict) and message.get("content") is not None:
+            return str(message.get("content") or "")
+        if first.get("text") is not None:
+            return str(first.get("text") or "")
+        return None
+
     def _extract_content(self, data) -> str:
+        """The reply's text, in whichever of four shapes the relay answered.
+
+        A relay is somebody else's server: it may speak Anthropic's blocks,
+        OpenAI's choices, a bare `completion`, or something this does not know,
+        and the last case has to return the payload rather than nothing so a
+        failure is legible.
+        """
+
         if isinstance(data, str):
             return data
         if not isinstance(data, dict):
@@ -478,29 +524,10 @@ class AnthropicRelayChatModel:
         content = data.get("content")
         if isinstance(content, str):
             return content
-        if isinstance(content, list):
-            parts: list[str] = []
-            for block in content:
-                if isinstance(block, str):
-                    parts.append(block)
-                elif isinstance(block, dict):
-                    text = block.get("text")
-                    if text is None and isinstance(block.get("content"), str):
-                        text = block.get("content")
-                    if text is not None:
-                        parts.append(str(text))
-            if parts:
-                return "".join(parts)
 
-        choices = data.get("choices")
-        if isinstance(choices, list) and choices:
-            first = choices[0]
-            if isinstance(first, dict):
-                message = first.get("message")
-                if isinstance(message, dict) and message.get("content") is not None:
-                    return str(message.get("content") or "")
-                if first.get("text") is not None:
-                    return str(first.get("text") or "")
+        for candidate in (self._content_blocks(content), self._first_choice(data.get("choices"))):
+            if candidate is not None:
+                return candidate
 
         if isinstance(data.get("completion"), str):
             return str(data.get("completion") or "")
