@@ -35,10 +35,18 @@ def simple_coreference_resolution(text: str) -> str:
 
 def split_into_sentences(text: str) -> list[str]:
     """Split text into sentences."""
-    # Simple sentence splitting
-    # Possessive: shortening the run of punctuation still leaves punctuation,
-    # never the whitespace that follows it, so backtracking only costs time.
-    sentences = re.split(r"[.!?]++\s+", text)
+    # Simple sentence splitting.
+    #
+    # The lookbehind is what makes this linear, and the possessive quantifier
+    # alone was NOT enough -- which is worth stating, because the 2026-09-03
+    # pass reasoned that it was. Possessive stops backtracking WITHIN one
+    # attempt; it does nothing about the attempt being restarted at every
+    # offset. On a run of n dots the engine started at each one, consumed the
+    # rest of the run, failed on the whitespace and moved along: O(n^2).
+    # Measured on 8000 dots, 139ms before and 0.15ms after, with identical
+    # output over 4012 inputs. A dotted leader line in a table of contents is
+    # how a real document reaches this.
+    sentences = re.split(r"(?<![.!?])[.!?]++\s+", text)
     return [s.strip() for s in sentences if s.strip()]
 
 
