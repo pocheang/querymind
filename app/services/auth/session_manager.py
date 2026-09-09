@@ -49,7 +49,8 @@ class SessionManager:
             row = conn.execute(
                 """
                 SELECT s.user_id AS user_id, s.username AS username, s.expires_at AS expires_at,
-                       u.role AS role, u.status AS status, u.credit_balance AS credit_balance
+                       u.role AS role, u.status AS status, u.credit_balance AS credit_balance,
+                       u.display_name AS display_name
                 FROM auth_sessions s
                 JOIN users u ON u.user_id = s.user_id
                 WHERE s.token=?
@@ -69,6 +70,13 @@ class SessionManager:
                 "role": str(row["role"]),
                 "status": str(row["status"]),
                 "credit_balance": int(row["credit_balance"]),
+                # Read from `users`, like role and status, because it lives there
+                # and the session row does not carry it. Omitting it meant
+                # `PUT /auth/profile` stored a display name correctly -- verified
+                # in the database -- while `GET /auth/me`, which populates the
+                # profile page and the top bar, reported `None` for everyone
+                # forever. A write nobody reads.
+                "display_name": row["display_name"],
             }
 
     def touch_session(self, token: str) -> None:

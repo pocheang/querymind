@@ -29,12 +29,19 @@ class RetrievalLog(BaseModel):
 
     log_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = Field(default_factory=utcnow)
-    question: str
+    # A digest, never the question. `export_logs` writes these rows to a
+    # downloadable CSV, so the text field this replaced would have built exactly
+    # the store `question_ref` exists to prevent -- and nothing in the dashboard
+    # ever read it. The digest keeps the one property the export needs: the same
+    # question yields the same handle, so rows can be correlated.
+    question_ref: str
     agent_class: str  # cybersecurity, artificial_intelligence, general
     route: str  # vector, graph, web, hybrid
 
-    # Retrieval metrics
-    filtered_docs_count: int  # Documents after agent filter
+    # Retrieval metrics.
+    # `filtered_docs_count` was here and had no reader and no honest source --
+    # there is no separate agent-filter stage to count -- so it is gone rather
+    # than filled with `retrieved_count` again.
     retrieved_count: int  # Actually retrieved documents
     effective_hit_count: int  # Relevant hits (score > threshold)
     top_scores: list[float]  # Top 3 relevance scores
@@ -350,10 +357,9 @@ class RetrievalLogger:
             fieldnames = [
                 "log_id",
                 "timestamp",
-                "question",
+                "question_ref",
                 "agent_class",
                 "route",
-                "filtered_docs_count",
                 "retrieved_count",
                 "effective_hit_count",
                 "top_scores",

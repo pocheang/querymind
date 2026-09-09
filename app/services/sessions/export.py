@@ -105,16 +105,16 @@ class SessionExportService:
         Returns:
             ExportedSession
 
-        Raises:
-            KeyError: If session metadata not found
+        Metadata is optional. A session created by asking a question has none --
+        `POST /sessions` writes to the history store and the only writers of
+        `SessionMetadata` are the edit-metadata endpoint and import -- so
+        requiring it here meant **exporting an ordinary session answered
+        500 "Export failed"**, which is every session a user has not tagged by
+        hand. The messages are the substance; tags and a category are decoration
+        the user may never have added.
         """
-        # Get metadata
         metadata = self.metadata_service.get_metadata(session_id)
-        if metadata is None:
-            raise KeyError(f"Session {session_id} not found")
-
-        # Convert metadata to dict
-        metadata_dict = self._metadata_to_dict(metadata)
+        metadata_dict = self._metadata_to_dict(metadata) if metadata is not None else self._absent_metadata(session_id)
 
         # Create exported session
         return ExportedSession(
@@ -327,6 +327,27 @@ class SessionExportService:
 
         return results
 
+    def _absent_metadata(self, session_id: str) -> dict[str, Any]:
+        """The metadata block for a session that has none.
+
+        Same keys as `_metadata_to_dict`, so an importer reads one shape whether
+        or not the exporter had anything to put in it. Empty rather than
+        invented: `created_at` is not guessed from the export time, because a
+        re-import would then carry a date the session never had.
+        """
+
+        return {
+            "session_id": session_id,
+            "tags": [],
+            "category": None,
+            "description": None,
+            "auto_tags": [],
+            "created_at": None,
+            "updated_at": None,
+            "query_count": 0,
+            "last_query_at": None,
+        }
+
     def _metadata_to_dict(self, metadata: SessionMetadata) -> dict[str, Any]:
         """Convert SessionMetadata to dict."""
         return {
@@ -346,19 +367,38 @@ class SessionExportService:
         session_id: str,
         metadata_dict: dict[str, Any],
     ) -> SessionMetadata:
-        """Convert dict to SessionMetadata."""
+        """Convert dict to SessionMetadata.
+
+        Every timestamp is optional. A session exported without metadata carries
+        nulls -- `_absent_metadata` deliberately does not invent a `created_at`,
+        because a re-import would then stamp the session with a date it never
+        had -- and `datetime.fromisoformat(None)` raises, so reading them
+        strictly would have made those exports unimportable.
+
+        A missing date becomes "now", which is the truth: this metadata is being
+        created at import time.
+        """
+
+        def _at(key: str) -> datetime | None:
+            raw = metadata_dict.get(key)
+            if not raw:
+                return None
+            try:
+                return datetime.fromisoformat(str(raw))
+            except ValueError:
+                return None
+
+        now = utc_now()
         return SessionMetadata(
             session_id=session_id,
             tags=metadata_dict.get("tags", []),
             category=metadata_dict.get("category"),
             description=metadata_dict.get("description"),
             auto_tags=metadata_dict.get("auto_tags", []),
-            created_at=datetime.fromisoformat(metadata_dict["created_at"]),
-            updated_at=datetime.fromisoformat(metadata_dict["updated_at"]),
+            created_at=_at("created_at") or now,
+            updated_at=_at("updated_at") or now,
             query_count=metadata_dict.get("query_count", 0),
-            last_query_at=datetime.fromisoformat(metadata_dict["last_query_at"])
-            if metadata_dict.get("last_query_at")
-            else None,
+            last_query_at=_at("last_query_at"),
         )
 
     def _validate_import_data(self, data: dict[str, Any]) -> ImportResult:

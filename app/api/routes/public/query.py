@@ -3,6 +3,7 @@ API routes for advanced RAG functionality.
 """
 
 import logging
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -22,7 +23,7 @@ from app.api.dependencies import (
 )
 from app.api.deps.auth import require_admin
 from app.api.deps.documents import _allowed_sources_for_user
-from app.api.routes.internal.pipeline_contract import retrieval_summary
+from app.api.routes.internal.pipeline_contract import record_query_analytics, retrieval_summary
 from app.api.transport.errors import internal_error, service_unavailable
 from app.api.transport.middleware import record_grounding_support
 from app.core.config import get_settings
@@ -379,7 +380,9 @@ async def _process_advanced_rag_query_impl(
             deadline_at=_deadline_from(request_data.timeout_ms),
             execution_id=execution_id,
         )
+        query_started = time.perf_counter()
         pipeline_result = await RAGPipeline().execute(pipeline_request)
+        query_elapsed_ms = (time.perf_counter() - query_started) * 1000.0
         plan_data = pipeline_result.execution_metadata.get("plan")
 
         decomposed_query = (
@@ -398,6 +401,11 @@ async def _process_advanced_rag_query_impl(
         # Rides the request's own metrics row, which is the window build_ops_alerts
         # already reads for its p95 -- see record_grounding_support.
         record_grounding_support(request, pipeline_result.execution_metadata)
+        # The analytics dashboard's only producer. Measured around `execute`
+        # rather than taken from the middleware's row, because that row times
+        # the HTTP request and this figure is presented as how long answering
+        # took.
+        record_query_analytics(request_data.query, pipeline_result, total_ms=query_elapsed_ms)
         metadata = _response_metadata(
             pipeline_result_metadata=dict(pipeline_result.execution_metadata),
             route=pipeline_result.route.route,

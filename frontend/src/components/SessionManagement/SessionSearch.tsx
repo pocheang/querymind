@@ -304,7 +304,18 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
         <div className="space-y-1.5 py-8 text-center">
           <Search className="mx-auto size-6 text-ink-faint" strokeWidth={1.5} aria-hidden="true" />
           <h4 className="text-xs font-semibold text-ink">{t("sessionManagement.noResults")}</h4>
-          <p className="text-[11px] text-ink-muted">{t("sessionManagement.tryDifferentSearch")}</p>
+          {/*
+            This searches session METADATA -- tags, category, description --
+            which only exists once somebody writes it: `POST /sessions` creates a
+            session in the history store and no metadata at all. So on an
+            ordinary account every search returns nothing, and "try adjusting
+            your search criteria" sends the reader to fix a query that could
+            never have matched. Say what is actually true and name the tab that
+            fixes it.
+          */}
+          <p className="text-[11px] text-ink-muted">
+            {t("sessionManagement.searchesMetadataOnly")}
+          </p>
         </div>
       )}
     </div>

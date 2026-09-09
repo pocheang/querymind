@@ -20,11 +20,14 @@ different services without duplicating complex setup logic.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from app.pipeline.contracts import ConversationMessage, PipelineRequest, PipelineUser, SourceScope
 from app.pipeline.profiles import PipelineProfile
 from app.pipeline.rag_pipeline import RAGPipeline
+
+logger = logging.getLogger(__name__)
 
 
 def execute_standard_compatibility(
@@ -136,4 +139,70 @@ def retrieval_summary(execution_metadata: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-__all__ = ["execute_standard_compatibility", "retrieval_summary"]
+# Anything at or above this counts as a hit worth having. `PipelineContext.score`
+# is a fused RRF score, not a probability, so this is a reporting threshold for
+# the dashboard and nothing in retrieval reads it.
+EFFECTIVE_HIT_SCORE = 0.5
+
+
+def record_query_analytics(question: str, pipeline_result: Any, *, total_ms: float) -> None:
+    """Feed the analytics dashboard the query that just ran.
+
+    `RetrievalLogger.log_retrieval` had **no caller anywhere in `app/`** until
+    2026-09-09 -- the only occurrence was its own `def`. So `/app/analytics`
+    reported zeros forever, both export buttons produced an empty file, and the
+    top bar's metrics strip stayed permanently hidden behind its own
+    "render nothing until there are samples" guard.
+
+    The question is recorded as a digest. Nothing here writes text a user typed.
+
+    Never raises: analytics is a by-product of answering, and an answer that was
+    produced must not be lost because a counter could not be updated.
+    """
+
+    from app.services.observability.log_safety import question_ref
+    from app.services.retrieval.logger import RetrievalLog, RetrievalLogger
+
+    try:
+        contexts = list(getattr(pipeline_result, "contexts", ()) or ())
+        scores = sorted(
+            (float(c.score) for c in contexts if getattr(c, "score", None) is not None),
+            reverse=True,
+        )
+        sources = []
+        for context in contexts:
+            name = str(getattr(context, "source", "") or "").strip()
+            if name and name not in sources:
+                sources.append(name)
+
+        route = getattr(pipeline_result, "route", None)
+        diagnostics = (getattr(pipeline_result, "execution_metadata", {}) or {}).get("workflow_diagnostics") or {}
+        # `stage_latency_ms`, keyed by `EventStage`. The first version of this
+        # read `stage_durations_ms`, which no diagnostics dict has ever carried,
+        # so the retrieval figure would have been 0 on every row -- the exact
+        # defect this whole function exists to undo, reintroduced one key deep.
+        stage_ms = dict(diagnostics.get("stage_latency_ms") or {})
+
+        RetrievalLogger.get_instance().log_retrieval(
+            RetrievalLog(
+                question_ref=question_ref(question),
+                agent_class=str(getattr(route, "agent_class", "") or "general"),
+                route=str(getattr(route, "route", "") or "unknown"),
+                retrieved_count=len(contexts),
+                effective_hit_count=sum(1 for score in scores if score >= EFFECTIVE_HIT_SCORE),
+                top_scores=scores[:3],
+                # Absent rather than invented: a stage that reported no duration
+                # contributes 0, which the dashboard averages as "fast", so the
+                # retrieval figure is only as good as the diagnostics.
+                retrieval_time_ms=float(stage_ms.get("knowledge", 0.0) or 0.0),
+                total_time_ms=float(total_ms),
+                retrieved_sources=sources,
+                has_result=bool(contexts),
+                error=None,
+            )
+        )
+    except Exception:  # pragma: no cover - a counter must not fail a request
+        logger.debug("analytics_record_failed", exc_info=True)
+
+
+__all__ = ["execute_standard_compatibility", "record_query_analytics", "retrieval_summary"]
