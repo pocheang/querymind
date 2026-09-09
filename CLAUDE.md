@@ -710,6 +710,60 @@ gets stored, so persisting it does not widen what a database read exposes — bu
 rotating or regenerating `API_SETTINGS_ENCRYPTION_KEY` turns stored credentials
 from *absent* into *undecryptable*.
 
+**A stored credential must be one its owner can take back** (added 2026-09-09).
+Connectors could be created, listed, enabled, disabled and probed, and there was
+no delete anywhere in the stack -- not on the router, not on
+`ConnectorManagementService`, not on `ConnectorMetadataRepository` and not on
+`CredentialRepository`. So an encrypted third-party secret, once handed over,
+stayed: its owner could stop it being used and never remove it. Found by trying
+to clean up a test connector after an end-to-end run, which is a fair sample of
+how it would have been found in production.
+
+`disable` is not the same thing and stays: stopping a suspect integration while
+keeping the record of it is a real need. This is a new verb, `DELETE
+/api/v1/connectors/{connector_id}` → 204.
+
+**The credential is destroyed before the metadata, and which residue an
+interrupted delete leaves is the whole design.** The two stores are separate
+connections on the app database -- there is no shared pool here on purpose --
+so the pair is not atomic. Metadata gone with the ciphertext left behind is a
+secret nothing can name, which is a *worse* state than not deleting at all;
+metadata left with the ciphertext gone is a connector its owner can see and
+delete again. Both halves are idempotent so that retry works.
+
+Two details in `tests/services/test_connector_deletion.py` (12) are worth more
+than the endpoint. Both 404 tests assert the **message**, not only the status:
+with no route registered, FastAPI answers that DELETE with its own 404, so
+status alone passes on exactly the code they exist to reject -- the vacuous
+assertion this file keeps recording, met here in a new place. And the ordering
+above is pinned by making the metadata delete raise, because it is a choice
+nothing else would state. Verified able to fail: all twelve redden against the
+previous commit.
+
+The reader-facing half is a delete control in `IntegrationsPanel`, behind
+`ConfirmDialog`. It asks where disable does not, for the reason the memory
+panel's "forget everything" asks: the server cannot show a secret back, so
+there is nothing to undo it from.
+
+Measured in a real browser through the same throwaway harness the memory panel
+used -- real components, real cascade, real aurora, only `window.fetch`
+replaced, deleted in the same change. Cancel sends no request and keeps both
+rows; confirming sends exactly one `DELETE /api/v1/connectors/falcon_runbook`,
+drops the row and reports it. **16 nodes checked with the panel open and 20 with
+the dialog open, one failure at 2.08** -- the disabled connector's `Test`
+button, the inactive-component exemption already recorded for this panel. The
+destructive confirm is white on `rgb(189,16,16)`, 6.48. `__probe()` caught all
+three planted nodes first, so the scanner was known able to fail.
+
+**Two instrument failures on the way, and neither was an application defect.**
+`computer`'s click missed because the pane's screenshot is scaled (a 952px
+viewport rendered at 800px) while a `ref` resolves to *page* coordinates;
+`document.elementFromPoint` at the button's own centre is what proved nothing
+covered it. And fetching the auditor with `fetch()` returned the harness's
+stubbed connector JSON, because the harness had replaced `window.fetch` -- a
+`<script src>` bypasses it. Same rule as the `Return`/`Enter` and `shift+slash`
+corrections: check the instrument before filing the finding.
+
 ### Upload storage
 
 `store_uploaded_files` (`app/services/documents/dedup.py`) is the front door for user
@@ -1082,7 +1136,7 @@ zero failures, and the three skipped were the harness's own header rather than t
 could not have.** The drawer is behind authentication, so the panel was rendered by a
 temporary `harness.html` + `harness.tsx` at the frontend root -- the real components, the
 real `styles/main.css` cascade, the real aurora ground and the drawer's own wrapper
-markup copied from `ApiSettings`, with only `window.fetch` replaced. On the first run the
+markup copied from what is now `SettingsDrawer`, with only `window.fetch` replaced. On the first run the
 audit **skipped** the description text: the panel body was `bg-surface-muted/60`, and an
 alpha tint over a `glass-panel` over a gradient has no background the walk can resolve.
 It is opaque now, which is the same remedy `--success-surface` exists for. A skipped node
@@ -1389,7 +1443,14 @@ has always claimed.
 ### Retrieval Strategy
 
 **Hybrid Retrieval** ([app/retrievers/hybrid/retriever.py](app/retrievers/hybrid/retriever.py)):
-- **Vector search**: Sentence-Transformers BGE-M3 embeddings → ChromaDB
+- **Vector search**: ChromaDB, embedded by one of exactly three things --
+  `LocalHashEmbeddings` (the `local` backend's default: deterministic blake2b
+  hash buckets, **not semantic**, which is why the admin console reports it
+  `degraded`), OpenAI, or Ollama. **There is no sentence-transformers embedding
+  model**, and this line claimed "Sentence-Transformers BGE-M3 embeddings" until
+  2026-09-09; `sentence_transformers` is imported only for `CrossEncoder`, by the
+  reranker and the NLI stage. Anyone reading the old claim would have taken a
+  correctly-reported degraded embedding for a misconfiguration.
 - **BM25 search**: Jieba tokenization → Rank-BM25
 - **Fusion**: Reciprocal Rank Fusion (RRF), over one ranked list per **(source, query)**
   pair -- not per source (2026-09-04). An adapter runs each of `plan.queries` and returns
@@ -1562,13 +1623,17 @@ environment-pinned value because the write would go to a layer the process does 
 this one persists correctly and takes effect the moment the pin is removed, so refusing it
 would block legitimate preparation.
 
-The same pass fixed a description that promised the opposite of the code. The `enabled`
-flag was documented as applying the global config "to users without personal overrides",
-but `get_chat_model` resolves `global_override or user_override` -- an enabled global
-config wins over *every* user's own settings, so their personal key stops being used and
-their queries bill the org's account. An admin ticking that box on the old promise would
-have moved everyone's traffic silently. The wording now says what it does, in the schema
-and on the checkbox.
+The same pass fixed a description that promised the opposite of the code, and the
+correction has since been overtaken -- both halves are worth keeping, because the field has
+now been wrong in two opposite directions. The `enabled` flag was first documented as
+applying the global config "to users without personal overrides", while `get_chat_model`
+resolved `global_override or user_override`: an enabled global config won over *every*
+user's own settings, so an admin ticking that box on the old promise would have moved
+everyone's traffic silently. The replacement wording said it overrode "their personal API
+settings" -- true then, and false from 2026-09-08, when per-user model configuration was
+removed. It now says what the switch chooses between: the administrator's configuration and
+the deployment's own environment. `test_the_enabled_flag_describes_what_it_actually_does`
+asserts the absence of both wrong forms, not just the first.
 
 Having no model to hide behind is why this is the path where prompt scaffolding leaks into
 prose. It has narrated itself, echoed `ContextBuilder`'s `[E1] document=…; layer=…` header
@@ -1840,6 +1905,542 @@ their defaults had drifted into stating the opposite of what runs, so the file w
 misleading as a description of the configuration. Do not read a default here as evidence
 that a feature is on: check the `Settings` field.
 
+### Model configuration is an administrator's, and applies to everyone
+
+Ordinary users do not configure models. An administrator sets one configuration at
+`/admin/model-settings` and it is what answers every user's questions; with it disabled,
+the deployment's own environment answers. That is the rule, stated 2026-09-08, and it was
+already how answers were produced -- but only by accident, and the surface said otherwise
+in the most expensive way available.
+
+**Three endpoints collected a credential nobody would ever use.** `GET`/`POST
+/user/api-settings` and `/user/api-settings/test` were gated on `_require_user` alone, the
+`ApiSettings` drawer was rendered on the chat page for every signed-in account, and the
+posted API key was encrypted into that user's row. A user could pick a provider, paste
+their own key, press Test, and get **"API connectivity test succeeded"** -- because the
+probe built a model from the posted values directly, so the credentials really did work.
+Then every question they asked went to the administrator's model.
+
+**Nothing on the answer path had ever read any of it.** `_request_chat_override()` read a
+ContextVar that only `probe_chat_model_configuration` ever set with content;
+`OrchestrationEngine` merely re-read and re-published whatever was already there, which on
+a real request is `None`. So `get_chat_model`'s `global_override or user_override` had a
+second operand that was always `{}` -- a fallback that existed in the reading and not in
+the running. That is why nobody noticed the feature did nothing: **the only surface that
+could have contradicted it was the Test button, and the Test button worked.**
+
+What was removed: the three endpoints, `UserApiSettings`/`View`/`Response`, the five
+`config_store` functions behind them, `AuditAction.USER_API_SETTINGS_TEST`,
+`_api_settings_view`, the `api_settings` parameter on `request_context`, and the
+`ApiSettings` island in the frontend (four components and two helper modules).
+
+**The seam went with the feature, deliberately.** `request_context` could have kept its
+parameter harmlessly -- it was harmless for the feature's whole life. But a parameter named
+for a per-user model is an invitation to wire one back in a call site at a time, and
+`test_the_request_context_cannot_carry_a_model_configuration` asserts the signature is
+exactly `timeout_ms` and `overload_mode`.
+
+**Deleting the endpoints does not reach the stored keys**, so
+`purge_user_api_settings()` runs from the lifespan and clears the retired key from every
+user row. An encrypted third-party credential that nothing reads is the only kind whose
+disclosure costs its owner everything and buys them nothing. It is idempotent, skipped
+under pytest for the reason the administrator bootstrap is, and clears **one key** rather
+than resetting a row -- `preferences` beside it survives, which is asserted.
+
+**`GET /user/active-model` replaced them, and reports rather than accepts.** It exists
+because the change would otherwise have deleted something real: `useSettingsPolling` used
+the old endpoint only to read the *global* state and toast when an administrator changed
+the model, which is worth more now that a reader cannot change it back. It consults
+`_local_backend_forced()` as well as the saved configuration, because with
+`MODEL_BACKEND=local` pinned `get_chat_model` discards the override outright -- reporting
+it as active would be this file's recurring failure, a page saying something other than
+what runs.
+
+**One defect was found by fixing this rather than being the reason for it.** The probe
+published its payload into the ContextVar and let `get_chat_model` pick it up -- and
+`get_chat_model` consults the *saved* global configuration **first**. So an administrator
+pressing Test on a new provider while a configuration was already enabled probed the old
+one and was shown its success as the new one's. `probe_chat_model_configuration` builds
+the model from its argument now, through `_chat_model_from_override`, which also collapses
+the three duplicated copies of "assemble an overridden chat model" into one.
+
+`tests/security/test_model_configuration_is_admin_only.py` (9) is mostly negative, because
+what has to hold is that the surface does not come back: no `api-settings` path under any
+method, `/user/active-model` accepting only `get`, no `AdminModelSettings` body outside
+`/admin/`, no `user_override` in `runtime.py`. Each of the nine was verified able to fail
+by restoring the shipped behaviour it pins -- seven mutations, seven distinct rednesses.
+`SettingsDrawer.test.tsx` (7) pins the other half: the drawer offers no textbox, combobox,
+slider or spinbutton, and its only button is the close control.
+
+**The drawer survived because it was never only about models.** It hosts `IntegrationsPanel`
+and `MemoryPanel`, so `ApiSettings.tsx` became `SettingsDrawer.tsx` -- the model form gone,
+a read-only line naming the administrator's model in its place. Measured in a browser
+through the same throwaway harness the memory panel used (real components, real cascade,
+only `window.fetch` replaced, deleted in the same change): **35 nodes, zero non-exempt
+failures.** The three added nodes are 5.32 (`Model` heading), 14.42 (the mono
+`provider / model` line) and 5.28 (the note) -- that last being exactly the
+`--text-muted` on `--surface-muted` pair already recorded for the memory panel. The one
+failure at 2.08 is the disabled connector's `Test` button, the inactive-component exemption
+this file already records; the two skipped nodes are both on `--brand-mark-gradient`, the
+logotype exemption. `__probe()` caught all three planted bad nodes first, so the scanner
+was known able to fail before its pass was believed.
+
+#### Configuring a real relay for the first time found six defects
+
+On 2026-09-09 an Anthropic-compatible relay was configured through the admin
+console -- the first time anybody had done it. Everything about the change above
+was already tested and green. Six things broke anyway, and the shape they share
+is worth more than any one of them: **each sat on a path that no test and no
+reader had ever walked end to end.**
+
+- **The relay branch had never run.** `AnthropicRelayChatModel` exists for
+  exactly one situation, a gateway reached at a `base_url`, and the only code
+  constructing it passed `streaming=True`, which its `__init__` does not accept.
+  Every relay configuration raised `TypeError` at construction. The flag was
+  never needed either: the adapter streams by *having a `stream()` method*.
+  The same call also dropped `request_timeout_seconds`, so the relay kept a 30s
+  default and `LLM_REQUEST_TIMEOUT_SECONDS` did not reach the one provider most
+  likely to sit behind a slow hop.
+  `tests/services/test_anthropic_relay_construction.py` pins both, and
+  parametrizes over the constructor's parameters so a *second* unsupported
+  keyword fails the same way rather than waiting for the next person to configure
+  a relay.
+
+- **The client gave up before the server did.** `services/http/client.ts`
+  defaults to a 30s abort; `STAGE_TIMEOUT_TOTAL_MS` is **120s** and synthesis
+  alone may take 30s. Measured on the first real question: **52,943ms**, well
+  formed, with citations -- and the browser had already aborted it at 30s and
+  rendered "Request timed out" with no sources, while the server logged `200 OK`.
+  A client timeout shorter than one of the server's stages throws away the whole
+  degradation design, which exists precisely to turn a slow run into a marked
+  answer rather than nothing.
+
+  The fix declares the deadline to **both** ends: `timeout_ms` (a field wired in
+  2026-08-31 that the frontend had never once sent) narrows the server's budget,
+  and the client's abort sits a margin *above* it, so the server always reaches
+  its own deadline first and answers with its degradation path. Equal values
+  would leave the race to scheduling.
+
+- **The panel that exists to be authoritative went stale on save.** The
+  `EFFECTIVE CONFIGURATION` fetch was `useEffect(..., [])` -- mount only, with a
+  correct comment explaining why it must not run on every patch (probing loads
+  the optional models). But a save is the one event that invalidates it, so after
+  saving a provider the page showed `chat DEGRADED local -- "No provider is
+  configured"` directly under a stored-configuration strip reading `Anthropic`.
+  Two contradictory claims on one page, and the stale one was the panel whose
+  entire job is to answer "what will the next question use". It refetches on the
+  falling edge of a save and on Refresh; still never on a patch.
+
+- **Three surfaces described the deleted per-user configuration**, and each was
+  corrected in a different pass. The schema description was fixed with the
+  removal itself; the **checkbox an administrator actually reads** still said
+  "replaces every user's own API settings" in both locales; and both chat
+  branches of the effective panel described "those with personal settings". The
+  backend test passed the whole time the label lied, because the two ends had no
+  place where they met. `test_the_checkbox_a_human_reads_says_the_same_thing`
+  and `test_the_effective_panel_does_not_promise_a_per_user_configuration` are
+  that place -- they check the locale files and the inline `defaultValue` too,
+  since a missing key renders the inline copy forever and silently.
+
+- **`test_effective_model_config.py` was reading the developer's database.**
+  `_chat()` reads the stored configuration from `APP_DB_PATH`, and nothing in
+  that file stubbed it -- so its environment-branch tests asserted against
+  whatever was last saved in the admin console. They passed for months and went
+  red the moment a provider was configured on the machine running them. The
+  autouse fixture stubs it now, and the branch that had no test at all -- an
+  enabled administrator configuration, the one a configured deployment takes --
+  has one.
+
+- **The model-change poller re-ran on most renders.** `useSettingsPolling` keyed
+  its effect on `[onNotify, t]`; react-i18next returns a fresh `t` and the
+  notifier is a new closure, so the effect tore down and re-ran constantly and
+  each run repeated its seeding fetch. Measured on an **idle** page: 3 requests
+  per 30s against the one a 25s interval intends, and far worse while an answer
+  streams. Both are held in refs now so the effect depends on nothing; measured
+  again afterwards, 1 per 30s. Same trap this file already records for the memory
+  panel, reached from the other direction -- there it was an unbounded loop, here
+  merely triple the traffic, which is why nobody noticed.
+
+**What made all six visible was using the thing.** `make test`, ruff, tsc,
+eslint, the design ratchet and the dead-class scan were green before and after;
+none of them can ask "does a relay work", because every one of them measures the
+code against itself. The relay defect in particular had been shipping since the
+class was written.
+
+One detail worth keeping for the next person configuring a provider: choose
+`anthropic`, not `custom`. `custom` reports `supports_embeddings = True`, so
+saving it changes the embedding signature, triggers `rebuild_all_vector_index()`,
+and then sends embedding requests to a relay that almost certainly does not serve
+them. `anthropic` reports False, and the page says so in its own words:
+"Embedding pipeline unchanged".
+
+#### Walking the app as a user found five more, and one open question
+
+2026-09-09, immediately after the relay went in. Same lesson as the section
+above, so it is worth stating once rather than twice: **every one of these was
+found by opening a surface, and none of them is visible to any check that
+measures the code against itself.**
+
+- **Tesseract was installed and reported missing.** `_ocr()` asked
+  `shutil.which("tesseract")`, and the Windows installer does not add itself to
+  PATH -- so the binary sat at `C:/Program Files/Tesseract-OCR/` while the
+  console said `unavailable` and image captioning stayed blocked behind it (an
+  external captioning backend is fail-closed on the masking detector, which is
+  this same Tesseract). `resolve_tesseract_command` in
+  `app/ingestion/extraction/ocr.py` is now the single answer to "can this
+  process run Tesseract", used by **both** the panel and ingestion -- a panel
+  reporting `unavailable` over an OCR that works is as bad as the reverse. An
+  explicit `TESSERACT_CMD` still wins and its absence is still reported, because
+  falling back to a standard location when an operator named a different binary
+  would silently run something they did not choose.
+
+  Its fallback paths are written with **forward slashes**, and the comment says
+  why: the first version went through a shell heredoc and shipped
+  `Tesseract-OCR\tesseract.exe` with the `\t` already collapsed to a TAB. It
+  resolved to nothing and read completely normally until `cat -A`. Same defect
+  class as the `\\+` regex this file records for `check_sensitive.py`.
+
+- **`_embedding()` never consulted the administrator configuration.**
+  `get_embedding_model()` reads the global override before the environment;
+  this reported purely from `MODEL_BACKEND`. So an admin who configured OpenAI
+  got OpenAI embeddings and a panel still reading "local hash embeddings,
+  degraded". Providers with no embedding endpoint still fall through, because
+  for them the environment really is what runs.
+
+- **Two `accept` lists, neither matching the server.** `ChatComposer` offered
+  `.pdf` and seven image types, `DocumentsPanel` added `.md` and `.txt`, and the
+  upload endpoint takes both plus `.gif` and four Office formats. So a `.md` was
+  greyed out in the composer's picker while the hint beneath it read "Supports
+  PDF / images / text", and no picker anywhere offered a `.docx` the server
+  would have accepted. One list now (`lib/uploadFormats.ts`), compared against
+  the endpoint's set by `tests/api/test_upload_formats_agree.py`. A narrower
+  `accept` was never a safety measure -- `store_uploaded_files` validates the
+  suffix regardless -- only a promise to whoever is choosing a file.
+
+- **Every shared-corpus document offered three buttons that always answered
+  404.** Visible and manageable are different sets and the gap is not derivable
+  by a client: `list_visible_document_rows` includes `docs_path`, which everyone
+  can search, while `_is_source_manageable_for_user` requires `uploads_path` --
+  for administrators too, deliberately, so a `?source=` cannot reach another
+  tenant's file. The panel guessed with four clauses, one of which read
+  `!doc.owner_user_id` -- "nobody owns it, so anyone may manage it" -- which is
+  exactly backwards for a corpus that has no owner *because it belongs to the
+  deployment*. `IndexedFileSummary.can_manage` is answered by the same predicate
+  the write endpoints enforce, so an offered button is a request that will be
+  accepted.
+
+  Worth knowing having found it: with `AUTO_INGEST_ENABLED` false (the default)
+  there is now **no reachable path in the UI that indexes `docs_path` at all**.
+  Uploads land in `uploads_path` and are managed normally; the shared corpus is
+  a deployment concern, and pretending otherwise was what produced the dead
+  buttons.
+
+- **Two claims in Technology Stack were false**, and both would have sent a
+  reader the wrong way about the degraded embedding directly above:
+  "Sentence-Transformers BGE-M3 embeddings" (there is no bi-encoder embedding
+  path at all -- `sentence_transformers` is imported only for `CrossEncoder`, by
+  the reranker and NLI) and "Claude Haiku ... in `image_processor.py`" (that
+  path was deleted on 2026-09-05, as this file records elsewhere).
+
+**Open, and deliberately not fixed in this pass: the analytics dashboard has no
+producer.** `RetrievalLogger.log_retrieval` has **zero callers in `app/`** -- the
+only occurrence is its own `def`. So `/app/analytics` (total queries, success
+rate, average response time, agent distribution, document ranking, and both
+export buttons) reads a deque nothing ever appends to, and reports zeros
+forever. The top-bar metrics strip reads the same endpoint and is therefore
+permanently hidden, which is why its carefully-argued "renders nothing until
+there are samples" guard has never been seen to do anything.
+
+Two reasons it is a decision rather than a patch. There are already two metrics
+systems -- the `request_rows` ring the middleware writes, which works and feeds
+the ops SLOs, and this one, which does not -- and a duplicate is the shape this
+file keeps deleting rather than feeding. And `RetrievalLog.question` stores the
+**raw question text**, which `export_logs` writes into a downloadable CSV: wiring
+it as-is would build exactly the question-text store `question_ref()` exists to
+prevent. If it is wired, the field carries a digest.
+
+#### The analytics dashboard has a producer (2026-09-09)
+
+`RetrievalLogger.log_retrieval` had **no caller anywhere in `app/`** -- the only
+occurrence in the tree was its own `def`. So `/app/analytics` reported 0 queries,
+0% success and 0ms forever, both export buttons produced an empty file, and the
+top bar's metrics strip stayed permanently hidden behind the "render nothing
+until there are samples" guard this file describes at length as a considered
+design. It had never had samples and could not have.
+
+`record_query_analytics` (`api/routes/internal/pipeline_contract.py`) is the
+producer, called from the query endpoint beside `record_grounding_support`.
+Four decisions in it are the point:
+
+- **The question is stored as a digest, never as text.** `RetrievalLog.question`
+  held the raw string and `export_logs` writes rows into a downloadable CSV, so
+  wiring it unchanged would have built exactly the store `question_ref()` exists
+  to prevent -- and **nothing in the dashboard ever read that field**. It is
+  `question_ref` now, which keeps the one property the export needs: the same
+  question yields the same handle, so rows can be correlated.
+- **`filtered_docs_count` was deleted rather than filled.** It had no reader and
+  no honest source -- there is no separate agent-filter stage to count -- and the
+  only plausible value was `retrieved_count` again, which is a number that looks
+  measured and is not.
+- **It cannot fail a request.** Analytics is a by-product of answering; the whole
+  builder is wrapped, because an answer that was produced must not be lost
+  because a counter could not be updated.
+- **The timing key was wrong in the first version and would have shipped a zero.**
+  It read `stage_durations_ms`; `summarize_workflow_execution` emits
+  `stage_latency_ms`. Every row's retrieval time would have been 0, which the
+  dashboard displays as a fast retrieval -- the exact "reports something other
+  than what ran" this function exists to undo, reintroduced one key deep.
+  `test_the_timing_key_is_the_one_the_diagnostics_emit` pins it **against the
+  producer**, not against the test's own fixture, because a fixture that invents
+  the key lets the builder read nothing and still pass.
+
+Verified end to end rather than by unit test alone: one real question, then the
+dashboard reading `TOTAL QUERIES 1`, `AVERAGE RESPONSE TIME 19203ms`,
+`Retrieval: 4630ms`, `general: 100%`. That query had failed to find evidence, and
+the row said `has_result: false` and the page said `SUCCESS RATE 0%` -- correct,
+and the first evidence that the panel now reports rather than decorates.
+
+**And the message that reported it was wrong twice over** (fixed the same day).
+`SYNTHESIS_FALLBACK_MESSAGE` -- "抱歉，当前答案生成服务暂时不可用" -- was returned
+from **13 sites** covering a synthesis timeout, an LLM error, an empty
+completion, and *having no evidence to answer from*. The last is the most common
+failure on an installation with an empty corpus, and it sent the reader to an
+administrator when what they needed was a document or a web search; the model
+was answering perfectly. `synthesize_candidate` **already tagged that branch
+`no_evidence`** -- the code knew the cause and the string did not say it.
+
+It was also **Chinese only**, in an application whose reason for existing is
+that it works in both languages, with `detected_language` in scope at every one
+of those sites. So an English speaker hitting any of the thirteen got a Chinese
+sentence about the wrong thing.
+
+`synthesis_fallback(reason, language)` replaces it, and `is_synthesis_fallback`
+replaces the `text == SYNTHESIS_FALLBACK_MESSAGE` comparison that
+`synthesize_candidate` used to detect the state -- a state inferred from
+user-facing text stops being correct the moment the text varies, which this
+change makes it do. The constant survives as the zh generation-failure string
+because one orchestration test names it; new code calls the function.
+
+#### Local embeddings are semantic when the model is present (2026-09-09)
+
+`MODEL_BACKEND=local` -- what a fresh checkout runs -- had exactly one embedding
+option: `LocalHashEmbeddings`, blake2b hash buckets whose own docstring says
+"for offline/dev RAG smoke use". Vector search therefore matched on little more
+than exact overlap, which is the largest single quality ceiling in the system,
+and the console correctly called it `degraded`. Meanwhile the Technology Stack
+section claimed "Sentence-Transformers BGE-M3 embeddings" and had for a long
+time -- there was no bi-encoder anywhere, `sentence_transformers` being imported
+only for `CrossEncoder`. A reader hitting the degraded embedding would have gone
+looking for a misconfiguration rather than a missing feature.
+
+`LocalSemanticEmbeddings` + `_load_local_embedder` (`services/models/runtime.py`)
+close it, copying `_load_cross_encoder` deliberately:
+
+- **`local_files_only=True`.** A model that was never downloaded returns `None`
+  and the caller falls back to hash buckets. Without it the first query on a
+  fresh machine starts a multi-gigabyte download inside a request, with no
+  timeout and no breaker -- the defect this repository already fixed once for the
+  NLI stage.
+- **Synchronous.** Every caller reaches embeddings from a worker thread, and
+  nothing reached from `asyncio.to_thread` may drive an event loop.
+- **The console reports which one is running**, not which one is named.
+  "Configured" and "present on this machine" are different facts and only the
+  second changes an answer; `local_embedding_backend()` answers the second, and
+  the degraded message names the model that is missing.
+
+**Changing the embedder requires a reindex, and the store now says so.** A Chroma
+collection is dimension-locked -- hash is 384, bge-m3 is 1024 -- so an existing
+store fails every query after a switch. Chroma's own message names two integers
+and no remedy, which reads as a corrupt database to somebody who has just
+changed a setting; `_as_dimension_mismatch` turns it into one that names the
+reindex, keeps the original text, and deliberately leaves every non-dimension
+error alone rather than swallowing all failures as this one.
+
+**Getting the model onto a machine here needs a mirror.** `huggingface.co`
+answers, but `cdn-lfs.huggingface.co` does not resolve from this network, so a
+download stalls at 0 bytes on the weights after fetching 36K of metadata --
+which looks like a hang rather than a DNS failure. `HF_ENDPOINT=https://hf-mirror.com`
+is the drop-in; ModelScope is reachable too.
+
+#### Simulating a user found four more (2026-09-09)
+
+Every one came from operating a surface, and none is visible to a check that
+measures the code against itself.
+
+- **Five agent cards stayed English when the UI switched to Chinese.**
+  `AGENT_MODES` carried English `title`/`desc` literals and `AgentWorkbench`
+  rendered them straight, so the sidebar around them translated and they did
+  not -- in an application whose reason for existing is that it works in
+  Chinese. `i18n/locales.test.ts` scans for LITERAL `t("...")` calls and these
+  went through none, which is the `KeyboardHelp` shortcut list and the
+  `IntegrationsPanel` class names again in a third guise. The fix is a switch of
+  ten literal keys rather than `t(`agentModes.${mode.key}.title`)`, because an
+  interpolated key is invisible to that same scan.
+
+- **There were FOUR upload format lists, not two.** The `accept` fix recorded
+  above missed `SUPPORTED_CHAT_RE` and `SUPPORTED_DOC_RE` in `useFileUpload` --
+  the regexes that decide what is actually *kept* -- because the guard checked
+  `accept=` only. **Widening the composer's `accept` to all fifteen therefore
+  made it offer files the very next line discarded without a word**, which is
+  worse than the state it replaced. There really are two sets: a question is
+  asked *about* a document you look at, and a corpus is loaded in the Knowledge
+  Base. `lib/uploadFormats.ts` derives both accept attributes and both matchers
+  from two lists, the guard asserts the subset relation, and it now catches a
+  regex copy as well as an attribute.
+
+- **A rejected file was dropped silently unless every file was rejected.** Each
+  caller tested `if (!files.length)`, so a `.docx` dropped beside two PDFs
+  uploaded the PDFs and lost the third with no message. `partitionUploads`
+  returns the rejected names and the notice says which -- and the three messages
+  were hardcoded English, now `chat.upload.*`.
+
+- **The sentence-grounding hedge was being spliced into filenames.** Observed in
+  a real answer:
+
+  ```
+  ... (如 config.基于当前可用证据，py、settings.基于当前可用证据，yaml ...)
+  ```
+
+  This is the defect class CLAUDE.md records as fixed on 2026-09-05, in a form
+  that fix could not cover: `_ABBREVIATION_RE` protects "Dr." and "pp.", and a
+  filename is not an abbreviation -- there is no list of extensions to keep up
+  with. `_INLINE_DOT_RE` states the property instead: **a dot between two
+  alphanumerics is not a sentence boundary in either language this system
+  writes**, since an English sentence ends with a dot plus a space or nothing
+  and a Chinese one ends with "。". `config.py`, `settings.yaml`,
+  `app.services.models` and `v1.2.3` are all covered by one rule.
+  `tests/services/test_sentence_grounding_inline_dots.py` asserts both
+  directions, because a protection that is too broad stops splitting real
+  sentences and scores a whole paragraph as one claim -- worse than the defect,
+  and silent.
+
+Both halves of that answer's other defect were fixed the same day -- the
+duplicate reference list and the `<URL_7>` inside it. See the redaction section
+below.
+
+#### A redaction token must not reach the reader (2026-09-09)
+
+The model is shown `<URL_7>` in place of a URL and **writes it back**. A real
+answer ended with the model's own reference section listing `[1] <URL_7>`,
+directly above the pipeline's list showing the actual link.
+
+`OutboundRedactedChatModel` restores the values in the reply now.
+`redact_messages_with_restorer` hands back the payload and a closure, and **the
+mapping never leaves that one call** -- which is the point rather than an
+implementation detail. A per-request ContextVar or a module-level map would work
+equally well and would risk the one failure that actually matters here: one
+user's values resolving inside another user's answer. A cosmetic token is worth
+far less than that, so most of
+`tests/security/test_redaction_is_restored_in_the_reply.py` is about the
+boundary rather than the substitution.
+
+Three details:
+
+- `_RedactionState` now records the value **as written**. `seen` is keyed on the
+  normalized form (URLs and emails are lower-cased so one address in two casings
+  gets one token), and restoring from that key would hand a reader
+  `https://example.com/docs/x` where the document said `Docs/X` -- a URL path is
+  case-sensitive.
+- Longest token first, so `<URL_1>` cannot eat the prefix of `<URL_11>`.
+- **The streaming path is deliberately not restored.** A token can straddle a
+  chunk boundary and half of one substituted is worse than the whole of one left
+  alone; the fragments are a draft the frontend replaces with the answer from
+  the query response, which comes through `invoke`.
+
+**The duplicate heading was a second defect**, and `strip_model_reference_list`
+removes a reference section the model wrote for itself before `output_filter`
+appends the authoritative one. It is conservative on purpose -- only at the end
+of the answer, only when every line after the heading is a bracketed entry,
+bounded to forty. A model that wrote prose under that heading keeps it: losing
+an answer's last paragraph to a tidy-up is far worse than one repeated heading.
+
+#### Web search finds five results and keeps none, by design
+
+Chased because two questions in a row answered "没有找到可以用来回答的资料"
+while `search_web` returned five results in three seconds when called directly.
+The chain, measured:
+
+```
+total_results 5 -> filtered_results 5 -> final_results 0
+"No results passed quality filters (min_score=0.5)"
+```
+
+`WEB_DOMAIN_ALLOWLIST` **ships non-empty** -- eleven entries -- and in allowlist
+mode `_source_score` returns 1.0 for a listed host and **0.0 for everything
+else**. So `arxiv.org`, `en.wikipedia.org` and `*.gov` pass while `veso.ai`,
+`thequery.in` and `blog.csdn.net` do not. That is why some questions that day
+answered with web citations and some found nothing: it depends entirely on which
+domains DuckDuckGo happened to return.
+
+This is a trust policy working correctly, not a bug, and widening it is an
+operator's decision. What was wrong is that **nothing said so**: the warning read
+only "No results passed quality filters (min_score=0.5)", which does not
+distinguish a throttled search engine from an allowlist doing its job -- and
+those need opposite responses. It names the rejected hosts and the setting now.
+
+**`WEB_MIN_SOURCE_SCORE` is inert on a default installation.** Its value (0.2) is
+read only in the `else` branch, and the allowlist branch is taken whenever
+`WEB_DOMAIN_ALLOWLIST` is non-empty, which it is by default -- that branch
+hardcodes `min_score = 0.5`. The hardcoding is harmless in itself (scores there
+are only 1.0 or 0.0, so any threshold in between behaves identically), but a
+setting that reads 0.2 and cannot apply is the shape this file keeps recording.
+It is left as-is and documented rather than "fixed" by threading the setting
+into a branch where it would change nothing.
+
+#### A user pass over the surfaces nobody had opened (2026-09-09)
+
+Session rename, pin, `Ctrl+N`, `Ctrl+B`, `Ctrl+K`, `?`, the prompt library and
+the architecture page all work. Two things did not, and both are the shape this
+file keeps recording -- a write nobody reads, and a sentence that describes
+something other than what runs.
+
+- **A saved display name never came back.** `PUT /auth/profile` persists it
+  correctly -- verified straight out of SQLite -- and returns it, because that
+  response is built from a `SELECT` inside the writing transaction. But
+  `SessionManager.get_user_by_token` joins `auth_sessions` to `users` and selects
+  `role`, `status` and `credit_balance` from `users` while **not selecting
+  `display_name`**, so the dict handed to `AuthUser(**user)` had no such key and
+  the model default filled in. `GET /auth/me` therefore reported `None` for
+  everyone, always, and the profile page said "个人资料已保存" and showed the old
+  value on reload.
+
+  The write half working perfectly is what let this survive: the endpoint's own
+  response looked right. `tests/api/test_profile_display_name_round_trip.py`
+  reads it back through a **second** service with its own connection, so
+  "committed" and "echoed inside the transaction" cannot be confused.
+
+  `get_user_profile` omits the column too and was **left alone**: its two callers
+  want existence, role and the approval token, and adding a column nothing reads
+  is what this repository removes. A first draft of the test asserted otherwise
+  and was corrected -- the test was wrong, not the code.
+
+- **Session search could never find a session.** `POST /sessions` writes a
+  session to `HistoryStore` and **no `SessionMetadata`**; the only writers of
+  metadata are the edit-metadata endpoint and session import. `POST
+  /api/v1/sessions/search` reads `SessionMetadata` alone, and its text query
+  matches `description` -- `SessionMetadata` has no title field at all. So on an
+  ordinary account every search returns `{"results": [], "total": 0}` while two
+  sessions sit visible in the sidebar, and the panel answered "No sessions found
+  -- try adjusting your search criteria or filters".
+
+  The plumbing is coherent: it is a metadata search, not a session search.
+  Making it a session search means merging two stores with pagination and
+  scoring across both, which is a design change rather than a correction. **The
+  sentence was what was wrong**, and it now names what is searched and the tab
+  that fills it.
+
+**Two things checked and deliberately not changed.** The profile page shows
+"不限" for an administrator's credits against a `credit_balance` of 10 -- and
+`reserve_chat_credit` really does exempt them (`AND lower(role) <> 'admin'`), so
+the page is right. And `get_user_profile`, above.
+
+**Two of my own diagnoses were wrong and are worth recording**, because both
+looked like application defects and were the automation: `computer.key` needs
+`Enter`, not `Return`, and `?` does not arrive as `shift+slash`. Dispatching a
+real `KeyboardEvent` proved the command palette and the shortcut sheet were fine
+in both cases. The rule from the contrast auditor holds for input too -- check
+the instrument before filing the finding.
+
 ### Technology Stack
 
 **Backend**: FastAPI + LangChain
@@ -1859,7 +2460,16 @@ silent, which is how `deploy/compose/compose.yaml` came to hand the backend a
 `postgresql+asyncpg://` URL the application ignored; it logs a warning now, and the compose
 entry is gone.
 **Frontend**: React 18 + TypeScript + Vite + Zustand (state) + i18next (i18n)
-**Models**: OpenAI GPT-5.5 (primary, `OPENAI_CHAT_MODEL`), Claude Haiku (multimodal image description/OCR triage in `app/services/multimodal/image_processor.py`; not used for retrieval-quality batch scoring, see Quality Assurance section), Sentence-Transformers (embeddings)
+**Models**: a chat model per the administrator's configuration or `MODEL_BACKEND`
+(OpenAI, Anthropic incl. relays, DeepSeek, Ollama, or the offline
+`LocalEvidenceChatModel`); embeddings from a local sentence-transformers bi-encoder (`LOCAL_EMBED_MODEL`,
+default `BAAI/bge-m3`) when the model is present, hash buckets when it is not,
+or OpenAI/Ollama when an administrator configures one;
+`sentence-transformers` **CrossEncoder** for reranking (`BAAI/bge-reranker-v2-m3`)
+and NLI validation. This line used to name Claude Haiku for "multimodal image
+description in `app/services/multimodal/image_processor.py`" -- that path
+(`_call_claude_vision`) was deleted on 2026-09-05, as this file records two
+sections down, and captioning goes through `app/ingestion/extraction/vision.py`.
 **Deployment**: Docker Compose with deployment scripts in `deploy/scripts/`. The `postgres`
 service is behind the `with-n8n` profile, because n8n is the only thing that uses it — the
 backend is SQLite-only, and gating its startup on a database it never opens bought nothing.
@@ -2786,7 +3396,7 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-08 there are 1585 tests covering the chat round trip,
+back-filling effort. As of 2026-09-09 there are 1693 tests covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -2816,7 +3426,9 @@ whose derived columns are asserted to be derived, since `AdminUserSummary` defau
 one of them to `False` and so cannot tell a dropped column from a false value -- a new
 user's reported credit balance being the balance stored, a first run that creates an
 administrator without shipping a password and without promoting whoever holds the name,
-a record of the long-term memories
+a model configuration that only an administrator can write -- pinned mostly by what must
+*not* exist, since the per-user surface it replaced was inert for its whole life and only
+its Test button ever appeared to work -- a record of the long-term memories
 held about a user that is bigger than the working set one session is given and can be deleted
 from any of them, and the China-specific PII
 patterns that had never existed --
@@ -2905,7 +3517,7 @@ confirming after a clarified query would have re-sent a stale question.
 any identity change: the stores outlive a logout, so a field added to a store but forgotten
 in its `INITIAL_STATE` would show the next person on a shared browser the previous user's
 data. The test discovers fields rather than listing them, so it catches that drift.
-That suite is 127 tests across 13 files — small, and deliberately aimed at the things a
+That suite is 147 tests across 18 files — small, and deliberately aimed at the things a
 screenshot cannot check. `AdminConfigEditor.test.tsx` is the newest: it pins that a value
 pinned in the process environment renders disabled, and that only edited fields are sent —
 posting the whole form would turn a page load into a write of every value, and a stale read
@@ -2915,7 +3527,7 @@ or every later query in the file finds two of everything.
 
 Note: do not use `len(app.routes)` to count endpoints. FastAPI 0.138+ stores an
 `_IncludedRouter` wrapper in `app.routes` instead of flattening child routes, so that number
-varies by version. Count OpenAPI operations instead; the current baseline is 157 (CI asserts a >= 140 floor).
+varies by version. Count OpenAPI operations instead; the current baseline is 156 (CI asserts a >= 140 floor).
 It read 153 until 2026-09-06 and had been 154 for some time before that — a number in this file that
 nothing recomputes goes stale the way the test count did.
 
@@ -3120,6 +3732,36 @@ Two things learned doing this the first time:
   wrapped because a private window throws on read too. The lesson is not about
   base64 -- it is that the failure of something optional was inside the path of
   something that is not.
+- **A backend that is briefly unreachable must not sign anybody out**
+  (2026-09-09), which is the bullet above reached from the other side. `App`'s
+  bootstrap called `/auth/me` and cleared the stored token in a bare
+  `.catch(() => ...)` -- so a 500, a timeout, a sleeping laptop or a dev server
+  being restarted destroyed the session. Reproduced by restarting the API under
+  an open tab: the token was gone from `localStorage` afterwards and the
+  password had to be typed again, for an outage that lasted seconds and said
+  nothing about whether the session was still valid. Only a 401 does.
+  `frontend/src/lib/sessionRecovery.ts::shouldForgetSession` is the rule, and it
+  is a named function rather than a condition inside the `.catch` for the reason
+  the shortcut list is data: inside the closure it was reachable only by
+  rendering the whole app, so nothing could state it and "any error means sign
+  out" survived. Keeping the token through an outage costs nothing -- there is
+  still no user object, so the sign-in page renders either way -- and the next
+  load once the server answers signs them straight back in.
+  `sessionRecovery.test.ts` (8) asserts both directions, and 403 is deliberately
+  in the *keep* column: a permission the account lacks is not a reason to end
+  the session.
+
+  **Verifying this in the browser reported the opposite of the truth first, and
+  the reason generalises.** The verify-able-to-fail step had sabotaged
+  `sessionRecovery.ts` to `return true` and restored it with `mv`; the Vite dev
+  server kept serving the **sabotaged transform**, so a real browser against a
+  real server measured the old behaviour on new code. Nothing looked wrong --
+  the page rendered, the token vanished, the conclusion was "the fix does not
+  work". `curl http://localhost:5173/src/<file>` is what settled it, and
+  rewriting the file in place (rather than renaming one over it) is what
+  invalidated the module. **A rename can slip past the watcher; ask the dev
+  server what it is serving before believing a browser measurement of a file
+  you have just restored.**
 - **Third-party GitHub Actions are pinned to a commit**, not a tag
   (`githubactions:S7637`). A tag on somebody else's repository can be moved, and
   these steps run with the workflow's secrets. GitHub's own `actions/*` keep

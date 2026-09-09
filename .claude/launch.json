@@ -3,8 +3,19 @@
   "configurations": [
     {
       "name": "backend",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "uvicorn", "app.api.main:app", "--port", "8000"],
+      "runtimeExecutable": "conda",
+      "runtimeArgs": [
+        "run",
+        "-n",
+        "rag-local",
+        "--no-capture-output",
+        "python",
+        "-m",
+        "uvicorn",
+        "app.api.main:app",
+        "--port",
+        "8000"
+      ],
       "port": 8000
     },
     {
