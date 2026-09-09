@@ -158,5 +158,5 @@ def test_the_rule_extractors_default_relation_is_treated_as_noise() -> None:
     extraction method, and every existing edge carries the same 0.7.
     """
 
-    assert infer_relation("no keywords here at all", "Alpha", "Beta") == "RELATED_TO"
+    assert infer_relation("no keywords here at all") == "RELATED_TO"
     assert _relation_weight("RELATED_TO") == 0.0

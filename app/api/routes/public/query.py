@@ -5,7 +5,7 @@ API routes for advanced RAG functionality.
 import logging
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
@@ -469,7 +469,7 @@ async def _process_advanced_rag_query_impl(
 async def process_advanced_rag_query(
     request_data: AdvancedRAGRequest,
     request: Request,
-    user: dict[str, Any] = Depends(_require_user),
+    user: Annotated[dict[str, Any], Depends(_require_user)],
 ):
     async with _reserve_chat_credit_async(request, user, "advanced_query") as credit:
         response = await _process_advanced_rag_query_impl(request_data, request, user)

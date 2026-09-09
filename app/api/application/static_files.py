@@ -45,7 +45,10 @@ def build_frontend_handlers(paths: StaticFilePaths):
             raise not_found("asset")
         return serve_react_index()
 
-    return serve_react_index, serve_react_app_root, serve_react_app
+    #  is deliberately not returned: both handlers above
+    # close over it, and neither call site ever mounted it as a route. A third
+    # element nobody unpacks is a producer with no consumer.
+    return serve_react_app_root, serve_react_app
 
 
 def resolve_static_file_paths() -> StaticFilePaths:
@@ -83,7 +86,7 @@ def configure_static_files(
     if paths.static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(paths.static_dir)), name="static")
 
-    serve_react_index, serve_react_app_root, serve_react_app = handlers or build_frontend_handlers(paths)
+    serve_react_app_root, serve_react_app = handlers or build_frontend_handlers(paths)
 
     # Keep the original decorator registration order: /app/ then /app.
     app.add_api_route("/app/", serve_react_app_root, methods=["GET"])

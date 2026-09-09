@@ -13,7 +13,7 @@ reimplementing both, badly, and would leave two writers for one document.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
@@ -40,7 +40,7 @@ class ConfigValues(BaseModel):
 
 
 @router.get("/admin/config/schema")
-def admin_config_schema(request: Request, user: dict[str, Any] = Depends(_require_user)):
+def admin_config_schema(request: Request, user: Annotated[dict[str, Any], Depends(_require_user)]):
     """Every editable field, its current value, and which layer supplied it."""
 
     _require_permission(user, Permission.ADMIN_OPS_MANAGE, request, "admin")
@@ -52,7 +52,7 @@ def admin_config_schema(request: Request, user: dict[str, Any] = Depends(_requir
 
 
 @router.post("/admin/config/values")
-def admin_save_config(payload: ConfigValues, request: Request, user: dict[str, Any] = Depends(_require_user)):
+def admin_save_config(payload: ConfigValues, request: Request, user: Annotated[dict[str, Any], Depends(_require_user)]):
     """Write edited values to the configuration centre and reload.
 
     Each edited key is written back to the document that already defines it, and

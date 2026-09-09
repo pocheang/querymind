@@ -333,7 +333,7 @@ class QueryLoadGuard:
         exception, so a caller cannot mistake being turned away for degrading.
         """
 
-        if not self._within_user_rate(client, slot, user_key):
+        if not self._within_user_rate(client, slot):
             return False
 
         started = time.monotonic()
@@ -349,7 +349,7 @@ class QueryLoadGuard:
                 raise QueryOverloadedError("query queue timeout")
             time.sleep(_queue_backoff_seconds(time.monotonic() - started))
 
-    def _within_user_rate(self, client, slot: _RedisSlot, user_key: str) -> bool:
+    def _within_user_rate(self, client, slot: _RedisSlot) -> bool:
         """A fixed-window counter approximating a sliding window, shared by every worker."""
 
         try:

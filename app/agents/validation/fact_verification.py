@@ -358,9 +358,8 @@ def check_citation_support(
             # Match doc_id (page matching is lenient - if page not specified in doc, match on doc_id only)
             if doc_doc_id == doc_id:
                 # If both have pages specified, they must match
-                if page and doc_page:
-                    if doc_page != page:
-                        continue
+                if page and doc_page and doc_page != page:
+                    continue
                 # Otherwise, match on doc_id
                 content = doc.get("content", doc.get("text", ""))
                 if content:

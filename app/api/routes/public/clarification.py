@@ -50,7 +50,7 @@ class ClarificationResponse(BaseModel):
     resume_token: str | None = Field(None, description="Signed resume correlation token when configured")
 
 
-@router.post("/check", response_model=ClarificationResponse, responses=error_responses(409, 422))
+@router.post("/check", responses=error_responses(409, 422))
 async def check_clarification(
     req: ClarificationCheckRequest,
     request: Request,

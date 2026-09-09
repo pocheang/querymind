@@ -50,7 +50,7 @@ EXTRACTION_PROMPT = """
 """
 
 
-def infer_relation(text: str, head: str, tail: str) -> str:
+def infer_relation(text: str) -> str:
     t = text.lower()
     if any(x in t for x in ["depend", "依赖", "based on", "基于"]):
         return "DEPENDS_ON"
@@ -77,7 +77,7 @@ def extract_triplets_rules(text: str) -> list[tuple[str, str, str]]:
         tail = entities[i + 1]
         if head == tail:
             continue
-        relation = infer_relation(text, head, tail)
+        relation = infer_relation(text)
         triplets.append((head, relation, tail))
     return triplets
 

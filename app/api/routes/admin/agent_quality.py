@@ -10,7 +10,7 @@ Provides comprehensive agent performance metrics including:
 """
 
 import logging
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -139,7 +139,7 @@ async def get_agent_details(
 
 @router.get("/timeline", responses=error_responses(500))
 async def get_execution_timeline(
-    hours: int = Query(default=24, ge=1, le=168, description="Number of hours to include"),
+    hours: Annotated[int, Query(ge=1, le=168, description="Number of hours to include")] = 24,
 ) -> dict[str, Any]:
     """
     Get execution timeline data for the specified time range.

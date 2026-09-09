@@ -175,21 +175,17 @@ class SessionSearchService:
             score *= 1.05
 
         # Time range filters
-        if query.created_after:
-            if metadata.created_at < query.created_after:
-                return 0.0, None
+        if query.created_after and metadata.created_at < query.created_after:
+            return 0.0, None
 
-        if query.created_before:
-            if metadata.created_at > query.created_before:
-                return 0.0, None
+        if query.created_before and metadata.created_at > query.created_before:
+            return 0.0, None
 
-        if query.updated_after:
-            if metadata.updated_at < query.updated_after:
-                return 0.0, None
+        if query.updated_after and metadata.updated_at < query.updated_after:
+            return 0.0, None
 
-        if query.updated_before:
-            if metadata.updated_at > query.updated_before:
-                return 0.0, None
+        if query.updated_before and metadata.updated_at > query.updated_before:
+            return 0.0, None
 
         # Query count filters
         if query.min_queries is not None:

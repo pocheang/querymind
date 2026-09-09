@@ -81,7 +81,7 @@ class LayoutBasedStructurer:
         for i, box in enumerate(sorted_boxes):
             block_type = self._detect_block_type(box, sorted_boxes, i, avg_font_size, max_font_size)
 
-            level = self._calculate_level(box, avg_font_size, max_font_size)
+            level = self._calculate_level(box, avg_font_size)
 
             blocks.append(
                 StructuredOCRBlock(
@@ -105,7 +105,7 @@ class LayoutBasedStructurer:
             return "list_item"
 
         # 3. 表格判断：对齐、等宽
-        if self._is_table_cell(box, all_boxes, index):
+        if self._is_table_cell(box, all_boxes):
             return "table_cell"
 
         # 4. 小标题判断：字体稍大、左对齐
@@ -157,7 +157,7 @@ class LayoutBasedStructurer:
 
         return False
 
-    def _is_table_cell(self, box: OCRBox, all_boxes: list[OCRBox], index: int) -> bool:
+    def _is_table_cell(self, box: OCRBox, all_boxes: list[OCRBox]) -> bool:
         """判断是否为表格单元格."""
         # 检查同一行是否有多个文本框（表格列）
         same_row_boxes = [
@@ -176,7 +176,7 @@ class LayoutBasedStructurer:
 
         return False
 
-    def _calculate_level(self, box: OCRBox, avg_font_size: float, max_font_size: float) -> int:
+    def _calculate_level(self, box: OCRBox, avg_font_size: float) -> int:
         """计算层级（1-6）."""
         # 基于字体大小
         size_ratio = box.height / avg_font_size

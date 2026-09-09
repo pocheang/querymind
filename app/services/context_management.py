@@ -508,7 +508,7 @@ class TopicTracker:
         "行业趋势": ["趋势", "预测", "发展", "前景", "trend", "forecast", "outlook"],
     }
 
-    def extract_topic(self, query: str, entities: list[Entity]) -> str | None:
+    def extract_topic(self, query: str) -> str | None:
         """Extract topic from query and entities."""
         query_lower = query.lower()
 
@@ -583,7 +583,7 @@ class ContextManagementService:
         resolved = self.resolver.resolve(query, tracker)
 
         # Extract topic from resolved query
-        current_topic = self.topic_tracker.extract_topic(resolved.resolved, entities)
+        current_topic = self.topic_tracker.extract_topic(resolved.resolved)
 
         # Detect topic switch
         topic_switch = False

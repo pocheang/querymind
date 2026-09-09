@@ -51,7 +51,7 @@ class ConnectorListResponse(ImmutableContract):
     connectors: tuple[ConnectorView, ...] = Field(default_factory=tuple, max_length=100)
 
 
-@router.get("", response_model=ConnectorListResponse)
+@router.get("")
 async def list_connectors(
     actor: RequestActor = Depends(require_request_actor),
     service: ConnectorManagementService = Depends(get_connector_service),
@@ -60,7 +60,7 @@ async def list_connectors(
     return ConnectorListResponse(connectors=service.list_for_owner(_owner_id(actor)))
 
 
-@router.post("", response_model=ConnectorView, status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def create_connector(
     body: ConnectorCreateRequest,
     actor: RequestActor = Depends(require_request_actor),
@@ -95,7 +95,7 @@ async def delete_connector(
         raise not_found("Connector") from exc
 
 
-@router.post("/{connector_id}/disable", response_model=ConnectorView)
+@router.post("/{connector_id}/disable")
 async def disable_connector(
     connector_id: ConnectorIdPath,
     actor: RequestActor = Depends(require_request_actor),
@@ -108,7 +108,7 @@ async def disable_connector(
         raise not_found("Connector") from exc
 
 
-@router.post("/{connector_id}/enable", response_model=ConnectorView)
+@router.post("/{connector_id}/enable")
 async def enable_connector(
     connector_id: ConnectorIdPath,
     actor: RequestActor = Depends(require_request_actor),
@@ -121,7 +121,7 @@ async def enable_connector(
         raise not_found("Connector") from exc
 
 
-@router.post("/{connector_id}/test", response_model=ConnectorProbeResult)
+@router.post("/{connector_id}/test")
 async def test_connector(
     connector_id: ConnectorIdPath,
     actor: RequestActor = Depends(require_request_actor),
@@ -136,7 +136,7 @@ async def test_connector(
         raise conflict(str(exc)) from exc
 
 
-@router.post("/approvals/{token}", response_model=ApprovalConfirmationResponse)
+@router.post("/approvals/{token}")
 async def confirm_approval(
     token: Annotated[str, Path(max_length=256)],
     body: ApprovalConfirmationRequest,
