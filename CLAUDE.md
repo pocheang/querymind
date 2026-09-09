@@ -3434,7 +3434,7 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-09 there are 1723 tests covering the chat round trip,
+back-filling effort. As of 2026-09-09 there are 1736 tests covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3595,7 +3595,39 @@ keeps it that way. **Target 13, not 15**, when refactoring against it: the tool
 agrees with Sonar today, and leaving two points of headroom means a rule
 difference cannot resurrect a finding.
 
+**Five of the worst are done** (2026-09-09), each split along a seam it already
+had and each **characterized against the implementation it replaced**, which is
+this project's rule for a complexity refactor -- the argument from reading the
+diff is what it exists to avoid:
+
+| function | was | generated inputs | differences |
+|---|---|---|---|
+| `graph_lookup` | 50 | 600 graphs | 0 |
+| `detect_entity_hallucinations` | 47 | 1506 answer/source pairs | 0 |
+| `check_citation_support` | 40 | 4000 claims | 0 |
+| `render_prometheus` | 39 | 800 metric states | 0 |
+| `_extract_content` | 37 | 3005 payloads | 0 |
+
+Total excess across `app/` went 666 -> 486, and 67 functions remain over 15.
+Two details from those splits are worth keeping because a rewrite loses them
+quietly: `render_prometheus` emits a TYPE line for a labelled histogram with no
+samples and **nothing at all** for a flat one -- an asymmetry the shipped code
+has and a scraper already parses -- and `_extract_content`'s per-shape helpers
+must return None rather than `""`, so an empty block list falls through to the
+next shape instead of answering with silence.
+
+**The tool itself raised the project's only vulnerability**, which is worth
+recording as a shape rather than an embarrassment. `pythonsecurity:S8707`: it
+opened paths named inside a SonarCloud export (a network document) and the
+export path from `--validate`. The first fix bounded the wrong half -- the paths
+inside -- because that was the obviously-untrusted one; the sink the rule points
+at was the argument. Both are bounded now, resolve-then-contain rather than a
+`..` check a symlink defeats, and the containment sits at the CLI boundary
+because putting it in the parser made the parser untestable without writing into
+the working tree.
+
 **The 2026-09-09 pass closed 71 findings and refused 12**, leaving 370 - 71.
+Sonar measured 296 afterwards, and the gate went from failing to green.
 Fixed: `S5713` (9), `S8513` (8), `S8409` (7), `S1172` (6), `S7773` (6), `S1066`
 (5), `S6479` (5), `S3358` (8), `S8410` (4), `S1874` (4), `S1481` (4), `S7504`
 (3), `S8786` (2). The untouched buckets and why: `S3776` (75) is a project, not
