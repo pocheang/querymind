@@ -1021,7 +1021,32 @@ rounds are not shown twice in two formats. One consequence of the old shape: the
 
 `_promote_long_term_memory` runs on every answered query and `build_memory_context` feeds
 the selected memories back into the next one, so this system accumulates memories about a
-person and uses them to shape later answers. Until 2026-09-08 **nothing in the frontend
+person and uses them to shape later answers.
+
+**Retrieval of those memories could not see Chinese at all, and then could not
+rank** (both fixed 2026-09-09). `TOKEN_PATTERN` was written doubly escaped, and
+in a RAW string `\u4e00` is a literal backslash followed by `u` -- so the second
+alternative was a handful of ASCII punctuation rather than a CJK range. Measured
+on the shipped pattern, `"我喜欢向量检索"` tokenized to `[]`. The BM25 branch is
+guarded by `if query_tokens and any(tokenized)`, so a Chinese question skipped
+ranking entirely and fell through to **the two most recent memories regardless of
+relevance** -- and a Chinese memory could not be matched by an English question
+either, since its own tokens were empty. Every string literal in the tree was
+checked by parsing it and inspecting the VALUE rather than grepping the source
+(twenty other regexes carry `一` correctly); this was the only one. Third
+time this file has recorded a shell heredoc eating a backslash.
+
+**Fixing it exposed the second defect, because the English test then failed.**
+With two memories, BM25 IDF is zero for a term present in half the corpus, so the
+relevant memory and an unrelated one both scored exactly 0.0; the membership test
+was `score > 0`, so both were discarded and retrieval fell back to recency.
+`LONG_TERM_TOP_N` is 5, so a memory set is small by design and this was the
+normal case. Membership and ranking are separate questions now -- a memory is a
+candidate if it shares a token with the query, and BM25 only orders the
+candidates -- which is the rule this file already gives for the main BM25 path.
+`tests/services/test_memory_tokenizer_matches_chinese.py` (11) pins both, plus a
+recurrence guard and a test that the guard can fail; 7 of the 11 redden against
+the shipped code. Until 2026-09-08 **nothing in the frontend
 named them** -- a full-text search of `frontend/src` for `memor` returned no API call at
 all.
 
@@ -3434,7 +3459,7 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-09 there are 1736 tests covering the chat round trip,
+back-filling effort. As of 2026-09-09 there are 1747 tests covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3627,7 +3652,20 @@ because putting it in the parser made the parser untestable without writing into
 the working tree.
 
 **The 2026-09-09 pass closed 71 findings and refused 12**, leaving 370 - 71.
-Sonar measured 296 afterwards, and the gate went from failing to green.
+Sonar measured 296 afterwards, and the gate went from failing to green. A second
+pass took it to **262** (debt ~34h, from ~44h), and **found two real defects in
+the memory store on the way** -- see below, because the rule that pointed at them
+was a MINOR one about a character class.
+
+The second pass in short: `python:S5778` eighteen of twenty (a `pytest.raises`
+block that also builds its fixture can pass because the *constructor* raised;
+the two left carry a comment saying the `raise` inside them IS the assertion),
+`python:S8572` three (an `except` that logs without the traceback, all three on
+startup paths nobody watches live), `python:S1854` two dead stores,
+`python:S7500` three comprehensions that only copied, `python:S3358` two,
+`python:S5869` two, `javascript:S7780` three, `typescript:S3863`,
+`javascript:S6582`, and one `python:S1172` that was a cascade -- removing a
+parameter left an unused one a level up.
 Fixed: `S5713` (9), `S8513` (8), `S8409` (7), `S1172` (6), `S7773` (6), `S1066`
 (5), `S6479` (5), `S3358` (8), `S8410` (4), `S1874` (4), `S1481` (4), `S7504`
 (3), `S8786` (2). The untouched buckets and why: `S3776` (75) is a project, not
