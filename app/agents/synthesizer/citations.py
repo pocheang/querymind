@@ -115,6 +115,47 @@ def reference_label(item: EvidenceItem, language: str = "zh") -> str:
     return f"{name} · 第 {item.page} 页" if language == "zh" else f"{name} · p. {item.page}"
 
 
+# A reference heading the model may have written for itself: bolded, hash-headed
+# or bare, in either language. Anchored to the start of a line, so a sentence
+# that merely mentions the word is untouched.
+_MODEL_REFERENCE_BLOCK_RE = re.compile(
+    r"\n{0,2}[ \t]{0,8}(?:\*\*|#{1,4}[ \t]{0,4})?"
+    r"(?:" + "|".join(re.escape(h) for h in _REFERENCE_HEADINGS.values()) + r")"
+    r"(?:\*\*)?[ \t]{0,8}[:：]?[ \t]{0,8}\n+"
+    r"(?:[ \t]{0,8}(?:[-*][ \t]{0,4})?\[[^\]\r\n]{1,120}\][^\n]{0,400}\n{0,2}){1,40}\s*$"
+)
+
+
+def strip_model_reference_list(text: str) -> str:
+    """Remove a reference section the MODEL wrote at the end of its answer.
+
+    `output_filter` appends the authoritative list -- it is the only thing that
+    knows which citations survived DLP and what number each evidence item got --
+    so a section the model wrote for itself is redundant by construction. When
+    both are present the reader gets the same heading twice, and the model's
+    copy carries whatever it was shown. A real answer on 2026-09-09 ended with
+
+        参考来源
+
+        [1] <URL_7>
+
+        **参考来源**
+
+        - [1] https://arxiv.org/html/2602.20924v1
+
+    where `<URL_7>` is the outbound-redaction token. That token is restored in
+    the model wrapper now; the duplicate heading is a separate defect and this
+    is where it belongs.
+
+    Deliberately conservative: matched only at the END of the answer, only when
+    every line after the heading is a bracketed entry, and bounded to forty of
+    them. A model that wrote prose under that heading keeps it -- losing an
+    answer's last paragraph to a tidy-up is far worse than one repeated heading.
+    """
+
+    return _MODEL_REFERENCE_BLOCK_RE.sub("", str(text or "")).rstrip()
+
+
 def render_reference_list(references: Sequence[EvidenceItem], language: str = "zh") -> str:
     """Render the numbered source list appended after a finished answer.
 
@@ -151,4 +192,5 @@ __all__ = [
     "number_evidence_markers",
     "reference_label",
     "render_reference_list",
+    "strip_model_reference_list",
 ]

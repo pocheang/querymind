@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
@@ -115,6 +116,12 @@ class _RedactionState:
     counters: dict[str, int] = field(default_factory=dict)
     replacements: dict[str, int] = field(default_factory=dict)
     seen: dict[tuple[str, str], str] = field(default_factory=dict)
+    # token -> the value AS WRITTEN, for restoring a reply. `seen` is keyed on
+    # the normalized form (URLs and emails are lower-cased so the same address in
+    # two casings gets one token), and restoring from that key would hand the
+    # reader `https://example.com/path` where the document said
+    # `https://Example.com/Path` -- a URL path is case-sensitive.
+    originals: dict[str, str] = field(default_factory=dict)
 
     def token_for(self, kind: str, raw: str) -> str:
         value = str(raw or "").strip()
@@ -129,6 +136,7 @@ class _RedactionState:
         self.counters[kind] = next_index
         token = f"<{kind}_{next_index}>"
         self.seen[key] = token
+        self.originals[token] = value
         return token
 
 
@@ -255,16 +263,56 @@ def _redact_message_item(item: Any, state: _RedactionState, *, parent_key: str =
     return item
 
 
-def redact_messages_for_provider(messages: Any, *, provider: str):
-    if not is_external_provider(provider) or not outbound_redaction_enabled():
-        return messages
-    state = _RedactionState()
+def _apply(messages: Any, state: _RedactionState):
     if isinstance(messages, str):
         return _redact_text_with_state(messages, state)
-    if isinstance(messages, tuple):
-        return _redact_message_item(messages, state, parent_key="content")
-    if isinstance(messages, dict):
+    if isinstance(messages, tuple | dict):
         return _redact_message_item(messages, state, parent_key="content")
     if isinstance(messages, list):
         return [_redact_message_item(item, state, parent_key="content") for item in messages]
     return messages
+
+
+def redact_messages_for_provider(messages: Any, *, provider: str):
+    if not is_external_provider(provider) or not outbound_redaction_enabled():
+        return messages
+    return _apply(messages, _RedactionState())
+
+
+def redact_messages_with_restorer(messages: Any, *, provider: str) -> tuple[Any, Callable[[str], str]]:
+    """Redact outbound content, and hand back the way to undo it on the reply.
+
+    The model is shown `<URL_7>` and **writes it back**. Observed in a real
+    answer: a reference line reading `[1] <URL_7>`, a token that means nothing to
+    a reader, one paragraph above the pipeline's own list showing the real link.
+
+    Redaction exists to keep a value from the *provider*, not from the person who
+    asked -- it is their own document. So the reply is restored.
+
+    **The mapping never leaves this call.** It is built here, closed over by the
+    returned function, and dropped when the caller lets go of it. A per-request
+    ContextVar or a module-level map would work too and would risk the one
+    failure that actually matters: one user's values appearing in another's
+    answer. A cosmetic token is worth far less than that.
+
+    Restoration is longest-token-first, so `<URL_1>` cannot eat the prefix of
+    `<URL_11>`.
+    """
+
+    if not is_external_provider(provider) or not outbound_redaction_enabled():
+        return messages, lambda text: text
+
+    state = _RedactionState()
+    payload = _apply(messages, state)
+    originals = dict(state.originals)
+
+    def restore(text: str) -> str:
+        out = str(text or "")
+        if not out or not originals:
+            return out
+        for token in sorted(originals, key=len, reverse=True):
+            if token in out:
+                out = out.replace(token, originals[token])
+        return out
+
+    return payload, restore

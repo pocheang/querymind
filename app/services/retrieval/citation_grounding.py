@@ -63,6 +63,20 @@ _ABBREVIATION_RE = re.compile(
 # renderer will produce it, and nothing upstream can legitimately contain it.
 _ABBR_DOT = chr(0xE000)
 
+# A dot BETWEEN two alphanumerics is not a sentence boundary in either language
+# this system writes. An English sentence ends with a dot followed by a space or
+# by nothing; a Chinese one ends with "。". So `config.py`, `settings.yaml`,
+# `app.services.models` and `v1.2.3` all split wrongly, and the fragment after
+# the dot then scored as unsupported and had the hedge spliced into it:
+#
+#     ... (如 config.基于当前可用证据，py、settings.基于当前可用证据，yaml ...)
+#
+# observed in a real answer on 2026-09-09. The 2026-09-05 fix enumerated
+# abbreviations, which is the right shape for "Dr." and "pp." and no help at all
+# for a filename -- there is no list of extensions to keep up with. This states
+# the property instead. Same length substitution, so offsets are unaffected.
+_INLINE_DOT_RE = re.compile(r"(?<=[A-Za-z0-9])\.(?=[A-Za-z0-9])")
+
 
 def _tokenize(text: str) -> set[str]:
     return set(_TOKEN_RE.findall((text or "").lower()))
@@ -92,6 +106,10 @@ def _sentence_spans(text: str) -> list[tuple[int, int, str]]:
     # (`https://x.基于当前可用证据，example/a`), which breaks the citation the
     # sentence was carrying. Same length substitution, so offsets are unaffected.
     protected_text = _URL_RE.sub(lambda m: m.group(0).replace(".", _ABBR_DOT), protected_text)
+    # After the URL pass, so a link's dots are already protected and this only
+    # has to catch the ones outside links -- filenames, dotted module paths,
+    # version numbers.
+    protected_text = _INLINE_DOT_RE.sub(_ABBR_DOT, protected_text)
 
     spans: list[tuple[int, int, str]] = []
     # A blank line always ends a sentence, whatever punctuation did or did not

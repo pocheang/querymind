@@ -8,7 +8,11 @@ from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
 from app.agents.shared.config import SKILL_DEFAULT
-from app.agents.synthesizer.citations import number_evidence_markers, render_reference_list
+from app.agents.synthesizer.citations import (
+    number_evidence_markers,
+    render_reference_list,
+    strip_model_reference_list,
+)
 from app.domain.contracts import (
     EvidenceBundle,
     EvidenceItem,
@@ -461,6 +465,12 @@ class WorkflowNodeRuntime:
             # returned verbatim in `citations`, so appending it after inspection
             # discloses nothing this same response did not already carry.
             reference_list = render_reference_list(references, _reference_language(request, numbered))
+            # A model that wrote its own reference section gets it removed first.
+            # This is the only place that knows which citations survived DLP and
+            # what number each item got, so the model's copy is redundant by
+            # construction -- and a real answer carried both headings, the model's
+            # one listing `<URL_7>`.
+            numbered = strip_model_reference_list(numbered)
             final_text = f"{numbered}\n\n{reference_list}" if reference_list else numbered
             labels = tuple(_citation_label(item.source, item.page) for item in references)
             # The full authorized set, not just what got cited. Narrowing

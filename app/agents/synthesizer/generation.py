@@ -37,7 +37,10 @@ class _NoSourceDocuments(Exception):
 
 
 __all__ = [
+    "FALLBACK_REASONS",
     "SYNTHESIS_FALLBACK_MESSAGE",
+    "is_synthesis_fallback",
+    "synthesis_fallback",
     "CASUAL_CHAT_HIGH_TEMPERATURE",
     "SIMILARITY_STOP_THRESHOLD",
     "ANSWER_PROMPT",
@@ -48,7 +51,62 @@ __all__ = [
     "stream_synthesize_answer",
 ]
 
-SYNTHESIS_FALLBACK_MESSAGE = "抱歉，当前答案生成服务暂时不可用。请稍后重试，或先缩小问题范围后再试。"
+# What the reader is told when no answer could be written, by cause and by
+# language. Both halves were wrong before 2026-09-09:
+#
+# * ONE message served thirteen call sites -- a synthesis timeout, an LLM error,
+#   an empty completion, and *having no evidence to answer from*. The last is by
+#   far the most common on an installation with an empty corpus, and it told the
+#   user the answer service was down while the model was answering perfectly.
+#   `synthesize_candidate` already tagged that case `no_evidence`; the string it
+#   returned simply did not say so.
+# * It was Chinese only, in an application whose reason for existing is that it
+#   works in both languages -- and `detected_language` is in scope at every one
+#   of those sites.
+_FALLBACK_MESSAGES: dict[str, dict[str, str]] = {
+    "no_evidence": {
+        "zh": "没有找到可以用来回答的资料。可以上传相关文档、开启联网检索，或换一种说法再问一次。",
+        "en": (
+            "I could not find anything to answer from. Try uploading a relevant document, "
+            "enabling web search, or rephrasing the question."
+        ),
+    },
+    "generation_failed": {
+        "zh": "抱歉，当前答案生成服务暂时不可用。请稍后重试，或先缩小问题范围后再试。",
+        "en": ("The answer service is temporarily unavailable. Please try again shortly, or narrow the question."),
+    },
+}
+
+FALLBACK_REASONS = tuple(_FALLBACK_MESSAGES)
+
+
+def synthesis_fallback(reason: str = "generation_failed", language: str = "zh") -> str:
+    """The message for one cause, in the reader's language.
+
+    An unknown reason falls back to `generation_failed` rather than raising: this
+    is the path taken when something has *already* gone wrong, and it must not be
+    the thing that turns a degraded answer into a 500.
+    """
+
+    messages = _FALLBACK_MESSAGES.get(reason) or _FALLBACK_MESSAGES["generation_failed"]
+    return messages.get("en" if str(language or "").lower().startswith("en") else "zh", messages["zh"])
+
+
+def is_synthesis_fallback(text: str) -> bool:
+    """Whether this text is one of the fallbacks, in any language or cause.
+
+    Callers used to detect the state by comparing against the single constant,
+    which stops working the moment the message varies -- and a state inferred
+    from a user-facing string is fragile even when it happens to work.
+    """
+
+    candidate = str(text or "").strip()
+    return any(candidate == message for group in _FALLBACK_MESSAGES.values() for message in group.values())
+
+
+# The zh generation-failure text, kept because one orchestration test and any
+# out-of-tree caller still name it. New code calls `synthesis_fallback`.
+SYNTHESIS_FALLBACK_MESSAGE = _FALLBACK_MESSAGES["generation_failed"]["zh"]
 CASUAL_CHAT_HIGH_TEMPERATURE = 0.9
 SIMILARITY_STOP_THRESHOLD = 0.92
 
@@ -235,10 +293,11 @@ def _refine_answer(
     web_context: str,
     use_reasoning: bool,
     allowed_labels: Collection[str],
+    detected_language: str = "zh",
 ) -> str:
     answer = (initial_answer or "").strip()
     if not answer:
-        return SYNTHESIS_FALLBACK_MESSAGE
+        return synthesis_fallback("generation_failed", detected_language)
 
     settings = get_settings()
     # A review is a strict-quality opt-in and must never turn into an
@@ -363,7 +422,7 @@ def synthesize_answer(
         initial = str(content).strip()
         if not initial:
             return {
-                "answer": SYNTHESIS_FALLBACK_MESSAGE,
+                "answer": synthesis_fallback("generation_failed", detected_language),
                 "detected_language": detected_language,
             }
         final_answer = initial
@@ -377,14 +436,15 @@ def synthesize_answer(
                 web_context=web_context,
                 use_reasoning=use_reasoning,
                 allowed_labels=allowed_labels,
+                detected_language=detected_language,
             )
         final_answer = normalize_answer_citations(final_answer, allowed_labels)
         if not final_answer:
-            final_answer = SYNTHESIS_FALLBACK_MESSAGE
+            final_answer = synthesis_fallback("generation_failed", detected_language)
 
         # Task 14: Post-generation fact verification
         verification_result = None
-        if enable_fact_verification and final_answer != SYNTHESIS_FALLBACK_MESSAGE:
+        if enable_fact_verification and not is_synthesis_fallback(final_answer):
             try:
                 source_docs = list(source_documents or ())
                 if not source_docs:
@@ -442,13 +502,13 @@ def synthesize_answer(
     except (RuntimeError, ValueError):
         logger.exception("Synthesis failed")
         return {
-            "answer": SYNTHESIS_FALLBACK_MESSAGE,
+            "answer": synthesis_fallback("generation_failed", detected_language),
             "detected_language": detected_language,
         }
     except Exception as e:
         logger.exception(f"Unexpected error in synthesis: {e}")
         return {
-            "answer": SYNTHESIS_FALLBACK_MESSAGE,
+            "answer": synthesis_fallback("generation_failed", detected_language),
             "detected_language": detected_language,
         }
 
@@ -544,13 +604,13 @@ def stream_synthesize_answer(
             except Exception as invoke_error:
                 logger.exception(f"Invoke fallback also failed: {type(invoke_error).__name__}")
                 if parts:
-                    yield {"type": "reset", "content": SYNTHESIS_FALLBACK_MESSAGE}
+                    yield {"type": "reset", "content": synthesis_fallback("generation_failed", detected_language)}
                 else:
-                    yield SYNTHESIS_FALLBACK_MESSAGE
+                    yield synthesis_fallback("generation_failed", detected_language)
                 return
 
         if not initial:
-            yield SYNTHESIS_FALLBACK_MESSAGE
+            yield synthesis_fallback("generation_failed", detected_language)
             return
 
         final = initial
@@ -572,4 +632,4 @@ def stream_synthesize_answer(
         yield {"type": "metadata", "detected_language": detected_language}
     except Exception:
         logger.exception("Stream synthesis failed for %s", question_ref(question))
-        yield SYNTHESIS_FALLBACK_MESSAGE
+        yield synthesis_fallback("generation_failed", detected_language)

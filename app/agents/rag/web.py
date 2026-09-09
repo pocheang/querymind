@@ -194,6 +194,7 @@ def run_web_research(
     lines = []
     citations = []
     filtered_count = 0
+    rejected_hosts: list[str] = []
 
     for item in results:
         title = item.get("title", "")
@@ -211,6 +212,7 @@ def run_web_research(
         # Log filtering decision
         if score < min_score:
             filtered_count += 1
+            rejected_hosts.append((urlparse(str(href or "")).hostname or "?").lower())
             logger.debug(f"Filtered out: {href} (score={score:.2f} < {min_score})")
             continue
 
@@ -237,7 +239,18 @@ def run_web_research(
     )
 
     if not citations:
-        logger.warning(f"No results passed quality filters (min_score={min_score})")
+        # Name the hosts. Without them an operator sees "0 results" and cannot
+        # tell a throttled search engine from an allowlist that rejected
+        # everything it returned -- and `WEB_DOMAIN_ALLOWLIST` ships non-empty,
+        # so on a default installation the second is the usual answer. Hosts are
+        # not question text; the question is still referenced by digest above.
+        logger.warning(
+            "No web result passed the source filter (min_score=%.2f, mode=%s): rejected %s. "
+            "Widen WEB_DOMAIN_ALLOWLIST to accept more sources.",
+            min_score,
+            "allowlist" if allowlist else "tld",
+            ", ".join(sorted(set(rejected_hosts))) or "nothing",
+        )
 
     result = {
         "context": "\n\n".join(lines),

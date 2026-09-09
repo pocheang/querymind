@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping
 
 from app.agents.shared.config import SKILL_DEFAULT
 from app.agents.synthesizer.citations import EVIDENCE_MARKER_RE, normalize_answer_citations
-from app.agents.synthesizer.generation import SYNTHESIS_FALLBACK_MESSAGE
+from app.agents.synthesizer.generation import is_synthesis_fallback, synthesis_fallback
 from app.core.config import Settings, get_settings
 from app.domain.contracts import EvidenceBundle, FinalAnswer, RouteDecision, TaskPlan, ToolResult
 from app.domain.knowledge import EvidenceRef
@@ -16,6 +16,7 @@ from app.domain.workflow import CandidateAnswer, ContextBundle
 from app.orchestration.answer_stream import current_answer_stream_id
 from app.orchestration.request import OrchestrationRequest
 from app.privacy.streaming import StreamingRedactor
+from app.services.language.detector import detect_language
 
 SynthesisGenerator = Callable[..., object]
 
@@ -42,8 +43,13 @@ class SynthesizerAgentService:
         """Generate once from governed context without retrieval, self-review, or DLP."""
 
         if not context.evidence and not tool_results:
+            # This branch already knew the cause -- it tags `no_evidence` -- and
+            # still returned "the answer service is unavailable", which sends a
+            # reader to an administrator when what they need is a document or a
+            # web search. On an installation with an empty corpus this is the
+            # single most common failure there is.
             return CandidateAnswer(
-                text=SYNTHESIS_FALLBACK_MESSAGE,
+                text=synthesis_fallback("no_evidence", detect_language(request.question)),
                 unresolved_items=("no_evidence",),
             )
 
@@ -81,7 +87,7 @@ class SynthesizerAgentService:
         )
         text = normalize_answer_citations(_answer_text(generated), allowed_labels)
         if not text:
-            text = SYNTHESIS_FALLBACK_MESSAGE
+            text = synthesis_fallback("generation_failed", detect_language(request.question))
 
         conflict_notes = tuple(str(value) for value in context.diagnostics.get("context_conflicts", ()) or ())
         if conflict_notes:
@@ -93,7 +99,10 @@ class SynthesizerAgentService:
         unresolved: list[str] = []
         if context.evidence and not references:
             unresolved.append("missing_citations")
-        if text == SYNTHESIS_FALLBACK_MESSAGE:
+        # Asked structurally, not by comparing against one string: the message
+        # varies by cause and by language now, and a state inferred from
+        # user-facing text is fragile even when it happens to work.
+        if is_synthesis_fallback(text):
             unresolved.append("generation_fallback")
         return CandidateAnswer(
             text=text,
