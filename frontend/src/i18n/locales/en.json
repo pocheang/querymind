@@ -174,7 +174,7 @@
       "saving": "Saving...",
       "chatModel": "Chat model",
       "embeddingModel": "Embedding",
-      "enableGlobalModelOverride": "Enable global model override (replaces every user's own API settings)",
+      "enableGlobalModelOverride": "Apply this model configuration to every user (when off, the deployment's own environment is used)",
       "effectiveConfig": "Effective configuration",
       "effectiveConfigNote": "What the next question will actually use, not what is stored.",
       "modelSettingsPinned": "These settings are saved but not in effect",
@@ -469,6 +469,12 @@
       "enable": "Enable",
       "disable": "Disable",
       "test": "Test",
+      "remove": "Remove",
+      "removeNamed": "Remove integration {{name}}",
+      "removeTitle": "Remove integration",
+      "removePrompt": "Removing “{{name}}” also destroys its stored access secret. This cannot be undone.",
+      "removed": "Removed integration {{name}}",
+      "removeError": "Unable to remove integration.",
       "testStatusLabel": "test",
       "status": {
         "enabled": "enabled",
@@ -864,39 +870,19 @@
       "thoughtFor": "Thought for {{seconds}}s"
     },
     "apiSettings": {
-      "title": "Model API Settings",
-      "subtitle": "Chat provider, key, model, and generation params",
-      "close": "Close settings",
-      "loading": "Loading settings...",
-      "loadFailed": "Failed to load settings",
-      "checking": "Checking...",
-      "check": "Check Config",
-      "saving": "Saving...",
-      "save": "Save Settings",
-      "saveSuccess": "Settings saved. New queries will use this model config.",
-      "saveFailed": "Save failed",
-      "checkFailed": "Config check failed",
       "connectionSuccess": "Connection succeeded ({{latency}}ms){{preview}}",
-      "preview": " | Preview: {{preview}}",
-      "connectionFailed": "Connection failed, check Base URL / API Key / Model",
-      "note": "These settings apply to chat and reasoning calls. Embeddings are configured globally by an admin so the vector index stays consistent.",
-      "quickPresets": "Quick Presets",
-      "provider": "Provider",
-      "apiKey": "API Key",
-      "baseUrl": "Base URL",
-      "model": "Model",
-      "saved": "Saved: {{value}}",
-      "show": "Show",
-      "hide": "Hide",
-      "temperature": "Temperature",
-      "maxTokens": "Max Tokens",
-      "stable": "Stable",
-      "balanced": "Balanced",
-      "creative": "Creative",
-      "globalOverrideNotice": "Global Model Override Enabled",
-      "globalOverrideDesc": "Administrator has configured global model: {{provider}} / {{model}}",
-      "globalOverrideHint": "Your personal settings will be ignored until the administrator disables the global configuration.",
-      "globalOverrideDisabledNotice": "Global configuration disabled. Your personal model settings are restored."
+      "preview": " | Preview: {{preview}}"
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Integrations, memory, and the model in use",
+      "close": "Close settings",
+      "modelHeading": "Model",
+      "managedByAdmin": "Configured by an administrator and used for everyone. Only administrators can change it.",
+      "deploymentDefault": "No administrator model configuration is in effect; this deployment's own configuration is answering.",
+      "modelUnavailable": "Could not read which model is in use.",
+      "modelChanged": "An administrator changed the model: {{provider}} / {{model}}",
+      "modelChangedToDefault": "An administrator cleared the model configuration; this deployment's own configuration is answering."
     },
     "chat": {
       "settings": "Settings",
@@ -1171,12 +1157,40 @@
     "messagesImported": "Messages Imported",
     "metadataImported": "Metadata Imported",
     "contextImported": "Context Imported",
-    "title": "Session management"
+    "title": "Session management",
+    "searchesMetadataOnly": "This searches tags, category and description. Add them on the Edit metadata tab to make a session findable here."
   },
   "chat": {
     "badges": {
       "noSources": "no sources",
       "sourceDetail": "{{source}}: {{count}} results"
+    },
+    "upload": {
+      "permissionDenied": "You do not have permission to upload files.",
+      "chatOnly": "Skipped {{files}} — a question can only be asked about PDFs and images. Use the Knowledge Base for other formats.",
+      "docsOnly": "Skipped {{files}} — that format is not supported."
+    }
+  },
+  "agentModes": {
+    "auto": {
+      "title": "Auto Router",
+      "desc": "Intelligent routing based on query intent and context."
+    },
+    "cybersecurity": {
+      "title": "Cybersecurity",
+      "desc": "Threat analysis, incident response, and security hardening."
+    },
+    "artificialIntelligence": {
+      "title": "AI Research",
+      "desc": "LLM, RAG, and AI system design expertise."
+    },
+    "pdfText": {
+      "title": "PDF Reader",
+      "desc": "Document Q&A with evidence extraction and citations."
+    },
+    "general": {
+      "title": "General Analyst",
+      "desc": "Cross-domain analysis and executive summaries."
     }
   }
 }
