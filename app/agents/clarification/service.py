@@ -20,7 +20,7 @@ from app.orchestration.request import OrchestrationRequest
 class ClarificationAgentService:
     """Deterministic, retrieval-free multi-round clarification boundary."""
 
-    async def clarify(
+    def clarify(
         self,
         request: OrchestrationRequest,
         route: RouterDecision | None = None,

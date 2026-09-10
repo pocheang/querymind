@@ -12,7 +12,7 @@ from app.domain.events import ExecutionEvent
 from app.domain.knowledge import AccessScope, KnowledgeSource, KnowledgeStrategy
 from app.domain.workflow import ContextBundle
 from app.knowledge.adapters import KnowledgeAdapter, build_default_adapters
-from app.knowledge.orchestrator import KnowledgeOrchestrator
+from app.knowledge.orchestrator import KnowledgeOrchestrator, discard_trace
 from app.orchestration.request import OrchestrationRequest
 
 logger = logging.getLogger(__name__)
@@ -218,7 +218,7 @@ class RAGAgentService:
             adapters: Overrides merged over ``build_default_adapters()``. Source
                 *selection* is the Knowledge Agent's job; this class only runs
                 what it was handed.
-            report_degradation: Event reporter for degradation events (defaults to _discard_event)
+            report_degradation: Event reporter for degradation events (defaults to discard_trace)
             retriever_timeout: Timeout in seconds for individual retrievers; defaults to
                 KNOWLEDGE_SOURCE_TIMEOUT_MS so it stays under the knowledge stage ceiling
             degradation_policy: Policy for acceptable degradation; defaults to the one
@@ -246,7 +246,7 @@ class RAGAgentService:
         # set_degradation_reporter (e.g. direct construction in a test/script).
         # Fixed at construction time, never mutated -- see _current_degradation_reporter
         # for the actual per-request path, which is what the engine uses in production.
-        self._default_report_degradation = _discard_event if report_degradation is None else report_degradation
+        self._default_report_degradation = discard_trace if report_degradation is None else report_degradation
         self._retriever_timeout = retriever_timeout
         self._degradation_policy = degradation_policy or _policy_from_settings()
 
@@ -337,8 +337,3 @@ class RAGAgentService:
 # keeping both is what let the narrower one silently win. Selection is the
 # Knowledge Agent's job now and execution runs `build_default_adapters()`, so
 # there is one implementation of each source instead of two.
-
-
-async def _discard_event(event: ExecutionEvent) -> None:
-    """Keep degradation optional until orchestration supplies a publisher."""
-    del event

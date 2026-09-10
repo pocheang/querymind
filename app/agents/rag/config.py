@@ -89,14 +89,16 @@ GRAPH_SIGNAL_THRESHOLD_LOW: Final[float] = 0.3
 
 # Structure detection patterns
 # Bounded, and confined to one line: `\s` matches newlines, and these run
-# under MULTILINE (python:S8786).
-PATTERN_HEADERS = re.compile(r"^#{1,8}[ \t]+[^\n]+$|^\d{1,9}\.[ \t]+[A-Z][^.\n]+$", re.MULTILINE)
+# under MULTILINE (python:S8786). `[ \t][^\n]+` is the same language as the
+# `[ \t]+[^\n]+` it replaced -- the extra spaces are simply part of the rest of
+# the line -- without two adjacent quantifiers competing for the same spaces.
+PATTERN_HEADERS = re.compile(r"^#{1,8}[ \t][^\n]+$|^\d{1,9}\.[ \t]+[A-Z][^.\n]+$", re.MULTILINE)
 
 # A cell does not contain its own delimiter, so the negated classes say
 # what three greedy `.+` were discovering by backtracking.
 PATTERN_TABLES = re.compile(r"\|[^|\n]+\|[^|\n]+\||\t[^\t\n]+\t[^\t\n]+\t")
 
-PATTERN_LISTS = re.compile(r"^[-*•][ \t]+[^\n]+$|^\d{1,9}\.[ \t]+[^\n]+$", re.MULTILINE)
+PATTERN_LISTS = re.compile(r"^[-*•][ \t][^\n]+$|^\d{1,9}\.[ \t][^\n]+$", re.MULTILINE)
 
 PATTERN_REFERENCES = re.compile(r"(?i)(references?|bibliography|citations?|参考文献)")
 

@@ -177,7 +177,8 @@ def _register_connector_tools(registry: ToolRegistry, connectors: ConnectorManag
         if not actor.user_id or not connector_id:
             return ToolResult(tool_id=call.tool_id, status="failed", summary="connector owner is required")
         try:
-            connectors.disable(connector_id, actor.user_id)
+            # Synchronous SQLite, like `list_for_owner` above, so off the loop.
+            await asyncio.to_thread(connectors.disable, connector_id, actor.user_id)
         except KeyError:
             return ToolResult(tool_id=call.tool_id, status="failed", summary="owned connector not found")
         return ToolResult(tool_id=call.tool_id, status="succeeded", summary="connector disabled")

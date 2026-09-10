@@ -33,24 +33,29 @@ def simple_coreference_resolution(text: str) -> str:
     return " ".join(resolved_sentences)
 
 
+# A run of terminal punctuation and whatever whitespace follows it. `\s*` means
+# a match cannot fail once it has started; whether it is a sentence boundary is
+# decided afterwards, by whether any whitespace was captured.
+_TERMINATOR_RE = re.compile(r"[.!?]+(\s*)")
+
+
 def split_into_sentences(text: str) -> list[str]:
-    """Split text into sentences."""
-    # Simple sentence splitting.
-    #
-    # The lookbehind is what makes this linear, and the possessive quantifier
-    # alone was NOT enough -- which is worth stating, because the 2026-09-03
-    # pass reasoned that it was. Possessive stops backtracking WITHIN one
-    # attempt; it does nothing about the attempt being restarted at every
-    # offset. On a run of n dots the engine started at each one, consumed the
-    # rest of the run, failed on the whitespace and moved along: O(n^2).
-    # Measured on 8000 dots, 139ms before and 0.15ms after, with identical
-    # output over 4012 inputs. A dotted leader line in a table of contents is
-    # how a real document reaches this.
-    # python:S8786 still reports this line for the same reason it still
-    # reports `synthesizer/citations.py::_tidy_spacing`: the check matches the
-    # quantifier shape and cannot credit the lookbehind that actually bounds
-    # it. Left as measured.
-    sentences = re.split(r"(?<![.!?])[.!?]++\s+", text)
+    """Split text into sentences at terminal punctuation followed by whitespace.
+
+    A pattern that can fail after a quantified run -- `[.!?]+\\s+` -- is
+    restarted at every offset of that run, which is O(n^2) on a run of n dots
+    (python:S8786), and a dotted leader line in a table of contents is how a
+    real document supplies one. Possessive quantifiers do not help: they stop
+    backtracking within an attempt, not the restart. `_TERMINATOR_RE` cannot
+    fail, so the scan is linear by construction rather than by argument.
+    """
+    sentences: list[str] = []
+    start = 0
+    for match in _TERMINATOR_RE.finditer(text):
+        if match.group(1):
+            sentences.append(text[start : match.start()])
+            start = match.end()
+    sentences.append(text[start:])
     return [s.strip() for s in sentences if s.strip()]
 
 

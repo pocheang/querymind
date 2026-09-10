@@ -497,9 +497,12 @@ class AgentExecutionTracker:
         """Extract error type from error message."""
         return _quality_error_type(error_message)
 
-    async def start_periodic_cleanup(self, interval_seconds: int = 300) -> None:
+    def start_periodic_cleanup(self, interval_seconds: int = 300) -> None:
         """
         Start background cleanup task that periodically removes old traces.
+
+        Scheduling a task awaits nothing, so this is synchronous; it still needs
+        a running loop, which is where its one caller (the lifespan) calls it.
 
         Args:
             interval_seconds: Cleanup interval in seconds (default: 300 = 5 minutes)

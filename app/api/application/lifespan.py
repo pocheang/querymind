@@ -138,12 +138,12 @@ def _warm_reranker_model(settings) -> None:
         logger.warning(f"Reranker model warmup failed (non-critical): {e}")
 
 
-async def _init_cache_manager(settings) -> bool:
+def _init_cache_manager(settings) -> bool:
     """Initialize performance optimization services. True on success."""
     try:
         from app.services.caching import initialize_cache_manager
 
-        await initialize_cache_manager(
+        initialize_cache_manager(
             l1_max_size=settings.cache_l1_size,
             l1_ttl=settings.cache_l1_ttl,
             l2_enabled=settings.cache_l2_enabled,
@@ -244,9 +244,9 @@ async def lifespan(app: FastAPI):
     from app.services.observability.agent_execution_tracker import get_tracker
 
     tracker = get_tracker()
-    await tracker.start_periodic_cleanup(interval_seconds=300)
+    tracker.start_periodic_cleanup(interval_seconds=300)
 
-    _cache_initialized = await _init_cache_manager(settings)
+    _cache_initialized = _init_cache_manager(settings)
     _start_auto_ingest_thread(settings)
 
     try:

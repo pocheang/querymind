@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Mapping, Sequence
 from typing import Any
@@ -150,8 +151,10 @@ class ValidationCascade:
         metadata without creating a second answer-validation engine.  The
         fact-verification implementation intentionally ignores explicit
         citations today, matching the previous ``FactVerifier`` contract.
+        The stage is synchronous computation, so it runs off the event loop.
         """
-        return await self.fact_verification_stage.verify(
+        return await asyncio.to_thread(
+            self.fact_verification_stage.verify,
             answer,
             list(source_docs),
             list(citations) if citations is not None else None,

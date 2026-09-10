@@ -28,6 +28,14 @@ EVIDENCE_MARKER_RE = re.compile(r"\[E(\d+)\]")
 
 _REFERENCE_HEADINGS = {"zh": "参考来源", "en": "References"}
 
+# A whole run of spaces, plus the punctuation after it when there is one. The
+# optional group means a match cannot fail once it has started.
+_SPACE_RUN_RE = re.compile(r"[ \t]+([,.;:!?]?)")
+
+
+def _drop_space_before_punctuation(match: re.Match[str]) -> str:
+    return match.group(1) or match.group(0)
+
 
 def citation_labels_from_contexts(*contexts: str) -> frozenset[str]:
     """Return labels from leading ``[label] content`` evidence records."""
@@ -178,17 +186,10 @@ def _reference_key(item: EvidenceItem) -> tuple[str, int | None]:
 
 def _tidy_spacing(text: str) -> str:
     """Close the gap a removed marker leaves without disturbing line structure."""
-    # The lookbehind, not the possessive quantifier, is what bounds this --
-    # see the note in `ingestion/processing/coreference.py`. Starting inside a
-    # run of spaces can never produce a match the leftmost scan would have
-    # taken anyway, so forbidding it turns O(n^2) into O(n): measured on 8000
-    # spaces, 101ms before and 0.14ms after, identical output over 4012 inputs.
-    # python:S8786 still reports this line: its static check matches the
-    # quantifier shape and has no way to credit a preceding negative
-    # lookbehind for removing the restart cost that shape usually carries.
-    # Left as measured rather than rewritten -- there is no regex shape here
-    # doing less work than this one.
-    tidied = re.sub(r"(?<![ \t])[ \t]++([,.;:!?])", r"\1", str(text or ""))
+    # Linear by construction: `_SPACE_RUN_RE` cannot fail once it has started,
+    # so the scan never restarts inside a run of spaces -- the O(n^2) shape
+    # python:S8786 describes (see `ingestion/processing/coreference.py`).
+    tidied = _SPACE_RUN_RE.sub(_drop_space_before_punctuation, str(text or ""))
     tidied = re.sub(r"(?<!\n)[ \t]{2,}+", " ", tidied)
     return tidied.strip()
 

@@ -34,7 +34,7 @@ from pathlib import Path
 
 from app.domain.knowledge import AccessScope, KnowledgeSourcePlan, KnowledgeStrategy
 from app.evaluation.models import TestQuery
-from app.knowledge.orchestrator import KnowledgeOrchestrator
+from app.knowledge.orchestrator import KnowledgeOrchestrator, discard_trace
 from app.services.security.access_scope import DEFAULT_CONTEXT_FIELDS
 
 # Deployment-specific override first, then the set that ships with the repo --
@@ -158,9 +158,6 @@ async def measure(
 ) -> RetrievalScore:
     """Run each query through the real orchestrator with a BM25-only strategy."""
 
-    async def _discard(_event: object) -> None:
-        return None
-
     orchestrator = KnowledgeOrchestrator()
     ranks: dict[str, int] = {}
     hits_at_5 = 0.0
@@ -181,7 +178,7 @@ async def measure(
             rerank=False,
             rationale="offline retrieval evaluation",
         )
-        context = await orchestrator.retrieve(strategy, scope, _discard)
+        context = await orchestrator.retrieve(strategy, scope, discard_trace)
         retrieved = [item.source for item in context.evidence][:top_k]
         gold = set(query.expected_docs)
         ranks[query.id] = next((index for index, source in enumerate(retrieved, start=1) if source in gold), 0)

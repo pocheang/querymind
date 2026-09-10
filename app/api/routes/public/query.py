@@ -2,6 +2,7 @@
 API routes for advanced RAG functionality.
 """
 
+import asyncio
 import logging
 import time
 from datetime import UTC, datetime, timedelta
@@ -230,9 +231,30 @@ async def _persist_exchange(
     both entry points produce identically shaped history rows.  A persistence
     failure must never fail the request: the answer was already produced and
     returning it is strictly better than a 500.
+
+    The writes are synchronous SQLite and file I/O, so they run on a worker
+    thread rather than on the event loop every other request is waiting on.
     """
     if not session_id:
         return
+    await asyncio.to_thread(
+        _append_exchange,
+        user=user,
+        session_id=session_id,
+        question=question,
+        answer=answer,
+        metadata=metadata,
+    )
+
+
+def _append_exchange(
+    *,
+    user: dict[str, Any],
+    session_id: str,
+    question: str,
+    answer: str,
+    metadata: dict[str, Any],
+) -> None:
     try:
         history_store = _history_store_for_user(user)
         history_store.append_message(session_id=session_id, role="user", content=question)

@@ -492,7 +492,7 @@ def _unsupported_claim_issue(
     return issue or ("unsupported_claim", "Remove or hedge this claim, or add proper citation")
 
 
-async def verify_claim_against_source(
+def verify_claim_against_source(
     claim: FactClaim, source_docs: list[dict], config: FactVerificationConfig | None = None
 ) -> VerificationResult:
     """
@@ -547,22 +547,23 @@ class FactVerificationStage:
             config = FactVerificationConfig()
         self.config = config
 
-    async def verify(
+    def verify(
         self, answer: str, source_docs: list[dict], citations: list[dict] | None = None
     ) -> AnswerVerificationResult:
         """
         Verify entire answer for factual accuracy and groundedness.
+
+        Synchronous: it is pure computation over in-memory text, so the cascade
+        runs it on a worker thread rather than on the event loop.
 
         Args:
             answer: Generated answer text
             source_docs: Source documents used for generation
             citations: Optional explicit citation objects (if not embedded in answer).
                 Intentionally unread today -- claims cite by marker parsed out of
-                `answer` itself (see `check_citation_support`), matching the
-                previous `FactVerifier` contract. Kept in the signature because
-                both `FactVerifier.verify_answer` (a documented compatibility
-                facade) and `ValidationCascade` call this positionally; dropping
-                it would break the facade's one promise (python:S1172).
+                `answer` itself (see `check_citation_support`). Kept in the
+                signature because `ValidationCascade` passes it positionally
+                (python:S1172).
 
         Returns:
             AnswerVerificationResult with verification details
@@ -601,7 +602,7 @@ class FactVerificationStage:
         issues = []
 
         for claim in claims:
-            result = await verify_claim_against_source(claim, source_docs, self.config)
+            result = verify_claim_against_source(claim, source_docs, self.config)
 
             if result.is_verified:
                 verified_claims.append(claim)
@@ -627,63 +628,3 @@ class FactVerificationStage:
             issues=issues,
             execution_time_ms=elapsed,
         )
-
-    async def suggest_corrections(self, answer: str, verification_result: AnswerVerificationResult) -> str:
-        """
-        Suggest corrections to improve groundedness.
-
-        Strategy:
-        - Remove unverified claims
-        - Add hedging language for uncertain claims
-        - Suggest adding missing citations
-
-        Args:
-            answer: Original answer
-            verification_result: Result from :meth:`verify`
-
-        Returns:
-            Suggested corrected answer
-        """
-        if verification_result.overall_verified:
-            return answer
-
-        # For now, return answer with warning comment
-        # Full correction would require claim-level editing
-        corrections = []
-        for issue in verification_result.issues[:3]:  # Top 3 issues
-            corrections.append(f"- {issue}")
-
-        correction_text = "\n".join(corrections)
-
-        return f"{answer}\n\n[Verification Note: Some claims could not be verified:\n{correction_text}]"
-
-
-class FactVerifier:
-    """Compatibility facade for legacy direct imports.
-
-    Production answer validation enters through ``ValidationCascade``.  This
-    facade owns no verification algorithm; it delegates to the canonical
-    fact-verification stage so existing external imports retain their result
-    contract while first-party production callers cannot create a second
-    validation engine.
-    """
-
-    def __init__(self, config: FactVerificationConfig | None = None):
-        self._stage = FactVerificationStage(config)
-
-    async def verify_answer(
-        self,
-        answer: str,
-        source_docs: list[dict],
-        citations: list[dict] | None = None,
-    ) -> AnswerVerificationResult:
-        """Delegate the historical answer-level call to the canonical stage."""
-        return await self._stage.verify(answer, source_docs, citations)
-
-    async def suggest_corrections(
-        self,
-        answer: str,
-        verification_result: AnswerVerificationResult,
-    ) -> str:
-        """Delegate the historical correction helper to the canonical stage."""
-        return await self._stage.suggest_corrections(answer, verification_result)

@@ -79,14 +79,16 @@ class MultiModalRetriever:
         kwargs = {**kwargs, "where": where}
 
         try:
-            # Retrieve from each modality in parallel
+            # Retrieve from each modality in parallel. The Chroma queries are
+            # synchronous, so each runs on a worker thread: awaited directly
+            # they blocked the event loop and ran one after the other anyway.
             retrieval_tasks = []
 
             if "image" in modalities:
-                retrieval_tasks.append(self._retrieve_images(query, top_k, **kwargs))
+                retrieval_tasks.append(asyncio.to_thread(self._retrieve_images, query, top_k, **kwargs))
 
             if "table" in modalities:
-                retrieval_tasks.append(self._retrieve_tables(query, top_k, **kwargs))
+                retrieval_tasks.append(asyncio.to_thread(self._retrieve_tables, query, top_k, **kwargs))
 
             # Execute all retrievals concurrently
             all_results = await asyncio.gather(*retrieval_tasks, return_exceptions=True)
@@ -136,7 +138,7 @@ class MultiModalRetriever:
                 evidence.append(item)
         return tuple(evidence)
 
-    async def _retrieve_images(self, query: str, top_k: int, **kwargs: Any) -> list[RetrievalResult]:
+    def _retrieve_images(self, query: str, top_k: int, **kwargs: Any) -> list[RetrievalResult]:
         """Retrieve image descriptions."""
         try:
             from app.retrievers.stores.vector import get_chroma_client
@@ -187,7 +189,7 @@ class MultiModalRetriever:
             logger.exception("Image retrieval error")
             return []
 
-    async def _retrieve_tables(self, query: str, top_k: int, **kwargs: Any) -> list[RetrievalResult]:
+    def _retrieve_tables(self, query: str, top_k: int, **kwargs: Any) -> list[RetrievalResult]:
         """Retrieve table summaries."""
         try:
             from app.retrievers.stores.vector import get_chroma_client

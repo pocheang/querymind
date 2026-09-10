@@ -42,7 +42,7 @@ class TestCancellationPropagates:
         from app.services.observability.agent_execution_tracker import AgentExecutionTracker
 
         tracker = AgentExecutionTracker()
-        await tracker.start_periodic_cleanup(3600)
+        tracker.start_periodic_cleanup(3600)
 
         await tracker.stop_periodic_cleanup()  # must not raise
 

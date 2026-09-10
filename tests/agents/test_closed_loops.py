@@ -32,13 +32,13 @@ from app.orchestration.request import OrchestrationRequest
 _DESIGN = "帮我设计一个 RAG 系统"
 
 
-async def _ask_repeatedly(times: int) -> list[tuple[str, int]]:
+def _ask_repeatedly(times: int) -> list[tuple[str, int]]:
     """Simulate a caller that never answers, only re-asks."""
     service = ClarificationAgentService()
     context = ClarificationContext()
     seen: list[tuple[str, int]] = []
     for _ in range(times):
-        result = await service.clarify(OrchestrationRequest(question=_DESIGN), context=context)
+        result = service.clarify(OrchestrationRequest(question=_DESIGN), context=context)
         context = result.context
         seen.append((result.action, context.clarification_round))
         if result.action == "continue":
@@ -46,28 +46,25 @@ async def _ask_repeatedly(times: int) -> list[tuple[str, int]]:
     return seen
 
 
-@pytest.mark.asyncio
-async def test_asking_advances_the_round_without_waiting_for_an_answer():
-    seen = await _ask_repeatedly(2)
+def test_asking_advances_the_round_without_waiting_for_an_answer():
+    seen = _ask_repeatedly(2)
 
     assert [round_ for _action, round_ in seen] == [1, 2]
 
 
-@pytest.mark.asyncio
-async def test_a_caller_that_never_answers_still_terminates():
-    seen = await _ask_repeatedly(10)
+def test_a_caller_that_never_answers_still_terminates():
+    seen = _ask_repeatedly(10)
 
     assert seen[-1][0] == "continue"
     assert len(seen) <= max_rounds_for("rag_design") + 1
 
 
-@pytest.mark.asyncio
-async def test_each_round_asks_about_a_different_field():
+def test_each_round_asks_about_a_different_field():
     service = ClarificationAgentService()
     context = ClarificationContext()
     fields: list[str] = []
     for _ in range(max_rounds_for("rag_design")):
-        result = await service.clarify(OrchestrationRequest(question=_DESIGN), context=context)
+        result = service.clarify(OrchestrationRequest(question=_DESIGN), context=context)
         context = result.context
         if result.question:
             fields.append(result.question.field_name)

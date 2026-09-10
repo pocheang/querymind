@@ -121,7 +121,7 @@ class OrchestrationServices:
             self._event_reporter_binder(reporter)
 
     async def report_event(self, event: ExecutionEvent) -> None:
-        reporter = _current_event_reporter.get() or _discard_event
+        reporter = _current_event_reporter.get() or _NULL_PUBLISHER.publish
         await reporter(event)
 
 
@@ -286,8 +286,9 @@ class OrchestrationEngine:
         return answer
 
 
-async def _discard_event(event: ExecutionEvent) -> None:
-    del event
+# The null publisher already is "drop the event"; a second function saying so
+# was one more async-without-await definition of the same thing.
+_NULL_PUBLISHER = NullEventPublisher()
 
 
 def _terminal_payload(answer: FinalAnswer) -> dict[str, Any]:

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 _cache_manager_instance: CacheManager | None = None
 
 
-async def initialize_cache_manager(
+def initialize_cache_manager(
     l1_max_size: int = 256,
     l1_ttl: int = 300,
     l2_enabled: bool = False,
@@ -39,7 +39,7 @@ async def initialize_cache_manager(
         redis_url=redis_url,
     )
 
-    await _cache_manager_instance.initialize()
+    _cache_manager_instance.initialize()
     logger.info(f"Cache manager initialized: L1={l1_max_size}, L2={'enabled' if l2_enabled else 'disabled'}")
 
 

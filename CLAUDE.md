@@ -3422,19 +3422,29 @@ output over 4012 generated inputs before landing, which is the "diff the old and
 the new" rule this section already gives. A dotted leader in a table of contents
 is how a real document reaches the first one.
 
-**Two of that rule's four findings were false positives and were left alone.**
-`PATTERN_HEADERS` and `PATTERN_LISTS` (`app/agents/rag/config.py`) are anchored
-`^...$` under MULTILINE, so the scan restarts only at a line start; measured,
-they are linear. `tests/services/test_regex_scan_is_bounded.py` pins the two
-real ones -- **not by timing**, which is a bad thing to assert on in CI, but by
-the property that removed the cost.
+**The lookbehind was superseded on 2026-09-10 by a fifth shape, which is the
+one to reach for first: a pattern that cannot fail once it has started.**
+`[.!?]+(\s*)` and `[ \t]+([,.;:!?]?)` always succeed from their first character,
+so no attempt fails and the scan never restarts; whether a match is a boundary
+is decided in Python afterwards from what the optional group captured. The
+lookbehind was linear too, but only by argument, and SonarCloud went on
+reporting both lines -- this form is linear by construction and needs no
+comment defending it. `PATTERN_HEADERS` and `PATTERN_LISTS` were anchored and
+already linear, but `[ \t]+[^\n]+` is the same language as `[ \t][^\n]+`
+without two adjacent quantifiers competing for the same spaces, so they changed
+too.
 
-**Its first version could not fail, which is worth more than the fix.** The
-property test compiled a copy of the pattern written out as a constant in the
-test, so deleting the lookbehind from the shipped code left it green: it was
-asserting that its own string contains a lookbehind. It extracts the literal
-from the module source and compiles *that* now. Verified by deleting both
-lookbehinds -- four tests redden, where the first version managed two.
+`tests/services/test_regex_scan_is_bounded.py` pins all four **not by timing**
+but by equivalence with the previous implementations over 4000 generated inputs
+(by span, for the two detectors), and by the property itself on the compiled
+objects the modules use: every start inside a run succeeds. A companion test
+applies the same property to the old shapes and requires it to *fail*, so the
+check is known able to.
+
+The previous version of that file carried a lesson worth keeping: its first
+draft compiled a copy of the pattern written out in the test, so deleting the
+lookbehind from the shipped code left it green. Test the object the code uses,
+not a transcription of it.
 
 **Two of the sixteen were wrong, not merely slow, and for the same reason:
 `\s` matches a newline.** Under `re.MULTILINE` that let a pattern anchored with
@@ -3954,7 +3964,29 @@ Two things learned doing this the first time:
   content key and a provenance key out of each other's way in the same
   dictionary; a variable-length tuple with a discriminant at position zero only
   implied that.
-- **`python:S7503` is 26 open findings** (re-measured 2026-09-05; it was 39, and
+- **`python:S7503` is 12 open findings as of 2026-09-10, and every one is a
+  contract.** The 2026-09-10 pass took 26 to 12, and three of the fourteen it
+  closed were real defects rather than rule noise: `_persist_exchange` (the
+  chat endpoint's history write), `disable_owned_connector` and the multimodal
+  retriever's two Chroma queries all ran **synchronous SQLite or Chroma I/O
+  inside `async def`**, blocking the event loop every other request waits on --
+  and the two multimodal queries, "gathered in parallel", ran one after the
+  other for the same reason. All four go through `asyncio.to_thread` now, as
+  does `FactVerificationStage.verify`, which is pure CPU. The rest: `clarify`,
+  `start_periodic_cleanup` and the cache manager's `initialize` chain became
+  plain functions (none awaited anything, and `RedisCache` connects lazily);
+  `suggest_corrections`, the callerless `FactVerifier` facade and
+  `services/optimization/batch_processor.py` were deleted; and three private
+  copies of "drop this event" became `discard_trace` and the engine's
+  `NullEventPublisher`. The 12 left are Protocol implementations and callbacks
+  that must be coroutines -- null/recording publishers, the unavailable
+  adapter, `LocalEvidenceChatModel.ainvoke`, two validators, the audit sink, the
+  three `run_with_timeout` closures -- and removing `async` from any of them
+  breaks the `await` at its caller. They are the set to mark *Accepted* in
+  SonarCloud, not to rewrite.
+
+  The history of the count, kept because the method matters more than the
+  number: 26 open findings on 2026-09-05 (it was 39, and
   the 13 that went were deleted code, not silenced rules). "async without await"
   cannot see a contract, and the ones that remain are the correct-but-unfixable
   kind the earlier count described: awaited normally, handed to

@@ -202,7 +202,7 @@ async def check_clarification(
         source_scope=RequestScope(),
     )
 
-    result = await clarification_service.clarify(
+    result = clarification_service.clarify(
         orchestration_req,
         context=context,
         workflow_thread_id=workflow_thread_id,

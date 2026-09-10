@@ -319,8 +319,12 @@ class CacheManager:
         self._l2_hits = 0
         self._misses = 0
 
-    async def initialize(self) -> None:
-        """Initialize the cache manager (async setup for Redis)."""
+    def initialize(self) -> None:
+        """Initialize the cache manager.
+
+        Synchronous because nothing here does I/O: `RedisCache` connects lazily,
+        on the first `_get_client` call.
+        """
         if self._initialized:
             return
 
