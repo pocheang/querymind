@@ -171,42 +171,62 @@ def _render_tool(definition: ToolDefinition) -> str:
     return f"- {definition.tool_id} ({definition.operation}) {definition.description} [{arguments or 'no arguments'}]"
 
 
+def _parse_selector_json(raw: str) -> tuple[dict | None, str | None]:
+    """Return (data, error) -- data is None and error explains why if parsing failed."""
+    match = _JSON_RE.search(str(raw or ""))
+    if match is None:
+        return None, "tool selector returned no decision"
+    try:
+        data = json.loads(match.group(0))
+    except ValueError:
+        return None, "tool selector returned malformed JSON"
+    if not isinstance(data, dict):
+        return None, "tool selector returned malformed JSON"
+    return data, None
+
+
+def _catalog_tool(tool_id: str, catalog: Sequence[ToolDefinition]) -> ToolDefinition | None:
+    definition = next((item for item in catalog if item.tool_id == tool_id), None)
+    if definition is None:
+        # An invented id never reaches the registry; the catalogue is the
+        # allow-list, not a suggestion.
+        logger.warning("tool selector proposed an unregistered tool id")
+    return definition
+
+
+def _parsed_tool_arguments(raw_arguments: object, definition: ToolDefinition) -> tuple[ToolArgument, ...] | None:
+    """None means the raw shape itself was malformed, not merely filtered down to nothing."""
+    if raw_arguments is not None and not isinstance(raw_arguments, dict):
+        return None
+    declared = {parameter.name for parameter in definition.parameters}
+    return tuple(
+        ToolArgument(name=name, value=str(value))
+        for name, value in sorted((raw_arguments or {}).items())
+        if name in declared and value is not None and str(value).strip()
+    )
+
+
 def _selection_from_response(
     raw: str,
     catalog: Sequence[ToolDefinition],
     execution_id: str,
 ) -> ToolSelection:
-    match = _JSON_RE.search(str(raw or ""))
-    if match is None:
-        return ToolSelection(call=None, reason="tool selector returned no decision")
-    try:
-        data = json.loads(match.group(0))
-    except ValueError:
-        return ToolSelection(call=None, reason="tool selector returned malformed JSON")
-    if not isinstance(data, dict):
-        return ToolSelection(call=None, reason="tool selector returned malformed JSON")
+    data, parse_error = _parse_selector_json(raw)
+    if data is None:
+        return ToolSelection(call=None, reason=parse_error)
 
     reason = str(data.get("reason", "") or "").strip()[:200]
     tool_id = data.get("tool_id")
     if not tool_id or not isinstance(tool_id, str):
         return ToolSelection(call=None, reason=reason or "no tool matched this request")
 
-    definition = next((item for item in catalog if item.tool_id == tool_id), None)
+    definition = _catalog_tool(tool_id, catalog)
     if definition is None:
-        # An invented id never reaches the registry; the catalogue is the
-        # allow-list, not a suggestion.
-        logger.warning("tool selector proposed an unregistered tool id")
         return ToolSelection(call=None, reason="tool selector proposed an unavailable tool")
 
-    raw_arguments = data.get("arguments")
-    if raw_arguments is not None and not isinstance(raw_arguments, dict):
+    arguments = _parsed_tool_arguments(data.get("arguments"), definition)
+    if arguments is None:
         return ToolSelection(call=None, reason="tool selector returned malformed arguments")
-    declared = {parameter.name for parameter in definition.parameters}
-    arguments = tuple(
-        ToolArgument(name=name, value=str(value))
-        for name, value in sorted((raw_arguments or {}).items())
-        if name in declared and value is not None and str(value).strip()
-    )
     try:
         call = ToolCall(tool_id=tool_id, arguments=arguments, execution_id=execution_id)
     except ValueError:

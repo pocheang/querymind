@@ -206,6 +206,41 @@ def _run_enhanced_graph_rag(
     return result
 
 
+def _format_entity_lines(entities: list[dict]) -> list[str]:
+    lines = []
+    for item in entities:
+        name = item.get("entity", "")
+        if not name:
+            continue
+        lines.append(f"Entity: {name}")
+        for rel in item.get("relations", []):
+            if rel.get("other"):
+                weight = rel.get("weight", 0)
+                lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}")
+    return lines
+
+
+def _format_neighbor_lines(neighbors: list[dict]) -> list[str]:
+    lines = []
+    for row in neighbors:
+        if row.get("entity") and row.get("relation") and row.get("other"):
+            weight = float(row.get("weight", 0))
+            lines.append(f"Neighbor: {row['entity']} -[{row['relation']}|{weight:.2f}]- {row['other']}")
+    return lines
+
+
+def _format_path_lines(paths: list[dict]) -> list[str]:
+    lines = []
+    for row in paths:
+        if row.get("source") and row.get("middle") and row.get("target"):
+            weight = float(row.get("weight", 0))
+            lines.append(
+                f"Path2Hop: {row['source']} -[{row.get('rel1', '')}]- {row['middle']} "
+                f"-[{row.get('rel2', '')}]- {row['target']} | w={weight:.2f}"
+            )
+    return lines
+
+
 def _format_graph_context(
     entities: list[dict],
     neighbors: list[dict],
@@ -222,35 +257,7 @@ def _format_graph_context(
     Returns:
         Formatted multi-line context string
     """
-    lines = []
-
-    # Format entities and their relations
-    for item in entities:
-        name = item.get("entity", "")
-        if not name:
-            continue
-
-        lines.append(f"Entity: {name}")
-        for rel in item.get("relations", []):
-            if rel.get("other"):
-                weight = rel.get("weight", 0)
-                lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}")
-
-    # Format neighbor relationships
-    for row in neighbors:
-        if row.get("entity") and row.get("relation") and row.get("other"):
-            weight = float(row.get("weight", 0))
-            lines.append(f"Neighbor: {row['entity']} -[{row['relation']}|{weight:.2f}]- {row['other']}")
-
-    # Format 2-hop paths
-    for row in paths:
-        if row.get("source") and row.get("middle") and row.get("target"):
-            weight = float(row.get("weight", 0))
-            lines.append(
-                f"Path2Hop: {row['source']} -[{row.get('rel1', '')}]- {row['middle']} "
-                f"-[{row.get('rel2', '')}]- {row['target']} | w={weight:.2f}"
-            )
-
+    lines = _format_entity_lines(entities) + _format_neighbor_lines(neighbors) + _format_path_lines(paths)
     return "\n".join(lines)
 
 

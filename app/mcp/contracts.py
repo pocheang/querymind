@@ -65,17 +65,21 @@ class ToolDefinition(ImmutableContract):
     """What the tool does, in the words the selector shows the model."""
     parameters: tuple[ToolParameter, ...] = Field(default_factory=tuple)
 
-    def validation_error(self, arguments: tuple[ToolArgument, ...]) -> str | None:
-        """Return why these arguments are unacceptable, or None if they are fine."""
-
-        declared = {parameter.name: parameter for parameter in self.parameters}
+    @staticmethod
+    def _sort_supplied_arguments(
+        arguments: tuple[ToolArgument, ...], declared: dict[str, ToolParameter]
+    ) -> tuple[str | None, dict[str, str]]:
+        """Return (error, supplied) -- error is set on the first duplicate or undeclared argument."""
         supplied: dict[str, str] = {}
         for argument in arguments:
             if argument.name in supplied:
-                return f"duplicate argument: {argument.name}"
+                return f"duplicate argument: {argument.name}", supplied
             if argument.name not in declared:
-                return f"unknown argument: {argument.name}"
+                return f"unknown argument: {argument.name}", supplied
             supplied[argument.name] = argument.value
+        return None, supplied
+
+    def _invalid_parameter_value(self, supplied: dict[str, str]) -> str | None:
         for parameter in self.parameters:
             value = supplied.get(parameter.name)
             if value is None:
@@ -87,6 +91,15 @@ class ToolDefinition(ImmutableContract):
             if parameter.pattern is not None and re.fullmatch(parameter.pattern, value) is None:
                 return f"argument does not match its declared pattern: {parameter.name}"
         return None
+
+    def validation_error(self, arguments: tuple[ToolArgument, ...]) -> str | None:
+        """Return why these arguments are unacceptable, or None if they are fine."""
+
+        declared = {parameter.name: parameter for parameter in self.parameters}
+        error, supplied = self._sort_supplied_arguments(arguments, declared)
+        if error is not None:
+            return error
+        return self._invalid_parameter_value(supplied)
 
 
 class ApprovalRequest(ImmutableContract):
