@@ -32,10 +32,6 @@ from app.services.runtime.request_context import deadline_exceeded, overload_mod
 logger = logging.getLogger(__name__)
 
 
-class _NoSourceDocuments(Exception):
-    """Verification has nothing to verify against; skip it rather than pass it."""
-
-
 __all__ = [
     "FALLBACK_REASONS",
     "SYNTHESIS_FALLBACK_MESSAGE",
@@ -342,6 +338,67 @@ def _self_review_enabled(enable_self_review: bool | None) -> bool:
     return bool(enable_self_review)
 
 
+def _log_language_detection(question: str, detected_language: str, force_language: str, session_id: str) -> None:
+    try:
+        analytics = LanguageAnalytics.get_instance()
+        analytics.log_detection(
+            query=question,
+            detected_language=detected_language,
+            force_language=force_language,
+            session_id=session_id,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to log language analytics: {e}")
+
+
+def _generate_initial_content(model, system_prompt: str, prompt: str, on_token: Callable[[str], None] | None) -> str:
+    if on_token is None:
+        result = model.invoke([("system", system_prompt), ("human", prompt)])
+        content = result.content if hasattr(result, "content") else str(result)
+    else:
+        content = _stream_content(model, system_prompt, prompt, on_token)
+    return str(content).strip()
+
+
+def _run_fact_verification(final_answer: str, source_documents: Sequence[Mapping[str, Any]] | None) -> Any | None:
+    """Run post-generation fact verification synchronously, degrading to None on any failure.
+
+    ``synthesize_answer`` is synchronous. An async caller already owns the
+    event loop, so nesting ``asyncio.run`` cannot execute verification and
+    previously leaked an un-awaited coroutine. Keep the answer path
+    non-blocking and record an explicit local degradation instead.
+    """
+    try:
+        source_docs = list(source_documents or ())
+        if not source_docs:
+            logger.info("Skipping fact verification: no structured source documents were supplied")
+            return None
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            verification_result = asyncio.run(verify_generated_answer(final_answer, source_docs))
+        else:
+            logger.info("Skipping synchronous fact verification inside an active event loop")
+            return None
+
+        if verification_result is not None:
+            logger.info(
+                f"Fact verification: groundedness={verification_result.groundedness_score:.2f}, "
+                f"verified={len(verification_result.verified_claims)}, "
+                f"unverified={len(verification_result.unverified_claims)}"
+            )
+            if verification_result.groundedness_score < 0.80:
+                logger.warning(
+                    f"Low groundedness score: {verification_result.groundedness_score:.2f}. "
+                    f"Issues: {verification_result.issues[:3]}"
+                )
+        return verification_result
+    except Exception as e:
+        logger.warning(f"Fact verification failed: {e}")
+        return None
+
+
 def synthesize_answer(
     question: str,
     skill_name: str,
@@ -383,18 +440,7 @@ def synthesize_answer(
     """
     # Detect language (or use forced language)
     detected_language = force_language if force_language else detect_language(question)
-
-    # Log language detection for analytics
-    try:
-        analytics = LanguageAnalytics.get_instance()
-        analytics.log_detection(
-            query=question,
-            detected_language=detected_language,
-            force_language=force_language,
-            session_id=session_id,
-        )
-    except Exception as e:
-        logger.warning(f"Failed to log language analytics: {e}")
+    _log_language_detection(question, detected_language, force_language, session_id)
 
     allowed_labels = citation_labels_from_contexts(vector_context, graph_context, web_context)
 
@@ -414,12 +460,7 @@ def synthesize_answer(
     try:
         with bulkhead("llm"):
             model = _build_generation_model(use_reasoning=use_reasoning, question=question)
-            if on_token is None:
-                result = model.invoke([("system", system_prompt), ("human", prompt)])
-                content = result.content if hasattr(result, "content") else str(result)
-            else:
-                content = _stream_content(model, system_prompt, prompt, on_token)
-        initial = str(content).strip()
+            initial = _generate_initial_content(model, system_prompt, prompt, on_token)
         if not initial:
             return {
                 "answer": synthesis_fallback("generation_failed", detected_language),
@@ -445,43 +486,7 @@ def synthesize_answer(
         # Task 14: Post-generation fact verification
         verification_result = None
         if enable_fact_verification and not is_synthesis_fallback(final_answer):
-            try:
-                source_docs = list(source_documents or ())
-                if not source_docs:
-                    logger.info("Skipping fact verification: no structured source documents were supplied")
-                    raise _NoSourceDocuments
-
-                # ``synthesize_answer`` is synchronous. An async caller
-                # already owns the event loop, so nesting ``asyncio.run``
-                # cannot execute verification and previously leaked an
-                # un-awaited coroutine. Keep the answer path non-blocking and
-                # record an explicit local degradation instead.
-                try:
-                    asyncio.get_running_loop()
-                except RuntimeError:
-                    verification_result = asyncio.run(verify_generated_answer(final_answer, source_docs))
-                else:
-                    logger.info("Skipping synchronous fact verification inside an active event loop")
-
-                if verification_result is not None:
-                    logger.info(
-                        f"Fact verification: groundedness={verification_result.groundedness_score:.2f}, "
-                        f"verified={len(verification_result.verified_claims)}, "
-                        f"unverified={len(verification_result.unverified_claims)}"
-                    )
-
-                    # If groundedness is too low, flag for review
-                    if verification_result.groundedness_score < 0.80:
-                        logger.warning(
-                            f"Low groundedness score: {verification_result.groundedness_score:.2f}. "
-                            f"Issues: {verification_result.issues[:3]}"
-                        )
-
-            except _NoSourceDocuments:
-                verification_result = None
-            except Exception as e:
-                logger.warning(f"Fact verification failed: {e}")
-                verification_result = None
+            verification_result = _run_fact_verification(final_answer, source_documents)
 
         result_dict = {
             "answer": final_answer,
@@ -511,6 +516,54 @@ def synthesize_answer(
             "answer": synthesis_fallback("generation_failed", detected_language),
             "detected_language": detected_language,
         }
+
+
+def _stream_model_content(model, prompt: str) -> Iterable[str]:
+    """Yield each streamed text fragment; return (parts, stream_failed) as the generator's value."""
+    parts: list[str] = []
+    stream_failed = False
+    try:
+        for chunk in model.stream([("system", ANSWER_PROMPT), ("human", prompt)]):
+            content = getattr(chunk, "content", None)
+            if content:
+                text = str(content)
+                parts.append(text)
+                yield text
+    except Exception as stream_error:
+        logger.warning(f"Stream failed, falling back to invoke: {type(stream_error).__name__}")
+        stream_failed = True
+    return parts, stream_failed
+
+
+def _invoke_fallback_stream(
+    model, prompt: str, parts: list[str], detected_language: str
+) -> Iterable[dict[str, str] | str]:
+    """Fall back to a blocking invoke when streaming failed or produced nothing.
+
+    Returns ``(initial, terminal)``: ``terminal`` is True only when the invoke
+    itself raised, matching what the inline code's own ``return`` did -- the
+    caller must stop immediately in that case rather than falling through to
+    its own empty-``initial`` check, which yields a differently-shaped
+    fallback (a bare string, not wrapped in a reset even when ``parts`` has
+    content).
+    """
+    try:
+        with bulkhead("llm"):
+            result = model.invoke([("system", ANSWER_PROMPT), ("human", prompt)])
+        initial = str(result.content if hasattr(result, "content") else result).strip()
+        if initial:
+            if parts:
+                yield {"type": "reset", "content": initial}
+            else:
+                yield initial
+        return initial, False
+    except Exception as invoke_error:
+        logger.exception(f"Invoke fallback also failed: {type(invoke_error).__name__}")
+        if parts:
+            yield {"type": "reset", "content": synthesis_fallback("generation_failed", detected_language)}
+        else:
+            yield synthesis_fallback("generation_failed", detected_language)
+        return "", True
 
 
 def stream_synthesize_answer(
@@ -546,18 +599,7 @@ def stream_synthesize_answer(
     # Detect language (or use forced language)
     detected_language = force_language if force_language else detect_language(question)
     logger.info(f"Streaming synthesis language: {detected_language} (forced={bool(force_language)})")
-
-    # Log language detection for analytics
-    try:
-        analytics = LanguageAnalytics.get_instance()
-        analytics.log_detection(
-            query=question,
-            detected_language=detected_language,
-            force_language=force_language,
-            session_id=session_id,
-        )
-    except Exception as e:
-        logger.warning(f"Failed to log language analytics: {e}")
+    _log_language_detection(question, detected_language, force_language, session_id)
 
     allowed_labels = citation_labels_from_contexts(vector_context, graph_context, web_context)
 
@@ -575,38 +617,14 @@ def stream_synthesize_answer(
     try:
         with bulkhead("llm"):
             model = _build_generation_model(use_reasoning=use_reasoning, question=question)
-            parts: list[str] = []
-            stream_failed = False
-            try:
-                for chunk in model.stream([("system", ANSWER_PROMPT), ("human", prompt)]):
-                    content = getattr(chunk, "content", None)
-                    if content:
-                        text = str(content)
-                        parts.append(text)
-                        yield text
-            except Exception as stream_error:
-                logger.warning(f"Stream failed, falling back to invoke: {type(stream_error).__name__}")
-                stream_failed = True
+            parts, stream_failed = yield from _stream_model_content(model, prompt)
 
         initial = "".join(parts).strip() if parts else ""
 
         # If streaming failed or produced no content, fall back to invoke
         if stream_failed or not initial:
-            try:
-                with bulkhead("llm"):
-                    result = model.invoke([("system", ANSWER_PROMPT), ("human", prompt)])
-                initial = str(result.content if hasattr(result, "content") else result).strip()
-                if initial:
-                    if parts:
-                        yield {"type": "reset", "content": initial}
-                    else:
-                        yield initial
-            except Exception as invoke_error:
-                logger.exception(f"Invoke fallback also failed: {type(invoke_error).__name__}")
-                if parts:
-                    yield {"type": "reset", "content": synthesis_fallback("generation_failed", detected_language)}
-                else:
-                    yield synthesis_fallback("generation_failed", detected_language)
+            initial, terminal = yield from _invoke_fallback_stream(model, prompt, parts, detected_language)
+            if terminal:
                 return
 
         if not initial:
