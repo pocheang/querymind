@@ -54,6 +54,44 @@ class ExecutionStatus(BaseModel):
     total_duration_ms: float | None = None
 
 
+async def _stream_execution(execution_id: ExecutionId, tracker: AgentExecutionTracker, max_iterations: int):
+    last_step_count = 0
+    heartbeat_counter = 0
+    iteration = 0
+
+    while iteration < max_iterations:
+        iteration += 1
+        trace = tracker.get_execution_trace(execution_id)
+
+        if not trace:
+            yield f"event: error\ndata: {json.dumps({'error': _EXECUTION_NOT_FOUND})}\n\n"
+            break
+
+        if iteration == 1:
+            yield f"event: heartbeat\ndata: {json.dumps({'timestamp': trace.start_time.isoformat()})}\n\n"
+
+        if len(trace.steps) > last_step_count:
+            for step in trace.steps[last_step_count:]:
+                step_data = step.model_dump(mode="json")
+                yield f"event: agent_step\ndata: {json.dumps(step_data)}\n\n"
+            last_step_count = len(trace.steps)
+
+        if trace.status in ["completed", "failed"]:
+            trace_data = trace.model_dump(mode="json")
+            yield f"event: execution_complete\ndata: {json.dumps(trace_data)}\n\n"
+            break
+
+        heartbeat_counter += 1
+        if heartbeat_counter >= 30:
+            yield f"event: heartbeat\ndata: {json.dumps({'timestamp': trace.start_time.isoformat()})}\n\n"
+            heartbeat_counter = 0
+
+        await asyncio.sleep(0.5)
+
+    if iteration >= max_iterations:
+        yield f"event: timeout\ndata: {json.dumps({'message': 'Stream timeout'})}\n\n"
+
+
 @router.get("/stream/{execution_id}")
 async def stream_execution(
     execution_id: ExecutionId,
@@ -77,45 +115,8 @@ async def stream_execution(
         raise not_found(_EXECUTION_NOT_FOUND)
     _verify_trace_ownership(trace, user)
 
-    async def event_generator():
-        last_step_count = 0
-        heartbeat_counter = 0
-        iteration = 0
-
-        while iteration < max_iterations:
-            iteration += 1
-            trace = tracker.get_execution_trace(execution_id)
-
-            if not trace:
-                yield f"event: error\ndata: {json.dumps({'error': _EXECUTION_NOT_FOUND})}\n\n"
-                break
-
-            if iteration == 1:
-                yield f"event: heartbeat\ndata: {json.dumps({'timestamp': trace.start_time.isoformat()})}\n\n"
-
-            if len(trace.steps) > last_step_count:
-                for step in trace.steps[last_step_count:]:
-                    step_data = step.model_dump(mode="json")
-                    yield f"event: agent_step\ndata: {json.dumps(step_data)}\n\n"
-                last_step_count = len(trace.steps)
-
-            if trace.status in ["completed", "failed"]:
-                trace_data = trace.model_dump(mode="json")
-                yield f"event: execution_complete\ndata: {json.dumps(trace_data)}\n\n"
-                break
-
-            heartbeat_counter += 1
-            if heartbeat_counter >= 30:
-                yield f"event: heartbeat\ndata: {json.dumps({'timestamp': trace.start_time.isoformat()})}\n\n"
-                heartbeat_counter = 0
-
-            await asyncio.sleep(0.5)
-
-        if iteration >= max_iterations:
-            yield f"event: timeout\ndata: {json.dumps({'message': 'Stream timeout'})}\n\n"
-
     return StreamingResponse(
-        event_generator(),
+        _stream_execution(execution_id, tracker, max_iterations),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

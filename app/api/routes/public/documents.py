@@ -299,6 +299,64 @@ def document_index_health(request: Request, user: dict[str, Any] = Depends(_requ
     return report
 
 
+def _upload_too_large_error(exc: UploadPayloadTooLargeError) -> HTTPException:
+    # 构建友好的错误消息
+    error_details = {
+        "error": "upload_too_large",
+        "message": str(exc),
+    }
+
+    # 添加具体的大小信息
+    if exc.file_size and exc.max_file_size:
+        error_details["file_size_mb"] = round(exc.file_size / (1024 * 1024), 2)
+        error_details["max_file_size_mb"] = round(exc.max_file_size / (1024 * 1024), 2)
+        error_details["suggestion"] = f"单个文件不能超过 {error_details['max_file_size_mb']}MB"
+
+    if exc.total_size and exc.max_total_size:
+        error_details["total_size_mb"] = round(exc.total_size / (1024 * 1024), 2)
+        error_details["max_total_size_mb"] = round(exc.max_total_size / (1024 * 1024), 2)
+        error_details["suggestion"] = (
+            f"本次上传总大小 {error_details['total_size_mb']}MB 超过限制 {error_details['max_total_size_mb']}MB，请分批上传"
+        )
+
+    if exc.filename:
+        error_details["filename"] = exc.filename
+
+    return HTTPException(status_code=413, detail=error_details)
+
+
+def _handle_no_saved_uploads(request: Request, user: dict[str, Any], storage_result) -> UploadResponse:
+    """Either a reused-duplicates success response, or raises bad_request."""
+    if storage_result.duplicate_files and not storage_result.skipped_files:
+        _audit(
+            request,
+            action=AuditAction.DOCUMENT_UPLOAD,
+            resource_type="document",
+            result="success",
+            user=user,
+            detail="duplicates_reused",
+        )
+        return UploadResponse(
+            filenames=[],
+            skipped_files=[],
+            visibility_applied=storage_result.visibility_applied,
+            assigned_agent_classes={},
+            document_ids=[],
+            indexing_status="reused",
+            duplicate_files=storage_result.duplicate_files,
+            reused_document_ids=[x for x in storage_result.reused_document_ids if x],
+            loaded_documents=0,
+            chunks_indexed=0,
+            triplets_written=0,
+        )
+    detail = "no supported files uploaded"
+    if storage_result.skipped_files:
+        detail = f"{detail}; skipped={','.join(storage_result.skipped_files)}"
+    if storage_result.duplicate_files:
+        detail = f"{detail}; duplicates={','.join(storage_result.duplicate_files)}"
+    raise bad_request(detail)
+
+
 @router.post("/upload", response_model=UploadResponse, responses=error_responses(413))
 async def upload_files(
     request: Request,
@@ -336,29 +394,7 @@ async def upload_files(
             parser_profile_for_upload=choose_parser_profile,
         )
     except UploadPayloadTooLargeError as exc:
-        # 构建友好的错误消息
-        error_details = {
-            "error": "upload_too_large",
-            "message": str(exc),
-        }
-
-        # 添加具体的大小信息
-        if exc.file_size and exc.max_file_size:
-            error_details["file_size_mb"] = round(exc.file_size / (1024 * 1024), 2)
-            error_details["max_file_size_mb"] = round(exc.max_file_size / (1024 * 1024), 2)
-            error_details["suggestion"] = f"单个文件不能超过 {error_details['max_file_size_mb']}MB"
-
-        if exc.total_size and exc.max_total_size:
-            error_details["total_size_mb"] = round(exc.total_size / (1024 * 1024), 2)
-            error_details["max_total_size_mb"] = round(exc.max_total_size / (1024 * 1024), 2)
-            error_details["suggestion"] = (
-                f"本次上传总大小 {error_details['total_size_mb']}MB 超过限制 {error_details['max_total_size_mb']}MB，请分批上传"
-            )
-
-        if exc.filename:
-            error_details["filename"] = exc.filename
-
-        raise HTTPException(status_code=413, detail=error_details)
+        raise _upload_too_large_error(exc)
     except UploadInvalidFileError as exc:
         raise bad_request(str(exc))
     except UploadWriteError as exc:
@@ -367,34 +403,7 @@ async def upload_files(
         raise bad_request(str(exc))
 
     if not storage_result.saved_uploads:
-        if storage_result.duplicate_files and not storage_result.skipped_files:
-            _audit(
-                request,
-                action=AuditAction.DOCUMENT_UPLOAD,
-                resource_type="document",
-                result="success",
-                user=user,
-                detail="duplicates_reused",
-            )
-            return UploadResponse(
-                filenames=[],
-                skipped_files=[],
-                visibility_applied=storage_result.visibility_applied,
-                assigned_agent_classes={},
-                document_ids=[],
-                indexing_status="reused",
-                duplicate_files=storage_result.duplicate_files,
-                reused_document_ids=[x for x in storage_result.reused_document_ids if x],
-                loaded_documents=0,
-                chunks_indexed=0,
-                triplets_written=0,
-            )
-        detail = "no supported files uploaded"
-        if storage_result.skipped_files:
-            detail = f"{detail}; skipped={','.join(storage_result.skipped_files)}"
-        if storage_result.duplicate_files:
-            detail = f"{detail}; duplicates={','.join(storage_result.duplicate_files)}"
-        raise bad_request(detail)
+        return _handle_no_saved_uploads(request, user, storage_result)
 
     try:
         prepare_uploaded_document_indexes([upload.path for upload in storage_result.saved_uploads])

@@ -50,6 +50,85 @@ class ClarificationResponse(BaseModel):
     resume_token: str | None = Field(None, description="Signed resume correlation token when configured")
 
 
+def _validate_clarification_request(
+    req: ClarificationCheckRequest, workflow_thread_id: str, clarification_service: ClarificationAgentService
+) -> None:
+    if req.workflow_thread_id and req.workflow_thread_id != workflow_thread_id:
+        raise HTTPException(status_code=409, detail="Clarification workflow thread does not match this session")
+    if req.resume_token is not None and not clarification_service.resume_token_is_valid(
+        workflow_thread_id,
+        req.resume_token,
+    ):
+        raise HTTPException(status_code=409, detail="Invalid clarification resume token")
+    if bool(req.field_name) != bool(req.answer):
+        raise HTTPException(status_code=422, detail="field_name and answer must be submitted together")
+
+
+def _clarification_context_from_session(session: dict[str, Any]) -> ClarificationContext:
+    ctx_data = session.get("clarification_context", {})
+    if not isinstance(ctx_data, dict):
+        ctx_data = {
+            "collected_info": {},
+            "asked_questions": [],
+            "clarification_round": 0,
+            "max_rounds": 10,
+            "intent": "",
+            "original_query": "",
+        }
+    return ClarificationContext(**ctx_data)
+
+
+def _conversation_turns_from_history(messages: list[dict[str, Any]]):
+    from app.orchestration.request import ConversationTurn
+
+    conversation_turns = []
+    for msg in messages[-5:]:  # Last 5 messages for context
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        if role and content:
+            conversation_turns.append(ConversationTurn(role=role, content=content))
+    return conversation_turns
+
+
+def _clarification_response(result, route_decision, workflow_thread_id: str, resume_token: str | None):
+    return ClarificationResponse(
+        action="NEED_CLARIFICATION" if result.action == "ask" else "CONTINUE",
+        clarification=(
+            {
+                "question": result.question.question,
+                "options": result.question.options,
+                "allow_custom_input": result.question.allow_custom_input,
+                "field_name": result.question.field_name,
+            }
+            if result.question
+            else None
+        ),
+        context={
+            "collected_info": result.context.collected_info,
+            "asked_questions": result.context.asked_questions,
+            "clarification_round": result.context.clarification_round,
+            "max_rounds": result.context.max_rounds,
+            "intent": result.context.intent,
+            "original_query": result.context.original_query,
+        },
+        route=(
+            {
+                "intent": route_decision.intent,
+                "route": route_decision.route,
+                "confidence": route_decision.confidence,
+                "requires_plan": route_decision.requires_plan,
+                "allowed_capabilities": list(route_decision.allowed_capabilities),
+                "reason": route_decision.reason,
+            }
+            if route_decision is not None
+            else None
+        ),
+        complete_query=result.complete_query,
+        workflow_thread_id=workflow_thread_id,
+        resume_token=resume_token,
+    )
+
+
 @router.post("/check", responses=error_responses(409, 422))
 async def check_clarification(
     req: ClarificationCheckRequest,
@@ -81,15 +160,7 @@ async def check_clarification(
     user_id = str(user.get("user_id", "") or "")
     workflow_thread_id = ":".join((tenant_id, user_id, req.session_id))
     clarification_service = ClarificationAgentService()
-    if req.workflow_thread_id and req.workflow_thread_id != workflow_thread_id:
-        raise HTTPException(status_code=409, detail="Clarification workflow thread does not match this session")
-    if req.resume_token is not None and not clarification_service.resume_token_is_valid(
-        workflow_thread_id,
-        req.resume_token,
-    ):
-        raise HTTPException(status_code=409, detail="Invalid clarification resume token")
-    if bool(req.field_name) != bool(req.answer):
-        raise HTTPException(status_code=422, detail="field_name and answer must be submitted together")
+    _validate_clarification_request(req, workflow_thread_id, clarification_service)
 
     # Get history store for authenticated user
     history_store = _history_store_for_user(user)
@@ -110,28 +181,10 @@ async def check_clarification(
         session = history_store.get_session(req.session_id)
 
     # Get clarification context
-    ctx_data = session.get("clarification_context", {})
-    if not isinstance(ctx_data, dict):
-        ctx_data = {
-            "collected_info": {},
-            "asked_questions": [],
-            "clarification_round": 0,
-            "max_rounds": 10,
-            "intent": "",
-            "original_query": "",
-        }
-    context = ClarificationContext(**ctx_data)
+    context = _clarification_context_from_session(session)
 
     # Build conversation from history
-    messages = session.get("messages", [])
-    conversation_turns = []
-    from app.orchestration.request import ConversationTurn
-
-    for msg in messages[-5:]:  # Last 5 messages for context
-        role = msg.get("role", "")
-        content = msg.get("content", "")
-        if role and content:
-            conversation_turns.append(ConversationTurn(role=role, content=content))
+    conversation_turns = _conversation_turns_from_history(session.get("messages", []))
 
     # Build orchestration request with the same identity used by the main workflow.
     orchestration_req = OrchestrationRequest(
@@ -167,42 +220,8 @@ async def check_clarification(
     if result.action == "continue":
         history_store.reset_clarification_context(req.session_id)
 
-    # Build response
-    return ClarificationResponse(
-        action="NEED_CLARIFICATION" if result.action == "ask" else "CONTINUE",
-        clarification=(
-            {
-                "question": result.question.question,
-                "options": result.question.options,
-                "allow_custom_input": result.question.allow_custom_input,
-                "field_name": result.question.field_name,
-            }
-            if result.question
-            else None
-        ),
-        context={
-            "collected_info": result.context.collected_info,
-            "asked_questions": result.context.asked_questions,
-            "clarification_round": result.context.clarification_round,
-            "max_rounds": result.context.max_rounds,
-            "intent": result.context.intent,
-            "original_query": result.context.original_query,
-        },
-        route=(
-            {
-                "intent": route_decision.intent,
-                "route": route_decision.route,
-                "confidence": route_decision.confidence,
-                "requires_plan": route_decision.requires_plan,
-                "allowed_capabilities": list(route_decision.allowed_capabilities),
-                "reason": route_decision.reason,
-            }
-            if route_decision is not None
-            else None
-        ),
-        complete_query=result.complete_query,
-        workflow_thread_id=workflow_thread_id,
-        resume_token=clarification_service.issue_resume_token(workflow_thread_id),
+    return _clarification_response(
+        result, route_decision, workflow_thread_id, clarification_service.issue_resume_token(workflow_thread_id)
     )
 
 
