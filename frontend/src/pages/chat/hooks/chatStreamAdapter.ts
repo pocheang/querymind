@@ -1,22 +1,20 @@
-export type ChatRunToken = number;
-
 export function createChatRunLifecycle() {
   let mounted = true;
-  let activeRun: ChatRunToken | null = null;
+  let activeRun: number | null = null;
   let nextRun = 0;
   return {
     mount(): void {
       mounted = true;
     },
-    begin(): ChatRunToken | null {
+    begin(): number | null {
       if (!mounted || activeRun !== null) return null;
       activeRun = ++nextRun;
       return activeRun;
     },
-    isActive(run: ChatRunToken): boolean {
+    isActive(run: number): boolean {
       return mounted && activeRun === run;
     },
-    stop(run: ChatRunToken): void {
+    stop(run: number): void {
       if (activeRun === run) activeRun = null;
     },
     dispose(): void {

@@ -3,6 +3,9 @@ import type { IndexedFileSummary, PromptTemplate, SessionMessage, SessionSummary
 import type { Toast } from "@/pages/chat/types";
 import type { AgentClassHint } from "@/pages/chat/constants";
 
+/** A setter that accepts a value directly or a `(prev) => next` updater, as every setter below does. */
+type Updater<T> = T | ((prev: T) => T);
+
 export interface ChatState {
   // Session State
   sidebarOpen: boolean;
@@ -46,47 +49,47 @@ export interface ChatState {
   settingsOpen: boolean;
 
   // Actions / Setters
-  setSidebarOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
-  setSidebarCollapsed: (collapsed: boolean | ((prev: boolean) => boolean)) => void;
-  setSessions: (sessions: SessionSummary[] | ((prev: SessionSummary[]) => SessionSummary[])) => void;
-  setSessionLoading: (loading: boolean | ((prev: boolean) => boolean)) => void;
-  setCurrentSessionId: (id: string | null | ((prev: string | null) => string | null)) => void;
-  setMessages: (messages: SessionMessage[] | ((prev: SessionMessage[]) => SessionMessage[])) => void;
-  setBusySessionId: (id: string | null | ((prev: string | null) => string | null)) => void;
-  setIsCreatingSession: (creating: boolean | ((prev: boolean) => boolean)) => void;
+  setSidebarOpen: (open: Updater<boolean>) => void;
+  setSidebarCollapsed: (collapsed: Updater<boolean>) => void;
+  setSessions: (sessions: Updater<SessionSummary[]>) => void;
+  setSessionLoading: (loading: Updater<boolean>) => void;
+  setCurrentSessionId: (id: Updater<string | null>) => void;
+  setMessages: (messages: Updater<SessionMessage[]>) => void;
+  setBusySessionId: (id: Updater<string | null>) => void;
+  setIsCreatingSession: (creating: Updater<boolean>) => void;
 
-  setQuestion: (question: string | ((prev: string) => string)) => void;
-  setIsSending: (isSending: boolean | ((prev: boolean) => boolean)) => void;
-  setRunStatus: (status: string | ((prev: string) => string)) => void;
-  setAgentClassHint: (hint: AgentClassHint | ((prev: AgentClassHint) => AgentClassHint)) => void;
-  setPdfTargetFile: (file: string | ((prev: string) => string)) => void;
+  setQuestion: (question: Updater<string>) => void;
+  setIsSending: (isSending: Updater<boolean>) => void;
+  setRunStatus: (status: Updater<string>) => void;
+  setAgentClassHint: (hint: Updater<AgentClassHint>) => void;
+  setPdfTargetFile: (file: Updater<string>) => void;
 
-  setDocuments: (docs: IndexedFileSummary[] | ((prev: IndexedFileSummary[]) => IndexedFileSummary[])) => void;
-  setDocsLoading: (loading: boolean | ((prev: boolean) => boolean)) => void;
-  setUploading: (uploading: boolean | ((prev: boolean) => boolean)) => void;
-  setUploadInfo: (info: string | ((prev: string) => string)) => void;
-  setUploadProgress: (progress: number | ((prev: number) => number)) => void;
-  setUploadProgressText: (text: string | ((prev: string) => string)) => void;
-  setUploadVisibility: (vis: "private" | "public" | ((prev: "private" | "public") => "private" | "public")) => void;
-  setDocDropActive: (active: boolean | ((prev: boolean) => boolean)) => void;
-  setComposerDropActive: (active: boolean | ((prev: boolean) => boolean)) => void;
+  setDocuments: (docs: Updater<IndexedFileSummary[]>) => void;
+  setDocsLoading: (loading: Updater<boolean>) => void;
+  setUploading: (uploading: Updater<boolean>) => void;
+  setUploadInfo: (info: Updater<string>) => void;
+  setUploadProgress: (progress: Updater<number>) => void;
+  setUploadProgressText: (text: Updater<string>) => void;
+  setUploadVisibility: (vis: Updater<"private" | "public">) => void;
+  setDocDropActive: (active: Updater<boolean>) => void;
+  setComposerDropActive: (active: Updater<boolean>) => void;
 
-  setPrompts: (prompts: PromptTemplate[] | ((prev: PromptTemplate[]) => PromptTemplate[])) => void;
-  setPromptsLoading: (loading: boolean | ((prev: boolean) => boolean)) => void;
-  setPromptTitle: (title: string | ((prev: string) => string)) => void;
-  setPromptContent: (content: string | ((prev: string) => string)) => void;
-  setEditingPromptId: (id: string | null | ((prev: string | null) => string | null)) => void;
-  setPromptCheckInfo: (info: string | ((prev: string) => string)) => void;
+  setPrompts: (prompts: Updater<PromptTemplate[]>) => void;
+  setPromptsLoading: (loading: Updater<boolean>) => void;
+  setPromptTitle: (title: Updater<string>) => void;
+  setPromptContent: (content: Updater<string>) => void;
+  setEditingPromptId: (id: Updater<string | null>) => void;
+  setPromptCheckInfo: (info: Updater<string>) => void;
 
-  setToasts: (toasts: Toast[] | ((prev: Toast[]) => Toast[])) => void;
-  setError: (error: string | ((prev: string) => string)) => void;
-  setSettingsOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
+  setToasts: (toasts: Updater<Toast[]>) => void;
+  setError: (error: Updater<string>) => void;
+  setSettingsOpen: (open: Updater<boolean>) => void;
 
   /** Drop every value this user filled in. Called on logout and on user change. */
   reset: () => void;
 }
 
-function updateValue<T>(val: T | ((prev: T) => T), prev: T): T {
+function updateValue<T>(val: Updater<T>, prev: T): T {
   return typeof val === "function" ? (val as (prev: T) => T)(prev) : val;
 }
 

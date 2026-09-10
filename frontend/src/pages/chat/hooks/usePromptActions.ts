@@ -10,11 +10,17 @@ type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligenc
 // Security constants
 const MAX_TITLE_LENGTH = 200;
 const MAX_CONTENT_LENGTH = 50000;
-const VALID_AGENT_CLASSES: AgentClassHint[] = ["", "general", "cybersecurity", "artificial_intelligence", "pdf_text"];
+const VALID_AGENT_CLASSES: ReadonlySet<AgentClassHint> = new Set([
+  "",
+  "general",
+  "cybersecurity",
+  "artificial_intelligence",
+  "pdf_text",
+]);
 
 // Validate agent class hint
 function isValidAgentClass(value: unknown): value is AgentClassHint {
-  return typeof value === "string" && VALID_AGENT_CLASSES.includes(value as AgentClassHint);
+  return typeof value === "string" && VALID_AGENT_CLASSES.has(value as AgentClassHint);
 }
 
 interface UsePromptActionsParams {
@@ -131,8 +137,9 @@ export function usePromptActions(params: UsePromptActionsParams) {
         .filter(Boolean)
         .map((s) => sanitizeString(String(s)));
 
+      const numberedSuggestions = sanitizedSuggestions.map((x, i) => `${i + 1}. ${x}`).join("\n");
       const suggestionBlock = sanitizedSuggestions.length
-        ? `${t("components.workbench.suggestionsLabel")}${sanitizedSuggestions.map((x, i) => `${i + 1}. ${x}`).join("\n")}`
+        ? `${t("components.workbench.suggestionsLabel")}${numberedSuggestions}`
         : "";
 
       const sanitizedIssues = (res.issues || [])

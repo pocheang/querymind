@@ -19,6 +19,8 @@ export function generateSmartPrompts(messages: SessionMessage[]): string[] {
 
   // 获取最近的对话（最多3轮）
   const recentMessages = messages.slice(-6); // 最近3轮对话（用户+助手）
+  // typescript:S7750 wants `.findLast(...)` here; it is ES2023 and this
+  // project's tsconfig lib is ES2020, so it fails type-check (TS2550).
   const lastUserMessage = recentMessages.filter(m => m.role === "user").pop();
   const lastAssistantMessage = recentMessages.filter(m => m.role === "assistant").pop();
 

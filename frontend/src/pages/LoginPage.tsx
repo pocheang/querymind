@@ -113,7 +113,7 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
     if (returnUrl.startsWith("http://") || returnUrl.startsWith("https://") || returnUrl.startsWith("//")) {
       try {
         const parsed = new URL(returnUrl, window.location.origin);
-        if (!allowedOrigins.some((origin) => parsed.origin === origin)) {
+        if (!allowedOrigins.includes(parsed.origin)) {
           setError(t("auth.invalidRedirect"));
           return;
         }
@@ -294,7 +294,7 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
                 <Button variant="outline" onClick={handleGoogleLogin}>
                   <span className="font-bold text-brand-accent" aria-hidden="true">
                     G
-                  </span>
+                  </span>{" "}
                   Google
                 </Button>
                 <Button variant="outline" onClick={handleGitHubLogin}>

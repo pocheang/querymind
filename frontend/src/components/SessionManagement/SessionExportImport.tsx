@@ -60,7 +60,7 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
       a.download = `session_${sessionId}.${exportFormat}`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Export failed:", err);

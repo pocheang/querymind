@@ -65,7 +65,7 @@ const acceptAttribute = (extensions: readonly string[]) => extensions.join(",");
 /** Turn a list into the matcher `useFileUpload` filters with, so the picker and
  *  the handler cannot disagree about one file. */
 const matcher = (extensions: readonly string[]) =>
-  new RegExp(`(${extensions.map((e) => e.replace(".", "\\.")).join("|")})$`, "i");
+  new RegExp(`(${extensions.map((e) => e.replace(".", String.raw`\.`)).join("|")})$`, "i");
 
 export const UPLOAD_ACCEPT_ATTRIBUTE = acceptAttribute(ACCEPTED_UPLOAD_EXTENSIONS);
 export const CHAT_ACCEPT_ATTRIBUTE = acceptAttribute(CHAT_ATTACHMENT_EXTENSIONS);

@@ -63,7 +63,7 @@ export class AdminErrorBoundary extends Component<Props, State> {
               <Button size="sm" onClick={this.handleReset}>
                 Try Again
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => (window.location.href = "/app")}>
+              <Button variant="secondary" size="sm" onClick={this.handleReturnHome}>
                 Back to Chat
               </Button>
             </div>

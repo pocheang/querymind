@@ -15,6 +15,22 @@ interface LandingPageProps {
   isLoggedIn: boolean;
 }
 
+// Hoisted out of `LandingPage` (typescript:S6478): a component declared
+// inside another component's body gets a fresh function identity every
+// render, which React treats as a different component type and remounts
+// rather than reconciles. Takes its translated strings as props rather than
+// calling `t()` itself, so it has no closure over `LandingPage` to lose.
+function SectionHeading({ lead, accent, sub }: Readonly<{ lead: string; accent: string; sub: string }>) {
+  return (
+    <div className="mx-auto max-w-2xl space-y-2 text-center">
+      <h2 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        {lead} <span className="text-brand-text">{accent}</span>
+      </h2>
+      <p className="text-xs leading-relaxed text-ink-muted sm:text-sm">{sub}</p>
+    </div>
+  );
+}
+
 /**
  * The public showcase page -- the design prototype's `#view-landing`.
  *
@@ -121,15 +137,6 @@ export function LandingPage({ isLoggedIn }: Readonly<LandingPageProps>) {
       body: t("pages.landing.step4Body"),
     },
   ];
-
-  const SectionHeading = ({ lead, accent, sub }: { lead: string; accent: string; sub: string }) => (
-    <div className="mx-auto max-w-2xl space-y-2 text-center">
-      <h2 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-        {lead} <span className="text-brand-text">{accent}</span>
-      </h2>
-      <p className="text-xs leading-relaxed text-ink-muted sm:text-sm">{sub}</p>
-    </div>
-  );
 
   return (
     <div className="landing-root aurora-bg min-h-screen">

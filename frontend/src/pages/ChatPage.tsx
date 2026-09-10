@@ -410,7 +410,7 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
             />
           )}
 
-          {clarification && clarification.action === "NEED_CLARIFICATION" && clarification.clarification && (
+          {clarification?.action === "NEED_CLARIFICATION" && clarification.clarification && (
             <ClarificationPrompt
               question={clarification.clarification}
               context={clarification.context}

@@ -7,7 +7,7 @@ export function validatePassword(value: string): boolean {
     value.length >= 12 &&
     /[a-z]/.test(value) &&
     /[A-Z]/.test(value) &&
-    /[0-9]/.test(value) &&
+    /\d/.test(value) &&
     /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(value)
   );
 }
@@ -17,7 +17,7 @@ export function getPasswordRequirements(password: string) {
     length: password.length >= 12,
     lowercase: /[a-z]/.test(password),
     uppercase: /[A-Z]/.test(password),
-    number: /[0-9]/.test(password),
+    number: /\d/.test(password),
     special: /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(password)
   };
 }

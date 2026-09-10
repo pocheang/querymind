@@ -112,7 +112,7 @@ export function SessionList({
     if (!onRenameSession) return;
 
     // Use provided value (from Enter key with direct DOM read) or fallback to state
-    const titleValue = value !== undefined ? value : renameValue;
+    const titleValue = value ?? renameValue;
     const trimmedTitle = titleValue.trim();
 
     // Exit early if empty

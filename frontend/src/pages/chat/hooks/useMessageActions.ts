@@ -4,7 +4,7 @@ import type { PendingApproval, SessionMessage, SessionSummary } from "@/types/ap
 import { EMPTY_METADATA } from "@/pages/chat/constants";
 import { isAbortError, createInitialStreamMessages } from "./streamUtils";
 import { createStreamMessageUpdater } from "./streamMessageUpdater";
-import { createChatRunLifecycle, type ChatRunToken } from "./chatStreamAdapter";
+import { createChatRunLifecycle } from "./chatStreamAdapter";
 
 interface ChatActions {
   notify: (message: string, type: "success" | "info" | "warn" | "error") => void;
@@ -61,7 +61,7 @@ export function useMessageActions({
   const streamAbortRef = useRef<AbortController | null>(null);
   const streamStoppedRef = useRef(false);
   const runLifecycleRef = useRef(createChatRunLifecycle());
-  const activeRunRef = useRef<ChatRunToken | null>(null);
+  const activeRunRef = useRef<number | null>(null);
 
   useEffect(() => {
     const lifecycle = runLifecycleRef.current;

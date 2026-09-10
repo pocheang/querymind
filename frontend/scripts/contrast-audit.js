@@ -36,7 +36,7 @@
       const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
       return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
     }
-    m = /^color\(srgb\s+([^)]+)\)$/.exec(s); // what color-mix() computes to
+    m = /^color\(srgb\s+([^)\s][^)]*)\)$/.exec(s); // what color-mix() computes to
     if (m) {
       const p = m[1].split(/[\s/]+/).filter(Boolean).map(Number);
       return { r: p[0] * 255, g: p[1] * 255, b: p[2] * 255, a: p.length > 3 ? p[3] : 1 };
@@ -94,10 +94,10 @@
   };
 
   const audit = (base) => {
-    const eop = (el) => { let o = 1, n = el; while (n && n.nodeType === 1) { const v = Number.parseFloat(getComputedStyle(n).opacity); if (!Number.isNaN(v)) o *= v; n = n.parentElement; } return o; };
+    const eop = (el) => { let o = 1, n = el; while (n?.nodeType === 1) { const v = Number.parseFloat(getComputedStyle(n).opacity); if (!Number.isNaN(v)) { o *= v; } n = n.parentElement; } return o; };
     const backdrop = (el) => {
       const layers = []; let n = el;
-      while (n && n.nodeType === 1) {
+      while (n?.nodeType === 1) {
         const cs = getComputedStyle(n);
         if (cs.backgroundImage && cs.backgroundImage !== "none") {
           if (n === document.body || n === document.documentElement) break;

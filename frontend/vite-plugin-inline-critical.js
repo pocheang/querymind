@@ -1,5 +1,5 @@
-import { readFileSync, existsSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 export default function inlineCriticalCSS() {
   let root;

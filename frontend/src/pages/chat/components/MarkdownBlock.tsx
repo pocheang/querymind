@@ -51,6 +51,79 @@ function CodeBlock({ code, className = "" }: Readonly<{ code: string; className?
   );
 }
 
+// Hoisted to module scope rather than declared inline on `<ReactMarkdown>`:
+// react-markdown mounts each entry here as a component type, so an object
+// literal rebuilt on every render of `MarkdownBlock` (which happens on every
+// streamed token) would hand it a *new* function identity for every tag,
+// forcing a full remount of the rendered tree -- losing `CodeBlock`'s own
+// `copied` state mid-stream, not just repainting it (typescript:S6478).
+// None of these renderers close over anything from `MarkdownBlock`, so
+// hoisting is safe.
+const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
+  pre({ children }) {
+    const child = Array.isArray(children) ? children[0] : children;
+    if (!isValidElement(child)) return <pre>{children}</pre>;
+    const className = String((child.props as { className?: string })?.className || "");
+    const rawCode = (child.props as { children?: unknown })?.children;
+    // react-markdown can hand back the code text as an array of text
+    // nodes rather than one string; `String(array)` still works because
+    // Array#toString joins with a comma, which is wrong, and a bare
+    // `String()` of anything else falls back to "[object Object]".
+    const code = (Array.isArray(rawCode) ? rawCode.join("") : String(rawCode ?? "")).replace(/\n$/, "");
+    return <CodeBlock className={className} code={code} />;
+  },
+  p: ({ children }) => <p className="mb-2.5 leading-relaxed text-ink last:mb-0">{children}</p>,
+  h1: ({ children }) => <h1 className="mb-2 mt-3 text-base font-bold text-brand-text-strong">{children}</h1>,
+  h2: ({ children }) => <h2 className="mb-2 mt-3 text-sm font-bold text-brand-text-strong">{children}</h2>,
+  h3: ({ children }) => (
+    <h3 className="mb-1.5 mt-3 border-l-[3px] border-brand-accent pl-2 text-sm font-bold text-brand-text-strong">
+      {children}
+    </h3>
+  ),
+  h4: ({ children }) => <h4 className="mb-1 mt-2.5 text-xs font-semibold text-brand-text">{children}</h4>,
+  ul: ({ children }) => <ul className="mb-2.5 ml-5 list-disc space-y-1">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-2.5 ml-5 list-decimal space-y-1">{children}</ol>,
+  li: ({ children }) => <li className="leading-relaxed text-ink">{children}</li>,
+  a: ({ children, href }) => (
+    <a href={href} target="_blank" rel="noreferrer" className="text-brand-text underline underline-offset-2">
+      {children}
+    </a>
+  ),
+  strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
+  blockquote: ({ children }) => (
+    <blockquote className="my-2.5 rounded-r-card border-l-[3px] border-brand-accent bg-surface-muted px-3 py-2 text-ink-muted">
+      {children}
+    </blockquote>
+  ),
+  code: ({ className, children }) => (
+    <code
+      className={
+        className ||
+        "rounded border border-brand-border bg-brand-surface px-1 py-px font-mono text-[0.9em] text-brand-text"
+      }
+    >
+      {children}
+    </code>
+  ),
+  table: ({ children }) => (
+    <div className="my-3 overflow-x-auto">
+      <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-card border border-slate-300 bg-white text-[11px] shadow-elev-1">
+        {children}
+      </table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="border-b-2 border-slate-400 border-r border-r-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-700 last:border-r-0">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border-b border-r border-slate-300 px-3 py-2 text-slate-800 last:border-r-0">{children}</td>
+  ),
+  tr: ({ children }) => <tr className="even:bg-slate-50 hover:bg-slate-100">{children}</tr>,
+  hr: () => <hr className="my-3 border-line" />,
+};
+
 /**
  * Rendered answer prose.
  *
@@ -60,68 +133,7 @@ function CodeBlock({ code, className = "" }: Readonly<{ code: string; className?
  */
 export function MarkdownBlock({ text }: Readonly<{ text: string }>) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        pre({ children }) {
-          const child = Array.isArray(children) ? children[0] : children;
-          if (!isValidElement(child)) return <pre>{children}</pre>;
-          const className = String((child.props as { className?: string })?.className || "");
-          const code = String((child.props as { children?: unknown })?.children || "").replace(/\n$/, "");
-          return <CodeBlock className={className} code={code} />;
-        },
-        p: ({ children }) => <p className="mb-2.5 leading-relaxed text-ink last:mb-0">{children}</p>,
-        h1: ({ children }) => <h1 className="mb-2 mt-3 text-base font-bold text-brand-text-strong">{children}</h1>,
-        h2: ({ children }) => <h2 className="mb-2 mt-3 text-sm font-bold text-brand-text-strong">{children}</h2>,
-        h3: ({ children }) => (
-          <h3 className="mb-1.5 mt-3 border-l-[3px] border-brand-accent pl-2 text-sm font-bold text-brand-text-strong">
-            {children}
-          </h3>
-        ),
-        h4: ({ children }) => <h4 className="mb-1 mt-2.5 text-xs font-semibold text-brand-text">{children}</h4>,
-        ul: ({ children }) => <ul className="mb-2.5 ml-5 list-disc space-y-1">{children}</ul>,
-        ol: ({ children }) => <ol className="mb-2.5 ml-5 list-decimal space-y-1">{children}</ol>,
-        li: ({ children }) => <li className="leading-relaxed text-ink">{children}</li>,
-        a: ({ children, href }) => (
-          <a href={href} target="_blank" rel="noreferrer" className="text-brand-text underline underline-offset-2">
-            {children}
-          </a>
-        ),
-        strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
-        blockquote: ({ children }) => (
-          <blockquote className="my-2.5 rounded-r-card border-l-[3px] border-brand-accent bg-surface-muted px-3 py-2 text-ink-muted">
-            {children}
-          </blockquote>
-        ),
-        code: ({ className, children }) => (
-          <code
-            className={
-              className ||
-              "rounded border border-brand-border bg-brand-surface px-1 py-px font-mono text-[0.9em] text-brand-text"
-            }
-          >
-            {children}
-          </code>
-        ),
-        table: ({ children }) => (
-          <div className="my-3 overflow-x-auto">
-            <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-card border border-slate-300 bg-white text-[11px] shadow-elev-1">
-              {children}
-            </table>
-          </div>
-        ),
-        th: ({ children }) => (
-          <th className="border-b-2 border-slate-400 border-r border-r-slate-300 bg-slate-100 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-700 last:border-r-0">
-            {children}
-          </th>
-        ),
-        td: ({ children }) => (
-          <td className="border-b border-r border-slate-300 px-3 py-2 text-slate-800 last:border-r-0">{children}</td>
-        ),
-        tr: ({ children }) => <tr className="even:bg-slate-50 hover:bg-slate-100">{children}</tr>,
-        hr: () => <hr className="my-3 border-line" />,
-      }}
-    >
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
       {text || ""}
     </ReactMarkdown>
   );

@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/CommandPalette";
 import { KeyboardHelp } from "@/components/KeyboardHelp";
 import { useAppShortcuts } from "@/hooks/useAppShortcuts";
-import type { UserIdentity } from "@/types/auth";
 import { TopNav, type TopNavProps } from "./TopNav";
+
+export type { UserIdentity } from "@/types/auth";
 
 export type AppShellProps = TopNavProps & {
   children: ReactNode;
@@ -96,5 +97,3 @@ export function PageHeader({
     </div>
   );
 }
-
-export type { UserIdentity };

@@ -169,7 +169,7 @@ if (staleExemptions.length) {
 // `gap-1.5` is delivered as `.gap-1\.5`, and an earlier version of this line
 // that compared against raw text called the whole spacing scale dead.
 const dead = [...tokens].filter(
-  ([token]) => !new RegExp(String.raw`\.${token.replace(/\./g, String.raw`\.`)}(?![\w-])`).test(css)
+  ([token]) => !new RegExp(String.raw`\.${token.replaceAll(".", "\\.")}(?![\w-])`).test(css)
 );
 
 console.log(`class names reaching a className : ${tokens.size}`);

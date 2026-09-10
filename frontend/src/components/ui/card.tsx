@@ -20,6 +20,9 @@ export const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
 );
 CardHeader.displayName = "CardHeader";
 
+// typescript:S6850 sees no heading content here because it does not trace the
+// `{...props}` spread back to the `children` every call site actually passes
+// (`<CardTitle>{t("...")}</CardTitle>`, never a bare `<CardTitle />`).
 export const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
     <h3 ref={ref} className={cn("text-xs font-bold tracking-tight text-ink", className)} {...props} />

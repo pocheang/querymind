@@ -25,7 +25,7 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join, relative } from "node:path";
+import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -67,7 +67,12 @@ function cssFiles(dir, acc = []) {
 // Explicit comparator, not the default and not localeCompare: the baseline
 // file's key order has to be identical on every machine, and localeCompare
 // is locale-dependent.
-const files = cssFiles("src").sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+function compareOrdinal(a, b) {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+const files = cssFiles("src").sort(compareOrdinal);
 const current = {};
 for (const file of files) {
   const counts = offScale(readFileSync(join(root, file), "utf8"));

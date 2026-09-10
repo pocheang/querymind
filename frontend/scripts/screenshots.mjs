@@ -163,7 +163,9 @@ async function main() {
   console.log("\ndone");
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error(error.message);
   process.exit(1);
-});
+}

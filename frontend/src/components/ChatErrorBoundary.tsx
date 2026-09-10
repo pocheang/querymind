@@ -34,10 +34,10 @@ export class ChatErrorBoundary extends Component<Props, State> {
   handleReset = () => {
     // Clear local storage cache that might be corrupted
     try {
-      const keysToPreserve = ["auth_token", "theme"];
+      const keysToPreserve = new Set(["auth_token", "theme"]);
       const allKeys = Object.keys(localStorage);
       allKeys.forEach((key) => {
-        if (!keysToPreserve.includes(key) && key.startsWith("chat_")) {
+        if (!keysToPreserve.has(key) && key.startsWith("chat_")) {
           localStorage.removeItem(key);
         }
       });

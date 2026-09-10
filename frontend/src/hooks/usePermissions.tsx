@@ -164,7 +164,7 @@ const UNAUTHENTICATED_PERMISSIONS: PermissionCheck = {
  * ```
  */
 export function getPermissionCheck(user: UserIdentity | null): PermissionCheck {
-  if (!user || !user.role) {
+  if (!user?.role) {
     return UNAUTHENTICATED_PERMISSIONS;
   }
 
@@ -254,10 +254,10 @@ export function PermissionGate({
   fallback = null,
   children,
 }: {
-  user: UserIdentity | null;
-  requires: Array<keyof PermissionCheck>;
-  fallback?: React.ReactNode;
-  children: React.ReactNode;
+  readonly user: UserIdentity | null;
+  readonly requires: Array<keyof PermissionCheck>;
+  readonly fallback?: React.ReactNode;
+  readonly children: React.ReactNode;
 }) {
   const permissions = usePermissions(user);
 
