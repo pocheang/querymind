@@ -265,44 +265,17 @@ def extract_claims(answer: str, config: FactVerificationConfig | None = None) ->
             position += len(sentence) + 1
             continue
 
-        # Extract citations from this sentence
-        citation_pattern = r"\[([^\]]+)\]"
-        citations = re.findall(citation_pattern, sentence)
-
-        # Filter to only keep doc_id:page format
-        valid_citations = []
-        for cit in citations:
-            if re.match(r"doc\w*:\w+", cit):
-                valid_citations.append(cit)
-
-        # Remove citation markers from claim text
-        # Bounded whitespace, as elsewhere in this repository: an unbounded
-        # `\s*` beside a bracket group backtracks over a long run (S8786).
-        clean_sentence = re.sub(r"\s{0,8}\[[^\]]+\]\s{0,8}", " ", sentence).strip()
-        clean_sentence = re.sub(r"\s+", " ", clean_sentence)  # Normalize whitespace
+        valid_citations = _valid_claim_citations(sentence)
+        clean_sentence = _clean_claim_text(sentence)
 
         if len(clean_sentence) < config.min_clean_claim_length:  # Skip if too short after removing citations
             position += len(sentence) + 1
             continue
 
-        # Determine claim type
-        claim_type = "general"
-        has_dates = bool(_extract_dates(clean_sentence))
-        has_numbers = bool(_extract_numbers(clean_sentence))
-        has_neg = _has_negation(clean_sentence)
-
-        if has_dates:
-            claim_type = "date"
-        elif has_numbers:
-            claim_type = "number"
-        elif has_neg:
-            claim_type = "negation"
-
-        # Create claim
         claim = FactClaim(
             text=clean_sentence,
             citations=valid_citations,
-            claim_type=claim_type,
+            claim_type=_determine_claim_type(clean_sentence),
             start_pos=position,
             end_pos=position + len(sentence),
         )
@@ -311,6 +284,32 @@ def extract_claims(answer: str, config: FactVerificationConfig | None = None) ->
         position += len(sentence) + 1
 
     return claims
+
+
+def _valid_claim_citations(sentence: str) -> list[str]:
+    """Citations in `[doc_id:page]` form; anything else in brackets is not a citation."""
+    citations = re.findall(r"\[([^\]]+)\]", sentence)
+    return [cit for cit in citations if re.match(r"doc\w*:\w+", cit)]
+
+
+def _clean_claim_text(sentence: str) -> str:
+    """Remove citation markers from claim text and normalize whitespace.
+
+    Bounded whitespace, as elsewhere in this repository: an unbounded `\\s*`
+    beside a bracket group backtracks over a long run (S8786).
+    """
+    clean = re.sub(r"\s{0,8}\[[^\]]+\]\s{0,8}", " ", sentence).strip()
+    return re.sub(r"\s+", " ", clean)
+
+
+def _determine_claim_type(clean_sentence: str) -> str:
+    if _extract_dates(clean_sentence):
+        return "date"
+    if _extract_numbers(clean_sentence):
+        return "number"
+    if _has_negation(clean_sentence):
+        return "negation"
+    return "general"
 
 
 _CITATION_RE = re.compile(r"(\w+):(\w+)")
@@ -443,6 +442,56 @@ def check_citation_support(
     return confidence >= config.min_support_confidence, confidence
 
 
+def _date_mismatch_issue(claim: FactClaim, source_docs: list[dict]) -> tuple[str, str] | None:
+    claim_dates = _extract_dates(claim.text)
+    source_text = " ".join([doc.get("content", "") for doc in source_docs[:5]])
+    source_dates = _extract_dates(source_text)
+    if claim_dates and source_dates and not any(d in source_dates for d in claim_dates):
+        return "date_mismatch", f"Date in claim does not match source. Verify: {', '.join(claim_dates)}"
+    return None
+
+
+def _number_mismatch_issue(
+    claim: FactClaim, source_docs: list[dict], config: FactVerificationConfig
+) -> tuple[str, str] | None:
+    claim_numbers = _extract_numbers(claim.text)
+    source_text = " ".join([doc.get("content", "") for doc in source_docs[:5]])
+    source_numbers = _extract_numbers(source_text)
+    if claim_numbers and source_numbers:
+        has_match = any(
+            any(_numbers_match(cn, sn, config.number_tolerance) for sn in source_numbers) for cn in claim_numbers
+        )
+        if not has_match:
+            return (
+                "number_mismatch",
+                f"Number in claim does not match source (>{config.number_tolerance * 100:.0f}% difference)",
+            )
+    return None
+
+
+def _negation_conflict_issue(claim: FactClaim, source_docs: list[dict]) -> tuple[str, str] | None:
+    source_text = " ".join([doc.get("content", "") for doc in source_docs[:5]])
+    if _has_negation(claim.text) != _has_negation(source_text):
+        return "negation_conflict", "Claim negation conflicts with source"
+    return None
+
+
+def _unsupported_claim_issue(
+    claim: FactClaim, source_docs: list[dict], config: FactVerificationConfig
+) -> tuple[str, str]:
+    """The specific reason an unsupported claim failed, or the generic one if none applies."""
+    if not claim.citations:
+        return "missing_citation", "Add citation [doc_id:page] to support this claim"
+    issue = None
+    if claim.claim_type == "date":
+        issue = _date_mismatch_issue(claim, source_docs)
+    elif claim.claim_type == "number":
+        issue = _number_mismatch_issue(claim, source_docs, config)
+    elif claim.claim_type == "negation":
+        issue = _negation_conflict_issue(claim, source_docs)
+    return issue or ("unsupported_claim", "Remove or hedge this claim, or add proper citation")
+
+
 async def verify_claim_against_source(
     claim: FactClaim, source_docs: list[dict], config: FactVerificationConfig | None = None
 ) -> VerificationResult:
@@ -466,46 +515,10 @@ async def verify_claim_against_source(
     if config is None:
         config = FactVerificationConfig()
 
-    # Check citation support
     is_supported, confidence = check_citation_support(claim.text, claim.citations, source_docs, config)
 
     if not is_supported:
-        issue_type = "unsupported_claim"
-        suggestion = "Remove or hedge this claim, or add proper citation"
-
-        # Specific issue types
-        if not claim.citations:
-            issue_type = "missing_citation"
-            suggestion = "Add citation [doc_id:page] to support this claim"
-        elif claim.claim_type == "date":
-            claim_dates = _extract_dates(claim.text)
-            source_text = " ".join([doc.get("content", "") for doc in source_docs[:5]])
-            source_dates = _extract_dates(source_text)
-            if claim_dates and source_dates and not any(d in source_dates for d in claim_dates):
-                issue_type = "date_mismatch"
-                suggestion = f"Date in claim does not match source. Verify: {', '.join(claim_dates)}"
-        elif claim.claim_type == "number":
-            claim_numbers = _extract_numbers(claim.text)
-            source_text = " ".join([doc.get("content", "") for doc in source_docs[:5]])
-            source_numbers = _extract_numbers(source_text)
-            if claim_numbers and source_numbers:
-                has_match = any(
-                    any(_numbers_match(cn, sn, config.number_tolerance) for sn in source_numbers)
-                    for cn in claim_numbers
-                )
-                if not has_match:
-                    issue_type = "number_mismatch"
-                    suggestion = (
-                        f"Number in claim does not match source (>{config.number_tolerance * 100:.0f}% difference)"
-                    )
-        elif claim.claim_type == "negation":
-            source_text = " ".join([doc.get("content", "") for doc in source_docs[:5]])
-            claim_has_neg = _has_negation(claim.text)
-            source_has_neg = _has_negation(source_text)
-            if claim_has_neg != source_has_neg:
-                issue_type = "negation_conflict"
-                suggestion = "Claim negation conflicts with source"
-
+        issue_type, suggestion = _unsupported_claim_issue(claim, source_docs, config)
         return VerificationResult(
             claim=claim, is_verified=False, confidence=confidence, issue_type=issue_type, suggestion=suggestion
         )
