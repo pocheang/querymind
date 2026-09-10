@@ -50,6 +50,19 @@
 
   const hex = (s) => { const h = s.trim().replace("#", ""); return { r: Number.parseInt(h.slice(0, 2), 16), g: Number.parseInt(h.slice(2, 4), 16), b: Number.parseInt(h.slice(4, 6), 16), a: 1 }; };
 
+  /** The aurora's composited colour at one pixel: each pool's alpha falls
+   *  linearly from its centre to its radius, over the page ground. */
+  const compositeAuroraAt = (x, y, pools, page) => {
+    let c = { ...page };
+    for (const p of pools) {
+      if (!p.c) continue;
+      const d = Math.hypot(x - p.cx, y - p.cy);
+      const t = d >= p.r ? 0 : 1 - d / p.r;
+      if (t > 0) c = over({ ...p.c, a: p.c.a * t }, c);
+    }
+    return c;
+  };
+
   /** The darkest pixel the aurora actually paints, at this viewport. */
   const auroraDarkest = () => {
     const cs = getComputedStyle(document.documentElement);
@@ -68,13 +81,7 @@
     let worst = page, worstL = Infinity;
     for (let y = 0; y <= H; y += 8) {
       for (let x = 0; x <= W; x += 8) {
-        let c = { ...page };
-        for (const p of pools) {
-          if (!p.c) continue;
-          const d = Math.hypot(x - p.cx, y - p.cy);
-          const t = d >= p.r ? 0 : 1 - d / p.r;
-          if (t > 0) c = over({ ...p.c, a: p.c.a * t }, c);
-        }
+        const c = compositeAuroraAt(x, y, pools, page);
         const l = L(c);
         if (l < worstL) { worstL = l; worst = c; }
       }
@@ -93,25 +100,41 @@
     document.body.getBoundingClientRect();
   };
 
-  const audit = (base) => {
-    const eop = (el) => { let o = 1, n = el; while (n?.nodeType === 1) { const v = Number.parseFloat(getComputedStyle(n).opacity); if (!Number.isNaN(v)) { o *= v; } n = n.parentElement; } return o; };
-    const backdrop = (el) => {
-      const layers = []; let n = el;
-      while (n?.nodeType === 1) {
-        const cs = getComputedStyle(n);
-        if (cs.backgroundImage && cs.backgroundImage !== "none") {
-          if (n === document.body || n === document.documentElement) break;
-          return { gradient: true, on: n.tagName + "." + (n.className?.split?.(/\s+/)?.[0] ?? "") };
-        }
-        const c = parse(cs.backgroundColor);
-        if (c && c.a > 0) { layers.push(c); if (c.a >= 0.999) break; }
-        n = n.parentElement;
+  const SKIP = new Set(["SCRIPT", "STYLE", "SVG", "PATH", "NOSCRIPT", "TITLE"]);
+
+  const elementOpacity = (el) => { let o = 1, n = el; while (n?.nodeType === 1) { const v = Number.parseFloat(getComputedStyle(n).opacity); if (!Number.isNaN(v)) { o *= v; } n = n.parentElement; } return o; };
+
+  const backdropColor = (el, base) => {
+    const layers = []; let n = el;
+    while (n?.nodeType === 1) {
+      const cs = getComputedStyle(n);
+      if (cs.backgroundImage && cs.backgroundImage !== "none") {
+        if (n === document.body || n === document.documentElement) break;
+        return { gradient: true, on: n.tagName + "." + (n.className?.split?.(/\s+/)?.[0] ?? "") };
       }
-      let out = n === null || n === document.body || n === document.documentElement ? { ...base } : { r: 255, g: 255, b: 255, a: 1 };
-      for (let i = layers.length - 1; i >= 0; i--) out = over(layers[i], out);
-      return { color: out };
+      const c = parse(cs.backgroundColor);
+      if (c && c.a > 0) { layers.push(c); if (c.a >= 0.999) break; }
+      n = n.parentElement;
+    }
+    let out = n === null || n === document.body || n === document.documentElement ? { ...base } : { r: 255, g: 255, b: 255, a: 1 };
+    for (let i = layers.length - 1; i >= 0; i--) out = over(layers[i], out);
+    return { color: out };
+  };
+
+  /** null when `fg` on `bdColor` clears its required ratio; the failure record otherwise. */
+  const contrastFailure = (el, text, cs, fg, bdColor) => {
+    const r = ratio(fg, bdColor);
+    const px = Number.parseFloat(cs.fontSize);
+    const need = px >= 24 || (px >= 18.66 && Number.parseInt(cs.fontWeight, 10) >= 700) ? 3 : 4.5;
+    if (r >= need) return null;
+    return {
+      ratio: Number(r.toFixed(2)), need, text: text.slice(0, 40), color: cs.color,
+      disabledControl: el.tagName === "BUTTON" && el.disabled,
+      sel: el.tagName.toLowerCase() + (typeof el.className === "string" && el.className ? "." + el.className.trim().split(/\s+/).slice(0, 3).join(".") : ""),
     };
-    const SKIP = new Set(["SCRIPT", "STYLE", "SVG", "PATH", "NOSCRIPT", "TITLE"]);
+  };
+
+  const audit = (base) => {
     const res = { checked: 0, skipped: {}, gradient: [], failures: [] };
     const bump = (k) => (res.skipped[k] = (res.skipped[k] || 0) + 1);
     for (const el of document.querySelectorAll("*")) {
@@ -122,24 +145,16 @@
       if (cs.display === "none" || cs.visibility === "hidden") { bump("hidden"); continue; }
       const rect = el.getBoundingClientRect();
       if (rect.width < 1 || rect.height < 1) { bump("zero-size"); continue; }
-      const op = eop(el);
+      const op = elementOpacity(el);
       if (op < 0.02) { bump("invisible"); continue; }
       const fgRaw = parse(cs.color);
       if (!fgRaw) { bump("unparsed-color"); continue; }
-      const bd = backdrop(el);
+      const bd = backdropColor(el, base);
       if (bd.gradient) { res.gradient.push({ text: text.slice(0, 24), on: bd.on }); bump("gradient-backdrop"); continue; }
       const fg = over({ ...fgRaw, a: fgRaw.a * op }, bd.color);
-      const r = ratio(fg, bd.color);
-      const px = Number.parseFloat(cs.fontSize);
-      const need = px >= 24 || (px >= 18.66 && Number.parseInt(cs.fontWeight, 10) >= 700) ? 3 : 4.5;
       res.checked++;
-      if (r < need) {
-        res.failures.push({
-          ratio: Number(r.toFixed(2)), need, text: text.slice(0, 40), color: cs.color,
-          disabledControl: el.tagName === "BUTTON" && el.disabled,
-          sel: el.tagName.toLowerCase() + (typeof el.className === "string" && el.className ? "." + el.className.trim().split(/\s+/).slice(0, 3).join(".") : ""),
-        });
-      }
+      const failure = contrastFailure(el, text, cs, fg, bd.color);
+      if (failure) res.failures.push(failure);
     }
     res.failures.sort((a, b) => a.ratio - b.ratio);
     return res;
