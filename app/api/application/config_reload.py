@@ -125,10 +125,26 @@ def write_config_values(values: dict[str, str], data_id: str | None = None) -> l
     current = {name: parse_properties(text) for name, text in documents.all().items()}
     fallback = data_id or known[-1]
 
-    # Each key goes back to the document that already defines it. Writing
-    # everything to one document instead puts the same key in two places, where
-    # the later id silently wins -- so the page would show a value from one
-    # document, the edit would land in another, and the two would drift apart.
+    routed = _route_values_to_documents(accepted, data_id, known, current, fallback)
+    written = _publish_routed_documents(documents, routed, current)
+
+    apply_config_reload()
+    return sorted(written)
+
+
+def _route_values_to_documents(
+    accepted: dict[str, str],
+    data_id: str | None,
+    known: list[str],
+    current: dict[str, dict[str, str]],
+    fallback: str,
+) -> dict[str, dict[str, str]]:
+    """Each key goes back to the document that already defines it.
+
+    Writing everything to one document instead puts the same key in two places,
+    where the later id silently wins -- so the page would show a value from one
+    document, the edit would land in another, and the two would drift apart.
+    """
     routed: dict[str, dict[str, str]] = {}
     for alias, value in accepted.items():
         target = data_id
@@ -136,7 +152,12 @@ def write_config_values(values: dict[str, str], data_id: str | None = None) -> l
             owning = [name for name in known if alias in current.get(name, {})]
             target = owning[-1] if owning else fallback
         routed.setdefault(target, {})[alias] = value
+    return routed
 
+
+def _publish_routed_documents(
+    documents: RemoteDocuments, routed: dict[str, dict[str, str]], current: dict[str, dict[str, str]]
+) -> list[str]:
     written: list[str] = []
     for name, changes in routed.items():
         merged = {**current.get(name, {}), **changes}
@@ -148,9 +169,7 @@ def write_config_values(values: dict[str, str], data_id: str | None = None) -> l
         if not published:
             raise ConfigWriteRefused(f"the configuration centre did not accept the write to {name}")
         written.append(name)
-
-    apply_config_reload()
-    return sorted(written)
+    return written
 
 
 __all__ = [

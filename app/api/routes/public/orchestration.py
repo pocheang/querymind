@@ -79,6 +79,61 @@ def _ensure_trace_access(trace: ExecutionTrace, actor: RequestActor) -> None:
         raise forbidden("You do not have permission to access this execution trace")
 
 
+def _poll_execution_updates(
+    current_trace, execution_id, event_store, answer_store, legacy_offset, event_offset, answer_offset
+):
+    """Everything new since the last poll, in emission order, plus the advanced offsets.
+
+    Same subscription, same access check for the answer draft: a client
+    watching the trace is already watching it.
+    """
+    steps = tuple(current_trace.steps)
+    items = [serialize_execution_event(_trace_event(step)) for step in steps[legacy_offset:]]
+    legacy_offset = len(steps)
+
+    events = event_store.events_since(execution_id, event_offset)
+    items.extend(serialize_execution_event(event) for event in events)
+    event_offset += len(events)
+
+    fragments = answer_store.since(execution_id, answer_offset)
+    items.extend(serialize_answer_fragment(fragment) for fragment in fragments)
+    answer_offset += len(fragments)
+
+    return legacy_offset, event_offset, answer_offset, items
+
+
+def _terminal_event(current_trace):
+    return serialize_execution_event(
+        ExecutionEvent(
+            stage="complete" if current_trace.status == "completed" else "failed",
+            status=current_trace.status,
+            duration_ms=max(0, int(current_trace.total_duration_ms or 0)),
+            occurred_at=current_trace.end_time or current_trace.start_time,
+        )
+    )
+
+
+async def _stream_execution_events(execution_id: ExecutionId, request: Request, event_store, answer_store):
+    legacy_offset = 0
+    event_offset = 0
+    answer_offset = 0
+    while True:
+        current_trace = AgentExecutionTracker.get_instance().get_execution_trace(execution_id)
+        if current_trace is None:
+            return
+        legacy_offset, event_offset, answer_offset, items = _poll_execution_updates(
+            current_trace, execution_id, event_store, answer_store, legacy_offset, event_offset, answer_offset
+        )
+        for item in items:
+            yield item
+        if current_trace.status in {"completed", "failed"}:
+            yield _terminal_event(current_trace)
+            return
+        if await request.is_disconnected():
+            return
+        await asyncio.sleep(0.05)
+
+
 @router.get("/executions/{execution_id}/events")
 async def stream_execution_events(
     execution_id: ExecutionId,
@@ -93,44 +148,8 @@ async def stream_execution_events(
         raise not_found("Execution")
     _ensure_trace_access(trace, actor)
 
-    async def event_stream():
-        legacy_offset = 0
-        event_offset = 0
-        answer_offset = 0
-        while True:
-            current_trace = AgentExecutionTracker.get_instance().get_execution_trace(execution_id)
-            if current_trace is None:
-                return
-            steps = tuple(current_trace.steps)
-            for step in steps[legacy_offset:]:
-                yield serialize_execution_event(_trace_event(step))
-            legacy_offset = len(steps)
-            events = event_store.events_since(execution_id, event_offset)
-            for event in events:
-                yield serialize_execution_event(event)
-            event_offset += len(events)
-            # Same subscription, same access check: a client watching the trace is
-            # already watching the draft.
-            fragments = answer_store.since(execution_id, answer_offset)
-            for fragment in fragments:
-                yield serialize_answer_fragment(fragment)
-            answer_offset += len(fragments)
-            if current_trace.status in {"completed", "failed"}:
-                yield serialize_execution_event(
-                    ExecutionEvent(
-                        stage="complete" if current_trace.status == "completed" else "failed",
-                        status=current_trace.status,
-                        duration_ms=max(0, int(current_trace.total_duration_ms or 0)),
-                        occurred_at=current_trace.end_time or current_trace.start_time,
-                    )
-                )
-                return
-            if await request.is_disconnected():
-                return
-            await asyncio.sleep(0.05)
-
     return StreamingResponse(
-        event_stream(),
+        _stream_execution_events(execution_id, request, event_store, answer_store),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )

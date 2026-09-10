@@ -250,6 +250,13 @@ def redact_texts_for_provider(texts: list[str], *, provider: str, for_embeddings
     return [_redact_text_with_state(item, state) for item in values]
 
 
+def _redact_dict_fields(item: dict, state: _RedactionState) -> dict:
+    rebuilt = dict(item)
+    for field_name, field_value in list(rebuilt.items()):
+        rebuilt[field_name] = _redact_message_item(field_value, state, parent_key=str(field_name))
+    return rebuilt
+
+
 def _redact_message_item(item: Any, state: _RedactionState, *, parent_key: str = ""):
     if isinstance(item, str):
         if _should_passthrough_string(parent_key, item):
@@ -263,16 +270,11 @@ def _redact_message_item(item: Any, state: _RedactionState, *, parent_key: str =
         return tuple(rebuilt)
     if isinstance(item, list):
         return [_redact_message_item(value, state, parent_key=parent_key) for value in item]
-    if isinstance(item, dict) and "content" in item:
-        rebuilt = dict(item)
-        for field_name, field_value in list(rebuilt.items()):
-            rebuilt[field_name] = _redact_message_item(field_value, state, parent_key=str(field_name))
-        return rebuilt
     if isinstance(item, dict):
-        rebuilt = dict(item)
-        for field_name, field_value in list(rebuilt.items()):
-            rebuilt[field_name] = _redact_message_item(field_value, state, parent_key=str(field_name))
-        return rebuilt
+        # A message dict and a plain nested dict take the identical path --
+        # both walk every field and redact it under its own key -- so there is
+        # only one branch to fall into here, not two.
+        return _redact_dict_fields(item, state)
     return item
 
 
