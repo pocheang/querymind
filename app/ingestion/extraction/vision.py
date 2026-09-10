@@ -99,6 +99,29 @@ def _describe_image_ollama(img_bytes: bytes, settings) -> dict:
     return {"status": "ok", "caption": text, "model": model, "error": ""}
 
 
+def _vision_backend_order(backend: str, settings) -> list[str]:
+    if backend == "auto":
+        preferred = str(getattr(settings, "model_backend", "local") or "local").lower()
+        if preferred in {"openai", "anthropic", "deepseek", "custom"}:
+            return ["openai", "ollama"]
+        return ["ollama", "openai"]
+    if backend in {"openai", "ollama"}:
+        return [backend]
+    return ["ollama", "openai"]
+
+
+def _vision_failure_result(tried: list[dict]) -> dict:
+    detail = "; ".join(
+        f"{x.get('status', 'unknown')}:{(x.get('error', '') or '')[:120]}" for x in tried if x.get("status")
+    )
+    # "we refused to send this" and "the endpoint did not answer" are different
+    # facts about an image, and `vision_failed` for both would make a privacy
+    # refusal read as an outage. Only claim the former when it is the whole story.
+    if tried and all(x.get("status") == "image_masking_blocked" for x in tried):
+        return {"status": "image_masking_blocked", "caption": "", "model": "", "error": detail}
+    return {"status": "vision_failed", "caption": "", "model": "", "error": detail}
+
+
 def describe_image_with_vision(img_bytes: bytes, settings) -> dict:
     """Describe image using vision API with fallback."""
     if not getattr(settings, "image_caption_enabled", False):
@@ -115,33 +138,13 @@ def describe_image_with_vision(img_bytes: bytes, settings) -> dict:
             return _describe_image_openai(safe_bytes, settings)
         return _describe_image_ollama(safe_bytes, settings)
 
-    backends = []
-    if backend == "auto":
-        preferred = str(getattr(settings, "model_backend", "local") or "local").lower()
-        if preferred in {"openai", "anthropic", "deepseek", "custom"}:
-            backends = ["openai", "ollama"]
-        else:
-            backends = ["ollama", "openai"]
-    elif backend in {"openai", "ollama"}:
-        backends = [backend]
-    else:
-        backends = ["ollama", "openai"]
-
-    for name in backends:
+    for name in _vision_backend_order(backend, settings):
         res = _maybe_try(name)
         if res.get("status") == "ok":
             return res
         tried.append(res)
 
-    detail = "; ".join(
-        f"{x.get('status', 'unknown')}:{(x.get('error', '') or '')[:120]}" for x in tried if x.get("status")
-    )
-    # "we refused to send this" and "the endpoint did not answer" are different
-    # facts about an image, and `vision_failed` for both would make a privacy
-    # refusal read as an outage. Only claim the former when it is the whole story.
-    if tried and all(x.get("status") == "image_masking_blocked" for x in tried):
-        return {"status": "image_masking_blocked", "caption": "", "model": "", "error": detail}
-    return {"status": "vision_failed", "caption": "", "model": "", "error": detail}
+    return _vision_failure_result(tried)
 
 
 def build_vision_summary(vision_info: dict) -> str:

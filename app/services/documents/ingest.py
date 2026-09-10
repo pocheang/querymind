@@ -240,7 +240,6 @@ def _index_tables(
         return 0
 
     try:
-        from app.services.multimodal.models import TableContent
         from app.services.multimodal.table_extractor import TableExtractor
     except ImportError as e:
         # As above: without the extra a document still ingests, with no tables
@@ -249,38 +248,43 @@ def _index_tables(
         return 0
 
     extractor = TableExtractor()
-    indexed = 0
-    for table in parsed.tables:
-        headers, rows = _table_from_markdown(str(table.markdown or ""))
-        if not headers and not rows:
-            continue
-        sheet = str(getattr(table, "sheet", "") or "")
-        try:
-            extractor.index_table(
-                TableContent(
-                    table_id=table.table_id,
-                    doc_id=str(canonical.get("document_id", "") or ""),
-                    page_number=table.page,
-                    headers=headers,
-                    rows=rows,
-                    summary=f"Table on page {table.page}" + (f" (sheet: {sheet})" if sheet else ""),
-                    metadata={
-                        "document_id": str(canonical.get("document_id", "") or ""),
-                        "tenant_id": str(canonical.get("tenant_id", "") or ""),
-                        "owner_user_id": str(canonical.get("owner_user_id", "") or ""),
-                        "visibility": str(canonical.get("visibility", "private") or "private"),
-                        "version": int(canonical.get("version", 1) or 1),
-                        "source": str(canonical.get("source", "") or ""),
-                        "num_rows": len(rows),
-                        "num_cols": len(headers),
-                        "extraction_method": "loader_markdown",
-                    },
-                )
+    return sum(1 for table in parsed.tables if _index_one_table(extractor, table, canonical))
+
+
+def _index_one_table(extractor: Any, table: Any, canonical: dict[str, Any]) -> bool:
+    """Index one table; False for an empty table or one the extractor rejects."""
+    from app.services.multimodal.models import TableContent
+
+    headers, rows = _table_from_markdown(str(table.markdown or ""))
+    if not headers and not rows:
+        return False
+    sheet = str(getattr(table, "sheet", "") or "")
+    try:
+        extractor.index_table(
+            TableContent(
+                table_id=table.table_id,
+                doc_id=str(canonical.get("document_id", "") or ""),
+                page_number=table.page,
+                headers=headers,
+                rows=rows,
+                summary=f"Table on page {table.page}" + (f" (sheet: {sheet})" if sheet else ""),
+                metadata={
+                    "document_id": str(canonical.get("document_id", "") or ""),
+                    "tenant_id": str(canonical.get("tenant_id", "") or ""),
+                    "owner_user_id": str(canonical.get("owner_user_id", "") or ""),
+                    "visibility": str(canonical.get("visibility", "private") or "private"),
+                    "version": int(canonical.get("version", 1) or 1),
+                    "source": str(canonical.get("source", "") or ""),
+                    "num_rows": len(rows),
+                    "num_cols": len(headers),
+                    "extraction_method": "loader_markdown",
+                },
             )
-            indexed += 1
-        except Exception as e:
-            logger.warning(f"table_index_failed table_id={table.table_id} error={e}")
-    return indexed
+        )
+        return True
+    except Exception as e:
+        logger.warning(f"table_index_failed table_id={table.table_id} error={e}")
+        return False
 
 
 def _table_from_markdown(markdown: str) -> tuple[list[str], list[list[str]]]:

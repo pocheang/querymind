@@ -159,6 +159,60 @@ def _append_unique_entity(
         entities.append(normalized)
 
 
+def _pdf_structure_score(text: str) -> float:
+    score = 0.0
+    if PATTERN_HEADERS.search(text):
+        score += 0.15
+    if PATTERN_TABLES.search(text):
+        score += 0.10
+    if PATTERN_LISTS.search(text):
+        score += 0.10
+    if PATTERN_REFERENCES.search(text):
+        score += 0.05
+    return min(QUALITY_WEIGHT_STRUCTURE, score)
+
+
+def _pdf_content_score(text: str) -> float:
+    score = 0.0
+    words = text.split()
+    word_count = len(words)
+    char_count = len(text)
+
+    if char_count > 0:
+        density = word_count / (char_count / 100)
+        if DENSITY_OPTIMAL_MIN <= density <= DENSITY_OPTIMAL_MAX:
+            score += 0.15
+        elif DENSITY_ACCEPTABLE_MIN <= density <= DENSITY_ACCEPTABLE_MAX:
+            score += 0.08
+
+    if word_count >= WORD_COUNT_HIGH:
+        score += 0.15
+    elif word_count >= WORD_COUNT_MEDIUM:
+        score += 0.08
+
+    tech_terms = len(PATTERN_TECH_TERMS.findall(text))
+    if tech_terms >= TECH_TERM_COUNT_HIGH:
+        score += 0.10
+    elif tech_terms >= TECH_TERM_COUNT_MEDIUM:
+        score += 0.05
+    return min(QUALITY_WEIGHT_CONTENT, score)
+
+
+def _pdf_metadata_score(metadata: dict) -> float:
+    score = 0.0
+    page_count = metadata.get("page", 0) if isinstance(metadata.get("page"), int) else 1
+    total_pages = metadata.get("total_pages", page_count)
+    if total_pages >= PAGE_COUNT_HIGH:
+        score += 0.10
+    elif total_pages >= PAGE_COUNT_MEDIUM:
+        score += 0.05
+    if metadata.get("format") == "markdown":
+        score += 0.05
+    if metadata.get("enhanced") or metadata.get("converter") == "docling":
+        score += 0.05
+    return min(QUALITY_WEIGHT_METADATA, score)
+
+
 @cached_pdf_quality
 def analyze_pdf_quality(text: str, metadata: dict) -> float:
     """
@@ -177,59 +231,7 @@ def analyze_pdf_quality(text: str, metadata: dict) -> float:
     Returns:
         Quality score (0-1)
     """
-    score = 0.0
-
-    # Structure score (40%)
-    structure_score = 0.0
-    if PATTERN_HEADERS.search(text):
-        structure_score += 0.15
-    if PATTERN_TABLES.search(text):
-        structure_score += 0.10
-    if PATTERN_LISTS.search(text):
-        structure_score += 0.10
-    if PATTERN_REFERENCES.search(text):
-        structure_score += 0.05
-    score += min(QUALITY_WEIGHT_STRUCTURE, structure_score)
-
-    # Content score (40%)
-    content_score = 0.0
-    words = text.split()
-    word_count = len(words)
-    char_count = len(text)
-
-    if char_count > 0:
-        density = word_count / (char_count / 100)
-        if DENSITY_OPTIMAL_MIN <= density <= DENSITY_OPTIMAL_MAX:
-            content_score += 0.15
-        elif DENSITY_ACCEPTABLE_MIN <= density <= DENSITY_ACCEPTABLE_MAX:
-            content_score += 0.08
-
-    if word_count >= WORD_COUNT_HIGH:
-        content_score += 0.15
-    elif word_count >= WORD_COUNT_MEDIUM:
-        content_score += 0.08
-
-    tech_terms = len(PATTERN_TECH_TERMS.findall(text))
-    if tech_terms >= TECH_TERM_COUNT_HIGH:
-        content_score += 0.10
-    elif tech_terms >= TECH_TERM_COUNT_MEDIUM:
-        content_score += 0.05
-    score += min(QUALITY_WEIGHT_CONTENT, content_score)
-
-    # Metadata score (20%)
-    metadata_score = 0.0
-    page_count = metadata.get("page", 0) if isinstance(metadata.get("page"), int) else 1
-    total_pages = metadata.get("total_pages", page_count)
-    if total_pages >= PAGE_COUNT_HIGH:
-        metadata_score += 0.10
-    elif total_pages >= PAGE_COUNT_MEDIUM:
-        metadata_score += 0.05
-    if metadata.get("format") == "markdown":
-        metadata_score += 0.05
-    if metadata.get("enhanced") or metadata.get("converter") == "docling":
-        metadata_score += 0.05
-    score += min(QUALITY_WEIGHT_METADATA, metadata_score)
-
+    score = _pdf_structure_score(text) + _pdf_content_score(text) + _pdf_metadata_score(metadata)
     return min(1.0, score)
 
 
