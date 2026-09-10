@@ -175,54 +175,102 @@ def env_values(path: Path) -> list[str]:
     return hits
 
 
+def _check_forbidden_path(rel: str, parts: set[str]) -> str | None:
+    bad = FORBIDDEN_PATHS & parts
+    if not bad:
+        return None
+    joined = "/".join(sorted(bad))
+    return f"[path] {rel} -- under {joined}"
+
+
+def _check_forbidden_type(path: Path, rel: str, used: set[str]) -> tuple[str | None, str | None]:
+    """Return (failure, note); a baselined match is a note, not a failure."""
+    if path.suffix.lower() not in FORBIDDEN_SUFFIXES:
+        return None, None
+    if rel in FORBIDDEN_TYPE_BASELINE:
+        used.add(rel)
+        return None, f"[baseline type] {rel}"
+    return f"[type] {rel}", None
+
+
+def _check_env_file(path: Path, rel: str) -> list[str]:
+    if ".env" not in path.name or ".example" in path.name or not path.is_file():
+        return []
+    return [f"[env] {rel}: {hit}" for hit in env_values(path)]
+
+
+def _check_secret_shapes(text: str, rel: str, used: set[str]) -> tuple[list[str], list[str]]:
+    fails: list[str] = []
+    notes: list[str] = []
+    for label, pattern in SECRET_SHAPES:
+        match = pattern.search(text)
+        if not match:
+            continue
+        shown = match.group(0)[:12] + "..."
+        if rel in SECRET_BASELINE:
+            used.add(rel)
+            notes.append(f"[baseline secret] {rel}: {label} ({shown})")
+        else:
+            fails.append(f"[secret] {rel}: {label} ({shown})")
+    return fails, notes
+
+
+def _check_local_path(text: str, rel: str, used: set[str]) -> tuple[str | None, str | None]:
+    if not LOCAL_PATH.search(text):
+        return None, None
+    if rel in LOCAL_PATH_BASELINE:
+        used.add(rel)
+        return None, f"[baseline local-path] {rel}"
+    return f"[local-path] {rel} -- a developer's absolute path", None
+
+
+def _scan_one_file(root: Path, rel: str, used: set[str]) -> tuple[list[str], list[str]]:
+    fails: list[str] = []
+    notes: list[str] = []
+    path = root / rel
+    parts = set(Path(rel).parts)
+
+    path_fail = _check_forbidden_path(rel, parts)
+    if path_fail:
+        fails.append(path_fail)
+
+    type_fail, type_note = _check_forbidden_type(path, rel, used)
+    if type_fail:
+        fails.append(type_fail)
+    if type_note:
+        notes.append(type_note)
+
+    fails.extend(_check_env_file(path, rel))
+
+    if path.suffix.lower() not in TEXT_SUFFIXES or not path.is_file():
+        return fails, notes
+    try:
+        text = path.read_text("utf-8", errors="strict")
+    except (UnicodeDecodeError, OSError):
+        return fails, notes
+
+    secret_fails, secret_notes = _check_secret_shapes(text, rel, used)
+    fails.extend(secret_fails)
+    notes.extend(secret_notes)
+
+    local_path_fail, local_path_note = _check_local_path(text, rel, used)
+    if local_path_fail:
+        fails.append(local_path_fail)
+    if local_path_note:
+        notes.append(local_path_note)
+
+    return fails, notes
+
+
 def scan(root: Path, rels: list[str], expect: int | None, whole: bool) -> tuple[list[str], list[str]]:
     fails: list[str] = []
     notes: list[str] = []
     used: set[str] = set()
 
     for rel in rels:
-        path = root / rel
-        parts = set(Path(rel).parts)
-
-        bad = FORBIDDEN_PATHS & parts
-        if bad:
-            joined = "/".join(sorted(bad))
-            fails.append(f"[path] {rel} -- under {joined}")
-        if path.suffix.lower() in FORBIDDEN_SUFFIXES:
-            if rel in FORBIDDEN_TYPE_BASELINE:
-                used.add(rel)
-                notes.append(f"[baseline type] {rel}")
-            else:
-                fails.append(f"[type] {rel}")
-
-        if ".env" in path.name and ".example" not in path.name and path.is_file():
-            for hit in env_values(path):
-                fails.append(f"[env] {rel}: {hit}")
-
-        if path.suffix.lower() not in TEXT_SUFFIXES or not path.is_file():
-            continue
-        try:
-            text = path.read_text("utf-8", errors="strict")
-        except (UnicodeDecodeError, OSError):
-            continue
-
-        for label, pattern in SECRET_SHAPES:
-            match = pattern.search(text)
-            if not match:
-                continue
-            shown = match.group(0)[:12] + "..."
-            if rel in SECRET_BASELINE:
-                used.add(rel)
-                notes.append(f"[baseline secret] {rel}: {label} ({shown})")
-            else:
-                fails.append(f"[secret] {rel}: {label} ({shown})")
-
-        if LOCAL_PATH.search(text):
-            if rel in LOCAL_PATH_BASELINE:
-                used.add(rel)
-                notes.append(f"[baseline local-path] {rel}")
-            else:
-                fails.append(f"[local-path] {rel} -- a developer's absolute path")
+        file_fails, file_notes = _scan_one_file(root, rel, used)
+        fails.extend(file_fails)
+        notes.extend(file_notes)
 
     # A ratchet may only shrink. An entry that no longer matches anything means
     # the exemption is wider than the code needs, and an allowlist that is never

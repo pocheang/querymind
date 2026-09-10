@@ -75,8 +75,54 @@ def _select_records(
     return removed, keep
 
 
-def list_indexed_files() -> list[dict[str, Any]]:
-    records = read_corpus_records()
+def _new_corpus_entry(name: str, source: str, meta: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "filename": name,
+        "source": source or meta.get("source", name),
+        "chunks": 0,
+        "pages": set(),
+        "owner_user_id": meta.get("owner_user_id"),
+        "tenant_id": str(meta.get("tenant_id", "") or ""),
+        "document_id": str(meta.get("document_id", "") or ""),
+        "version": _record_version(row),
+        "acl_tags": tuple(tag.strip() for tag in str(meta.get("acl_tags", "") or "").split(",") if tag.strip()),
+        "visibility": str(meta.get("visibility", "private") or "private"),
+        "agent_class": str(meta.get("agent_class", "general") or "general"),
+        "in_uploads": False,
+        "exists_on_disk": False,
+        "indexing_status": "ready",
+        "indexing_stage": "complete",
+        "indexing_error": "",
+        "triplets_written": 0,
+        "parser_profile": str(meta.get("parser_profile", "") or ""),
+    }
+
+
+def _merge_corpus_row_into_entry(entry: dict[str, Any], meta: dict[str, Any], row: dict[str, Any]) -> None:
+    entry["chunks"] += 1
+    if not entry.get("owner_user_id") and meta.get("owner_user_id"):
+        entry["owner_user_id"] = meta.get("owner_user_id")
+    if not entry.get("tenant_id") and meta.get("tenant_id"):
+        entry["tenant_id"] = str(meta.get("tenant_id"))
+    if not entry.get("document_id") and meta.get("document_id"):
+        entry["document_id"] = str(meta.get("document_id"))
+    if entry.get("version") is None and _record_version(row) is not None:
+        entry["version"] = _record_version(row)
+    if str(meta.get("visibility", "")).strip():
+        entry["visibility"] = str(meta.get("visibility"))
+    if str(meta.get("agent_class", "")).strip():
+        entry["agent_class"] = str(meta.get("agent_class"))
+    if str(meta.get("parser_profile", "")).strip():
+        entry["parser_profile"] = str(meta.get("parser_profile"))
+    page = meta.get("page")
+    if page is not None:
+        try:
+            entry["pages"].add(int(page))
+        except (ValueError, TypeError):
+            pass
+
+
+def _seed_entries_from_corpus(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     by_file: dict[str, dict[str, Any]] = {}
     for row in records:
         source = _record_source(row)
@@ -85,104 +131,50 @@ def list_indexed_files() -> list[dict[str, Any]]:
             continue
         meta = row.get("metadata", {}) or {}
         key = source or f"filename::{name}"
-        entry = by_file.setdefault(
-            key,
-            {
-                "filename": name,
-                "source": source or meta.get("source", name),
-                "chunks": 0,
-                "pages": set(),
-                "owner_user_id": meta.get("owner_user_id"),
-                "tenant_id": str(meta.get("tenant_id", "") or ""),
-                "document_id": str(meta.get("document_id", "") or ""),
-                "version": _record_version(row),
-                "acl_tags": tuple(tag.strip() for tag in str(meta.get("acl_tags", "") or "").split(",") if tag.strip()),
-                "visibility": str(meta.get("visibility", "private") or "private"),
-                "agent_class": str(meta.get("agent_class", "general") or "general"),
-                "in_uploads": False,
-                "exists_on_disk": False,
-                "indexing_status": "ready",
-                "indexing_stage": "complete",
-                "indexing_error": "",
-                "triplets_written": 0,
-                "parser_profile": str(meta.get("parser_profile", "") or ""),
-            },
-        )
-        entry["chunks"] += 1
-        if not entry.get("owner_user_id") and meta.get("owner_user_id"):
-            entry["owner_user_id"] = meta.get("owner_user_id")
-        if not entry.get("tenant_id") and meta.get("tenant_id"):
-            entry["tenant_id"] = str(meta.get("tenant_id"))
-        if not entry.get("document_id") and meta.get("document_id"):
-            entry["document_id"] = str(meta.get("document_id"))
-        if entry.get("version") is None and _record_version(row) is not None:
-            entry["version"] = _record_version(row)
-        if str(meta.get("visibility", "")).strip():
-            entry["visibility"] = str(meta.get("visibility"))
-        if str(meta.get("agent_class", "")).strip():
-            entry["agent_class"] = str(meta.get("agent_class"))
-        if str(meta.get("parser_profile", "")).strip():
-            entry["parser_profile"] = str(meta.get("parser_profile"))
-        page = meta.get("page")
-        if page is not None:
-            try:
-                entry["pages"].add(int(page))
-            except (ValueError, TypeError):
-                pass
+        entry = by_file.setdefault(key, _new_corpus_entry(name, source, meta, row))
+        _merge_corpus_row_into_entry(entry, meta, row)
+    return by_file
+
+
+def _new_disk_entry(path: Path, *, in_uploads: bool) -> dict[str, Any]:
+    return {
+        "filename": path.name,
+        "source": str(path),
+        "chunks": 0,
+        "pages": set(),
+        "owner_user_id": None,
+        "visibility": "private",
+        "agent_class": "general",
+        "in_uploads": in_uploads,
+        "exists_on_disk": True,
+        "indexing_status": "pending",
+        "indexing_stage": "uploaded",
+        "indexing_error": "",
+        "triplets_written": 0,
+        "parser_profile": "",
+    }
+
+
+def _merge_disk_files(
+    by_file: dict[str, dict[str, Any]], root: Path, *, in_uploads: bool, force_in_uploads: bool
+) -> None:
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        key = str(path)
+        entry = by_file.setdefault(key, _new_disk_entry(path, in_uploads=in_uploads))
+        if force_in_uploads:
+            entry["in_uploads"] = True
+        entry["exists_on_disk"] = True
+        entry["source"] = str(path)
+
+
+def list_indexed_files() -> list[dict[str, Any]]:
+    by_file = _seed_entries_from_corpus(read_corpus_records())
 
     settings = get_settings()
-    for path in settings.uploads_path.rglob("*"):
-        if not path.is_file():
-            continue
-        key = str(path)
-        entry = by_file.setdefault(
-            key,
-            {
-                "filename": path.name,
-                "source": str(path),
-                "chunks": 0,
-                "pages": set(),
-                "owner_user_id": None,
-                "visibility": "private",
-                "agent_class": "general",
-                "in_uploads": True,
-                "exists_on_disk": True,
-                "indexing_status": "pending",
-                "indexing_stage": "uploaded",
-                "indexing_error": "",
-                "triplets_written": 0,
-                "parser_profile": "",
-            },
-        )
-        entry["in_uploads"] = True
-        entry["exists_on_disk"] = True
-        entry["source"] = str(path)
-
-    for path in settings.docs_path.rglob("*"):
-        if not path.is_file():
-            continue
-        key = str(path)
-        entry = by_file.setdefault(
-            key,
-            {
-                "filename": path.name,
-                "source": str(path),
-                "chunks": 0,
-                "pages": set(),
-                "owner_user_id": None,
-                "visibility": "private",
-                "agent_class": "general",
-                "in_uploads": False,
-                "exists_on_disk": True,
-                "indexing_status": "pending",
-                "indexing_stage": "uploaded",
-                "indexing_error": "",
-                "triplets_written": 0,
-                "parser_profile": "",
-            },
-        )
-        entry["exists_on_disk"] = True
-        entry["source"] = str(path)
+    _merge_disk_files(by_file, settings.uploads_path, in_uploads=True, force_in_uploads=True)
+    _merge_disk_files(by_file, settings.docs_path, in_uploads=False, force_in_uploads=False)
 
     items = []
     for entry in by_file.values():

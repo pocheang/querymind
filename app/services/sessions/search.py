@@ -77,6 +77,45 @@ class SearchResult:
 # ============================================================================
 
 
+def _any_tags_match(metadata: SessionMetadata, query: SearchQuery) -> tuple[list[str], float] | None:
+    """Score the "match any of these tags" filter; `None` means reject."""
+    if not query.tags:
+        return [], 1.0
+    all_tags = set(metadata.tags + metadata.auto_tags)
+    query_tags_set = set(query.tags)
+    matched = all_tags & query_tags_set
+    if not matched:
+        return None
+    match_ratio = len(matched) / len(query_tags_set)
+    return list(matched), 0.5 + 0.5 * match_ratio
+
+
+def _all_tags_match(metadata: SessionMetadata, query: SearchQuery) -> tuple[list[str], float] | None:
+    """Score the "match all of these tags" filter; `None` means reject."""
+    if not query.tags_all:
+        return [], 1.0
+    all_tags = set(metadata.tags + metadata.auto_tags)
+    if not set(query.tags_all).issubset(all_tags):
+        return None
+    return list(query.tags_all), 1.1
+
+
+def _time_range_rejects(metadata: SessionMetadata, query: SearchQuery) -> bool:
+    if query.created_after and metadata.created_at < query.created_after:
+        return True
+    if query.created_before and metadata.created_at > query.created_before:
+        return True
+    if query.updated_after and metadata.updated_at < query.updated_after:
+        return True
+    return bool(query.updated_before and metadata.updated_at > query.updated_before)
+
+
+def _query_count_rejects(metadata: SessionMetadata, query: SearchQuery) -> bool:
+    if query.min_queries is not None and metadata.query_count < query.min_queries:
+        return True
+    return bool(query.max_queries is not None and metadata.query_count > query.max_queries)
+
+
 class SessionSearchService:
     """Service for searching and filtering sessions."""
 
@@ -134,7 +173,7 @@ class SessionSearchService:
             Score is 0 if no match, >0 if matches
         """
         score = 1.0
-        matched_tags = []
+        matched_tags: list[str] = []
 
         # Text search (in description)
         if query.q:
@@ -143,30 +182,19 @@ class SessionSearchService:
             # Boost score for text match
             score *= 1.2
 
-        # Tag filters - any tags
-        if query.tags:
-            all_tags = set(metadata.tags + metadata.auto_tags)
-            query_tags_set = set(query.tags)
-            matched = all_tags & query_tags_set
+        any_match = _any_tags_match(metadata, query)
+        if any_match is None:
+            return 0.0, None
+        matched, any_boost = any_match
+        matched_tags.extend(matched)
+        score *= any_boost
 
-            if not matched:
-                return 0.0, None
-
-            matched_tags.extend(matched)
-            # Score based on match ratio
-            match_ratio = len(matched) / len(query_tags_set)
-            score *= 0.5 + 0.5 * match_ratio
-
-        # Tag filters - all tags (must match all)
-        if query.tags_all:
-            all_tags = set(metadata.tags + metadata.auto_tags)
-            query_tags_all_set = set(query.tags_all)
-
-            if not query_tags_all_set.issubset(all_tags):
-                return 0.0, None
-
-            matched_tags.extend(query.tags_all)
-            score *= 1.1
+        all_match = _all_tags_match(metadata, query)
+        if all_match is None:
+            return 0.0, None
+        matched, all_boost = all_match
+        matched_tags.extend(matched)
+        score *= all_boost
 
         # Category filter
         if query.category:
@@ -174,27 +202,11 @@ class SessionSearchService:
                 return 0.0, None
             score *= 1.05
 
-        # Time range filters
-        if query.created_after and metadata.created_at < query.created_after:
+        if _time_range_rejects(metadata, query):
             return 0.0, None
 
-        if query.created_before and metadata.created_at > query.created_before:
+        if _query_count_rejects(metadata, query):
             return 0.0, None
-
-        if query.updated_after and metadata.updated_at < query.updated_after:
-            return 0.0, None
-
-        if query.updated_before and metadata.updated_at > query.updated_before:
-            return 0.0, None
-
-        # Query count filters
-        if query.min_queries is not None:
-            if metadata.query_count < query.min_queries:
-                return 0.0, None
-
-        if query.max_queries is not None:
-            if metadata.query_count > query.max_queries:
-                return 0.0, None
 
         return score, matched_tags if matched_tags else None
 

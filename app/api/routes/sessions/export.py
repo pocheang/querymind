@@ -167,6 +167,86 @@ async def export_session(
         raise HTTPException(status_code=500, detail="Export failed")
 
 
+def _extract_import_json_bytes(file: UploadFile, file_data: bytes, max_bytes: int) -> bytes:
+    """Pull the session JSON out of an uploaded .json or .zip file."""
+    filename = str(file.filename or "").lower()
+    if filename.endswith(".zip"):
+        try:
+            with zipfile.ZipFile(BytesIO(file_data), "r") as zf:
+                candidates = [info for info in zf.infolist() if info.filename.lower().endswith(".json")]
+                if len(candidates) != 1 or candidates[0].file_size > max_bytes:
+                    raise HTTPException(status_code=400, detail="ZIP must contain one bounded JSON session")
+                return zf.read(candidates[0])
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=400, detail="Invalid ZIP session export")
+    if filename.endswith(".json"):
+        return file_data
+    raise HTTPException(status_code=400, detail="Unsupported file format. Expected .json or .zip")
+
+
+def _parse_import_payload(json_data: bytes) -> dict:
+    try:
+        imported = json.loads(json_data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid session JSON: {exc}")
+    if not isinstance(imported, dict) or imported.get("export_version") != "1.0":
+        raise HTTPException(status_code=400, detail="Unsupported or missing export version")
+    return imported
+
+
+def _validate_import_messages(raw_messages: list) -> list[dict]:
+    messages: list[dict] = []
+    for message in raw_messages:
+        if not isinstance(message, dict):
+            raise HTTPException(status_code=400, detail="Invalid message in session export")
+        role = str(message.get("role", "") or "").strip()
+        content = str(message.get("content", "") or "")
+        if role not in {"user", "assistant", "system"}:
+            raise HTTPException(status_code=400, detail="Invalid message role in session export")
+        message_metadata = message.get("metadata") or {}
+        if not isinstance(message_metadata, dict):
+            raise HTTPException(status_code=400, detail="Invalid message metadata in session export")
+        messages.append({"role": role, "content": content, "metadata": dict(message_metadata)})
+    return messages
+
+
+def _validate_import_metadata(raw_metadata: dict) -> tuple[list[str], str | None, str | None]:
+    raw_tags = raw_metadata.get("tags") or []
+    raw_description = raw_metadata.get("description")
+    raw_category = raw_metadata.get("category")
+    if not isinstance(raw_tags, list) or not all(isinstance(tag, str) for tag in raw_tags):
+        raise HTTPException(status_code=400, detail="Invalid metadata tags in session export")
+    if raw_description is not None and not isinstance(raw_description, str):
+        raise HTTPException(status_code=400, detail="Invalid metadata description in session export")
+    if raw_category not in {None, "work", "personal", "research", "learning", "development", "analysis", "other"}:
+        raise HTTPException(status_code=400, detail="Invalid metadata category in session export")
+    try:
+        metadata_tags = normalize_tags(raw_tags)
+        metadata_description = normalize_description(raw_description)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return metadata_tags, metadata_description, raw_category
+
+
+def _resolve_import_conflict(
+    history_store, metadata_service, session_id: str, conflict_strategy: ConflictStrategy
+) -> tuple[str, bool, str | None]:
+    existing = history_store.get_session(session_id)
+    conflict_occurred = existing is not None
+    conflict_resolution = None
+    if conflict_occurred:
+        if conflict_strategy == "skip":
+            raise HTTPException(status_code=409, detail="Session already exists")
+        if conflict_strategy == "rename":
+            session_id = uuid.uuid4().hex
+            conflict_resolution = "renamed"
+        else:
+            history_store.delete_session(session_id)
+            metadata_service.delete_metadata(session_id)
+            conflict_resolution = "overwritten"
+    return session_id, conflict_occurred, conflict_resolution
+
+
 @router.post("/import", response_model=ImportResponse, responses=error_responses(400, 409, 413, 500))
 async def import_session(
     file: UploadFile = File(..., description="Exported session file (JSON or ZIP)"),
@@ -187,81 +267,22 @@ async def import_session(
         if len(file_data) > max_bytes:
             raise HTTPException(status_code=413, detail="Session import file is too large")
 
-        # Determine format from filename
-        filename = str(file.filename or "").lower()
-        if filename.endswith(".zip"):
-            try:
-                with zipfile.ZipFile(BytesIO(file_data), "r") as zf:
-                    candidates = [info for info in zf.infolist() if info.filename.lower().endswith(".json")]
-                    if len(candidates) != 1 or candidates[0].file_size > max_bytes:
-                        raise HTTPException(status_code=400, detail="ZIP must contain one bounded JSON session")
-                    json_data = zf.read(candidates[0])
-            except zipfile.BadZipFile:
-                raise HTTPException(status_code=400, detail="Invalid ZIP session export")
-        elif filename.endswith(".json"):
-            json_data = file_data
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail="Unsupported file format. Expected .json or .zip",
-            )
-
-        try:
-            imported = json.loads(json_data.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise HTTPException(status_code=400, detail=f"Invalid session JSON: {exc}")
-        if not isinstance(imported, dict) or imported.get("export_version") != "1.0":
-            raise HTTPException(status_code=400, detail="Unsupported or missing export version")
+        json_data = _extract_import_json_bytes(file, file_data, max_bytes)
+        imported = _parse_import_payload(json_data)
 
         original_session_id = _require_valid_session_id(str(imported.get("session_id", "")))
         raw_messages = imported.get("messages", [])
         raw_metadata = imported.get("metadata")
         if not isinstance(raw_messages, list) or not isinstance(raw_metadata, dict):
             raise HTTPException(status_code=400, detail="Invalid session export structure")
-        messages: list[dict] = []
-        for message in raw_messages:
-            if not isinstance(message, dict):
-                raise HTTPException(status_code=400, detail="Invalid message in session export")
-            role = str(message.get("role", "") or "").strip()
-            content = str(message.get("content", "") or "")
-            if role not in {"user", "assistant", "system"}:
-                raise HTTPException(status_code=400, detail="Invalid message role in session export")
-            message_metadata = message.get("metadata") or {}
-            if not isinstance(message_metadata, dict):
-                raise HTTPException(status_code=400, detail="Invalid message metadata in session export")
-            messages.append({"role": role, "content": content, "metadata": dict(message_metadata)})
-
-        raw_tags = raw_metadata.get("tags") or []
-        raw_description = raw_metadata.get("description")
-        raw_category = raw_metadata.get("category")
-        if not isinstance(raw_tags, list) or not all(isinstance(tag, str) for tag in raw_tags):
-            raise HTTPException(status_code=400, detail="Invalid metadata tags in session export")
-        if raw_description is not None and not isinstance(raw_description, str):
-            raise HTTPException(status_code=400, detail="Invalid metadata description in session export")
-        if raw_category not in {None, "work", "personal", "research", "learning", "development", "analysis", "other"}:
-            raise HTTPException(status_code=400, detail="Invalid metadata category in session export")
-        try:
-            metadata_tags = normalize_tags(raw_tags)
-            metadata_description = normalize_description(raw_description)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+        messages = _validate_import_messages(raw_messages)
+        metadata_tags, metadata_description, raw_category = _validate_import_metadata(raw_metadata)
 
         history_store = _history_store_for_user(user)
         metadata_service = get_metadata_service(str(user.get("user_id", "") or ""))
-        existing = history_store.get_session(original_session_id)
-        session_id = original_session_id
-        conflict_occurred = existing is not None
-        conflict_resolution = None
-        if conflict_occurred:
-            if conflict_strategy == "skip":
-                raise HTTPException(status_code=409, detail="Session already exists")
-            if conflict_strategy == "rename":
-                session_id = uuid.uuid4().hex
-                conflict_resolution = "renamed"
-            else:
-                history_store.delete_session(session_id)
-                metadata_service.delete_metadata(session_id)
-                conflict_resolution = "overwritten"
+        session_id, conflict_occurred, conflict_resolution = _resolve_import_conflict(
+            history_store, metadata_service, original_session_id, conflict_strategy
+        )
 
         history_store.create_session(session_id=session_id)
         for message in messages:

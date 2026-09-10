@@ -18,13 +18,15 @@ from app.domain.text import normalize_string
 
 logger = logging.getLogger(__name__)
 
+_LARGE_LANGUAGE_MODEL = "large language model"
+
 # Entity aliases (from graph_tools.py)
 _ENTITY_ALIASES = {
     "ai": "artificial intelligence",
     "a.i.": "artificial intelligence",
-    "llm": "large language model",
-    "llms": "large language model",
-    "大模型": "large language model",
+    "llm": _LARGE_LANGUAGE_MODEL,
+    "llms": _LARGE_LANGUAGE_MODEL,
+    "大模型": _LARGE_LANGUAGE_MODEL,
     "网络安全": "cybersecurity",
     "资安": "cybersecurity",
 }
@@ -40,7 +42,7 @@ CAPITALIZED_PATTERN = re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b")
 CHINESE_TERM_PATTERN = re.compile(r"[\u4e00-\u9fff]{2,}")
 
 # 4. Technical terms with numbers/hyphens: GPT-4, Python3, etc.
-TECHNICAL_TERM_PATTERN = re.compile(r"\b[A-Z][a-zA-Z0-9]*[-]?[0-9]*[a-zA-Z0-9]*\b")
+TECHNICAL_TERM_PATTERN = re.compile(r"\b[A-Z][a-zA-Z0-9]*-?\d*[a-zA-Z0-9]*\b")
 
 # 5. Multi-word technical phrases (noun phrases)
 TECHNICAL_PHRASE_PATTERN = re.compile(
@@ -100,6 +102,35 @@ STOPWORDS = {
 }
 
 
+def _collect_pattern_entities(
+    query: str,
+    pattern: re.Pattern[str],
+    seen: set[str],
+    *,
+    confidence: float,
+    entity_type: str,
+    text_transform=lambda text: text,
+    accept=lambda text: True,
+) -> list[dict[str, Any]]:
+    """Run one NER pattern, applying its own filter and confidence/type labels.
+
+    ``seen`` is shared and mutated across every pattern in
+    `extract_entities_rule_based`, so a pattern tried earlier wins a
+    normalized-text collision over one tried later.
+    """
+    found = []
+    for match in pattern.finditer(query):
+        text = text_transform(match.group())
+        if not accept(text):
+            continue
+        normalized = text.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        found.append({"text": text, "confidence": confidence, "source": "rule", "type": entity_type})
+    return found
+
+
 def extract_entities_rule_based(query: str) -> list[dict[str, Any]]:
     """
     Stage 1: Extract entities using rule-based NER patterns.
@@ -113,56 +144,71 @@ def extract_entities_rule_based(query: str) -> list[dict[str, Any]]:
     if not query or not query.strip():
         return []
 
-    entities = []
-    seen = set()
+    seen: set[str] = set()
+    entities: list[dict[str, Any]] = []
 
-    # Extract acronyms (highest confidence)
-    for match in ACRONYM_PATTERN.finditer(query):
-        text = match.group().replace(".", "")
-        if len(text) >= 2 and text.lower() not in STOPWORDS:
-            normalized = text.lower()
-            if normalized not in seen:
-                seen.add(normalized)
-                entities.append({"text": text, "confidence": 0.9, "source": "rule", "type": "acronym"})
+    # Acronyms (highest confidence)
+    entities.extend(
+        _collect_pattern_entities(
+            query,
+            ACRONYM_PATTERN,
+            seen,
+            confidence=0.9,
+            entity_type="acronym",
+            text_transform=lambda text: text.replace(".", ""),
+            accept=lambda text: len(text) >= 2 and text.lower() not in STOPWORDS,
+        )
+    )
 
-    # Extract technical terms with numbers/hyphens
-    for match in TECHNICAL_TERM_PATTERN.finditer(query):
-        text = match.group()
-        if len(text) >= 3 and text.lower() not in STOPWORDS and ("-" in text or any(c.isdigit() for c in text)):
-            normalized = text.lower()
-            if normalized not in seen:
-                seen.add(normalized)
-                entities.append({"text": text, "confidence": 0.85, "source": "rule", "type": "technical"})
+    # Technical terms with numbers/hyphens
+    entities.extend(
+        _collect_pattern_entities(
+            query,
+            TECHNICAL_TERM_PATTERN,
+            seen,
+            confidence=0.85,
+            entity_type="technical",
+            accept=lambda text: (
+                len(text) >= 3 and text.lower() not in STOPWORDS and ("-" in text or any(c.isdigit() for c in text))
+            ),
+        )
+    )
 
-    # Extract capitalized entities (proper nouns)
-    for match in CAPITALIZED_PATTERN.finditer(query):
-        text = match.group()
-        words = text.split()
-        # Skip single common words
-        if len(words) == 1 and text.lower() in STOPWORDS:
-            continue
-        normalized = text.lower()
-        if normalized not in seen:
-            seen.add(normalized)
-            entities.append({"text": text, "confidence": 0.75, "source": "rule", "type": "proper_noun"})
+    # Capitalized entities (proper nouns) -- skip a single common word
+    entities.extend(
+        _collect_pattern_entities(
+            query,
+            CAPITALIZED_PATTERN,
+            seen,
+            confidence=0.75,
+            entity_type="proper_noun",
+            accept=lambda text: not (len(text.split()) == 1 and text.lower() in STOPWORDS),
+        )
+    )
 
-    # Extract Chinese terms
-    for match in CHINESE_TERM_PATTERN.finditer(query):
-        text = match.group()
-        if len(text) >= 2:
-            normalized = text.lower()
-            if normalized not in seen:
-                seen.add(normalized)
-                entities.append({"text": text, "confidence": 0.8, "source": "rule", "type": "chinese"})
+    # Chinese terms
+    entities.extend(
+        _collect_pattern_entities(
+            query,
+            CHINESE_TERM_PATTERN,
+            seen,
+            confidence=0.8,
+            entity_type="chinese",
+            accept=lambda text: len(text) >= 2,
+        )
+    )
 
-    # Extract technical phrases
-    for match in TECHNICAL_PHRASE_PATTERN.finditer(query):
-        text = match.group()
-        if len(text) >= 4 and text.lower() not in STOPWORDS:
-            normalized = text.lower()
-            if normalized not in seen:
-                seen.add(normalized)
-                entities.append({"text": text, "confidence": 0.7, "source": "rule", "type": "technical_phrase"})
+    # Technical phrases
+    entities.extend(
+        _collect_pattern_entities(
+            query,
+            TECHNICAL_PHRASE_PATTERN,
+            seen,
+            confidence=0.7,
+            entity_type="technical_phrase",
+            accept=lambda text: len(text) >= 4 and text.lower() not in STOPWORDS,
+        )
+    )
 
     # Sort by confidence
     entities.sort(key=lambda x: x["confidence"], reverse=True)

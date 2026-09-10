@@ -160,6 +160,97 @@ def _calculate_semantic_similarity(query_tokens: list[str], entity_name: str) ->
     return min(1.0, similarity)
 
 
+def _normalize_entity_relations(relations: list[dict], context_quality: float) -> list[dict]:
+    normalized_rels = []
+    for rel in relations:
+        relation = str(rel.get("relation", "")).strip()
+        other = _normalize_entity_name(str(rel.get("other", "")).strip())
+        weight = _relation_weight(relation, context_quality)
+        if not other or weight <= 0:
+            continue
+        normalized_rels.append({"relation": relation, "other": other, "weight": weight})
+    return normalized_rels
+
+
+def _score_and_normalize_entities(raw_entities: list[dict], tokens: list[str], context_quality: float) -> list[dict]:
+    scored_entities = []
+    for row in raw_entities:
+        raw_entity_name = str(row.get("entity", "")).strip()
+        entity_name = _normalize_entity_name(raw_entity_name)
+        if not entity_name:
+            continue
+        relevance = _calculate_semantic_similarity(tokens, entity_name)
+        normalized_rels = _normalize_entity_relations(row.get("relations", []) or [], context_quality)
+        scored_entities.append(
+            {
+                "entity": entity_name,
+                "relations": normalized_rels,
+                "relevance": relevance,
+                "raw_name": raw_entity_name,
+            }
+        )
+    return scored_entities
+
+
+def _dedupe_neighbor_rows(
+    rows: list[dict], context_quality: float, seen_neighbor: set[tuple[str, str, str]]
+) -> list[dict]:
+    """Normalize one entity's neighbor rows, skipping any key already in ``seen_neighbor``."""
+    result = []
+    for row in rows:
+        entity = _normalize_entity_name(str(row.get("entity", "")).strip())
+        relation = str(row.get("relation", "")).strip()
+        other = _normalize_entity_name(str(row.get("other", "")).strip())
+        weight = _relation_weight(relation, context_quality)
+
+        if not entity or not other or weight <= 0:
+            continue
+
+        key = (entity, relation.lower(), other)
+        if key in seen_neighbor:
+            continue
+
+        seen_neighbor.add(key)
+        result.append({"entity": entity, "relation": relation, "other": other, "weight": weight})
+    return result
+
+
+def _dedupe_path_rows(
+    paths: list[dict], context_quality: float, seen_path: set[tuple[str, str, str, str, str]]
+) -> list[dict]:
+    """Normalize one entity's 2-hop paths, skipping any key already in ``seen_path``."""
+    result = []
+    for path in paths:
+        source = _normalize_entity_name(str(path.get("source", "")).strip())
+        middle = _normalize_entity_name(str(path.get("middle", "")).strip())
+        target = _normalize_entity_name(str(path.get("target", "")).strip())
+        rel1 = str(path.get("rel1", "")).strip()
+        rel2 = str(path.get("rel2", "")).strip()
+
+        w1 = _relation_weight(rel1, context_quality)
+        w2 = _relation_weight(rel2, context_quality)
+
+        if not source or not middle or not target or w1 <= 0 or w2 <= 0:
+            continue
+
+        pkey = (source, rel1.lower(), middle, rel2.lower(), target)
+        if pkey in seen_path:
+            continue
+
+        seen_path.add(pkey)
+        result.append(
+            {
+                "source": source,
+                "rel1": rel1,
+                "middle": middle,
+                "rel2": rel2,
+                "target": target,
+                "weight": (w1 + w2) / 2.0,
+            }
+        )
+    return result
+
+
 def graph_lookup_enhanced(
     question: str,
     allowed_sources: list[str] | None = None,
@@ -214,45 +305,8 @@ def graph_lookup_enhanced(
             )
 
             # Normalize and score entities
-            scored_entities = []
+            scored_entities = _score_and_normalize_entities(entities, tokens, context_quality)
             lookup_entity_names = []
-
-            for row in entities:
-                raw_entity_name = str(row.get("entity", "")).strip()
-                entity_name = _normalize_entity_name(raw_entity_name)
-
-                if not entity_name:
-                    continue
-
-                # Calculate relevance score
-                relevance = _calculate_semantic_similarity(tokens, entity_name)
-
-                # Process relations with context-aware weighting
-                normalized_rels = []
-                for rel in row.get("relations", []) or []:
-                    relation = str(rel.get("relation", "")).strip()
-                    other = _normalize_entity_name(str(rel.get("other", "")).strip())
-                    weight = _relation_weight(relation, context_quality)
-
-                    if not other or weight <= 0:
-                        continue
-
-                    normalized_rels.append(
-                        {
-                            "relation": relation,
-                            "other": other,
-                            "weight": weight,
-                        }
-                    )
-
-                scored_entities.append(
-                    {
-                        "entity": entity_name,
-                        "relations": normalized_rels,
-                        "relevance": relevance,
-                        "raw_name": raw_entity_name,
-                    }
-                )
 
             # Sort by relevance and limit
             scored_entities.sort(key=lambda x: x["relevance"], reverse=True)
@@ -275,28 +329,7 @@ def graph_lookup_enhanced(
                     ),
                 )
 
-                for row in rows:
-                    entity = _normalize_entity_name(str(row.get("entity", "")).strip())
-                    relation = str(row.get("relation", "")).strip()
-                    other = _normalize_entity_name(str(row.get("other", "")).strip())
-                    weight = _relation_weight(relation, context_quality)
-
-                    if not entity or not other or weight <= 0:
-                        continue
-
-                    key = (entity, relation.lower(), other)
-                    if key in seen_neighbor:
-                        continue
-
-                    seen_neighbor.add(key)
-                    neighbor_rows.append(
-                        {
-                            "entity": entity,
-                            "relation": relation,
-                            "other": other,
-                            "weight": weight,
-                        }
-                    )
+                neighbor_rows.extend(_dedupe_neighbor_rows(rows, context_quality, seen_neighbor))
 
             # Sort neighbors by weight and limit
             neighbor_rows.sort(key=lambda x: x["weight"], reverse=True)
@@ -315,34 +348,7 @@ def graph_lookup_enhanced(
                     ),
                 )
 
-                for path in paths:
-                    source = _normalize_entity_name(str(path.get("source", "")).strip())
-                    middle = _normalize_entity_name(str(path.get("middle", "")).strip())
-                    target = _normalize_entity_name(str(path.get("target", "")).strip())
-                    rel1 = str(path.get("rel1", "")).strip()
-                    rel2 = str(path.get("rel2", "")).strip()
-
-                    w1 = _relation_weight(rel1, context_quality)
-                    w2 = _relation_weight(rel2, context_quality)
-
-                    if not source or not middle or not target or w1 <= 0 or w2 <= 0:
-                        continue
-
-                    pkey = (source, rel1.lower(), middle, rel2.lower(), target)
-                    if pkey in seen_path:
-                        continue
-
-                    seen_path.add(pkey)
-                    path_rows.append(
-                        {
-                            "source": source,
-                            "rel1": rel1,
-                            "middle": middle,
-                            "rel2": rel2,
-                            "target": target,
-                            "weight": (w1 + w2) / 2.0,
-                        }
-                    )
+                path_rows.extend(_dedupe_path_rows(paths, context_quality, seen_path))
 
             # Sort paths by weight and limit
             path_rows.sort(key=lambda x: x["weight"], reverse=True)
