@@ -45,35 +45,15 @@ def load_pdf_enhanced(
         result = converter.convert(str(path))
 
         # Step 2: Extract page contents
-        pages_content = []
-        for _page_idx, page in enumerate(result.document.pages, start=1):
-            page_markdown = page.export_to_markdown()
-            if page_markdown and page_markdown.strip():
-                pages_content.append(page_markdown)
-
+        pages_content = _extract_pages_content(result.document)
         if not pages_content:
             logger.warning(f"No content extracted from {path.name}")
             return []
 
-        # Step 3: Clean pages (optional)
-        if enable_cleaning:
-            pages_content = clean_pdf_pages(pages_content)
-            logger.debug(f"Applied cleaning to {path.name}")
-
-        # Step 4: Merge cross-page tables (optional)
-        if enable_table_merging:
-            pages_content = merge_cross_page_tables(pages_content)
-            logger.debug(f"Applied table merging to {path.name}")
-
-        # Step 5: Simplify complex tables (optional)
-        processed_pages = []
-        for page_content in pages_content:
-            if enable_nested_table_handling:
-                page_content = simplify_complex_table(page_content)
-            processed_pages.append(page_content)
-
-        if enable_nested_table_handling:
-            logger.debug(f"Applied nested table handling to {path.name}")
+        # Steps 3-5: clean, merge cross-page tables, simplify nested tables (all optional)
+        processed_pages = _apply_pdf_processing(
+            pages_content, path, enable_cleaning, enable_table_merging, enable_nested_table_handling
+        )
 
         # Step 6: Create Document objects
         metadata_base = {
@@ -84,34 +64,7 @@ def load_pdf_enhanced(
             "table_merging_enabled": enable_table_merging,
             "nested_table_handling_enabled": enable_nested_table_handling,
         }
-
-        if not by_page:
-            # Single document
-            full_content = "\n\n---\n\n".join(processed_pages)
-            return [
-                Document(
-                    page_content=full_content,
-                    metadata={
-                        **metadata_base,
-                        "total_pages": len(processed_pages),
-                    },
-                )
-            ]
-
-        # One document per page
-        docs = []
-        for page_idx, page_content in enumerate(processed_pages, start=1):
-            docs.append(
-                Document(
-                    page_content=page_content,
-                    metadata={
-                        **metadata_base,
-                        "page": page_idx,
-                    },
-                )
-            )
-
-        return docs
+        return _build_pdf_documents(processed_pages, metadata_base, by_page)
 
     except ImportError as e:
         logger.warning(f"Docling not available: {e}")
@@ -119,3 +72,56 @@ def load_pdf_enhanced(
     except Exception as e:
         logger.exception(f"Enhanced PDF processing failed for {path.name}: {e}")
         return []
+
+
+def _extract_pages_content(document) -> list[str]:
+    """Read each Docling page's markdown, dropping pages with no content."""
+    pages_content = []
+    for page in document.pages:
+        page_markdown = page.export_to_markdown()
+        if page_markdown and page_markdown.strip():
+            pages_content.append(page_markdown)
+    return pages_content
+
+
+def _apply_pdf_processing(
+    pages_content: list[str],
+    path: Path,
+    enable_cleaning: bool,
+    enable_table_merging: bool,
+    enable_nested_table_handling: bool,
+) -> list[str]:
+    if enable_cleaning:
+        pages_content = clean_pdf_pages(pages_content)
+        logger.debug(f"Applied cleaning to {path.name}")
+
+    if enable_table_merging:
+        pages_content = merge_cross_page_tables(pages_content)
+        logger.debug(f"Applied table merging to {path.name}")
+
+    processed_pages = []
+    for page_content in pages_content:
+        if enable_nested_table_handling:
+            page_content = simplify_complex_table(page_content)
+        processed_pages.append(page_content)
+
+    if enable_nested_table_handling:
+        logger.debug(f"Applied nested table handling to {path.name}")
+
+    return processed_pages
+
+
+def _build_pdf_documents(processed_pages: list[str], metadata_base: dict, by_page: bool) -> list[Document]:
+    if not by_page:
+        full_content = "\n\n---\n\n".join(processed_pages)
+        return [
+            Document(
+                page_content=full_content,
+                metadata={**metadata_base, "total_pages": len(processed_pages)},
+            )
+        ]
+
+    return [
+        Document(page_content=page_content, metadata={**metadata_base, "page": page_idx})
+        for page_idx, page_content in enumerate(processed_pages, start=1)
+    ]

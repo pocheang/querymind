@@ -49,6 +49,30 @@ class FinalizationService:
             }
         )
 
+    @staticmethod
+    def _issue_text(issue: Any) -> str:
+        try:
+            if hasattr(issue, "content"):
+                return str(issue.content)
+            if isinstance(issue, str):
+                return issue
+            return str(issue)
+        except Exception:
+            return "[issue conversion failed]"
+
+    @classmethod
+    def _extract_validation_fields(cls, result: Any) -> tuple[bool, list[str], str]:
+        """Return (approved, issues, method). Raises AttributeError/ValueError/TypeError on a malformed result."""
+        is_valid = bool(result.is_valid) if hasattr(result, "is_valid") else False
+        action = str(result.action) if hasattr(result, "action") else ""
+        approved = is_valid and action == "approve"
+
+        raw_issues = result.issues if hasattr(result, "issues") else ()
+        issues = [cls._issue_text(issue) for issue in raw_issues or ()]
+
+        method = str(result.validation_method) if hasattr(result, "validation_method") else "cascade"
+        return approved, issues, method
+
     async def _validation_status(
         self,
         request: OrchestrationRequest,
@@ -72,27 +96,8 @@ class FinalizationService:
                 issues=(f"validation exception: {type(exc).__name__}",),
             )
 
-        # Extract validation result with clear error messages
         try:
-            is_valid = bool(result.is_valid) if hasattr(result, "is_valid") else False
-            action = str(result.action) if hasattr(result, "action") else ""
-            approved = is_valid and action == "approve"
-
-            raw_issues = result.issues if hasattr(result, "issues") else ()
-            # Safely convert issues to strings, handling various types
-            issues = []
-            for issue in raw_issues or ():
-                try:
-                    if hasattr(issue, "content"):
-                        issues.append(str(issue.content))
-                    elif isinstance(issue, str):
-                        issues.append(issue)
-                    else:
-                        issues.append(str(issue))
-                except Exception:
-                    issues.append("[issue conversion failed]")
-
-            method = str(result.validation_method) if hasattr(result, "validation_method") else "cascade"
+            approved, issues, method = self._extract_validation_fields(result)
         except (AttributeError, ValueError, TypeError) as exc:
             return ValidationStatus(
                 state="degraded",

@@ -37,25 +37,16 @@ def hybrid_search_with_diagnostics(
         relaxed_threshold = float(getattr(settings, "vector_similarity_relaxed_threshold", 0.05) or 0.05)
         degraded = False
 
-        cache_key = json.dumps(
-            {
-                "q": query,
-                "allowed": sorted(allowed_sources) if allowed_sources is not None else None,
-                "strict": strict_threshold,
-                "relaxed": relaxed_threshold,
-                "rrf": getattr(settings, "hybrid_rrf_k", 60),
-                "rerank_n": getattr(settings, "reranker_top_n", 5),
-                "dynamic_top_k": dynamic_top_k,
-                "dynamic_vector_weight": dynamic_vector_weight,
-                "dynamic_bm25_weight": dynamic_bm25_weight,
-                # The owner narrows what the store returns, so two callers with
-                # the same source list but different identities are different
-                # queries. Leaving it out would serve one of them the other's
-                # cached results the day the owner clause starts mattering.
-                "owner": [owner.user_id, owner.tenant_id] if owner is not None else None,
-            },
-            ensure_ascii=False,
-            sort_keys=True,
+        cache_key = _hybrid_cache_key(
+            query,
+            allowed_sources,
+            strict_threshold,
+            relaxed_threshold,
+            settings,
+            dynamic_top_k,
+            dynamic_vector_weight,
+            dynamic_bm25_weight,
+            owner=owner,
         )
 
         cached = cache_lookup(cache_key, settings, traced_span)
@@ -74,43 +65,18 @@ def hybrid_search_with_diagnostics(
                 owner=owner,
             )
 
-        raw_vector_cache: dict[str, list] = {}
         if not fused and relaxed_threshold < strict_threshold:
-            with traced_span("retrieval.degraded_retry", {"relaxed_threshold": relaxed_threshold}):
-                flags = strategy_flags()
-                vector_top_k = int(getattr(settings, "vector_top_k", 6) or 6)
-                variants = build_rewrite_queries(
-                    query,
-                    enable_llm=bool(
-                        flags["rewrite"]
-                        and getattr(settings, "query_rewrite_enabled", True)
-                        and getattr(settings, "query_rewrite_with_llm", False)
-                    ),
-                    use_reasoning=False,
-                    enable_decompose=bool(flags["decompose"] and getattr(settings, "query_decompose_enabled", True)),
-                    max_variants=int(getattr(settings, "query_rewrite_max_variants", 6) or 6),
-                )
-                if not variants:
-                    variants = [query]
-
-                for variant in variants:
-                    raw_vector_cache[variant] = _safe_similarity_search(
-                        variant, k=vector_top_k, allowed_sources=allowed_sources, owner=owner
-                    )
-
-                fused, diag = _collect_candidates_for_current_module(
-                    query,
-                    allowed_sources=allowed_sources,
-                    vector_threshold=relaxed_threshold,
-                    settings=settings,
-                    precomputed_raw_vector_results=raw_vector_cache,
-                    dynamic_top_k=dynamic_top_k,
-                    dynamic_vector_weight=dynamic_vector_weight,
-                    dynamic_bm25_weight=dynamic_bm25_weight,
-                    owner=owner,
-                )
-                degraded = True
-                diag["degraded_reason"] = "strict_threshold_no_results"
+            fused, diag = _degraded_threshold_retry(
+                query,
+                allowed_sources,
+                settings,
+                relaxed_threshold,
+                dynamic_top_k,
+                dynamic_vector_weight,
+                dynamic_bm25_weight,
+                owner=owner,
+            )
+            degraded = True
 
         fused.sort(key=lambda x: x.get("hybrid_score", 0.0), reverse=True)
 
@@ -131,6 +97,90 @@ def hybrid_search_with_diagnostics(
         }
         cache_store(cache_key, expanded, diagnostics, settings)
         return expanded, diagnostics
+
+
+def _hybrid_cache_key(
+    query: str,
+    allowed_sources: list[str] | None,
+    strict_threshold: float,
+    relaxed_threshold: float,
+    settings,
+    dynamic_top_k: int | None,
+    dynamic_vector_weight: float | None,
+    dynamic_bm25_weight: float | None,
+    *,
+    owner: OwnerScope | None,
+) -> str:
+    return json.dumps(
+        {
+            "q": query,
+            "allowed": sorted(allowed_sources) if allowed_sources is not None else None,
+            "strict": strict_threshold,
+            "relaxed": relaxed_threshold,
+            "rrf": getattr(settings, "hybrid_rrf_k", 60),
+            "rerank_n": getattr(settings, "reranker_top_n", 5),
+            "dynamic_top_k": dynamic_top_k,
+            "dynamic_vector_weight": dynamic_vector_weight,
+            "dynamic_bm25_weight": dynamic_bm25_weight,
+            # The owner narrows what the store returns, so two callers with
+            # the same source list but different identities are different
+            # queries. Leaving it out would serve one of them the other's
+            # cached results the day the owner clause starts mattering.
+            "owner": [owner.user_id, owner.tenant_id] if owner is not None else None,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def _degraded_threshold_retry(
+    query: str,
+    allowed_sources: list[str] | None,
+    settings,
+    relaxed_threshold: float,
+    dynamic_top_k: int | None,
+    dynamic_vector_weight: float | None,
+    dynamic_bm25_weight: float | None,
+    *,
+    owner: OwnerScope | None,
+) -> tuple[list[dict], dict]:
+    """Retry candidate collection at a relaxed vector threshold, rewriting the query first."""
+    with traced_span("retrieval.degraded_retry", {"relaxed_threshold": relaxed_threshold}):
+        flags = strategy_flags()
+        vector_top_k = int(getattr(settings, "vector_top_k", 6) or 6)
+        variants = build_rewrite_queries(
+            query,
+            enable_llm=bool(
+                flags["rewrite"]
+                and getattr(settings, "query_rewrite_enabled", True)
+                and getattr(settings, "query_rewrite_with_llm", False)
+            ),
+            use_reasoning=False,
+            enable_decompose=bool(flags["decompose"] and getattr(settings, "query_decompose_enabled", True)),
+            max_variants=int(getattr(settings, "query_rewrite_max_variants", 6) or 6),
+        )
+        if not variants:
+            variants = [query]
+
+        raw_vector_cache: dict[str, list] = {}
+        for variant in variants:
+            raw_vector_cache[variant] = _safe_similarity_search(
+                variant, k=vector_top_k, allowed_sources=allowed_sources, owner=owner
+            )
+
+        fused, diag = _collect_candidates_for_current_module(
+            query,
+            allowed_sources=allowed_sources,
+            vector_threshold=relaxed_threshold,
+            settings=settings,
+            precomputed_raw_vector_results=raw_vector_cache,
+            dynamic_top_k=dynamic_top_k,
+            dynamic_vector_weight=dynamic_vector_weight,
+            dynamic_bm25_weight=dynamic_bm25_weight,
+            owner=owner,
+        )
+        diag["degraded_reason"] = "strict_threshold_no_results"
+        return fused, diag
 
 
 def _safe_similarity_search(
