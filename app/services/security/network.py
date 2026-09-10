@@ -109,36 +109,34 @@ def validate_public_http_url(url: str) -> str:
     return normalized
 
 
-def validate_api_base_url_for_provider(base_url: str, *, provider: str) -> str:
-    settings = get_settings()
-    normalized = str(base_url or "").strip().rstrip("/")
-    parsed = urlparse(normalized)
-    scheme = str(parsed.scheme or "").lower()
-    if scheme not in {"http", "https"}:
-        raise OutboundURLValidationError("base_url must use http or https")
-    host = normalize_string(parsed.hostname, lowercase=True)
-    if not host:
-        raise OutboundURLValidationError("base_url host is required")
-
-    provider_lc = normalize_string(provider, lowercase=True)
-    path = str(parsed.path or "").rstrip("/")
+def _apply_provider_path_convention(provider_lc: str, path: str, normalized: str) -> str:
+    """Anthropic's client appends `/v1` itself; the OpenAI-shaped providers expect
+    it already present in `base_url`."""
     if provider_lc == "anthropic" and path == "/v1":
-        normalized = normalized[: -len("/v1")]
-    elif provider_lc in {"openai", "deepseek", "custom"} and path in {"", "/"}:
-        normalized = f"{normalized}/v1"
+        return normalized[: -len("/v1")]
+    if provider_lc in {"openai", "deepseek", "custom"} and path in {"", "/"}:
+        return f"{normalized}/v1"
+    return normalized
 
+
+def _already_permitted(provider_lc: str, normalized: str, host: str, settings) -> bool:
+    """True when `base_url` may bypass the private/loopback boundary checks below:
+    an operator-configured allowlist, the same origin as the deployment's own
+    Ollama endpoint, or the blanket `api_base_url_allow_private` escape hatch."""
     allowlist = _csv_hosts(str(getattr(settings, "api_base_url_allowlist", "") or ""))
     if _host_allowlisted(host, allowlist):
-        return normalized
-
-    allow_private = bool(getattr(settings, "api_base_url_allow_private", False))
+        return True
     if provider_lc == "ollama":
         configured_origin = _url_origin(str(getattr(settings, "ollama_base_url", "") or ""))
         if configured_origin is not None and _url_origin(normalized) == configured_origin:
-            return normalized
-    if allow_private:
-        return normalized
+            return True
+    return bool(getattr(settings, "api_base_url_allow_private", False))
 
+
+def _enforce_network_boundary(host: str, parsed, scheme: str, settings) -> None:
+    """Raise unless `host` is outside the private/loopback/link-local ranges,
+    checking the literal address first and then, if DNS checking is on, every
+    address the host resolves to."""
     if host in {"localhost", "localhost.localdomain"}:
         raise OutboundURLValidationError("base_url host is blocked by network boundary policy")
 
@@ -154,4 +152,24 @@ def validate_api_base_url_for_provider(base_url: str, *, provider: str) -> str:
             "base_url DNS resolution includes a blocked private/loopback/link-local address"
         )
 
+
+def validate_api_base_url_for_provider(base_url: str, *, provider: str) -> str:
+    settings = get_settings()
+    normalized = str(base_url or "").strip().rstrip("/")
+    parsed = urlparse(normalized)
+    scheme = str(parsed.scheme or "").lower()
+    if scheme not in {"http", "https"}:
+        raise OutboundURLValidationError("base_url must use http or https")
+    host = normalize_string(parsed.hostname, lowercase=True)
+    if not host:
+        raise OutboundURLValidationError("base_url host is required")
+
+    provider_lc = normalize_string(provider, lowercase=True)
+    path = str(parsed.path or "").rstrip("/")
+    normalized = _apply_provider_path_convention(provider_lc, path, normalized)
+
+    if _already_permitted(provider_lc, normalized, host, settings):
+        return normalized
+
+    _enforce_network_boundary(host, parsed, scheme, settings)
     return normalized

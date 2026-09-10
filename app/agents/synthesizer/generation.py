@@ -107,6 +107,11 @@ CASUAL_CHAT_HIGH_TEMPERATURE = 0.9
 SIMILARITY_STOP_THRESHOLD = 0.92
 
 
+# python:S6353 wants `\w` for `[A-Za-z0-9_]`; `\w` matches CJK too, so it would
+# fold the second alternative in and start matching a whole run of Chinese
+# characters as one token instead of one token per character -- the exact
+# defect CLAUDE.md records for the NLI deterministic fallback, reached here
+# through token-overlap similarity instead. Left narrow on purpose.
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")
 
 

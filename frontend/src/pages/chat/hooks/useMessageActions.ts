@@ -92,6 +92,113 @@ interface UseMessageActionsReturn {
   }) => Promise<void>;
 }
 
+type RunRefs = {
+  activeRunRef: React.MutableRefObject<number | null>;
+  streamAbortRef: React.MutableRefObject<AbortController | null>;
+  runLifecycleRef: React.MutableRefObject<RunLifecycle>;
+};
+
+/** Reject an empty or already-in-flight question and claim a run slot, or
+ *  hand back null for "there is nothing to start". Split out purely to keep
+ *  this pair of checks out of `ask`'s own complexity count -- the ref
+ *  mutations that follow (creating the abort controller, marking it as the
+ *  active stream) stay inline in `ask` itself, on purpose: react-hooks'
+ *  exhaustive-deps warns on a ref read inside the unmount cleanup below
+ *  unless it can see, in this same component, where that ref is written --
+ *  moving the write into an outer function hid it from that check. */
+function claimRunSlot(
+  q: string,
+  isSending: boolean,
+  runLifecycleRef: React.MutableRefObject<RunLifecycle>,
+  activeRunRef: React.MutableRefObject<number | null>,
+): number | null {
+  if (!q || isSending) return null;
+  const run = runLifecycleRef.current.begin();
+  if (run === null) return null;
+  activeRunRef.current = run;
+  return run;
+}
+
+/** The rest of `ask`'s old setup: bail if the run was already superseded,
+ *  otherwise mark the UI as sending and resolve (or create) the session --
+ *  giving the run slot back via `finishRun` if that resolution loses the
+ *  race. Returns the session id to proceed with, or null to abandon. */
+async function resolveSessionOrAbandon(
+  run: number,
+  sessionId: string | undefined,
+  runAbort: AbortController,
+  isRunActive: () => boolean,
+  refs: RunRefs,
+  ensureSessionForAsk: (signal?: AbortSignal) => Promise<string | null>,
+  setIsSending: (sending: boolean) => void,
+  setQuestion: (question: string) => void,
+  setRunStatus: (status: string) => void,
+  onExecutionId: ((executionId: string | null) => void) | undefined,
+): Promise<string | null> {
+  if (!isRunActive()) return null;
+  onExecutionId?.(null);
+  setIsSending(true);
+  setQuestion("");
+  setRunStatus("Processing");
+  const sid = sessionId || (await ensureSessionForAsk(runAbort.signal));
+  if (!sid || !isRunActive()) {
+    finishRun(isRunActive(), run, runAbort, refs, setIsSending, setRunStatus);
+    return null;
+  }
+  return sid;
+}
+
+/** The request itself: call the API, apply a streamed answer, or resolve one
+ *  of the ways it can fail. Split out of `ask` for the same reason
+ *  `beginRun` was -- each branch here was paying a nesting cost for sitting
+ *  inside `ask`'s own try/catch as well as its own. */
+async function runQueryAndStream(
+  q: string,
+  sid: string,
+  approvalToken: string | undefined,
+  runAbort: AbortController,
+  isRunActive: () => boolean,
+  streamStoppedRef: React.MutableRefObject<boolean>,
+  messageUpdater: ReturnType<typeof createStreamMessageUpdater>,
+  setMessages: React.Dispatch<React.SetStateAction<SessionMessage[]>>,
+  onExecutionId: ((executionId: string | null) => void) | undefined,
+  onPendingApproval: ((pending: PendingApproval | null, question: string) => void) | undefined,
+  onCreditsChanged: (() => Promise<void>) | undefined,
+  actions: ChatActions,
+): Promise<void> {
+  try {
+    const result = await appApi.advanced({
+      query: q,
+      sessionId: sid,
+      enableDecomposition: true,
+      enableSelfRag: true,
+      ...(approvalToken ? { approvalToken } : {}),
+      signal: runAbort.signal,
+    });
+    if (!isRunActive()) return;
+    if (result.executionId) onExecutionId?.(result.executionId);
+    // A resumed run either performed the action or reported why it could not;
+    // either way the previous pending approval is spent.
+    onPendingApproval?.(result.status === "pending_approval" ? result.pendingApproval : null, q);
+    setMessages((prev) => applyStreamResult(prev, result));
+    // The backend now persists both turns; reconcile the optimistic local
+    // messages with what actually landed in the session history.
+    await actions.refreshSessions(true, true);
+    await onCreditsChanged?.();
+  } catch (e) {
+    if (!isRunActive()) return;
+    if (isAbortError(e, streamStoppedRef.current)) {
+      messageUpdater.replaceWithStoppedMessage("");
+      actions.notify("Generation stopped", "info");
+      return;
+    }
+    await actions.handleApiError(e, "Request failed. Please check backend/model status.");
+    if (!isRunActive()) return;
+    const message = e instanceof Error && e.message ? e.message : "Request failed";
+    messageUpdater.replaceWithErrorMessage(message);
+  }
+}
+
 export function useMessageActions({
   currentSessionId,
   actions,
@@ -158,74 +265,48 @@ export function useMessageActions({
     approvalToken?: string;
   }) => {
     const q = question.trim();
-    if (!q || isSending) return;
-    const run = runLifecycleRef.current.begin();
+    const run = claimRunSlot(q, isSending, runLifecycleRef, activeRunRef);
     if (run === null) return;
-    activeRunRef.current = run;
     const isRunActive = () => runLifecycleRef.current.isActive(run);
     const runAbort = new AbortController();
     streamAbortRef.current = runAbort;
     streamStoppedRef.current = false;
-    if (!isRunActive()) return;
-    onExecutionId?.(null);
-    setIsSending(true);
-    setQuestion("");
-    setRunStatus("Processing");
-    const sid = sessionId || await ensureSessionForAsk(runAbort.signal);
-    if (!sid || !isRunActive()) {
-      finishRun(
-        isRunActive(),
-        run,
-        runAbort,
-        { activeRunRef, streamAbortRef, runLifecycleRef },
-        setIsSending,
-        setRunStatus,
-      );
-      return;
-    }
+
+    const refs = { activeRunRef, streamAbortRef, runLifecycleRef };
+    const sid = await resolveSessionOrAbandon(
+      run,
+      sessionId,
+      runAbort,
+      isRunActive,
+      refs,
+      ensureSessionForAsk,
+      setIsSending,
+      setQuestion,
+      setRunStatus,
+      onExecutionId,
+    );
+    if (!sid) return;
 
     setMessages((prev) => [...prev, ...createInitialStreamMessages(q)]);
     const messageUpdater = createStreamMessageUpdater({ setMessages });
 
     try {
-      const result = await appApi.advanced({
-        query: q,
-        sessionId: sid,
-        enableDecomposition: true,
-        enableSelfRag: true,
-        ...(approvalToken ? { approvalToken } : {}),
-        signal: runAbort.signal,
-      });
-      if (!isRunActive()) return;
-      if (result.executionId) onExecutionId?.(result.executionId);
-      // A resumed run either performed the action or reported why it could not;
-      // either way the previous pending approval is spent.
-      onPendingApproval?.(result.status === "pending_approval" ? result.pendingApproval : null, q);
-      setMessages((prev) => applyStreamResult(prev, result));
-      // The backend now persists both turns; reconcile the optimistic local
-      // messages with what actually landed in the session history.
-      await actions.refreshSessions(true, true);
-      await onCreditsChanged?.();
-    } catch (e) {
-      if (!isRunActive()) return;
-      if (isAbortError(e, streamStoppedRef.current)) {
-        messageUpdater.replaceWithStoppedMessage("");
-        actions.notify("Generation stopped", "info");
-        return;
-      }
-      await actions.handleApiError(e, "Request failed. Please check backend/model status.");
-      if (!isRunActive()) return;
-      const message = e instanceof Error && e.message ? e.message : "Request failed";
-      messageUpdater.replaceWithErrorMessage(message);
-    } finally {
-      finishRun(
-        isRunActive(),
-        run,
+      await runQueryAndStream(
+        q,
+        sid,
+        approvalToken,
         runAbort,
-        { activeRunRef, streamAbortRef, runLifecycleRef },
-        setIsSending,
-        setRunStatus,
+        isRunActive,
+        streamStoppedRef,
+        messageUpdater,
+        setMessages,
+        onExecutionId,
+        onPendingApproval,
+        onCreditsChanged,
+        actions,
       );
+    } finally {
+      finishRun(isRunActive(), run, runAbort, { activeRunRef, streamAbortRef, runLifecycleRef }, setIsSending, setRunStatus);
     }
   };
 

@@ -183,8 +183,12 @@ if (staleExemptions.length) {
 // is load-bearing -- Tailwind escapes the dot in a fractional utility, so
 // `gap-1.5` is delivered as `.gap-1\.5`, and an earlier version of this line
 // that compared against raw text called the whole spacing scale dead.
+// The escaped dot is its own constant (rather than a `String.raw` nested
+// inside the outer one) because javascript:S4624 flags a nested template
+// literal on sight, with no way to know both are already raw.
+const ESCAPED_DOT = String.raw`\.`;
 const dead = [...tokens].filter(
-  ([token]) => !new RegExp(String.raw`\.${token.replaceAll(".", String.raw`\.`)}(?![\w-])`).test(css)
+  ([token]) => !new RegExp(String.raw`\.${token.replaceAll(".", ESCAPED_DOT)}(?![\w-])`).test(css)
 );
 
 console.log(`class names reaching a className : ${tokens.size}`);

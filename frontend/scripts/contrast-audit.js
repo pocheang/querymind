@@ -134,27 +134,41 @@
     };
   };
 
+  /** One element's fate, decided without touching `res` -- moving the guard
+   *  chain out of the loop body is what keeps `audit` itself flat, since
+   *  cognitive complexity charges a nesting bonus per level and this chain
+   *  no longer sits inside the `for`. Returns null for "does not count at
+   *  all" (a skipped tag, or no text), `{reason}` for a bumped skip,
+   *  `{gradient, on, text}` for a gradient backdrop, or `{measured, failure}`
+   *  once the element has actually been checked. */
+  const classifyElement = (el, base) => {
+    if (SKIP.has(el.tagName)) return null;
+    const text = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join("").trim();
+    if (!text) return null;
+    const cs = getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden") return { reason: "hidden" };
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return { reason: "zero-size" };
+    const op = elementOpacity(el);
+    if (op < 0.02) return { reason: "invisible" };
+    const fgRaw = parse(cs.color);
+    if (!fgRaw) return { reason: "unparsed-color" };
+    const bd = backdropColor(el, base);
+    if (bd.gradient) return { gradient: true, on: bd.on, text: text.slice(0, 24) };
+    const fg = over({ ...fgRaw, a: fgRaw.a * op }, bd.color);
+    return { measured: true, failure: contrastFailure(el, text, cs, fg, bd.color) };
+  };
+
   const audit = (base) => {
     const res = { checked: 0, skipped: {}, gradient: [], failures: [] };
     const bump = (k) => (res.skipped[k] = (res.skipped[k] || 0) + 1);
     for (const el of document.querySelectorAll("*")) {
-      if (SKIP.has(el.tagName)) continue;
-      const text = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join("").trim();
-      if (!text) continue;
-      const cs = getComputedStyle(el);
-      if (cs.display === "none" || cs.visibility === "hidden") { bump("hidden"); continue; }
-      const rect = el.getBoundingClientRect();
-      if (rect.width < 1 || rect.height < 1) { bump("zero-size"); continue; }
-      const op = elementOpacity(el);
-      if (op < 0.02) { bump("invisible"); continue; }
-      const fgRaw = parse(cs.color);
-      if (!fgRaw) { bump("unparsed-color"); continue; }
-      const bd = backdropColor(el, base);
-      if (bd.gradient) { res.gradient.push({ text: text.slice(0, 24), on: bd.on }); bump("gradient-backdrop"); continue; }
-      const fg = over({ ...fgRaw, a: fgRaw.a * op }, bd.color);
+      const result = classifyElement(el, base);
+      if (!result) continue;
+      if (result.reason) { bump(result.reason); continue; }
+      if (result.gradient) { res.gradient.push({ text: result.text, on: result.on }); bump("gradient-backdrop"); continue; }
       res.checked++;
-      const failure = contrastFailure(el, text, cs, fg, bd.color);
-      if (failure) res.failures.push(failure);
+      if (result.failure) res.failures.push(result.failure);
     }
     res.failures.sort((a, b) => a.ratio - b.ratio);
     return res;

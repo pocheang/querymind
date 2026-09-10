@@ -29,6 +29,11 @@ a long question and a retrieval that empties the corpus."""
 def query_complexity(query: str) -> int:
     """Score 0-3 on how much retrieval a question is likely to need."""
     text = str(query or "")
+    # python:S6353 wants `\w` for `[A-Za-z0-9_]`; `\w` matches CJK too, and
+    # would merge a whole run of Chinese characters into one token instead of
+    # counting one per character, changing `token_count` -- and therefore
+    # which questions cross the `>= 28` threshold below -- for every Chinese
+    # query. Left narrow on purpose.
     token_count = len(re.findall(r"[A-Za-z0-9_]+|[一-鿿]", text))
     complexity = 0
     if token_count >= 28:

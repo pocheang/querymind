@@ -72,6 +72,10 @@ def _is_casual_chat_by_rules(text: str) -> bool:
     # Short social utterances should prefer fast smalltalk path.
     if _looks_like_information_request(t):
         return False
+    # python:S6353 wants `\w` for `[A-Za-z0-9_]`; `\w` matches CJK too, and
+    # would merge a Chinese run into one token instead of one per character,
+    # shrinking `len(tokens)` for the same text and moving it across the
+    # `<= 12` casual-chat threshold below. Left narrow on purpose.
     tokens = re.findall(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]", t)
     if 0 < len(tokens) <= 12 and any(x in t for x in ("你", "我", "咱们", "我们")):
         return True
