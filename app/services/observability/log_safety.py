@@ -99,11 +99,15 @@ def install_control_character_escaping() -> None:
         if isinstance(record.msg, str):
             record.msg = _escaped(record.msg)
         if record.args:
-            if isinstance(record.args, dict):
-                record.args = {k: _escaped(v) if isinstance(v, str) else v for k, v in record.args.items()}
-            else:
-                record.args = tuple(_escaped(a) if isinstance(a, str) else a for a in record.args)
+            record.args = _escaped_record_args(record.args)
         return record
 
     logging.setLogRecordFactory(factory)
     _INSTALLED = True
+
+
+def _escaped_record_args(args: dict | tuple) -> dict | tuple:
+    """Escape every string value in a LogRecord's `args`, dict or positional."""
+    if isinstance(args, dict):
+        return {k: _escaped(v) if isinstance(v, str) else v for k, v in args.items()}
+    return tuple(_escaped(a) if isinstance(a, str) else a for a in args)

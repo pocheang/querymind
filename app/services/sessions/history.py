@@ -404,41 +404,66 @@ class HistoryStore:
                 return None
             return data if isinstance(data, dict) else None
 
-    def _iter_sessions_data(self) -> list[dict[str, Any]]:
+    def _rows_from_sqlite(self) -> list[dict[str, Any]]:
+        with self._lock, self._connect() as conn:
+            out = conn.execute(
+                "SELECT data_json FROM sessions WHERE namespace=? ORDER BY updated_at DESC",
+                (self._namespace,),
+            ).fetchall()
         rows: list[dict[str, Any]] = []
+        for row in out:
+            try:
+                data = json.loads(str(row[0] or ""))
+            except ValueError as e:
+                logger.debug(f"Skipping invalid session data: {e}")
+                continue
+            if isinstance(data, dict):
+                rows.append(data)
+        return rows
+
+    def _rows_from_json_files(self, directory: Path, *, log_label: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for path in sorted(directory.glob(_SESSION_FILE_GLOB), reverse=True):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as e:
+                logger.debug(f"Skipping invalid {log_label} {path}: {e}")
+                continue
+            if isinstance(data, dict):
+                rows.append(data)
+        return rows
+
+    def _iter_sessions_data(self) -> list[dict[str, Any]]:
         if self._backend == "sqlite":
-            with self._lock, self._connect() as conn:
-                out = conn.execute(
-                    "SELECT data_json FROM sessions WHERE namespace=? ORDER BY updated_at DESC",
-                    (self._namespace,),
-                ).fetchall()
-            for row in out:
-                try:
-                    data = json.loads(str(row[0] or ""))
-                except ValueError as e:
-                    logger.debug(f"Skipping invalid session data: {e}")
-                    continue
-                if isinstance(data, dict):
-                    rows.append(data)
-            return rows
+            return self._rows_from_sqlite()
         with self._lock:
-            for path in sorted(self.base_dir.glob(_SESSION_FILE_GLOB), reverse=True):
-                try:
-                    data = json.loads(path.read_text(encoding="utf-8"))
-                except (json.JSONDecodeError, OSError) as e:
-                    logger.debug(f"Skipping invalid session file {path}: {e}")
-                    continue
-                if isinstance(data, dict):
-                    rows.append(data)
-            for path in sorted(self._cold_dir.glob(_SESSION_FILE_GLOB), reverse=True):
-                try:
-                    data = json.loads(path.read_text(encoding="utf-8"))
-                except (json.JSONDecodeError, OSError) as e:
-                    logger.debug(f"Skipping invalid cold session file {path}: {e}")
-                    continue
-                if isinstance(data, dict):
-                    rows.append(data)
+            rows = self._rows_from_json_files(self.base_dir, log_label="session file")
+            rows.extend(self._rows_from_json_files(self._cold_dir, log_label="cold session file"))
             return rows
+
+    def _parse_updated_at(self, data: dict[str, Any]) -> datetime:
+        """This session's last-touched time, normalized to UTC; now() if missing or unreadable."""
+        updated = str(data.get("updated_at", "") or "")
+        try:
+            dt = datetime.fromisoformat(updated) if updated else datetime.now(UTC)
+        except (ValueError, TypeError) as e:
+            logger.debug(f"Invalid timestamp, using current time: {e}")
+            dt = datetime.now(UTC)
+        return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
+
+    def _tier_one_file_if_stale(self, path: Path, cutoff: datetime) -> None:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as e:
+            logger.debug(f"Skipping invalid session file during archival {path}: {e}")
+            return
+        if self._parse_updated_at(data) >= cutoff:
+            return
+        target = self._cold_dir / path.name
+        try:
+            path.replace(target)
+        except OSError as e:
+            logger.debug(f"Failed to move session to cold storage {path}: {e}")
 
     def _tier_cold_files_if_needed(self) -> None:
         if self._backend != "file":
@@ -453,28 +478,7 @@ class HistoryStore:
             # moves files out of this directory with `path.replace`, and a
             # live `glob` over a directory being modified is undefined.
             for path in list(self.base_dir.glob(_SESSION_FILE_GLOB)):
-                try:
-                    data = json.loads(path.read_text(encoding="utf-8"))
-                except (json.JSONDecodeError, OSError) as e:
-                    logger.debug(f"Skipping invalid session file during archival {path}: {e}")
-                    continue
-                updated = str(data.get("updated_at", "") or "")
-                try:
-                    dt = datetime.fromisoformat(updated) if updated else datetime.now(UTC)
-                except (ValueError, TypeError) as e:
-                    logger.debug(f"Invalid timestamp, using current time: {e}")
-                    dt = datetime.now(UTC)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=UTC)
-                else:
-                    dt = dt.astimezone(UTC)
-                if dt < cutoff:
-                    target = self._cold_dir / path.name
-                    try:
-                        path.replace(target)
-                    except OSError as e:
-                        logger.debug(f"Failed to move session to cold storage {path}: {e}")
-                        continue
+                self._tier_one_file_if_stale(path, cutoff)
 
     def _connect(self) -> sqlite3.Connection:
         settings = get_settings()
