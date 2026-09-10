@@ -183,6 +183,28 @@ def load_parsed_document(path: Path, metadata: dict[str, object] | None = None) 
     return parsed
 
 
+def _pages_and_blocks(documents: list[Document], digest: str) -> tuple[list[ParsedPage], list[TextBlock], str]:
+    pages: list[ParsedPage] = []
+    blocks: list[TextBlock] = []
+    for index, loaded in enumerate(documents, start=1):
+        raw_page = (loaded.metadata or {}).get("page", index)
+        try:
+            page = max(1, int(raw_page))
+        except (TypeError, ValueError):
+            page = index
+        text = str(loaded.page_content or "")
+        pages.append(ParsedPage(page=page, text=text))
+        if text.strip():
+            blocks.append(TextBlock(block_id=f"block-{digest[:16]}-{index}", page=page, text=text))
+    parser = str((documents[0].metadata or {}).get("converter", "legacy")) if documents else "legacy"
+    return pages, blocks, parser
+
+
+def _pdf_fallback_chain(parser: str) -> list[str]:
+    requested = str(get_settings().pdf_loader_mode or "pypdf").lower()
+    return list(dict.fromkeys((f"requested:{requested}", parser)))
+
+
 def load_document_with_evidence(
     path: Path,
     metadata: dict[str, object] | None = None,
@@ -206,23 +228,8 @@ def load_document_with_evidence(
         parsed = load_office_document(path, document)
         return parsed, parsed_to_documents(parsed)
     documents = _load_single_path(path)
-    pages = []
-    blocks = []
-    for index, loaded in enumerate(documents, start=1):
-        raw_page = (loaded.metadata or {}).get("page", index)
-        try:
-            page = max(1, int(raw_page))
-        except (TypeError, ValueError):
-            page = index
-        text = str(loaded.page_content or "")
-        pages.append(ParsedPage(page=page, text=text))
-        if text.strip():
-            blocks.append(TextBlock(block_id=f"block-{digest[:16]}-{index}", page=page, text=text))
-    parser = str((documents[0].metadata or {}).get("converter", "legacy")) if documents else "legacy"
-    fallback_chain = [parser]
-    if path.suffix.lower() == ".pdf":
-        requested = str(get_settings().pdf_loader_mode or "pypdf").lower()
-        fallback_chain = list(dict.fromkeys((f"requested:{requested}", parser)))
+    pages, blocks, parser = _pages_and_blocks(documents, digest)
+    fallback_chain = _pdf_fallback_chain(parser) if path.suffix.lower() == ".pdf" else [parser]
     parsed = ParsedDocument(
         document=document,
         pages=tuple(pages),

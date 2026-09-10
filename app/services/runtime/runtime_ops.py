@@ -472,6 +472,20 @@ class _HistoryStore(Protocol):
     def get_session(self, session_id: str) -> dict[str, Any] | None: ...
 
 
+def _questions_from_session(detail: dict[str, Any], limit: int) -> list[str]:
+    """User questions from one session's messages, in order, capped at ``limit``."""
+    collected: list[str] = []
+    for message in detail.get("messages", []) or []:
+        if str(message.get("role", "")) != "user":
+            continue
+        question = str(message.get("content", "") or "").strip()
+        if question:
+            collected.append(question)
+        if len(collected) >= limit:
+            break
+    return collected
+
+
 def _collect_replay_questions(*, history_store: _HistoryStore, max_questions: int) -> list[str]:
     """Collect bounded historical user questions in their persisted order."""
     # Capped well below the historical 200 for the same reason as run_benchmark: this
@@ -483,14 +497,7 @@ def _collect_replay_questions(*, history_store: _HistoryStore, max_questions: in
         if not session_id:
             continue
         detail = history_store.get_session(session_id) or {}
-        for message in detail.get("messages", []) or []:
-            if str(message.get("role", "")) != "user":
-                continue
-            question = str(message.get("content", "") or "").strip()
-            if question:
-                questions.append(question)
-            if len(questions) >= max_questions:
-                break
+        questions.extend(_questions_from_session(detail, max_questions - len(questions)))
         if len(questions) >= max_questions:
             break
     if not questions:

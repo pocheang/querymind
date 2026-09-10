@@ -107,6 +107,30 @@ def normalize_persisted_temperature(value: Any, *, default: float = 0.7) -> floa
     return min(1.0, max(0.0, temperature))
 
 
+def _resolved_provider_base_url(provider: str, base_url: str) -> str:
+    """Normalize and validate ``base_url`` for the given provider; empty for local."""
+    if provider == "ollama":
+        base_url = base_url.removesuffix("/v1")
+    if provider == "local":
+        return ""
+    if not base_url:
+        raise ValueError("base_url is required")
+    return validate_api_base_url_for_provider(base_url, provider=provider)
+
+
+def _validated_api_key(provider: str, chat_model: str, embedding_model: str, api_key: str) -> str:
+    """Return the (possibly cleared) api_key; raises for missing required fields."""
+    if not chat_model:
+        raise ValueError("chat_model is required")
+    if provider_supports_embeddings(provider) and not embedding_model:
+        raise ValueError("embedding_model is required")
+    if provider in {"openai", "anthropic", "deepseek", "custom"} and not api_key:
+        raise ValueError("api_key is required for this provider")
+    if provider in {"local", "ollama"}:
+        return ""
+    return api_key
+
+
 def _normalize_global_model_settings(raw: dict[str, Any]) -> dict[str, Any]:
     current = default_global_model_settings()
     current.update({k: v for k, v in dict(raw or {}).items() if v is not None})
@@ -114,26 +138,12 @@ def _normalize_global_model_settings(raw: dict[str, Any]) -> dict[str, Any]:
     if provider not in PROVIDERS:
         raise ValueError("unsupported provider")
     base_url = str(current.get("base_url", "") or "").strip().rstrip("/")
-    if provider == "ollama":
-        base_url = base_url.removesuffix("/v1")
-    if provider != "local":
-        if not base_url:
-            raise ValueError("base_url is required")
-        base_url = validate_api_base_url_for_provider(base_url, provider=provider)
-    else:
-        base_url = ""
+    base_url = _resolved_provider_base_url(provider, base_url)
     chat_model = str(current.get("chat_model", "") or current.get("model", "") or "").strip()
     reasoning_model = str(current.get("reasoning_model", "") or chat_model).strip()
     embedding_model = str(current.get("embedding_model", "") or "").strip()
-    if not chat_model:
-        raise ValueError("chat_model is required")
-    if provider_supports_embeddings(provider) and not embedding_model:
-        raise ValueError("embedding_model is required")
     api_key = str(current.get("api_key", "") or "").strip()
-    if provider in {"openai", "anthropic", "deepseek", "custom"} and not api_key:
-        raise ValueError("api_key is required for this provider")
-    if provider in {"local", "ollama"}:
-        api_key = ""
+    api_key = _validated_api_key(provider, chat_model, embedding_model, api_key)
     return {
         "enabled": bool(current.get("enabled", False)),
         "provider": provider,
