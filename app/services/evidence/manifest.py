@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from app.services.evidence.artifact_store import ArtifactStore
 from app.services.evidence.models import ArtifactRecord, EvidenceManifest, ParsedDocument
 
+_MANIFEST_FILE_NAME = "manifest.json"
+
 
 class ManifestStore:
     """Write each document version once and retain all historical manifests."""
@@ -17,7 +19,8 @@ class ManifestStore:
 
     def save(self, manifest: EvidenceManifest) -> ArtifactRecord:
         target = (
-            self.artifacts.version_path(manifest.tenant_id, manifest.document_id, manifest.version) / "manifest.json"
+            self.artifacts.version_path(manifest.tenant_id, manifest.document_id, manifest.version)
+            / _MANIFEST_FILE_NAME
         )
         if target.exists():
             raise FileExistsError(f"manifest already exists for {manifest.document_id} v{manifest.version}")
@@ -26,12 +29,12 @@ class ManifestStore:
             tenant_id=manifest.tenant_id,
             document_id=manifest.document_id,
             version=manifest.version,
-            relative_path="manifest.json",
+            relative_path=_MANIFEST_FILE_NAME,
             kind="manifest",
         )
 
     def load(self, tenant_id: str, document_id: str, version: int) -> EvidenceManifest:
-        target = self.artifacts.version_path(tenant_id, document_id, version) / "manifest.json"
+        target = self.artifacts.version_path(tenant_id, document_id, version) / _MANIFEST_FILE_NAME
         return EvidenceManifest.model_validate(json.loads(target.read_text(encoding="utf-8")))
 
     def list_versions(self, tenant_id: str, document_id: str) -> tuple[int, ...]:
@@ -40,7 +43,7 @@ class ManifestStore:
             return ()
         versions = []
         for child in document_root.iterdir():
-            if child.is_dir() and child.name.startswith("v") and (child / "manifest.json").is_file():
+            if child.is_dir() and child.name.startswith("v") and (child / _MANIFEST_FILE_NAME).is_file():
                 try:
                     versions.append(int(child.name[1:]))
                 except ValueError:

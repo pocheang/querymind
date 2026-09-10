@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent-tracking", tags=["agent-tracking"])
 
+_EXECUTION_NOT_FOUND = "Execution not found"
+
 
 def _verify_trace_ownership(trace: ExecutionTrace, user: dict[str, Any]) -> None:
     """
@@ -72,7 +74,7 @@ async def stream_execution(
     # Verify ownership before streaming
     trace = tracker.get_execution_trace(execution_id)
     if not trace:
-        raise not_found("Execution not found")
+        raise not_found(_EXECUTION_NOT_FOUND)
     _verify_trace_ownership(trace, user)
 
     async def event_generator():
@@ -85,7 +87,7 @@ async def stream_execution(
             trace = tracker.get_execution_trace(execution_id)
 
             if not trace:
-                yield f"event: error\ndata: {json.dumps({'error': 'Execution not found'})}\n\n"
+                yield f"event: error\ndata: {json.dumps({'error': _EXECUTION_NOT_FOUND})}\n\n"
                 break
 
             if iteration == 1:
@@ -136,7 +138,7 @@ async def get_execution_trace(
     trace = tracker.get_execution_trace(execution_id)
 
     if not trace:
-        raise not_found("Execution not found")
+        raise not_found(_EXECUTION_NOT_FOUND)
 
     _verify_trace_ownership(trace, user)
     return trace
@@ -180,7 +182,7 @@ async def get_execution_status(
     trace = tracker.get_execution_trace(execution_id)
 
     if not trace:
-        raise not_found("Execution not found")
+        raise not_found(_EXECUTION_NOT_FOUND)
 
     _verify_trace_ownership(trace, user)
 
@@ -208,7 +210,7 @@ async def delete_execution_trace(
     trace = tracker.get_execution_trace(execution_id)
 
     if not trace:
-        raise not_found("Execution not found")
+        raise not_found(_EXECUTION_NOT_FOUND)
 
     _verify_trace_ownership(trace, user)
 

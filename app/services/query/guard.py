@@ -53,6 +53,8 @@ class QueryOverloadedError(RuntimeError):
     pass
 
 
+_QUERY_QUEUE_FULL = "query queue full"
+
 _REDIS_CLIENT = None
 _REDIS_LOCK = threading.Lock()
 _REDIS_UNAVAILABLE_UNTIL = 0.0
@@ -285,7 +287,7 @@ class QueryLoadGuard:
             if not acquired:
                 with self._state_lock:
                     if self._waiting >= self._max_waiting:
-                        raise QueryOverloadedError("query queue full")
+                        raise QueryOverloadedError(_QUERY_QUEUE_FULL)
                     self._waiting += 1
                     queued = True
                 acquired = self._semaphore.acquire(timeout=self._acquire_timeout_s)
@@ -389,14 +391,14 @@ class QueryLoadGuard:
         """Claim a place in the bounded queue. Raises when there is none; False when Redis is unusable."""
 
         if self._max_waiting <= 0:
-            raise QueryOverloadedError("query queue full")
+            raise QueryOverloadedError(_QUERY_QUEUE_FULL)
         try:
             waiting = int(client.incr(_WAITING_KEY))
             if waiting == 1:
                 client.expire(_WAITING_KEY, max(5, self._window_seconds))
             if waiting > self._max_waiting:
                 client.decr(_WAITING_KEY)
-                raise QueryOverloadedError("query queue full")
+                raise QueryOverloadedError(_QUERY_QUEUE_FULL)
             slot.queued = True
             return True
         except QueryOverloadedError:

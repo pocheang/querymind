@@ -4,6 +4,7 @@ from copy import deepcopy
 from typing import Any
 
 CATALOG_VERSION = "2026-07-01"
+_GPT_5_5 = "gpt-5.5"
 
 _MODEL_CATALOG: dict[str, dict[str, Any]] = {
     "local": {
@@ -35,15 +36,15 @@ _MODEL_CATALOG: dict[str, dict[str, Any]] = {
     "openai": {
         "label": "OpenAI",
         "base_url": "https://api.openai.com/v1",
-        "default_chat_model": "gpt-5.5",
-        "default_reasoning_model": "gpt-5.5",
+        "default_chat_model": _GPT_5_5,
+        "default_reasoning_model": _GPT_5_5,
         "default_embedding_model": "text-embedding-3-small",
         "requires_api_key": True,
         "supports_embeddings": True,
         "api_style": "openai",
         "note": "GPT-5.5 uses reasoning effort; it does not use a separate -thinking model ID.",
         "models": [
-            {"id": "gpt-5.5", "label": "GPT-5.5", "roles": ["chat", "reasoning"], "recommended": True},
+            {"id": _GPT_5_5, "label": "GPT-5.5", "roles": ["chat", "reasoning"], "recommended": True},
             {"id": "gpt-5-mini", "label": "GPT-5 mini", "roles": ["chat", "reasoning"]},
             {"id": "text-embedding-3-large", "label": "Text Embedding 3 Large", "roles": ["embedding"]},
             {"id": "text-embedding-3-small", "label": "Text Embedding 3 Small", "roles": ["embedding"]},

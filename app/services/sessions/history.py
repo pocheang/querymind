@@ -20,6 +20,7 @@ DEFAULT_TITLE = "\u65b0\u4f1a\u8bdd"
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 _LOCK_REGISTRY_GUARD = threading.Lock()
 _LOCK_REGISTRY: dict[str, threading.RLock] = {}
+_SESSION_FILE_GLOB = "*.json"
 
 
 def _shared_lock_for_namespace(namespace: str) -> threading.RLock:
@@ -421,7 +422,7 @@ class HistoryStore:
                     rows.append(data)
             return rows
         with self._lock:
-            for path in sorted(self.base_dir.glob("*.json"), reverse=True):
+            for path in sorted(self.base_dir.glob(_SESSION_FILE_GLOB), reverse=True):
                 try:
                     data = json.loads(path.read_text(encoding="utf-8"))
                 except (json.JSONDecodeError, OSError) as e:
@@ -429,7 +430,7 @@ class HistoryStore:
                     continue
                 if isinstance(data, dict):
                     rows.append(data)
-            for path in sorted(self._cold_dir.glob("*.json"), reverse=True):
+            for path in sorted(self._cold_dir.glob(_SESSION_FILE_GLOB), reverse=True):
                 try:
                     data = json.loads(path.read_text(encoding="utf-8"))
                 except (json.JSONDecodeError, OSError) as e:
@@ -451,7 +452,7 @@ class HistoryStore:
             # `list()` is required (python:S7504 says otherwise): the body
             # moves files out of this directory with `path.replace`, and a
             # live `glob` over a directory being modified is undefined.
-            for path in list(self.base_dir.glob("*.json")):
+            for path in list(self.base_dir.glob(_SESSION_FILE_GLOB)):
                 try:
                     data = json.loads(path.read_text(encoding="utf-8"))
                 except (json.JSONDecodeError, OSError) as e:

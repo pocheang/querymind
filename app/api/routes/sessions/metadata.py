@@ -70,6 +70,9 @@ class ExtractTagsRequest(BaseModel):
     messages: list[dict[str, str]] = Field(..., description="Recent messages for tag extraction")
 
 
+_ISO_DATETIME_DESC = "ISO datetime"
+
+
 class SearchSessionsRequest(BaseModel):
     """Request model for session search."""
 
@@ -77,10 +80,10 @@ class SearchSessionsRequest(BaseModel):
     tags: list[str] | None = Field(default=None, description="Match any of these tags")
     tags_all: list[str] | None = Field(default=None, description="Match all of these tags")
     category: SessionCategory | None = Field(default=None, description="Filter by category")
-    created_after: str | None = Field(default=None, description="ISO datetime")
-    created_before: str | None = Field(default=None, description="ISO datetime")
-    updated_after: str | None = Field(default=None, description="ISO datetime")
-    updated_before: str | None = Field(default=None, description="ISO datetime")
+    created_after: str | None = Field(default=None, description=_ISO_DATETIME_DESC)
+    created_before: str | None = Field(default=None, description=_ISO_DATETIME_DESC)
+    updated_after: str | None = Field(default=None, description=_ISO_DATETIME_DESC)
+    updated_before: str | None = Field(default=None, description=_ISO_DATETIME_DESC)
     min_queries: int | None = Field(default=None, ge=0, description="Minimum query count")
     max_queries: int | None = Field(default=None, ge=0, description="Maximum query count")
     sort_by: str = Field(default="updated_at", description="Sort field")

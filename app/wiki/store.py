@@ -16,6 +16,7 @@ from app.wiki.versioning import unified_content_diff, wiki_content_hash
 
 _SLUG_RE = re.compile(r"[^a-z0-9\u4e00-\u9fff]+")
 _TOKEN_RE = re.compile(r"[a-z0-9_-]{2,}|[\u4e00-\u9fff]", re.IGNORECASE)
+_VERSION_NOT_FOUND = "Wiki version not found"
 
 
 class WikiStore:
@@ -202,7 +203,7 @@ class WikiStore:
         before = self.get_version(tenant_id, article_id, from_version)
         after = self.get_version(tenant_id, article_id, to_version)
         if before is None or after is None:
-            raise KeyError("Wiki version not found")
+            raise KeyError(_VERSION_NOT_FOUND)
         return WikiDiff(
             article_id=article_id,
             from_version=from_version,
@@ -218,7 +219,7 @@ class WikiStore:
     def rollback(self, tenant_id: str, article_id: str, target_version: int) -> WikiArticleVersion:
         target = self.get_version(tenant_id, article_id, target_version)
         if target is None:
-            raise KeyError("Wiki version not found")
+            raise KeyError(_VERSION_NOT_FOUND)
         return self.upsert(
             tenant_id=tenant_id,
             title=target.title,
@@ -267,7 +268,7 @@ class WikiStore:
             (tenant_id, article_id, version),
         ).fetchone()
         if row is None:
-            raise KeyError("Wiki version not found")
+            raise KeyError(_VERSION_NOT_FOUND)
         source_rows = connection.execute(
             """
             SELECT source, document_id, document_version, page, chunk_id, image_id, acl_tags_json

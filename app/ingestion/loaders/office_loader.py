@@ -20,15 +20,19 @@ from app.services.evidence.models import (
     TextBlock,
 )
 
-OFFICE_EXTENSIONS = frozenset({".docx", ".pptx", ".xlsx", ".xls"})
+_DOCX = ".docx"
+_PPTX = ".pptx"
+_XLSX = ".xlsx"
+_XLS = ".xls"
+OFFICE_EXTENSIONS = frozenset({_DOCX, _PPTX, _XLSX, _XLS})
 
 # The two formats read straight out of the OOXML archive -- workbooks are routed
 # to _load_workbook before either reader below is reached. A table rather than
 # "docx, otherwise pptx", so a format added above raises here instead of being
 # silently read as a slide deck.
 _ARCHIVE_PREFIXES = {
-    ".docx": {"pages": "word/", "media": "word/media/"},
-    ".pptx": {"pages": "ppt/slides/", "media": "ppt/media/"},
+    _DOCX: {"pages": "word/", "media": "word/media/"},
+    _PPTX: {"pages": "ppt/slides/", "media": "ppt/media/"},
 }
 
 
@@ -36,7 +40,7 @@ def load_office_document(path: Path, document: EvidenceDocument) -> ParsedDocume
     suffix = path.suffix.lower()
     if suffix not in OFFICE_EXTENSIONS:
         raise ValueError(f"unsupported Office format: {suffix}")
-    if suffix in {".xlsx", ".xls"}:
+    if suffix in {_XLSX, _XLS}:
         return _load_workbook(path, document)
 
     markdown = _docling_markdown(path)
@@ -47,10 +51,10 @@ def load_office_document(path: Path, document: EvidenceDocument) -> ParsedDocume
         markdown = "\n\n".join(archive_pages)
         fallback_chain.append("office_xml")
         parser = "office_xml"
-    elif suffix == ".pptx" and archive_pages:
+    elif suffix == _PPTX and archive_pages:
         fallback_chain.append("office_xml_page_map")
     images = _archive_images(path, document)
-    page_texts = archive_pages if suffix == ".pptx" and archive_pages else [markdown]
+    page_texts = archive_pages if suffix == _PPTX and archive_pages else [markdown]
     pages = tuple(ParsedPage(page=index, text=text) for index, text in enumerate(page_texts, start=1))
     blocks = tuple(
         TextBlock(block_id=_id(document, "text", index), page=index, text=text)
@@ -118,7 +122,7 @@ def parsed_to_documents(parsed: ParsedDocument) -> list[Document]:
 
 
 def _load_workbook(path: Path, document: EvidenceDocument) -> ParsedDocument:
-    sheets = _xlsx_rows(path) if path.suffix.lower() == ".xlsx" else _xls_rows(path)
+    sheets = _xlsx_rows(path) if path.suffix.lower() == _XLSX else _xls_rows(path)
     pages: list[ParsedPage] = []
     tables: list[TableBlock] = []
     for page_number, (sheet, rows) in enumerate(sheets, start=1):
@@ -133,7 +137,7 @@ def _load_workbook(path: Path, document: EvidenceDocument) -> ParsedDocument:
                     markdown=markdown,
                 )
             )
-    parser = "openpyxl" if path.suffix.lower() == ".xlsx" else "pandas"
+    parser = "openpyxl" if path.suffix.lower() == _XLSX else "pandas"
     return ParsedDocument(
         document=document,
         pages=tuple(pages),
@@ -196,7 +200,7 @@ def _archive_pages(path: Path, suffix: str) -> list[str]:
 def _archive_images(path: Path, document: EvidenceDocument) -> tuple[ImageBlock, ...]:
     prefix = _ARCHIVE_PREFIXES[path.suffix.lower()]["media"]
     with zipfile.ZipFile(path) as archive:
-        page_by_name = _ppt_image_pages(archive) if path.suffix.lower() == ".pptx" else {}
+        page_by_name = _ppt_image_pages(archive) if path.suffix.lower() == _PPTX else {}
         names = sorted(name for name in archive.namelist() if name.startswith(prefix) and not name.endswith("/"))
         return tuple(
             ImageBlock(

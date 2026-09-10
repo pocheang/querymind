@@ -11,14 +11,18 @@ from typing import Final
 # Entity Normalization and Aliases
 # ============================================================================
 
+_LARGE_LANGUAGE_MODEL = "large language model"
+_VECTOR_RETRIEVAL = "vector retrieval"
+_INFORMATION_SECURITY = "information security"
+
 # Comprehensive entity aliases for better cross-language matching
 ENTITY_ALIASES: Final[dict[str, str]] = {
     # AI/ML terms
     "ai": "artificial intelligence",
     "a.i.": "artificial intelligence",
-    "llm": "large language model",
-    "大模型": "large language model",
-    "大语言模型": "large language model",
+    "llm": _LARGE_LANGUAGE_MODEL,
+    "大模型": _LARGE_LANGUAGE_MODEL,
+    "大语言模型": _LARGE_LANGUAGE_MODEL,
     "ml": "machine learning",
     "机器学习": "machine learning",
     "dl": "deep learning",
@@ -28,15 +32,15 @@ ENTITY_ALIASES: Final[dict[str, str]] = {
     # RAG specific
     "rag": "retrieval augmented generation",
     "检索增强生成": "retrieval augmented generation",
-    "向量检索": "vector retrieval",
-    "vector search": "vector retrieval",
-    "向量搜索": "vector retrieval",
+    "向量检索": _VECTOR_RETRIEVAL,
+    "vector search": _VECTOR_RETRIEVAL,
+    "向量搜索": _VECTOR_RETRIEVAL,
     # Security
     "网络安全": "cybersecurity",
     "资安": "cybersecurity",
-    "信息安全": "information security",
-    "infosec": "information security",
-    "资讯安全": "information security",
+    "信息安全": _INFORMATION_SECURITY,
+    "infosec": _INFORMATION_SECURITY,
+    "资讯安全": _INFORMATION_SECURITY,
     # Database
     "数据库": "database",
     "db": "database",

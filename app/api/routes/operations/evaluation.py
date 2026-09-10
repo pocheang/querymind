@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 _EVALUATION_ROOT = Path("data/evaluation").resolve()
 _RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 _QUERY_FILE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.json")
+_DEFAULT_QUERY_FILE = "demo_queries.json"
 
 
 def _resolve_query_file(query_file: str) -> str:
@@ -62,7 +63,7 @@ router = APIRouter(prefix="/api/evaluation", tags=["evaluation"])
 class RunEvaluationRequest(BaseModel):
     system: SystemName
     queries: list[str] | None = None  # Optional: specific query IDs
-    query_file: str = "demo_queries.json"
+    query_file: str = _DEFAULT_QUERY_FILE
 
 
 class RunEvaluationResponse(BaseModel):
@@ -75,7 +76,7 @@ class RunEvaluationResponse(BaseModel):
 
 class CompareSystemsRequest(BaseModel):
     systems: list[SystemName]
-    query_file: str = "demo_queries.json"
+    query_file: str = _DEFAULT_QUERY_FILE
 
 
 class EvaluationMetricsResponse(BaseModel):
@@ -115,7 +116,7 @@ def get_retriever(system_name: SystemName):
 def list_queries(
     request: Request,
     user: dict[str, Any] = Depends(_require_user),
-    query_file: str = "demo_queries.json",
+    query_file: str = _DEFAULT_QUERY_FILE,
     category: str | None = None,
     difficulty: str | None = None,
 ):

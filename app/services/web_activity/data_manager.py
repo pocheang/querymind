@@ -18,6 +18,8 @@ from pathlib import Path
 
 logger = logging.getLogger("app.agents.web_activity_data_manager")
 
+_LOG_FILE_GLOB = "web_activity_*.jsonl"
+
 
 class WebActivityDataManager:
     """
@@ -70,7 +72,7 @@ class WebActivityDataManager:
         cutoff_date = datetime.now() - timedelta(days=days)
         files_to_backup = []
 
-        for log_file in self.log_dir.glob("web_activity_*.jsonl"):
+        for log_file in self.log_dir.glob(_LOG_FILE_GLOB):
             try:
                 # 从文件名提取日期
                 date_str = log_file.stem.replace("web_activity_", "")
@@ -121,7 +123,7 @@ class WebActivityDataManager:
         archived_files = []
         failed_files = []
 
-        for log_file in self.log_dir.glob("web_activity_*.jsonl"):
+        for log_file in self.log_dir.glob(_LOG_FILE_GLOB):
             try:
                 # 从文件名提取日期
                 date_str = log_file.stem.replace("web_activity_", "")
@@ -179,7 +181,7 @@ class WebActivityDataManager:
         failed_files = []
 
         # 清理未压缩的日志
-        for log_file in self.log_dir.glob("web_activity_*.jsonl"):
+        for log_file in self.log_dir.glob(_LOG_FILE_GLOB):
             try:
                 date_str = log_file.stem.replace("web_activity_", "")
                 file_date = datetime.strptime(date_str, "%Y%m%d")
