@@ -252,6 +252,44 @@ async def _persist_exchange(
         logger.exception("Failed to persist chat exchange for session %s", session_id)
 
 
+async def _sub_query_results(
+    tasks: list[dict[str, Any]],
+    docs: list[dict[str, Any]],
+    llm_client: Any,
+    relevance_scores: Any,
+) -> list[SubQueryResult]:
+    """Answer each sub-query from the same evidence pool as the primary answer.
+
+    No extra retrieval; relevance scores are reused across all of them since
+    evidence isn't tagged per-task by the retriever today.
+    """
+    evidence_text = "\n\n".join(f"[{doc['id']}] {doc['content'][:500]}" for doc in docs) or "(no evidence retrieved)"
+    results: list[SubQueryResult] = []
+    for task in tasks:
+        prompt = str(task.get("prompt", "")).strip()
+        if not prompt:
+            continue
+        try:
+            response = await llm_client.ainvoke(
+                "Answer this question using only the evidence below. If the evidence "
+                "does not cover it, say so briefly.\n\n"
+                f"Question: {prompt}\n\nEvidence:\n{evidence_text}"
+            )
+            answer_text = response.content if hasattr(response, "content") else str(response)
+        except Exception:
+            logger.exception("Sub-query answer generation failed for task %s", task.get("task_id"))
+            answer_text = ""
+        results.append(
+            SubQueryResult(
+                sub_query=prompt,
+                documents=docs,
+                answer=answer_text,
+                relevance_scores=relevance_scores or None,
+            )
+        )
+    return results
+
+
 async def _run_self_rag_evaluation(
     *,
     query: str,
@@ -274,37 +312,10 @@ async def _run_self_rag_evaluation(
         relevance_scores = await evaluator.evaluate_retrieval_relevance(query, docs)
         answer_quality = await evaluator.evaluate_answer_quality(query, pipeline_result.answer, docs)
 
-        sub_query_results: list[SubQueryResult] = []
         tasks = (plan_data or {}).get("tasks") or []
-        if len(tasks) > 1:
-            # Sub-queries share the evidence pool already retrieved for the primary
-            # answer (no extra retrieval); relevance scores are reused across all of
-            # them since evidence isn't tagged per-task by the retriever today.
-            evidence_text = (
-                "\n\n".join(f"[{doc['id']}] {doc['content'][:500]}" for doc in docs) or "(no evidence retrieved)"
-            )
-            for task in tasks:
-                prompt = str(task.get("prompt", "")).strip()
-                if not prompt:
-                    continue
-                try:
-                    response = await llm_client.ainvoke(
-                        "Answer this question using only the evidence below. If the evidence "
-                        "does not cover it, say so briefly.\n\n"
-                        f"Question: {prompt}\n\nEvidence:\n{evidence_text}"
-                    )
-                    answer_text = response.content if hasattr(response, "content") else str(response)
-                except Exception:
-                    logger.exception("Sub-query answer generation failed for task %s", task.get("task_id"))
-                    answer_text = ""
-                sub_query_results.append(
-                    SubQueryResult(
-                        sub_query=prompt,
-                        documents=docs,
-                        answer=answer_text,
-                        relevance_scores=relevance_scores or None,
-                    )
-                )
+        sub_query_results = (
+            await _sub_query_results(tasks, docs, llm_client, relevance_scores) if len(tasks) > 1 else []
+        )
         return answer_quality, sub_query_results
     except Exception:
         logger.exception("Self-RAG evaluation failed; returning primary answer without quality data")

@@ -59,31 +59,29 @@ class RuntimeMetrics:
                 # Legacy flat gauge
                 self._gauges[name] = float(value)
 
+    @staticmethod
+    def _append_bounded(arr: list[float], value: float, cap: int = 5000) -> None:
+        arr.append(float(value))
+        if len(arr) > cap:
+            del arr[: len(arr) - cap]
+
+    def _observe_labeled(self, name: str, value: float, labels: dict[str, str]) -> None:
+        if name not in self._labeled_hist:
+            self._labeled_hist[name] = {}
+        for label_key, label_value in labels.items():
+            if label_key not in self._labeled_hist[name]:
+                self._labeled_hist[name][label_key] = {}
+            arr = self._labeled_hist[name][label_key].setdefault(label_value, [])
+            self._append_bounded(arr, value)
+
     def observe(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
         """Record a histogram observation, optionally with labels."""
         with self._lock:
             if labels:
-                # Labeled histogram
-                if name not in self._labeled_hist:
-                    self._labeled_hist[name] = {}
-
-                for label_key, label_value in labels.items():
-                    if label_key not in self._labeled_hist[name]:
-                        self._labeled_hist[name][label_key] = {}
-
-                    if label_value not in self._labeled_hist[name][label_key]:
-                        self._labeled_hist[name][label_key][label_value] = []
-
-                    arr = self._labeled_hist[name][label_key][label_value]
-                    arr.append(float(value))
-                    if len(arr) > 5000:
-                        del arr[: len(arr) - 5000]
+                self._observe_labeled(name, value, labels)
             else:
-                # Legacy flat histogram
                 arr = self._hist.setdefault(name, [])
-                arr.append(float(value))
-                if len(arr) > 5000:
-                    del arr[: len(arr) - 5000]
+                self._append_bounded(arr, value)
 
     def inc_agent_execution(self, agent_name: str, status: str, route: str | None = None) -> None:
         """Business metric: Increment agent execution counter."""

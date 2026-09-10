@@ -128,6 +128,76 @@ def build_runtime_snapshot(
     }
 
 
+def _window_row_counters(window_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Independent aggregate counts over the audit window; none depends on another's result."""
+    total_requests = len(window_rows)
+    error_count = sum(1 for row in window_rows if str(row.get("result", "")).lower() != "success")
+    login_success = sum(
+        1
+        for row in window_rows
+        if str(row.get("action", "")) == AuditAction.AUTH_LOGIN and str(row.get("result", "")).lower() == "success"
+    )
+    login_failed = sum(
+        1
+        for row in window_rows
+        if str(row.get("action", "")) == AuditAction.AUTH_LOGIN and str(row.get("result", "")).lower() != "success"
+    )
+    upload_requests = sum(
+        1
+        for row in window_rows
+        if str(row.get("action", "")) == AuditAction.DOCUMENT_UPLOAD and str(row.get("result", "")).lower() == "success"
+    )
+    return {
+        "total_requests": total_requests,
+        "error_count": error_count,
+        "success_count": max(0, total_requests - error_count),
+        "error_rate": round((error_count / total_requests) * 100, 2) if total_requests else 0.0,
+        "action_counter": Counter(str(row.get("action", "") or "unknown") for row in window_rows),
+        "resource_counter": Counter(str(row.get("resource_type", "") or "unknown") for row in window_rows),
+        "actor_users": {str(row.get("actor_user_id")) for row in window_rows if row.get("actor_user_id")},
+        "error_reason_counter": Counter(
+            str(row.get("detail", "") or str(row.get("action", "") or "unknown_error"))
+            for row in window_rows
+            if str(row.get("result", "")).lower() != "success"
+        ),
+        "login_success": login_success,
+        "login_failed": login_failed,
+        "query_requests": sum(1 for row in window_rows if str(row.get("action", "")).startswith("query.")),
+        "upload_requests": upload_requests,
+    }
+
+
+def _hourly_buckets(
+    window_rows: list[dict[str, Any]], bucket_for_row: Callable[[dict[str, Any]], str]
+) -> list[dict[str, Any]]:
+    bucket_counter: dict[str, dict[str, int]] = {}
+    for row in window_rows:
+        bucket = bucket_for_row(row)
+        slot = bucket_counter.setdefault(bucket, {"count": 0, "errors": 0})
+        slot["count"] += 1
+        if str(row.get("result", "")).lower() != "success":
+            slot["errors"] += 1
+    return [
+        {"bucket": key, "count": value["count"], "errors": value["errors"]}
+        for key, value in sorted(bucket_counter.items(), key=lambda item: item[0])
+    ]
+
+
+def _slow_requests_view(request_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    slow_requests = sorted(request_rows, key=lambda row: int(row.get("duration_ms", 0) or 0), reverse=True)[:10]
+    return [
+        {
+            "ts": str(row.get("ts", "")),
+            "method": str(row.get("method", "")),
+            "path": str(row.get("path", "")),
+            "status_code": int(row.get("status_code", 0) or 0),
+            "duration_ms": int(row.get("duration_ms", 0) or 0),
+            "error": str(row.get("error", "")),
+        }
+        for row in slow_requests
+    ]
+
+
 def build_ops_overview(
     *,
     generated_at: datetime,
@@ -143,60 +213,9 @@ def build_ops_overview(
     action_keyword: str | None,
 ) -> dict[str, Any]:
     """Aggregate injected admin data without depending on API dependencies."""
-    total_requests = len(window_rows)
-    error_count = sum(1 for row in window_rows if str(row.get("result", "")).lower() != "success")
-    success_count = max(0, total_requests - error_count)
-    error_rate = round((error_count / total_requests) * 100, 2) if total_requests else 0.0
-
-    action_counter = Counter(str(row.get("action", "") or "unknown") for row in window_rows)
-    resource_counter = Counter(str(row.get("resource_type", "") or "unknown") for row in window_rows)
-    actor_users = {str(row.get("actor_user_id")) for row in window_rows if row.get("actor_user_id")}
-    error_reason_counter = Counter(
-        str(row.get("detail", "") or str(row.get("action", "") or "unknown_error"))
-        for row in window_rows
-        if str(row.get("result", "")).lower() != "success"
-    )
-    login_success = sum(
-        1
-        for row in window_rows
-        if str(row.get("action", "")) == AuditAction.AUTH_LOGIN and str(row.get("result", "")).lower() == "success"
-    )
-    login_failed = sum(
-        1
-        for row in window_rows
-        if str(row.get("action", "")) == AuditAction.AUTH_LOGIN and str(row.get("result", "")).lower() != "success"
-    )
-    query_requests = sum(1 for row in window_rows if str(row.get("action", "")).startswith("query."))
-    upload_requests = sum(
-        1
-        for row in window_rows
-        if str(row.get("action", "")) == AuditAction.DOCUMENT_UPLOAD and str(row.get("result", "")).lower() == "success"
-    )
-
-    bucket_counter: dict[str, dict[str, int]] = {}
-    for row in window_rows:
-        bucket = bucket_for_row(row)
-        slot = bucket_counter.setdefault(bucket, {"count": 0, "errors": 0})
-        slot["count"] += 1
-        if str(row.get("result", "")).lower() != "success":
-            slot["errors"] += 1
-    hourly = [
-        {"bucket": key, "count": value["count"], "errors": value["errors"]}
-        for key, value in sorted(bucket_counter.items(), key=lambda item: item[0])
-    ]
-
-    slow_requests = sorted(request_rows, key=lambda row: int(row.get("duration_ms", 0) or 0), reverse=True)[:10]
-    slow_requests_view = [
-        {
-            "ts": str(row.get("ts", "")),
-            "method": str(row.get("method", "")),
-            "path": str(row.get("path", "")),
-            "status_code": int(row.get("status_code", 0) or 0),
-            "duration_ms": int(row.get("duration_ms", 0) or 0),
-            "error": str(row.get("error", "")),
-        }
-        for row in slow_requests
-    ]
+    counters = _window_row_counters(window_rows)
+    hourly = _hourly_buckets(window_rows, bucket_for_row)
+    slow_requests_view = _slow_requests_view(request_rows)
     services_ok = all(bool(item.get("ok")) for item in services.values() if item.get("required", True))
 
     return {
@@ -204,16 +223,16 @@ def build_ops_overview(
         "window_hours": window_hours,
         "status": "healthy" if services_ok else "degraded",
         "kpi": {
-            "requests_total": total_requests,
-            "requests_success": success_count,
-            "requests_error": error_count,
-            "error_rate_percent": error_rate,
-            "active_users": len(actor_users),
+            "requests_total": counters["total_requests"],
+            "requests_success": counters["success_count"],
+            "requests_error": counters["error_count"],
+            "error_rate_percent": counters["error_rate"],
+            "active_users": len(counters["actor_users"]),
             "active_sessions": active_sessions,
-            "queries": query_requests,
-            "uploads": upload_requests,
-            "login_success": login_success,
-            "login_failed": login_failed,
+            "queries": counters["query_requests"],
+            "uploads": counters["upload_requests"],
+            "login_success": counters["login_success"],
+            "login_failed": counters["login_failed"],
         },
         "users": {
             "total": len(users),
@@ -221,11 +240,13 @@ def build_ops_overview(
             "disabled": sum(1 for row in users if str(row.get("status", "")).lower() != "active"),
             "admin": sum(1 for row in users if str(row.get("role", "")).lower() == "admin"),
         },
-        "top_actions": [{"action": key, "count": value} for key, value in action_counter.most_common(8)],
+        "top_actions": [{"action": key, "count": value} for key, value in counters["action_counter"].most_common(8)],
         "top_resource_types": [
-            {"resource_type": key, "count": value} for key, value in resource_counter.most_common(8)
+            {"resource_type": key, "count": value} for key, value in counters["resource_counter"].most_common(8)
         ],
-        "top_error_reasons": [{"reason": key, "count": value} for key, value in error_reason_counter.most_common(8)],
+        "top_error_reasons": [
+            {"reason": key, "count": value} for key, value in counters["error_reason_counter"].most_common(8)
+        ],
         "slow_requests": slow_requests_view,
         "hourly": hourly,
         "services": services,
