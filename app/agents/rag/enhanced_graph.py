@@ -330,6 +330,88 @@ def get_document_context_for_query(
     }
 
 
+def _pdf_context_for_query(question: str, retrieved_docs: list[dict] | None) -> tuple[dict, float]:
+    """(context, context_quality) -- a neutral default when there is nothing to analyze."""
+    if not retrieved_docs:
+        return {"quality_score": 0.5, "entities": [], "confidence": "medium"}, 0.5
+    context = get_document_context_for_query(question, retrieved_docs)
+    context_quality = context["quality_score"]
+    logger.info(
+        "PDF context analysis: quality=%.2f, entities=%s, confidence=%s",
+        context_quality,
+        len(context["entities"]),
+        context["confidence"],
+    )
+    return context, context_quality
+
+
+def _adaptive_graph_params(context_quality: float) -> dict:
+    if context_quality >= QUALITY_THRESHOLD_HIGH:
+        return GRAPH_PARAMS_HIGH_QUALITY
+    if context_quality >= 0.5:
+        return GRAPH_PARAMS_MEDIUM_QUALITY
+    return GRAPH_PARAMS_LOW_QUALITY
+
+
+def _graph_lookup_error_result(question: str, exc: Exception) -> dict:
+    error_type = type(exc).__name__
+    if error_type in {"ServiceUnavailable", "ConnectionError"}:
+        logger.warning(
+            "Enhanced graph lookup unavailable for %s: %s",
+            question_ref(question),
+            error_type,
+        )
+    else:
+        logger.exception("Enhanced graph lookup failed for %s", question_ref(question))
+    return {
+        "context": "",
+        "entities": [],
+        "neighbors": [],
+        "paths": [],
+        "graph_signal_score": 0.0,
+        "confidence": "low",
+        "error": f"graph_lookup_error:{error_type}",
+    }
+
+
+def _format_entity_lines(entities: list[dict]) -> list[str]:
+    lines = []
+    for item in entities:
+        name = item.get("entity", "")
+        if not name:
+            continue
+        lines.append(f"Entity: {name}")
+        for rel in item.get("relations", []):
+            if rel.get("other"):
+                lines.append(f"  - {rel.get('relation')} ({rel.get('weight', 0):.2f}) -> {rel.get('other')}")
+    return lines
+
+
+def _format_neighbor_lines(neighbors: list[dict]) -> list[str]:
+    lines = []
+    for row in neighbors:
+        if row.get("entity") and row.get("relation") and row.get("other"):
+            lines.append(
+                f"Neighbor: {row['entity']} -[{row['relation']}|{float(row.get('weight', 0)):.2f}]- {row['other']}"
+            )
+    return lines
+
+
+def _format_path_lines(paths: list[dict]) -> list[str]:
+    lines = []
+    for row in paths:
+        if row.get("source") and row.get("middle") and row.get("target"):
+            lines.append(
+                f"Path2Hop: {row['source']} -[{row.get('rel1', '')}]- {row['middle']} "
+                f"-[{row.get('rel2', '')}]- {row['target']} | w={float(row.get('weight', 0)):.2f}"
+            )
+    return lines
+
+
+def _format_graph_lines(entities: list[dict], neighbors: list[dict], paths: list[dict]) -> list[str]:
+    return _format_entity_lines(entities) + _format_neighbor_lines(neighbors) + _format_path_lines(paths)
+
+
 def run_graph_rag_with_pdf_context(
     question: str,
     retrieved_docs: list[dict] | None = None,
@@ -356,27 +438,8 @@ def run_graph_rag_with_pdf_context(
     if allowed_sources is None and agent_class:
         allowed_sources = get_sources_by_agent_class(agent_class)
 
-    # Analyze document context
-    if retrieved_docs:
-        context = get_document_context_for_query(question, retrieved_docs)
-        context_quality = context["quality_score"]
-        logger.info(
-            "PDF context analysis: quality=%.2f, entities=%s, confidence=%s",
-            context_quality,
-            len(context["entities"]),
-            context["confidence"],
-        )
-    else:
-        context_quality = 0.5
-        context = {"quality_score": 0.5, "entities": [], "confidence": "medium"}
-
-    # Select adaptive parameters based on quality
-    if context_quality >= QUALITY_THRESHOLD_HIGH:
-        params = GRAPH_PARAMS_HIGH_QUALITY
-    elif context_quality >= 0.5:
-        params = GRAPH_PARAMS_MEDIUM_QUALITY
-    else:
-        params = GRAPH_PARAMS_LOW_QUALITY
+    context, context_quality = _pdf_context_for_query(question, retrieved_docs)
+    params = _adaptive_graph_params(context_quality)
 
     try:
         graph_result = graph_lookup_enhanced(
@@ -388,26 +451,7 @@ def run_graph_rag_with_pdf_context(
             max_paths=params["max_paths"],
         )
     except Exception as e:
-        error_type = type(e).__name__
-
-        if error_type in {"ServiceUnavailable", "ConnectionError"}:
-            logger.warning(
-                "Enhanced graph lookup unavailable for %s: %s",
-                question_ref(question),
-                error_type,
-            )
-        else:
-            logger.exception("Enhanced graph lookup failed for %s", question_ref(question))
-
-        return {
-            "context": "",
-            "entities": [],
-            "neighbors": [],
-            "paths": [],
-            "graph_signal_score": 0.0,
-            "confidence": "low",
-            "error": f"graph_lookup_error:{error_type}",
-        }
+        return _graph_lookup_error_result(question, e)
 
     entities = graph_result.get("entities", [])
     neighbors = graph_result.get("neighbors", [])
@@ -415,29 +459,7 @@ def run_graph_rag_with_pdf_context(
     graph_signal_score = float(graph_result.get("graph_signal_score", 0.0) or 0.0)
     confidence = graph_result.get("confidence", "medium")
 
-    # Format context string
-    lines = []
-    for item in entities:
-        name = item.get("entity", "")
-        if not name:
-            continue
-        lines.append(f"Entity: {name}")
-        for rel in item.get("relations", []):
-            if rel.get("other"):
-                lines.append(f"  - {rel.get('relation')} ({rel.get('weight', 0):.2f}) -> {rel.get('other')}")
-
-    for row in neighbors:
-        if row.get("entity") and row.get("relation") and row.get("other"):
-            lines.append(
-                f"Neighbor: {row['entity']} -[{row['relation']}|{float(row.get('weight', 0)):.2f}]- {row['other']}"
-            )
-
-    for row in paths:
-        if row.get("source") and row.get("middle") and row.get("target"):
-            lines.append(
-                f"Path2Hop: {row['source']} -[{row.get('rel1', '')}]- {row['middle']} "
-                f"-[{row.get('rel2', '')}]- {row['target']} | w={float(row.get('weight', 0)):.2f}"
-            )
+    lines = _format_graph_lines(entities, neighbors, paths)
 
     return {
         "context": "\n".join(lines),
