@@ -287,31 +287,34 @@ def scan(root: Path, rels: list[str], expect: int | None, whole: bool) -> tuple[
     return fails, notes
 
 
-def main(argv: list[str]) -> int:
-    args = argv[1:]
-    expect = None
-    if "--expect" in args:
-        i = args.index("--expect")
-        expect = int(args[i + 1])
-        del args[i : i + 2]
+def _parse_expect(args: list[str]) -> tuple[int | None, list[str]]:
+    if "--expect" not in args:
+        return None, args
+    args = list(args)
+    i = args.index("--expect")
+    expect = int(args[i + 1])
+    del args[i : i + 2]
+    return expect, args
 
+
+def _resolve_scan_target(args: list[str]) -> tuple[Path, list[str], str, bool]:
+    """Return (root, relative paths to scan, a label for the report, whether this is a whole-tree scan)."""
     if "--tree" in args:
+        args = list(args)
         i = args.index("--tree")
         root = Path(args[i + 1]).resolve()
         del args[i : i + 2]
         if not root.is_dir():
-            print(f"not a directory: {root}")
-            return 2
-        rels, mode, whole = tree_files(root), f"tree {root}", True
-    else:
-        root = Path.cwd()
-        if args:
-            rels, mode, whole = [Path(a).as_posix() for a in args], "given files", False
-        else:
-            rels, mode, whole = tracked_files(root), "tracked files", True
+            raise NotADirectoryError(str(root))
+        return root, tree_files(root), f"tree {root}", True
 
-    fails, notes = scan(root, rels, expect, whole)
+    root = Path.cwd()
+    if args:
+        return root, [Path(a).as_posix() for a in args], "given files", False
+    return root, tracked_files(root), "tracked files", True
 
+
+def _print_report(rels: list[str], mode: str, notes: list[str], fails: list[str]) -> None:
     print(f"checked {len(rels)} {mode}")
     if notes:
         print(f"\nbaseline (known, frozen): {len(notes)}")
@@ -328,6 +331,20 @@ def main(argv: list[str]) -> int:
             "'Sensitive content gate'.\nRemove the value, then re-run."
         )
     print("\nRESULT:", "FAIL" if fails else "PASS")
+
+
+def main(argv: list[str]) -> int:
+    args = argv[1:]
+    expect, args = _parse_expect(args)
+
+    try:
+        root, rels, mode, whole = _resolve_scan_target(args)
+    except NotADirectoryError as exc:
+        print(f"not a directory: {exc}")
+        return 2
+
+    fails, notes = scan(root, rels, expect, whole)
+    _print_report(rels, mode, notes, fails)
     return 1 if fails else 0
 
 

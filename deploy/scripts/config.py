@@ -84,6 +84,23 @@ def generate_secrets(path: Path, existing: Mapping[str, str] | None = None) -> d
     return {key: values[key] for key in output_keys}
 
 
+def _production_environment_errors(values: Mapping[str, str], backend: str) -> list[str]:
+    errors: list[str] = []
+    if backend == "openai" and not str(values.get("OPENAI_API_KEY", "")).strip():
+        errors.append("OPENAI_API_KEY is required when MODEL_BACKEND=openai")
+    if backend == "anthropic" and not str(values.get("ANTHROPIC_API_KEY", "")).strip():
+        errors.append("ANTHROPIC_API_KEY is required when MODEL_BACKEND=anthropic")
+    if backend == "ollama" and not str(values.get("OLLAMA_BASE_URL", "")).strip():
+        errors.append("OLLAMA_BASE_URL is required when MODEL_BACKEND=ollama")
+    origins = str(values.get("CORS_ALLOW_ORIGINS", "")).strip()
+    if not origins or "*" in {part.strip() for part in origins.split(",")}:
+        errors.append("CORS_ALLOW_ORIGINS must contain explicit production origins")
+    for key in SECRET_KEYS:
+        if not str(values.get(key, "")).strip():
+            errors.append(f"{key} is required in production")
+    return errors
+
+
 def validate_environment(values: Mapping[str, str], environment: str) -> list[str]:
     """Return human-readable validation errors without exposing secret values."""
     errors: list[str] = []
@@ -93,18 +110,7 @@ def validate_environment(values: Mapping[str, str], environment: str) -> list[st
     if backend not in VALID_BACKENDS:
         errors.append(f"unsupported MODEL_BACKEND: {backend or '<empty>'}")
     if environment == "production":
-        if backend == "openai" and not str(values.get("OPENAI_API_KEY", "")).strip():
-            errors.append("OPENAI_API_KEY is required when MODEL_BACKEND=openai")
-        if backend == "anthropic" and not str(values.get("ANTHROPIC_API_KEY", "")).strip():
-            errors.append("ANTHROPIC_API_KEY is required when MODEL_BACKEND=anthropic")
-        if backend == "ollama" and not str(values.get("OLLAMA_BASE_URL", "")).strip():
-            errors.append("OLLAMA_BASE_URL is required when MODEL_BACKEND=ollama")
-        origins = str(values.get("CORS_ALLOW_ORIGINS", "")).strip()
-        if not origins or "*" in {part.strip() for part in origins.split(",")}:
-            errors.append("CORS_ALLOW_ORIGINS must contain explicit production origins")
-        for key in SECRET_KEYS:
-            if not str(values.get(key, "")).strip():
-                errors.append(f"{key} is required in production")
+        errors.extend(_production_environment_errors(values, backend))
     return errors
 
 
