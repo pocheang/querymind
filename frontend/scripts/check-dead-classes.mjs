@@ -115,32 +115,47 @@ function deliveredCss() {
   return parts.join("\n").replaceAll("\\", "");
 }
 
+/** `className="a b c"` yields the class list itself; `className={...}` and
+ *  `cn(...)` yield an expression whose STRING LITERALS are the classes.
+ *  Treating both the same way is defect 2 in the header. */
+function classValuesAndExpressions(path, text) {
+  const values = [];
+  const expressions = [];
+  for (const match of text.matchAll(CLASSNAME)) {
+    if (match[1] !== undefined) values.push(match[1]);
+    else expressions.push(match[2] ?? "");
+  }
+  for (const match of text.matchAll(/\bcn\(/g)) expressions.push(balanced(text, match.index + match[0].length - 1));
+  if (basename(path).endsWith("Classes.ts")) expressions.push(text);
+  return { values, expressions };
+}
+
+/** String literals inside each expression region are class-name candidates too. */
+function expandExpressions(values, expressions) {
+  for (const region of expressions) {
+    for (const match of region.matchAll(STRING)) values.push(match[1] ?? match[2] ?? match[3] ?? "");
+  }
+}
+
+/** Record each plain, non-behavioural class token's occurrence in `found`. */
+function recordTokens(found, values, path) {
+  for (const value of values) {
+    for (const token of value.split(/\s+/)) {
+      if (PLAIN.test(token) && !BEHAVIOURAL.has(token)) {
+        if (!found.has(token)) found.set(token, new Set());
+        found.get(token).add(path);
+      }
+    }
+  }
+}
+
 function classTokens() {
   const found = new Map();
   for (const path of walk(SRC)) {
     const text = readFileSync(path, "utf8");
-    /* `className="a b c"` yields the class list itself; `className={...}` and
-       `cn(...)` yield an expression whose STRING LITERALS are the classes.
-       Treating both the same way is defect 2 in the header. */
-    const values = [];
-    const expressions = [];
-    for (const match of text.matchAll(CLASSNAME)) {
-      if (match[1] !== undefined) values.push(match[1]);
-      else expressions.push(match[2] ?? "");
-    }
-    for (const match of text.matchAll(/\bcn\(/g)) expressions.push(balanced(text, match.index + match[0].length - 1));
-    if (basename(path).endsWith("Classes.ts")) expressions.push(text);
-    for (const region of expressions) {
-      for (const match of region.matchAll(STRING)) values.push(match[1] ?? match[2] ?? match[3] ?? "");
-    }
-    for (const value of values) {
-      for (const token of value.split(/\s+/)) {
-        if (PLAIN.test(token) && !BEHAVIOURAL.has(token)) {
-          if (!found.has(token)) found.set(token, new Set());
-          found.get(token).add(path);
-        }
-      }
-    }
+    const { values, expressions } = classValuesAndExpressions(path, text);
+    expandExpressions(values, expressions);
+    recordTokens(found, values, path);
   }
   return found;
 }
@@ -169,7 +184,7 @@ if (staleExemptions.length) {
 // `gap-1.5` is delivered as `.gap-1\.5`, and an earlier version of this line
 // that compared against raw text called the whole spacing scale dead.
 const dead = [...tokens].filter(
-  ([token]) => !new RegExp(String.raw`\.${token.replaceAll(".", "\\.")}(?![\w-])`).test(css)
+  ([token]) => !new RegExp(String.raw`\.${token.replaceAll(".", String.raw`\.`)}(?![\w-])`).test(css)
 );
 
 console.log(`class names reaching a className : ${tokens.size}`);

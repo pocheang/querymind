@@ -1,9 +1,35 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { appApi } from "@/lib/api";
-import type { IndexedFileSummary } from "@/types/api";
+import type { IndexedFileSummary, UploadResponse } from "@/types/api";
 
 type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
+type TFn = ReturnType<typeof useTranslation>["t"];
+
+function buildUploadSummary(data: UploadResponse, t: TFn): string[] {
+  const uploadSummary: string[] = [];
+  if (data.indexing_status === "queued") {
+    uploadSummary.push(t("components.workbench.queuedForIndexing"));
+  }
+  if (data.duplicate_files && data.duplicate_files.length > 0) {
+    uploadSummary.push(t("components.workbench.reusedFiles", { files: data.duplicate_files.join(", ") }));
+  }
+  uploadSummary.push(t("components.workbench.uploadedCount", { count: data.loaded_documents }));
+  if (data.chunks_indexed > 0) {
+    uploadSummary.push(t("components.workbench.indexedChunksCount", { count: data.chunks_indexed }));
+  }
+  if (data.pages_by_source && Object.keys(data.pages_by_source).length > 0) {
+    const totalPages = Object.values(data.pages_by_source).reduce((a, b) => a + b, 0);
+    uploadSummary.push(t("components.workbench.totalPagesCount", { count: totalPages }));
+  }
+  if (data.triplets_written > 0) {
+    uploadSummary.push(t("components.workbench.extractedTripletsCount", { count: data.triplets_written }));
+  }
+  if (data.skipped_files && data.skipped_files.length > 0) {
+    uploadSummary.push(t("components.workbench.skippedFiles", { files: data.skipped_files.join(", ") }));
+  }
+  return uploadSummary;
+}
 
 interface UseDocumentActionsParams {
   setDocuments: Dispatch<SetStateAction<IndexedFileSummary[]>>;
@@ -72,27 +98,7 @@ export function useDocumentActions(params: UseDocumentActionsParams) {
       setUploadProgress(100);
       setUploadProgressText(t("components.workbench.uploadComplete"));
 
-      const uploadSummary = [];
-      if (data.indexing_status === "queued") {
-        uploadSummary.push(t("components.workbench.queuedForIndexing"));
-      }
-      if (data.duplicate_files && data.duplicate_files.length > 0) {
-        uploadSummary.push(t("components.workbench.reusedFiles", { files: data.duplicate_files.join(", ") }));
-      }
-      uploadSummary.push(t("components.workbench.uploadedCount", { count: data.loaded_documents }));
-      if (data.chunks_indexed > 0) {
-        uploadSummary.push(t("components.workbench.indexedChunksCount", { count: data.chunks_indexed }));
-      }
-      if (data.pages_by_source && Object.keys(data.pages_by_source).length > 0) {
-        const totalPages = Object.values(data.pages_by_source).reduce((a, b) => a + b, 0);
-        uploadSummary.push(t("components.workbench.totalPagesCount", { count: totalPages }));
-      }
-      if (data.triplets_written > 0) {
-        uploadSummary.push(t("components.workbench.extractedTripletsCount", { count: data.triplets_written }));
-      }
-      if (data.skipped_files && data.skipped_files.length > 0) {
-        uploadSummary.push(t("components.workbench.skippedFiles", { files: data.skipped_files.join(", ") }));
-      }
+      const uploadSummary = buildUploadSummary(data, t);
 
       setUploadInfo(uploadSummary.join(" | "));
       const classes = Object.values(data.assigned_agent_classes || {}).filter(Boolean);

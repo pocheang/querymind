@@ -1,10 +1,55 @@
 import { useEffect, useRef } from "react";
 import { appApi } from "@/lib/api";
-import type { PendingApproval, SessionMessage, SessionSummary } from "@/types/api";
+import type { NormalizedQueryResult, PendingApproval, SessionMessage, SessionSummary } from "@/types/api";
 import { EMPTY_METADATA } from "@/pages/chat/constants";
 import { isAbortError, createInitialStreamMessages } from "./streamUtils";
 import { createStreamMessageUpdater } from "./streamMessageUpdater";
 import { createChatRunLifecycle } from "./chatStreamAdapter";
+
+type RunLifecycle = ReturnType<typeof createChatRunLifecycle>;
+
+/** Release everything one `ask` run holds: the "active run" marker, the abort
+ *  controller slot, and -- only when this run is still the one in charge --
+ *  the sending/status UI state. Shared by the two places a run ends: giving
+ *  up before streaming starts, and the `finally` after it. */
+function finishRun(
+  active: boolean,
+  run: number,
+  runAbort: AbortController,
+  refs: {
+    activeRunRef: React.MutableRefObject<number | null>;
+    streamAbortRef: React.MutableRefObject<AbortController | null>;
+    runLifecycleRef: React.MutableRefObject<RunLifecycle>;
+  },
+  setIsSending: (sending: boolean) => void,
+  setRunStatus: (status: string) => void,
+): void {
+  if (active) {
+    setIsSending(false);
+    setRunStatus("");
+    refs.runLifecycleRef.current.stop(run);
+  }
+  if (refs.activeRunRef.current === run) refs.activeRunRef.current = null;
+  if (refs.streamAbortRef.current === runAbort) refs.streamAbortRef.current = null;
+}
+
+function applyStreamResult(messages: SessionMessage[], result: NormalizedQueryResult): SessionMessage[] {
+  return messages.map((message) =>
+    message.message_id === "local-assistant-stream"
+      ? {
+          ...message,
+          content: result.answer,
+          metadata: {
+            ...EMPTY_METADATA,
+            route: result.route || "",
+            citations: result.citations,
+            tool_runs: result.toolRuns,
+            quality_report: result.qualityReport,
+          },
+        }
+      : message,
+  );
+}
 
 interface ChatActions {
   notify: (message: string, type: "success" | "info" | "warn" | "error") => void;
@@ -128,14 +173,14 @@ export function useMessageActions({
     setRunStatus("Processing");
     const sid = sessionId || await ensureSessionForAsk(runAbort.signal);
     if (!sid || !isRunActive()) {
-      const wasActive = isRunActive();
-      if (wasActive) {
-        setIsSending(false);
-        setRunStatus("");
-        runLifecycleRef.current.stop(run);
-      }
-      if (activeRunRef.current === run) activeRunRef.current = null;
-      if (streamAbortRef.current === runAbort) streamAbortRef.current = null;
+      finishRun(
+        isRunActive(),
+        run,
+        runAbort,
+        { activeRunRef, streamAbortRef, runLifecycleRef },
+        setIsSending,
+        setRunStatus,
+      );
       return;
     }
 
@@ -156,21 +201,7 @@ export function useMessageActions({
       // A resumed run either performed the action or reported why it could not;
       // either way the previous pending approval is spent.
       onPendingApproval?.(result.status === "pending_approval" ? result.pendingApproval : null, q);
-      setMessages((prev) => prev.map((message) => (
-        message.message_id === "local-assistant-stream"
-          ? {
-              ...message,
-              content: result.answer,
-              metadata: {
-                ...EMPTY_METADATA,
-                route: result.route || "",
-                citations: result.citations,
-                tool_runs: result.toolRuns,
-                quality_report: result.qualityReport,
-              },
-            }
-          : message
-      )));
+      setMessages((prev) => applyStreamResult(prev, result));
       // The backend now persists both turns; reconcile the optimistic local
       // messages with what actually landed in the session history.
       await actions.refreshSessions(true, true);
@@ -187,13 +218,14 @@ export function useMessageActions({
       const message = e instanceof Error && e.message ? e.message : "Request failed";
       messageUpdater.replaceWithErrorMessage(message);
     } finally {
-      if (isRunActive()) {
-        setIsSending(false);
-        setRunStatus("");
-        runLifecycleRef.current.stop(run);
-      }
-      if (streamAbortRef.current === runAbort) streamAbortRef.current = null;
-      if (activeRunRef.current === run) activeRunRef.current = null;
+      finishRun(
+        isRunActive(),
+        run,
+        runAbort,
+        { activeRunRef, streamAbortRef, runLifecycleRef },
+        setIsSending,
+        setRunStatus,
+      );
     }
   };
 
