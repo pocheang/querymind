@@ -100,31 +100,41 @@ class OCRTextStructurer:
 
             # 检测代码块（缩进 + 特殊字符）
             if self._is_code_line(line):
-                code_lines = [line]
-                i += 1
-                while i < len(lines) and self._is_code_line(lines[i]):
-                    code_lines.append(lines[i])
-                    i += 1
-                blocks.append(TextBlock(type="code", content="\n".join(code_lines), confidence=0.6))
+                block, i = self._consume_code_block(lines, i)
+                blocks.append(block)
                 continue
 
             # 合并段落（连续的普通行）
-            para_lines = [line]
-            i += 1
-            while i < len(lines):
-                next_line = lines[i].rstrip()
-                if not next_line.strip():
-                    break
-                if self._is_title(next_line) or self._match_list(next_line) or self._is_table_row(next_line):
-                    break
-                para_lines.append(next_line)
-                i += 1
-
-            # 智能合并段落
-            content = self._merge_paragraph_lines(para_lines)
-            blocks.append(TextBlock(type="paragraph", content=content, confidence=1.0))
+            block, i = self._consume_paragraph(lines, i)
+            blocks.append(block)
 
         return blocks
+
+    def _consume_code_block(self, lines: list[str], start: int) -> tuple[TextBlock, int]:
+        """Collect the contiguous run of code-classified lines starting at `start`."""
+        i = start
+        code_lines = [lines[i].rstrip()]
+        i += 1
+        while i < len(lines) and self._is_code_line(lines[i]):
+            code_lines.append(lines[i])
+            i += 1
+        return TextBlock(type="code", content="\n".join(code_lines), confidence=0.6), i
+
+    def _consume_paragraph(self, lines: list[str], start: int) -> tuple[TextBlock, int]:
+        """Collect contiguous plain lines starting at `start` into one paragraph block."""
+        i = start
+        para_lines = [lines[i].rstrip()]
+        i += 1
+        while i < len(lines):
+            next_line = lines[i].rstrip()
+            if not next_line.strip():
+                break
+            if self._is_title(next_line) or self._match_list(next_line) or self._is_table_row(next_line):
+                break
+            para_lines.append(next_line)
+            i += 1
+        content = self._merge_paragraph_lines(para_lines)
+        return TextBlock(type="paragraph", content=content, confidence=1.0), i
 
     def _is_title(self, line: str) -> bool:
         """判断是否为标题."""
@@ -205,6 +215,20 @@ class OCRTextStructurer:
 
         return False
 
+    def _paragraph_join_prefix(self, prev: str) -> str:
+        """The separator to place before the next line, based on how `prev` ends.
+
+        Chinese, or a line ending in Chinese punctuation, joins with nothing;
+        an alphanumeric (English) ending gets a space so words don't run
+        together.
+        """
+        last_char = prev[-1]
+        if self._is_cjk_char(last_char) or last_char in self.cjk_punctuation:
+            return ""
+        if last_char.isalnum():
+            return " "
+        return ""
+
     def _merge_paragraph_lines(self, lines: list[str]) -> str:
         """智能合并段落行."""
         if not lines:
@@ -213,31 +237,15 @@ class OCRTextStructurer:
         if len(lines) == 1:
             return lines[0].strip()
 
-        merged = []
-        for i, line in enumerate(lines):
+        merged: list[str] = []
+        for line in lines:
             stripped = line.strip()
             if not stripped:
                 continue
-
-            # 中文：直接连接（无空格）
-            # 英文：如果行尾是完整单词，加空格
-            if i == 0:
+            if not merged:
                 merged.append(stripped)
-            else:
-                prev = merged[-1] if merged else ""
-                if not prev:  # 修复：防止空字符串索引错误
-                    merged.append(stripped)
-                    continue
-
-                last_char = prev[-1]
-                # 中文或中文标点结尾：直接连接
-                if self._is_cjk_char(last_char) or last_char in self.cjk_punctuation:
-                    merged.append(stripped)
-                # 英文：加空格
-                elif last_char.isalnum():
-                    merged.append(" " + stripped)
-                else:
-                    merged.append(stripped)
+                continue
+            merged.append(self._paragraph_join_prefix(merged[-1]) + stripped)
 
         return "".join(merged)
 

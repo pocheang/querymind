@@ -111,6 +111,32 @@ class WebActivityLogger:
         except Exception:
             logger.exception("Failed to write activity log")
 
+    def _read_log_entries(
+        self,
+        log_file: Path,
+        *,
+        start_date: datetime,
+        end_date: datetime,
+        user_id: str | None,
+    ) -> list[dict]:
+        """Entries from one day's log file within the date range, for this user if given."""
+        entries: list[dict] = []
+        try:
+            with open(log_file, encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    entry = json.loads(line)
+                    entry_time = datetime.fromisoformat(entry["timestamp"])
+                    if entry_time < start_date or entry_time > end_date:
+                        continue
+                    if user_id and entry.get("user_id") != user_id:
+                        continue
+                    entries.append(entry)
+        except Exception:
+            logger.exception(f"Failed to read log file {log_file}")
+        return entries
+
     def get_logs(
         self,
         start_date: datetime | None = None,
@@ -141,28 +167,54 @@ class WebActivityLogger:
         while current <= end_date:
             log_file = self.log_dir / f"web_activity_{current.strftime('%Y%m%d')}.jsonl"
             if log_file.exists():
-                try:
-                    with open(log_file, encoding="utf-8") as f:
-                        for line in f:
-                            if line.strip():
-                                entry = json.loads(line)
-
-                                # 时间过滤
-                                entry_time = datetime.fromisoformat(entry["timestamp"])
-                                if entry_time < start_date or entry_time > end_date:
-                                    continue
-
-                                # 用户过滤
-                                if user_id and entry.get("user_id") != user_id:
-                                    continue
-
-                                logs.append(entry)
-                except Exception:
-                    logger.exception(f"Failed to read log file {log_file}")
-
+                logs.extend(self._read_log_entries(log_file, start_date=start_date, end_date=end_date, user_id=user_id))
             current += timedelta(days=1)
 
         return logs
+
+
+def _website_stats(logs: list[dict]) -> tuple[Counter, dict[str, list[float]]]:
+    website_counter: Counter = Counter()
+    website_scores: dict[str, list[float]] = defaultdict(list)
+    for log in logs:
+        for website in log.get("websites_accessed", []):
+            domain = website.get("domain", "")
+            if domain:
+                website_counter[domain] += 1
+                website_scores[domain].append(website.get("score", 0.0))
+    return website_counter, website_scores
+
+
+def _top_websites(website_counter: Counter, website_scores: dict[str, list[float]], limit: int = 20) -> list[dict]:
+    top_websites = []
+    for domain, count in website_counter.most_common(limit):
+        avg_score = sum(website_scores[domain]) / len(website_scores[domain])
+        top_websites.append(
+            {
+                "domain": domain,
+                "visit_count": count,
+                "avg_trust_score": round(avg_score, 2),
+            }
+        )
+    return top_websites
+
+
+def _hour_distribution(logs: list[dict]) -> Counter:
+    hour_distribution: Counter = Counter()
+    for log in logs:
+        timestamp = datetime.fromisoformat(log["timestamp"])
+        hour_distribution[timestamp.hour] += 1
+    return hour_distribution
+
+
+def _avg_search_time(logs: list[dict]) -> float:
+    search_times = []
+    for log in logs:
+        metrics = log.get("metrics", {})
+        search_time = metrics.get("search_time", 0.0)
+        if search_time > 0:
+            search_times.append(search_time)
+    return sum(search_times) / len(search_times) if search_times else 0
 
 
 class WebActivityAnalyzer:
@@ -213,51 +265,22 @@ class WebActivityAnalyzer:
         sanitized_queries = sum(1 for log in logs if log.get("query_sanitized"))
 
         # 网站统计
-        website_counter = Counter()
-        website_scores = defaultdict(list)
-
-        for log in logs:
-            for website in log.get("websites_accessed", []):
-                domain = website.get("domain", "")
-                if domain:
-                    website_counter[domain] += 1
-                    website_scores[domain].append(website.get("score", 0.0))
-
-        # 计算平均评分
-        top_websites = []
-        for domain, count in website_counter.most_common(20):
-            avg_score = sum(website_scores[domain]) / len(website_scores[domain])
-            top_websites.append(
-                {
-                    "domain": domain,
-                    "visit_count": count,
-                    "avg_trust_score": round(avg_score, 2),
-                }
-            )
+        website_counter, website_scores = _website_stats(logs)
+        top_websites = _top_websites(website_counter, website_scores)
 
         # 用户统计
         user_counter = Counter(log.get("user_id", "anonymous") for log in logs)
         top_users = [{"user_id": user, "search_count": count} for user, count in user_counter.most_common(10)]
 
         # 时间分布
-        hour_distribution = Counter()
-        for log in logs:
-            timestamp = datetime.fromisoformat(log["timestamp"])
-            hour_distribution[timestamp.hour] += 1
+        hour_distribution = _hour_distribution(logs)
 
         # 查询统计
         queries = [log.get("query", "") for log in logs]
         avg_query_length = sum(len(q) for q in queries) / len(queries) if queries else 0
 
         # 性能统计
-        search_times = []
-        for log in logs:
-            metrics = log.get("metrics", {})
-            search_time = metrics.get("search_time", 0.0)
-            if search_time > 0:
-                search_times.append(search_time)
-
-        avg_search_time = sum(search_times) / len(search_times) if search_times else 0
+        avg_search_time = _avg_search_time(logs)
 
         return {
             "summary": {

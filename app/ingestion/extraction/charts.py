@@ -338,6 +338,24 @@ Format your response as JSON."""
         return {"error": str(e)}
 
 
+def _chart_data_table_or_list_lines(data: object) -> list[str]:
+    """Render chart data as a markdown table (list of dicts) or a bullet list."""
+    if not (isinstance(data, list) and len(data) > 0):
+        return []
+    lines: list[str] = []
+    if isinstance(data[0], dict):
+        keys = list(data[0].keys())
+        lines.append("| " + " | ".join(keys) + " |")
+        lines.append("| " + " | ".join(["---"] * len(keys)) + " |")
+        for row in data:
+            values = [str(row.get(k, "")) for k in keys]
+            lines.append("| " + " | ".join(values) + " |")
+    else:
+        for item in data:
+            lines.append(f"- {item}")
+    return lines
+
+
 def chart_data_to_markdown(chart_data: dict) -> str:
     """
     Convert extracted chart data to Markdown format.
@@ -372,23 +390,6 @@ def chart_data_to_markdown(chart_data: dict) -> str:
     if chart_data.get("data"):
         lines.append("### Data")
         lines.append("")
-
-        data = chart_data["data"]
-        if isinstance(data, list) and len(data) > 0:
-            # Create table
-            if isinstance(data[0], dict):
-                # Get keys
-                keys = list(data[0].keys())
-                # Header
-                lines.append("| " + " | ".join(keys) + " |")
-                lines.append("| " + " | ".join(["---"] * len(keys)) + " |")
-                # Rows
-                for row in data:
-                    values = [str(row.get(k, "")) for k in keys]
-                    lines.append("| " + " | ".join(values) + " |")
-            else:
-                # Simple list
-                for item in data:
-                    lines.append(f"- {item}")
+        lines.extend(_chart_data_table_or_list_lines(chart_data["data"]))
 
     return "\n".join(lines)
