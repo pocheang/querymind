@@ -108,10 +108,8 @@ class AutoIngestWatcher:
         self._indexed_signatures[str(path.resolve())] = sig
         return False
 
-    def scan_once(self) -> dict[str, int]:
-        if not self.settings.auto_ingest_enabled:
-            return {"discovered": 0, "ready": 0, "ingested": 0}
-
+    def _discover_ready_paths(self) -> tuple[int, list[tuple[Path, tuple[int, int]]], set[str]]:
+        """Files whose signature has been stable across two scans, plus bookkeeping state."""
         discovered = 0
         ready_paths: list[tuple[Path, tuple[int, int]]] = []
         current_keys: set[str] = set()
@@ -134,6 +132,9 @@ class AutoIngestWatcher:
                 if prev == sig:
                     ready_paths.append((path, sig))
 
+        return discovered, ready_paths, current_keys
+
+    def _prune_stale_signatures(self, current_keys: set[str]) -> None:
         # `list()` is required (python:S7504 says otherwise): the body
         # pops from this dict, so iterating it live raises RuntimeError.
         for key in list(self._last_seen_signatures.keys()):
@@ -141,6 +142,7 @@ class AutoIngestWatcher:
                 self._last_seen_signatures.pop(key, None)
                 self._indexed_signatures.pop(key, None)
 
+    def _ingest_ready_paths(self, ready_paths: list[tuple[Path, tuple[int, int]]]) -> int:
         ingested = 0
         for path, sig in ready_paths:
             try:
@@ -154,6 +156,15 @@ class AutoIngestWatcher:
                 # Unexpected error during ingestion
                 logger.exception(f"Unexpected error ingesting {path}")
                 self._indexed_signatures.pop(str(path.resolve()), None)
+        return ingested
+
+    def scan_once(self) -> dict[str, int]:
+        if not self.settings.auto_ingest_enabled:
+            return {"discovered": 0, "ready": 0, "ingested": 0}
+
+        discovered, ready_paths, current_keys = self._discover_ready_paths()
+        self._prune_stale_signatures(current_keys)
+        ingested = self._ingest_ready_paths(ready_paths)
 
         return {"discovered": discovered, "ready": len(ready_paths), "ingested": ingested}
 

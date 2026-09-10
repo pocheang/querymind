@@ -340,6 +340,121 @@ def _retrieval_failure(exc: BaseException) -> RetrievalFailureError | None:
     return None
 
 
+async def _run_advanced_query(
+    request_data: AdvancedRAGRequest,
+    request: Request,
+    user: dict[str, Any],
+    session_id: str | None,
+    execution_id: str,
+) -> AdvancedRAGResult:
+    allowed_sources = _resolve_advanced_allowed_sources(user, request_data.allowed_sources)
+    memory_context = _build_memory_context_for_session(user, session_id, request_data.query)
+    conversation = _conversation_for(user, session_id, memory_context)
+    pipeline_request = PipelineRequest(
+        question=request_data.query,
+        profile=PipelineProfile.ADVANCED,
+        session_id=session_id,
+        conversation=conversation,
+        user=PipelineUser(
+            user_id=str(user.get("user_id", "") or "") or None,
+            username=str(user.get("username", "") or "") or None,
+            role=str(user.get("role", "") or "") or None,
+            permissions=frozenset(user.get("permissions") or []),
+        ),
+        source_scope=SourceScope(allowed_sources=frozenset(allowed_sources)),
+        enable_decomposition=request_data.enable_decomposition,
+        enable_self_rag=request_data.enable_self_rag,
+        approval_token=request_data.approval_token,
+        use_web_fallback=request_data.use_web_fallback,
+        deadline_at=_deadline_from(request_data.timeout_ms),
+        execution_id=execution_id,
+    )
+    query_started = time.perf_counter()
+    pipeline_result = await RAGPipeline().execute(pipeline_request)
+    query_elapsed_ms = (time.perf_counter() - query_started) * 1000.0
+    plan_data = pipeline_result.execution_metadata.get("plan")
+
+    decomposed_query = (
+        _decomposed_query_from_plan(request_data.query, plan_data) if request_data.enable_decomposition else None
+    )
+
+    answer_quality = None
+    sub_query_results: list[SubQueryResult] = []
+    if request_data.enable_self_rag:
+        answer_quality, sub_query_results = await _run_self_rag_evaluation(
+            query=request_data.query,
+            pipeline_result=pipeline_result,
+            plan_data=plan_data,
+        )
+
+    # Rides the request's own metrics row, which is the window build_ops_alerts
+    # already reads for its p95 -- see record_grounding_support.
+    record_grounding_support(request, pipeline_result.execution_metadata)
+    # The analytics dashboard's only producer. Measured around `execute`
+    # rather than taken from the middleware's row, because that row times
+    # the HTTP request and this figure is presented as how long answering
+    # took.
+    record_query_analytics(request_data.query, pipeline_result, total_ms=query_elapsed_ms)
+    metadata = _response_metadata(
+        pipeline_result_metadata=dict(pipeline_result.execution_metadata),
+        route=pipeline_result.route.route,
+        citations=[citation.model_dump(mode="json") for citation in pipeline_result.citations],
+        tool_runs=[run.model_dump(mode="json") for run in pipeline_result.tool_runs],
+        execution_id=execution_id,
+        session_id=session_id,
+    )
+    await _persist_exchange(
+        user=user,
+        session_id=session_id,
+        question=request_data.query,
+        answer=pipeline_result.answer,
+        metadata=metadata,
+    )
+
+    return AdvancedRAGResult(
+        query=request_data.query,
+        decomposed_query=decomposed_query,
+        sub_query_results=sub_query_results,
+        final_answer=pipeline_result.answer,
+        # 200 with a discriminator rather than 202: the run completed and the
+        # answer is the answer. Only the governed action is outstanding, so a
+        # client that ignores these two fields still behaves correctly.
+        status=pipeline_result.status,
+        pending_approval=(
+            None
+            if pipeline_result.pending_approval is None
+            else PendingApprovalView(**pipeline_result.pending_approval.model_dump())
+        ),
+        answer_quality=answer_quality,
+        metadata=metadata,
+    )
+
+
+def _raise_advanced_query_failure(exc: Exception, tracker, execution_id: str, query: str) -> None:
+    """Translate a pipeline failure into the right HTTP error, after recording it. Always raises."""
+    retrieval_failure = _retrieval_failure(exc)
+    if retrieval_failure is None:
+        tracker.fail_execution(execution_id, str(exc))
+        logger.exception("Error processing advanced RAG query")
+        raise internal_error("Unable to process advanced query") from exc
+
+    # Every retriever that ran, failed. That is a dependency being down --
+    # most often the web search, which is the *only* source when the caller
+    # has no documents -- not a defect in this service, and answering it with
+    # a bare 500 threw away the one thing the caller could act on. A closely
+    # related case was fixed once already: a caller with an empty corpus had
+    # every document source counted as failed, and their first question
+    # surfaced as a 500 (see `RAGAgentService.retrieve`). This is the other
+    # half of it.
+    tracker.fail_execution(execution_id, str(exc))
+    failed = ", ".join(sorted(retrieval_failure.failed_retrievers)) or "unknown"
+    logger.warning("Retrieval failed for every source (%s) on %s", failed, question_ref(query))
+    raise service_unavailable(
+        f"No evidence could be retrieved: every source failed ({failed}). "
+        "This is usually a transient upstream failure; retrying often works."
+    ) from exc
+
+
 async def _process_advanced_rag_query_impl(
     request_data: AdvancedRAGRequest,
     request: Request,
@@ -369,111 +484,11 @@ async def _process_advanced_rag_query_impl(
         profile="advanced",
     )
     try:
-        allowed_sources = _resolve_advanced_allowed_sources(user, request_data.allowed_sources)
-        memory_context = _build_memory_context_for_session(user, session_id, request_data.query)
-        conversation = _conversation_for(user, session_id, memory_context)
-        pipeline_request = PipelineRequest(
-            question=request_data.query,
-            profile=PipelineProfile.ADVANCED,
-            session_id=session_id,
-            conversation=conversation,
-            user=PipelineUser(
-                user_id=str(user.get("user_id", "") or "") or None,
-                username=str(user.get("username", "") or "") or None,
-                role=str(user.get("role", "") or "") or None,
-                permissions=frozenset(user.get("permissions") or []),
-            ),
-            source_scope=SourceScope(allowed_sources=frozenset(allowed_sources)),
-            enable_decomposition=request_data.enable_decomposition,
-            enable_self_rag=request_data.enable_self_rag,
-            approval_token=request_data.approval_token,
-            use_web_fallback=request_data.use_web_fallback,
-            deadline_at=_deadline_from(request_data.timeout_ms),
-            execution_id=execution_id,
-        )
-        query_started = time.perf_counter()
-        pipeline_result = await RAGPipeline().execute(pipeline_request)
-        query_elapsed_ms = (time.perf_counter() - query_started) * 1000.0
-        plan_data = pipeline_result.execution_metadata.get("plan")
-
-        decomposed_query = (
-            _decomposed_query_from_plan(request_data.query, plan_data) if request_data.enable_decomposition else None
-        )
-
-        answer_quality = None
-        sub_query_results: list[SubQueryResult] = []
-        if request_data.enable_self_rag:
-            answer_quality, sub_query_results = await _run_self_rag_evaluation(
-                query=request_data.query,
-                pipeline_result=pipeline_result,
-                plan_data=plan_data,
-            )
-
-        # Rides the request's own metrics row, which is the window build_ops_alerts
-        # already reads for its p95 -- see record_grounding_support.
-        record_grounding_support(request, pipeline_result.execution_metadata)
-        # The analytics dashboard's only producer. Measured around `execute`
-        # rather than taken from the middleware's row, because that row times
-        # the HTTP request and this figure is presented as how long answering
-        # took.
-        record_query_analytics(request_data.query, pipeline_result, total_ms=query_elapsed_ms)
-        metadata = _response_metadata(
-            pipeline_result_metadata=dict(pipeline_result.execution_metadata),
-            route=pipeline_result.route.route,
-            citations=[citation.model_dump(mode="json") for citation in pipeline_result.citations],
-            tool_runs=[run.model_dump(mode="json") for run in pipeline_result.tool_runs],
-            execution_id=execution_id,
-            session_id=session_id,
-        )
-        await _persist_exchange(
-            user=user,
-            session_id=session_id,
-            question=request_data.query,
-            answer=pipeline_result.answer,
-            metadata=metadata,
-        )
-
-        result = AdvancedRAGResult(
-            query=request_data.query,
-            decomposed_query=decomposed_query,
-            sub_query_results=sub_query_results,
-            final_answer=pipeline_result.answer,
-            # 200 with a discriminator rather than 202: the run completed and the
-            # answer is the answer. Only the governed action is outstanding, so a
-            # client that ignores these two fields still behaves correctly.
-            status=pipeline_result.status,
-            pending_approval=(
-                None
-                if pipeline_result.pending_approval is None
-                else PendingApprovalView(**pipeline_result.pending_approval.model_dump())
-            ),
-            answer_quality=answer_quality,
-            metadata=metadata,
-        )
+        result = await _run_advanced_query(request_data, request, user, session_id, execution_id)
         tracker.complete_execution(execution_id, result.model_dump())
         return result
     except Exception as exc:
-        retrieval_failure = _retrieval_failure(exc)
-        if retrieval_failure is None:
-            tracker.fail_execution(execution_id, str(exc))
-            logger.exception("Error processing advanced RAG query")
-            raise internal_error("Unable to process advanced query") from exc
-
-        # Every retriever that ran, failed. That is a dependency being down --
-        # most often the web search, which is the *only* source when the caller
-        # has no documents -- not a defect in this service, and answering it with
-        # a bare 500 threw away the one thing the caller could act on. A closely
-        # related case was fixed once already: a caller with an empty corpus had
-        # every document source counted as failed, and their first question
-        # surfaced as a 500 (see `RAGAgentService.retrieve`). This is the other
-        # half of it.
-        tracker.fail_execution(execution_id, str(exc))
-        failed = ", ".join(sorted(retrieval_failure.failed_retrievers)) or "unknown"
-        logger.warning("Retrieval failed for every source (%s) on %s", failed, question_ref(request_data.query))
-        raise service_unavailable(
-            f"No evidence could be retrieved: every source failed ({failed}). "
-            "This is usually a transient upstream failure; retrying often works."
-        ) from exc
+        _raise_advanced_query_failure(exc, tracker, execution_id, request_data.query)
 
 
 @router.post("/query", response_model=AdvancedRAGResult)

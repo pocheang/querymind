@@ -75,6 +75,19 @@ class VerifierAgentService:
         except Exception as exc:
             return self._validation_unavailable(request, retry_count, type(exc).__name__, conflicts)
 
+        return self._decision_from_validation(
+            request, candidate, result, citation_errors, conflicts, missing_aspects, retry_count
+        )
+
+    @staticmethod
+    def _classify_validator_issues(
+        result: Any, candidate: CandidateAnswer, missing_aspects: list[str]
+    ) -> tuple[list[str], list[str], list[str]]:
+        """From the validator's raw issues: (unsupported claims, safety issues, missing aspects).
+
+        ``missing_aspects`` is read, not mutated -- the returned list is a new
+        one combining it with what this method found.
+        """
         issues = tuple(getattr(result, "issues", ()) or ())
         unsupported = [
             str(getattr(issue, "content", "unsupported claim") or "unsupported claim")
@@ -86,11 +99,11 @@ class VerifierAgentService:
             for issue in issues
             if str(getattr(issue, "type", "")).lower() == "safety"
         ]
-        missing_aspects.extend(
+        missing_aspects = missing_aspects + [
             "citation coverage is incomplete"
             for issue in issues
             if str(getattr(issue, "type", "")).lower() == "missing_citation"
-        )
+        ]
         details = getattr(result, "validation_details", None)
         factuality = float(getattr(details, "factual_consistency", 1.0) or 0.0)
         citation_completeness = float(getattr(details, "citation_completeness", 1.0) or 0.0)
@@ -98,6 +111,21 @@ class VerifierAgentService:
             unsupported.append("answer factual support is below threshold")
         if candidate.citations and citation_completeness < 1.0:
             missing_aspects.append("one or more citations do not resolve to supplied evidence")
+        return unsupported, safety_issues, missing_aspects
+
+    def _decision_from_validation(
+        self,
+        request: OrchestrationRequest,
+        candidate: CandidateAnswer,
+        result: Any,
+        citation_errors: list[str],
+        conflicts: tuple[str, ...],
+        missing_aspects: list[str],
+        retry_count: int,
+    ) -> VerificationDecision:
+        unsupported, safety_issues, missing_aspects = self._classify_validator_issues(
+            result, candidate, missing_aspects
+        )
 
         unsupported_tuple = tuple(dict.fromkeys(unsupported))
         citation_tuple = tuple(dict.fromkeys(citation_errors))
