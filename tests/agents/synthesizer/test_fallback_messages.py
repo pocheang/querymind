@@ -46,7 +46,8 @@ def test_every_reason_speaks_both_languages(reason: str):
     chinese = synthesis_fallback(reason, "zh")
     english = synthesis_fallback(reason, "en")
 
-    assert chinese and english
+    assert chinese
+    assert english
     assert chinese != english
     assert english.isascii(), f"{reason} English message is not English: {english!r}"
     assert not chinese.isascii(), f"{reason} Chinese message looks like English: {chinese!r}"

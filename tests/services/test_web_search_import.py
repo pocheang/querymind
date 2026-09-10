@@ -75,6 +75,10 @@ def test_concurrent_construction_does_not_hang() -> None:
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         futures = [pool.submit(build) for _ in range(3)]
+        # python:S8714 wants this left to fail naturally. It would still fail --
+        # a bare `TimeoutError` after a 30s wait -- but the whole point of the
+        # bound is to turn a hang into a fast, legible failure; letting it
+        # propagate keeps the fast part and throws away the legible part.
         try:
             results = [future.result(timeout=30) for future in futures]
         except concurrent.futures.TimeoutError:  # pragma: no cover - the regression

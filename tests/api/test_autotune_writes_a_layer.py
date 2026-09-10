@@ -99,7 +99,7 @@ def test_recommending_changes_no_settings(monkeypatch):
     _, patch = recommend_replay_autotune(target_p95=3000, target_grounding=0.65, settings=settings)
 
     assert patch["TOP_K"] == settings.top_k - 1
-    assert (settings.top_k, settings.max_context_chunks) == before
+    assert before == (settings.top_k, settings.max_context_chunks)
 
 
 def test_a_healthy_trend_recommends_nothing(monkeypatch):

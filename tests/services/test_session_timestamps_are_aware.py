@@ -68,7 +68,8 @@ class TestTimestampsAreReadAware:
 
         assert metadata.created_at.tzinfo is not None
         assert metadata.updated_at.tzinfo is not None
-        assert metadata.last_query_at is not None and metadata.last_query_at.tzinfo is not None
+        assert metadata.last_query_at is not None
+        assert metadata.last_query_at.tzinfo is not None
 
 
 class TestTheMixCannotReachASort:

@@ -56,7 +56,8 @@ def test_the_warning_names_the_rejected_hosts(monkeypatch: pytest.MonkeyPatch, c
 
     assert result["used"] is False
     warning = "\n".join(record.getMessage() for record in caplog.records)
-    assert "veso.ai" in warning and "blog.csdn.net" in warning, warning
+    assert "veso.ai" in warning, warning
+    assert "blog.csdn.net" in warning, warning
     assert "WEB_DOMAIN_ALLOWLIST" in warning, "the warning does not say what to change"
 
 

@@ -102,7 +102,8 @@ class TestTheRequestContextIsPublished:
         with request_context(timeout_ms=5_000, overload_mode=False):
             seen = remaining_seconds()
 
-        assert seen is not None and 0 < seen <= 5.0
+        assert seen is not None
+        assert 0 < seen <= 5.0
         assert remaining_seconds() is None
 
     def test_the_llm_rewriter_declines_without_one(self) -> None:

@@ -83,4 +83,5 @@ def test_a_sample_below_the_threshold_still_alerts() -> None:
 
     assert payload["slo"]["grounding_support_ratio_avg"] == 0.4
     grounding = [alert for alert in payload["alerts"] if alert["type"] == "grounding_support"]
-    assert grounding and grounding[0]["value"] == 0.4
+    assert grounding
+    assert grounding[0]["value"] == 0.4

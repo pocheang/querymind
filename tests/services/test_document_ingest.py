@@ -311,7 +311,8 @@ def test_a_documents_images_are_indexed_and_counted(wiring: _Calls, monkeypatch)
     result = ingest_module.ingest_paths([Path("a.pdf")])
 
     assert result["images_indexed"] == 1
-    assert indexed and "Deployment topology" in indexed[0].description
+    assert indexed
+    assert "Deployment topology" in indexed[0].description
 
 
 def test_the_empty_result_reports_no_images_key(wiring: _Calls, monkeypatch) -> None:

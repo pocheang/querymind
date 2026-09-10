@@ -141,5 +141,7 @@ def test_an_empty_document_produces_nothing_rather_than_an_empty_chunk():
         [Doc(""), Doc("   \n\t "), Doc("real content", {"source": "/u/a/x.txt"})],
         enable_metadata_enhancement=False,
     )
-    assert parents and all(p["text"].strip() for p in parents)
-    assert children and all(c.page_content.strip() for c in children)
+    assert parents
+    assert all(p["text"].strip() for p in parents)
+    assert children
+    assert all(c.page_content.strip() for c in children)

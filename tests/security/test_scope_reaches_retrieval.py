@@ -21,6 +21,7 @@ from typing import Any
 
 import pytest
 
+from app.domain.errors import StageExecutionError
 from app.domain.events import ExecutionEvent
 from app.orchestration.langgraph.nodes import WorkflowNodeRuntime
 from app.orchestration.policies import ExecutionPolicy
@@ -91,7 +92,9 @@ async def test_resolver_rejects_a_caller_asking_for_someone_elses_source():
     runtime = _runtime()
     state = _state(request)
 
-    with pytest.raises(Exception) as excinfo:
+    # `_run_stage` wraps the resolver's raw error in `StageExecutionError`
+    # (`__cause__` carries the original); either form is accepted below.
+    with pytest.raises((StageExecutionError, AccessScopeError, PermissionError)) as excinfo:
         await runtime.privacy_permission(state)
 
     assert isinstance(excinfo.value.__cause__ or excinfo.value, AccessScopeError | PermissionError)

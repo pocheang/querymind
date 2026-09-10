@@ -303,4 +303,5 @@ async def test_every_upload_is_closed_even_when_one_is_refused(roots: _Roots) ->
     with pytest.raises(UploadInvalidFileError):
         await _store(roots, [good, bad])
 
-    assert good.closed and bad.closed
+    assert good.closed
+    assert bad.closed

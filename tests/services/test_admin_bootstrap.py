@@ -83,7 +83,8 @@ def test_the_new_administrator_can_actually_sign_in(service) -> None:
     """
 
     created = ensure_admin_account(service)
-    assert created is not None and created.generated_password
+    assert created is not None
+    assert created.generated_password
 
     # `login` rather than the user manager underneath it, because signing in
     # is the thing that has to work -- the browser takes this exact path.
@@ -143,14 +144,16 @@ def test_there_is_no_default_password(service) -> None:
     """
 
     first = ensure_admin_account(service)
-    assert first is not None and first.generated_password
+    assert first is not None
+    assert first.generated_password
 
     with service._connect() as conn:
         conn.execute("DELETE FROM users")
         conn.commit()
     second = ensure_admin_account(service)
 
-    assert second is not None and second.generated_password
+    assert second is not None
+    assert second.generated_password
     assert second.generated_password != first.generated_password
     assert len(first.generated_password) >= 20
 
@@ -219,7 +222,8 @@ def test_the_username_can_be_chosen(service, monkeypatch: pytest.MonkeyPatch) ->
 
 def test_the_generated_password_is_shown_once(service) -> None:
     created = ensure_admin_account(service)
-    assert created is not None and created.generated_password
+    assert created is not None
+    assert created.generated_password
 
     shown = describe_bootstrap(created)
 
@@ -238,7 +242,8 @@ def test_the_password_is_never_written_through_the_logger(service, caplog: pytes
     with caplog.at_level("DEBUG"):
         created = ensure_admin_account(service)
 
-    assert created is not None and created.generated_password
+    assert created is not None
+    assert created.generated_password
     assert created.generated_password not in caplog.text
     assert created.username in caplog.text
 

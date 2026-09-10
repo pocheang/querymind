@@ -38,7 +38,8 @@ def test_both_languages_agree_on_field_names_and_option_counts():
         for field_name in fields:
             zh = question_for(intent, field_name)
             en = question_for(intent, field_name, language="en")
-            assert zh is not None and en is not None, f"{intent}.{field_name}"
+            assert zh is not None, f"{intent}.{field_name}"
+            assert en is not None, f"{intent}.{field_name}"
             assert zh.field_name == en.field_name
             assert len(zh.options) == len(en.options)
             assert zh.allow_custom_input == en.allow_custom_input

@@ -142,7 +142,8 @@ async def test_concurrent_executions_do_not_share_a_stream():
 
     a = store.events_since("exec-concurrent-a", 0)
     b = store.events_since("exec-concurrent-b", 0)
-    assert len(a) > 1 and len(b) > 1
+    assert len(a) > 1
+    assert len(b) > 1
     assert len(a) == len(b), "one execution absorbed the other's events"
 
 

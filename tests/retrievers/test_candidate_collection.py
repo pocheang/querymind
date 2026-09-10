@@ -201,7 +201,9 @@ def test_the_diagnostics_describe_the_search_that_ran() -> None:
 
     _fused, diag = _collect(retrieval)
 
-    assert diag["vector_top_k"] == 4 and diag["bm25_top_k"] == 4  # from dynamic_top_k
+    # from dynamic_top_k
+    assert diag["vector_top_k"] == 4
+    assert diag["bm25_top_k"] == 4
     assert diag["dynamic_params_applied"] is True
     assert diag["reranker_top_n"] == 5  # from settings, not from dynamic_top_k
     assert diag["vector_weight"] == pytest.approx(0.5)

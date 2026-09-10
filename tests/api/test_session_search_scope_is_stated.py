@@ -57,9 +57,11 @@ def test_the_empty_state_names_what_is_searched(locale: str):
 
     assert text, "the key is empty"
     if locale == "en":
-        assert "tags" in text.lower() and "description" in text.lower()
+        assert "tags" in text.lower()
+        assert "description" in text.lower()
     else:
-        assert "标签" in text and "描述" in text
+        assert "标签" in text
+        assert "描述" in text
 
 
 def test_the_panel_stopped_telling_readers_to_fix_their_query():

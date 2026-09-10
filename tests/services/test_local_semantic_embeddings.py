@@ -143,7 +143,8 @@ def test_a_dimension_mismatch_says_what_to_do():
     assert "LOCAL_EMBED_MODEL" in str(translated)
     # The original is kept: a message that hides what actually happened is worse
     # than one that is merely unhelpful.
-    assert "384" in str(translated) and "1024" in str(translated)
+    assert "384" in str(translated)
+    assert "1024" in str(translated)
 
 
 def test_an_unrelated_error_is_left_alone():
