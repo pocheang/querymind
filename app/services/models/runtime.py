@@ -796,6 +796,107 @@ def _local_backend_forced() -> bool:
     return str(os.getenv("MODEL_BACKEND", "") or "").strip().lower() == "local"
 
 
+def _local_chat_model(temperature: float, max_tokens: int):
+    return LocalEvidenceChatModel(model="local-evidence", temperature=temperature, max_tokens=max_tokens)
+
+
+def _openai_chat_model(
+    provider: str,
+    openai_model: str,
+    temperature: float,
+    openai_api_key: str,
+    openai_base_url: str,
+    max_tokens: int,
+    request_timeout_seconds: float,
+):
+    from langchain_openai import ChatOpenAI
+
+    kwargs = {
+        "model": openai_model,
+        "temperature": temperature,
+        "streaming": True,  # Enable real-time streaming
+        # Without this the HTTP call has no ceiling. The orchestration stage
+        # timeout unblocks the event loop but cannot cancel the pool thread
+        # running a blocking invoke(), so a hung provider connection pinned a
+        # worker for the life of the process.
+        "timeout": request_timeout_seconds,
+    }
+    if openai_api_key:
+        kwargs["api_key"] = openai_api_key
+    if openai_base_url:
+        kwargs["base_url"] = openai_base_url
+    if max_tokens > 0:
+        kwargs["max_tokens"] = max_tokens
+    return _wrap_chat_model_for_provider(ChatOpenAI(**kwargs), provider=provider)
+
+
+def _anthropic_chat_model(
+    provider: str,
+    anthropic_model: str,
+    anthropic_api_key: str,
+    anthropic_base_url: str,
+    temperature: float,
+    max_tokens: int,
+    request_timeout_seconds: float,
+):
+    if anthropic_base_url:
+        return _wrap_chat_model_for_provider(
+            AnthropicRelayChatModel(
+                model=anthropic_model,
+                api_key=anthropic_api_key,
+                base_url=anthropic_base_url,
+                temperature=temperature,
+                max_tokens=max_tokens if max_tokens > 0 else 2048,
+                # No `streaming` flag: this adapter streams by having a
+                # `stream()` method, not by being told to. Passing one was a
+                # `TypeError` at construction, so this branch -- the only
+                # reason the class exists -- had never once run.
+                timeout_seconds=request_timeout_seconds,
+            ),
+            provider=provider,
+        )
+
+    from langchain_anthropic import ChatAnthropic
+
+    kwargs = {
+        "model": anthropic_model,
+        "temperature": temperature,
+        "streaming": True,  # Enable real-time streaming
+        "timeout": request_timeout_seconds,  # see the OpenAI branch
+    }
+    if anthropic_api_key:
+        kwargs["api_key"] = anthropic_api_key
+    if anthropic_base_url:
+        kwargs["base_url"] = anthropic_base_url
+    if max_tokens > 0:
+        kwargs["max_tokens"] = max_tokens
+    return _wrap_chat_model_for_provider(ChatAnthropic(**kwargs), provider=provider)
+
+
+def _ollama_chat_model(
+    ollama_model: str,
+    ollama_base_url: str,
+    temperature: float,
+    max_tokens: int,
+    request_timeout_seconds: float,
+):
+    from langchain_ollama import ChatOllama
+
+    kwargs = {
+        "model": ollama_model,
+        "base_url": ollama_base_url,
+        "temperature": temperature,
+        "streaming": True,  # Enable real-time streaming
+        # ChatOllama takes no `timeout` of its own; this is the only way to bound
+        # the request. Without it a hung local server pins a pool thread for the
+        # life of the process, exactly as the hosted clients used to.
+        "client_kwargs": {"timeout": request_timeout_seconds},
+    }
+    if max_tokens > 0:
+        kwargs["num_predict"] = max_tokens
+    return ChatOllama(**kwargs)
+
+
 @lru_cache(maxsize=16)
 def _build_chat_model_cached(
     provider: str,
@@ -813,78 +914,22 @@ def _build_chat_model_cached(
     request_timeout_seconds: float = 60.0,
 ):
     if backend == "local":
-        return LocalEvidenceChatModel(model="local-evidence", temperature=temperature, max_tokens=max_tokens)
-
+        return _local_chat_model(temperature, max_tokens)
     if backend == "openai":
-        from langchain_openai import ChatOpenAI
-
-        kwargs = {
-            "model": openai_model,
-            "temperature": temperature,
-            "streaming": True,  # Enable real-time streaming
-            # Without this the HTTP call has no ceiling. The orchestration stage
-            # timeout unblocks the event loop but cannot cancel the pool thread
-            # running a blocking invoke(), so a hung provider connection pinned a
-            # worker for the life of the process.
-            "timeout": request_timeout_seconds,
-        }
-        if openai_api_key:
-            kwargs["api_key"] = openai_api_key
-        if openai_base_url:
-            kwargs["base_url"] = openai_base_url
-        if max_tokens > 0:
-            kwargs["max_tokens"] = max_tokens
-        return _wrap_chat_model_for_provider(ChatOpenAI(**kwargs), provider=provider)
-
+        return _openai_chat_model(
+            provider, openai_model, temperature, openai_api_key, openai_base_url, max_tokens, request_timeout_seconds
+        )
     if backend == "anthropic":
-        if anthropic_base_url:
-            return _wrap_chat_model_for_provider(
-                AnthropicRelayChatModel(
-                    model=anthropic_model,
-                    api_key=anthropic_api_key,
-                    base_url=anthropic_base_url,
-                    temperature=temperature,
-                    max_tokens=max_tokens if max_tokens > 0 else 2048,
-                    # No `streaming` flag: this adapter streams by having a
-                    # `stream()` method, not by being told to. Passing one was a
-                    # `TypeError` at construction, so this branch -- the only
-                    # reason the class exists -- had never once run.
-                    timeout_seconds=request_timeout_seconds,
-                ),
-                provider=provider,
-            )
-
-        from langchain_anthropic import ChatAnthropic
-
-        kwargs = {
-            "model": anthropic_model,
-            "temperature": temperature,
-            "streaming": True,  # Enable real-time streaming
-            "timeout": request_timeout_seconds,  # see the OpenAI branch
-        }
-        if anthropic_api_key:
-            kwargs["api_key"] = anthropic_api_key
-        if anthropic_base_url:
-            kwargs["base_url"] = anthropic_base_url
-        if max_tokens > 0:
-            kwargs["max_tokens"] = max_tokens
-        return _wrap_chat_model_for_provider(ChatAnthropic(**kwargs), provider=provider)
-
-    from langchain_ollama import ChatOllama
-
-    kwargs = {
-        "model": ollama_model,
-        "base_url": ollama_base_url,
-        "temperature": temperature,
-        "streaming": True,  # Enable real-time streaming
-        # ChatOllama takes no `timeout` of its own; this is the only way to bound
-        # the request. Without it a hung local server pins a pool thread for the
-        # life of the process, exactly as the hosted clients used to.
-        "client_kwargs": {"timeout": request_timeout_seconds},
-    }
-    if max_tokens > 0:
-        kwargs["num_predict"] = max_tokens
-    return ChatOllama(**kwargs)
+        return _anthropic_chat_model(
+            provider,
+            anthropic_model,
+            anthropic_api_key,
+            anthropic_base_url,
+            temperature,
+            max_tokens,
+            request_timeout_seconds,
+        )
+    return _ollama_chat_model(ollama_model, ollama_base_url, temperature, max_tokens, request_timeout_seconds)
 
 
 @lru_cache(maxsize=4)
@@ -991,27 +1036,29 @@ def get_chat_model(temperature: float | None = None):
     )
 
 
+def _embedding_kwargs_from_override(override: dict, settings) -> dict[str, str]:
+    provider = str(override["provider"])
+    backend = _normalize_backend(provider)
+    return {
+        "provider": provider,
+        "backend": backend,
+        "openai_model": str(override["model"]) if backend == "openai" else settings.openai_embed_model,
+        "openai_api_key": str(override.get("api_key", "") or "")
+        if backend == "openai"
+        else str(settings.openai_api_key or ""),
+        "openai_base_url": str(override.get("base_url", "") or "")
+        if backend == "openai"
+        else str(settings.openai_base_url or ""),
+        "ollama_model": str(override["model"]) if backend == "ollama" else settings.ollama_embed_model,
+        "ollama_base_url": str(override.get("base_url", "") or "") if backend == "ollama" else settings.ollama_base_url,
+    }
+
+
 def get_embedding_model():
     settings = get_settings()
     override = {} if _local_backend_forced() else _global_embedding_override()
     if override:
-        provider = str(override["provider"])
-        backend = _normalize_backend(provider)
-        return _build_embedding_model_cached(
-            provider=provider,
-            backend=backend,
-            openai_model=str(override["model"]) if backend == "openai" else settings.openai_embed_model,
-            openai_api_key=str(override.get("api_key", "") or "")
-            if backend == "openai"
-            else str(settings.openai_api_key or ""),
-            openai_base_url=str(override.get("base_url", "") or "")
-            if backend == "openai"
-            else str(settings.openai_base_url or ""),
-            ollama_model=str(override["model"]) if backend == "ollama" else settings.ollama_embed_model,
-            ollama_base_url=str(override.get("base_url", "") or "")
-            if backend == "ollama"
-            else settings.ollama_base_url,
-        )
+        return _build_embedding_model_cached(**_embedding_kwargs_from_override(override, settings))
     return _build_embedding_model_cached(
         provider=str(settings.model_backend or ""),
         backend=_normalize_backend(settings.model_backend),

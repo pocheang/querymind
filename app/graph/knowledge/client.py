@@ -9,6 +9,8 @@ from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+_NO_RETRY = object()
+
 
 class Neo4jClient:
     _driver = None
@@ -69,6 +71,28 @@ class Neo4jClient:
                 self.__class__._schema_init_in_progress = False
                 self.__class__._schema_cv.notify_all()
 
+    def _retry_with_simpler_query(self, session, query_type: str | None, params: dict, retry_log_message: str):
+        """Best-effort fallback to a simpler query for ``query_type``.
+
+        Returns the sentinel ``_NO_RETRY`` when there is no query_type, no
+        simpler query for it, or the retry itself fails -- distinct from any
+        real (falsy-but-valid) query result.
+        """
+        if not query_type:
+            return _NO_RETRY
+        from app.graph.knowledge.cypher_validation import get_simpler_query
+
+        allowed_sources = params.get("allowed_sources")
+        simpler_query = get_simpler_query(query_type, allowed_sources)
+        if not simpler_query:
+            return _NO_RETRY
+        logger.info(retry_log_message, query_type)
+        try:
+            return session.run(simpler_query, **params)
+        except Exception as retry_error:
+            logger.exception("Simpler query also failed: %s", retry_error)
+            return _NO_RETRY
+
     def _execute_query_safe(self, session, cypher: str, query_type: str | None = None, **params):
         """
         Execute a Cypher query with validation, error handling, and retry logic.
@@ -85,23 +109,18 @@ class Neo4jClient:
         Raises:
             Exception: If query fails and cannot be retried
         """
-        from app.graph.knowledge.cypher_validation import get_simpler_query, validate_cypher_query
+        from app.graph.knowledge.cypher_validation import validate_cypher_query
 
         # Validate query before execution
         validation = validate_cypher_query(cypher)
         if not validation.is_valid:
             logger.warning("Cypher query validation failed: %s (type: %s)", validation.error, validation.error_type)
-            # Try to get a simpler query if validation fails
-            if query_type:
-                allowed_sources = params.get("allowed_sources")
-                simpler_query = get_simpler_query(query_type, allowed_sources)
-                if simpler_query:
-                    logger.info("Retrying with simpler query for type: %s", query_type)
-                    try:
-                        return session.run(simpler_query, **params)
-                    except Exception as retry_error:
-                        logger.exception("Simpler query also failed: %s", retry_error)
-                        # Fall through to original execution attempt
+            retried = self._retry_with_simpler_query(
+                session, query_type, params, "Retrying with simpler query for type: %s"
+            )
+            if retried is not _NO_RETRY:
+                return retried
+            # Fall through to original execution attempt
 
         try:
             return session.run(cypher, **params)
@@ -109,17 +128,11 @@ class Neo4jClient:
             logger.exception("Cypher query execution failed")
             logger.debug("Failed query: %s", cypher)
 
-            # Try simpler query on execution failure
-            if query_type:
-                allowed_sources = params.get("allowed_sources")
-                simpler_query = get_simpler_query(query_type, allowed_sources)
-                if simpler_query:
-                    logger.info("Retrying with simpler query after execution error for type: %s", query_type)
-                    try:
-                        return session.run(simpler_query, **params)
-                    except Exception as retry_error:
-                        logger.exception("Simpler query also failed: %s", retry_error)
-
+            retried = self._retry_with_simpler_query(
+                session, query_type, params, "Retrying with simpler query after execution error for type: %s"
+            )
+            if retried is not _NO_RETRY:
+                return retried
             raise
 
     def upsert_triplet(
