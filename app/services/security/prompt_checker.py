@@ -44,12 +44,9 @@ def _contains_any(text: str, words: list[str]) -> bool:
     return any(word.lower() in low for word in words)
 
 
-def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = False) -> dict[str, Any]:
-    t = _sanitize_output(normalize_user_question(title or "未命名模板"))
-    c = _sanitize_output(normalize_user_question(content or ""))
+def _rule_based_issues(c: str) -> tuple[list[str], list[str]]:
     issues: list[str] = []
     suggestions: list[str] = []
-
     if len(c) < 60:
         issues.append("Prompt 过短，语义约束不足。")
         suggestions.append("补充目标、上下文、约束和输出格式。")
@@ -68,48 +65,63 @@ def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = Fal
     if _DANGEROUS_RE.search(c):
         issues.append("检测到潜在危险命令片段。")
         suggestions.append("删除可执行破坏命令，改为防御性说明。")
+    return issues, suggestions
 
-    enhanced = c
+
+def _enhanced_content(c: str, issues: list[str], suggestions: list[str]) -> str:
     if not issues:
         suggestions.append("结构完整，可直接使用。")
-    else:
-        enhanced = (
-            f"{c}\n\n"
-            "【补充建议结构】\n"
-            "1) 任务目标：说明要解决的问题与成功标准。\n"
-            "2) 上下文输入：列出可用信息来源与边界。\n"
-            "3) 约束条件：禁止高风险输出、保持可验证。\n"
-            "4) 输出格式：先结论后要点，附引用来源。"
+        return c
+    return (
+        f"{c}\n\n"
+        "【补充建议结构】\n"
+        "1) 任务目标：说明要解决的问题与成功标准。\n"
+        "2) 上下文输入：列出可用信息来源与边界。\n"
+        "3) 约束条件：禁止高风险输出、保持可验证。\n"
+        "4) 输出格式：先结论后要点，附引用来源。"
+    )
+
+
+def _llm_enhance(
+    t: str, enhanced: str, issues: list[str], suggestions: list[str]
+) -> tuple[str, str, list[str], list[str]]:
+    try:
+        model = get_reasoning_model()
+        prompt = (
+            "你是 Prompt 质检与补全助手。请在不改变用户意图的前提下，优化模板。"
+            "要求：更清晰、更结构化、避免危险执行指令。"
+            "只输出 JSON："
+            '{"title":"...","content":"...","issues":["..."],"suggestions":["..."]}\n\n'
+            f"标题:\n{t}\n\n内容:\n{enhanced}\n"
         )
+        result = model.invoke([("system", "请严格输出 JSON"), ("human", prompt)])
+        text = result.content if hasattr(result, "content") else str(result)
+        data = _extract_json(text)
+        if data:
+            t = _sanitize_output(normalize_user_question(str(data.get("title", t))))
+            enhanced = _sanitize_output(normalize_user_question(str(data.get("content", enhanced))))
+            llm_issues = [_sanitize_output(str(item)) for item in (data.get("issues", []) or []) if str(item).strip()]
+            llm_suggestions = [
+                _sanitize_output(str(item)) for item in (data.get("suggestions", []) or []) if str(item).strip()
+            ]
+            if llm_issues:
+                issues = llm_issues
+            if llm_suggestions:
+                suggestions = llm_suggestions
+    except (RuntimeError, ValueError) as error:
+        logger.debug(f"LLM prompt enhancement failed: {error}")
+    return t, enhanced, issues, suggestions
+
+
+def check_and_enhance_prompt(title: str, content: str, use_reasoning: bool = False) -> dict[str, Any]:
+    t = _sanitize_output(normalize_user_question(title or "未命名模板"))
+    c = _sanitize_output(normalize_user_question(content or ""))
+
+    issues, suggestions = _rule_based_issues(c)
+    enhanced = _enhanced_content(c, issues, suggestions)
 
     if use_reasoning:
-        try:
-            model = get_reasoning_model()
-            prompt = (
-                "你是 Prompt 质检与补全助手。请在不改变用户意图的前提下，优化模板。"
-                "要求：更清晰、更结构化、避免危险执行指令。"
-                "只输出 JSON："
-                '{"title":"...","content":"...","issues":["..."],"suggestions":["..."]}\n\n'
-                f"标题:\n{t}\n\n内容:\n{enhanced}\n"
-            )
-            result = model.invoke([("system", "请严格输出 JSON"), ("human", prompt)])
-            text = result.content if hasattr(result, "content") else str(result)
-            data = _extract_json(text)
-            if data:
-                t = _sanitize_output(normalize_user_question(str(data.get("title", t))))
-                enhanced = _sanitize_output(normalize_user_question(str(data.get("content", enhanced))))
-                llm_issues = [
-                    _sanitize_output(str(item)) for item in (data.get("issues", []) or []) if str(item).strip()
-                ]
-                llm_suggestions = [
-                    _sanitize_output(str(item)) for item in (data.get("suggestions", []) or []) if str(item).strip()
-                ]
-                if llm_issues:
-                    issues = llm_issues
-                if llm_suggestions:
-                    suggestions = llm_suggestions
-        except (RuntimeError, ValueError) as error:
-            logger.debug(f"LLM prompt enhancement failed: {error}")
+        t, enhanced, issues, suggestions = _llm_enhance(t, enhanced, issues, suggestions)
 
     return {
         "title": _sanitize_output(t),

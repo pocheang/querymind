@@ -191,6 +191,50 @@ def run_web_research(
 
     # Filter and format results
     filter_start = time.time()
+    lines, citations, filtered_count, rejected_hosts = _filter_and_format_results(results, allowlist, min_score)
+
+    metrics["filter_time"] = time.time() - filter_start
+    metrics["filtered_results"] = filtered_count
+    metrics["final_results"] = len(citations)
+
+    # Log summary
+    total_time = time.time() - start_time
+    logger.info(
+        f"Web search complete: {metrics['final_results']} results accepted, "
+        f"{metrics['filtered_results']} filtered out, "
+        f"total time {total_time:.2f}s"
+    )
+
+    if not citations:
+        # Name the hosts. Without them an operator sees "0 results" and cannot
+        # tell a throttled search engine from an allowlist that rejected
+        # everything it returned -- and `WEB_DOMAIN_ALLOWLIST` ships non-empty,
+        # so on a default installation the second is the usual answer. Hosts are
+        # not question text; the question is still referenced by digest above.
+        logger.warning(
+            "No web result passed the source filter (min_score=%.2f, mode=%s): rejected %s. "
+            "Widen WEB_DOMAIN_ALLOWLIST to accept more sources.",
+            min_score,
+            "allowlist" if allowlist else "tld",
+            ", ".join(sorted(set(rejected_hosts))) or "nothing",
+        )
+
+    result = {
+        "context": "\n\n".join(lines),
+        "citations": citations,
+        "used": bool(citations),
+        "metrics": metrics,
+    }
+
+    _record_search_metrics(result)
+    _log_search_activity(user_id, session_id, question, metrics, result, ip_address, user_agent)
+
+    return result
+
+
+def _filter_and_format_results(
+    results: list[dict], allowlist: set[str], min_score: float
+) -> tuple[list[str], list[dict], int, list[str]]:
     lines = []
     citations = []
     filtered_count = 0
@@ -226,60 +270,31 @@ def run_web_research(
             }
         )
 
-    metrics["filter_time"] = time.time() - filter_start
-    metrics["filtered_results"] = filtered_count
-    metrics["final_results"] = len(citations)
+    return lines, citations, filtered_count, rejected_hosts
 
-    # Log summary
-    total_time = time.time() - start_time
-    logger.info(
-        f"Web search complete: {metrics['final_results']} results accepted, "
-        f"{metrics['filtered_results']} filtered out, "
-        f"total time {total_time:.2f}s"
-    )
 
-    if not citations:
-        # Name the hosts. Without them an operator sees "0 results" and cannot
-        # tell a throttled search engine from an allowlist that rejected
-        # everything it returned -- and `WEB_DOMAIN_ALLOWLIST` ships non-empty,
-        # so on a default installation the second is the usual answer. Hosts are
-        # not question text; the question is still referenced by digest above.
-        logger.warning(
-            "No web result passed the source filter (min_score=%.2f, mode=%s): rejected %s. "
-            "Widen WEB_DOMAIN_ALLOWLIST to accept more sources.",
-            min_score,
-            "allowlist" if allowlist else "tld",
-            ", ".join(sorted(set(rejected_hosts))) or "nothing",
+def _record_search_metrics(result: dict) -> None:
+    if not METRICS_AVAILABLE:
+        return
+    try:
+        get_metrics().record_search(result)
+    except Exception as e:
+        logger.debug(f"Failed to record metrics: {e}")
+
+
+def _log_search_activity(user_id, session_id, question, metrics, result, ip_address, user_agent) -> None:
+    if not ACTIVITY_LOGGER_AVAILABLE:
+        return
+    try:
+        activity_logger = get_activity_logger()
+        activity_logger.log_search(
+            user_id=user_id,
+            session_id=session_id,
+            query=question,  # Already sanitized
+            query_sanitized=metrics.get("sanitized", False),
+            result=result,
+            ip_address=ip_address,
+            user_agent=user_agent,
         )
-
-    result = {
-        "context": "\n\n".join(lines),
-        "citations": citations,
-        "used": bool(citations),
-        "metrics": metrics,
-    }
-
-    # Record metrics (if available)
-    if METRICS_AVAILABLE:
-        try:
-            get_metrics().record_search(result)
-        except Exception as e:
-            logger.debug(f"Failed to record metrics: {e}")
-
-    # Log activity for management monitoring (if available)
-    if ACTIVITY_LOGGER_AVAILABLE:
-        try:
-            activity_logger = get_activity_logger()
-            activity_logger.log_search(
-                user_id=user_id,
-                session_id=session_id,
-                query=question,  # Already sanitized
-                query_sanitized=metrics.get("sanitized", False),
-                result=result,
-                ip_address=ip_address,
-                user_agent=user_agent,
-            )
-        except Exception as e:
-            logger.debug(f"Failed to log activity: {e}")
-
-    return result
+    except Exception as e:
+        logger.debug(f"Failed to log activity: {e}")
