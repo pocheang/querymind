@@ -230,6 +230,26 @@ def _reset_retrieval_cache() -> None:
     clear_retrieval_cache()
 
 
+def _physical_delete_candidates(
+    filename: str, source: str | None, removed_sources: list[str], settings: Any
+) -> list[Path]:
+    if source:
+        return [Path(source)]
+    candidates = [Path(item) for item in removed_sources]
+    candidates.extend([settings.uploads_path / filename, settings.docs_path / filename])
+    return candidates
+
+
+def _delete_physical_files(candidates: list[Path]) -> bool:
+    file_removed = False
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file():
+            candidate.unlink()
+            file_removed = True
+            delete_document_by_source(str(candidate))
+    return file_removed
+
+
 def delete_file_index(
     filename: str,
     remove_physical_file: bool = False,
@@ -277,18 +297,8 @@ def delete_file_index(
     settings = get_settings()
     file_removed = False
     if remove_physical_file:
-        candidates: list[Path] = []
-        if source:
-            candidates.append(Path(source))
-        else:
-            for item in removed_sources:
-                candidates.append(Path(item))
-            candidates.extend([settings.uploads_path / filename, settings.docs_path / filename])
-        for candidate in candidates:
-            if candidate.exists() and candidate.is_file():
-                candidate.unlink()
-                file_removed = True
-                delete_document_by_source(str(candidate))
+        candidates = _physical_delete_candidates(filename, source, removed_sources, settings)
+        file_removed = _delete_physical_files(candidates)
 
     return {
         "ok": True,
@@ -346,6 +356,25 @@ def should_skip_reindex(path: Path, registry_path: Path | None = None) -> bool:
     return str(record.get("sha256", "")) == current_hash and str(record.get("status", "")) == "ready"
 
 
+def _resolve_rebuild_path(filename: str, source: str | None, settings: Any) -> Path:
+    """The one file on disk this rebuild applies to, or raise if that is not unique."""
+    if source:
+        candidates = [Path(source)]
+    else:
+        candidates = [settings.uploads_path / filename, settings.docs_path / filename]
+        candidates.extend(settings.docs_path.rglob(filename))
+    existing_map: dict[str, Path] = {}
+    for p in candidates:
+        if p.exists() and p.is_file():
+            existing_map[str(p.resolve())] = p
+    existing = list(existing_map.values())
+    if source is None and len(existing) > 1:
+        raise ValueError(f"ambiguous filename '{filename}', provide source to disambiguate")
+    if not existing:
+        raise FileNotFoundError(f"file not found on disk: {filename}")
+    return existing[0]
+
+
 def rebuild_file_index(
     filename: str,
     source: str | None = None,
@@ -360,21 +389,7 @@ def rebuild_file_index(
         tenant_id=str(override.get("tenant_id", "") or "") or None,
     )
     settings = get_settings()
-    if source:
-        candidates = [Path(source)]
-    else:
-        candidates = [settings.uploads_path / filename, settings.docs_path / filename]
-        candidates.extend(settings.docs_path.rglob(filename))
-    existing_map: dict[str, Path] = {}
-    for p in candidates:
-        if p.exists() and p.is_file():
-            existing_map[str(p.resolve())] = p
-    existing = list(existing_map.values())
-    if source is None and len(existing) > 1:
-        raise ValueError(f"ambiguous filename '{filename}', provide source to disambiguate")
-    path = existing[0] if existing else None
-    if path is None:
-        raise FileNotFoundError(f"file not found on disk: {filename}")
+    path = _resolve_rebuild_path(filename, source, settings)
 
     from app.services.documents.ingest import ingest_paths
 
