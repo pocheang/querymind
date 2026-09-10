@@ -48,6 +48,33 @@ class ValidationCascade:
         self.deep_validator = DeepValidator(timeout_ms=self.deep_timeout_ms)
         self.fact_verification_stage = FactVerificationStage()
 
+    def _quick_rejection_stage(
+        self, started: float, answer: str, quick: dict, citation_score: float, quality: float
+    ) -> ValidationCascadeResult | None:
+        """A safety/length rejection short-circuits the cascade; None means proceed normally."""
+        enforce_quick_rejection = quick["reason"] == "safety_issue" or self.enforce_minimum_length
+        if not (quick["reject"] and enforce_quick_rejection):
+            return None
+        safety = 0.0 if quick["reason"] == "safety_issue" else 1.0
+        issue_type = (
+            f"pii_{quick.get('pattern_type', 'unknown')}" if quick["reason"] == "safety_issue" else "answer_too_short"
+        )
+        issue = RuleBasisIssue(
+            issue_type=issue_type,
+            severity="critical",
+            content=answer[:100],
+            suggestion=str(quick["reason"]),
+        )
+        stage = CascadeResult(
+            level=CascadeLevel.RULE_BASED,
+            has_issues=True,
+            confidence_score=0.0,
+            issues=[issue],
+            execution_time_ms=_elapsed(started),
+            should_continue=False,
+        )
+        return _finish(started, [stage], citation_score=citation_score, quality=quality, safety=safety)
+
     async def validate(
         self,
         query: str,
@@ -66,35 +93,9 @@ class ValidationCascade:
         quality = assess_answer_quality(request.answer)
         citation_score = citation_completeness(request.answer, request.citations, request.source_docs)
         quick = quick_validation(request.answer, request.citations)
-        enforce_quick_rejection = quick["reason"] == "safety_issue" or self.enforce_minimum_length
-        if quick["reject"] and enforce_quick_rejection:
-            safety = 0.0 if quick["reason"] == "safety_issue" else 1.0
-            issue_type = (
-                f"pii_{quick.get('pattern_type', 'unknown')}"
-                if quick["reason"] == "safety_issue"
-                else "answer_too_short"
-            )
-            issue = RuleBasisIssue(
-                issue_type=issue_type,
-                severity="critical",
-                content=request.answer[:100],
-                suggestion=str(quick["reason"]),
-            )
-            stage = CascadeResult(
-                level=CascadeLevel.RULE_BASED,
-                has_issues=True,
-                confidence_score=0.0,
-                issues=[issue],
-                execution_time_ms=_elapsed(started),
-                should_continue=False,
-            )
-            return _finish(
-                started,
-                [stage],
-                citation_score=citation_score,
-                quality=quality,
-                safety=safety,
-            )
+        quick_result = self._quick_rejection_stage(started, request.answer, quick, citation_score, quality)
+        if quick_result is not None:
+            return quick_result
 
         results: list[CascadeResult] = []
         if self.enable_rules:

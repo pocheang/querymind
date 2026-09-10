@@ -195,6 +195,52 @@ def run_ocr_with_candidates(image, settings, pytesseract_module, pil_imageops):
     return "", "", "", last_error
 
 
+def _image_metadata(image, source: Path, page: int | None, image_index: int | None) -> tuple[dict, str]:
+    width, height = image.size
+    mode = image.mode or "unknown"
+    file_format = (image.format or "unknown").lower()
+    summary = f"[image_meta] format={file_format}; mode={mode}; size={width}x{height}."
+    metadata = {
+        "source": str(source),
+        "modality": "image_ocr",
+        "width": width,
+        "height": height,
+        "image_mode": mode,
+        "image_format": file_format,
+    }
+    if page is not None:
+        metadata["page"] = page
+    if image_index is not None:
+        metadata["image_index"] = image_index
+    return metadata, summary
+
+
+def _apply_vision_captioning(metadata: dict, img_bytes: bytes, settings) -> str:
+    """Add vision-caption fields to ``metadata`` in place and return the vision summary line."""
+    from app.ingestion.extraction.vision import build_vision_summary, describe_image_with_vision
+
+    vision_info = describe_image_with_vision(img_bytes, settings)
+    metadata["image_caption_status"] = str(vision_info.get("status", "unknown"))
+    metadata["image_caption_model"] = str(vision_info.get("model", "") or "")
+    if vision_info.get("caption"):
+        metadata["image_caption"] = str(vision_info.get("caption", ""))
+    if vision_info.get("error"):
+        metadata["image_caption_error"] = str(vision_info.get("error", ""))
+    return build_vision_summary(vision_info)
+
+
+def _ocr_failure_reason(ocr_error: str) -> tuple[str, str]:
+    """(ocr_status, reason) for an OCR attempt that produced no text."""
+    err_lower = ocr_error.lower()
+    if "tesseract is not installed" in err_lower or "tesseractnotfounderror" in err_lower:
+        return "engine_not_found", "Tesseract executable not found"
+    if "failed loading language" in err_lower or "error opening data file" in err_lower:
+        return "language_data_missing", "Tesseract language data missing or TESSDATA_PREFIX not set correctly"
+    if ocr_error:
+        return "ocr_runtime_error", f"OCR runtime error: {ocr_error}"
+    return "no_text_detected", "OCR ran but no text detected (image may be blank/low quality)"
+
+
 def ocr_image_bytes(
     img_bytes: bytes, source: Path, page: int | None = None, image_index: int | None = None
 ) -> list[Document]:
@@ -211,35 +257,9 @@ def ocr_image_bytes(
         logger.warning(f"Failed to open image: {e}")
         return []
 
-    from app.ingestion.extraction.vision import build_vision_summary, describe_image_with_vision
-
-    width, height = image.size
-    mode = image.mode or "unknown"
-    file_format = (image.format or "unknown").lower()
-    summary = f"[image_meta] format={file_format}; mode={mode}; size={width}x{height}."
-
-    metadata = {
-        "source": str(source),
-        "modality": "image_ocr",
-        "width": width,
-        "height": height,
-        "image_mode": mode,
-        "image_format": file_format,
-    }
-    if page is not None:
-        metadata["page"] = page
-    if image_index is not None:
-        metadata["image_index"] = image_index
-
+    metadata, summary = _image_metadata(image, source, page, image_index)
     settings = get_settings()
-    vision_info = describe_image_with_vision(img_bytes, settings)
-    metadata["image_caption_status"] = str(vision_info.get("status", "unknown"))
-    metadata["image_caption_model"] = str(vision_info.get("model", "") or "")
-    if vision_info.get("caption"):
-        metadata["image_caption"] = str(vision_info.get("caption", ""))
-    if vision_info.get("error"):
-        metadata["image_caption_error"] = str(vision_info.get("error", ""))
-    vision_summary = build_vision_summary(vision_info)
+    vision_summary = _apply_vision_captioning(metadata, img_bytes, settings)
 
     try:
         import pytesseract
@@ -261,28 +281,15 @@ def ocr_image_bytes(
         pytesseract_module=pytesseract,
         pil_imageops=ImageOps,
     )
-    ocr_status = "ok"
 
     if not ocr_text:
-        err_lower = ocr_error.lower()
-        if "tesseract is not installed" in err_lower or "tesseractnotfounderror" in err_lower:
-            ocr_status = "engine_not_found"
-            reason = "Tesseract executable not found"
-        elif "failed loading language" in err_lower or "error opening data file" in err_lower:
-            ocr_status = "language_data_missing"
-            reason = "Tesseract language data missing or TESSDATA_PREFIX not set correctly"
-        elif ocr_error:
-            ocr_status = "ocr_runtime_error"
-            reason = f"OCR runtime error: {ocr_error}"
-        else:
-            ocr_status = "no_text_detected"
-            reason = "OCR ran but no text detected (image may be blank/low quality)"
+        ocr_status, reason = _ocr_failure_reason(ocr_error)
         metadata["ocr_status"] = ocr_status
         metadata["ocr_error"] = ocr_error
         content = f"{summary}\n{vision_summary}\n[image_ocr_error]\n{reason}"
         return [Document(page_content=content, metadata=metadata)]
 
-    metadata["ocr_status"] = ocr_status
+    metadata["ocr_status"] = "ok"
     metadata["ocr_variant"] = ocr_variant
     metadata["ocr_psm"] = ocr_psm
     content = f"{summary}\n{vision_summary}\n[image_ocr]\n{ocr_text}"

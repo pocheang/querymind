@@ -12,6 +12,21 @@ logger = logging.getLogger(__name__)
 _NO_RETRY = object()
 
 
+def _validate_triplets(triplets: list[dict]) -> None:
+    """Raise if any triplet is missing, or has a malformed, required field."""
+    required_fields = ["head", "relation", "tail", "source"]
+    for i, triplet in enumerate(triplets):
+        if not isinstance(triplet, dict):
+            raise TypeError(f"triplets[{i}] must be a dict, got {type(triplet).__name__}")
+        for field in required_fields:
+            if field not in triplet:
+                raise ValueError(f"triplets[{i}] missing required field: {field}")
+            if not isinstance(triplet[field], str):
+                raise TypeError(f"triplets[{i}][{field}] must be a string, got {type(triplet[field]).__name__}")
+            if not triplet[field].strip():
+                raise ValueError(f"triplets[{i}][{field}] cannot be empty")
+
+
 class Neo4jClient:
     _driver = None
     _schema_inited = False
@@ -228,19 +243,7 @@ class Neo4jClient:
         if not triplets:
             return 0
 
-        # Validate required fields in triplets
-        for i, triplet in enumerate(triplets):
-            if not isinstance(triplet, dict):
-                raise TypeError(f"triplets[{i}] must be a dict, got {type(triplet).__name__}")
-
-            required_fields = ["head", "relation", "tail", "source"]
-            for field in required_fields:
-                if field not in triplet:
-                    raise ValueError(f"triplets[{i}] missing required field: {field}")
-                if not isinstance(triplet[field], str):
-                    raise TypeError(f"triplets[{i}][{field}] must be a string, got {type(triplet[field]).__name__}")
-                if not triplet[field].strip():
-                    raise ValueError(f"triplets[{i}][{field}] cannot be empty")
+        _validate_triplets(triplets)
 
         # Cypher query using UNWIND for batch processing
         cypher = """
