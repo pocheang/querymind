@@ -25,6 +25,7 @@ import pytest
 from app.services.documents import dedup as dedup_module
 from app.services.documents.dedup import (
     UploadInvalidFileError,
+    UploadLimits,
     UploadPayloadTooLargeError,
     UploadStorageError,
     UploadWriteError,
@@ -70,11 +71,7 @@ def _no_existing_duplicates(monkeypatch: pytest.MonkeyPatch):
 
 
 async def _store(roots: _Roots, files: list[_Upload], **overrides):
-    kwargs: dict[str, Any] = {
-        "files": files,
-        "owner_user_id": "alice",
-        "role": "viewer",
-        "requested_visibility": "private",
+    limit_fields: dict[str, Any] = {
         "uploads_path": roots.uploads,
         "max_files": 10,
         "max_file_bytes": 1024,
@@ -82,10 +79,22 @@ async def _store(roots: _Roots, files: list[_Upload], **overrides):
         "read_chunk_bytes": 8,
         "supported_suffixes": {".pdf", ".txt"},
         "signature_suffixes": {".pdf"},
+    }
+    kwargs: dict[str, Any] = {
+        "files": files,
+        "owner_user_id": "alice",
+        "role": "viewer",
+        "requested_visibility": "private",
         "is_valid_signature": lambda suffix, head: head.startswith(b"%PDF"),
         "agent_class_for_upload": lambda name: "general",
         "parser_profile_for_upload": lambda path, agent_class: {"parser": "default"},
     }
+    # A caller may override either a top-level field or one that lives inside
+    # UploadLimits; route it to whichever the real function now expects.
+    for key in list(overrides):
+        if key in limit_fields:
+            limit_fields[key] = overrides.pop(key)
+    kwargs["limits"] = UploadLimits(**limit_fields)
     kwargs.update(overrides)
     return await store_uploaded_files(**kwargs)
 

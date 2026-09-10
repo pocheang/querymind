@@ -33,6 +33,7 @@ from app.api.schemas import (
     AuditLogEntry,
 )
 from app.api.transport.errors import bad_request, not_found
+from app.services.auth.auth_service import AdminProvenance
 from app.services.observability.log_buffer import list_captured_logs
 from app.services.security.admin_security import (
     check_admin_role_change,
@@ -178,10 +179,12 @@ def admin_create_user_as_admin(
             username=req.username,
             password=req.password,
             role="admin",
-            created_by_user_id=actor_user_id,
-            created_by_username=str(user.get("username", "")),
-            admin_ticket_id=ticket_id,
-            admin_approval_token_hash=new_admin_approval_hash,
+            provenance=AdminProvenance(
+                created_by_user_id=actor_user_id,
+                created_by_username=str(user.get("username", "")),
+                admin_ticket_id=ticket_id,
+                admin_approval_token_hash=new_admin_approval_hash,
+            ),
         )
     except Exception as e:
         handle_service_exception(e, _audit, request, AuditAction.ADMIN_USER_CREATE_ADMIN, user)

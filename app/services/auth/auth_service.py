@@ -5,6 +5,7 @@ import sqlite3
 import threading
 import uuid
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,26 @@ from app.services.auth.validation import (
     validate_role,
     validate_username,
 )
+
+
+@dataclass(frozen=True)
+class AdminProvenance:
+    """Who created a user through an admin action, and under what authorization."""
+
+    created_by_user_id: str | None = None
+    created_by_username: str | None = None
+    admin_ticket_id: str | None = None
+    admin_approval_token_hash: str | None = None
+
+
+@dataclass(frozen=True)
+class UserClassification:
+    """Optional organizational metadata attached to a user at creation."""
+
+    business_unit: str | None = None
+    department: str | None = None
+    user_type: str | None = None
+    data_scope: str | None = None
 
 
 class PasswordChangeError(ValueError):
@@ -306,14 +327,8 @@ class AuthDBService:
         username: str,
         password: str,
         role: str = "viewer",
-        created_by_user_id: str | None = None,
-        created_by_username: str | None = None,
-        admin_ticket_id: str | None = None,
-        admin_approval_token_hash: str | None = None,
-        business_unit: str | None = None,
-        department: str | None = None,
-        user_type: str | None = None,
-        data_scope: str | None = None,
+        provenance: AdminProvenance | None = None,
+        classification: UserClassification | None = None,
     ) -> dict[str, Any]:
         with self._connect() as conn:
             return self._create_user_record(
@@ -321,14 +336,8 @@ class AuthDBService:
                 username=username,
                 password=password,
                 role=role,
-                created_by_user_id=created_by_user_id,
-                created_by_username=created_by_username,
-                admin_ticket_id=admin_ticket_id,
-                admin_approval_token_hash=admin_approval_token_hash,
-                business_unit=business_unit,
-                department=department,
-                user_type=user_type,
-                data_scope=data_scope,
+                provenance=provenance,
+                classification=classification,
             )
 
     @staticmethod
@@ -360,18 +369,14 @@ class AuthDBService:
         username: str,
         password: str,
         role: str = "viewer",
-        created_by_user_id: str | None = None,
-        created_by_username: str | None = None,
-        admin_ticket_id: str | None = None,
-        admin_approval_token_hash: str | None = None,
-        business_unit: str | None = None,
-        department: str | None = None,
-        user_type: str | None = None,
-        data_scope: str | None = None,
+        provenance: AdminProvenance | None = None,
+        classification: UserClassification | None = None,
         display_name: str | None = None,
         is_oauth_identity: bool = False,
     ) -> dict[str, Any]:
         """Create the user row used by both local registration and OAuth provisioning."""
+        provenance = provenance or AdminProvenance()
+        classification = classification or UserClassification()
         if is_oauth_identity:
             username = (username or "").strip()
             if not username:
@@ -381,18 +386,18 @@ class AuthDBService:
             username = validate_username(username)
         password = self._validate_creation_password(password)
         role = validate_role(role)
-        business_unit = normalize_classification_value(business_unit)
-        department = normalize_classification_value(department)
-        user_type = normalize_classification_value(user_type)
-        data_scope = normalize_classification_value(data_scope)
+        business_unit = normalize_classification_value(classification.business_unit)
+        department = normalize_classification_value(classification.department)
+        user_type = normalize_classification_value(classification.user_type)
+        data_scope = normalize_classification_value(classification.data_scope)
         display_name = blank_to_none(display_name)
         # Normalized once and used by both the INSERT and the returned dict. Each of
         # these was written out twice, so an edit to one copy would have made the row
         # this function reports differ from the row it stored.
-        created_by_user_id = blank_to_none(created_by_user_id)
-        created_by_username = blank_to_none(created_by_username)
-        admin_ticket_id = blank_to_none(admin_ticket_id)
-        admin_approval_token_hash = blank_to_none(admin_approval_token_hash)
+        created_by_user_id = blank_to_none(provenance.created_by_user_id)
+        created_by_username = blank_to_none(provenance.created_by_username)
+        admin_ticket_id = blank_to_none(provenance.admin_ticket_id)
+        admin_approval_token_hash = blank_to_none(provenance.admin_approval_token_hash)
         user_id = uuid.uuid4().hex
         salt_hex = generate_salt()
         password_hash = hash_password(password, salt_hex)

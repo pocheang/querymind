@@ -63,6 +63,9 @@ class TestACachePrefixIsAName:
     def test_a_pattern_is_refused(self, prefix: str) -> None:
         manager = CacheManager()
 
+        # python:S5778 sees two call expressions here, but `clear_prefix`
+        # builds a coroutine that does not run until `asyncio.run` drives it --
+        # there is one thing that can raise, not two.
         with pytest.raises(ValueError, match="cache prefix"):
             asyncio.run(manager.clear_prefix(prefix))
 

@@ -217,6 +217,19 @@ def _existing_duplicate(sha256: str, owner_user_id: str) -> dict | None:
     return duplicate
 
 
+@dataclass(frozen=True)
+class UploadLimits:
+    """Where uploads are written and the size/type ceilings they are checked against."""
+
+    uploads_path: Path
+    max_files: int
+    max_file_bytes: int
+    max_total_bytes: int
+    read_chunk_bytes: int
+    supported_suffixes: set[str]
+    signature_suffixes: set[str]
+
+
 @dataclass
 class _UploadBatch:
     """The running state of one request's uploads.
@@ -240,13 +253,7 @@ async def store_uploaded_files(
     owner_user_id: str,
     role: str,
     requested_visibility: str,
-    uploads_path: Path,
-    max_files: int,
-    max_file_bytes: int,
-    max_total_bytes: int,
-    read_chunk_bytes: int,
-    supported_suffixes: set[str],
-    signature_suffixes: set[str],
+    limits: UploadLimits,
     is_valid_signature: Callable[[str, bytes], bool],
     agent_class_for_upload: Callable[[str], str],
     parser_profile_for_upload: Callable[[Path, str], dict[str, Any]],
@@ -254,8 +261,8 @@ async def store_uploaded_files(
     public_visibility_approved: bool | None = None,
 ) -> UploadStorageResult:
     """Validate, persist, hash, and deduplicate a request's document uploads."""
-    if len(files) > max_files:
-        raise UploadStorageError(f"too many files, max={max_files}")
+    if len(files) > limits.max_files:
+        raise UploadStorageError(f"too many files, max={limits.max_files}")
 
     applied_visibility = _resolve_visibility(
         role=role,
@@ -266,7 +273,7 @@ async def store_uploaded_files(
 
     # Every file this user uploads lands here, and that layout is what document
     # visibility falls back to for rows indexed before owner metadata existed.
-    user_upload_root = uploads_path / owner_user_id
+    user_upload_root = limits.uploads_path / owner_user_id
     user_upload_root.mkdir(parents=True, exist_ok=True)
 
     batch = _UploadBatch()
@@ -276,11 +283,11 @@ async def store_uploaded_files(
             batch=batch,
             owner_user_id=owner_user_id,
             user_upload_root=user_upload_root,
-            max_file_bytes=max_file_bytes,
-            max_total_bytes=max_total_bytes,
-            read_chunk=max(16 * 1024, int(read_chunk_bytes)),
-            supported_suffixes=supported_suffixes,
-            signature_suffixes=signature_suffixes,
+            max_file_bytes=limits.max_file_bytes,
+            max_total_bytes=limits.max_total_bytes,
+            read_chunk=max(16 * 1024, int(limits.read_chunk_bytes)),
+            supported_suffixes=limits.supported_suffixes,
+            signature_suffixes=limits.signature_suffixes,
             is_valid_signature=is_valid_signature,
             agent_class_for_upload=agent_class_for_upload,
             parser_profile_for_upload=parser_profile_for_upload,
