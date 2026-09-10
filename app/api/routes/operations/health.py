@@ -62,8 +62,9 @@ def _check_neo4j_ready() -> dict[str, Any]:
         parsed = urlparse(settings.neo4j_uri or "")
         host = parsed.hostname or "localhost"
         port = int(parsed.port or 7687)
-        with socket.create_connection((host, port), timeout=3):
-            pass
+        # The connection itself is the check; opening it (and closing it right
+        # back) is enough to prove the port is reachable.
+        socket.create_connection((host, port), timeout=3).close()
         latency = int((time.perf_counter() - start) * 1000)
         return {"ok": True, "required": True, "latency_ms": latency}
     except Exception as e:

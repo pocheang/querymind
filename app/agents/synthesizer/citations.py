@@ -183,6 +183,11 @@ def _tidy_spacing(text: str) -> str:
     # run of spaces can never produce a match the leftmost scan would have
     # taken anyway, so forbidding it turns O(n^2) into O(n): measured on 8000
     # spaces, 101ms before and 0.14ms after, identical output over 4012 inputs.
+    # python:S8786 still reports this line: its static check matches the
+    # quantifier shape and has no way to credit a preceding negative
+    # lookbehind for removing the restart cost that shape usually carries.
+    # Left as measured rather than rewritten -- there is no regex shape here
+    # doing less work than this one.
     tidied = re.sub(r"(?<![ \t])[ \t]++([,.;:!?])", r"\1", str(text or ""))
     tidied = re.sub(r"(?<!\n)[ \t]{2,}+", " ", tidied)
     return tidied.strip()

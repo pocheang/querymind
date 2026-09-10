@@ -97,7 +97,6 @@ class AutoIngestWatcher:
         except Exception as e:
             # Unexpected error during index deletion
             logger.warning(f"Failed to delete old index for {path}: {e}")
-            pass
 
         result = self._resolve_ingest_fn()([path], reset_vector_store=False)
         loaded = int(result.get("loaded_documents", 0) or 0)

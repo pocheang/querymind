@@ -101,7 +101,7 @@ def _has_usable_wheel(name: str, version: str) -> bool | None:
     try:
         with urllib.request.urlopen(url, timeout=30) as response:
             files = json.load(response)["urls"]
-    except Exception as exc:  # noqa: BLE001 -- reported, not swallowed
+    except Exception as exc:  # reported, not swallowed -- BLE001 is not in this project's ruff select list
         print(f"  ? {name}=={version}: could not ask PyPI ({exc})", file=sys.stderr)
         return None
     for entry in files:

@@ -109,37 +109,35 @@ def extract_keywords(text: str, top_n: int = 10) -> list[str]:
     words = clean_text.split()
 
     # 停用词（简化版）
-    stopwords = set(
-        [
-            "the",
-            "a",
-            "an",
-            "and",
-            "or",
-            "but",
-            "in",
-            "on",
-            "at",
-            "to",
-            "for",
-            "of",
-            "with",
-            "by",
-            "是",
-            "的",
-            "了",
-            "在",
-            "有",
-            "和",
-            "与",
-            "及",
-            "等",
-            "中",
-            "将",
-            "可以",
-            "进行",
-        ]
-    )
+    stopwords = {
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "是",
+        "的",
+        "了",
+        "在",
+        "有",
+        "和",
+        "与",
+        "及",
+        "等",
+        "中",
+        "将",
+        "可以",
+        "进行",
+    }
 
     # 过滤停用词和短词
     keywords = [w for w in words if len(w) > 3 and w not in stopwords]

@@ -282,6 +282,12 @@ def similarity_search(
                     filter=where,
                 )
             except Exception as error:
+                # python:S112 wants a specific exception class here.
+                # `_as_dimension_mismatch` reads `str(error)` looking for the word
+                # "dimension" -- Chroma's own exception type for this is not part
+                # of its stable public API, so narrowing the catch risks missing
+                # the rewrap for a Chroma version that raises something else, and
+                # anything that is not a dimension mismatch comes back unchanged.
                 raise _as_dimension_mismatch(error) from error
             return _verify_sources(matches, allowed_sources)
 

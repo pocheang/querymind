@@ -485,7 +485,7 @@ def should_use_graph_rag(
             return False, "low_quality_documents"
 
     # Check query characteristics
-    potential_entities = len(PATTERN_QUERY_ENTITIES.findall(question))
+    potential_entities = sum(len(p.findall(question)) for p in PATTERN_QUERY_ENTITIES)
     if potential_entities >= 3:
         return True, f"multi_entity_query:{potential_entities}_entities"
 

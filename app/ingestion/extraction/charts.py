@@ -173,6 +173,12 @@ def _extract_json_from_text(text: str) -> dict | None:
     import re
 
     # Strategy 1: Look for JSON code block
+    # python:S5857 wants `[^}]*` instead of the lazy `.*?`: that stops at the
+    # FIRST `}`, so it cannot round-trip nested JSON at all -- checked directly
+    # against `{"type": "bar", "data": {"x": [...], "y": [...]}}`, a shape
+    # chart/table extraction produces routinely. The lazy form keeps expanding
+    # until the whole suffix (closing fence included) matches, which is what
+    # lets it close on the outer brace instead of the first inner one.
     code_block_match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
     if code_block_match:
         try:

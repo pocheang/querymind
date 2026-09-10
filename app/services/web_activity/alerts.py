@@ -61,7 +61,7 @@ class Alert:
     message: str
     metric_value: float
     threshold: float
-    metadata: dict = None
+    metadata: dict | None = None
 
 
 class WebActivityAlertSystem:

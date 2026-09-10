@@ -9,6 +9,11 @@ import sys
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
+# python:S6353 wants `\w` here; this is a validator, not a tokenizer, and its
+# whole job is rejecting a key that is not plain ASCII. `\w` matches any
+# Unicode word character, which would let a config key through this gate that
+# the shell environment it is destined for was never going to accept as an
+# identifier. Left narrow on purpose.
 KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 VALID_ENVIRONMENTS = {"development", "test", "production"}
 VALID_PROFILES = {"fast", "balanced", "deep"}

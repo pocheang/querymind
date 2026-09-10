@@ -292,6 +292,11 @@ class LocalEvidenceChatModel:
         """
         found: list[tuple[str, str]] = []
         for block in blocks:
+            # python:S6019 calls `(.*?)` a reluctant quantifier that can only
+            # match 0 repetitions -- it does not; the lookahead needs the body
+            # to actually be scanned up to the next `[Enn]` or the string end,
+            # and it captures multi-line bodies correctly (checked directly:
+            # a two-line excerpt comes back whole, embedded newline included).
             for match in re.finditer(r"\[(E\d+)\][^\n]*\n(.*?)(?=\n\[E\d+\]|\Z)", block, flags=re.DOTALL):
                 body = re.sub(r"\s+", " ", match.group(2)).strip()
                 if body:

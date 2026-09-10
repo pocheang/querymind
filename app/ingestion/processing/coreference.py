@@ -46,6 +46,10 @@ def split_into_sentences(text: str) -> list[str]:
     # Measured on 8000 dots, 139ms before and 0.15ms after, with identical
     # output over 4012 inputs. A dotted leader line in a table of contents is
     # how a real document reaches this.
+    # python:S8786 still reports this line for the same reason it still
+    # reports `synthesizer/citations.py::_tidy_spacing`: the check matches the
+    # quantifier shape and cannot credit the lookbehind that actually bounds
+    # it. Left as measured.
     sentences = re.split(r"(?<![.!?])[.!?]++\s+", text)
     return [s.strip() for s in sentences if s.strip()]
 

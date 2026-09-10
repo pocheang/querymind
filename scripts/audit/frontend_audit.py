@@ -103,7 +103,7 @@ def check_i18n():
             print(f"    {label}: {sorted(diff)}")
 
     used, miss = set(), {}
-    call = re.compile(r"""\bt\(\s*["'`]([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)["'`]""")
+    call = re.compile(r"""\bt\(\s*["'`](\w+(?:\.\w+)+)["'`]""")
     for p in _sources():
         for i, line in enumerate(open(p, encoding="utf-8", errors="ignore"), 1):
             for m in call.finditer(line):

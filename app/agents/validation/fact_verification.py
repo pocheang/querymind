@@ -543,7 +543,13 @@ class FactVerificationStage:
         Args:
             answer: Generated answer text
             source_docs: Source documents used for generation
-            citations: Optional explicit citation objects (if not embedded in answer)
+            citations: Optional explicit citation objects (if not embedded in answer).
+                Intentionally unread today -- claims cite by marker parsed out of
+                `answer` itself (see `check_citation_support`), matching the
+                previous `FactVerifier` contract. Kept in the signature because
+                both `FactVerifier.verify_answer` (a documented compatibility
+                facade) and `ValidationCascade` call this positionally; dropping
+                it would break the facade's one promise (python:S1172).
 
         Returns:
             AnswerVerificationResult with verification details

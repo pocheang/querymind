@@ -58,7 +58,7 @@ class _NotInstalled(MetaPathFinder):
         return None
 
 
-def pytest_configure(config) -> None:  # noqa: ARG001 - pytest plugin hook signature
+def pytest_configure(config) -> None:  # noqa: ARG001 -- pytest plugin hook signature (python:S1172: same reason)
     """Installed as a pytest plugin via `-p ci_import_environment`.
 
     Anything already imported is dropped first: pytest's own start-up may have

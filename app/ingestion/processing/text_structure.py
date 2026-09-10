@@ -34,7 +34,7 @@ class OCRTextStructurer:
             re.compile(r"^[\s]*[\d]+[.、)]\s+"),  # 数字列表
             re.compile(r"^[\s]*[a-zA-Z][.、)]\s+"),  # 字母列表
             re.compile(r"^[\s]*[(（][一二三四五六七八九十\d]+[)）]\s+"),  # 括号列表
-            re.compile(r"^[\s]*[一二三四五六七八九十]+[、]\s*"),  # 中文顿号列表
+            re.compile(r"^[\s]*[一二三四五六七八九十]+、\s*"),  # 中文顿号列表
         ]
 
         # 表格模式

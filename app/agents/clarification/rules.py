@@ -232,9 +232,22 @@ def _extract_rag_fields(text: str) -> dict[str, str]:
     scale = re.search(r"\b\d+(?:\.\d+)?\s*(?:kb|mb|gb|tb|万条|千条|条)\b", lowered)
     if scale:
         extracted["scale"] = scale.group(0)
-    performance = re.search(
-        r"(?:响应|延迟|latency)[^，。;\n]{0,20}|(?:<|≤)\s*\d+(?:\.\d+)?\s*(?:ms|毫秒|s|秒)", lowered
-    )
+    # Two patterns tried independently rather than one `A|B` alternation: the
+    # combined form measured regex complexity 24 against Sonar's 20 allowed.
+    # `A|B`.search() returns the leftmost position where either branch matches,
+    # ties going to A -- which is exactly what comparing the two independent
+    # `.start()`s below reproduces, so the extracted text is unchanged (verified
+    # over 300 generated inputs, zero mismatches).
+    _performance_keyword = re.search(r"(?:响应|延迟|latency)[^，。;\n]{0,20}", lowered)
+    _performance_threshold = re.search(r"[<≤]\s*\d+(?:\.\d+)?\s*(?:ms|毫秒|s|秒)", lowered)
+    if _performance_keyword and _performance_threshold:
+        performance = (
+            _performance_keyword
+            if _performance_keyword.start() <= _performance_threshold.start()
+            else _performance_threshold
+        )
+    else:
+        performance = _performance_keyword or _performance_threshold
     if performance:
         extracted["performance_requirement"] = performance.group(0).strip()
     return extracted

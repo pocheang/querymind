@@ -37,8 +37,9 @@ def probe_neo4j_ready(neo4j_uri: str) -> dict[str, Any]:
         parsed = urlparse(neo4j_uri or "")
         host = parsed.hostname or "localhost"
         port = int(parsed.port or 7687)
-        with socket.create_connection((host, port), timeout=3):
-            pass
+        # The connection itself is the check; opening it (and closing it right
+        # back) is enough to prove the port is reachable.
+        socket.create_connection((host, port), timeout=3).close()
         return {"ok": True, "required": True, "latency_ms": int((time.perf_counter() - started) * 1000)}
     except Exception as exc:
         return {

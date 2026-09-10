@@ -96,7 +96,7 @@ class LanguageAnalytics:
         language_counter = Counter(e["detected_language"] for e in events)
         forced_count = sum(1 for e in events if e["was_forced"])
         auto_count = len(events) - forced_count
-        unique_sessions = len(set(e["session_id"] for e in events if e["session_id"]))
+        unique_sessions = len({e["session_id"] for e in events if e["session_id"]})
 
         # Get recent events (last 100, most recent first)
         recent = events[-100:][::-1]

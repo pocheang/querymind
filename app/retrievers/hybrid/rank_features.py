@@ -46,7 +46,7 @@ def rank_feature_score(item: dict, settings) -> float:
     retrieval_sources = item.get("retrieval_sources", [])
     if not isinstance(retrieval_sources, list):
         retrieval_sources = [str(retrieval_sources)]
-    diversity_signal = min(1.0, len(set([str(x) for x in retrieval_sources])) / 2.0)
+    diversity_signal = min(1.0, len({str(x) for x in retrieval_sources}) / 2.0)
 
     return (
         (source_weight * source_signal) + (freshness_weight * freshness_signal) + (diversity_weight * diversity_signal)

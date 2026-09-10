@@ -31,6 +31,11 @@ _SECRET_PATTERNS = [
     # finite look-back can prove a match does not straddle a chunk boundary, which
     # is what app/privacy/streaming.py needs in order to redact a stream safely.
     # Eight is far past anything a real credential line contains.
+    # python:S6395 calls `(?i:Bearer)` an unnecessary group: it is not. The scoped
+    # flag only case-folds this one word; hoisting it to `(?i)Bearer` mid-pattern
+    # is a hard `re.error` on this Python version (global flags must lead the
+    # pattern), and a bare `(?i)` at the pattern's own start would fold every other
+    # class in this list too.
     re.compile(r"\b(?i:Bearer)\s{1,8}[A-Za-z0-9._\-]{8,}\b"),
     re.compile(r"\b(?:api[_-]?key|token|secret|password)\s{0,8}[:=]\s{0,8}\S+\b", flags=re.IGNORECASE),
 ]
@@ -40,7 +45,7 @@ _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _UUID_RE = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b")
 _WINDOWS_PATH_RE = re.compile(r"\b[A-Za-z]:\\(?:[^\\\s]+\\)*[^\\\s]*")
 _UNIX_PATH_RE = re.compile(r"/(?:[^/\s]+/)+[^/\s]+")
-_PHONE_RE = re.compile(r"(?<!\w)(?:\+?\d[\d()\-\s]{7,}\d)(?!\w)")
+_PHONE_RE = re.compile(r"(?<!\w)\+?\d[\d()\-\s]{7,}\d(?!\w)")
 
 # An IPv6 address contains no whitespace, so app/privacy/streaming.py's second
 # property covers it and BASE_SAFETY_MARGIN does not need to grow for its length.
@@ -80,6 +85,14 @@ _MOBILE_CN_RE = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
 # passport number whose digits happen to spell a recent calendar date is rare, and
 # redacting every document reference of that shape corrupts text the model has to
 # reason about.
+# python:S5843 measures this at 24 against 20 allowed. Splitting the date
+# exclusion out of the lookahead would mean matching a bare `[EGDSPH]\d{8}`
+# candidate here and rejecting date-shaped ones with a second, kind-specific
+# check -- but every pattern in _BASE_PATTERNS is walked by one generic loop
+# (`_active_patterns` / `redact_sensitive_text` below), and a passport-only
+# postfilter bolted onto that loop is a second, quieter definition of what
+# "this kind matched" means, in the one file where getting that wrong means a
+# real passport number reaches an external provider. Left as measured.
 _PASSPORT_CN_RE = re.compile(
     r"(?<![A-Za-z0-9])[EGDSPH](?!(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])(?![A-Za-z0-9]))\d{8}(?![A-Za-z0-9])"
 )
