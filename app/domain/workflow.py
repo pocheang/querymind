@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import operator
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -138,7 +138,7 @@ class KnowledgeOrchestratorPort(Protocol):
         self,
         strategy: KnowledgeStrategy,
         scope: AccessScope,
-        trace: Callable[[ExecutionEvent], Awaitable[None]],
+        trace: Callable[[ExecutionEvent], None],
     ) -> ContextBundle: ...
 
 

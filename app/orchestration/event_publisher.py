@@ -9,17 +9,25 @@ from app.orchestration.execution_events import ExecutionEventStore, current_exec
 
 
 class EventPublisher(Protocol):
-    """Publish a safe execution event without coupling the engine to SSE."""
+    """Publish a safe execution event without coupling the engine to SSE.
 
-    async def publish(self, event: ExecutionEvent) -> None:
+    Synchronous on purpose. Every implementation hands the event to an
+    in-process structure and returns, so the coroutine boundary this used to
+    declare was never a suspension point -- it only made every caller on the
+    reporting path ``await`` something that could not wait (python:S7503). A
+    sink that genuinely needs I/O should enqueue here and drain elsewhere,
+    rather than make each pipeline stage wait on it.
+    """
+
+    def publish(self, event: ExecutionEvent) -> None:
         """Deliver one event to the configured trace sink."""
 
 
 class NullEventPublisher:
     """Default publisher used before API/SSE delivery is introduced."""
 
-    async def publish(self, event: ExecutionEvent) -> None:
-        """Intentionally drop the event while retaining the same async boundary."""
+    def publish(self, event: ExecutionEvent) -> None:
+        """Intentionally drop the event."""
         del event
 
 
@@ -29,7 +37,7 @@ class InMemoryEventPublisher:
     def __init__(self) -> None:
         self.events: list[ExecutionEvent] = []
 
-    async def publish(self, event: ExecutionEvent) -> None:
+    def publish(self, event: ExecutionEvent) -> None:
         self.events.append(event)
 
 
@@ -49,7 +57,7 @@ class ExecutionStoreEventPublisher:
     def __init__(self, store: ExecutionEventStore) -> None:
         self._store = store
 
-    async def publish(self, event: ExecutionEvent) -> None:
+    def publish(self, event: ExecutionEvent) -> None:
         execution_id = current_execution_id.get()
         if not execution_id:
             return

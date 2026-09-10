@@ -11,5 +11,5 @@ class AuditLog:
     def __init__(self) -> None:
         self.records: list[AuditRecord] = []
 
-    async def append(self, record: AuditRecord) -> None:
+    def append(self, record: AuditRecord) -> None:
         self.records.append(record)

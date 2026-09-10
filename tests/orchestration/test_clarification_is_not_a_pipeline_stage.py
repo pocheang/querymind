@@ -38,7 +38,7 @@ from app.orchestration.timeout_control import ExecutionBudget, TimeoutConfig
 _INCOMPLETE = "对比一下这两个方案的成本"
 
 
-async def _discard(_event: object) -> None:
+def _discard(_event: object) -> None:
     return None
 
 

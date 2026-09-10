@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from app.core.config import Settings, get_settings
@@ -20,7 +20,7 @@ from app.knowledge.queries import unique_queries as _unique_queries
 from app.privacy.dlp import mask_evidence
 from app.services.query.rule_rewrite import build_rewrite_queries
 
-TraceReporter = Callable[[ExecutionEvent], Awaitable[None]]
+TraceReporter = Callable[[ExecutionEvent], None]
 QueryRewriter = Callable[[str, Sequence[object]], Sequence[str]]
 
 
@@ -88,7 +88,7 @@ class KnowledgeOrchestrator:
         trace_failures = 0
         for outcome in outcomes:
             try:
-                await trace(_outcome_event(outcome))
+                trace(_outcome_event(outcome))
             except asyncio.CancelledError:
                 raise
             except Exception:
@@ -363,7 +363,7 @@ def _outcome_event(outcome: _SourceOutcome) -> ExecutionEvent:
     )
 
 
-async def discard_trace(event: ExecutionEvent) -> None:
+def discard_trace(event: ExecutionEvent) -> None:
     del event
 
 

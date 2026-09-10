@@ -69,7 +69,7 @@ KnowledgeAgent = Callable[
 # shared across concurrent requests without one request's execution events
 # leaking into another request's stream.  Mirrors the pattern already used by
 # RAGAgentService for degradation reporting.
-_current_event_reporter: ContextVar[Callable[[ExecutionEvent], Awaitable[None]] | None] = ContextVar(
+_current_event_reporter: ContextVar[Callable[[ExecutionEvent], None] | None] = ContextVar(
     "orchestration_current_event_reporter", default=None
 )
 
@@ -98,7 +98,7 @@ class OrchestrationServices:
         privacy: PrivacyService | None = None,
         access_scope_resolver: AccessScopeResolver | None = None,
         context: object | None = None,
-        event_reporter_binder: Callable[[Callable[[ExecutionEvent], Awaitable[None]]], None] | None = None,
+        event_reporter_binder: Callable[[Callable[[ExecutionEvent], None]], None] | None = None,
     ) -> None:
         self.router = router
         self.planner = planner
@@ -114,15 +114,17 @@ class OrchestrationServices:
         self.context = context
         self._event_reporter_binder = event_reporter_binder
 
-    def bind_event_reporter(self, reporter: Callable[[ExecutionEvent], Awaitable[None]]) -> None:
+    def bind_event_reporter(self, reporter: Callable[[ExecutionEvent], None]) -> None:
         """Install this request's reporter for the current async task only."""
         _current_event_reporter.set(reporter)
         if self._event_reporter_binder is not None:
             self._event_reporter_binder(reporter)
 
-    async def report_event(self, event: ExecutionEvent) -> None:
-        reporter = _current_event_reporter.get() or _NULL_PUBLISHER.publish
-        await reporter(event)
+    def report_event(self, event: ExecutionEvent) -> None:
+        """Deliver to this request's reporter; without one, the event is dropped."""
+        reporter = _current_event_reporter.get()
+        if reporter is not None:
+            reporter(event)
 
 
 class OrchestrationEngine:
@@ -176,9 +178,11 @@ class OrchestrationEngine:
         """Adapt the same typed execution into transport-neutral event dictionaries."""
         queue: asyncio.Queue[ExecutionEvent | FinalAnswer | Exception | None] = asyncio.Queue()
 
-        async def publish(event: ExecutionEvent) -> None:
-            await self._publisher.publish(event)
-            await queue.put(event)
+        def publish(event: ExecutionEvent) -> None:
+            self._publisher.publish(event)
+            # Unbounded, so this can never be full -- `await queue.put` on it
+            # never suspended either.
+            queue.put_nowait(event)
 
         async def run() -> None:
             try:
@@ -210,7 +214,7 @@ class OrchestrationEngine:
         self,
         request: OrchestrationRequest,
         *,
-        publish: Callable[[ExecutionEvent], Awaitable[None]] | None = None,
+        publish: Callable[[ExecutionEvent], None] | None = None,
     ) -> FinalAnswer:
         reporter = publish or self._publisher.publish
         timeout_config = self._timeout_config or get_timeout_config(request.profile)
@@ -242,7 +246,7 @@ class OrchestrationEngine:
     async def _run_workflow(
         self,
         request: OrchestrationRequest,
-        reporter: Callable[[ExecutionEvent], Awaitable[None]],
+        reporter: Callable[[ExecutionEvent], None],
         budget: ExecutionBudget,
     ) -> FinalAnswer:
         persistence_config = checkpoint_config(request)
@@ -276,7 +280,7 @@ class OrchestrationEngine:
                 }
             }
         )
-        await reporter(
+        reporter(
             ExecutionEvent(
                 stage="complete",
                 status="completed",
@@ -284,11 +288,6 @@ class OrchestrationEngine:
             )
         )
         return answer
-
-
-# The null publisher already is "drop the event"; a second function saying so
-# was one more async-without-await definition of the same thing.
-_NULL_PUBLISHER = NullEventPublisher()
 
 
 def _terminal_payload(answer: FinalAnswer) -> dict[str, Any]:

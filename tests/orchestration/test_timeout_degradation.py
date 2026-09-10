@@ -74,7 +74,7 @@ async def _hang(*_args, **_kwargs):
     await asyncio.sleep(30)
 
 
-async def _discard(_event: object) -> None:
+def _discard(_event: object) -> None:
     return None
 
 
@@ -124,7 +124,7 @@ async def test_a_degraded_stage_reports_a_failed_event_the_diagnostics_can_see()
     visible to the caller instead of looking like a clean one."""
     reported: list[ExecutionEvent] = []
 
-    async def capture(event: ExecutionEvent) -> None:
+    def capture(event: ExecutionEvent) -> None:
         reported.append(event)
 
     runtime = _runtime()

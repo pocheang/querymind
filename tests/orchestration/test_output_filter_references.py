@@ -71,7 +71,7 @@ async def _run(runtime: WorkflowNodeRuntime, *, answer_text: str, items, scope, 
     return result["final_answer"]
 
 
-async def _discard(_event: object) -> None:
+def _discard(_event: object) -> None:
     return None
 
 

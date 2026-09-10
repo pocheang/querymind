@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Callable, Mapping
 from contextvars import ContextVar
 
 from app.domain.contracts import RouteDecision, TaskPlan
@@ -17,7 +17,7 @@ from app.orchestration.request import OrchestrationRequest
 
 logger = logging.getLogger(__name__)
 
-DegradationReporter = Callable[[ExecutionEvent], Awaitable[None]]
+DegradationReporter = Callable[[ExecutionEvent], None]
 
 # Per-request degradation reporter, installed by the orchestration engine for the
 # current async task. A ContextVar (not instance state) so RAGAgentService stays

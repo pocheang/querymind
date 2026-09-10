@@ -3977,13 +3977,38 @@ Two things learned doing this the first time:
   plain functions (none awaited anything, and `RedisCache` connects lazily);
   `suggest_corrections`, the callerless `FactVerifier` facade and
   `services/optimization/batch_processor.py` were deleted; and three private
-  copies of "drop this event" became `discard_trace` and the engine's
-  `NullEventPublisher`. The 12 left are Protocol implementations and callbacks
-  that must be coroutines -- null/recording publishers, the unavailable
-  adapter, `LocalEvidenceChatModel.ainvoke`, two validators, the audit sink, the
-  three `run_with_timeout` closures -- and removing `async` from any of them
-  breaks the `await` at its caller. They are the set to mark *Accepted* in
-  SonarCloud, not to rewrite.
+  copies of "drop this event" became one `discard_trace`.
+
+  A second pass the same day took 12 to **7**, and corrected a classification
+  the first pass got wrong. "Every one is a contract" was asserted without
+  checking whether the contract had a single genuinely asynchronous
+  implementation, and two did not:
+
+  - **The event-reporting chain is synchronous now.** `EventPublisher.publish`,
+    the engine's reporter, `TraceReporter`, `DegradationReporter` and the
+    graph state's `reporter` were all `Callable[..., Awaitable[None]]`, and
+    every implementation in production ended at an in-process append -- the
+    three publishers, `discard_trace`, and `execute_stream`'s closure, whose
+    `await queue.put` on an unbounded queue never suspended either. So each
+    stage awaited something that could not wait. They are `Callable[..., None]`
+    and nothing awaits them; `report_event`, which nothing in `app/` calls,
+    drops the event when no reporter is bound rather than falling back to a
+    null publisher. **If a reporter ever needs I/O, it enqueues and returns** --
+    see the `EventPublisher` docstring. The failure to watch for is an `async
+    def` passed as a reporter: calling it builds a coroutine nobody awaits and
+    the event vanishes silently, so the suite was run looking for "never
+    awaited" (zero).
+  - **`AuditLog.append` and `ToolRegistry._finish`** are plain methods; the log
+    has one implementation and one caller.
+
+  The 7 left are genuinely mixed contracts -- a sibling implementation really
+  does await -- and are the set to mark *Accepted* in SonarCloud: the
+  unavailable knowledge adapter (the others `to_thread`),
+  `LocalEvidenceChatModel.ainvoke` (the provider wrappers do network I/O), the
+  citation and rule validators (NLI and deep await), and the three
+  `run_with_timeout` closures. Those three hide a real question worth its own
+  change: their bodies are synchronous, so the ceilings `run_with_timeout`
+  sets on `privacy_permission` and `output_filter` cannot interrupt them.
 
   The history of the count, kept because the method matters more than the
   number: 26 open findings on 2026-09-05 (it was 39, and

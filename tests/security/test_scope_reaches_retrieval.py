@@ -49,7 +49,7 @@ class _Services:
             document_provider=lambda actor: [row for row in _ROWS if row["owner_user_id"] == actor.get("user_id")]
         )
 
-    async def report_event(self, event: ExecutionEvent) -> None:
+    def report_event(self, event: ExecutionEvent) -> None:
         del event
 
 
@@ -63,7 +63,7 @@ def _runtime() -> WorkflowNodeRuntime:
 
 
 def _state(request: OrchestrationRequest) -> dict[str, Any]:
-    async def reporter(event: ExecutionEvent) -> None:
+    def reporter(event: ExecutionEvent) -> None:
         del event
 
     return {

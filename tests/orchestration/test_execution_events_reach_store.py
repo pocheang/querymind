@@ -84,8 +84,7 @@ async def _run(execution_id: str | None) -> None:
     )
 
 
-@pytest.mark.asyncio
-async def test_publisher_files_events_under_the_bound_execution_id():
+def test_publisher_files_events_under_the_bound_execution_id():
     """The unit the engine depends on: id from the ContextVar, event into the store."""
     store = ExecutionEventStore()
     publisher = ExecutionStoreEventPublisher(store)
@@ -93,8 +92,8 @@ async def test_publisher_files_events_under_the_bound_execution_id():
 
     token = current_execution_id.set(execution_id)
     try:
-        await publisher.publish(ExecutionEvent(stage="knowledge", status="completed"))
-        await publisher.publish(ExecutionEvent(stage="synthesize", status="completed"))
+        publisher.publish(ExecutionEvent(stage="knowledge", status="completed"))
+        publisher.publish(ExecutionEvent(stage="synthesize", status="completed"))
     finally:
         current_execution_id.reset(token)
 

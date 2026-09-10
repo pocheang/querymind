@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 
 from app.domain.contracts import EvidenceBundle, FinalAnswer, RouteDecision, TaskPlan, ToolResult
 from app.domain.events import ExecutionEvent
@@ -44,7 +44,7 @@ class OrchestrationGraphState(WorkflowState, total=False):
     tool_results: tuple[ToolResult, ...]
     candidate: FinalAnswer
     budget: ExecutionBudget
-    reporter: Callable[[ExecutionEvent], Awaitable[None]]
+    reporter: Callable[[ExecutionEvent], None]
 
 
 __all__ = ["OrchestrationGraphState"]

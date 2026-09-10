@@ -57,12 +57,10 @@ class ToolRegistry:
         """Evaluate all policy gates before the connector executor can run."""
         registered = self._tools.get(call.tool_id)
         if registered is None:
-            return await self._finish(
-                call, actor, ToolResult(tool_id=call.tool_id, status="failed", summary="unknown tool")
-            )
+            return self._finish(call, actor, ToolResult(tool_id=call.tool_id, status="failed", summary="unknown tool"))
         definition, executor = registered
         if not self._authorization.allows(definition, actor):
-            return await self._finish(
+            return self._finish(
                 call,
                 actor,
                 ToolResult(tool_id=call.tool_id, status="failed", summary="scope denied"),
@@ -73,7 +71,7 @@ class ToolRegistry:
         # the accepted shape baked into it.
         argument_error = definition.validation_error(call.arguments)
         if argument_error is not None:
-            return await self._finish(
+            return self._finish(
                 call,
                 actor,
                 ToolResult(tool_id=call.tool_id, status="failed", summary=f"invalid arguments: {argument_error}"),
@@ -82,7 +80,7 @@ class ToolRegistry:
         approval = self._approvals.consume(call, actor) if definition.operation in _APPROVAL_OPERATIONS else None
         if definition.operation in _APPROVAL_OPERATIONS and approval is None:
             pending_approval = self._approvals.create(call, actor)
-            result = await self._finish(
+            result = self._finish(
                 call,
                 actor,
                 ToolResult(
@@ -116,7 +114,7 @@ class ToolRegistry:
             result = ToolResult(tool_id=call.tool_id, status="failed", summary="tool returned an unexpected tool id")
         if approval is not None:
             result = result.model_copy(update={"approval_status": "approved"})
-        return await self._finish(
+        return self._finish(
             call,
             actor,
             result,
@@ -125,7 +123,7 @@ class ToolRegistry:
             approved_by=approval.approved_by if approval else None,
         )
 
-    async def _finish(
+    def _finish(
         self,
         call: ToolCall,
         actor: RequestActor,
@@ -134,7 +132,7 @@ class ToolRegistry:
         definition: ToolDefinition | None = None,
         approved_by: str | None = None,
     ) -> ToolResult:
-        await self._audit.append(
+        self._audit.append(
             AuditRecord(
                 tool_id=call.tool_id,
                 connector_id=definition.connector_id if definition else None,

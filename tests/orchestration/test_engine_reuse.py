@@ -34,12 +34,12 @@ async def test_concurrent_tasks_do_not_share_the_event_reporter():
     seen: dict[str, list[str]] = {"a": [], "b": []}
 
     async def run(name: str) -> None:
-        async def reporter(event: ExecutionEvent) -> None:
+        def reporter(event: ExecutionEvent) -> None:
             seen[name].append(f"{name}:{event.stage}")
 
         services.bind_event_reporter(reporter)
         await asyncio.sleep(0)  # force interleaving with the other task
-        await services.report_event(ExecutionEvent(stage="route", status="completed"))
+        services.report_event(ExecutionEvent(stage="route", status="completed"))
 
     await asyncio.gather(run("a"), run("b"))
 
@@ -47,9 +47,8 @@ async def test_concurrent_tasks_do_not_share_the_event_reporter():
     assert seen["b"] == ["b:route"]
 
 
-@pytest.mark.asyncio
-async def test_report_event_is_a_noop_without_a_bound_reporter():
-    await _services().report_event(ExecutionEvent(stage="route", status="completed"))
+def test_report_event_is_a_noop_without_a_bound_reporter():
+    _services().report_event(ExecutionEvent(stage="route", status="completed"))
 
 
 def test_default_pipelines_share_one_engine():

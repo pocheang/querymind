@@ -98,7 +98,7 @@ class WorkflowServices(Protocol):
     privacy: PrivacyService
     access_scope_resolver: AccessScopeResolver
 
-    async def report_event(self, event: ExecutionEvent) -> None: ...
+    def report_event(self, event: ExecutionEvent) -> None: ...
 
 
 class WorkflowNodeRuntime:
@@ -585,7 +585,7 @@ class WorkflowNodeRuntime:
                 message=f"{event_stage} timed out; continuing with a degraded result",
                 metadata=(EventMetadata(key="failure_reason", value=f"stage_timeout:{event_stage}"),),
             )
-            await state["reporter"](event)
+            state["reporter"](event)
             return on_timeout(), event
         try:
             if validator is not None:
@@ -599,7 +599,7 @@ class WorkflowNodeRuntime:
             status="completed",
             duration_ms=int(budget.stage_times.get(timeout_stage, 0)),
         )
-        await state["reporter"](event)
+        state["reporter"](event)
         return result, event
 
 
