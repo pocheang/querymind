@@ -90,23 +90,20 @@ class KnowledgeAgentService:
                 )
         return self._rule_strategy(request, route, retry_feedback, plan, scope)
 
-    def _rule_strategy(
+    def _selected_sources_and_reasons(
         self,
+        lowered: str,
+        hints,
         request: OrchestrationRequest,
-        route: RouterDecision,
         retry_feedback: VerificationDecision | None,
-        plan: TaskPlan | None = None,
-        scope: AccessScope | None = None,
-        *,
-        fallback_reason: str | None = None,
-    ) -> KnowledgeStrategy:
-        # On a retry the verifier's query takes index 0 for the same reason the
-        # original question does otherwise: it is what `primary_query` reranks
-        # against, and it is what the verifier asked to be searched.
-        query = (retry_feedback.retry_query if retry_feedback else None) or request.question
-        sub_queries = _plan_sub_queries(plan, query)
-        lowered = query.lower()
-        hints = route.knowledge_hints
+        scope: AccessScope | None,
+    ) -> tuple[list[KnowledgeSource], list[str]]:
+        """Which sources this query touches, and why -- in first-appearance order.
+
+        Order matters beyond readability: ``_rule_strategy`` de-duplicates on it
+        and ``_keep_within`` truncates to the source ceiling from the front, so
+        this is the priority list, not just a rationale.
+        """
         selected: list[KnowledgeSource] = ["vector", "bm25"]
         reasons = ["local semantic and lexical evidence"]
 
@@ -157,6 +154,27 @@ class KnowledgeAgentService:
             reasons.append("empty document corpus")
         if retry_feedback is not None:
             reasons.append("verifier-directed retry")
+
+        return selected, reasons
+
+    def _rule_strategy(
+        self,
+        request: OrchestrationRequest,
+        route: RouterDecision,
+        retry_feedback: VerificationDecision | None,
+        plan: TaskPlan | None = None,
+        scope: AccessScope | None = None,
+        *,
+        fallback_reason: str | None = None,
+    ) -> KnowledgeStrategy:
+        # On a retry the verifier's query takes index 0 for the same reason the
+        # original question does otherwise: it is what `primary_query` reranks
+        # against, and it is what the verifier asked to be searched.
+        query = (retry_feedback.retry_query if retry_feedback else None) or request.question
+        sub_queries = _plan_sub_queries(plan, query)
+        lowered = query.lower()
+        hints = route.knowledge_hints
+        selected, reasons = self._selected_sources_and_reasons(lowered, hints, request, retry_feedback, scope)
 
         unique = tuple(dict.fromkeys(source for source in selected if source in self._available))
         if not unique:

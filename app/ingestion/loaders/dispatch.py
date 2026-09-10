@@ -57,84 +57,100 @@ def _extract_charts_once(path: Path, settings) -> list[Document]:
         return []
 
 
-def _load_pdf_with_mode(path: Path, pdf_mode: str, settings) -> list[Document]:
-    """Load PDF text content with fallback chain (no chart extraction)."""
-    if pdf_mode == "docling_advanced":
-        try:
-            from app.ingestion.loaders.pdf_loader_advanced import load_pdf_advanced
+def _load_pdf_docling_advanced(path: Path, settings) -> list[Document]:
+    try:
+        from app.ingestion.loaders.pdf_loader_advanced import load_pdf_advanced
 
-            advanced_docs = load_pdf_advanced(
-                path,
-                by_page=True,
-                enable_structure=settings.pdf_enable_structure_analysis,
-                enable_coreference=settings.pdf_enable_coreference,
-                enable_formula_enrichment=settings.pdf_enable_formula_enrichment,
-                enable_cleaning=settings.pdf_enable_cleaning,
-                enable_table_merging=settings.pdf_enable_table_merging,
-            )
-            if advanced_docs:
-                logger.info(f"Loaded {path.name} with advanced processing")
-                return advanced_docs
-        except Exception as e:
-            logger.warning(f"Advanced processing failed for {path.name}: {e}")
-
-        enhanced_docs = _load_pdf_enhanced(
+        advanced_docs = load_pdf_advanced(
             path,
             by_page=True,
+            enable_structure=settings.pdf_enable_structure_analysis,
+            enable_coreference=settings.pdf_enable_coreference,
+            enable_formula_enrichment=settings.pdf_enable_formula_enrichment,
             enable_cleaning=settings.pdf_enable_cleaning,
             enable_table_merging=settings.pdf_enable_table_merging,
         )
-        if enhanced_docs:
-            logger.info(f"Loaded {path.name} with enhanced processing (fallback)")
-            return enhanced_docs
+        if advanced_docs:
+            logger.info(f"Loaded {path.name} with advanced processing")
+            return advanced_docs
+    except Exception as e:
+        logger.warning(f"Advanced processing failed for {path.name}: {e}")
 
-        logger.warning(f"Using pypdf fallback for {path.name}")
-        return _load_pdf_text(path)
+    enhanced_docs = _load_pdf_enhanced(
+        path,
+        by_page=True,
+        enable_cleaning=settings.pdf_enable_cleaning,
+        enable_table_merging=settings.pdf_enable_table_merging,
+    )
+    if enhanced_docs:
+        logger.info(f"Loaded {path.name} with enhanced processing (fallback)")
+        return enhanced_docs
 
-    if pdf_mode == "docling_enhanced":
-        enhanced_docs = _load_pdf_enhanced(
-            path,
-            by_page=True,
-            enable_cleaning=settings.pdf_enable_cleaning,
-            enable_table_merging=settings.pdf_enable_table_merging,
-            enable_nested_table_handling=True,
-        )
-        if enhanced_docs:
-            logger.info(f"Loaded {path.name} with enhanced processing")
-            return enhanced_docs
+    logger.warning(f"Using pypdf fallback for {path.name}")
+    return _load_pdf_text(path)
 
-        docling_docs = _load_pdf_with_docling(path, by_page=True)
-        if docling_docs:
-            logger.info(f"Loaded {path.name} with docling (fallback)")
-            return docling_docs
 
-        logger.warning(f"Using pypdf fallback for {path.name}")
-        return _load_pdf_text(path)
+def _load_pdf_docling_enhanced(path: Path, settings) -> list[Document]:
+    enhanced_docs = _load_pdf_enhanced(
+        path,
+        by_page=True,
+        enable_cleaning=settings.pdf_enable_cleaning,
+        enable_table_merging=settings.pdf_enable_table_merging,
+        enable_nested_table_handling=True,
+    )
+    if enhanced_docs:
+        logger.info(f"Loaded {path.name} with enhanced processing")
+        return enhanced_docs
 
-    if pdf_mode == "docling":
-        docling_docs = _load_pdf_with_docling(path, by_page=True)
-        if docling_docs:
-            logger.info(f"Loaded {path.name} with docling")
-            return docling_docs
+    docling_docs = _load_pdf_with_docling(path, by_page=True)
+    if docling_docs:
+        logger.info(f"Loaded {path.name} with docling (fallback)")
+        return docling_docs
 
-        logger.warning(f"Using pypdf fallback for {path.name}")
-        return _load_pdf_text(path)
+    logger.warning(f"Using pypdf fallback for {path.name}")
+    return _load_pdf_text(path)
 
-    if pdf_mode == "hybrid":
-        docling_docs = _load_pdf_with_docling(path, by_page=True)
-        ocr_docs = _load_pdf_image_ocr(path)
-        if docling_docs:
-            logger.info(f"Loaded {path.name} with hybrid mode (docling + OCR)")
-            return docling_docs + ocr_docs
 
-        logger.warning(f"Using pypdf + OCR fallback for {path.name}")
-        text_docs = _load_pdf_text(path)
-        return text_docs + ocr_docs
+def _load_pdf_docling_mode(path: Path) -> list[Document]:
+    docling_docs = _load_pdf_with_docling(path, by_page=True)
+    if docling_docs:
+        logger.info(f"Loaded {path.name} with docling")
+        return docling_docs
 
+    logger.warning(f"Using pypdf fallback for {path.name}")
+    return _load_pdf_text(path)
+
+
+def _load_pdf_hybrid_mode(path: Path) -> list[Document]:
+    docling_docs = _load_pdf_with_docling(path, by_page=True)
+    ocr_docs = _load_pdf_image_ocr(path)
+    if docling_docs:
+        logger.info(f"Loaded {path.name} with hybrid mode (docling + OCR)")
+        return docling_docs + ocr_docs
+
+    logger.warning(f"Using pypdf + OCR fallback for {path.name}")
+    text_docs = _load_pdf_text(path)
+    return text_docs + ocr_docs
+
+
+def _load_pdf_default_mode(path: Path) -> list[Document]:
     logger.info(f"Loaded {path.name} with pypdf mode")
     text_docs = _load_pdf_text(path)
     ocr_docs = _load_pdf_image_ocr(path)
     return text_docs + ocr_docs
+
+
+def _load_pdf_with_mode(path: Path, pdf_mode: str, settings) -> list[Document]:
+    """Load PDF text content with fallback chain (no chart extraction)."""
+    if pdf_mode == "docling_advanced":
+        return _load_pdf_docling_advanced(path, settings)
+    if pdf_mode == "docling_enhanced":
+        return _load_pdf_docling_enhanced(path, settings)
+    if pdf_mode == "docling":
+        return _load_pdf_docling_mode(path)
+    if pdf_mode == "hybrid":
+        return _load_pdf_hybrid_mode(path)
+    return _load_pdf_default_mode(path)
 
 
 def _load_single_path(path: Path) -> list[Document]:

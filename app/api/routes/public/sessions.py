@@ -200,6 +200,55 @@ def delete_long_term_memory(
     return {"ok": True, "memory_id": memory_id}
 
 
+def _rerun_after_message_edit(
+    *,
+    request: Request,
+    user: dict[str, Any],
+    session_id: str,
+    message_id: str,
+    content: str,
+    history_store,
+) -> dict[str, Any]:
+    """Regenerate the assistant reply for an edited user message."""
+    effective_question = content if is_casual_chat_query(content) else enhance_user_question_for_completion(content)
+    memory_context = _build_memory_context_for_session(user=user, session_id=session_id, question=effective_question)
+    with _reserve_chat_credit(request, user, "message_rerun") as credit:
+        result = execute_standard_compatibility(
+            question=effective_question,
+            use_web_fallback=False,
+            use_reasoning=True,
+            memory_context=memory_context,
+            allowed_sources=_allowed_sources_for_user(user),
+            user=PipelineUser(
+                user_id=str(user.get("user_id", "") or "") or None,
+                username=str(user.get("username", "") or "") or None,
+                role=str(user.get("role", "") or "") or None,
+                permissions=frozenset(user.get("permissions") or []),
+            ),
+            session_id=session_id,
+        )
+        record_grounding_support(request, result)
+        data = history_store.upsert_assistant_after_user(
+            session_id=session_id,
+            user_message_id=message_id,
+            assistant_content=result.get("answer", ""),
+            metadata={
+                "route": result.get("route", "unknown"),
+                "agent_class": result.get("agent_class", "general"),
+                "web_used": result.get("web_result", {}).get("used", False),
+                "thoughts": result.get("thoughts", []),
+                "graph_entities": result.get("graph_result", {}).get("entities", []),
+                "citations": result.get("vector_result", {}).get("citations", [])
+                + result.get("web_result", {}).get("citations", []),
+            },
+        )
+        if data is None:
+            raise not_found("Message")
+        _promote_long_term_memory(user=user, session_id=session_id, question=content, result=result)
+        credit.commit()
+    return data
+
+
 @router.patch("/{session_id}/messages/{message_id}", response_model=SessionDetail)
 def update_session_message(
     session_id: str,
@@ -229,44 +278,14 @@ def update_session_message(
         raise not_found("Message")
 
     if rerun and current.get("role") == "user":
-        effective_question = content if is_casual_chat_query(content) else enhance_user_question_for_completion(content)
-        memory_context = _build_memory_context_for_session(
-            user=user, session_id=session_id, question=effective_question
+        data = _rerun_after_message_edit(
+            request=request,
+            user=user,
+            session_id=session_id,
+            message_id=message_id,
+            content=content,
+            history_store=history_store,
         )
-        with _reserve_chat_credit(request, user, "message_rerun") as credit:
-            result = execute_standard_compatibility(
-                question=effective_question,
-                use_web_fallback=False,
-                use_reasoning=True,
-                memory_context=memory_context,
-                allowed_sources=_allowed_sources_for_user(user),
-                user=PipelineUser(
-                    user_id=str(user.get("user_id", "") or "") or None,
-                    username=str(user.get("username", "") or "") or None,
-                    role=str(user.get("role", "") or "") or None,
-                    permissions=frozenset(user.get("permissions") or []),
-                ),
-                session_id=session_id,
-            )
-            record_grounding_support(request, result)
-            data = history_store.upsert_assistant_after_user(
-                session_id=session_id,
-                user_message_id=message_id,
-                assistant_content=result.get("answer", ""),
-                metadata={
-                    "route": result.get("route", "unknown"),
-                    "agent_class": result.get("agent_class", "general"),
-                    "web_used": result.get("web_result", {}).get("used", False),
-                    "thoughts": result.get("thoughts", []),
-                    "graph_entities": result.get("graph_result", {}).get("entities", []),
-                    "citations": result.get("vector_result", {}).get("citations", [])
-                    + result.get("web_result", {}).get("citations", []),
-                },
-            )
-            if data is None:
-                raise not_found("Message")
-            _promote_long_term_memory(user=user, session_id=session_id, question=content, result=result)
-            credit.commit()
     _audit(
         request,
         action=AuditAction.MESSAGE_UPDATE,
