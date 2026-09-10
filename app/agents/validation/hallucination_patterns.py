@@ -374,6 +374,60 @@ def detect_entity_hallucinations(answer: str, source_text: str) -> list[Hallucin
     ]
 
 
+# Negation patterns (English and Chinese)
+_NEGATION_PATTERNS = [
+    r"\bnot\b",
+    r"\bno\b",
+    r"\bnever\b",
+    r"\bnone\b",
+    r"\bneither\b",
+    r"\bnor\b",
+    r"\bn\'t\b",
+    r"\bfailed\s+to\b",
+    r"没有",
+    r"不是",
+    r"未",
+    r"无",
+    r"非",
+    r"不",
+]
+
+
+def _has_negation(text: str) -> bool:
+    return any(re.search(pattern, text, re.IGNORECASE) for pattern in _NEGATION_PATTERNS)
+
+
+def _content_words(text: str) -> tuple[set[str], set[str]]:
+    """Key content words for overlap comparison: English 3+ chars plus CJK runs.
+
+    Returns (all content words, the CJK subset alone) -- the caller needs the
+    subset on its own for a Chinese-only overlap check.
+    """
+    words = set(re.findall(r"\b\w{3,}\b", text.lower()))
+    chinese = set(_CJK_ENTITY_RE.findall(text))
+    words.update(chinese)
+    return words, chinese
+
+
+def _count_stem_matches(answer_words: set[str], source_words: set[str]) -> int:
+    """Words of at least 4 chars where one is a 4-char prefix of the other.
+
+    e.g. "profitable" vs "profitability" -- simple stemming without an NLP
+    dependency.
+    """
+    stem_matches = 0
+    for ans_word in answer_words:
+        if len(ans_word) < 4:
+            continue
+        for src_word in source_words:
+            if len(src_word) < 4:
+                continue
+            if ans_word.startswith(src_word[:4]) or src_word.startswith(ans_word[:4]):
+                stem_matches += 1
+                break
+    return stem_matches
+
+
 def detect_negation_hallucinations(answer: str, source_text: str) -> list[HallucinationPattern]:
     """
     Detect negation conflicts between answer and source.
@@ -392,79 +446,30 @@ def detect_negation_hallucinations(answer: str, source_text: str) -> list[Halluc
     if not answer or not source_text:
         return []
 
-    issues = []
+    if _has_negation(answer) == _has_negation(source_text):
+        return []
 
-    # Negation patterns (English and Chinese)
-    negation_patterns = [
-        r"\bnot\b",
-        r"\bno\b",
-        r"\bnever\b",
-        r"\bnone\b",
-        r"\bneither\b",
-        r"\bnor\b",
-        r"\bn\'t\b",
-        r"\bfailed\s+to\b",
-        r"没有",
-        r"不是",
-        r"未",
-        r"无",
-        r"非",
-        r"不",
+    answer_words, answer_chinese = _content_words(answer)
+    source_words, source_chinese = _content_words(source_text)
+    shared_words = answer_words & source_words
+    stem_matches = _count_stem_matches(answer_words, source_words)
+
+    # If significant overlap, likely discussing same topic with opposite polarity
+    # Threshold: at least 1 shared word + 1 stem match, OR 2 shared words, OR 1 Chinese word overlap
+    has_chinese_overlap = len(answer_chinese & source_chinese) >= 1
+    has_word_overlap = len(shared_words) >= 2 or (len(shared_words) >= 1 and stem_matches >= 1)
+
+    if not (has_chinese_overlap or has_word_overlap or stem_matches >= 2):
+        return []
+
+    return [
+        HallucinationPattern(
+            pattern_type="negation_conflict",
+            severity="high",
+            content="Answer negation conflicts with source",
+            suggestion="Verify answer doesn't contradict source",
+        )
     ]
-
-    # Check for negation in answer
-    answer_has_negation = any(re.search(pattern, answer, re.IGNORECASE) for pattern in negation_patterns)
-
-    # Check for negation in source
-    source_has_negation = any(re.search(pattern, source_text, re.IGNORECASE) for pattern in negation_patterns)
-
-    # Flag if negation mismatch
-    if answer_has_negation != source_has_negation:
-        # Extract key content words (non-stop words)
-        # English: 3+ chars to catch more words
-        answer_words = set(re.findall(r"\b\w{3,}\b", answer.lower()))
-        source_words = set(re.findall(r"\b\w{3,}\b", source_text.lower()))
-
-        # Chinese words: 2-4 character sequences (covers more content)
-        answer_chinese = set(_CJK_ENTITY_RE.findall(answer))
-        source_chinese = set(_CJK_ENTITY_RE.findall(source_text))
-
-        answer_words.update(answer_chinese)
-        source_words.update(source_chinese)
-
-        # Check for shared content (exact matches)
-        shared_words = answer_words & source_words
-
-        # Also check for word stems (e.g., "profitable" vs "profitability")
-        # Simple stemming: check if any answer word is a prefix of source word or vice versa
-        stem_matches = 0
-        for ans_word in answer_words:
-            if len(ans_word) < 4:  # Skip short words
-                continue
-            for src_word in source_words:
-                if len(src_word) < 4:
-                    continue
-                # Check if one is prefix of the other (min 4 chars)
-                if ans_word.startswith(src_word[:4]) or src_word.startswith(ans_word[:4]):
-                    stem_matches += 1
-                    break
-
-        # If significant overlap, likely discussing same topic with opposite polarity
-        # Threshold: at least 1 shared word + 1 stem match, OR 2 shared words, OR 1 Chinese word overlap
-        has_chinese_overlap = len(answer_chinese & source_chinese) >= 1
-        has_word_overlap = len(shared_words) >= 2 or (len(shared_words) >= 1 and stem_matches >= 1)
-
-        if has_chinese_overlap or has_word_overlap or stem_matches >= 2:
-            issues.append(
-                HallucinationPattern(
-                    pattern_type="negation_conflict",
-                    severity="high",
-                    content="Answer negation conflicts with source",
-                    suggestion="Verify answer doesn't contradict source",
-                )
-            )
-
-    return issues
 
 
 def detect_all_patterns(answer: str, source_text: str) -> list[HallucinationPattern]:

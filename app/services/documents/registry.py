@@ -103,6 +103,46 @@ def get_document_by_source(source: str, path: Path | None = None) -> dict[str, A
         return None
 
 
+def _find_existing_document_record(
+    rows: list[dict[str, Any]],
+    *,
+    document_id: str | None,
+    source_value: str,
+    owner_user_id: str,
+    tenant_id: str,
+) -> dict[str, Any] | None:
+    """The row this create call is a new version of, if any.
+
+    Matched by `document_id` when the caller names one; otherwise by the
+    (source, owner, tenant) triple that identifies the same logical document.
+    """
+    return next(
+        (
+            row
+            for row in rows
+            if (document_id and row.get("document_id") == document_id)
+            or (
+                not document_id
+                and str(row.get("source", "")) == source_value
+                and str(row.get("owner_user_id", "")) == str(owner_user_id)
+                and str(row.get("tenant_id", "") or row.get("owner_user_id", "")) == str(tenant_id or owner_user_id)
+            )
+        ),
+        None,
+    )
+
+
+def _next_document_version(
+    existing: dict[str, Any] | None, *, document_id: str | None, sha256: str
+) -> tuple[str, int, int]:
+    """Return (stable_document_id, version, latest_version) for this create call."""
+    stable_document_id = str(existing.get("document_id")) if existing else (document_id or _new_document_id())
+    previous_version = int(existing.get("version", 1) or 1) if existing else 0
+    latest_version = int(existing.get("latest_version", previous_version) or previous_version) if existing else 0
+    version = latest_version + 1 if existing and str(existing.get("sha256", "")) != sha256 else max(1, previous_version)
+    return stable_document_id, version, max(latest_version, version)
+
+
 def create_document_record(
     *,
     source: str,
@@ -122,31 +162,21 @@ def create_document_record(
     now = _now_iso()
     with _LOCK:
         rows = _read_document_records(target)
-        existing = next(
-            (
-                row
-                for row in rows
-                if (document_id and row.get("document_id") == document_id)
-                or (
-                    not document_id
-                    and str(row.get("source", "")) == source_value
-                    and str(row.get("owner_user_id", "")) == str(owner_user_id)
-                    and str(row.get("tenant_id", "") or row.get("owner_user_id", "")) == str(tenant_id or owner_user_id)
-                )
-            ),
-            None,
+        existing = _find_existing_document_record(
+            rows,
+            document_id=document_id,
+            source_value=source_value,
+            owner_user_id=owner_user_id,
+            tenant_id=tenant_id,
         )
-        stable_document_id = str(existing.get("document_id")) if existing else (document_id or _new_document_id())
-        previous_version = int(existing.get("version", 1) or 1) if existing else 0
-        latest_version = int(existing.get("latest_version", previous_version) or previous_version) if existing else 0
-        version = (
-            latest_version + 1 if existing and str(existing.get("sha256", "")) != sha256 else max(1, previous_version)
+        stable_document_id, version, latest_version_out = _next_document_version(
+            existing, document_id=document_id, sha256=sha256
         )
         incoming = _normalize_record(
             {
                 "document_id": stable_document_id,
                 "version": version,
-                "latest_version": max(latest_version, version),
+                "latest_version": latest_version_out,
                 "tenant_id": tenant_id or (existing or {}).get("tenant_id") or owner_user_id,
                 "source": source_value,
                 "filename": filename,
@@ -234,6 +264,48 @@ def delete_document_by_source(source: str, path: Path | None = None) -> bool:
         return True
 
 
+def _visible_document_record(
+    record: dict[str, Any], *, user_id: str, is_admin: bool, approved: set[str] | None
+) -> bool:
+    """Whether a persisted document record should be merged into this caller's view."""
+    if approved is not None:
+        return str(record.get("source", "") or "") in approved
+    owner_user_id = str(record.get("owner_user_id", "") or "")
+    visibility = str(record.get("visibility", "private") or "private").lower()
+    return is_admin or visibility == "public" or owner_user_id == str(user_id)
+
+
+def _default_visible_row(source: str, record: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "filename": str(record.get("filename", "") or ""),
+        "source": source,
+        "chunks": 0,
+        "pages": [],
+        "page_count": 0,
+        "in_uploads": Path(source).is_file(),
+        "exists_on_disk": Path(source).is_file(),
+    }
+
+
+def _apply_record_status(row: dict[str, Any], record: dict[str, Any]) -> None:
+    row["document_id"] = record.get("document_id")
+    row["version"] = int(record.get("version", 1) or 1)
+    row["latest_version"] = int(record.get("latest_version", record.get("version", 1)) or 1)
+    row["tenant_id"] = str(record.get("tenant_id", "") or "")
+    row["acl_tags"] = list(record.get("acl_tags", []) or [])
+    row["owner_user_id"] = record.get("owner_user_id")
+    row["visibility"] = record.get("visibility", "private")
+    row["agent_class"] = record.get("agent_class", "general")
+    row["indexing_status"] = record.get("status", "pending")
+    row["indexing_stage"] = record.get("stage", "uploaded")
+    row["indexing_error"] = record.get("error", "")
+    row["triplets_written"] = int(record.get("triplets_written", 0) or 0)
+    row["parser_profile"] = str(record.get("parser_profile", "") or "")
+    if int(row.get("chunks", 0) or 0) == 0:
+        row["chunks"] = int(record.get("chunks_indexed", 0) or 0)
+    row["page_count"] = len(list(row.get("pages", []) or []))
+
+
 def merge_visible_document_status(
     indexed_rows: list[dict[str, Any]],
     *,
@@ -246,44 +318,11 @@ def merge_visible_document_status(
     is_admin = str(role).lower() == "admin"
     approved = {str(source) for source in approved_sources} if approved_sources is not None else None
     for record in list_document_records():
-        owner_user_id = str(record.get("owner_user_id", "") or "")
-        visibility = str(record.get("visibility", "private") or "private").lower()
         source = str(record.get("source", "") or "")
-        if approved is not None:
-            if source not in approved:
-                continue
-        elif not is_admin and visibility != "public" and owner_user_id != str(user_id):
+        if not source or not _visible_document_record(record, user_id=user_id, is_admin=is_admin, approved=approved):
             continue
-        if not source:
-            continue
-        row = by_source.get(
-            source,
-            {
-                "filename": str(record.get("filename", "") or ""),
-                "source": source,
-                "chunks": 0,
-                "pages": [],
-                "page_count": 0,
-                "in_uploads": Path(source).is_file(),
-                "exists_on_disk": Path(source).is_file(),
-            },
-        )
-        row["document_id"] = record.get("document_id")
-        row["version"] = int(record.get("version", 1) or 1)
-        row["latest_version"] = int(record.get("latest_version", record.get("version", 1)) or 1)
-        row["tenant_id"] = str(record.get("tenant_id", "") or "")
-        row["acl_tags"] = list(record.get("acl_tags", []) or [])
-        row["owner_user_id"] = record.get("owner_user_id")
-        row["visibility"] = record.get("visibility", "private")
-        row["agent_class"] = record.get("agent_class", "general")
-        row["indexing_status"] = record.get("status", "pending")
-        row["indexing_stage"] = record.get("stage", "uploaded")
-        row["indexing_error"] = record.get("error", "")
-        row["triplets_written"] = int(record.get("triplets_written", 0) or 0)
-        row["parser_profile"] = str(record.get("parser_profile", "") or "")
-        if int(row.get("chunks", 0) or 0) == 0:
-            row["chunks"] = int(record.get("chunks_indexed", 0) or 0)
-        row["page_count"] = len(list(row.get("pages", []) or []))
+        row = by_source.get(source, _default_visible_row(source, record))
+        _apply_record_status(row, record)
         by_source[source] = row
     return sorted(
         by_source.values(), key=lambda row: (str(row.get("filename", "")).lower(), str(row.get("source", "")).lower())
