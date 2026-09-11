@@ -176,6 +176,830 @@ const STEPS: StepConfig[] = [
   },
 ];
 
+function getCardStateClass(isCurrentActive: boolean, isFocused: boolean): string {
+  if (isCurrentActive) {
+    return "border-brand-accent ring-2 ring-brand-accent/50 bg-surface shadow-elev-2 scale-[1.02]";
+  }
+  if (isFocused) {
+    return "border-brand-border ring-1 ring-brand-border bg-surface shadow-elev-1";
+  }
+  return "border-line bg-surface hover:border-brand-border/80 hover:shadow-elev-1";
+}
+
+function StepBadge({
+  isCurrentActive,
+  isPastCompleted,
+  hasCompletedOnce,
+  badgeText,
+  activeStepText,
+  completeStepText,
+}: {
+  isCurrentActive: boolean;
+  isPastCompleted: boolean;
+  hasCompletedOnce: boolean;
+  badgeText: string;
+  activeStepText: string;
+  completeStepText: string;
+}) {
+  if (isCurrentActive) {
+    return (
+      <Badge variant="brand" size="xs" mono className="text-xs py-0.5 px-2 animate-pulse font-semibold">
+        {activeStepText}
+      </Badge>
+    );
+  }
+  if (isPastCompleted || hasCompletedOnce) {
+    return (
+      <Badge
+        variant="outline"
+        size="xs"
+        mono
+        className="text-xs py-0.5 px-2 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 bg-emerald-500/10 font-semibold"
+      >
+        <Check className="mr-1 size-3" />
+        {completeStepText}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="neutral" size="xs" mono className="text-xs py-0.5 px-2">
+      {badgeText}
+    </Badge>
+  );
+}
+
+interface StepCardProps {
+  stg: StepConfig;
+  isCurrentActive: boolean;
+  isPastCompleted: boolean;
+  hasCompletedOnce: boolean;
+  isFocused: boolean;
+  perspective: ViewPerspective;
+  isZh: boolean;
+  onSelect: (id: number) => void;
+  t: (key: string) => string;
+}
+
+function StepCard({
+  stg,
+  isCurrentActive,
+  isPastCompleted,
+  hasCompletedOnce,
+  isFocused,
+  perspective,
+  isZh,
+  onSelect,
+  t,
+}: StepCardProps) {
+  const Icon = stg.icon;
+  const roleTitle = t(`architecture.flow.stages.${stg.stepKey}.role`);
+  const techTitle = t(`architecture.flow.stages.${stg.stepKey}.techTitle`);
+  const storyDesc = t(`architecture.flow.stages.${stg.stepKey}.storyDesc`);
+  const techDesc = t(`architecture.flow.stages.${stg.stepKey}.techDesc`);
+  const badgeText = t(`architecture.flow.stages.${stg.stepKey}.badge`);
+  const keyPoints = isZh ? stg.keyPointsZh : stg.keyPointsEn;
+  const cardBorder = getCardStateClass(isCurrentActive, isFocused);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(stg.id)}
+      className={`group relative flex w-full cursor-pointer flex-col rounded-card border text-left transition-all duration-200 ${cardBorder}`}
+    >
+      {/* Step Header */}
+      <div className="flex items-center justify-between gap-3 border-b border-line/60 bg-surface-muted/30 p-4">
+        <div className="flex items-center gap-3">
+          <div className={`flex size-9 items-center justify-center rounded-control border ${stg.badgeClass}`}>
+            <Icon className="size-4.5" aria-hidden="true" />
+          </div>
+          <div>
+            <div className="text-sm sm:text-base font-bold text-ink leading-snug">
+              {perspective === "story" ? roleTitle : techTitle}
+            </div>
+            <div className="text-xs font-mono text-ink-muted leading-snug">
+              {perspective === "story" ? techTitle : roleTitle}
+            </div>
+          </div>
+        </div>
+
+        <StepBadge
+          isCurrentActive={isCurrentActive}
+          isPastCompleted={isPastCompleted}
+          hasCompletedOnce={hasCompletedOnce}
+          badgeText={badgeText}
+          activeStepText={t("architecture.flow.activeStep")}
+          completeStepText={t("architecture.flow.completeStep")}
+        />
+      </div>
+
+      {/* Step Body */}
+      <div className="flex-1 p-4 space-y-3">
+        <div className="text-sm text-ink-muted leading-relaxed">
+          {perspective === "story" ? (
+            <>
+              <p className="font-medium text-ink leading-relaxed text-sm sm:text-base">{storyDesc}</p>
+              <p className="mt-2 text-xs sm:text-sm text-ink-muted border-l-2 border-brand-border pl-2.5 leading-relaxed">
+                💡 {isZh ? stg.analogyZh : stg.analogyEn}
+              </p>
+            </>
+          ) : (
+            <p className="font-medium text-ink leading-relaxed text-sm sm:text-base">{techDesc}</p>
+          )}
+        </div>
+
+        {/* Feature Badges */}
+        <div className="flex flex-wrap gap-1.5 pt-1.5">
+          {keyPoints.map((point) => (
+            <Badge
+              key={point}
+              variant="outline"
+              size="xs"
+              mono
+              className="text-xs py-0.5 px-2 bg-surface-muted/60 text-ink-muted"
+            >
+              {point}
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      {/* Card Footer */}
+      <div className="border-t border-line/40 px-4 py-2 flex items-center justify-between text-xs">
+        <span className="font-mono text-ink-faint">
+          {t("architecture.flow.step")} 0{stg.id} / 06
+        </span>
+        <span className="font-mono text-ink-muted flex items-center gap-1.5">
+          <Clock className="size-3" />
+          {badgeText}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function BlueprintView({ isZh }: { isZh: boolean }) {
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface-muted/50 p-4 sm:p-5 rounded-control border border-line">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Images className="size-5 text-brand-accent" />
+            <h3 className="text-base sm:text-lg font-bold text-ink">
+              {isZh ? "QueryMind RAG 7阶段端到端系统架构全景蓝图" : "QueryMind RAG 7-Stage End-to-End Architecture Blueprint"}
+            </h3>
+          </div>
+          <p className="text-xs sm:text-sm text-ink-muted leading-relaxed">
+            {isZh
+              ? "涵盖客户端接入、安全门禁限流、智能体意图路由、向量与知识图谱混合检索、ReAct沙箱工具、引用优先合成与安全出境DLP全流程高清架构图。"
+              : "Comprehensive architectural blueprint illustrating Client Ingress, Security Sentinel, Multi-Agent Router, Hybrid Vector/Graph Store, ReAct Sandbox, Synthesis, and Output DLP."}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Badge variant="brand" size="sm" mono className="text-xs py-1 px-2.5 font-bold">
+            1080p Ultra-HD
+          </Badge>
+          <Button asChild variant="outline" size="sm" className="text-xs">
+            <a href="/architecture_flow_diagram.jpg" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="size-3.5 mr-1.5" />
+              {isZh ? "在新窗口打开原图" : "Open Full Image"}
+            </a>
+          </Button>
+        </div>
+      </div>
+
+      <div className="relative overflow-hidden rounded-card border border-line bg-surface-muted/30 p-2 sm:p-4 shadow-elev-2 flex items-center justify-center">
+        <img
+          src="/architecture_flow_diagram.jpg"
+          alt="QueryMind RAG System Architecture Diagram"
+          className="w-full max-h-[760px] object-contain rounded-control transition-all duration-300 hover:scale-[1.01]"
+          loading="lazy"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
+          <span className="font-bold text-blue-600 dark:text-blue-400">1. Client & Security Sentinel</span>
+          <p className="text-ink-muted">JWT HttpOnly + RBAC 租户隔离，SQLi 与提示词越狱防御，毫秒放行。</p>
+        </div>
+        <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
+          <span className="font-bold text-cyan-600 dark:text-cyan-400">2. Intent Router & Multi-Store</span>
+          <p className="text-ink-muted">Jieba 分词 + 意图三层仲裁，ChromaDB 向量与 Neo4j 图谱双轨混合检索。</p>
+        </div>
+        <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
+          <span className="font-bold text-amber-600 dark:text-amber-400">3. ReAct Governed Sandbox</span>
+          <p className="text-ink-muted">思考-行动-观察循环，单次有效签名审批令牌，防范高风险越权调用。</p>
+        </div>
+        <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
+          <span className="font-bold text-rose-600 dark:text-rose-400">4. Synthesis & Output DLP</span>
+          <p className="text-ink-muted">行内角标 [1][2] 原文锚定，SSE 逐字流式推流，NLI 事实一致性核对与脱敏。</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TableView({ isZh, t }: { isZh: boolean; t: (key: string) => string }) {
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface-muted/50 p-4 sm:p-5 rounded-control border border-line">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Table className="size-5 text-emerald-500" />
+            <h3 className="text-base sm:text-lg font-bold text-ink">
+              {isZh ? "QueryMind 全链路执行阶段规格对照表" : "QueryMind Pipeline Stage Specification Matrix"}
+            </h3>
+          </div>
+          <p className="text-xs sm:text-sm text-ink-muted leading-relaxed">
+            {isZh
+              ? "逐项对比系统 6 个核心执行阶段的职责角色、底层核心技术算法、SLA 耗时标准、输入产出与安全保障屏障。"
+              : "Complete stage-by-stage technical comparison matrix covering roles, algorithms, latency SLA, inputs/outputs, and security guardrails."}
+          </p>
+        </div>
+        <Badge variant="outline" size="sm" mono className="text-xs self-start sm:self-auto">
+          6 Execution Stages
+        </Badge>
+      </div>
+
+      <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-elev-1">
+        <table className="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-line bg-surface-muted/60 text-xs font-semibold text-ink">
+              <th className="p-3.5 sm:p-4 whitespace-nowrap">{t("architecture.flow.tablePhase")}</th>
+              <th className="p-3.5 sm:p-4 whitespace-nowrap">{t("architecture.flow.tableRole")}</th>
+              <th className="p-3.5 sm:p-4 min-w-[220px]">{t("architecture.flow.tableTech")}</th>
+              <th className="p-3.5 sm:p-4 whitespace-nowrap">{t("architecture.flow.tableLatency")}</th>
+              <th className="p-3.5 sm:p-4 min-w-[240px]">{t("architecture.flow.tableIO")}</th>
+              <th className="p-3.5 sm:p-4 min-w-[220px]">{t("architecture.flow.tableSecurity")}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line/60">
+            {STEPS.map((stg) => {
+              const Icon = stg.icon;
+              return (
+                <tr key={stg.id} className="hover:bg-surface-muted/30 transition-colors">
+                  <td className="p-3.5 sm:p-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`flex size-8 items-center justify-center rounded-control border ${stg.badgeClass}`}>
+                        <Icon className="size-4" />
+                      </div>
+                      <span className="font-mono text-sm font-bold text-ink">
+                        Stage 0{stg.id}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-3.5 sm:p-4 whitespace-nowrap">
+                    <div className="text-sm font-bold text-ink">
+                      {t(`architecture.flow.stages.${stg.stepKey}.role`)}
+                    </div>
+                    <div className="text-xs font-mono text-ink-muted">
+                      {t(`architecture.flow.stages.${stg.stepKey}.techTitle`)}
+                    </div>
+                  </td>
+                  <td className="p-3.5 sm:p-4 text-xs text-ink-muted leading-relaxed">
+                    <p className="font-medium text-ink">{t(`architecture.flow.stages.${stg.stepKey}.techDesc`)}</p>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {(isZh ? stg.keyPointsZh : stg.keyPointsEn).map((pt) => (
+                        <Badge key={pt} variant="outline" size="xs" mono className="text-xs bg-surface-muted/60">
+                          {pt}
+                        </Badge>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="p-3.5 sm:p-4 whitespace-nowrap">
+                    <Badge variant="neutral" size="sm" mono className="text-xs py-1 px-2.5 font-bold">
+                      {t(`architecture.flow.stages.${stg.stepKey}.badge`)}
+                    </Badge>
+                  </td>
+                  <td className="p-3.5 sm:p-4 text-xs space-y-1">
+                    <div className="text-ink-muted">
+                      <span className="font-semibold text-ink">In:</span> {isZh ? stg.inputZh : stg.inputEn}
+                    </div>
+                    <div className="text-brand-text font-medium">
+                      <span className="font-semibold text-ink">Out:</span> {isZh ? stg.outputZh : stg.outputEn}
+                    </div>
+                  </td>
+                  <td className="p-3.5 sm:p-4 text-xs text-ink-muted leading-relaxed">
+                    <div className="flex items-start gap-1.5">
+                      <ShieldCheck className="size-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span>{isZh ? stg.securityZh : stg.securityEn}</span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TopologyView({ t }: { t: (key: string) => string }) {
+  return (
+    <div className="space-y-4">
+      <DataFlowVisualization />
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface-muted/30 px-5 py-3 text-xs text-ink-muted">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="flex items-center gap-2">
+            <span className="size-2.5 rounded-full bg-[#4a5568]" /> UI & Entry
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-2.5 rounded-full bg-[#5a67d8]" /> Security & Auth
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-2.5 rounded-full bg-[#3b82f6]" /> LangGraph Router
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-2.5 rounded-full bg-[#10b981]" /> Quality Assurance
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-2.5 rounded-full bg-[#8b5cf6]" /> Hybrid Retrieval
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-2.5 rounded-full bg-[#f59e0b]" /> Multi-Store
+          </span>
+        </div>
+        <span className="font-mono text-xs text-ink-faint">
+          {t("architecture.flow.topologyLegend")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function FlowHeader({
+  perspective,
+  setPerspective,
+  t,
+}: {
+  perspective: ViewPerspective;
+  setPerspective: (p: ViewPerspective) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <CardHeader className="flex flex-col gap-4 border-b border-line bg-surface-muted/40 p-5 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2.5">
+          <Layers className="size-5 text-brand-accent" aria-hidden="true" />
+          <CardTitle className="text-lg sm:text-xl font-bold text-ink">
+            {t("architecture.flow.title")}
+          </CardTitle>
+        </div>
+        <p className="text-sm sm:text-base text-ink-muted leading-relaxed">
+          {t("architecture.flow.subtitle")}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5 rounded-control border border-line bg-surface p-1.5">
+        <Button
+          variant={perspective === "story" ? "flat" : "ghost"}
+          size="sm"
+          onClick={() => setPerspective("story")}
+          className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
+        >
+          <Sparkles className="size-4 text-amber-500" />
+          {t("architecture.flow.modeStory")}
+        </Button>
+        <Button
+          variant={perspective === "tech" ? "flat" : "ghost"}
+          size="sm"
+          onClick={() => setPerspective("tech")}
+          className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
+        >
+          <Zap className="size-4 text-brand-accent" />
+          {t("architecture.flow.modeTech")}
+        </Button>
+        <Button
+          variant={perspective === "table" ? "flat" : "ghost"}
+          size="sm"
+          onClick={() => setPerspective("table")}
+          className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
+        >
+          <Table className="size-4 text-emerald-500" />
+          {t("architecture.flow.modeTable")}
+        </Button>
+        <Button
+          variant={perspective === "blueprint" ? "flat" : "ghost"}
+          size="sm"
+          onClick={() => setPerspective("blueprint")}
+          className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
+        >
+          <Images className="size-4 text-blue-500" />
+          {t("architecture.flow.modeBlueprint")}
+        </Button>
+        <Button
+          variant={perspective === "topology" ? "flat" : "ghost"}
+          size="sm"
+          onClick={() => setPerspective("topology")}
+          className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
+        >
+          <Network className="size-4 text-purple-500" />
+          {t("architecture.flow.modeTopology")}
+        </Button>
+      </div>
+    </CardHeader>
+  );
+}
+
+function SimulationBar({
+  selectedScenario,
+  setSelectedScenario,
+  isSimulating,
+  runSimulation,
+  resetSimulation,
+  isZh,
+  t,
+}: {
+  selectedScenario: ScenarioKey;
+  setSelectedScenario: (sc: ScenarioKey) => void;
+  isSimulating: boolean;
+  runSimulation: () => void;
+  resetSimulation: () => void;
+  isZh: boolean;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="rounded-card border border-brand-border bg-surface-muted/40 p-5 shadow-elev-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-line/60 pb-3.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="text-sm font-semibold text-ink flex items-center gap-2">
+            <Radio className="size-4 text-brand-accent animate-pulse" />
+            {t("architecture.flow.sampleQueryLabel")}：
+          </span>
+          {(["rag", "react", "graph"] as ScenarioKey[]).map((scKey) => (
+            <Button
+              key={scKey}
+              variant={selectedScenario === scKey ? "flat" : "secondary"}
+              size="sm"
+              onClick={() => setSelectedScenario(scKey)}
+              disabled={isSimulating}
+              className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3.5"
+            >
+              {t(`architecture.flow.scenarios.${scKey}.title`)}
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={runSimulation}
+            disabled={isSimulating}
+            className="gap-2 text-xs sm:text-sm font-semibold py-2 px-4 shadow-sm"
+          >
+            <Play className="size-3.5" />
+            {isSimulating ? t("architecture.flow.simulating") : t("architecture.flow.runSim")}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={resetSimulation}
+            disabled={isSimulating}
+            title={t("architecture.flow.resetSim")}
+          >
+            <RotateCcw className="size-4 text-ink-muted" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-start gap-3.5">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-control bg-brand-surface border border-brand-border text-brand-text">
+          <User className="size-4.5" />
+        </div>
+        <div className="flex-1 space-y-1.5">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-semibold text-ink-muted">
+              {isZh ? "用户发送的问题" : "User Chat Input"}
+            </span>
+            <Badge variant="brand" size="xs" mono className="text-xs py-0.5 px-2 font-medium">
+              {t(`architecture.flow.scenarios.${selectedScenario}.tag`)}
+            </Badge>
+          </div>
+          <p className="text-base sm:text-lg font-medium text-ink bg-surface border border-line/60 rounded-control px-4 py-3 shadow-inner leading-relaxed">
+            “{t(`architecture.flow.scenarios.${selectedScenario}.query`)}”
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SimulationProgress({
+  activeStepConfig,
+  isZh,
+  t,
+}: {
+  activeStepConfig: StepConfig;
+  isZh: boolean;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="rounded-control border border-brand-accent/50 bg-brand-surface/80 p-4 shadow-elev-2 animate-in fade-in slide-in-from-top-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-3 rounded-full bg-brand-accent animate-ping" />
+          <Badge variant="brand" size="sm" mono className="font-bold text-xs py-1 px-2.5">
+            {t("architecture.flow.step")} {activeStepConfig.id} / 6
+          </Badge>
+          <span className="text-sm sm:text-base font-semibold text-ink">
+            {isZh ? activeStepConfig.simStatusZh : activeStepConfig.simStatusEn}
+          </span>
+        </div>
+        <Badge variant="neutral" size="sm" mono className="text-xs py-1 px-2.5">
+          {t(`architecture.flow.stages.${activeStepConfig.stepKey}.badge`)}
+        </Badge>
+      </div>
+
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface">
+        <div
+          className="h-full bg-brand-accent transition-all duration-700 ease-out"
+          style={{ width: `${(activeStepConfig.id / 6) * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StepInspector({
+  currentFocusedStep,
+  isZh,
+  t,
+}: {
+  currentFocusedStep: StepConfig;
+  isZh: boolean;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="rounded-control border border-line bg-surface-muted/30 p-5 space-y-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className={`flex size-7 items-center justify-center rounded-control ${currentFocusedStep.iconBg}`}>
+            <currentFocusedStep.icon className="size-4" />
+          </div>
+          <span className="text-sm sm:text-base font-bold text-ink">
+            {t("architecture.flow.step")} 0{currentFocusedStep.id} · {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.role`)}
+          </span>
+          <span className="text-xs sm:text-sm text-ink-muted font-mono">
+            ({t(`architecture.flow.stages.${currentFocusedStep.stepKey}.techTitle`)})
+          </span>
+        </div>
+        <Badge variant="neutral" size="sm" mono className="text-xs py-1 px-2.5">
+          {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.badge`)}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+        <div className="space-y-2">
+          <div className="font-semibold text-brand-text flex items-center gap-1.5 text-sm sm:text-base">
+            <Sparkles className="size-4 text-amber-500" />
+            {t("architecture.flow.explanation")}
+          </div>
+          <p className="text-ink-muted leading-relaxed text-sm sm:text-base">
+            {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.storyDesc`)}
+          </p>
+          <p className="text-xs sm:text-sm text-ink-muted italic border-l-2 border-brand-border pl-2.5">
+            💡 {isZh ? currentFocusedStep.analogyZh : currentFocusedStep.analogyEn}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="font-semibold text-brand-text flex items-center gap-1.5 text-sm sm:text-base">
+            <Zap className="size-4 text-brand-accent" />
+            {t("architecture.flow.techSpecification")}
+          </div>
+          <p className="text-ink-muted leading-relaxed font-mono text-xs sm:text-sm">
+            {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.techDesc`)}
+          </p>
+          <div className="flex flex-wrap gap-1.5 pt-1.5">
+            {(isZh ? currentFocusedStep.keyPointsZh : currentFocusedStep.keyPointsEn).map((pt) => (
+              <span
+                key={pt}
+                className="inline-flex items-center gap-1 text-xs text-ink-muted bg-surface border border-line rounded px-2 py-1"
+              >
+                <Check className="size-3 text-emerald-500" />
+                {pt}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AnswerShowcase({
+  selectedScenario,
+  isZh,
+  t,
+}: {
+  selectedScenario: ScenarioKey;
+  isZh: boolean;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="rounded-card border border-emerald-500/30 bg-surface p-5 shadow-elev-1">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-7 items-center justify-center rounded-control bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="size-4" />
+          </div>
+          <span className="text-base sm:text-lg font-bold text-ink">
+            {t("architecture.flow.finalAnswerLabel")}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" size="sm" mono className="text-xs py-1 px-2.5 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 bg-emerald-500/10 font-semibold">
+            {isZh ? "事实一致性: 99.2%" : "Grounding: 99.2%"}
+          </Badge>
+          <Badge variant="outline" size="sm" mono className="text-xs py-1 px-2.5 text-blue-600 dark:text-blue-400 border-blue-500/40 bg-blue-500/10 font-semibold">
+            {isZh ? "幻觉率: <10%" : "Hallucination: <10%"}
+          </Badge>
+          <Badge variant="outline" size="sm" mono className="text-xs py-1 px-2.5 text-purple-600 dark:text-purple-400 border-purple-500/40 bg-purple-500/10 font-semibold">
+            {isZh ? "首字耗时: 420ms" : "TTFT: 420ms"}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3.5">
+        <div className="rounded-control bg-surface-muted/30 p-4 border border-line/70 text-sm sm:text-base font-medium text-ink leading-relaxed shadow-sm">
+          {t(`architecture.flow.scenarios.${selectedScenario}.answer`)}
+        </div>
+
+        {selectedScenario === "rag" && (
+          <div className="overflow-x-auto rounded-control border border-line bg-surface">
+            <div className="bg-surface-muted/60 px-3.5 py-2 border-b border-line text-xs font-semibold text-ink flex items-center gap-1.5">
+              <FileSpreadsheet className="size-3.5 text-brand-accent" />
+              <span>{isZh ? "表 1：员工差旅住宿报销限额细则（摘自制度附表一）" : "Table 1: Employee Travel Lodging Cap Specifications (Policy Appendix A)"}</span>
+            </div>
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="border-b border-line bg-surface-muted/30 text-ink font-semibold">
+                  <th className="p-2.5">{isZh ? "城市分类" : "City Tier"}</th>
+                  <th className="p-2.5">{isZh ? "适用城市范畴" : "Covered Cities"}</th>
+                  <th className="p-2.5">{isZh ? "研发报销上限" : "R&D Cap"}</th>
+                  <th className="p-2.5">{isZh ? "凭证要求" : "Invoicing"}</th>
+                  <th className="p-2.5">{isZh ? "审批权限" : "Approval Chain"}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line/40 text-ink-muted">
+                <tr>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "一线城市" : "Tier 1"}</td>
+                  <td className="p-2.5">{isZh ? "北京、上海、广州、深圳" : "Beijing, Shanghai, Guangzhou, Shenzhen"}</td>
+                  <td className="p-2.5 font-mono font-bold text-brand-text">¥500 / 人 / 天</td>
+                  <td className="p-2.5">{isZh ? "增值税专用/普通发票" : "VAT Tax Invoice"}</td>
+                  <td className="p-2.5">{isZh ? "部门总监审批" : "Director Approval"}</td>
+                </tr>
+                <tr>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "新一线城市" : "New Tier 1"}</td>
+                  <td className="p-2.5">{isZh ? "杭州、成都、武汉、南京等" : "Hangzhou, Chengdu, Wuhan, Nanjing"}</td>
+                  <td className="p-2.5 font-mono font-bold text-ink">¥400 / 人 / 天</td>
+                  <td className="p-2.5">{isZh ? "增值税专用/普通发票" : "VAT Tax Invoice"}</td>
+                  <td className="p-2.5">{isZh ? "研发主管审批" : "Manager Approval"}</td>
+                </tr>
+                <tr>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "二线及其他" : "Tier 2 & Other"}</td>
+                  <td className="p-2.5">{isZh ? "其他省会及地级市" : "Other Regional Capitals"}</td>
+                  <td className="p-2.5 font-mono text-ink">¥300 / 人 / 天</td>
+                  <td className="p-2.5">{isZh ? "合规发票实报实销" : "Standard Invoices"}</td>
+                  <td className="p-2.5">{isZh ? "项目经理审批" : "Project Lead Approval"}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {selectedScenario === "react" && (
+          <div className="overflow-x-auto rounded-control border border-line bg-surface">
+            <div className="bg-surface-muted/60 px-3.5 py-2 border-b border-line text-xs font-semibold text-ink flex items-center gap-1.5">
+              <FileSpreadsheet className="size-3.5 text-brand-accent" />
+              <span>{isZh ? "表 2：华东区月度销售业绩与环比增长分析表（数据沙箱精确计算）" : "Table 2: East Region Monthly Sales & MoM Growth Analysis (Sandbox Calculator)"}</span>
+            </div>
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="border-b border-line bg-surface-muted/30 text-ink font-semibold">
+                  <th className="p-2.5">{isZh ? "统计月份" : "Month"}</th>
+                  <th className="p-2.5">{isZh ? "销售额 (万元)" : "Revenue (10k RMB)"}</th>
+                  <th className="p-2.5">{isZh ? "环比净增额" : "Net Growth"}</th>
+                  <th className="p-2.5">{isZh ? "环比增长率 (%)" : "MoM Rate (%)"}</th>
+                  <th className="p-2.5">{isZh ? "主要拉动行业" : "Leading Drivers"}</th>
+                  <th className="p-2.5">{isZh ? "成交笔数" : "Orders"}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line/40 text-ink-muted">
+                <tr>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "前一月 (T-1)" : "Month T-1"}</td>
+                  <td className="p-2.5 font-mono">210.0 万元</td>
+                  <td className="p-2.5 font-mono">{isZh ? "基线月份" : "Baseline"}</td>
+                  <td className="p-2.5 font-mono">-</td>
+                  <td className="p-2.5">{isZh ? "传统制造 (52%)" : "Manufacturing (52%)"}</td>
+                  <td className="p-2.5 font-mono">128 笔</td>
+                </tr>
+                <tr>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "上月 (T)" : "Month T"}</td>
+                  <td className="p-2.5 font-mono font-bold text-brand-text">245.8 万元</td>
+                  <td className="p-2.5 font-mono text-emerald-600 font-bold">+35.8 万元</td>
+                  <td className="p-2.5 font-mono text-emerald-600 font-bold">+17.05%</td>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "新能源 / 储能 (68%)" : "Clean Energy (68%)"}</td>
+                  <td className="p-2.5 font-mono font-bold text-ink">164 笔</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {selectedScenario === "graph" && (
+          <div className="overflow-x-auto rounded-control border border-line bg-surface">
+            <div className="bg-surface-muted/60 px-3.5 py-2 border-b border-line text-xs font-semibold text-ink flex items-center gap-1.5">
+              <FileSpreadsheet className="size-3.5 text-brand-accent" />
+              <span>{isZh ? "表 3：Neo4j 图谱 2-Hop 关联关系推理表（Cypher 最短路径遍历）" : "Table 3: Neo4j Graph 2-Hop Relation Inference (Cypher Traversal)"}</span>
+            </div>
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="border-b border-line bg-surface-muted/30 text-ink font-semibold">
+                  <th className="p-2.5">{isZh ? "起始实体" : "Source Entity"}</th>
+                  <th className="p-2.5">{isZh ? "关系谓词 (Cypher)" : "Relationship"}</th>
+                  <th className="p-2.5">{isZh ? "目标实体" : "Target Entity"}</th>
+                  <th className="p-2.5">{isZh ? "协作职责说明" : "Role / Duty"}</th>
+                  <th className="p-2.5">{isZh ? "置信度" : "Confidence"}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line/40 text-ink-muted">
+                <tr>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "李工 (架构师)" : "Engineer Li (Architect)"}</td>
+                  <td className="p-2.5 font-mono text-brand-text font-bold">[:MEMBER_OF]</td>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "AI平台四期项目" : "AI Platform Phase 4"}</td>
+                  <td className="p-2.5">{isZh ? "担任核心架构师与技术负责" : "Core Tech Architect"}</td>
+                  <td className="p-2.5 font-mono text-emerald-600 font-bold">1.00</td>
+                </tr>
+                <tr>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "张总 (部门总监)" : "Director Zhang"}</td>
+                  <td className="p-2.5 font-mono text-brand-text font-bold">[:DIRECTS]</td>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "AI平台四期项目" : "AI Platform Phase 4"}</td>
+                  <td className="p-2.5">{isZh ? "担任项目总负责人兼资源审批人" : "Project Director"}</td>
+                  <td className="p-2.5 font-mono text-emerald-600 font-bold">1.00</td>
+                </tr>
+                <tr>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "李工" : "Engineer Li"}</td>
+                  <td className="p-2.5 font-mono text-purple-600 font-bold">[:REPORTS_TO]</td>
+                  <td className="p-2.5 font-medium text-ink">{isZh ? "张总" : "Director Zhang"}</td>
+                  <td className="p-2.5">{isZh ? "项目内直属技术汇报关系" : "Direct Project Reporting Line"}</td>
+                  <td className="p-2.5 font-mono text-emerald-600 font-bold">0.99</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2.5 rounded-control bg-surface-muted/60 px-4 py-2.5 text-xs sm:text-sm text-ink-muted border border-line/40">
+          <BookOpen className="size-4 text-brand-accent shrink-0" />
+          <span className="font-mono text-ink font-medium">
+            {t(`architecture.flow.scenarios.${selectedScenario}.citation`)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PipelineSummaryStream({ isZh, t }: { isZh: boolean; t: (key: string) => string }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2.5 rounded-control border border-line bg-surface-muted/40 p-4 text-sm text-ink-muted">
+      <span className="font-bold text-ink">{isZh ? "全链路流转：" : "Full Data Stream:"}</span>
+      <span className="flex items-center gap-1.5 font-medium">
+        <ShieldCheck className="size-3.5 text-blue-500" />
+        {t("architecture.flow.stages.step1.role")}
+      </span>
+      <ArrowRight className="size-3.5 text-brand-accent" />
+      <span className="flex items-center gap-1.5 font-medium">
+        <Workflow className="size-3.5 text-cyan-500" />
+        {t("architecture.flow.stages.step2.role")}
+      </span>
+      <ArrowRight className="size-3.5 text-brand-accent" />
+      <span className="flex items-center gap-1.5 font-medium">
+        <Search className="size-3.5 text-emerald-500" />
+        {t("architecture.flow.stages.step3.role")}
+      </span>
+      <ArrowRight className="size-3.5 text-brand-accent" />
+      <span className="flex items-center gap-1.5 font-medium">
+        <Wrench className="size-3.5 text-amber-500" />
+        {t("architecture.flow.stages.step4.role")}
+      </span>
+      <ArrowRight className="size-3.5 text-brand-accent" />
+      <span className="flex items-center gap-1.5 font-medium">
+        <Sparkles className="size-3.5 text-purple-500" />
+        {t("architecture.flow.stages.step5.role")}
+      </span>
+      <ArrowRight className="size-3.5 text-brand-accent" />
+      <span className="flex items-center gap-1.5 font-bold text-brand-text">
+        <CheckCircle2 className="size-3.5 text-rose-500" />
+        {t("architecture.flow.stages.step6.role")}
+      </span>
+    </div>
+  );
+}
+
 export function PipelineFlowDiagram() {
   const { t, i18n } = useTranslation();
   const isZh = i18n.language.startsWith("zh");
@@ -187,7 +1011,6 @@ export function PipelineFlowDiagram() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [hasCompletedOnce, setHasCompletedOnce] = useState(false);
 
-  // Auto-step simulation timer
   const runSimulation = () => {
     if (isSimulating) return;
     setIsSimulating(true);
@@ -234,372 +1057,29 @@ export function PipelineFlowDiagram() {
 
   return (
     <Card className="overflow-hidden border-line shadow-elev-1 transition-all">
-      {/* Top Card Header with 5-Way Perspective Switcher */}
-      <CardHeader className="flex flex-col gap-4 border-b border-line bg-surface-muted/40 p-5 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2.5">
-            <Layers className="size-5 text-brand-accent" aria-hidden="true" />
-            <CardTitle className="text-lg sm:text-xl font-bold text-ink">
-              {t("architecture.flow.title")}
-            </CardTitle>
-          </div>
-          <p className="text-sm sm:text-base text-ink-muted leading-relaxed">
-            {t("architecture.flow.subtitle")}
-          </p>
-        </div>
-
-        {/* Perspective Switcher Controls */}
-        <div className="flex flex-wrap items-center gap-1.5 rounded-control border border-line bg-surface p-1.5">
-          <Button
-            variant={perspective === "story" ? "flat" : "ghost"}
-            size="sm"
-            onClick={() => setPerspective("story")}
-            className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
-          >
-            <Sparkles className="size-4 text-amber-500" />
-            {t("architecture.flow.modeStory")}
-          </Button>
-          <Button
-            variant={perspective === "tech" ? "flat" : "ghost"}
-            size="sm"
-            onClick={() => setPerspective("tech")}
-            className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
-          >
-            <Zap className="size-4 text-brand-accent" />
-            {t("architecture.flow.modeTech")}
-          </Button>
-          <Button
-            variant={perspective === "table" ? "flat" : "ghost"}
-            size="sm"
-            onClick={() => setPerspective("table")}
-            className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
-          >
-            <Table className="size-4 text-emerald-500" />
-            {t("architecture.flow.modeTable")}
-          </Button>
-          <Button
-            variant={perspective === "blueprint" ? "flat" : "ghost"}
-            size="sm"
-            onClick={() => setPerspective("blueprint")}
-            className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
-          >
-            <Images className="size-4 text-blue-500" />
-            {t("architecture.flow.modeBlueprint")}
-          </Button>
-          <Button
-            variant={perspective === "topology" ? "flat" : "ghost"}
-            size="sm"
-            onClick={() => setPerspective("topology")}
-            className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3"
-          >
-            <Network className="size-4 text-purple-500" />
-            {t("architecture.flow.modeTopology")}
-          </Button>
-        </div>
-      </CardHeader>
+      <FlowHeader perspective={perspective} setPerspective={setPerspective} t={t} />
 
       <CardContent className="p-5 sm:p-6">
-        {/* VIEW 1: High-Resolution Architecture Blueprint Image (图片视角) */}
-        {perspective === "blueprint" && (
-          <div className="space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface-muted/50 p-4 sm:p-5 rounded-control border border-line">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Images className="size-5 text-brand-accent" />
-                  <h3 className="text-base sm:text-lg font-bold text-ink">
-                    {isZh ? "QueryMind RAG 7阶段端到端系统架构全景蓝图" : "QueryMind RAG 7-Stage End-to-End Architecture Blueprint"}
-                  </h3>
-                </div>
-                <p className="text-xs sm:text-sm text-ink-muted leading-relaxed">
-                  {isZh
-                    ? "涵盖客户端接入、安全门禁限流、智能体意图路由、向量与知识图谱混合检索、ReAct沙箱工具、引用优先合成与安全出境DLP全流程高清架构图。"
-                    : "Comprehensive architectural blueprint illustrating Client Ingress, Security Sentinel, Multi-Agent Router, Hybrid Vector/Graph Store, ReAct Sandbox, Synthesis, and Output DLP."}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <Badge variant="brand" size="sm" mono className="text-xs py-1 px-2.5 font-bold">
-                  1080p Ultra-HD
-                </Badge>
-                <Button asChild variant="outline" size="sm" className="text-xs">
-                  <a href="/architecture_flow_diagram.jpg" target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="size-3.5 mr-1.5" />
-                    {isZh ? "在新窗口打开原图" : "Open Full Image"}
-                  </a>
-                </Button>
-              </div>
-            </div>
+        {perspective === "blueprint" && <BlueprintView isZh={isZh} />}
+        {perspective === "table" && <TableView isZh={isZh} t={t} />}
+        {perspective === "topology" && <TopologyView t={t} />}
 
-            {/* Architecture Blueprint Image Display Frame */}
-            <div className="relative overflow-hidden rounded-card border border-line bg-surface-muted/30 p-2 sm:p-4 shadow-elev-2 flex items-center justify-center">
-              <img
-                src="/architecture_flow_diagram.jpg"
-                alt="QueryMind RAG System Architecture Diagram"
-                className="w-full max-h-[760px] object-contain rounded-control transition-all duration-300 hover:scale-[1.01]"
-                loading="lazy"
-              />
-            </div>
-
-            {/* Architectural Highlights Callout Row */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
-                <span className="font-bold text-blue-600 dark:text-blue-400">1. Client & Security Sentinel</span>
-                <p className="text-ink-muted">JWT HttpOnly + RBAC 租户隔离，SQLi 与提示词越狱防御，毫秒放行。</p>
-              </div>
-              <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
-                <span className="font-bold text-cyan-600 dark:text-cyan-400">2. Intent Router & Multi-Store</span>
-                <p className="text-ink-muted">Jieba 分词 + 意图三层仲裁，ChromaDB 向量与 Neo4j 图谱双轨混合检索。</p>
-              </div>
-              <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
-                <span className="font-bold text-amber-600 dark:text-amber-400">3. ReAct Governed Sandbox</span>
-                <p className="text-ink-muted">思考-行动-观察循环，单次有效签名审批令牌，防范高风险越权调用。</p>
-              </div>
-              <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
-                <span className="font-bold text-rose-600 dark:text-rose-400">4. Synthesis & Output DLP</span>
-                <p className="text-ink-muted">行内角标 [1][2] 原文锚定，SSE 逐字流式推流，NLI 事实一致性核对与脱敏。</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 2: Specification Matrix Table View (表格视角) */}
-        {perspective === "table" && (
-          <div className="space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface-muted/50 p-4 sm:p-5 rounded-control border border-line">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Table className="size-5 text-emerald-500" />
-                  <h3 className="text-base sm:text-lg font-bold text-ink">
-                    {isZh ? "QueryMind 全链路执行阶段规格对照表" : "QueryMind Pipeline Stage Specification Matrix"}
-                  </h3>
-                </div>
-                <p className="text-xs sm:text-sm text-ink-muted leading-relaxed">
-                  {isZh
-                    ? "逐项对比系统 6 个核心执行阶段的职责角色、底层核心技术算法、SLA 耗时标准、输入产出与安全保障屏障。"
-                    : "Complete stage-by-stage technical comparison matrix covering roles, algorithms, latency SLA, inputs/outputs, and security guardrails."}
-                </p>
-              </div>
-              <Badge variant="outline" size="sm" mono className="text-xs self-start sm:self-auto">
-                6 Execution Stages
-              </Badge>
-            </div>
-
-            {/* Responsive Table Container */}
-            <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-elev-1">
-              <table className="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-line bg-surface-muted/60 text-xs font-semibold text-ink">
-                    <th className="p-3.5 sm:p-4 whitespace-nowrap">{t("architecture.flow.tablePhase")}</th>
-                    <th className="p-3.5 sm:p-4 whitespace-nowrap">{t("architecture.flow.tableRole")}</th>
-                    <th className="p-3.5 sm:p-4 min-w-[220px]">{t("architecture.flow.tableTech")}</th>
-                    <th className="p-3.5 sm:p-4 whitespace-nowrap">{t("architecture.flow.tableLatency")}</th>
-                    <th className="p-3.5 sm:p-4 min-w-[240px]">{t("architecture.flow.tableIO")}</th>
-                    <th className="p-3.5 sm:p-4 min-w-[220px]">{t("architecture.flow.tableSecurity")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line/60">
-                  {STEPS.map((stg) => {
-                    const Icon = stg.icon;
-                    return (
-                      <tr key={stg.id} className="hover:bg-surface-muted/30 transition-colors">
-                        {/* Step Number & Icon */}
-                        <td className="p-3.5 sm:p-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2.5">
-                            <div className={`flex size-8 items-center justify-center rounded-control border ${stg.badgeClass}`}>
-                              <Icon className="size-4" />
-                            </div>
-                            <span className="font-mono text-sm font-bold text-ink">
-                              Stage 0{stg.id}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Role & Title */}
-                        <td className="p-3.5 sm:p-4 whitespace-nowrap">
-                          <div className="text-sm font-bold text-ink">
-                            {t(`architecture.flow.stages.${stg.stepKey}.role`)}
-                          </div>
-                          <div className="text-xs font-mono text-ink-muted">
-                            {t(`architecture.flow.stages.${stg.stepKey}.techTitle`)}
-                          </div>
-                        </td>
-
-                        {/* Core Tech Stack */}
-                        <td className="p-3.5 sm:p-4 text-xs text-ink-muted leading-relaxed">
-                          <p className="font-medium text-ink">{t(`architecture.flow.stages.${stg.stepKey}.techDesc`)}</p>
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {(isZh ? stg.keyPointsZh : stg.keyPointsEn).map((pt) => (
-                              <Badge key={pt} variant="outline" size="xs" mono className="text-xs bg-surface-muted/60">
-                                {pt}
-                              </Badge>
-                            ))}
-                          </div>
-                        </td>
-
-                        {/* Latency SLA */}
-                        <td className="p-3.5 sm:p-4 whitespace-nowrap">
-                          <Badge variant="neutral" size="sm" mono className="text-xs py-1 px-2.5 font-bold">
-                            {t(`architecture.flow.stages.${stg.stepKey}.badge`)}
-                          </Badge>
-                        </td>
-
-                        {/* Input / Output */}
-                        <td className="p-3.5 sm:p-4 text-xs space-y-1">
-                          <div className="text-ink-muted">
-                            <span className="font-semibold text-ink">In:</span> {isZh ? stg.inputZh : stg.inputEn}
-                          </div>
-                          <div className="text-brand-text font-medium">
-                            <span className="font-semibold text-ink">Out:</span> {isZh ? stg.outputZh : stg.outputEn}
-                          </div>
-                        </td>
-
-                        {/* Security Gate */}
-                        <td className="p-3.5 sm:p-4 text-xs text-ink-muted leading-relaxed">
-                          <div className="flex items-start gap-1.5">
-                            <ShieldCheck className="size-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                            <span>{isZh ? stg.securityZh : stg.securityEn}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 3: Interactive ReactFlow Topology Canvas (拓扑视角) */}
-        {perspective === "topology" && (
-          <div className="space-y-4">
-            <DataFlowVisualization />
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface-muted/30 px-5 py-3 text-xs text-ink-muted">
-              <div className="flex flex-wrap items-center gap-4">
-                <span className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-[#4a5568]" /> UI & Entry
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-[#5a67d8]" /> Security & Auth
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-[#3b82f6]" /> LangGraph Router
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-[#10b981]" /> Quality Assurance
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-[#8b5cf6]" /> Hybrid Retrieval
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="size-2.5 rounded-full bg-[#f59e0b]" /> Multi-Store
-                </span>
-              </div>
-              <span className="font-mono text-xs text-ink-faint">
-                {t("architecture.flow.topologyLegend")}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 4 & 5: Story Walkthrough or Technical Flow with Interactive Simulation (通俗业务视角 / 专家技术视角) */}
         {(perspective === "story" || perspective === "tech") && (
           <div className="space-y-7">
-            {/* Top Interactive Scenario Selector & Simulated Prompt Box */}
-            <div className="rounded-card border border-brand-border bg-surface-muted/40 p-5 shadow-elev-1">
-              {/* Scenario Selection Tabs */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-line/60 pb-3.5">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="text-sm font-semibold text-ink flex items-center gap-2">
-                    <Radio className="size-4 text-brand-accent animate-pulse" />
-                    {t("architecture.flow.sampleQueryLabel")}：
-                  </span>
-                  {(["rag", "react", "graph"] as ScenarioKey[]).map((scKey) => (
-                    <Button
-                      key={scKey}
-                      variant={selectedScenario === scKey ? "flat" : "secondary"}
-                      size="sm"
-                      onClick={() => setSelectedScenario(scKey)}
-                      disabled={isSimulating}
-                      className="gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-3.5"
-                    >
-                      {t(`architecture.flow.scenarios.${scKey}.title`)}
-                    </Button>
-                  ))}
-                </div>
+            <SimulationBar
+              selectedScenario={selectedScenario}
+              setSelectedScenario={setSelectedScenario}
+              isSimulating={isSimulating}
+              runSimulation={runSimulation}
+              resetSimulation={resetSimulation}
+              isZh={isZh}
+              t={t}
+            />
 
-                {/* Simulation Action Controls */}
-                <div className="flex items-center gap-2.5 self-end sm:self-auto">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={runSimulation}
-                    disabled={isSimulating}
-                    className="gap-2 text-xs sm:text-sm font-semibold py-2 px-4 shadow-sm"
-                  >
-                    <Play className="size-3.5" />
-                    {isSimulating ? t("architecture.flow.simulating") : t("architecture.flow.runSim")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={resetSimulation}
-                    disabled={isSimulating}
-                    title={t("architecture.flow.resetSim")}
-                  >
-                    <RotateCcw className="size-4 text-ink-muted" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Realistic Simulated User Prompt Message */}
-              <div className="mt-4 flex items-start gap-3.5">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-control bg-brand-surface border border-brand-border text-brand-text">
-                  <User className="size-4.5" />
-                </div>
-                <div className="flex-1 space-y-1.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xs font-semibold text-ink-muted">
-                      {isZh ? "用户发送的问题" : "User Chat Input"}
-                    </span>
-                    <Badge variant="brand" size="xs" mono className="text-xs py-0.5 px-2 font-medium">
-                      {t(`architecture.flow.scenarios.${selectedScenario}.tag`)}
-                    </Badge>
-                  </div>
-                  <p className="text-base sm:text-lg font-medium text-ink bg-surface border border-line/60 rounded-control px-4 py-3 shadow-inner leading-relaxed">
-                    “{t(`architecture.flow.scenarios.${selectedScenario}.query`)}”
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Live Progress Bar & Live Stage Commentary Banner during Simulation */}
             {isSimulating && activeStepConfig && (
-              <div className="rounded-control border border-brand-accent/50 bg-brand-surface/80 p-4 shadow-elev-2 animate-in fade-in slide-in-from-top-2">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex size-3 rounded-full bg-brand-accent animate-ping" />
-                    <Badge variant="brand" size="sm" mono className="font-bold text-xs py-1 px-2.5">
-                      {t("architecture.flow.step")} {activeStepConfig.id} / 6
-                    </Badge>
-                    <span className="text-sm sm:text-base font-semibold text-ink">
-                      {isZh ? activeStepConfig.simStatusZh : activeStepConfig.simStatusEn}
-                    </span>
-                  </div>
-                  <Badge variant="neutral" size="sm" mono className="text-xs py-1 px-2.5">
-                    {t(`architecture.flow.stages.${activeStepConfig.stepKey}.badge`)}
-                  </Badge>
-                </div>
-
-                {/* Progress bar line */}
-                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface">
-                  <div
-                    className="h-full bg-brand-accent transition-all duration-700 ease-out"
-                    style={{ width: `${(activeStepConfig.id / 6) * 100}%` }}
-                  />
-                </div>
-              </div>
+              <SimulationProgress activeStepConfig={activeStepConfig} isZh={isZh} t={t} />
             )}
 
-            {/* 6-Step Chronological Cards Grid */}
             <div>
               <div className="mb-3.5 flex items-center justify-between text-sm text-ink-muted">
                 <span className="font-semibold text-ink flex items-center gap-2 text-base">
@@ -613,372 +1093,32 @@ export function PipelineFlowDiagram() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {STEPS.map((stg) => {
-                  const Icon = stg.icon;
                   const isCurrentActive = activeStepConfig?.id === stg.id;
                   const isPastCompleted =
                     isSimulating && activeStepConfig ? activeStepConfig.id > stg.id : false;
                   const isFocused = focusedStepId === stg.id;
 
-                  const roleTitle = t(`architecture.flow.stages.${stg.stepKey}.role`);
-                  const techTitle = t(`architecture.flow.stages.${stg.stepKey}.techTitle`);
-                  const storyDesc = t(`architecture.flow.stages.${stg.stepKey}.storyDesc`);
-                  const techDesc = t(`architecture.flow.stages.${stg.stepKey}.techDesc`);
-                  const badgeText = t(`architecture.flow.stages.${stg.stepKey}.badge`);
-                  const keyPoints = isZh ? stg.keyPointsZh : stg.keyPointsEn;
-
                   return (
-                    <div
+                    <StepCard
                       key={stg.id}
-                      onClick={() => setFocusedStepId(stg.id)}
-                      className={`group relative flex cursor-pointer flex-col rounded-card border transition-all duration-200 ${
-                        isCurrentActive
-                          ? "border-brand-accent ring-2 ring-brand-accent/50 bg-surface shadow-elev-2 scale-[1.02]"
-                          : isFocused
-                          ? "border-brand-border ring-1 ring-brand-border bg-surface shadow-elev-1"
-                          : "border-line bg-surface hover:border-brand-border/80 hover:shadow-elev-1"
-                      }`}
-                    >
-                      {/* Step Header */}
-                      <div className="flex items-center justify-between gap-3 border-b border-line/60 bg-surface-muted/30 p-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`flex size-9 items-center justify-center rounded-control border ${stg.badgeClass}`}
-                          >
-                            <Icon className="size-4.5" aria-hidden="true" />
-                          </div>
-                          <div>
-                            <div className="text-sm sm:text-base font-bold text-ink leading-snug">
-                              {perspective === "story" ? roleTitle : techTitle}
-                            </div>
-                            <div className="text-xs font-mono text-ink-muted leading-snug">
-                              {perspective === "story" ? techTitle : roleTitle}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Status / Latency Badge */}
-                        {isCurrentActive ? (
-                          <Badge variant="brand" size="xs" mono className="text-xs py-0.5 px-2 animate-pulse font-semibold">
-                            {t("architecture.flow.activeStep")}
-                          </Badge>
-                        ) : isPastCompleted || hasCompletedOnce ? (
-                          <Badge variant="outline" size="xs" mono className="text-xs py-0.5 px-2 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 bg-emerald-500/10 font-semibold">
-                            <Check className="mr-1 size-3" />
-                            {t("architecture.flow.completeStep")}
-                          </Badge>
-                        ) : (
-                          <Badge variant="neutral" size="xs" mono className="text-xs py-0.5 px-2">
-                            {badgeText}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Step Body */}
-                      <div className="flex-1 p-4 space-y-3">
-                        {/* Plain Story vs Technical Spec text */}
-                        <div className="text-sm text-ink-muted leading-relaxed">
-                          {perspective === "story" ? (
-                            <>
-                              <p className="font-medium text-ink leading-relaxed text-sm sm:text-base">{storyDesc}</p>
-                              <p className="mt-2 text-xs sm:text-sm text-ink-muted border-l-2 border-brand-border pl-2.5 leading-relaxed">
-                                💡 {isZh ? stg.analogyZh : stg.analogyEn}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="font-medium text-ink leading-relaxed text-sm sm:text-base">{techDesc}</p>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Feature Badges */}
-                        <div className="flex flex-wrap gap-1.5 pt-1.5">
-                          {keyPoints.map((point) => (
-                            <Badge
-                              key={point}
-                              variant="outline"
-                              size="xs"
-                              mono
-                              className="text-xs py-0.5 px-2 bg-surface-muted/60 text-ink-muted"
-                            >
-                              {point}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Card Footer */}
-                      <div className="border-t border-line/40 px-4 py-2 flex items-center justify-between text-xs">
-                        <span className="font-mono text-ink-faint">
-                          {t("architecture.flow.step")} 0{stg.id} / 06
-                        </span>
-                        <span className="font-mono text-ink-muted flex items-center gap-1.5">
-                          <Clock className="size-3" />
-                          {badgeText}
-                        </span>
-                      </div>
-                    </div>
+                      stg={stg}
+                      isCurrentActive={isCurrentActive}
+                      isPastCompleted={isPastCompleted}
+                      hasCompletedOnce={hasCompletedOnce}
+                      isFocused={isFocused}
+                      perspective={perspective}
+                      isZh={isZh}
+                      onSelect={setFocusedStepId}
+                      t={t}
+                    />
                   );
                 })}
               </div>
             </div>
 
-            {/* Selected Step Deep Dive Inspector Box */}
-            <div className="rounded-control border border-line bg-surface-muted/30 p-5 space-y-3.5">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className={`flex size-7 items-center justify-center rounded-control ${currentFocusedStep.iconBg}`}>
-                    <currentFocusedStep.icon className="size-4" />
-                  </div>
-                  <span className="text-sm sm:text-base font-bold text-ink">
-                    {t("architecture.flow.step")} 0{currentFocusedStep.id} · {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.role`)}
-                  </span>
-                  <span className="text-xs sm:text-sm text-ink-muted font-mono">
-                    ({t(`architecture.flow.stages.${currentFocusedStep.stepKey}.techTitle`)})
-                  </span>
-                </div>
-                <Badge variant="neutral" size="sm" mono className="text-xs py-1 px-2.5">
-                  {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.badge`)}
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
-                <div className="space-y-2">
-                  <div className="font-semibold text-brand-text flex items-center gap-1.5 text-sm sm:text-base">
-                    <Sparkles className="size-4 text-amber-500" />
-                    {t("architecture.flow.explanation")}
-                  </div>
-                  <p className="text-ink-muted leading-relaxed text-sm sm:text-base">
-                    {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.storyDesc`)}
-                  </p>
-                  <p className="text-xs sm:text-sm text-ink-muted italic border-l-2 border-brand-border pl-2.5">
-                    💡 {isZh ? currentFocusedStep.analogyZh : currentFocusedStep.analogyEn}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="font-semibold text-brand-text flex items-center gap-1.5 text-sm sm:text-base">
-                    <Zap className="size-4 text-brand-accent" />
-                    {t("architecture.flow.techSpecification")}
-                  </div>
-                  <p className="text-ink-muted leading-relaxed font-mono text-xs sm:text-sm">
-                    {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.techDesc`)}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 pt-1.5">
-                    {(isZh ? currentFocusedStep.keyPointsZh : currentFocusedStep.keyPointsEn).map((pt) => (
-                      <span
-                        key={pt}
-                        className="inline-flex items-center gap-1 text-xs text-ink-muted bg-surface border border-line rounded px-2 py-1"
-                      >
-                        <Check className="size-3 text-emerald-500" />
-                        {pt}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom: Realistic Final Answer Showcase Box (包含场景专属结构化数据表格) */}
-            <div className="rounded-card border border-emerald-500/30 bg-surface p-5 shadow-elev-1">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex size-7 items-center justify-center rounded-control bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="size-4" />
-                  </div>
-                  <span className="text-base sm:text-lg font-bold text-ink">
-                    {t("architecture.flow.finalAnswerLabel")}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" size="sm" mono className="text-xs py-1 px-2.5 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 bg-emerald-500/10 font-semibold">
-                    {isZh ? "事实一致性: 99.2%" : "Grounding: 99.2%"}
-                  </Badge>
-                  <Badge variant="outline" size="sm" mono className="text-xs py-1 px-2.5 text-blue-600 dark:text-blue-400 border-blue-500/40 bg-blue-500/10 font-semibold">
-                    {isZh ? "幻觉率: <10%" : "Hallucination: <10%"}
-                  </Badge>
-                  <Badge variant="outline" size="sm" mono className="text-xs py-1 px-2.5 text-purple-600 dark:text-purple-400 border-purple-500/40 bg-purple-500/10 font-semibold">
-                    {isZh ? "首字耗时: 420ms" : "TTFT: 420ms"}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Answer Content */}
-              <div className="mt-4 space-y-3.5">
-                <div className="rounded-control bg-surface-muted/30 p-4 border border-line/70 text-sm sm:text-base font-medium text-ink leading-relaxed shadow-sm">
-                  {t(`architecture.flow.scenarios.${selectedScenario}.answer`)}
-                </div>
-
-                {/* Scenario Structured Data Table (场景结构化真实数据表格) */}
-                {selectedScenario === "rag" && (
-                  <div className="overflow-x-auto rounded-control border border-line bg-surface">
-                    <div className="bg-surface-muted/60 px-3.5 py-2 border-b border-line text-xs font-semibold text-ink flex items-center gap-1.5">
-                      <FileSpreadsheet className="size-3.5 text-brand-accent" />
-                      <span>{isZh ? "表 1：员工差旅住宿报销限额细则（摘自制度附表一）" : "Table 1: Employee Travel Lodging Cap Specifications (Policy Appendix A)"}</span>
-                    </div>
-                    <table className="w-full text-xs text-left">
-                      <thead>
-                        <tr className="border-b border-line bg-surface-muted/30 text-ink font-semibold">
-                          <th className="p-2.5">{isZh ? "城市分类" : "City Tier"}</th>
-                          <th className="p-2.5">{isZh ? "适用城市范畴" : "Covered Cities"}</th>
-                          <th className="p-2.5">{isZh ? "研发报销上限" : "R&D Cap"}</th>
-                          <th className="p-2.5">{isZh ? "凭证要求" : "Invoicing"}</th>
-                          <th className="p-2.5">{isZh ? "审批权限" : "Approval Chain"}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-line/40 text-ink-muted">
-                        <tr>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "一线城市" : "Tier 1"}</td>
-                          <td className="p-2.5">{isZh ? "北京、上海、广州、深圳" : "Beijing, Shanghai, Guangzhou, Shenzhen"}</td>
-                          <td className="p-2.5 font-mono font-bold text-brand-text">¥500 / 人 / 天</td>
-                          <td className="p-2.5">{isZh ? "增值税专用/普通发票" : "VAT Tax Invoice"}</td>
-                          <td className="p-2.5">{isZh ? "部门总监审批" : "Director Approval"}</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "新一线城市" : "New Tier 1"}</td>
-                          <td className="p-2.5">{isZh ? "杭州、成都、武汉、南京等" : "Hangzhou, Chengdu, Wuhan, Nanjing"}</td>
-                          <td className="p-2.5 font-mono font-bold text-ink">¥400 / 人 / 天</td>
-                          <td className="p-2.5">{isZh ? "增值税专用/普通发票" : "VAT Tax Invoice"}</td>
-                          <td className="p-2.5">{isZh ? "研发主管审批" : "Manager Approval"}</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "二线及其他" : "Tier 2 & Other"}</td>
-                          <td className="p-2.5">{isZh ? "其他省会及地级市" : "Other Regional Capitals"}</td>
-                          <td className="p-2.5 font-mono text-ink">¥300 / 人 / 天</td>
-                          <td className="p-2.5">{isZh ? "合规发票实报实销" : "Standard Invoices"}</td>
-                          <td className="p-2.5">{isZh ? "项目经理审批" : "Project Lead Approval"}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {selectedScenario === "react" && (
-                  <div className="overflow-x-auto rounded-control border border-line bg-surface">
-                    <div className="bg-surface-muted/60 px-3.5 py-2 border-b border-line text-xs font-semibold text-ink flex items-center gap-1.5">
-                      <FileSpreadsheet className="size-3.5 text-brand-accent" />
-                      <span>{isZh ? "表 2：华东区月度销售业绩与环比增长分析表（数据沙箱精确计算）" : "Table 2: East Region Monthly Sales & MoM Growth Analysis (Sandbox Calculator)"}</span>
-                    </div>
-                    <table className="w-full text-xs text-left">
-                      <thead>
-                        <tr className="border-b border-line bg-surface-muted/30 text-ink font-semibold">
-                          <th className="p-2.5">{isZh ? "统计月份" : "Month"}</th>
-                          <th className="p-2.5">{isZh ? "销售额 (万元)" : "Revenue (10k RMB)"}</th>
-                          <th className="p-2.5">{isZh ? "环比净增额" : "Net Growth"}</th>
-                          <th className="p-2.5">{isZh ? "环比增长率 (%)" : "MoM Rate (%)"}</th>
-                          <th className="p-2.5">{isZh ? "主要拉动行业" : "Leading Drivers"}</th>
-                          <th className="p-2.5">{isZh ? "成交笔数" : "Orders"}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-line/40 text-ink-muted">
-                        <tr>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "前一月 (T-1)" : "Month T-1"}</td>
-                          <td className="p-2.5 font-mono">210.0 万元</td>
-                          <td className="p-2.5 font-mono">{isZh ? "基线月份" : "Baseline"}</td>
-                          <td className="p-2.5 font-mono">-</td>
-                          <td className="p-2.5">{isZh ? "传统制造 (52%)" : "Manufacturing (52%)"}</td>
-                          <td className="p-2.5 font-mono">128 笔</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "上月 (T)" : "Month T"}</td>
-                          <td className="p-2.5 font-mono font-bold text-brand-text">245.8 万元</td>
-                          <td className="p-2.5 font-mono text-emerald-600 font-bold">+35.8 万元</td>
-                          <td className="p-2.5 font-mono text-emerald-600 font-bold">+17.05%</td>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "新能源 / 储能 (68%)" : "Clean Energy (68%)"}</td>
-                          <td className="p-2.5 font-mono font-bold text-ink">164 笔</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {selectedScenario === "graph" && (
-                  <div className="overflow-x-auto rounded-control border border-line bg-surface">
-                    <div className="bg-surface-muted/60 px-3.5 py-2 border-b border-line text-xs font-semibold text-ink flex items-center gap-1.5">
-                      <FileSpreadsheet className="size-3.5 text-brand-accent" />
-                      <span>{isZh ? "表 3：Neo4j 图谱 2-Hop 关联关系推理表（Cypher 最短路径遍历）" : "Table 3: Neo4j Graph 2-Hop Relation Inference (Cypher Traversal)"}</span>
-                    </div>
-                    <table className="w-full text-xs text-left">
-                      <thead>
-                        <tr className="border-b border-line bg-surface-muted/30 text-ink font-semibold">
-                          <th className="p-2.5">{isZh ? "起始实体" : "Source Entity"}</th>
-                          <th className="p-2.5">{isZh ? "关系谓词 (Cypher)" : "Relationship"}</th>
-                          <th className="p-2.5">{isZh ? "目标实体" : "Target Entity"}</th>
-                          <th className="p-2.5">{isZh ? "协作职责说明" : "Role / Duty"}</th>
-                          <th className="p-2.5">{isZh ? "置信度" : "Confidence"}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-line/40 text-ink-muted">
-                        <tr>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "李工 (架构师)" : "Engineer Li (Architect)"}</td>
-                          <td className="p-2.5 font-mono text-brand-text font-bold">[:MEMBER_OF]</td>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "AI平台四期项目" : "AI Platform Phase 4"}</td>
-                          <td className="p-2.5">{isZh ? "担任核心架构师与技术负责" : "Core Tech Architect"}</td>
-                          <td className="p-2.5 font-mono text-emerald-600 font-bold">1.00</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "张总 (部门总监)" : "Director Zhang"}</td>
-                          <td className="p-2.5 font-mono text-brand-text font-bold">[:DIRECTS]</td>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "AI平台四期项目" : "AI Platform Phase 4"}</td>
-                          <td className="p-2.5">{isZh ? "担任项目总负责人兼资源审批人" : "Project Director"}</td>
-                          <td className="p-2.5 font-mono text-emerald-600 font-bold">1.00</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "李工" : "Engineer Li"}</td>
-                          <td className="p-2.5 font-mono text-purple-600 font-bold">[:REPORTS_TO]</td>
-                          <td className="p-2.5 font-medium text-ink">{isZh ? "张总" : "Director Zhang"}</td>
-                          <td className="p-2.5">{isZh ? "项目内直属技术汇报关系" : "Direct Project Reporting Line"}</td>
-                          <td className="p-2.5 font-mono text-emerald-600 font-bold">0.99</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Evidence Citation Footnote */}
-                <div className="flex items-center gap-2.5 rounded-control bg-surface-muted/60 px-4 py-2.5 text-xs sm:text-sm text-ink-muted border border-line/40">
-                  <BookOpen className="size-4 text-brand-accent shrink-0" />
-                  <span className="font-mono text-ink font-medium">
-                    {t(`architecture.flow.scenarios.${selectedScenario}.citation`)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Pipeline Summary Stream */}
-            <div className="flex flex-wrap items-center justify-center gap-2.5 rounded-control border border-line bg-surface-muted/40 p-4 text-sm text-ink-muted">
-              <span className="font-bold text-ink">{isZh ? "全链路流转：" : "Full Data Stream:"}</span>
-              <span className="flex items-center gap-1.5 font-medium">
-                <ShieldCheck className="size-3.5 text-blue-500" />
-                {t("architecture.flow.stages.step1.role")}
-              </span>
-              <ArrowRight className="size-3.5 text-brand-accent" />
-              <span className="flex items-center gap-1.5 font-medium">
-                <Workflow className="size-3.5 text-cyan-500" />
-                {t("architecture.flow.stages.step2.role")}
-              </span>
-              <ArrowRight className="size-3.5 text-brand-accent" />
-              <span className="flex items-center gap-1.5 font-medium">
-                <Search className="size-3.5 text-emerald-500" />
-                {t("architecture.flow.stages.step3.role")}
-              </span>
-              <ArrowRight className="size-3.5 text-brand-accent" />
-              <span className="flex items-center gap-1.5 font-medium">
-                <Wrench className="size-3.5 text-amber-500" />
-                {t("architecture.flow.stages.step4.role")}
-              </span>
-              <ArrowRight className="size-3.5 text-brand-accent" />
-              <span className="flex items-center gap-1.5 font-medium">
-                <Sparkles className="size-3.5 text-purple-500" />
-                {t("architecture.flow.stages.step5.role")}
-              </span>
-              <ArrowRight className="size-3.5 text-brand-accent" />
-              <span className="flex items-center gap-1.5 font-bold text-brand-text">
-                <CheckCircle2 className="size-3.5 text-rose-500" />
-                {t("architecture.flow.stages.step6.role")}
-              </span>
-            </div>
+            <StepInspector currentFocusedStep={currentFocusedStep} isZh={isZh} t={t} />
+            <AnswerShowcase selectedScenario={selectedScenario} isZh={isZh} t={t} />
+            <PipelineSummaryStream isZh={isZh} t={t} />
           </div>
         )}
       </CardContent>

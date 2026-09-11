@@ -58,14 +58,16 @@ export function FeatureDetailModal({ feature, isOpen, onClose }: Readonly<Featur
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200"
-      role="presentation"
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="feature-detail-title"
-        onClick={(e) => e.stopPropagation()}
         className="relative flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-panel border border-line-subtle bg-surface shadow-elev-3 animate-in zoom-in-95 duration-200"
       >
         {/* Modal Header */}

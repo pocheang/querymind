@@ -64,12 +64,16 @@ const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
     const child = Array.isArray(children) ? children[0] : children;
     if (!isValidElement(child)) return <pre>{children}</pre>;
     const className = String((child.props as { className?: string })?.className || "");
-    const rawCode = (child.props as { children?: unknown })?.children;
-    // react-markdown can hand back the code text as an array of text
-    // nodes rather than one string; `String(array)` still works because
-    // Array#toString joins with a comma, which is wrong, and a bare
-    // `String()` of anything else falls back to "[object Object]".
-    const code = (Array.isArray(rawCode) ? rawCode.join("") : String(rawCode ?? "")).replace(/\n$/, "");
+    const rawCode: unknown = (child.props as { children?: unknown })?.children;
+    let codeStr = "";
+    if (typeof rawCode === "string") {
+      codeStr = rawCode;
+    } else if (Array.isArray(rawCode)) {
+      codeStr = rawCode.map((c: unknown) => (typeof c === "string" ? c : "")).join("");
+    } else if (typeof rawCode === "number" || typeof rawCode === "boolean") {
+      codeStr = String(rawCode);
+    }
+    const code = codeStr.replace(/\n$/, "");
     return <CodeBlock className={className} code={code} />;
   },
   p: ({ children }) => <p className="mb-2.5 leading-relaxed text-ink last:mb-0">{children}</p>,

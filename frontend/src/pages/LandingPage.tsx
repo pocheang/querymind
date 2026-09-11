@@ -600,12 +600,10 @@ export function LandingPage({ isLoggedIn }: Readonly<LandingPageProps>) {
                     </p>
                     <ol className="list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-ink/85 sm:text-sm">
                       <li>
-                        <strong>密集语义匹配</strong>：ChromaDB 检索制度文档与监管条款，计算上下文相似度
-                        <span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">[1]</span>。
+                        <strong>密集语义匹配</strong>：ChromaDB 检索制度文档与监管条款，计算上下文相似度<span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">[1]</span>。
                       </li>
                       <li>
-                        <strong>知识图谱实体穿透</strong>：Neo4j 遍历“金融产品 - 关联机构 -担保关系”多跳拓扑，检测隐式违规链条
-                        <span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">[2]</span>。
+                        <strong>知识图谱实体穿透</strong>：Neo4j 遍历“金融产品 - 关联机构 -担保关系”多跳拓扑，检测隐式违规链条<span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">[2]</span>。
                       </li>
                       <li>
                         <strong>严谨性校验与输出脱敏</strong>：Synthesizer 配合 Verifier 过滤幻觉，并在 chunk 边界通过 DLP 引擎实时抹除账户敏感信息。

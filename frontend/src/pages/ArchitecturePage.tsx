@@ -140,8 +140,10 @@ const PILLAR_TABS: { id: PillarId; labelKey: string }[] = [
   { id: "endpoints", labelKey: "architecture.tabs.endpoints" },
 ];
 
-function parseEndpoints(rawText: string): ParsedEndpoint[] {
-  const lines = rawText.split("\n");
+const ENDPOINT_LINE_RE = /^([A-Z]+(?:\s*,\s*[A-Z]+)*)\s+(\S+)(?:\s*-\s*(.*))?$/;
+
+function parseEndpoints(rawMarkdown: string): ParsedEndpoint[] {
+  const lines = rawMarkdown.split("\n");
   let currentCategory = "General";
   const items: ParsedEndpoint[] = [];
   let counter = 0;
@@ -153,7 +155,7 @@ function parseEndpoints(rawText: string): ParsedEndpoint[] {
       currentCategory = trimmed.replace(/^#+\s*/, "").trim();
       continue;
     }
-    const match = trimmed.match(/^([A-Z, ]+)\s+([^\s-]+)(?:\s*-\s*(.*))?$/);
+    const match = ENDPOINT_LINE_RE.exec(trimmed);
     if (match) {
       const methods = match[1]
         .split(",")

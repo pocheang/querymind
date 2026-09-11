@@ -187,10 +187,10 @@ export function ChatComposer({
       </p>
 
       {runStatus && (
-        <p className="mt-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-brand-text" role="status">
+        <output className="mt-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-brand-text">
           <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
           {runStatus}
-        </p>
+        </output>
       )}
     </section>
   );

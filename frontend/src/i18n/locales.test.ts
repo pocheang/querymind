@@ -57,16 +57,16 @@ describe("the locale files", () => {
   });
 
   it("defines every key the app asks for, in English", () => {
-    expect([...asked].filter((k) => !(k in EN)).sort()).toEqual([]);
+    expect([...asked].filter((k) => !(k in EN)).sort((a, b) => a.localeCompare(b))).toEqual([]);
   });
 
   it("defines every key the app asks for, in Chinese", () => {
-    expect([...asked].filter((k) => !(k in ZH)).sort()).toEqual([]);
+    expect([...asked].filter((k) => !(k in ZH)).sort((a, b) => a.localeCompare(b))).toEqual([]);
   });
 
   it("keeps the two locales on the same key set", () => {
-    const onlyEn = Object.keys(EN).filter((k) => !(k in ZH)).sort();
-    const onlyZh = Object.keys(ZH).filter((k) => !(k in EN)).sort();
+    const onlyEn = Object.keys(EN).filter((k) => !(k in ZH)).sort((a, b) => a.localeCompare(b));
+    const onlyZh = Object.keys(ZH).filter((k) => !(k in EN)).sort((a, b) => a.localeCompare(b));
     expect({ onlyEn, onlyZh }).toEqual({ onlyEn: [], onlyZh: [] });
   });
 

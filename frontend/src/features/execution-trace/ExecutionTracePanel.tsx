@@ -163,6 +163,163 @@ export function ExecutionTracePanel({ trace }: Readonly<Props>) {
     }
   }, [trace.events, stageLabel]);
 
+  const renderTraceBody = () => {
+    if (trace.events.length === 0) {
+      return <p className="text-xs text-ink/75">{t("features.executionTrace.empty")}</p>;
+    }
+
+    if (viewMode === "raw") {
+      return (
+        /* Raw Log View */
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-ink/75">
+            <span>{t("features.executionTrace.count", { count: trace.events.length })}</span>
+            <Button variant="ghost" size="xs" onClick={copyRawLog} className="h-6 gap-1 px-2 text-xs">
+              {copied ? (
+                <>
+                  <Check className="size-3.5 text-success" aria-hidden="true" />
+                  {t("features.executionTrace.summary.copied")}
+                </>
+              ) : (
+                <>
+                  <Copy className="size-3.5" aria-hidden="true" />
+                  {t("features.executionTrace.summary.copy")}
+                </>
+              )}
+            </Button>
+          </div>
+          <ol className="max-h-64 space-y-1 overflow-y-auto rounded-control border border-line-subtle bg-surface-inset/70 p-2.5 font-mono text-xs">
+            {trace.events.map((event, index) => (
+              <li
+                key={`${event.occurred_at}-${index}`}
+                className="flex items-baseline gap-2 border-b border-line-subtle/30 pb-0.5 last:border-0 last:pb-0 text-ink/80"
+              >
+                <span className="w-5 shrink-0 select-none text-right text-ink/60">
+                  {String(index + 1).padStart(2, "0")}.
+                </span>
+                <span className="min-w-0 flex-1 truncate">
+                  {t("features.executionTrace.event", {
+                    stage: stageLabel(event.stage),
+                    message: event.message || event.status,
+                    duration: event.duration_ms,
+                  })}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      );
+    }
+
+    return (
+      /* Structured Timeline View */
+      <div className="space-y-2">
+        <div className="relative pl-6 before:absolute before:bottom-3 before:left-2.5 before:top-3 before:w-px before:bg-line-subtle">
+          {stages.map((stageItem) => {
+            const StageIcon = getStageIcon(stageItem.stage);
+            const isSkipped = stageItem.status === "skipped";
+            const isFailed = stageItem.status === "failed";
+
+            let nodeBadgeClass = "border-success-border bg-success-surface text-success";
+            if (isFailed) {
+              nodeBadgeClass = "border-danger-border bg-danger-surface text-danger";
+            } else if (isSkipped) {
+              nodeBadgeClass = "border-line bg-surface-muted text-ink-faint";
+            }
+
+            return (
+              <div key={stageItem.id} className="relative mb-3 last:mb-0">
+                {/* Timeline node icon */}
+                <div
+                  className={`absolute -left-6 top-0.5 flex size-5 items-center justify-center rounded-pill border ${nodeBadgeClass}`}
+                  aria-hidden="true"
+                >
+                  <StageIcon className="size-3" />
+                </div>
+
+                {/* Stage Body */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm">
+                    <span className="font-semibold text-ink">{stageLabel(stageItem.stage)}</span>
+
+                    {/* Round badge if multi-round */}
+                    {stageItem.round && summary.roundsCount > 1 && (
+                      <Badge variant={stageItem.isRefinement ? "warning" : "neutral"} size="xs">
+                        {stageItem.isRefinement
+                          ? t("features.executionTrace.round", { number: stageItem.round })
+                          : t("features.executionTrace.round", { number: 1 })}
+                      </Badge>
+                    )}
+
+                    {/* Status Badge if skipped or failed */}
+                    {isSkipped && (
+                      <Badge variant="neutral" size="xs">
+                        <MinusCircle className="size-3" aria-hidden="true" />
+                        {statusLabel("skipped")}
+                      </Badge>
+                    )}
+                    {isFailed && (
+                      <Badge variant="danger" size="xs">
+                        <AlertCircle className="size-3" aria-hidden="true" />
+                        {statusLabel("failed")}
+                      </Badge>
+                    )}
+
+                    {/* Duration Badge */}
+                    <span className="font-mono text-xs text-ink/75">
+                      ({formatDuration(stageItem.duration_ms)})
+                    </span>
+                  </div>
+
+                  {/* Sub-sources (e.g. Vector, BM25, Web search) */}
+                  {stageItem.subSources && stageItem.subSources.length > 0 && (
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      {stageItem.subSources.map((sub) => {
+                        const SourceIcon = getSourceIcon(sub.sourceKey);
+                        const subSkipped = sub.status === "skipped";
+
+                        return (
+                          <div
+                            key={sub.id}
+                            className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs ${
+                              subSkipped
+                                ? "border-line/60 bg-surface-muted/60 text-ink/60"
+                                : "border-brand-border/60 bg-brand-surface/70 text-brand-text font-medium"
+                            }`}
+                          >
+                            <SourceIcon className="size-3 opacity-70" aria-hidden="true" />
+                            <span>{sourceLabel(sub.sourceKey)}</span>
+                            {subSkipped ? (
+                              <span className="text-xs text-ink/60">({statusLabel("skipped")})</span>
+                            ) : (
+                              <span className="font-mono text-xs">
+                                {formatDuration(sub.duration_ms)}
+                                {sub.resultCount !== undefined
+                                  ? ` · ${t("features.executionTrace.resultsCount", { count: sub.resultCount })}`
+                                  : ""}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Extra detail / message if present and meaningful */}
+                  {stageItem.message &&
+                    !stageItem.message.toLowerCase().includes("completed") &&
+                    !stageItem.message.toLowerCase().includes("retrieval") && (
+                      <p className="text-xs text-ink/75">{stageItem.message}</p>
+                    )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section
       className="execution-trace-panel mx-auto w-full max-w-4xl shrink-0 px-4 pb-1"
@@ -245,6 +402,7 @@ export function ExecutionTracePanel({ trace }: Readonly<Props>) {
               variant="ghost"
               size="xs"
               onClick={toggle}
+              className="h-7 px-2 text-xs text-ink/75"
               aria-expanded={!collapsed}
               aria-controls="execution-trace-events"
             >
@@ -255,153 +413,7 @@ export function ExecutionTracePanel({ trace }: Readonly<Props>) {
 
         {/* Content Container (Pinned id & hidden attribute for test suite) */}
         <div id="execution-trace-events" hidden={collapsed} className="mt-2.5 border-t border-line-subtle pt-2.5">
-          {trace.events.length === 0 ? (
-            <p className="text-xs text-ink/75">{t("features.executionTrace.empty")}</p>
-          ) : viewMode === "raw" ? (
-            /* Raw Log View */
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-ink/75">
-                <span>{t("features.executionTrace.count", { count: trace.events.length })}</span>
-                <Button variant="ghost" size="xs" onClick={copyRawLog} className="h-6 gap-1 px-2 text-xs">
-                  {copied ? (
-                    <>
-                      <Check className="size-3.5 text-success" aria-hidden="true" />
-                      {t("features.executionTrace.summary.copied")}
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="size-3.5" aria-hidden="true" />
-                      {t("features.executionTrace.summary.copy")}
-                    </>
-                  )}
-                </Button>
-              </div>
-              <ol className="max-h-64 space-y-1 overflow-y-auto rounded-control border border-line-subtle bg-surface-inset/70 p-2.5 font-mono text-xs">
-                {trace.events.map((event, index) => (
-                  <li
-                    key={`${event.occurred_at}-${index}`}
-                    className="flex items-baseline gap-2 border-b border-line-subtle/30 pb-0.5 last:border-0 last:pb-0 text-ink/80"
-                  >
-                    <span className="w-5 shrink-0 select-none text-right text-ink/60">
-                      {String(index + 1).padStart(2, "0")}.
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">
-                      {t("features.executionTrace.event", {
-                        stage: stageLabel(event.stage),
-                        message: event.message || event.status,
-                        duration: event.duration_ms,
-                      })}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ) : (
-            /* Structured Timeline View */
-            <div className="space-y-2">
-              <div className="relative pl-6 before:absolute before:bottom-3 before:left-2.5 before:top-3 before:w-px before:bg-line-subtle">
-                {stages.map((stageItem) => {
-                  const StageIcon = getStageIcon(stageItem.stage);
-                  const isSkipped = stageItem.status === "skipped";
-                  const isFailed = stageItem.status === "failed";
-
-                  return (
-                    <div key={stageItem.id} className="relative mb-3 last:mb-0">
-                      {/* Timeline node icon */}
-                      <div
-                        className={`absolute -left-6 top-0.5 flex size-5 items-center justify-center rounded-pill border ${
-                          isFailed
-                            ? "border-danger-border bg-danger-surface text-danger"
-                            : isSkipped
-                            ? "border-line bg-surface-muted text-ink-faint"
-                            : "border-success-border bg-success-surface text-success"
-                        }`}
-                        aria-hidden="true"
-                      >
-                        <StageIcon className="size-3" />
-                      </div>
-
-                      {/* Stage Body */}
-                      <div className="flex flex-col gap-1">
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm">
-                          <span className="font-semibold text-ink">{stageLabel(stageItem.stage)}</span>
-
-                          {/* Round badge if multi-round */}
-                          {stageItem.round && summary.roundsCount > 1 && (
-                            <Badge variant={stageItem.isRefinement ? "warning" : "neutral"} size="xs">
-                              {stageItem.isRefinement
-                                ? t("features.executionTrace.round", { number: stageItem.round })
-                                : t("features.executionTrace.round", { number: 1 })}
-                            </Badge>
-                          )}
-
-                          {/* Status Badge if skipped or failed */}
-                          {isSkipped && (
-                            <Badge variant="neutral" size="xs">
-                              <MinusCircle className="size-3" aria-hidden="true" />
-                              {statusLabel("skipped")}
-                            </Badge>
-                          )}
-                          {isFailed && (
-                            <Badge variant="danger" size="xs">
-                              <AlertCircle className="size-3" aria-hidden="true" />
-                              {statusLabel("failed")}
-                            </Badge>
-                          )}
-
-                          {/* Duration Badge */}
-                          <span className="font-mono text-xs text-ink/75">
-                            ({formatDuration(stageItem.duration_ms)})
-                          </span>
-                        </div>
-
-                        {/* Sub-sources (e.g. Vector, BM25, Web search) */}
-                        {stageItem.subSources && stageItem.subSources.length > 0 && (
-                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                            {stageItem.subSources.map((sub) => {
-                              const SourceIcon = getSourceIcon(sub.sourceKey);
-                              const subSkipped = sub.status === "skipped";
-
-                              return (
-                                <div
-                                  key={sub.id}
-                                  className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs ${
-                                    subSkipped
-                                      ? "border-line/60 bg-surface-muted/60 text-ink/60"
-                                      : "border-brand-border/60 bg-brand-surface/70 text-brand-text font-medium"
-                                  }`}
-                                >
-                                  <SourceIcon className="size-3 opacity-70" aria-hidden="true" />
-                                  <span>{sourceLabel(sub.sourceKey)}</span>
-                                  {subSkipped ? (
-                                    <span className="text-xs text-ink/60">({statusLabel("skipped")})</span>
-                                  ) : (
-                                    <span className="font-mono text-xs">
-                                      {formatDuration(sub.duration_ms)}
-                                      {sub.resultCount !== undefined
-                                        ? ` · ${t("features.executionTrace.resultsCount", { count: sub.resultCount })}`
-                                        : ""}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {/* Extra detail / message if present and meaningful */}
-                        {stageItem.message &&
-                          !stageItem.message.toLowerCase().includes("completed") &&
-                          !stageItem.message.toLowerCase().includes("retrieval") && (
-                            <p className="text-xs text-ink/75">{stageItem.message}</p>
-                          )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {renderTraceBody()}
         </div>
       </div>
     </section>

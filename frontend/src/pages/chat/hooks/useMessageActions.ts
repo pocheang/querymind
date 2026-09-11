@@ -119,22 +119,35 @@ function claimRunSlot(
   return run;
 }
 
+interface ResolveSessionParams {
+  run: number;
+  sessionId: string | undefined;
+  runAbort: AbortController;
+  isRunActive: () => boolean;
+  refs: RunRefs;
+  ensureSessionForAsk: (signal?: AbortSignal) => Promise<string | null>;
+  setIsSending: (sending: boolean) => void;
+  setQuestion: (question: string) => void;
+  setRunStatus: (status: string) => void;
+  onExecutionId?: (executionId: string | null) => void;
+}
+
 /** The rest of `ask`'s old setup: bail if the run was already superseded,
  *  otherwise mark the UI as sending and resolve (or create) the session --
  *  giving the run slot back via `finishRun` if that resolution loses the
  *  race. Returns the session id to proceed with, or null to abandon. */
-async function resolveSessionOrAbandon(
-  run: number,
-  sessionId: string | undefined,
-  runAbort: AbortController,
-  isRunActive: () => boolean,
-  refs: RunRefs,
-  ensureSessionForAsk: (signal?: AbortSignal) => Promise<string | null>,
-  setIsSending: (sending: boolean) => void,
-  setQuestion: (question: string) => void,
-  setRunStatus: (status: string) => void,
-  onExecutionId: ((executionId: string | null) => void) | undefined,
-): Promise<string | null> {
+async function resolveSessionOrAbandon({
+  run,
+  sessionId,
+  runAbort,
+  isRunActive,
+  refs,
+  ensureSessionForAsk,
+  setIsSending,
+  setQuestion,
+  setRunStatus,
+  onExecutionId,
+}: ResolveSessionParams): Promise<string | null> {
   if (!isRunActive()) return null;
   onExecutionId?.(null);
   setIsSending(true);
@@ -148,24 +161,39 @@ async function resolveSessionOrAbandon(
   return sid;
 }
 
+interface RunQueryStreamParams {
+  q: string;
+  sid: string;
+  approvalToken: string | undefined;
+  runAbort: AbortController;
+  isRunActive: () => boolean;
+  streamStoppedRef: React.MutableRefObject<boolean>;
+  messageUpdater: ReturnType<typeof createStreamMessageUpdater>;
+  setMessages: React.Dispatch<React.SetStateAction<SessionMessage[]>>;
+  onExecutionId?: (executionId: string | null) => void;
+  onPendingApproval?: (pending: PendingApproval | null, question: string) => void;
+  onCreditsChanged?: () => Promise<void>;
+  actions: ChatActions;
+}
+
 /** The request itself: call the API, apply a streamed answer, or resolve one
  *  of the ways it can fail. Split out of `ask` for the same reason
  *  `beginRun` was -- each branch here was paying a nesting cost for sitting
  *  inside `ask`'s own try/catch as well as its own. */
-async function runQueryAndStream(
-  q: string,
-  sid: string,
-  approvalToken: string | undefined,
-  runAbort: AbortController,
-  isRunActive: () => boolean,
-  streamStoppedRef: React.MutableRefObject<boolean>,
-  messageUpdater: ReturnType<typeof createStreamMessageUpdater>,
-  setMessages: React.Dispatch<React.SetStateAction<SessionMessage[]>>,
-  onExecutionId: ((executionId: string | null) => void) | undefined,
-  onPendingApproval: ((pending: PendingApproval | null, question: string) => void) | undefined,
-  onCreditsChanged: (() => Promise<void>) | undefined,
-  actions: ChatActions,
-): Promise<void> {
+async function runQueryAndStream({
+  q,
+  sid,
+  approvalToken,
+  runAbort,
+  isRunActive,
+  streamStoppedRef,
+  messageUpdater,
+  setMessages,
+  onExecutionId,
+  onPendingApproval,
+  onCreditsChanged,
+  actions,
+}: RunQueryStreamParams): Promise<void> {
   try {
     const result = await appApi.advanced({
       query: q,
@@ -273,7 +301,7 @@ export function useMessageActions({
     streamStoppedRef.current = false;
 
     const refs = { activeRunRef, streamAbortRef, runLifecycleRef };
-    const sid = await resolveSessionOrAbandon(
+    const sid = await resolveSessionOrAbandon({
       run,
       sessionId,
       runAbort,
@@ -284,14 +312,14 @@ export function useMessageActions({
       setQuestion,
       setRunStatus,
       onExecutionId,
-    );
+    });
     if (!sid) return;
 
     setMessages((prev) => [...prev, ...createInitialStreamMessages(q)]);
     const messageUpdater = createStreamMessageUpdater({ setMessages });
 
     try {
-      await runQueryAndStream(
+      await runQueryAndStream({
         q,
         sid,
         approvalToken,
@@ -304,7 +332,7 @@ export function useMessageActions({
         onPendingApproval,
         onCreditsChanged,
         actions,
-      );
+      });
     } finally {
       finishRun(isRunActive(), run, runAbort, { activeRunRef, streamAbortRef, runLifecycleRef }, setIsSending, setRunStatus);
     }

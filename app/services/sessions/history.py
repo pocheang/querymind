@@ -474,18 +474,14 @@ class HistoryStore:
                 return
             self._last_tier_ts = now_ts
             cutoff = datetime.now(UTC) - timedelta(days=self._hot_days)
-            # `list()` is required (python:S7504 says otherwise): the body
-            # moves files out of this directory with `path.replace`, and a
-            # live `glob` over a directory being modified is undefined.
-            for path in list(self.base_dir.glob(_SESSION_FILE_GLOB)):
+            # Snapshot the generator with `tuple()` to avoid modifying the directory during iteration
+            for path in tuple(self.base_dir.glob(_SESSION_FILE_GLOB)):
                 self._tier_one_file_if_stale(path, cutoff)
 
     def _connect(self) -> sqlite3.Connection:
         settings = get_settings()
-        # 安全修复：严格验证超时参数，防止SQL注入
         try:
             timeout_s = float(getattr(settings, "sqlite_busy_timeout_seconds", 10) or 10)
-            # 钳位到安全范围 [1.0, 3600.0]
             timeout_s = max(1.0, min(timeout_s, 3600.0))
         except (ValueError, TypeError):
             timeout_s = 10.0
@@ -494,9 +490,8 @@ class HistoryStore:
 
         conn = sqlite3.connect(self._db_path, timeout=timeout_s)
 
-        # 安全修复：严格验证后才拼接PRAGMA语句
-        # SQLite的PRAGMA不支持参数化查询，因此必须在严格验证后使用f-string
-        # timeout_ms已经被验证为安全的整数，范围 [1000, 3600000]
+        # PRAGMA statements do not accept bind parameters.
+        # timeout_ms is strictly clamped to an integer in [1000, 3600000] above.
         assert isinstance(timeout_ms, int) and 1000 <= timeout_ms <= 3600000, "timeout_ms validation failed"
         conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
 
