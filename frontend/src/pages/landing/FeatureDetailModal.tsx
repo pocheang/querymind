@@ -56,19 +56,18 @@ export function FeatureDetailModal({ feature, isOpen, onClose }: Readonly<Featur
   const Icon = feature.icon;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label={t("pages.landing.featureModalClose")}
+        className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-200 border-0 cursor-default"
+        onClick={onClose}
+        tabIndex={-1}
+      />
+      <dialog
+        open
         aria-labelledby="feature-detail-title"
-        className="relative flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-panel border border-line-subtle bg-surface shadow-elev-3 animate-in zoom-in-95 duration-200"
+        className="relative z-10 m-0 flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-panel border border-line-subtle bg-surface p-0 text-ink shadow-elev-3 animate-in zoom-in-95 duration-200 backdrop:bg-transparent"
       >
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-line-subtle bg-surface-muted/50 p-5 sm:p-6">
@@ -185,7 +184,7 @@ export function FeatureDetailModal({ feature, isOpen, onClose }: Readonly<Featur
             </Button>
           </div>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 }
