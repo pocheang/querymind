@@ -16,7 +16,7 @@ import {
   AreaChart,
 } from "recharts";
 import type { AdminRuntimeSnapshot } from "@/types/api";
-import { adminOpsApi } from "@/lib/admin-ops-api";
+import { adminOpsApi } from "@/services/api/admin";
 import { Button } from "@/components/ui/button";
 import {
   AdminPanel,
@@ -329,7 +329,7 @@ export function AdminSystemMonitor() {
         <KpiGrid cols={5} className="mb-0">
           <KpiCard
             label={t("admin.systemMonitor.enabled", "Enabled")}
-            value={snapshot.model.enabled ? t("common.yes", "是") : t("common.no", "否")}
+            value={snapshot.model.enabled ? t("common.yes", "Yes") : t("common.no", "No")}
           />
           <KpiCard label={t("admin.systemMonitor.provider", "Provider")} value={snapshot.model.provider} />
           <KpiCard

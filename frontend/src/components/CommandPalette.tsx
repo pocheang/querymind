@@ -193,13 +193,18 @@ export function CommandPalette({
                 )}
                 <Command.Item
                   value="language 语言 english 中文"
-                  onSelect={run(() => void i18n.changeLanguage(i18n.language === "zh" ? "en" : "zh"))}
+                  onSelect={run(() => {
+                    const isZh = Boolean(i18n.language?.startsWith("zh"));
+                    const newLang = isZh ? "en" : "zh";
+                    void i18n.changeLanguage(newLang);
+                    localStorage.setItem("language", newLang);
+                  })}
                   className={item}
                 >
                   <Globe className="size-3.5 shrink-0 text-brand-accent" aria-hidden="true" />
                   {t("components.commandPalette.switchLanguage", "Switch language")}
                   <span className="ml-auto font-mono text-xs font-semibold text-ink/80">
-                    {i18n.language === "zh" ? "EN" : "ZH"}
+                    {i18n.language?.startsWith("zh") ? "EN" : "ZH"}
                   </span>
                 </Command.Item>
               </Command.Group>

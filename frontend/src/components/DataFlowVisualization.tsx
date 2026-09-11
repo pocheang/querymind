@@ -208,7 +208,7 @@ export function DataFlowVisualization() {
   );
 
   useEffect(() => {
-    const lang = i18n.language === 'zh' ? 'zh' : 'en';
+    const lang = i18n.language?.startsWith('zh') ? 'zh' : 'en';
     const updatedNodes = initialNodes.map(node => ({
       ...node,
       data: { label: nodeTranslations[node.id][lang] }

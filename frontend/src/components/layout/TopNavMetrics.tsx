@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { analyticsApi, type AnalyticsOverview } from "@/lib/analytics-api";
+import { analyticsApi, type AnalyticsOverview } from "@/services/api/app";
 
 /**
  * The top bar's live readout, from the design prototype.

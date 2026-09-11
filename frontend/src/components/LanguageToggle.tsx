@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 
 export function LanguageToggle() {
   const { i18n, t } = useTranslation();
+  const isZh = Boolean(i18n.language?.startsWith("zh"));
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === "en" ? "zh" : "en";
-    i18n.changeLanguage(newLang);
+    const newLang = isZh ? "en" : "zh";
+    void i18n.changeLanguage(newLang);
     localStorage.setItem("language", newLang);
   };
 
@@ -21,7 +22,7 @@ export function LanguageToggle() {
       aria-label={t("language.toggle")}
     >
       <Languages className="size-3.5 text-brand-accent" aria-hidden="true" />
-      <span className="font-semibold">{i18n.language === "en" ? t("language.en") : t("language.zh")}</span>
+      <span className="font-semibold">{isZh ? t("language.zh") : t("language.en")}</span>
     </Button>
   );
 }

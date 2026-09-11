@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 
 import { TopNavMetrics } from "@/components/layout/TopNavMetrics";
-import { analyticsApi } from "@/lib/analytics-api";
+import { analyticsApi } from "@/services/api/app";
 
 /**
  * The readout must be absent rather than wrong.

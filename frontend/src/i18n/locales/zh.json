@@ -766,7 +766,32 @@
       "demoTabChat": "智能问答流",
       "demoTabGraph": "多跳图谱关系",
       "demoTabMetrics": "执行追踪拓扑",
-      "fullscreenArch": "全屏查看"
+      "fullscreenArch": "全屏查看",
+      "heroPill": "Agentic RAG · 企业私有知识库智能问答与多跳图谱推理",
+      "trustZeroDepsVal": "0 依赖",
+      "heroDemoQuery": "请分析企业私有知识库在金融合规场景下，如何结合向量检索与知识图谱进行多跳事实核验？",
+      "heroRouteDecision": "路由决策: 混合深度 (Deep RAG)",
+      "heroVectorStep": "ChromaDB 向量 (top_k=10)",
+      "heroGraphStep": "Neo4j 图谱 (3 跳实体关联)",
+      "heroElapsed": "耗时: 1.42s",
+      "heroAnswerIntro": "在金融级知识库中，系统采用双路融合验证机制：",
+      "heroAnswerPoint1": "密集语义匹配：ChromaDB 检索制度文档与监管条款，计算上下文相似度",
+      "heroAnswerPoint2": "知识图谱实体穿透：Neo4j 遍历“金融产品 - 关联机构 -担保关系”多跳拓扑，检测隐式违规链条",
+      "heroAnswerPoint3": "严谨性校验与输出脱敏：Synthesizer 配合 Verifier 过滤幻觉，并在 chunk 边界通过 DLP 引擎实时抹除账户敏感信息。",
+      "heroDataSource": "数据源：内部监管制度汇编.pdf · Neo4j 拓扑网",
+      "heroEntityRegulation": "实体: 银保信披准则",
+      "heroEntityProduct": "业务: 财富信托计划",
+      "heroEntityAudit": "审计: 反洗钱审查",
+      "heroGraphDesc": "Neo4j 多跳关系推理引擎正在运行，自动解析深层因果关系与非显式实体网络。",
+      "heroTtftLabel": "平均首字延迟",
+      "heroTtftSub": "高于同类架构 3.2x",
+      "heroRecallLabel": "混合检索命中率",
+      "heroRecallSub": "RRF 倒数融合增益",
+      "heroTpsLabel": "流式解析吞吐",
+      "heroTpsSub": "本地并发安全",
+      "heroLeakageLabel": "外部泄露防护",
+      "heroZeroExfil": "100% 零外传",
+      "heroAirGapped": "Air-Gapped 兼容"
     },
     "login": {
       "headline": "QueryMind\n智询平台",
@@ -778,7 +803,22 @@
       "weakPassword": "密码强度不足",
       "rememberMe": "记住我",
       "socialDivider": "或使用第三方登录",
-      "githubUnavailable": "GitHub OAuth 待配置后启用"
+      "githubUnavailable": "GitHub OAuth 待配置后启用",
+      "localReady": "v0.7.0 本地就绪",
+      "missionDesc": "基于统一向量语义空间与拓扑知识图谱，为企业构建高可靠、强隔离、支持全链路审计的智能问答与协同决策中枢。",
+      "multiAgentDesc": "LangGraph 规范状态机全链路编排，支持自动化动态推理与工具调度",
+      "hybridSearchDesc": "BGE-M3 密集向量 + BM25 稀疏检索 + Neo4j 知识拓扑多路协同推理",
+      "securityDesc": "确定性多租户数据硬隔离、全流程权限校验与实时输出 DLP 敏感脱敏",
+      "intentRecall": "意图准召率",
+      "streamingLatency": "首字流式响应",
+      "tenantIsolation": "租户硬隔离",
+      "registerSubtitle": "创建企业级知识引擎工作账号",
+      "loginSubtitle": "欢迎使用 QueryMind 智能问答引擎，请验证您的工作身份",
+      "fillAdmin": "填入 admin",
+      "secureStorage": "企业级凭据加密存储",
+      "termsNotice": "登录即代表同意企业服务条款与合规声明",
+      "footerLine1": "QueryMind 智询平台 · 企业级多智能体知识问答中枢 · 专有网络安全部署",
+      "footerLine2": "金融级租户硬隔离 · 拓扑知识图谱推理 · 全链路审计可信追溯"
     },
     "changePassword": {
       "badge": "安全设置",
@@ -1289,7 +1329,11 @@
           "techDesc": "NLI 自然语言推理双向蕴含验证 (事实幻觉率 <10%)，流式 Chunk 实时 Output DLP 扫描脱敏，记录审计日志。",
           "badge": "幻觉率 <10% · 零泄密"
         }
-      }
+      },
+      "blueprintStage1Desc": "JWT HttpOnly + RBAC 租户隔离，SQLi 与提示词越狱防御，毫秒放行。",
+      "blueprintStage2Desc": "Jieba 分词 + 意图三层仲裁，ChromaDB 向量与 Neo4j 图谱双轨混合检索。",
+      "blueprintStage3Desc": "思考-行动-观察循环，单次有效签名审批令牌，防范高风险越权调用。",
+      "blueprintStage4Desc": "行内角标 [1][2] 原文锚定，SSE 逐字流式推流，NLI 事实一致性核对与脱敏。"
     },
     "sections": {
       "dataFlow": "1. 全链路数据流 (Data Flow)",
@@ -1526,6 +1570,25 @@
       "permissionDenied": "你没有上传文件的权限。",
       "chatOnly": "已跳过 {{files}}——提问时只能附带 PDF 和图片。其他格式请使用知识库。",
       "docsOnly": "已跳过 {{files}}——不支持这种格式。"
+    },
+    "runStatus": {
+      "routing": "路由中",
+      "retrieving_vector": "检索向量库",
+      "retrieving_graph": "检索图谱",
+      "retrieving_web": "联网补充",
+      "synthesizing": "生成回答",
+      "pdf_upload_required": "需要先上传文档",
+      "pdf_selection_required": "需要选择文档",
+      "pdf_reindex_required": "需要重建索引",
+      "cache_hit": "命中缓存",
+      "heartbeat": "保持连接",
+      "trace": "建立追踪"
+    },
+    "quickPrompts": {
+      "p1": "对这次告警做攻击链复盘，并按 P0/P1/P2 给出处置优先级",
+      "p2": "切换到 pdf_text 模式：总结这份 PDF 的关键信息、风险和证据页码",
+      "p3": "切换到 cybersecurity 模式：给互联网暴露服务输出分层加固清单",
+      "p4": "用 general 模式做管理摘要：用 5 条要点汇报当前风险状态"
     }
   },
   "agentModes": {

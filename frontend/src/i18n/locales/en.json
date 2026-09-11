@@ -766,7 +766,32 @@
       "demoTabChat": "Interactive Q&A",
       "demoTabGraph": "Knowledge Graph",
       "demoTabMetrics": "Trace Topology",
-      "fullscreenArch": "Fullscreen"
+      "fullscreenArch": "Fullscreen",
+      "heroPill": "Agentic RAG · Enterprise Private Knowledge Base & Multi-Hop Graph Reasoning",
+      "trustZeroDepsVal": "Zero Deps",
+      "heroDemoQuery": "In financial compliance, how can an enterprise knowledge base combine vector search with knowledge graphs for multi-hop fact verification?",
+      "heroRouteDecision": "Route Decision: Hybrid Deep RAG",
+      "heroVectorStep": "ChromaDB Vector (top_k=10)",
+      "heroGraphStep": "Neo4j Graph (3-Hop Relations)",
+      "heroElapsed": "Elapsed: 1.42s",
+      "heroAnswerIntro": "In financial-grade knowledge bases, the system employs a dual-stream fusion verification mechanism:",
+      "heroAnswerPoint1": "Dense Semantic Matching: ChromaDB retrieves regulatory policies and computes semantic similarity",
+      "heroAnswerPoint2": "Knowledge Graph Traversal: Neo4j traverses multi-hop topologies (Products - Affiliates - Guarantees) to detect hidden non-compliance chains",
+      "heroAnswerPoint3": "Strict Verification & Output DLP: Synthesizer and Verifier filter hallucinations, while DLP engines redact sensitive account info in real time.",
+      "heroDataSource": "Sources: Internal Compliance Compendium.pdf · Neo4j Topology",
+      "heroEntityRegulation": "Entity: Disclosure Standard",
+      "heroEntityProduct": "Product: Wealth Trust Plan",
+      "heroEntityAudit": "Audit: AML Review",
+      "heroGraphDesc": "Neo4j multi-hop relationship reasoning engine is active, resolving causal links across entity graphs.",
+      "heroTtftLabel": "Avg TTFT",
+      "heroTtftSub": "3.2x Faster than peers",
+      "heroRecallLabel": "Hybrid Retrieval Recall",
+      "heroRecallSub": "Boosted by RRF Fusion",
+      "heroTpsLabel": "Streaming Throughput",
+      "heroTpsSub": "Local concurrency safe",
+      "heroLeakageLabel": "Data Leak Prevention",
+      "heroZeroExfil": "100% Zero Exfiltration",
+      "heroAirGapped": "Air-Gapped Compatible"
     },
     "login": {
       "headline": "QueryMind\nPlatform",
@@ -778,7 +803,22 @@
       "weakPassword": "Weak password",
       "rememberMe": "Remember me",
       "socialDivider": "or use social login",
-      "githubUnavailable": "GitHub OAuth will be enabled after configuration"
+      "githubUnavailable": "GitHub OAuth will be enabled after configuration",
+      "localReady": "v0.7.0 Local Ready",
+      "missionDesc": "Built on a unified vector semantic space and topological knowledge graph to deliver highly reliable, strictly isolated, and fully auditable intelligent Q&A and decision orchestration.",
+      "multiAgentDesc": "LangGraph state machine orchestration with dynamic reasoning and tool dispatch",
+      "hybridSearchDesc": "BGE-M3 dense vector + BM25 sparse search + Neo4j knowledge graph multi-hop inference",
+      "securityDesc": "Deterministic multi-tenant data isolation, full authorization checks, and live DLP redaction",
+      "intentRecall": "Intent Recall",
+      "streamingLatency": "TTFT Streaming",
+      "tenantIsolation": "Tenant Isolation",
+      "registerSubtitle": "Create enterprise knowledge engine workspace account",
+      "loginSubtitle": "Welcome to QueryMind, please verify your enterprise identity",
+      "fillAdmin": "Fill admin",
+      "secureStorage": "Enterprise-grade encrypted credential storage",
+      "termsNotice": "Logging in implies consent to Enterprise Terms & Compliance Policy",
+      "footerLine1": "QueryMind Platform · Enterprise Multi-Agent Knowledge Hub · Private Network Deployment",
+      "footerLine2": "Financial-grade tenant isolation · Topological graph reasoning · End-to-end auditability"
     },
     "changePassword": {
       "badge": "Security Settings",
@@ -1289,7 +1329,11 @@
           "techDesc": "NLI bidirectional entailment check (hallucination rate <10%), streaming chunk DLP redaction, audit log commit.",
           "badge": "Hallucination <10% · Zero Leak"
         }
-      }
+      },
+      "blueprintStage1Desc": "JWT HttpOnly + RBAC tenant isolation, SQLi and jailbreak defense, sub-millisecond pass-through.",
+      "blueprintStage2Desc": "Jieba tokenization + 3-tier intent arbitration, ChromaDB vector & Neo4j graph hybrid retrieval.",
+      "blueprintStage3Desc": "Think-Act-Observe loop with single-use signed approval tokens against unauthorized actions.",
+      "blueprintStage4Desc": "Inline citations [1][2] anchored to source chunks, SSE word streaming, NLI consistency check and DLP redaction."
     },
     "sections": {
       "dataFlow": "1. End-to-End Data Flow",
@@ -1526,6 +1570,25 @@
       "permissionDenied": "You do not have permission to upload files.",
       "chatOnly": "Skipped {{files}} — a question can only be asked about PDFs and images. Use the Knowledge Base for other formats.",
       "docsOnly": "Skipped {{files}} — that format is not supported."
+    },
+    "runStatus": {
+      "routing": "Routing",
+      "retrieving_vector": "Searching Vector Store",
+      "retrieving_graph": "Querying Knowledge Graph",
+      "retrieving_web": "Searching Web",
+      "synthesizing": "Synthesizing Answer",
+      "pdf_upload_required": "Document upload required",
+      "pdf_selection_required": "Document selection required",
+      "pdf_reindex_required": "Reindexing required",
+      "cache_hit": "Cache hit",
+      "heartbeat": "Keepalive",
+      "trace": "Establishing trace"
+    },
+    "quickPrompts": {
+      "p1": "Review attack chain for this alert and triage remediation by P0/P1/P2 priorities",
+      "p2": "Switch to pdf_text mode: summarize key insights, risks, and evidence page numbers from this PDF",
+      "p3": "Switch to cybersecurity mode: produce a tiered hardening checklist for exposed internet services",
+      "p4": "Use general mode for executive summary: report current risk posture in 5 key takeaways"
     }
   },
   "agentModes": {

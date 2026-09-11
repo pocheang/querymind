@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import type { AuthUser } from "@/types/api";
-import { authApi } from "@/lib/auth-api";
+import { authApi } from "@/services/api/auth";
 
 type Props = {
   user: AuthUser | null;

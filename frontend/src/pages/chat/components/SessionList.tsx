@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { useTranslation } from "react-i18next";
-import { Pencil, Pin, PinOff, Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { SessionSummary } from "@/types/api";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { UserIdentity } from "@/types/auth";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SessionListItem } from "./SessionListItem";
 
 type Props = {
   sessions: SessionSummary[];
@@ -25,17 +25,6 @@ type Props = {
   onPinSession?: (sessionId: string, pinned: boolean) => Promise<void>;
 };
 
-function formatSessionTime(value: string | undefined, fallback: string, locale: string) {
-  if (!value) return fallback;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return fallback;
-
-  return date.toLocaleTimeString(locale === "zh" ? "zh-CN" : "en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export function SessionList({
   sessions,
   sessionLoading,
@@ -50,7 +39,7 @@ export function SessionList({
   onRenameSession,
   onPinSession,
 }: Readonly<Props>) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const permissions = usePermissions(user);
   const [sessionQuery, setSessionQuery] = useState("");
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
@@ -61,7 +50,7 @@ export function SessionList({
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const isSubmittingRenameRef = useRef<string | null>(null); // Track which session is submitting
+  const isSubmittingRenameRef = useRef<string | null>(null);
 
   const normalizedQuery = sessionQuery.trim().toLowerCase();
   const filteredSessions = useMemo(() => {
@@ -73,15 +62,12 @@ export function SessionList({
     });
   }, [normalizedQuery, sessions, t]);
 
-  // Sort sessions: pinned first, then by updated_at
   const sortedSessions = useMemo(() => {
     return [...filteredSessions].sort((a, b) => {
-      // Pinned sessions first
       const aPinned = a.pinned || false;
       const bPinned = b.pinned || false;
       if (aPinned !== bPinned) return aPinned ? -1 : 1;
 
-      // Then by updated_at (most recent first)
       const aTime = new Date(a.updated_at || 0).getTime();
       const bTime = new Date(b.updated_at || 0).getTime();
       return bTime - aTime;
@@ -111,11 +97,9 @@ export function SessionList({
   const handleRenameSubmit = async (sessionId: string, value?: string) => {
     if (!onRenameSession) return;
 
-    // Use provided value (from Enter key with direct DOM read) or fallback to state
     const titleValue = value ?? renameValue;
     const trimmedTitle = titleValue.trim();
 
-    // Exit early if empty
     if (!trimmedTitle) {
       setRenamingSessionId(null);
       setRenameValue("");
@@ -123,26 +107,20 @@ export function SessionList({
       return;
     }
 
-    // Prevent double submission - check both state and ref
     if (actionLoading === sessionId || isSubmittingRenameRef.current === sessionId) {
       return;
     }
 
-    // Mark as submitting
     isSubmittingRenameRef.current = sessionId;
     setActionLoading(sessionId);
 
     try {
       await onRenameSession(sessionId, trimmedTitle);
-
-      // Success - exit edit mode
       setRenamingSessionId(null);
       setRenameValue("");
     } catch (error) {
-      // Error handled by parent - keep edit mode open for retry
       console.error("Failed to rename session:", error);
     } finally {
-      // Always cleanup
       isSubmittingRenameRef.current = null;
       setActionLoading(null);
     }
@@ -151,8 +129,6 @@ export function SessionList({
   const handleRenameKeyDown = (sessionId: string, event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      // Read value directly from DOM to get the absolute latest value
-      // bypassing React's asynchronous state updates
       const currentValue = event.currentTarget.value;
       void handleRenameSubmit(sessionId, currentValue);
     } else if (event.key === "Escape") {
@@ -164,7 +140,6 @@ export function SessionList({
   };
 
   const handleRenameBlur = (sessionId: string) => {
-    // Only submit if not already submitting (prevents duplicate submissions)
     if (actionLoading !== sessionId && isSubmittingRenameRef.current !== sessionId) {
       void handleRenameSubmit(sessionId);
     }
@@ -172,17 +147,12 @@ export function SessionList({
 
   const handlePinToggle = async (session: SessionSummary, event: React.MouseEvent) => {
     event.stopPropagation();
-
     if (!onPinSession) return;
 
     const newPinned = !session.pinned;
     setActionLoading(session.session_id);
     try {
       await onPinSession(session.session_id, newPinned);
-    } catch {
-      // `pinSession` notifies through `handleApiError` and re-throws; this
-      // catch exists only to put the row's spinner back. Optional binding, so
-      // the syntax says the value is deliberately unused.
     } finally {
       setActionLoading(null);
     }
@@ -204,8 +174,6 @@ export function SessionList({
     setActionLoading(sessionToDelete.id);
     try {
       await onDeleteSession(sessionToDelete.id);
-    } catch {
-      // Same as the pin handler: `deleteSession` has already reported it.
     } finally {
       setActionLoading(null);
       setSessionToDelete(null);
@@ -221,8 +189,6 @@ export function SessionList({
     <>
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="shrink-0 space-y-2 px-3 py-2">
-          {/* Search capsule: the wrapper carries the focus ring so the input
-              itself stays chrome-free. */}
           <label
             className="field-shell flex items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-1.5 shadow-elev-1 transition-all focus-within:border-brand-accent focus-within:ring-2 focus-within:ring-[var(--brand-ring)]"
             aria-label={t("components.chat.searchSessions")}
@@ -275,120 +241,28 @@ export function SessionList({
 
           {!sessionLoading && sortedSessions.length > 0 && (
             <ul className="space-y-1">
-              {sortedSessions.map((session) => {
-                const title = session.title || t("components.chat.untitled");
-                const isRenaming = renamingSessionId === session.session_id;
-                const isLoading = actionLoading === session.session_id;
-                const isActive = session.session_id === currentSessionId;
-
-                return (
-                  <li
-                    key={session.session_id}
-                    className={cn(
-                      "group flex items-center gap-1 rounded-card border p-2 transition-all",
-                      isActive
-                        ? "border-brand-border-strong bg-brand-surface shadow-elev-1"
-                        : "border-transparent bg-surface/60 hover:border-brand-border hover:bg-brand-surface/60"
-                    )}
-                  >
-                    {isRenaming ? (
-                      <input
-                        ref={renameInputRef}
-                        type="text"
-                        className="w-full rounded-control border border-brand-accent bg-surface px-2 py-1 text-xs sm:text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onBlur={() => handleRenameBlur(session.session_id)}
-                        onKeyDown={(e) => handleRenameKeyDown(session.session_id, e)}
-                        onClick={(e) => e.stopPropagation()}
-                        disabled={isLoading}
-                      />
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-control text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
-                          onClick={() => void onLoadSession(session.session_id)}
-                          disabled={busySessionId === session.session_id || isLoading}
-                        >
-                          {session.pinned && (
-                            <Pin
-                              className="size-3.5 shrink-0 text-brand-accent"
-                              aria-label={t("components.chat.pinSession")}
-                            />
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span
-                              className={cn(
-                                "block truncate text-xs sm:text-sm",
-                                isActive ? "font-bold text-brand-text-strong" : "font-medium text-ink"
-                              )}
-                            >
-                              {title}
-                            </span>
-                            <span className="mt-0.5 flex items-center gap-1.5 font-mono text-xs text-ink-muted">
-                              <span>
-                                {formatSessionTime(session.updated_at, t("components.chat.recent"), i18n.language)}
-                              </span>
-                              <span>{session.message_count || 0}</span>
-                            </span>
-                          </span>
-                        </button>
-
-                        {/* Revealed on hover, permanently visible on the active
-                            row -- the pattern the design uses for every list. */}
-                        <div
-                          className={cn(
-                            "flex shrink-0 items-center gap-0.5 transition-opacity focus-within:opacity-100",
-                            isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                          )}
-                        >
-                          {onRenameSession && (
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={(event) => handleRenameStart(session, event)}
-                              disabled={isLoading}
-                              title={t("components.chat.renameSession")}
-                            >
-                              <Pencil aria-hidden="true" />
-                              <span className="sr-only">{t("components.chat.renameSession")}</span>
-                            </Button>
-                          )}
-                          {onPinSession && (
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={(event) => void handlePinToggle(session, event)}
-                              disabled={isLoading}
-                              title={
-                                session.pinned ? t("components.chat.unpinSession") : t("components.chat.pinSession")
-                              }
-                            >
-                              {session.pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
-                              <span className="sr-only">
-                                {session.pinned ? t("components.chat.unpinSession") : t("components.chat.pinSession")}
-                              </span>
-                            </Button>
-                          )}
-                          {permissions.canDeleteSession && (
-                            <Button
-                              variant="destructive-ghost"
-                              size="icon-sm"
-                              onClick={(event) => handleDeleteStart(session, event)}
-                              disabled={isLoading}
-                              title={t("components.chat.deleteSession")}
-                            >
-                              <Trash2 aria-hidden="true" />
-                              <span className="sr-only">{t("components.chat.deleteSession")}</span>
-                            </Button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
+              {sortedSessions.map((session) => (
+                <SessionListItem
+                  key={session.session_id}
+                  session={session}
+                  isActive={session.session_id === currentSessionId}
+                  isRenaming={renamingSessionId === session.session_id}
+                  isLoading={actionLoading === session.session_id}
+                  isBusy={busySessionId === session.session_id}
+                  renameValue={renameValue}
+                  renameInputRef={renameInputRef}
+                  canDeleteSession={permissions.canDeleteSession}
+                  canRename={Boolean(onRenameSession)}
+                  canPin={Boolean(onPinSession)}
+                  onLoadSession={onLoadSession}
+                  onRenameValueChange={setRenameValue}
+                  onRenameBlur={handleRenameBlur}
+                  onRenameKeyDown={handleRenameKeyDown}
+                  onRenameStart={handleRenameStart}
+                  onPinToggle={handlePinToggle}
+                  onDeleteStart={handleDeleteStart}
+                />
+              ))}
             </ul>
           )}
         </div>

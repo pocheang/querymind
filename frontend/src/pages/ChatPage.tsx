@@ -1,22 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AGENT_MODES, type AgentClassHint } from "@/pages/chat/constants";
 import type { Props } from "@/pages/chat/types";
 import type { PendingApproval } from "@/types/api";
 import { useChatStore } from "@/stores/useChatStore";
 import { AppShell } from "@/components/layout/AppShell";
 import { cn } from "@/lib/utils";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { PromptDialog } from "@/components/PromptDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePromptDialog } from "@/hooks/usePromptDialog";
-import { ChatMessages } from "@/pages/chat/components/ChatMessages";
-import { ChatComposer } from "@/pages/chat/components/ChatComposer";
-import { ClarificationPrompt } from "@/pages/chat/components/ClarificationPrompt";
-import { ToastStack } from "@/pages/chat/components/ToastStack";
 import { ChatSidebar } from "@/pages/chat/components/ChatSidebar";
-import { SettingsDrawer } from "@/components/SettingsDrawer";
-import { SessionManagementModal } from "@/components/SessionManagementModal";
+import { ChatWorkspace } from "@/pages/chat/components/ChatWorkspace";
+import { ChatDialogsAndDrawers } from "@/pages/chat/components/ChatDialogsAndDrawers";
 import { useChatActions } from "@/pages/chat/hooks/useChatActions";
 import { useFileUpload } from "@/pages/chat/hooks/useFileUpload";
 import { useMessageActions } from "@/pages/chat/hooks/useMessageActions";
@@ -30,17 +25,10 @@ import { useAutoRefresh } from "@/pages/chat/hooks/useAutoRefresh";
 import { useAutoScroll } from "@/pages/chat/hooks/useAutoScroll";
 import { generateSmartPrompts } from "@/pages/chat/utils/smartPrompts";
 import type { UserIdentity } from "@/types/auth";
-import { ChatRuntimePanels } from "@/pages/chat/components/ChatRuntimePanels";
-import { SectionToggleButton } from "@/pages/chat/components/SectionToggleButton";
 import { useSectionToggle } from "@/hooks/useSectionToggle";
 
 export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
   const [executionId, setExecutionId] = useState<string | null>(null);
-  // A governed action the last run produced but did not perform, paired with the
-  // question that produced it: confirming re-sends that question with the
-  // approved token, which is the run that actually executes the action. The pair
-  // arrives together from the run itself, so no `ask` call site has to remember
-  // to record it.
   const [pendingApproval, setPendingApproval] = useState<{
     approval: PendingApproval;
     question: string;
@@ -183,7 +171,6 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     onPendingApproval: (approval, question) => setPendingApproval(approval ? { approval, question } : null),
   });
 
-  // Clarification logic extracted to custom hook
   const {
     clarification,
     isClarifying,
@@ -223,15 +210,12 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
         return;
       }
 
-      // Information is sufficient, execute query directly
       await messageActions.ask({
         question: questionText,
         isSending: false,
         sessionId,
       });
     } catch (error: unknown) {
-      // Auth errors are already handled (and notified) by checkAndInitiateClarification,
-      // which re-throws ApiError (status only, never .response.status) for 401/403.
       const apiError = error as { response?: { status?: number }; status?: number };
       const status = apiError?.response?.status ?? apiError?.status;
       if (status === 403 || status === 401) {
@@ -240,7 +224,6 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
         return;
       }
 
-      // Fallback to direct query on other errors
       await messageActions.ask({
         question: questionText,
         isSending: false,
@@ -249,7 +232,6 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     }
   };
 
-  // Auto-select first PDF if needed
   useEffect(() => {
     if (!pdfDocuments.length) {
       setPdfTargetFile("");
@@ -260,7 +242,6 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     }
   }, [pdfDocuments, pdfTargetFile, setPdfTargetFile]);
 
-  // Initialize on mount
   useEffect(() => {
     void (async () => {
       const rows = await actions.refreshSessions();
@@ -271,7 +252,6 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Custom hooks for side effects
   useAutoScroll({ ref: chatScrollRef, messages });
   useAutoRefresh({
     refreshSessions: actions.refreshSessions,
@@ -288,10 +268,12 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     setSidebarCollapsed((value) => !value);
   };
 
-  // Smart prompt generation
+  const { i18n } = useTranslation();
+  const isZh = Boolean(i18n.language?.startsWith("zh"));
+
   const smartQuickPrompts = useMemo(() => {
-    return generateSmartPrompts(messages);
-  }, [messages]);
+    return generateSmartPrompts(messages, isZh);
+  }, [messages, isZh]);
 
   return (
     <AppShell
@@ -301,10 +283,6 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
       onOpenSessionManagement={() => setSessionManagementOpen(true)}
       onNewSession={() => void actions.createSession()}
     >
-      {/* `page-shell` and `sidebar-collapsed` survive as behavioural hooks
-          rather than as styling: scripts/screenshots.mjs uses the first as its
-          "signed in" signal and the pair as its desktop sidebar open/closed
-          test. The layout itself is Tailwind. */}
       <div
         className={cn(
           "page-shell relative flex min-h-0 flex-1 overflow-hidden",
@@ -356,9 +334,6 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
           onLogout={onLogout}
         />
 
-        {/* Scenery, like the dialog backdrops: closing the sidebar is a mouse
-            convenience, and the sidebar's own Collapse button is the route that
-            a keyboard already has. */}
         <div
           className={cn(
             "absolute inset-0 z-20 bg-stone-900/40 backdrop-blur-sm transition-opacity sidebar:hidden",
@@ -368,122 +343,80 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
           onClick={() => setSidebarOpen(false)}
         />
 
-        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ChatMessages
-            messages={messages}
-            containerRef={chatScrollRef}
-            documentsCount={documents.length}
-            sessionsCount={sessions.length}
-            onEditMessage={(msg) => messageActions.editMessage(msg)}
-            onRemoveMessage={messageActions.removeMessage}
-            onCreateSession={async () => {
-              await actions.createSession();
-            }}
-            onNavigateToArchitecture={() => (window.location.href = "/app/architecture")}
-          />
-
-          {!sectionsHidden && (
-            <ChatRuntimePanels
-              executionId={executionId}
-              pendingApproval={pendingApproval?.approval ?? null}
-              onApproved={async (token) => {
-                const question = pendingApproval?.question;
-                setPendingApproval(null);
-                if (!question) return;
-                await messageActions.ask({
-                  question,
-                  isSending: false,
-                  sessionId: currentSessionId || undefined,
-                  approvalToken: token,
-                });
-              }}
-              onDismissApproval={() => setPendingApproval(null)}
-              onDraft={(text) => {
-                if (!text) return;
-                // Only the in-flight bubble; the completed message keeps whatever
-                // the query response settled on.
-                setMessages((prev) => {
-                  const index = prev.findIndex(
-                    (message) => message.message_id === "local-assistant-stream" && !message.content
-                  );
-                  // Returning `prev` unchanged lets React bail out of the render.
-                  // Mapping unconditionally builds a new array every time, so
-                  // every fragment re-rendered the whole message list even when
-                  // there was no streaming bubble to write into.
-                  if (index === -1) return prev;
-                  const next = [...prev];
-                  next[index] = { ...next[index], content: text };
-                  return next;
-                });
-              }}
-            />
-          )}
-
-          {clarification?.action === "NEED_CLARIFICATION" && clarification.clarification && (
-            <ClarificationPrompt
-              question={clarification.clarification}
-              context={clarification.context}
-              onAnswer={handleClarificationAnswer}
-              onSkip={handleClarificationSkip}
-              isSubmitting={isClarifying}
-            />
-          )}
-
-          {!sectionsHidden && (
-            <ChatComposer
-              questionRef={questionRef}
-              chatUploadInputRef={chatUploadInputRef}
-              isSending={isSending || !!clarification}
-              quickPrompts={smartQuickPrompts}
-              onAsk={async () => {
-                if (clarification) return;
-                await handleSendWithClarification(useChatStore.getState().question);
-              }}
-              onStop={() => messageActions.stopCurrentRun(isSending)}
-              onComposerDragEnter={dragHandlers.onComposerDragEnter}
-              onComposerDragOver={dragHandlers.onComposerDragOver}
-              onComposerDragLeave={dragHandlers.onComposerDragLeave}
-              onComposerDrop={fileUploadHandlers.onComposerDrop}
-              onChatUploadChange={fileUploadHandlers.onChatUploadChange}
-              onToggleSections={toggleSections}
-            />
-          )}
-        </main>
-
-        <ToastStack toasts={toasts} onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
-        <SectionToggleButton sectionsHidden={sectionsHidden} onToggle={toggleSections} />
-        <SettingsDrawer isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
-        <ConfirmDialog
-          isOpen={confirmDialog.isOpen}
-          title={confirmDialog.options?.title || ""}
-          message={confirmDialog.options?.message || ""}
-          confirmText={confirmDialog.options?.confirmText}
-          cancelText={confirmDialog.options?.cancelText}
-          isDanger={confirmDialog.options?.isDanger}
-          onConfirm={confirmDialog.handleConfirm}
-          onCancel={confirmDialog.handleCancel}
-        />
-        <PromptDialog
-          isOpen={promptDialog.isOpen}
-          title={promptDialog.options?.title || ""}
-          message={promptDialog.options?.message || ""}
-          defaultValue={promptDialog.options?.defaultValue}
-          placeholder={promptDialog.options?.placeholder}
-          confirmText={promptDialog.options?.confirmText}
-          cancelText={promptDialog.options?.cancelText}
-          multiline={promptDialog.options?.multiline}
-          inputType={promptDialog.options?.inputType}
-          onConfirm={promptDialog.handleConfirm}
-          onCancel={promptDialog.handleCancel}
-        />
-        <SessionManagementModal
-          isOpen={sessionManagementOpen}
-          onClose={() => setSessionManagementOpen(false)}
-          currentSessionId={currentSessionId}
+        <ChatWorkspace
           messages={messages}
-          onSelectSession={(sessionId) => void actions.loadSession(sessionId)}
+          chatScrollRef={chatScrollRef}
+          documentsCount={documents.length}
+          sessionsCount={sessions.length}
+          onEditMessage={(msg) => messageActions.editMessage(msg)}
+          onRemoveMessage={(msg) => messageActions.removeMessage(msg)}
+          onCreateSession={async () => {
+            await actions.createSession();
+          }}
+          sectionsHidden={sectionsHidden}
+          toggleSections={toggleSections}
+          executionId={executionId}
+          pendingApproval={pendingApproval?.approval ?? null}
+          onApproved={async (token) => {
+            const question = pendingApproval?.question;
+            setPendingApproval(null);
+            if (!question) return;
+            await messageActions.ask({
+              question,
+              isSending: false,
+              sessionId: currentSessionId || undefined,
+              approvalToken: token,
+            });
+          }}
+          onDismissApproval={() => setPendingApproval(null)}
+          onDraft={(text) => {
+            if (!text) return;
+            setMessages((prev) => {
+              const index = prev.findIndex(
+                (message) => message.message_id === "local-assistant-stream" && !message.content
+              );
+              if (index === -1) return prev;
+              const next = [...prev];
+              next[index] = { ...next[index], content: text };
+              return next;
+            });
+          }}
+          clarification={clarification}
+          onAnswerClarification={handleClarificationAnswer}
+          onSkipClarification={handleClarificationSkip}
+          isClarifying={isClarifying}
+          questionRef={questionRef}
+          chatUploadInputRef={chatUploadInputRef}
+          isSending={isSending || Boolean(clarification)}
+          smartQuickPrompts={smartQuickPrompts}
+          onAsk={async () => {
+            if (clarification) return;
+            await handleSendWithClarification(useChatStore.getState().question);
+          }}
+          onStop={() => messageActions.stopCurrentRun(isSending)}
+          onComposerDragEnter={dragHandlers.onComposerDragEnter}
+          onComposerDragOver={dragHandlers.onComposerDragOver}
+          onComposerDragLeave={dragHandlers.onComposerDragLeave}
+          onComposerDrop={fileUploadHandlers.onComposerDrop}
+          onChatUploadChange={fileUploadHandlers.onChatUploadChange}
         />
       </div>
+
+      <ChatDialogsAndDrawers
+        toasts={toasts}
+        onRemoveToast={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
+        sectionsHidden={sectionsHidden}
+        toggleSections={toggleSections}
+        settingsOpen={settingsOpen}
+        onCloseSettings={() => setSettingsOpen(false)}
+        confirmDialog={confirmDialog}
+        promptDialog={promptDialog}
+        sessionManagementOpen={sessionManagementOpen}
+        onCloseSessionManagement={() => setSessionManagementOpen(false)}
+        currentSessionId={currentSessionId}
+        messages={messages}
+        onSelectSession={(sessionId) => void actions.loadSession(sessionId)}
+      />
     </AppShell>
   );
 }

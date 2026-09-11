@@ -20,7 +20,7 @@ import {
   YAxis,
 } from "recharts";
 import type { AuthUser } from "@/types/api";
-import { analyticsApi, type AgentStats, type AnalyticsOverview, type DocumentStats } from "@/lib/analytics-api";
+import { analyticsApi, type AgentStats, type AnalyticsOverview, type DocumentStats } from "@/services/api/app";
 
 type Props = {
   user: AuthUser | null;
