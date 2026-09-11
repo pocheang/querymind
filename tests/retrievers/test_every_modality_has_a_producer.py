@@ -44,6 +44,7 @@ def _collections_read_by_the_retriever() -> set[str]:
 
     source = RETRIEVER.read_text(encoding="utf-8")
     names = set(re.findall(r'get_collection\(name=["\']([a-z_]+)["\']', source))
+    names |= set(re.findall(r'collection_name=["\']([a-z_]+)["\']', source))
     names |= set(re.findall(r'^\s*"[a-z]+":\s*"([a-z_]+)",\s*$', source, re.MULTILINE))
     return names
 

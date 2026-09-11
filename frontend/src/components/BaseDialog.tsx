@@ -41,7 +41,7 @@ export function BaseDialog({
     // Escape is wired above and is the keyboard route.
     <div
       className="confirm-dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm"
-      aria-hidden="true"
+      role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}

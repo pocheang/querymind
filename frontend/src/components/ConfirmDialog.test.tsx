@@ -60,7 +60,7 @@ describe("the dialog announces itself as one", () => {
     );
     const backdrop = container.querySelector(".confirm-dialog-overlay");
 
-    expect(backdrop?.getAttribute("aria-hidden")).toBe("true");
+    expect(backdrop?.getAttribute("role")).toBe("presentation");
     expect(backdrop?.getAttribute("tabindex")).toBeNull();
   });
 });
