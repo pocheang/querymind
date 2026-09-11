@@ -15,7 +15,7 @@ import {
   SectionHead,
   StatePanel,
 } from "./components/AdminPrimitives";
-import { ADMIN_FIELD, ADMIN_TABLE, ADMIN_TABLE_WIDE, ADMIN_TABLE_WRAP } from "./components/adminClasses";
+import { ADMIN_TABLE, ADMIN_TABLE_WIDE, ADMIN_TABLE_WRAP } from "./components/adminClasses";
 import { LogLimitActions } from "./components/LogLimitActions";
 
 type Props = {

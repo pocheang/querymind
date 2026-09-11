@@ -788,6 +788,11 @@ function StepInspector({
   );
 }
 
+type ScenarioTableRow = {
+  id: string;
+  cells: React.ReactNode[];
+};
+
 function ScenarioTable({
   title,
   headers,
@@ -795,7 +800,7 @@ function ScenarioTable({
 }: Readonly<{
   title: string;
   headers: string[];
-  rows: React.ReactNode[][];
+  rows: ScenarioTableRow[];
 }>) {
   return (
     <div className="overflow-x-auto rounded-control border border-line bg-surface">
@@ -806,16 +811,16 @@ function ScenarioTable({
       <table className="w-full text-xs text-left">
         <thead>
           <tr className="border-b border-line bg-surface-muted/30 text-ink font-semibold">
-            {headers.map((h, i) => (
-              <th key={i} className="p-2.5">{h}</th>
+            {headers.map((h) => (
+              <th key={h} className="p-2.5">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-line/40 text-ink-muted">
-          {rows.map((row, rIdx) => (
-            <tr key={rIdx}>
-              {row.map((cell, cIdx) => (
-                <td key={cIdx} className="p-2.5">{cell}</td>
+          {rows.map((row) => (
+            <tr key={row.id}>
+              {headers.map((h, col) => (
+                <td key={`${row.id}-${h}`} className="p-2.5">{row.cells[col]}</td>
               ))}
             </tr>
           ))}
@@ -869,27 +874,36 @@ function AnswerShowcase({ // NOSONAR
             title={isZh ? "表 1：员工差旅住宿报销限额细则（摘自制度附表一）" : "Table 1: Employee Travel Lodging Cap Specifications (Policy Appendix A)"}
             headers={isZh ? ["城市分类", "适用城市范畴", "研发报销上限", "凭证要求", "审批权限"] : ["City Tier", "Covered Cities", "R&D Cap", "Invoicing", "Approval Chain"]}
             rows={[
-              [
-                <span key="1" className="font-medium text-ink">{isZh ? "一线城市" : "Tier 1"}</span>,
-                isZh ? "北京、上海、广州、深圳" : "Beijing, Shanghai, Guangzhou, Shenzhen",
-                <span key="3" className="font-mono font-bold text-brand-text">¥500 / 人 / 天</span>,
-                isZh ? "增值税专用/普通发票" : "VAT Tax Invoice",
-                isZh ? "部门总监审批" : "Director Approval",
-              ],
-              [
-                <span key="1" className="font-medium text-ink">{isZh ? "新一线城市" : "New Tier 1"}</span>,
-                isZh ? "杭州、成都、武汉、南京等" : "Hangzhou, Chengdu, Wuhan, Nanjing",
-                <span key="3" className="font-mono font-bold text-ink">¥400 / 人 / 天</span>,
-                isZh ? "增值税专用/普通发票" : "VAT Tax Invoice",
-                isZh ? "研发主管审批" : "Manager Approval",
-              ],
-              [
-                <span key="1" className="font-medium text-ink">{isZh ? "二线及其他" : "Tier 2 & Other"}</span>,
-                isZh ? "其他省会及地级市" : "Other Regional Capitals",
-                <span key="3" className="font-mono text-ink">¥300 / 人 / 天</span>,
-                isZh ? "合规发票实报实销" : "Standard Invoices",
-                isZh ? "项目经理审批" : "Project Lead Approval",
-              ],
+              {
+                id: "tier-1",
+                cells: [
+                  <span key="tier-1-type" className="font-medium text-ink">{isZh ? "一线城市" : "Tier 1"}</span>,
+                  isZh ? "北京、上海、广州、深圳" : "Beijing, Shanghai, Guangzhou, Shenzhen",
+                  <span key="tier-1-cap" className="font-mono font-bold text-brand-text">¥500 / 人 / 天</span>,
+                  isZh ? "增值税专用/普通发票" : "VAT Tax Invoice",
+                  isZh ? "部门总监审批" : "Director Approval",
+                ],
+              },
+              {
+                id: "new-tier-1",
+                cells: [
+                  <span key="new-tier-1-type" className="font-medium text-ink">{isZh ? "新一线城市" : "New Tier 1"}</span>,
+                  isZh ? "杭州、成都、武汉、南京等" : "Hangzhou, Chengdu, Wuhan, Nanjing",
+                  <span key="new-tier-1-cap" className="font-mono font-bold text-ink">¥400 / 人 / 天</span>,
+                  isZh ? "增值税专用/普通发票" : "VAT Tax Invoice",
+                  isZh ? "研发主管审批" : "Manager Approval",
+                ],
+              },
+              {
+                id: "tier-2",
+                cells: [
+                  <span key="tier-2-type" className="font-medium text-ink">{isZh ? "二线及其他" : "Tier 2 & Other"}</span>,
+                  isZh ? "其他省会及地级市" : "Other Regional Capitals",
+                  <span key="tier-2-cap" className="font-mono text-ink">¥300 / 人 / 天</span>,
+                  isZh ? "合规发票实报实销" : "Standard Invoices",
+                  isZh ? "项目经理审批" : "Project Lead Approval",
+                ],
+              },
             ]}
           />
         )}
@@ -899,22 +913,28 @@ function AnswerShowcase({ // NOSONAR
             title={isZh ? "表 2：华东区月度销售业绩与环比增长分析表（数据沙箱精确计算）" : "Table 2: East Region Monthly Sales & MoM Growth Analysis (Sandbox Calculator)"}
             headers={isZh ? ["统计月份", "销售额 (万元)", "环比净增额", "环比增长率 (%)", "主要拉动行业", "成交笔数"] : ["Month", "Revenue (10k RMB)", "Net Growth", "MoM Rate (%)", "Leading Drivers", "Orders"]}
             rows={[
-              [
-                <span key="1" className="font-medium text-ink">{isZh ? "前一月 (T-1)" : "Month T-1"}</span>,
-                <span key="2" className="font-mono">210.0 万元</span>,
-                <span key="3" className="font-mono">{isZh ? "基线月份" : "Baseline"}</span>,
-                <span key="4" className="font-mono">-</span>,
-                isZh ? "传统制造 (52%)" : "Manufacturing (52%)",
-                <span key="6" className="font-mono">128 笔</span>,
-              ],
-              [
-                <span key="1" className="font-medium text-ink">{isZh ? "上月 (T)" : "Month T"}</span>,
-                <span key="2" className="font-mono font-bold text-brand-text">245.8 万元</span>,
-                <span key="3" className="font-mono text-emerald-600 font-bold">+35.8 万元</span>,
-                <span key="4" className="font-mono text-emerald-600 font-bold">+17.05%</span>,
-                <span key="5" className="font-medium text-ink">{isZh ? "新能源 / 储能 (68%)" : "Clean Energy (68%)"}</span>,
-                <span key="6" className="font-mono font-bold text-ink">164 笔</span>,
-              ],
+              {
+                id: "month-t-minus-1",
+                cells: [
+                  <span key="t-minus-1-month" className="font-medium text-ink">{isZh ? "前一月 (T-1)" : "Month T-1"}</span>,
+                  <span key="t-minus-1-rev" className="font-mono">210.0 万元</span>,
+                  <span key="t-minus-1-growth" className="font-mono">{isZh ? "基线月份" : "Baseline"}</span>,
+                  <span key="t-minus-1-rate" className="font-mono">-</span>,
+                  isZh ? "传统制造 (52%)" : "Manufacturing (52%)",
+                  <span key="t-minus-1-orders" className="font-mono">128 笔</span>,
+                ],
+              },
+              {
+                id: "month-t",
+                cells: [
+                  <span key="t-month" className="font-medium text-ink">{isZh ? "上月 (T)" : "Month T"}</span>,
+                  <span key="t-rev" className="font-mono font-bold text-brand-text">245.8 万元</span>,
+                  <span key="t-growth" className="font-mono text-emerald-600 font-bold">+35.8 万元</span>,
+                  <span key="t-rate" className="font-mono text-emerald-600 font-bold">+17.05%</span>,
+                  <span key="t-driver" className="font-medium text-ink">{isZh ? "新能源 / 储能 (68%)" : "Clean Energy (68%)"}</span>,
+                  <span key="t-orders" className="font-mono font-bold text-ink">164 笔</span>,
+                ],
+              },
             ]}
           />
         )}
@@ -924,27 +944,36 @@ function AnswerShowcase({ // NOSONAR
             title={isZh ? "表 3：Neo4j 图谱 2-Hop 关联关系推理表（Cypher 最短路径遍历）" : "Table 3: Neo4j Graph 2-Hop Relation Inference (Cypher Traversal)"}
             headers={isZh ? ["起始实体", "关系谓词 (Cypher)", "目标实体", "协作职责说明", "置信度"] : ["Source Entity", "Relationship", "Target Entity", "Role / Duty", "Confidence"]}
             rows={[
-              [
-                <span key="1" className="font-medium text-ink">{isZh ? "李工 (架构师)" : "Engineer Li (Architect)"}</span>,
-                <span key="2" className="font-mono text-brand-text font-bold">[:MEMBER_OF]</span>,
-                <span key="3" className="font-medium text-ink">{isZh ? "AI平台四期项目" : "AI Platform Phase 4"}</span>,
-                isZh ? "担任核心架构师与技术负责" : "Core Tech Architect",
-                <span key="5" className="font-mono text-emerald-600 font-bold">1.00</span>,
-              ],
-              [
-                <span key="1" className="font-medium text-ink">{isZh ? "张总 (部门总监)" : "Director Zhang"}</span>,
-                <span key="2" className="font-mono text-brand-text font-bold">[:DIRECTS]</span>,
-                <span key="3" className="font-medium text-ink">{isZh ? "AI平台四期项目" : "AI Platform Phase 4"}</span>,
-                isZh ? "担任项目总负责人兼资源审批人" : "Project Director",
-                <span key="5" className="font-mono text-emerald-600 font-bold">1.00</span>,
-              ],
-              [
-                <span key="1" className="font-medium text-ink">{isZh ? "李工" : "Engineer Li"}</span>,
-                <span key="2" className="font-mono text-purple-600 font-bold">[:REPORTS_TO]</span>,
-                <span key="3" className="font-medium text-ink">{isZh ? "张总" : "Director Zhang"}</span>,
-                isZh ? "项目内直属技术汇报关系" : "Direct Project Reporting Line",
-                <span key="5" className="font-mono text-emerald-600 font-bold">0.99</span>,
-              ],
+              {
+                id: "graph-rel-1",
+                cells: [
+                  <span key="g1-src" className="font-medium text-ink">{isZh ? "李工 (架构师)" : "Engineer Li (Architect)"}</span>,
+                  <span key="g1-rel" className="font-mono text-brand-text font-bold">[:MEMBER_OF]</span>,
+                  <span key="g1-tgt" className="font-medium text-ink">{isZh ? "AI平台四期项目" : "AI Platform Phase 4"}</span>,
+                  isZh ? "担任核心架构师与技术负责" : "Core Tech Architect",
+                  <span key="g1-conf" className="font-mono text-emerald-600 font-bold">1.00</span>,
+                ],
+              },
+              {
+                id: "graph-rel-2",
+                cells: [
+                  <span key="g2-src" className="font-medium text-ink">{isZh ? "张总 (部门总监)" : "Director Zhang"}</span>,
+                  <span key="g2-rel" className="font-mono text-brand-text font-bold">[:DIRECTS]</span>,
+                  <span key="g2-tgt" className="font-medium text-ink">{isZh ? "AI平台四期项目" : "AI Platform Phase 4"}</span>,
+                  isZh ? "担任项目总负责人兼资源审批人" : "Project Director",
+                  <span key="g2-conf" className="font-mono text-emerald-600 font-bold">1.00</span>,
+                ],
+              },
+              {
+                id: "graph-rel-3",
+                cells: [
+                  <span key="g3-src" className="font-medium text-ink">{isZh ? "李工" : "Engineer Li"}</span>,
+                  <span key="g3-rel" className="font-mono text-purple-600 font-bold">[:REPORTS_TO]</span>,
+                  <span key="g3-tgt" className="font-medium text-ink">{isZh ? "张总" : "Director Zhang"}</span>,
+                  isZh ? "项目内直属技术汇报关系" : "Direct Project Reporting Line",
+                  <span key="g3-conf" className="font-mono text-emerald-600 font-bold">0.99</span>,
+                ],
+              },
             ]}
           />
         )}

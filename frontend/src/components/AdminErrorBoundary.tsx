@@ -13,6 +13,28 @@ interface Props {
  * Error boundary specifically for the Admin page
  * Provides admin-specific error recovery
  */
+function AdminFallback({ error, onReset }: Readonly<{ error: Error | null; onReset: () => void }>) {
+  return (
+    <ErrorFallbackCard
+      icon="⚠️"
+      title="Admin Console Error"
+      description="Something went wrong loading the admin console."
+      error={error}
+    >
+      <Button size="sm" onClick={onReset}>
+        Try Again
+      </Button>
+      <Button variant="secondary" size="sm" onClick={() => (window.location.href = "/app")}>
+        Back to Chat
+      </Button>
+    </ErrorFallbackCard>
+  );
+}
+
+function renderAdminFallback(error: Error | null, reset: () => void) {
+  return <AdminFallback error={error} onReset={reset} />;
+}
+
 export function AdminErrorBoundary({ children, onError }: Readonly<Props>) {
   return (
     <ErrorBoundary
@@ -20,21 +42,7 @@ export function AdminErrorBoundary({ children, onError }: Readonly<Props>) {
         console.error("AdminPage Error:", error, errorInfo);
         onError?.(error, errorInfo);
       }}
-      fallbackRender={(error, reset) => (
-        <ErrorFallbackCard
-          icon="⚠️"
-          title="Admin Console Error"
-          description="Something went wrong loading the admin console."
-          error={error}
-        >
-          <Button size="sm" onClick={reset}>
-            Try Again
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => (window.location.href = "/app")}>
-            Back to Chat
-          </Button>
-        </ErrorFallbackCard>
-      )}
+      fallbackRender={renderAdminFallback}
     >
       {children}
     </ErrorBoundary>
