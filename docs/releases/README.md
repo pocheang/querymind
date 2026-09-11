@@ -4,17 +4,19 @@ Official release notes for QueryMind（智询）.
 
 ## Latest Release
 
-**[v0.6.2.1](v0.6.2.1-release-notes.md)** - 2026-07-18
-- Configuration governance system
-- Deployment standardization  
-- Documentation restructuring
-- GitHub open source preparation
+**[v0.7.0](v0.7.0-release-notes.md)** - 2026-09-11
+- Interactive pipeline & architecture flow visualization (5 perspectives)
+- Real-time LangGraph execution trace panel & step tree formatter
+- Interactive landing page feature modals & technical deep-dives
+- Production preview performance optimization (Vite proxy + bundle optimization)
 
 ## Recent Releases
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| [v0.7.0](v0.7.0-release-notes.md) | 2026-09-11 | Major | Architecture visualization, execution trace, UI observability |
 | [v0.6.2.1](v0.6.2.1-release-notes.md) | 2026-07-18 | Infrastructure | Config governance, deployment standardization, docs restructure |
+
 | [v0.6.2](v0.4.6-release-notes.md) | 2026-07-06 | Feature | Project rebranding, monitoring stack, structured logging |
 | [v0.6.1](v0.4.1-release-notes.md) | 2026-07-06 | Feature | Docker support, agent architecture, admin dashboard |
 | [v0.6.0](v0.4.1-release-notes.md) | 2026-06-28 | Quality | Agent quality optimization, 99% router accuracy |

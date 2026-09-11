@@ -158,11 +158,17 @@ python scripts/create_admin.py --reset-password
 cd frontend
 npm install
 npm run dev
+
+# Or run the production preview build (blazing fast, ~380KB gzipped):
+npm run build
+npm run preview
 ```
 
 **6. Access:**
-- Frontend: http://localhost:5173
+- Frontend (Dev): http://localhost:5173
+- Frontend (Preview): http://localhost:5174
 - API Docs: http://localhost:8000/docs
+- Interactive Architecture: http://localhost:5173/architecture
 
 ---
 
@@ -172,11 +178,12 @@ npm run dev
 - 📗 [CLAUDE.md](CLAUDE.md) - How the system actually works today, in detail
 - 📚 [Documentation index](docs/README.md) - What exists and where it lives
 - 💻 [Development Guide](docs/development/README.md) - Contributing and development
-- 📝 [Release notes](docs/releases/README.md) - Version history
+- 📝 [Release notes](docs/releases/v0.7.0-release-notes.md) - Latest v0.7.0 release notes ([All releases](docs/releases/README.md))
 
-> The architecture, user-guide, operations and reference documents were cleared ahead of
-> the v0.7 rewrite and are being regenerated against the new architecture. Until they land,
-> [CLAUDE.md](CLAUDE.md) is the accurate description of how the system works today.
+> QueryMind v0.7 features interactive multi-perspective pipeline visualization (`/architecture`),
+> real-time LangGraph execution trace inspection, and production bundle optimizations.
+> See [v0.7.0 Release Notes](docs/releases/v0.7.0-release-notes.md) for full details.
+
 
 ---
 

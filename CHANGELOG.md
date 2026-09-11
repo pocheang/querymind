@@ -2,7 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-09-11
+
+### 🚀 Visual Observability, Interactive Architecture & Performance Release
+
+This release introduces **multi-perspective architecture visualization**, **real-time LangGraph execution trace debugging**, **deep-dive feature exploration modals**, and **production-grade bundle performance optimizations**.
+
+#### 🗺️ Architecture & Flow Visualization (NEW)
+- **PipelineFlowDiagram Component**: Multi-perspective visualization allowing users to inspect the pipeline from 5 different angles:
+  - **Story Mode**: Narrative user journey through the request lifecycle.
+  - **Tech Mode**: Granular engineering contracts, stage timeouts, and fallbacks.
+  - **Table Mode**: Matrix breakdown of components, execution budgets, and policies.
+  - **Blueprint Mode**: High-resolution system flow diagram.
+  - **Topology Mode**: Interactive topological graph powered by ReactFlow.
+- **Scenario Simulation**: Instant toggle between `RAG (Standard Retrieval)`, `ReAct (Tool Loop)`, and `Graph RAG (Knowledge Graph Multi-Hop)`.
+- **System Metrics & KPIs**: Live readouts of router intent accuracy (>99%), grounding verification, and stage latency budgets.
+- **REST Endpoints Explorer**: Filterable directory of all system endpoints categorized across the 6 architectural pillars.
+
+#### 🔍 Execution Trace Introspection (NEW)
+- **ExecutionTracePanel**: Complete UI overhaul for inspecting real-time SSE stream events from the LangGraph workflow engine.
+- **Trace Tree Formatter**: Dedicated parser formatting nested tool calls, retrievals, LLM synthesis chunks, and verification retries.
+- **Diagnostic Metrics**: Step-by-step elapsed timings, token usage telemetry, and circuit breaker status indicators.
+
+#### ⚡ Performance & Production Build (IMPROVED)
+- **Vite Preview Proxy**: Configured unified reverse proxying in `vite.config.ts` so `npm run preview` seamlessly connects to backend port 8000.
+- **Bundle Efficiency**: Minified and compressed production build achieves **>91% volume reduction** (~379KB transfer) and sub-150ms DOM Ready.
+- **Port Hygiene**: Pre-configured preview port (`5174`) avoiding Windows Hyper-V reserved port exclusions.
+
+#### 📦 Version Alignment
+- Bumped project version to `v0.7` across `pyproject.toml`, `app/__version__.py`, `frontend/package.json`, `uv.lock`, `README.md`, and locale bundles.
+
 ## [0.6.2.1] - 2026-07-18
+
 
 ### 🏗️ Configuration Governance & GitHub Open Source Release
 
@@ -170,7 +201,7 @@ docs/
 - Insertions: +12,856 lines (new docs, tests, configs)
 - Deletions: −36,451 lines (cleanup, consolidation)
 
-**Documentation**: 
+**Documentation**:
 - Removed 220 obsolete/internal documents
 - Added/reorganized 64 standardized documents
 - Established clear information architecture
@@ -674,7 +705,7 @@ This release implements a comprehensive **Quality Assurance system with 5 specia
   - Viewer role: Read-only access to documents and queries
   - Analyst role: Full access including document management and advanced features
   - Fine-grained permission controls across all API endpoints
-- **Frontend Permission Integration**: 
+- **Frontend Permission Integration**:
   - React hooks for permission checking (`usePermissions`)
   - Component-level permission enforcement
   - UI elements conditionally rendered based on user roles
@@ -718,7 +749,7 @@ This release implements a comprehensive **Quality Assurance system with 5 specia
   - Viewer role: Read-only access to documents and queries
   - Analyst role: Full access including document management and advanced features
   - Fine-grained permission controls across all API endpoints
-- **Frontend Permission Integration**: 
+- **Frontend Permission Integration**:
   - React hooks for permission checking (`usePermissions`)
   - Component-level permission enforcement
   - UI elements conditionally rendered based on user roles
@@ -792,11 +823,11 @@ This release implements a comprehensive **Quality Assurance system with 5 specia
 #### Improved
 
 - **Code Quality**: Comprehensive cleanup of internal documentation
-- **Documentation Standards**: 
+- **Documentation Standards**:
   - Established clear public vs. private documentation policy
   - Improved version documentation system
   - Organized release notes and changelogs
-- **Security**: 
+- **Security**:
   - Stricter permission checks on sensitive operations
   - Audit logging for admin actions
   - Session-based permission caching
@@ -1032,11 +1063,11 @@ for the full breakdown.
 
 #### Fixed
 
-- **100% bare Exception elimination**: Replaced all 55 bare `except Exception:` 
+- **100% bare Exception elimination**: Replaced all 55 bare `except Exception:`
   catches with specific exception types across 27 files
 - **Redis operation error handling**: Precise exception types for connection failures,
   data parsing, and network errors (`OSError`, `ValueError`, `TypeError`, `json.JSONDecodeError`)
-- **LLM call error handling**: Specific exceptions for model failures 
+- **LLM call error handling**: Specific exceptions for model failures
   (`RuntimeError`, `ValueError`, `TypeError`)
 - **Optional dependency imports**: Changed from bare `Exception` to `ImportError`
   for cleaner dependency handling
