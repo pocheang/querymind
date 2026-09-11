@@ -37,7 +37,7 @@ export const effectiveRow = cva(
 );
 
 export const effectiveStatusPill = cva(
-  "justify-self-start rounded-pill px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider",
+  "justify-self-start rounded-pill px-2 py-0.5 font-mono text-xs font-bold uppercase tracking-wider",
   {
     variants: {
       status: {

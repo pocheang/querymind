@@ -67,33 +67,33 @@ export function ProfilePage({ user, onUserUpdated }: Readonly<Props>) {
           <ArrowLeft className="size-3.5" aria-hidden="true" />
           {t("pages.profile.back")}
         </Button>
-        <h1 className="text-sm font-bold tracking-tight text-ink">{t("pages.profile.title")}</h1>
+        <h1 className="text-base font-bold tracking-tight text-ink sm:text-lg">{t("pages.profile.title")}</h1>
         <LanguageToggle />
       </div>
 
-      <Card className="space-y-4 p-5">
-        <div className="flex items-center gap-3">
-          <span className="flex size-14 shrink-0 items-center justify-center rounded-panel bg-[image:var(--brand-gradient)] text-lg font-bold text-white shadow-elev-2">
+      <Card className="space-y-5 p-6">
+        <div className="flex items-center gap-3.5">
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-panel bg-[image:var(--brand-gradient)] text-xl font-bold text-white shadow-elev-2">
             {user.username.charAt(0).toUpperCase()}
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-bold text-ink">{user.username}</h2>
-            <p className="truncate font-mono text-[11px] text-ink-muted">@{user.username}</p>
-            <Badge variant="brand" size="pill" className="mt-1 uppercase tracking-wider">
+            <h2 className="truncate text-base font-bold text-ink sm:text-lg">{user.username}</h2>
+            <p className="truncate font-mono text-xs sm:text-sm text-ink/75">@{user.username}</p>
+            <Badge variant="brand" size="pill" className="mt-1 text-xs uppercase tracking-wider font-semibold">
               {user.role === "admin" ? t("pages.profile.admin") : t("pages.profile.user")}
             </Badge>
           </div>
         </div>
 
-        <div className="space-y-3 border-t border-line-subtle pt-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+        <div className="space-y-3.5 border-t border-line-subtle pt-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink/80">
             {t("pages.profile.basicInfo")}
           </h3>
 
           <div className="space-y-1">
             <Label htmlFor="username">{t("pages.profile.username")}</Label>
-            <Input id="username" type="text" value={email} disabled />
-            <p className="text-[10px] text-ink-muted">{t("pages.profile.usernameHint")}</p>
+            <Input id="username" type="text" value={email} disabled className="text-sm" />
+            <p className="text-xs text-ink-muted">{t("pages.profile.usernameHint")}</p>
           </div>
 
           <div className="space-y-1">
@@ -104,17 +104,18 @@ export function ProfilePage({ user, onUserUpdated }: Readonly<Props>) {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={t("pages.profile.displayNamePlaceholder")}
+              className="text-sm"
             />
-            <p className="text-[10px] text-ink-muted">{t("pages.profile.displayNameHint")}</p>
+            <p className="text-xs text-ink-muted">{t("pages.profile.displayNameHint")}</p>
           </div>
         </div>
 
-        <div className="space-y-2 border-t border-line-subtle pt-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+        <div className="space-y-2.5 border-t border-line-subtle pt-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink/80">
             {t("pages.profile.accountInfo")}
           </h3>
 
-          <dl className="grid grid-cols-2 gap-2">
+          <dl className="grid grid-cols-2 gap-2.5">
             {[
               { label: t("pages.profile.userId"), value: user.user_id },
               { label: t("pages.profile.role"), value: user.role },
@@ -124,26 +125,26 @@ export function ProfilePage({ user, onUserUpdated }: Readonly<Props>) {
                 value: user.role.toLowerCase() === "admin" ? t("pages.profile.unlimitedCredits") : user.credit_balance,
               },
             ].map(({ label, value }) => (
-              <div key={label} className="rounded-control border border-line bg-surface p-2">
-                <dt className="text-[10px] uppercase tracking-wider text-ink-muted">{label}</dt>
-                <dd className="mt-0.5 truncate font-mono text-[11px] font-semibold text-ink">{value}</dd>
+              <div key={label} className="rounded-control border border-line bg-surface p-2.5">
+                <dt className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{label}</dt>
+                <dd className="mt-0.5 truncate font-mono text-xs sm:text-sm font-semibold text-ink">{value}</dd>
               </div>
             ))}
           </dl>
         </div>
 
         <div className="flex items-center gap-2 border-t border-line-subtle pt-4">
-          <Button onClick={handleSave} disabled={loading}>
+          <Button onClick={handleSave} disabled={loading} className="text-xs sm:text-sm font-semibold">
             {loading ? t("pages.profile.saving") : t("pages.profile.saveChanges")}
           </Button>
-          <Button variant="secondary" onClick={() => navigate("/app/change-password")}>
+          <Button variant="secondary" onClick={() => navigate("/app/change-password")} className="text-xs sm:text-sm font-semibold">
             {t("pages.profile.changePassword")}
           </Button>
         </div>
 
         {status && (
           <p
-            className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-[11px] text-success"
+            className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-xs sm:text-sm font-medium text-success"
             role="status"
           >
             {status}
@@ -151,7 +152,7 @@ export function ProfilePage({ user, onUserUpdated }: Readonly<Props>) {
         )}
         {error && (
           <p
-            className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+            className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-xs sm:text-sm font-medium text-danger"
             role="alert"
           >
             {error}

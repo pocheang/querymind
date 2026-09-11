@@ -23,25 +23,25 @@ export function MessageGraphPanel({ graph, keyPrefix }: Readonly<{ graph: GraphR
     <div className="space-y-3">
       {graph.neighbors.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+          <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">
             {t("components.messages.neighbors", { count: graph.neighbors.length })}
           </p>
           <div className="space-y-1">
             {graph.neighbors.slice(0, 10).map((neighbor, index) => (
               <div
                 key={`${keyPrefix}-neighbor-${index}`}
-                className="flex flex-wrap items-center gap-1.5 rounded-control border border-line bg-surface px-2 py-1 font-mono text-[10px]"
+                className="flex flex-wrap items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-1.5 font-mono text-xs"
               >
                 <span className="font-semibold text-ink">{neighbor.entity}</span>
                 {neighbor.direction === "out" ? (
-                  <ArrowRight className="size-3 text-brand-accent" aria-hidden="true" />
+                  <ArrowRight className="size-3.5 text-brand-accent" aria-hidden="true" />
                 ) : (
-                  <ArrowLeft className="size-3 text-brand-accent" aria-hidden="true" />
+                  <ArrowLeft className="size-3.5 text-brand-accent" aria-hidden="true" />
                 )}
                 <Badge variant="brand" size="xs" mono>
                   {neighbor.relation}
                 </Badge>
-                <span className="text-ink-muted">{t("components.messages.targetEntity")}</span>
+                <span className="text-ink/75">{t("components.messages.targetEntity")}</span>
               </div>
             ))}
           </div>
@@ -50,7 +50,7 @@ export function MessageGraphPanel({ graph, keyPrefix }: Readonly<{ graph: GraphR
 
       {graph.paths.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+          <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">
             {t("components.messages.paths", { count: graph.paths.length })}
           </p>
           <div className="space-y-1">
@@ -63,10 +63,10 @@ export function MessageGraphPanel({ graph, keyPrefix }: Readonly<{ graph: GraphR
 
       {graph.context && (
         <div className="space-y-1.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+          <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">
             {t("components.messages.graphContext")}
           </p>
-          <pre className="max-h-48 overflow-auto rounded-control border border-line bg-surface p-2 font-mono text-[10px] text-ink select-text">
+          <pre className="max-h-48 overflow-auto rounded-control border border-line bg-surface p-2.5 font-mono text-xs text-ink select-text">
             {graph.context}
           </pre>
         </div>
@@ -78,7 +78,7 @@ export function MessageGraphPanel({ graph, keyPrefix }: Readonly<{ graph: GraphR
 function GraphPathRow({ path }: Readonly<{ path: GraphPath }>) {
   const { t } = useTranslation();
   const row =
-    "flex flex-wrap items-center gap-1 rounded-control border border-line bg-surface px-2 py-1 font-mono text-[10px]";
+    "flex flex-wrap items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-1.5 font-mono text-xs";
 
   if ("entities" in path && Array.isArray(path.entities)) {
     return (
@@ -88,11 +88,11 @@ function GraphPathRow({ path }: Readonly<{ path: GraphPath }>) {
             <span className="font-semibold text-ink">{entity}</span>
             {entityIndex < (path.relations?.length || 0) && (
               <>
-                <ArrowRight className="size-3 text-brand-accent" aria-hidden="true" />
+                <ArrowRight className="size-3.5 text-brand-accent" aria-hidden="true" />
                 <Badge variant="brand" size="xs" mono>
                   {path.relations[entityIndex]}
                 </Badge>
-                <ArrowRight className="size-3 text-brand-accent" aria-hidden="true" />
+                <ArrowRight className="size-3.5 text-brand-accent" aria-hidden="true" />
               </>
             )}
           </span>
@@ -105,17 +105,17 @@ function GraphPathRow({ path }: Readonly<{ path: GraphPath }>) {
     return (
       <div className={row}>
         <span className="font-semibold text-ink">{path.source}</span>
-        <ArrowRight className="size-3 text-brand-accent" aria-hidden="true" />
+        <ArrowRight className="size-3.5 text-brand-accent" aria-hidden="true" />
         <Badge variant="brand" size="xs" mono>
           {path.rel1 || "RELATED"}
         </Badge>
-        <ArrowRight className="size-3 text-brand-accent" aria-hidden="true" />
+        <ArrowRight className="size-3.5 text-brand-accent" aria-hidden="true" />
         <span className="font-semibold text-ink">{path.middle}</span>
-        <ArrowRight className="size-3 text-brand-accent" aria-hidden="true" />
+        <ArrowRight className="size-3.5 text-brand-accent" aria-hidden="true" />
         <Badge variant="brand" size="xs" mono>
           {path.rel2 || "RELATED"}
         </Badge>
-        <ArrowRight className="size-3 text-brand-accent" aria-hidden="true" />
+        <ArrowRight className="size-3.5 text-brand-accent" aria-hidden="true" />
         <span className="font-semibold text-ink">{path.target}</span>
       </div>
     );
@@ -123,7 +123,7 @@ function GraphPathRow({ path }: Readonly<{ path: GraphPath }>) {
 
   return (
     <div className={row}>
-      <span className="text-danger">{t("components.messages.pathIncomplete")}</span>
+      <span className="text-danger font-medium">{t("components.messages.pathIncomplete")}</span>
     </div>
   );
 }

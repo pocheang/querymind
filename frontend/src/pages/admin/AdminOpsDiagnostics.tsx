@@ -17,7 +17,7 @@ function DiagRow({ label, value, fallback }: Readonly<{ label: string; value?: s
       {missing ? (
         <span className="italic text-ink-muted">{fallback}</span>
       ) : (
-        <code className="min-w-0 truncate font-mono text-[11px] text-ink-muted" title={value}>
+        <code className="min-w-0 truncate font-mono text-xs text-ink/75" title={value}>
           {value}
         </code>
       )}
@@ -47,7 +47,7 @@ export function AdminOpsDiagnostics({ ops }: Readonly<Props>) {
 
       <TwoCol>
         <AdminBlock titleAs="strong" title={t("admin.ui.environmentModels", "Environment & Models")}>
-          <div className="text-xs">
+          <div className="text-xs sm:text-sm">
             <DiagRow label="Python" value={ops.diagnostics?.python_executable} fallback="Not configured" />
             <DiagRow
               label={t("admin.ui.pythonVersion", "Python Version")}
@@ -98,13 +98,13 @@ export function AdminOpsDiagnostics({ ops }: Readonly<Props>) {
                   <ServiceStatus ok={service.ok} error={service.error} />
                 </div>
                 {service.path && (
-                  <p className="mt-1 truncate text-[11px] text-ink-muted">
+                  <p className="mt-1 truncate text-xs text-ink/80">
                     <strong className="font-semibold">Path:</strong>{" "}
                     <code className="font-mono">{service.path}</code>
                   </p>
                 )}
                 {service.models && service.models.length > 0 && (
-                  <p className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-ink-muted">
+                  <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-ink/80">
                     <strong className="font-semibold">Models:</strong>
                     {service.models.map((model) => (
                       <Badge key={model} variant="info" size="xs" mono>

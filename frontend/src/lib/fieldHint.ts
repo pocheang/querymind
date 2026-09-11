@@ -28,5 +28,5 @@ const TONE: Record<FieldHintState, string> = {
 };
 
 export function fieldHintClass(state: FieldHintState): string {
-  return cn("text-[10px]", TONE[state]);
+  return cn("text-xs font-medium", TONE[state]);
 }

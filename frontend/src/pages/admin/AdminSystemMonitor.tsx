@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ResponsiveContainer,
@@ -107,7 +107,7 @@ export function AdminSystemMonitor() {
         <RowActions className="mb-4 justify-between">
           <SubTitle>{t("admin.systemMonitor.title", "Runtime Monitor")}</SubTitle>
           <RowActions>
-            <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+            <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink/80">
               <input
                 className="size-4 shrink-0 accent-[var(--brand)]"
                 type="checkbox"
@@ -130,7 +130,7 @@ export function AdminSystemMonitor() {
             value={
               <>
                 {snapshot.status.toUpperCase()}
-                <span className="mt-1 block text-[11px] font-normal text-ink-muted">
+                <span className="mt-1 block text-xs font-medium text-ink/75">
                   {new Date(snapshot.generated_at).toLocaleTimeString()}
                 </span>
               </>
@@ -154,7 +154,7 @@ export function AdminSystemMonitor() {
             value={
               <>
                 {snapshot.traffic.requests_total}
-                <span className="mt-1 block text-[11px] font-normal text-ink-muted">
+                <span className="mt-1 block text-xs font-medium text-ink/75">
                   {t("admin.systemMonitor.last", "Last")} {snapshot.traffic.window_seconds}s
                 </span>
               </>
@@ -312,13 +312,13 @@ export function AdminSystemMonitor() {
                 aria-hidden="true"
               />
               <div className="min-w-0">
-                <strong className="block truncate text-xs capitalize text-ink">{name}</strong>
-                <p className="mt-1 truncate text-[11px] text-ink-muted">
+                <strong className="block truncate text-xs sm:text-sm capitalize text-ink">{name}</strong>
+                <p className="mt-1 truncate text-xs text-ink/75">
                   {health.required ? t("common.required", "Required") : t("common.optional", "Optional")}
                   {health.latency_ms !== undefined && ` • ${health.latency_ms}ms`}
                 </p>
               </div>
-              <code className="font-mono text-[11px] text-ink-muted">{health.ok ? "OK" : "FAILED"}</code>
+              <code className="font-mono text-xs font-semibold text-ink/80">{health.ok ? "OK" : "FAILED"}</code>
             </div>
           ))}
         </div>

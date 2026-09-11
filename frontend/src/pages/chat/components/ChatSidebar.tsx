@@ -168,9 +168,9 @@ export function ChatSidebar({
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line-subtle px-3 py-2.5">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink">
+          <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-ink">
             {t("components.chat.sessions")}
-            <Badge variant="brand" size="xs" mono>
+            <Badge variant="brand" size="xs" mono className="text-xs">
               {sessions.length}
             </Badge>
           </span>
@@ -247,9 +247,9 @@ export function ChatSidebar({
         />
 
         <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line-subtle px-3 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2.5">
             <span className="relative shrink-0">
-              <span className="flex size-8 items-center justify-center rounded-control border border-brand-border bg-brand-surface text-[11px] font-bold text-brand-text">
+              <span className="flex size-8 items-center justify-center rounded-control border border-brand-border bg-brand-surface text-xs font-bold text-brand-text">
                 {user?.username?.charAt(0).toUpperCase() || "U"}
               </span>
               <span
@@ -258,10 +258,10 @@ export function ChatSidebar({
               />
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-[11px] font-semibold leading-tight text-ink">
+              <span className="block truncate text-xs sm:text-sm font-semibold leading-tight text-ink">
                 {user?.username || t("components.chat.userFallback")}
               </span>
-              <Badge variant="brand" size="xs" mono className="mt-0.5 uppercase tracking-wider">
+              <Badge variant="brand" size="xs" mono className="mt-0.5 text-xs uppercase tracking-wider">
                 {user?.role || "user"}
               </Badge>
             </span>

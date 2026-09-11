@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AdminFormField, AdminFormSelect } from "@/components/AdminFormField";
 import { appApi } from "@/lib/api";
@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
  */
 const BANNER = "mt-5 flex items-start gap-3 rounded-card border border-line border-l-[3px] p-4";
 const BANNER_MARK =
-  "flex-none rounded border px-[7px] py-1 font-mono text-[11px] font-extrabold tracking-[0.12em]";
+  "flex-none rounded border px-2 py-1 font-mono text-xs font-extrabold tracking-[0.12em]";
 
 const PROVIDERS: ModelProvider[] = ["local", "ollama", "openai", "deepseek", "anthropic", "custom"];
 
@@ -242,7 +242,7 @@ export function AdminModelSettings({
                     <span className="text-xs font-semibold text-ink">{item.component}</span>
                     <span className={effectiveStatusPill({ status: item.status })}>{item.status}</span>
                     <span className="text-xs text-ink-muted [overflow-wrap:anywhere]">{item.configured}</span>
-                    <p className="col-span-full m-0 text-[11px] text-ink-muted">{item.detail}</p>
+                    <p className="col-span-full m-0 text-xs text-ink/75">{item.detail}</p>
                   </li>
                 ))}
               </ul>
@@ -286,7 +286,7 @@ export function AdminModelSettings({
                 checked={Boolean(modelSettings.enabled)}
                 onChange={(event) => onPatch({ enabled: event.target.checked })}
               />
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+              <span className="text-xs font-bold uppercase tracking-wider text-ink/80">
                 {t(
                   "admin.ui.enableGlobalModelOverride",
                   "Apply this model configuration to every user (when off, the deployment's own environment is used)",

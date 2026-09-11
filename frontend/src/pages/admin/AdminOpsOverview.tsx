@@ -89,7 +89,7 @@ export function AdminOpsOverview({
             checked={opsAutoRefresh}
             onChange={(event) => onOpsAutoRefreshChange(event.target.checked)}
           />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+          <span className="text-xs font-bold uppercase tracking-wider text-ink/80">
             {t("admin.ui.autoRefresh30")}
           </span>
         </label>

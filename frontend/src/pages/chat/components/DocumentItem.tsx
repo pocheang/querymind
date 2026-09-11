@@ -54,12 +54,12 @@ export function DocumentItem({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-[11px] font-medium text-ink">{doc.filename}</span>
+            <span className="truncate text-xs sm:text-sm font-semibold text-ink">{doc.filename}</span>
             <Badge variant={statusVariant ?? "neutral"} size="xs">
               {statusLabel}
             </Badge>
           </div>
-          <p className="mt-0.5 truncate font-mono text-[10px] text-ink-muted">
+          <p className="mt-0.5 truncate font-mono text-xs text-ink/75">
             {t("components.workbench.docMeta", {
               chunks: doc.chunks,
               visibility: doc.visibility || "private",
@@ -71,7 +71,7 @@ export function DocumentItem({
             {typeof doc.triplets_written === "number" ? ` | graph=${doc.triplets_written}` : ""}
             {doc.indexing_stage ? ` | stage=${doc.indexing_stage}` : ""}
           </p>
-          {doc.indexing_error ? <p className="mt-0.5 text-[10px] text-danger">{doc.indexing_error}</p> : null}
+          {doc.indexing_error ? <p className="mt-0.5 text-xs font-medium text-danger">{doc.indexing_error}</p> : null}
         </div>
 
         {canManage && (

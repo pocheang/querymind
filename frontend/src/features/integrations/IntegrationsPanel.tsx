@@ -206,16 +206,16 @@ export function IntegrationsPanel() {
         </summary>
 
         <div className="space-y-2.5 border-t border-line-subtle p-3">
-          <p className="text-[11px] leading-relaxed text-ink-muted">{t("features.integrations.description")}</p>
+          <p className="text-xs sm:text-sm leading-relaxed text-ink/80">{t("features.integrations.description")}</p>
 
           {loading && (
-            <p aria-live="polite" className="py-3 text-center text-[11px] text-ink-muted">
+            <p aria-live="polite" className="py-3 text-center text-xs text-ink/75">
               {t("features.integrations.loading")}
             </p>
           )}
 
           {!loading && loadError === null && connectors.length === 0 && (
-            <p className="rounded-control border border-dashed border-line px-3 py-4 text-center text-[11px] text-ink-muted">
+            <p className="rounded-control border border-dashed border-line px-3 py-4 text-center text-xs sm:text-sm text-ink/75">
               {t("features.integrations.empty")}
             </p>
           )}
@@ -229,7 +229,7 @@ export function IntegrationsPanel() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 space-y-1">
-                      <p className="truncate text-[11px] font-semibold text-ink">{connector.name}</p>
+                      <p className="truncate text-xs sm:text-sm font-semibold text-ink">{connector.name}</p>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge variant={STATUS_TONE[connector.status] ?? "neutral"} size="xs">
                           {t(`features.integrations.status.${connector.status}`)}
@@ -237,7 +237,7 @@ export function IntegrationsPanel() {
                         <Badge variant={TEST_TONE[connector.test_status] ?? "neutral"} size="xs">
                           {t(`features.integrations.testStatus.${connector.test_status}`)}
                         </Badge>
-                        <span className="truncate font-mono text-[9px] text-ink-muted">{connector.connector_id}</span>
+                        <span className="truncate font-mono text-xs text-ink/75">{connector.connector_id}</span>
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -272,7 +272,7 @@ export function IntegrationsPanel() {
           )}
 
           <form className="space-y-2 rounded-control border border-line-subtle bg-surface p-2.5" onSubmit={(event) => void submit(event)}>
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-ink">
               {t("features.integrations.connectTitle")}
             </h3>
             {field("connector_id", t("features.integrations.integrationId"), {
@@ -301,8 +301,8 @@ export function IntegrationsPanel() {
               aria-live="polite"
               className={
                 shownNotice.tone === "error"
-                  ? "rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
-                  : "rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-[11px] text-success"
+                  ? "rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-xs font-semibold text-danger"
+                  : "rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-xs font-semibold text-success"
               }
             >
               {shownNotice.text}

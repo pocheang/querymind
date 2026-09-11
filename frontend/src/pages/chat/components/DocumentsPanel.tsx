@@ -61,22 +61,22 @@ export function DocumentsPanel({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+        <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
           {t("components.workbench.documents")}
         </span>
         <Button variant="ghost" size="xs" onClick={() => void onRefreshDocuments()}>
-          <RefreshCw className="size-3" aria-hidden="true" />
+          <RefreshCw className="size-3.5" aria-hidden="true" />
           {t("components.workbench.refresh")}
         </Button>
       </div>
 
       {canUploadAndManageDocs && (
-        <div className="space-y-1.5 rounded-control border border-line bg-surface p-2">
+        <div className="space-y-2 rounded-control border border-line bg-surface p-2.5">
           {isAdmin && (
             <select
               value={uploadVisibility}
               onChange={(event) => onUploadVisibilityChange((event.target.value as "private" | "public") || "private")}
-              className="w-full rounded-control border border-brand-border bg-surface px-2 py-1 text-[11px] text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+              className="w-full rounded-control border border-brand-border bg-surface px-2.5 py-1.5 text-xs sm:text-sm text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
             >
               <option value="private">{t("components.workbench.private")}</option>
               <option value="public">{t("components.workbench.public")}</option>
@@ -88,12 +88,12 @@ export function DocumentsPanel({
             multiple
             onChange={(event) => void onMainUploadChange(event)}
             accept={UPLOAD_ACCEPT_ATTRIBUTE}
-            className="w-full text-[10px] text-ink-muted file:mr-2 file:rounded-control file:border-0 file:bg-brand-surface file:px-2 file:py-1 file:text-[10px] file:font-semibold file:text-brand-text"
+            className="w-full text-xs text-ink/75 file:mr-2 file:rounded-control file:border-0 file:bg-brand-surface file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-brand-text"
           />
-          <p className="text-[10px] text-ink-muted">
+          <p className="text-xs text-ink/75">
             {uploading ? t("components.workbench.uploading") : t("components.workbench.uploadSupport")}
           </p>
-          {uploadInfo && <p className="text-[10px] text-brand-text">{uploadInfo}</p>}
+          {uploadInfo && <p className="text-xs font-semibold text-brand-text">{uploadInfo}</p>}
           {(uploading || uploadProgress > 0) && (
             <div className="space-y-1">
               <div className="h-1.5 w-full overflow-hidden rounded-pill bg-brand-surface-hover">
@@ -102,7 +102,7 @@ export function DocumentsPanel({
                   style={{ width: `${Math.round(uploadProgress)}%` }}
                 />
               </div>
-              <div className="font-mono text-[10px] text-ink-muted">
+              <div className="font-mono text-xs text-ink/75">
                 {uploadProgressText ||
                   t("components.workbench.uploadProgress", { progress: Math.round(uploadProgress) })}
               </div>
@@ -114,10 +114,10 @@ export function DocumentsPanel({
       {canUploadAndManageDocs && (
         <div
           className={cn(
-            "cursor-pointer rounded-control border-2 border-dashed p-2.5 text-center text-[10px] transition-colors",
+            "cursor-pointer rounded-control border-2 border-dashed p-3 text-center text-xs font-medium transition-colors",
             docDropActive
               ? "border-brand-accent bg-brand-surface-hover text-brand-text"
-              : "border-brand-border bg-brand-surface/30 text-ink-muted hover:bg-brand-surface/60"
+              : "border-brand-border bg-brand-surface/30 text-ink/75 hover:bg-brand-surface/60"
           )}
           onDragEnter={(event) => {
             event.preventDefault();
@@ -148,10 +148,10 @@ export function DocumentsPanel({
         </div>
       )}
       {!docsLoading && documents.length === 0 && (
-        <p className="py-3 text-center text-[10px] text-ink-muted">{t("components.workbench.noIndexedDocuments")}</p>
+        <p className="py-3 text-center text-xs text-ink/75">{t("components.workbench.noIndexedDocuments")}</p>
       )}
       {!docsLoading && pdfDocuments.length > 0 && (
-        <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+        <p className="pt-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">
           {t("components.workbench.pdfImageDocs", { count: pdfDocuments.length })}
         </p>
       )}
@@ -168,7 +168,7 @@ export function DocumentsPanel({
           />
         ))}
       {!docsLoading && nonPdfDocuments.length > 0 && (
-        <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+        <p className="pt-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">
           {t("components.workbench.otherDocs", { count: nonPdfDocuments.length })}
         </p>
       )}

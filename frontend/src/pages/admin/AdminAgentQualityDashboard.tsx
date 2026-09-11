@@ -181,7 +181,7 @@ export function AdminAgentQualityDashboard() {
           ))}
         </select>
 
-        <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 whitespace-nowrap rounded-control border border-transparent px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted transition-colors hover:border-brand-border hover:bg-brand-surface">
+        <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 whitespace-nowrap rounded-control border border-transparent px-3 py-2 text-xs font-bold uppercase tracking-wider text-ink/80 transition-colors hover:border-brand-border hover:bg-brand-surface">
           <input className="size-3.5 shrink-0 accent-[var(--brand)]" type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} />
           <span>{t("admin.ui.autoRefresh30", "Auto refresh every 30s")}</span>
         </label>
@@ -216,7 +216,7 @@ export function AdminAgentQualityDashboard() {
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={stats.timeline}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                  <XAxis dataKey="timestamp" stroke={CHART_AXIS} fontSize={10} />
+                  <XAxis dataKey="timestamp" stroke={CHART_AXIS} fontSize={11} />
                   <YAxis stroke={CHART_AXIS} fontSize={12} />
                   <Tooltip
                     contentStyle={CHART_TOOLTIP}
@@ -269,7 +269,7 @@ export function AdminAgentQualityDashboard() {
                         </td>
                         <td className="text-right font-mono">{agent.avg_execution_time.toFixed(2)}s</td>
                         <td className="text-right font-mono">{agent.avg_token_usage.toFixed(0)}</td>
-                        <td className="font-mono text-[11px]">
+                        <td className="font-mono text-xs">
                           {agent.last_execution ? new Date(agent.last_execution).toLocaleString() : "N/A"}
                         </td>
                         <td className="text-center">

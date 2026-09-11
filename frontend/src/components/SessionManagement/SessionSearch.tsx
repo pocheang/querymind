@@ -116,19 +116,19 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
   const totalPages = Math.ceil(total / pageSize);
 
   const SELECT =
-    "h-7 rounded-control border border-brand-border bg-surface px-1.5 text-[11px] text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]";
+    "h-7 rounded-control border border-brand-border bg-surface px-2 text-xs text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]";
 
   return (
     <div className="space-y-3">
       <div className="space-y-2">
-        <h3 className="text-xs font-bold text-ink">{t("sessionManagement.searchSessions")}</h3>
+        <h3 className="text-sm font-bold text-ink">{t("sessionManagement.searchSessions")}</h3>
 
         <div className="flex items-center gap-1.5">
-          <label className="field-shell flex flex-1 items-center gap-1.5 rounded-control border border-brand-border bg-surface px-2.5 py-1.5 transition-all focus-within:border-brand-accent focus-within:ring-2 focus-within:ring-[var(--brand-ring)]">
-            <Search className="size-3.5 shrink-0 text-ink-faint" aria-hidden="true" />
+          <label className="field-shell flex flex-1 items-center gap-2 rounded-control border border-brand-border bg-surface px-2.5 py-1.5 transition-all focus-within:border-brand-accent focus-within:ring-2 focus-within:ring-[var(--brand-ring)]">
+            <Search className="size-4 shrink-0 text-ink-faint" aria-hidden="true" />
             <input
               type="text"
-              className="w-full bg-transparent text-xs text-ink placeholder:text-ink-faint focus-visible:outline-none"
+              className="w-full bg-transparent text-xs sm:text-sm text-ink placeholder:text-ink-faint focus-visible:outline-none"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -144,7 +144,7 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
 
       <div className="space-y-2">
         <Button variant="ghost" size="xs" onClick={() => setShowFilters(!showFilters)}>
-          <SlidersHorizontal className="size-3" aria-hidden="true" />
+          <SlidersHorizontal className="size-3.5" aria-hidden="true" />
           {showFilters ? t("common.hideFilters") : t("common.showFilters")}
         </Button>
 
@@ -216,11 +216,11 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
       {!loading && results.length > 0 && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[11px] font-semibold text-ink">
+            <span className="text-xs sm:text-sm font-semibold text-ink">
               {t("sessionManagement.resultsCount", { count: total })}
             </span>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-ink-muted">{t("common.sortBy")}:</span>
+              <span className="text-xs font-medium text-ink/80">{t("common.sortBy")}:</span>
               <select className={SELECT} value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
                 <option value="updated_at">{t("sessionManagement.sortUpdated")}</option>
                 <option value="created_at">{t("sessionManagement.sortCreated")}</option>
@@ -233,46 +233,46 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {results.map((result) => (
               <div
                 key={result.session_id}
-                className="cursor-pointer rounded-card border border-line bg-surface p-2.5 transition-all hover:border-brand-border-strong hover:bg-brand-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+                className="cursor-pointer rounded-card border border-line bg-surface p-3 transition-all hover:border-brand-border-strong hover:bg-brand-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                 role="button"
                 tabIndex={0}
                 onClick={() => handleResultClick(result.session_id)}
                 onKeyDown={activateOnKey(() => handleResultClick(result.session_id))}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-mono text-[11px] font-semibold text-ink">{result.session_id}</span>
+                  <span className="truncate font-mono text-xs sm:text-sm font-semibold text-ink">{result.session_id}</span>
                   <Badge variant="brand" size="xs" mono>
                     {t("sessionManagement.score")}: {result.score.toFixed(2)}
                   </Badge>
                 </div>
 
                 {result.metadata.description && (
-                  <p className="mt-1 line-clamp-2 text-[11px] text-ink-muted">{result.metadata.description}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-ink/80 leading-relaxed">{result.metadata.description}</p>
                 )}
 
-                <dl className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-ink-muted">
+                <dl className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink/80">
                   <div className="flex gap-1">
-                    <dt>{t("sessionManagement.category")}:</dt>
+                    <dt className="font-medium">{t("sessionManagement.category")}:</dt>
                     <dd className="text-ink">
                       {result.metadata.category ? t(`sessionManagement.categories.${result.metadata.category}`) : "-"}
                     </dd>
                   </div>
                   <div className="flex gap-1">
-                    <dt>{t("sessionManagement.queries")}:</dt>
+                    <dt className="font-medium">{t("sessionManagement.queries")}:</dt>
                     <dd className="font-mono text-ink">{result.metadata.query_count}</dd>
                   </div>
                   <div className="flex gap-1">
-                    <dt>{t("common.updated")}:</dt>
+                    <dt className="font-medium">{t("common.updated")}:</dt>
                     <dd className="font-mono text-ink">{formatDate(result.metadata.updated_at)}</dd>
                   </div>
                 </dl>
 
                 {result.metadata.tags.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-1">
+                  <div className="mt-2 flex flex-wrap gap-1">
                     {result.metadata.tags.map((tag) => (
                       <Badge key={tag} variant={result.matched_tags?.includes(tag) ? "brand" : "neutral"} size="pill">
                         {tag}
@@ -285,11 +285,11 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between gap-2 border-t border-line-subtle pt-2">
+            <div className="flex items-center justify-between gap-2 border-t border-line-subtle pt-2.5">
               <Button variant="secondary" size="xs" onClick={() => setPage(page - 1)} disabled={page === 0}>
                 {t("common.previous")}
               </Button>
-              <span className="font-mono text-[10px] text-ink-muted">
+              <span className="font-mono text-xs font-medium text-ink/80">
                 {t("common.pageOf", { current: page + 1, total: totalPages })}
               </span>
               <Button variant="secondary" size="xs" onClick={() => setPage(page + 1)} disabled={page >= totalPages - 1}>
@@ -301,19 +301,10 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
       )}
 
       {!loading && results.length === 0 && (
-        <div className="space-y-1.5 py-8 text-center">
-          <Search className="mx-auto size-6 text-ink-faint" strokeWidth={1.5} aria-hidden="true" />
-          <h4 className="text-xs font-semibold text-ink">{t("sessionManagement.noResults")}</h4>
-          {/*
-            This searches session METADATA -- tags, category, description --
-            which only exists once somebody writes it: `POST /sessions` creates a
-            session in the history store and no metadata at all. So on an
-            ordinary account every search returns nothing, and "try adjusting
-            your search criteria" sends the reader to fix a query that could
-            never have matched. Say what is actually true and name the tab that
-            fixes it.
-          */}
-          <p className="text-[11px] text-ink-muted">
+        <div className="space-y-2 py-8 text-center">
+          <Search className="mx-auto size-7 text-ink-faint" strokeWidth={1.5} aria-hidden="true" />
+          <h4 className="text-sm font-semibold text-ink">{t("sessionManagement.noResults")}</h4>
+          <p className="text-xs sm:text-sm text-ink/80">
             {t("sessionManagement.searchesMetadataOnly")}
           </p>
         </div>

@@ -103,8 +103,8 @@ export function CommandPalette({
 
   if (!open) return null;
 
-  const item = "flex cursor-pointer items-center gap-2.5 rounded-control px-2.5 py-2 text-xs text-ink data-[selected=true]:bg-brand-surface data-[selected=true]:text-brand-text-strong";
-  const group = "[&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-ink-muted";
+  const item = "flex cursor-pointer items-center gap-2.5 rounded-control px-2.5 py-2 text-xs sm:text-sm font-medium text-ink data-[selected=true]:bg-brand-surface data-[selected=true]:text-brand-text-strong";
+  const group = "[&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-ink/80";
 
   return (
     <>
@@ -120,28 +120,28 @@ export function CommandPalette({
           className="glass-panel overflow-hidden rounded-panel shadow-elev-3 animate-in fade-in-0 zoom-in-95"
           loop
         >
-          <div className="flex items-center gap-2 border-b border-line px-3">
+          <div className="flex items-center gap-2.5 border-b border-line px-3">
             <Command.Input
               ref={inputRef}
               value={search}
               onValueChange={setSearch}
               placeholder={t("components.commandPalette.placeholder", "Type a command or search…")}
-              className="h-11 w-full bg-transparent text-xs text-ink outline-none placeholder:text-ink-faint"
+              className="h-11 w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-faint"
             />
-            <kbd className="shrink-0 rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-[10px] text-ink-muted">
+            <kbd className="shrink-0 rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-ink/80">
               Esc
             </kbd>
           </div>
 
           <Command.List className="max-h-[min(24rem,60vh)] overflow-y-auto p-1.5">
-            <Command.Empty className="px-2.5 py-6 text-center text-[11px] text-ink-muted">
+            <Command.Empty className="px-2.5 py-6 text-center text-xs sm:text-sm text-ink/80">
               {t("components.commandPalette.empty", "No matching command")}
             </Command.Empty>
 
             <Command.Group heading={t("components.commandPalette.navigate", "Go to")} className={group}>
               {views.map(({ icon: Icon, label, to }) => (
                 <Command.Item key={to} value={`go ${label}`} onSelect={run(() => navigate(to))} className={item}>
-                  <Icon className="size-3.5 shrink-0 text-brand-accent" aria-hidden="true" />
+                  <Icon className="size-4 shrink-0 text-brand-accent" aria-hidden="true" />
                   {label}
                 </Command.Item>
               ))}
@@ -198,7 +198,7 @@ export function CommandPalette({
                 >
                   <Globe className="size-3.5 shrink-0 text-brand-accent" aria-hidden="true" />
                   {t("components.commandPalette.switchLanguage", "Switch language")}
-                  <span className="ml-auto font-mono text-[10px] text-ink-muted">
+                  <span className="ml-auto font-mono text-xs font-semibold text-ink/80">
                     {i18n.language === "zh" ? "EN" : "ZH"}
                   </span>
                 </Command.Item>
@@ -262,7 +262,7 @@ function Shortcut({ keys }: Readonly<{ keys: string }>) {
   return (
     <span className="ml-auto flex shrink-0 items-center gap-1">
       {keys.split(" ").map((k) => (
-        <kbd key={k} className="rounded border border-line bg-surface-muted px-1 py-0.5 font-mono text-[10px] text-ink-muted">
+        <kbd key={k} className="rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-ink/80">
           {k}
         </kbd>
       ))}

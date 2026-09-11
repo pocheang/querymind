@@ -44,11 +44,11 @@ export function PromptTemplates({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+        <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
           {t("components.workbench.promptTemplates")}
         </span>
         <Button variant="ghost" size="xs" onClick={() => void onRefreshPrompts()}>
-          <RefreshCw className="size-3" aria-hidden="true" />
+          <RefreshCw className="size-3.5" aria-hidden="true" />
           {t("components.workbench.refresh")}
         </Button>
       </div>
@@ -74,7 +74,7 @@ export function PromptTemplates({
         </Button>
       </div>
 
-      {promptCheckInfo && <p className="text-[10px] text-brand-text">{promptCheckInfo}</p>}
+      {promptCheckInfo && <p className="text-xs font-semibold text-brand-text">{promptCheckInfo}</p>}
 
       {promptsLoading && (
         <div className="space-y-1.5">
@@ -85,14 +85,14 @@ export function PromptTemplates({
       )}
 
       {!promptsLoading && prompts.length === 0 && (
-        <p className="py-3 text-center text-[10px] text-ink-muted">{t("components.workbench.noTemplates")}</p>
+        <p className="py-3 text-center text-xs text-ink/75">{t("components.workbench.noTemplates")}</p>
       )}
 
       {!promptsLoading &&
         prompts.map((prompt) => (
-          <div key={prompt.prompt_id} className="rounded-control border border-line bg-surface p-2">
-            <p className="truncate text-[11px] font-medium text-ink">{prompt.title}</p>
-            <p className="mt-0.5 truncate font-mono text-[10px] text-ink-muted">
+          <div key={prompt.prompt_id} className="rounded-control border border-line bg-surface p-2.5">
+            <p className="truncate text-xs sm:text-sm font-semibold text-ink">{prompt.title}</p>
+            <p className="mt-0.5 truncate font-mono text-xs text-ink/75">
               agent={prompt.agent_class || "general"} | {(prompt.content || "").slice(0, 72)}
             </p>
             <div className="mt-1.5 flex flex-wrap gap-1">

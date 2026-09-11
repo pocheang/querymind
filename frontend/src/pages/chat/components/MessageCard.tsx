@@ -97,7 +97,7 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
           aria-label={t("components.messages.userMessage")}
         >
           <div className="min-w-0 max-w-2xl space-y-1">
-            <div className="flex items-center justify-end gap-2 text-[11px] text-ink-muted">
+            <div className="flex items-center justify-end gap-2 text-xs text-ink/80">
               {rowActions}
               {timestamp && <span className="font-mono">{timestamp}</span>}
               <span className="font-semibold text-ink">{t("components.messages.you")}</span>
@@ -107,7 +107,7 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
             </div>
           </div>
           <span
-            className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-control border border-brand-border-strong bg-surface text-[11px] font-bold text-brand-text"
+            className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-control border border-brand-border-strong bg-surface text-xs font-bold text-brand-text"
             aria-hidden="true"
           >
             {t("components.messages.you").slice(0, 1).toUpperCase()}
@@ -139,7 +139,7 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
         </span>
 
         <div className="min-w-0 max-w-3xl flex-1 space-y-2">
-          <div className="flex items-center gap-2 text-[11px] text-ink-muted">
+          <div className="flex items-center gap-2 text-xs text-ink/80">
             <span className="flex items-center gap-1 font-bold text-brand-text-strong">
               {t("components.messages.assistant")}
               <span className="size-1.5 rounded-pill bg-success" aria-hidden="true" />
@@ -173,12 +173,12 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
                   <div className="space-y-2">
                     <button
                       type="button"
-                      className="flex items-center gap-1.5 rounded-control text-[11px] font-medium text-ink-muted transition-colors hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+                      className="flex items-center gap-1.5 rounded-control text-xs sm:text-sm font-semibold text-ink/80 transition-colors hover:text-brand-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                       onClick={() => setProcessExpanded(!processExpanded)}
                       aria-expanded={processExpanded}
                     >
                       <ChevronDown
-                        className={cn("size-3 transition-transform", processExpanded && "rotate-180")}
+                        className={cn("size-3.5 transition-transform", processExpanded && "rotate-180")}
                         aria-hidden="true"
                       />
                       {t("components.messages.thoughtFor", {
@@ -188,7 +188,7 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
                     </button>
 
                     {processExpanded && (
-                      <ol className="space-y-1 border-l-2 border-brand-border pl-3">
+                      <ol className="space-y-1.5 border-l-2 border-brand-border pl-3">
                         {(metadata.execution_steps || [])
                           .filter(
                             (step) =>
@@ -197,7 +197,7 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
                               )
                           )
                           .map((step, index) => (
-                            <li key={`${message.message_id}-step-${index}`} className="text-[11px]">
+                            <li key={`${message.message_id}-step-${index}`} className="text-xs sm:text-sm">
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge variant="info" size="xs" mono className="uppercase">
                                   {step.kind || "step"}
@@ -206,12 +206,12 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
                                   {step.label || t("components.messages.processing")}
                                 </strong>
                                 {step.at && (
-                                  <span className="font-mono text-[10px] text-ink-faint">
+                                  <span className="font-mono text-xs text-ink/60">
                                     {new Date(step.at).toLocaleTimeString(timeLocale, { hour12: false })}
                                   </span>
                                 )}
                               </div>
-                              {step.detail && <p className="mt-0.5 text-ink-muted">{step.detail}</p>}
+                              {step.detail && <p className="mt-0.5 text-ink/75">{step.detail}</p>}
                             </li>
                           ))}
                       </ol>
@@ -224,7 +224,7 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
                     title={t("components.messages.thoughts")}
                     ariaLabel={t("components.messages.toggleThoughts")}
                   >
-                    <ul className="space-y-1 text-[11px] text-ink-muted">
+                    <ul className="space-y-1 text-xs sm:text-sm leading-relaxed text-ink/85">
                       {(metadata.thoughts || []).slice(-8).map((thought, index) => (
                         <li key={`${message.message_id}-thought-${index}`}>{thought}</li>
                       ))}
@@ -237,13 +237,13 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
                     title={t("components.messages.toolRuns")}
                     ariaLabel={t("components.messages.toggleToolRuns")}
                   >
-                    <ul className="space-y-1 text-[11px]">
+                    <ul className="space-y-1.5 text-xs sm:text-sm text-ink/90">
                       {(metadata.tool_runs || []).map((run, index) => (
                         <li key={`${message.message_id}-tool-${index}`} className="flex flex-wrap items-center gap-1.5">
                           <Badge variant="brand" size="xs" mono>
                             {run.tool_id}
                           </Badge>
-                          <span className="text-ink-muted">
+                          <span className="text-ink/80">
                             {t(`components.messages.toolStatus.${run.status}`, { defaultValue: run.status })}
                             {run.summary ? `: ${run.summary}` : ""}
                           </span>
@@ -260,23 +260,23 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
                   >
                     {/* Not truncated: the answer cites these by number, so hiding
                         an entry leaves a [n] in the text resolving to nothing. */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {(metadata.citations || []).map((citation, index) => (
                         <div
                           key={`${message.message_id}-cit-${index}`}
-                          className="rounded-control border border-brand-border bg-brand-surface/60 p-2"
+                          className="rounded-control border border-brand-border bg-brand-surface/60 p-2.5"
                         >
                           <div className="flex items-center gap-1.5">
                             {citation.marker && (
-                              <span className="flex size-4 shrink-0 items-center justify-center rounded bg-brand font-mono text-[9px] font-bold text-white">
+                              <span className="flex size-5 shrink-0 items-center justify-center rounded bg-brand font-mono text-xs font-bold text-white">
                                 {citation.marker.replace(/[[\]]/g, "")}
                               </span>
                             )}
-                            <span className="truncate font-mono text-[11px] font-semibold text-brand-text-strong">
+                            <span className="truncate font-mono text-xs sm:text-sm font-semibold text-brand-text-strong">
                               {citation.source || "unknown"}
                             </span>
                           </div>
-                          <div className="mt-1 text-[11px] text-ink-muted select-text">
+                          <div className="mt-1 text-xs sm:text-sm text-ink/85 select-text">
                             <MarkdownBlock text={citation.content || ""} />
                           </div>
                         </div>
@@ -290,7 +290,7 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
                     title={t("components.messages.qualityReport")}
                     ariaLabel={t("components.messages.toggleQualityReport")}
                   >
-                    <pre className="max-h-48 overflow-auto rounded-control border border-line bg-surface p-2 font-mono text-[10px] text-ink select-text">
+                    <pre className="max-h-48 overflow-auto rounded-control border border-line bg-surface p-2.5 font-mono text-xs text-ink select-text">
                       {JSON.stringify(metadata.quality_report, null, 2)}
                     </pre>
                   </CollapsibleSection>

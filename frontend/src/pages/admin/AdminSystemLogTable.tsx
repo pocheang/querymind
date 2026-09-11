@@ -40,7 +40,7 @@ type Props = {
 /** A logger name or a source location: one mono line in a warm chip. */
 const LOG_CODE =
   "inline-flex min-h-[26px] max-w-full items-center overflow-hidden text-ellipsis whitespace-nowrap " +
-  "rounded-control border border-brand-border bg-brand-surface px-2.5 font-mono text-[11px] leading-tight text-ink";
+  "rounded-control border border-brand-border bg-brand-surface px-2.5 font-mono text-xs leading-tight text-ink";
 
 /**
  * A message or a stack trace. These are the two cells in this table that WRAP
@@ -162,7 +162,7 @@ export function AdminSystemLogTable({
                 {paginatedSystemLogs.map((x, idx) => (
                   <tr key={`${x.created_at}-${idx}`}>
                     <td>
-                      <span className="font-mono text-[11px] text-ink-muted">{formatAuditTime(x.created_at)}</span>
+                      <span className="font-mono text-xs text-ink/75">{formatAuditTime(x.created_at)}</span>
                     </td>
                     <td>
                       <AuditBadge value={x.level} kind="severity" />
@@ -173,7 +173,7 @@ export function AdminSystemLogTable({
                           {x.logger || "-"}
                         </span>
                         {x.thread ? (
-                          <span className="truncate font-mono text-[11px] text-ink-muted" title={x.thread}>
+                          <span className="truncate font-mono text-xs text-ink/75" title={x.thread}>
                             thread: {x.thread}
                           </span>
                         ) : null}

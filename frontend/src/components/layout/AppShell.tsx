@@ -90,8 +90,8 @@ export function PageHeader({
   return (
     <div className="glass-panel flex shrink-0 flex-wrap items-center justify-between gap-3 border-x-0 border-t-0 px-4 py-3">
       <div className="min-w-0">
-        <h1 className="text-sm font-bold tracking-tight text-ink">{title}</h1>
-        {description && <p className="mt-0.5 text-[11px] text-ink-muted">{description}</p>}
+        <h1 className="text-base sm:text-lg font-bold tracking-tight text-ink">{title}</h1>
+        {description && <p className="mt-0.5 text-xs sm:text-sm font-medium text-ink/80">{description}</p>}
       </div>
       {actions && <div className="flex items-center gap-1.5">{actions}</div>}
     </div>

@@ -1,6 +1,6 @@
 import type React from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Loader2, Paperclip, Square } from "lucide-react";
+import { ArrowRight, EyeOff, Loader2, Paperclip, Square } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ type Props = {
   onComposerDragLeave: (evt: React.DragEvent<HTMLElement>) => void;
   onComposerDrop: (evt: React.DragEvent<HTMLElement>) => Promise<void>;
   onChatUploadChange: (evt: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  onToggleSections?: () => void;
 };
 
 /**
@@ -50,6 +51,7 @@ export function ChatComposer({
   onComposerDragLeave,
   onComposerDrop,
   onChatUploadChange,
+  onToggleSections,
 }: Readonly<Props>) {
   const { t } = useTranslation();
   const question = useChatStore((s) => s.question);
@@ -123,7 +125,7 @@ export function ChatComposer({
                 title={t("components.chat.uploadFiles")}
               >
                 <Paperclip className="size-4" aria-hidden="true" />
-                <span className="hidden text-[11px] sm:inline">{t("components.chat.uploadFiles")}</span>
+                <span className="hidden text-xs sm:text-sm font-medium sm:inline">{t("components.chat.uploadFiles")}</span>
                 <input
                   ref={chatUploadInputRef}
                   type="file"
@@ -138,6 +140,19 @@ export function ChatComposer({
               <Badge variant="brand" size="pill" mono className="hidden truncate sm:inline-flex">
                 {t("components.chat.modeHint.advancedReasoning")}
               </Badge>
+
+              {onToggleSections && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onToggleSections}
+                  title={t("components.chat.hideSections")}
+                  aria-label={t("components.chat.hideSections")}
+                >
+                  <EyeOff aria-hidden="true" />
+                </Button>
+              )}
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5">
@@ -162,18 +177,18 @@ export function ChatComposer({
         </div>
       </div>
 
-      <p className="mt-1 text-center text-[10px] text-ink-muted" id="composer-hint">
-        <kbd className="rounded border border-line bg-surface-muted px-1 font-mono">Ctrl</kbd>
+      <p className="mt-1 text-center text-xs text-ink/75" id="composer-hint">
+        <kbd className="rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-ink">Ctrl</kbd>
         {" / "}
-        <kbd className="rounded border border-line bg-surface-muted px-1 font-mono">Cmd</kbd>
+        <kbd className="rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-ink">Cmd</kbd>
         {" + "}
-        <kbd className="rounded border border-line bg-surface-muted px-1 font-mono">Enter</kbd>{" "}
+        <kbd className="rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-ink">Enter</kbd>{" "}
         {t("components.chat.composerDropHint")}
       </p>
 
       {runStatus && (
-        <p className="mt-1 flex items-center justify-center gap-1.5 text-[10px] text-brand-text" role="status">
-          <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+        <p className="mt-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-brand-text" role="status">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
           {runStatus}
         </p>
       )}

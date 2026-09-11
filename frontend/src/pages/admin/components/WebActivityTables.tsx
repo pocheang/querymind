@@ -168,7 +168,7 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
               <tbody>
                 {alerts.map((alert) => (
                   <tr key={`${alert.timestamp}-${alert.rule_name}`}>
-                    <td className="font-mono text-[11px]">
+                    <td className="font-mono text-xs">
                       {formatAlertTime(alert.timestamp)}
                     </td>
                     <td className="text-center">

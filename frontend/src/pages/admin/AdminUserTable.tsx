@@ -35,7 +35,7 @@ const STICKY_HEAD = "z-[3] bg-brand-surface-hover shadow-[1px_0_0_var(--brand-bo
 const STICKY_CELL = "group-hover/row:bg-brand-surface";
 
 /** A small uppercase state pill: online, token set, unlimited credits. */
-const FLAG = "inline-flex min-h-[22px] items-center justify-center whitespace-nowrap rounded-pill border px-2 text-[10px] font-bold uppercase tracking-wide";
+const FLAG = "inline-flex min-h-[24px] items-center justify-center whitespace-nowrap rounded-pill border px-2.5 text-xs font-bold uppercase tracking-wide";
 const FLAG_TONE = {
   on: "border-success-border bg-success-surface text-success",
   active: "border-info-border bg-info-surface text-info",
@@ -78,7 +78,7 @@ export function AdminUserTable({
             <td className={cn(STICKY[0], STICKY_CELL)}>
               <CellStack>
                 <span className="block truncate font-bold text-ink">{row.username}</span>
-                <span className="truncate font-mono text-[11px] text-ink-muted" title={row.user_id}>
+                <span className="truncate font-mono text-xs text-ink/75" title={row.user_id}>
                   {row.user_id}
                 </span>
               </CellStack>
@@ -143,19 +143,19 @@ export function AdminUserTable({
             <td>
               <CellStack>
                 <span className="truncate">{renderValue(row.business_unit)}</span>
-                <span className="truncate font-mono text-[11px] text-ink-muted">{renderValue(row.department)}</span>
+                <span className="truncate font-mono text-xs text-ink/75">{renderValue(row.department)}</span>
               </CellStack>
             </td>
             <td>
               <CellStack>
                 <span className="truncate">{renderValue(row.user_type)}</span>
-                <span className="truncate font-mono text-[11px] text-ink-muted">{renderValue(row.data_scope)}</span>
+                <span className="truncate font-mono text-xs text-ink/75">{renderValue(row.data_scope)}</span>
               </CellStack>
             </td>
             <td>
               <CellStack>
                 <span className="truncate">{renderValue(row.created_by_username || row.created_by_user_id)}</span>
-                <span className="truncate font-mono text-[11px] text-ink-muted">
+                <span className="truncate font-mono text-xs text-ink/75">
                   {renderValue(row.admin_ticket_id)}
                 </span>
               </CellStack>

@@ -150,13 +150,13 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
   };
 
   const RADIO = "size-3.5 shrink-0 accent-[var(--brand)]";
-  const ROW = "flex items-center gap-1.5 text-[11px] text-ink";
+  const ROW = "flex items-center gap-2 text-xs sm:text-sm font-medium text-ink";
 
   return (
     <div className="space-y-4">
       {sessionId && (
         <section className="space-y-2">
-          <h3 className="text-xs font-bold text-ink">{t("sessionManagement.exportSession")}</h3>
+          <h3 className="text-sm font-bold text-ink">{t("sessionManagement.exportSession")}</h3>
 
           <div className="space-y-1.5">
             <Label>{t("sessionManagement.exportFormat")}</Label>
@@ -215,8 +215,8 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
             <div className="flex items-center gap-2 text-left">
               <FileText className="size-5 shrink-0 text-brand-accent" aria-hidden="true" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[11px] font-medium text-ink">{selectedFile.name}</p>
-                <p className="font-mono text-[10px] text-ink-muted">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                <p className="truncate text-xs sm:text-sm font-semibold text-ink">{selectedFile.name}</p>
+                <p className="font-mono text-xs text-ink/75">{(selectedFile.size / 1024).toFixed(1)} KB</p>
               </div>
               <Button
                 variant="destructive-ghost"
@@ -231,11 +231,11 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
               </Button>
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <UploadCloud className="mx-auto size-6 text-brand-accent" strokeWidth={1.5} aria-hidden="true" />
-              <p className="text-[11px] font-medium text-ink">{t("sessionManagement.dragDropFile")}</p>
-              <p className="text-[10px] text-ink-muted">{t("sessionManagement.orClickToSelect")}</p>
-              <p className="font-mono text-[10px] text-ink-faint">JSON or ZIP</p>
+              <p className="text-xs sm:text-sm font-semibold text-ink">{t("sessionManagement.dragDropFile")}</p>
+              <p className="text-xs text-ink/75">{t("sessionManagement.orClickToSelect")}</p>
+              <p className="font-mono text-xs text-ink/60">JSON or ZIP</p>
             </div>
           )}
         </div>
@@ -255,23 +255,23 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
                 <option value="overwrite">{t("sessionManagement.strategies.overwrite")}</option>
                 <option value="rename">{t("sessionManagement.strategies.rename")}</option>
               </select>
-              <p className="text-[10px] text-ink-muted">{t(`sessionManagement.strategiesHelp.${conflictStrategy}`)}</p>
+              <p className="text-xs text-ink/80">{t(`sessionManagement.strategiesHelp.${conflictStrategy}`)}</p>
             </div>
 
             <Button size="sm" onClick={handleImport} disabled={importing}>
-              {importing && <Loader2 className="size-3 animate-spin" aria-hidden="true" />}
+              {importing && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
               {t("sessionManagement.import")}
             </Button>
           </>
         )}
 
         {importResult && (
-          <div className="space-y-1.5 rounded-card border border-success-border bg-success-surface p-2.5">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-success">
-              <CheckCircle2 className="size-3.5" aria-hidden="true" />
+          <div className="space-y-2 rounded-card border border-success-border bg-success-surface p-3">
+            <p className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-success">
+              <CheckCircle2 className="size-4" aria-hidden="true" />
               {t("sessionManagement.importSuccessful")}
             </p>
-            <dl className="space-y-0.5 text-[10px]">
+            <dl className="space-y-1 text-xs">
               {[
                 [t("sessionManagement.sessionId"), importResult.session_id],
                 ...(importResult.conflict_occurred
@@ -282,7 +282,7 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
                 [t("sessionManagement.contextImported"), importResult.context_imported ? "yes" : "no"],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-2">
-                  <dt className="text-ink-muted">{label}:</dt>
+                  <dt className="font-medium text-ink/80">{label}:</dt>
                   <dd className="truncate font-mono text-ink">{value}</dd>
                 </div>
               ))}
@@ -294,7 +294,7 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
       {error && (
         <p
           role="alert"
-          className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+          className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-xs font-medium text-danger"
         >
           {error}
         </p>

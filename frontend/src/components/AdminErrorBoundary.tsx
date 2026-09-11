@@ -47,14 +47,14 @@ export class AdminErrorBoundary extends Component<Props, State> {
             <div className="mb-4 text-5xl" aria-hidden="true">
               ⚠️
             </div>
-            <h2 className="mb-4 text-sm font-bold text-ink">Admin Console Error</h2>
-            <p className="mb-6 text-xs text-ink-muted">
+            <h2 className="mb-4 text-base sm:text-lg font-bold text-ink">Admin Console Error</h2>
+            <p className="mb-6 text-sm text-ink/80 leading-relaxed">
               Something went wrong loading the admin console.
             </p>
             {this.state.error && (
               <details className="mb-6 text-left">
-                <summary className="mb-2 cursor-pointer text-[11px] text-ink-muted">Error details</summary>
-                <pre className="overflow-auto rounded-control bg-surface-muted p-2 font-mono text-[11px] text-ink">
+                <summary className="mb-2 cursor-pointer text-xs font-semibold text-ink/80">Error details</summary>
+                <pre className="overflow-auto rounded-control bg-surface-muted p-2.5 font-mono text-xs text-ink">
                   {this.state.error.message}
                 </pre>
               </details>

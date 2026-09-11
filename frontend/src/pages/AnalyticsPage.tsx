@@ -39,11 +39,11 @@ const TOOLTIP_STYLE = {
   background: "var(--surface)",
   border: "1px solid var(--brand-border)",
   borderRadius: "var(--shape-control)",
-  fontSize: "11px",
+  fontSize: "12px",
   color: "var(--text-main)",
 } as const;
-const AXIS_TICK = { fill: "var(--text-muted)", fontSize: 10 } as const;
-const LEGEND_STYLE = { fontSize: "11px" } as const;
+const AXIS_TICK = { fill: "var(--text-muted)", fontSize: 11 } as const;
+const LEGEND_STYLE = { fontSize: "12px" } as const;
 
 export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
   const { t } = useTranslation();
@@ -137,10 +137,10 @@ export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
         }
       />
 
-      <div className="mx-auto w-full max-w-6xl space-y-4 p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-6xl space-y-5 p-4 sm:p-6">
         {error && (
           <p
-            className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+            className="rounded-control border border-danger-border bg-danger-surface px-3 py-2 text-xs sm:text-sm font-medium text-danger"
             role="alert"
           >
             {error}
@@ -149,7 +149,7 @@ export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
 
         {/* KPI tiles: the design's fixed three-line rhythm -- uppercase micro
             label, big mono number, optional note. */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
           {[
             { label: t("pages.analytics.totalQueries"), value: overview?.total_queries ?? 0 },
             {
@@ -168,17 +168,17 @@ export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
               value: overview?.avg_retrieved_count ? overview.avg_retrieved_count.toFixed(1) : "0",
             },
           ].map(({ label, value, note }) => (
-            <Card key={label} className="p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">{label}</p>
-              <p className="mt-1 font-mono text-2xl font-bold text-brand-text-strong">{value}</p>
-              {note && <p className="mt-0.5 text-[10px] text-ink-muted">{note}</p>}
+            <Card key={label} className="p-4 sm:p-5">
+              <p className="text-xs font-bold uppercase tracking-wider text-ink/80">{label}</p>
+              <p className="mt-1.5 font-mono text-2xl sm:text-3xl font-bold text-brand-text-strong">{value}</p>
+              {note && <p className="mt-1 text-xs text-ink-muted leading-relaxed">{note}</p>}
             </Card>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <Card className="p-4">
-            <h2 className="mb-2 text-xs font-bold text-ink">{t("pages.analytics.agentDistribution")}</h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card className="p-5">
+            <h2 className="mb-3 text-sm sm:text-base font-bold text-ink">{t("pages.analytics.agentDistribution")}</h2>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -199,8 +199,8 @@ export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
             </ResponsiveContainer>
           </Card>
 
-          <Card className="p-4">
-            <h2 className="mb-2 text-xs font-bold text-ink">{t("pages.analytics.agentPerformance")}</h2>
+          <Card className="p-5">
+            <h2 className="mb-3 text-sm sm:text-base font-bold text-ink">{t("pages.analytics.agentPerformance")}</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={agentPerformanceData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-neutral)" />
@@ -215,8 +215,8 @@ export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
           </Card>
         </div>
 
-        <Card className="p-4">
-          <h2 className="mb-2 text-xs font-bold text-ink">{t("pages.analytics.topDocuments")}</h2>
+        <Card className="p-5">
+          <h2 className="mb-3 text-sm sm:text-base font-bold text-ink">{t("pages.analytics.topDocuments")}</h2>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart data={documentHeatmapData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-neutral)" />

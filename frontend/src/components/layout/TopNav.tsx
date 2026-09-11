@@ -111,7 +111,7 @@ export function TopNav({
                 NextGen
               </Badge>
             </span>
-            <span className="mt-0.5 block text-[10px] leading-none text-ink-muted">
+            <span className="mt-0.5 block text-xs leading-tight text-ink/75">
               {t("app.tagline", "Multi-Agent RAG Operations Deck")}
             </span>
           </span>
@@ -125,7 +125,7 @@ export function TopNav({
               end
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-1.5 rounded-control px-2.5 py-1 text-[11px] font-medium transition-all",
+                  "flex items-center gap-1.5 rounded-control px-2.5 py-1 text-xs sm:text-sm font-medium transition-all",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
                   isActive
                     ? "bg-[image:var(--brand-gradient)] font-semibold text-white shadow-elev-1"
@@ -155,7 +155,7 @@ export function TopNav({
             title={t("components.commandPalette.open", "Command palette (Ctrl+K)")}
           >
             <Search className="size-3.5" aria-hidden="true" />
-            <kbd className="hidden rounded border border-line bg-surface-muted px-1 py-0.5 font-mono text-[10px] text-ink-muted sm:inline">
+            <kbd className="hidden rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-ink/80 sm:inline">
               ⌘K
             </kbd>
             <span className="sr-only">{t("components.commandPalette.open", "Command palette")}</span>
@@ -185,12 +185,12 @@ export function TopNav({
                 <Avatar className="size-7">
                   <AvatarFallback>{user.username.slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <span className="hidden text-[11px] font-semibold text-ink md:inline">{user.username}</span>
+                <span className="hidden text-xs sm:text-sm font-semibold text-ink md:inline">{user.username}</span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-52">
               <DropdownMenuLabel className="flex items-center gap-2 normal-case">
-                <span className="text-xs font-bold tracking-normal text-ink">{user.username}</span>
+                <span className="text-sm font-bold tracking-normal text-ink">{user.username}</span>
                 <RoleBadge role={user.role} />
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

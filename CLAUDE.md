@@ -14,7 +14,7 @@ conda activate rag-local
 ## Project Information
 
 **Name**: QueryMind（智询）  
-**Version**: 0.6.2.1  
+**Version**: 0.7.0  
 **Language Support**: Bilingual (Chinese/English) via i18next  
 **License**: MIT
 

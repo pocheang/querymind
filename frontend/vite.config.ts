@@ -14,7 +14,45 @@ function createBackendProxy(rewriteAppBase = false) {
   };
 }
 
+const proxyConfig = {
+  "/auth": {
+    ...createBackendProxy(),
+    changeOrigin: true,
+    configure: (proxy: any, _options: any) => {
+      proxy.on('proxyRes', (proxyRes: any, _req: any, _res: any) => {
+        // Remove 'secure' flag from cookies in development
+        const setCookie = proxyRes.headers['set-cookie'];
+        if (setCookie) {
+          proxyRes.headers['set-cookie'] = Array.isArray(setCookie)
+            ? setCookie.map((cookie: string) => cookie.replace(/; secure/gi, ''))
+            : [(setCookie as string).replace(/; secure/gi, '')];
+        }
+      });
+    }
+  },
+  "/sessions": createBackendProxy(),
+  "/documents": createBackendProxy(),
+  "/upload": createBackendProxy(),
+  "/prompts": createBackendProxy(),
+  "/query": createBackendProxy(),
+  "/admin": createBackendProxy(),
+  "/user": createBackendProxy(),
+  "/model-catalog": createBackendProxy(),
+  "/api/v1": createBackendProxy(),
+  "/api": createBackendProxy(),
+  "/app/auth": createBackendProxy(true),
+  "/app/sessions": createBackendProxy(true),
+  "/app/documents": createBackendProxy(true),
+  "/app/upload": createBackendProxy(true),
+  "/app/prompts": createBackendProxy(true),
+  "/app/query": createBackendProxy(true),
+  "/app/user": createBackendProxy(true),
+  "/app/model-catalog": createBackendProxy(true),
+  "/app/api": createBackendProxy(true),
+};
+
 export default defineConfig({
+
   plugins: [react(), tailwindcss(), inlineCriticalCSS()],
   base: "/",
   resolve: {
@@ -32,45 +70,11 @@ export default defineConfig({
   server: {
     port: 5173,
     host: "127.0.0.1",
-    proxy: {
-      "/auth": {
-        ...createBackendProxy(),
-        changeOrigin: true,
-        configure: (proxy, _options) => {
-          proxy.on('proxyRes', (proxyRes, _req, _res) => {
-            // Remove 'secure' flag from cookies in development
-            const setCookie = proxyRes.headers['set-cookie'];
-            if (setCookie) {
-              proxyRes.headers['set-cookie'] = Array.isArray(setCookie)
-                ? setCookie.map(cookie => cookie.replace(/; secure/gi, ''))
-                : [(setCookie as string).replace(/; secure/gi, '')];
-            }
-          });
-        }
-      },
-      "/sessions": createBackendProxy(),
-      "/documents": createBackendProxy(),
-      "/upload": createBackendProxy(),
-      "/prompts": createBackendProxy(),
-      "/query": createBackendProxy(),
-      "/admin": createBackendProxy(),
-      "/user": createBackendProxy(),
-      // Fetched by `services/api/admin.ts::modelCatalog`. Without an entry
-      // here Vite's SPA fallback answers it with index.html, and the settings
-      // drawer then reads `providers` off a parsed HTML page.
-      "/model-catalog": createBackendProxy(),
-      "/api/v1": createBackendProxy(),
-      "/api": createBackendProxy(),
-      "/app/auth": createBackendProxy(true),
-      "/app/sessions": createBackendProxy(true),
-      "/app/documents": createBackendProxy(true),
-      "/app/upload": createBackendProxy(true),
-      "/app/prompts": createBackendProxy(true),
-      "/app/query": createBackendProxy(true),
-      // Note: /app/admin is handled by frontend router, not proxied to backend
-      "/app/user": createBackendProxy(true),
-      "/app/model-catalog": createBackendProxy(true),
-      "/app/api": createBackendProxy(true),
-    },
+    proxy: proxyConfig,
+  },
+  preview: {
+    port: 4173,
+    host: "127.0.0.1",
+    proxy: proxyConfig,
   },
 });

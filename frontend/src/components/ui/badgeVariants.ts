@@ -24,10 +24,10 @@ export const badgeVariants = cva(
         outline: "bg-transparent text-ink-muted border-line",
       },
       size: {
-        xs: "px-1 py-0 text-[9px] rounded",
-        sm: "px-1.5 py-0.5 text-[10px] rounded",
-        default: "px-2 py-0.5 text-[11px] rounded-control",
-        pill: "px-2.5 py-0.5 text-[10px] rounded-pill",
+        xs: "px-1.5 py-0.5 text-xs rounded",
+        sm: "px-2 py-0.5 text-xs rounded",
+        default: "px-2.5 py-0.5 text-xs font-semibold rounded-control",
+        pill: "px-2.5 py-0.5 text-xs font-semibold rounded-pill",
       },
       mono: {
         true: "font-mono",

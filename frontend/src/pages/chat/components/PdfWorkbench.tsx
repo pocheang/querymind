@@ -27,17 +27,17 @@ export function PdfWorkbench({
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-1.5">
-        <div className="rounded-control border border-line bg-surface p-1.5 text-center">
-          <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+        <div className="rounded-control border border-line bg-surface p-2 text-center">
+          <span className="block truncate text-xs font-semibold uppercase tracking-wider text-ink/75">
             {t("components.workbench.pdfImageDocsShort")}
           </span>
-          <strong className="block font-mono text-xs font-bold text-brand-text">{pdfDocuments.length}</strong>
+          <strong className="block font-mono text-sm font-bold text-brand-text">{pdfDocuments.length}</strong>
         </div>
-        <div className="rounded-control border border-line bg-surface p-1.5 text-center">
-          <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+        <div className="rounded-control border border-line bg-surface p-2 text-center">
+          <span className="block truncate text-xs font-semibold uppercase tracking-wider text-ink/75">
             {t("components.workbench.needReindex")}
           </span>
-          <strong className="block font-mono text-xs font-bold text-brand-text">{pdfNeedingReindex.length}</strong>
+          <strong className="block font-mono text-sm font-bold text-brand-text">{pdfNeedingReindex.length}</strong>
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export function PdfWorkbench({
         value={pdfTargetFile}
         onChange={(event) => onPdfTargetFileChange(event.target.value)}
         disabled={!pdfDocuments.length}
-        className="w-full rounded-control border border-brand-border bg-surface px-2 py-1.5 text-[11px] text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] disabled:opacity-60"
+        className="w-full rounded-control border border-brand-border bg-surface px-2.5 py-1.5 text-xs sm:text-sm text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] disabled:opacity-60"
       >
         {!pdfDocuments.length && <option value="">{t("components.workbench.noPdfDocs")}</option>}
         {pdfDocuments.map((doc) => (
@@ -68,7 +68,7 @@ export function PdfWorkbench({
       </div>
 
       {pdfNeedingReindex.length > 0 && (
-        <p className="text-[10px] text-warning">{t("components.workbench.reindexHint")}</p>
+        <p className="text-xs font-medium text-warning">{t("components.workbench.reindexHint")}</p>
       )}
     </div>
   );

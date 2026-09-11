@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AGENT_MODES, type AgentClassHint } from "@/pages/chat/constants";
 import type { Props } from "@/pages/chat/types";
 import type { PendingApproval } from "@/types/api";
@@ -96,6 +97,14 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     questionRef,
     chatScrollRef,
   } = useChatPageState();
+
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const modeParam = searchParams.get("mode");
+    if (modeParam && ["cybersecurity", "artificial_intelligence", "pdf_text", "general"].includes(modeParam)) {
+      setAgentClassHint(modeParam as AgentClassHint);
+    }
+  }, [searchParams, setAgentClassHint]);
 
   const confirmDialog = useConfirmDialog();
   const promptDialog = usePromptDialog();
@@ -436,6 +445,7 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
               onComposerDragLeave={dragHandlers.onComposerDragLeave}
               onComposerDrop={fileUploadHandlers.onComposerDrop}
               onChatUploadChange={fileUploadHandlers.onChatUploadChange}
+              onToggleSections={toggleSections}
             />
           )}
         </main>

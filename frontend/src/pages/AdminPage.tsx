@@ -183,10 +183,10 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
       {/* Title, subtitle and the section rail share one glass bar, which is
           how the design prototype builds this view: the tabs are the page's
           primary navigation, not a control strip under a heading. */}
-      <div className="glass-panel flex shrink-0 flex-col gap-2 border-x-0 border-t-0 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="glass-panel flex shrink-0 flex-col gap-2 border-x-0 border-t-0 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-sm font-bold tracking-tight text-ink">{t("pages.admin.console")}</h1>
-          <p className="text-[11px] text-ink-muted">{t("pages.admin.subtitle")}</p>
+          <h1 className="text-base font-bold tracking-tight text-ink sm:text-lg">{t("pages.admin.console")}</h1>
+          <p className="text-xs sm:text-sm text-ink/75">{t("pages.admin.subtitle")}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -205,7 +205,7 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
                     role="tab"
                     aria-selected={active}
                     className={cn(
-                      "whitespace-nowrap rounded-control px-2.5 py-1 text-xs transition-all",
+                      "whitespace-nowrap rounded-control px-3 py-1.5 text-xs sm:text-sm transition-all",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
                       active
                         ? "bg-[image:var(--brand-gradient)] font-semibold text-white shadow-elev-1"
@@ -220,9 +220,9 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
             </div>
           )}
           <Button
-            className="shrink-0"
+            className="shrink-0 text-xs sm:text-sm font-semibold"
             variant="secondary"
-            size="xs"
+            size="sm"
             onClick={() => navigate("/app/analytics")}
           >
             <BarChart3 className="size-3.5" aria-hidden="true" />
@@ -234,7 +234,7 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
       {!isAdmin && (
         <div className="p-4 sm:p-6">
           <p
-            className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+            className="rounded-control border border-danger-border bg-danger-surface px-3 py-2 text-xs sm:text-sm font-medium text-danger"
             role="alert"
           >
             {t("pages.admin.noPermission")}

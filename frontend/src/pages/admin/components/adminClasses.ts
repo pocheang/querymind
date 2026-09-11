@@ -34,8 +34,8 @@ export const ADMIN_FIELD_TALL = ADMIN_FIELD.replace("h-8", "min-h-10 py-2");
 export const ADMIN_TABLE = [
   "w-full border-separate border-spacing-0 overflow-hidden rounded-card text-left",
   "[&_thead_th]:border-b-2 [&_thead_th]:border-brand-border [&_thead_th]:bg-brand-surface",
-  "[&_thead_th]:font-mono [&_thead_th]:text-[11px] [&_thead_th]:font-extrabold",
-  "[&_thead_th]:uppercase [&_thead_th]:tracking-wider [&_thead_th]:text-ink-muted [&_thead_th]:text-left",
+  "[&_thead_th]:font-mono [&_thead_th]:text-xs [&_thead_th]:font-extrabold",
+  "[&_thead_th]:uppercase [&_thead_th]:tracking-wider [&_thead_th]:text-ink/80 [&_thead_th]:text-left",
   "[&_td]:border-b [&_td]:border-line [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-xs [&_td]:text-ink",
   "[&_th]:px-3 [&_th]:py-2.5 [&_th]:text-xs",
   "[&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-brand-surface/70",
@@ -59,7 +59,7 @@ export const ADMIN_TABLE_WIDE = [
 /** A monospace chip for an id, an action name or a resource type. */
 export const ADMIN_CODE =
   "inline-block max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded border " +
-  "border-line-strong bg-brand-surface-hover px-2 py-0.5 align-middle font-mono text-[11px] text-ink";
+  "border-line-strong bg-brand-surface-hover px-2.5 py-0.5 align-middle font-mono text-xs font-medium text-ink";
 
 /**
  * recharts writes its chrome as SVG attributes and inline styles, so its

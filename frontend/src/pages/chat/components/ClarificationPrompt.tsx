@@ -57,7 +57,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
     <div className="mx-auto w-full max-w-4xl shrink-0 px-4 pb-2">
       <div className="glass-card space-y-3 rounded-card border-brand-border-strong p-3">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="flex items-center gap-1.5 text-[11px] font-bold text-brand-text-strong">
+          <h3 className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-brand-text-strong">
             <HelpCircle className="size-4 text-brand-accent" aria-hidden="true" />
             {t("clarification.title")}
           </h3>
@@ -69,7 +69,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
           </Badge>
         </div>
 
-        <p className="text-xs text-ink">{question.question}</p>
+        <p className="text-xs sm:text-sm leading-relaxed text-ink">{question.question}</p>
 
         <div className="space-y-1.5">
           {question.options.map((option) => {
@@ -79,7 +79,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
                 key={option}
                 type="button"
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-control border p-2 text-left text-[11px] transition-all",
+                  "flex w-full items-center gap-2 rounded-control border p-2 text-left text-xs sm:text-sm font-medium transition-all",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
                   selected
                     ? "border-brand-border-strong bg-brand-surface text-brand-text-strong"
@@ -108,7 +108,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
               <button
                 type="button"
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-control border p-2 text-left text-[11px] transition-all",
+                  "flex w-full items-center gap-2 rounded-control border p-2 text-left text-xs sm:text-sm font-medium transition-all",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
                   useCustom
                     ? "border-brand-border-strong bg-brand-surface text-brand-text-strong"
@@ -154,7 +154,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
 
         {context.collected_info && Object.keys(context.collected_info).length > 0 && (
           <CollapsibleSection title={t("clarification.collectedInfo")} ariaLabel={t("clarification.collectedInfo")}>
-            <ul className="space-y-1 text-[10px] text-ink-muted">
+            <ul className="space-y-1 text-xs text-ink/75">
               {Object.entries(context.collected_info).map(([key, value]) => (
                 <li key={key}>
                   <strong className="text-ink">{key}:</strong> {value}

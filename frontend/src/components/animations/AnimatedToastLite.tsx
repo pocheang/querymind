@@ -77,15 +77,15 @@ export function AnimatedToastLite({ toast, index: _index, onClose }: Readonly<An
       role="alert"
       aria-live="polite"
     >
-      <Icon className="mt-px size-3.5 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1 text-[11px] leading-relaxed">{toast.message}</span>
+      <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1 text-xs sm:text-sm font-medium leading-relaxed">{toast.message}</span>
       <button
         type="button"
         className="shrink-0 rounded-control p-0.5 opacity-60 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
         onClick={handleClick}
         aria-label={t("toast.close")}
       >
-        <X className="size-3" aria-hidden="true" />
+        <X className="size-3.5" aria-hidden="true" />
       </button>
 
       {/* The auto-dismiss countdown. `--toast-duration` is read by the one

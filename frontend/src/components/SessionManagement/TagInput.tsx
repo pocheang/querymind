@@ -122,7 +122,7 @@ export const TagInput: React.FC<TagInputProps> = ({ value, onChange, placeholder
         {value.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 rounded-pill border border-brand-border bg-brand-surface px-2 py-0.5 text-[11px] font-medium text-brand-text"
+            className="inline-flex items-center gap-1.5 rounded-pill border border-brand-border bg-brand-surface px-2.5 py-0.5 text-xs font-semibold text-brand-text"
           >
             {tag}
             {!disabled && (
@@ -132,7 +132,7 @@ export const TagInput: React.FC<TagInputProps> = ({ value, onChange, placeholder
                 onClick={() => removeTag(tag)}
                 aria-label={t("sessionManagement.removeTag")}
               >
-                <X className="size-3" aria-hidden="true" />
+                <X className="size-3.5" aria-hidden="true" />
               </button>
             )}
           </span>
@@ -142,7 +142,7 @@ export const TagInput: React.FC<TagInputProps> = ({ value, onChange, placeholder
           <input
             ref={inputRef}
             type="text"
-            className="min-w-24 flex-1 bg-transparent px-1 text-xs text-ink placeholder:text-ink-faint focus-visible:outline-none"
+            className="min-w-24 flex-1 bg-transparent px-1 text-xs sm:text-sm text-ink placeholder:text-ink-faint focus-visible:outline-none"
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleInputKeyDown}
@@ -154,7 +154,7 @@ export const TagInput: React.FC<TagInputProps> = ({ value, onChange, placeholder
       </div>
 
       {value.length > 0 && (
-        <p className="mt-1 font-mono text-[10px] text-ink-muted">
+        <p className="mt-1 font-mono text-xs font-medium text-ink/80">
           {value.length} / {maxTags} {t("sessionManagement.tags")}
         </p>
       )}
@@ -165,7 +165,7 @@ export const TagInput: React.FC<TagInputProps> = ({ value, onChange, placeholder
             <button
               key={tag}
               type="button"
-              className="block w-full rounded-control px-2 py-1.5 text-left text-[11px] text-ink transition-colors hover:bg-brand-surface hover:text-brand-text focus-visible:outline-none focus-visible:bg-brand-surface"
+              className="block w-full rounded-control px-2.5 py-1.5 text-left text-xs sm:text-sm font-medium text-ink transition-colors hover:bg-brand-surface hover:text-brand-text focus-visible:outline-none focus-visible:bg-brand-surface"
               onClick={() => handleSuggestionClick(tag)}
             >
               {tag}

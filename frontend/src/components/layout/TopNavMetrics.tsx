@@ -67,7 +67,7 @@ export function TopNavMetrics() {
   const success = overview.success_rate;
 
   return (
-    <div className="ml-2 hidden items-center gap-3 text-[11px] text-ink-muted xl:flex">
+    <div className="ml-2 hidden items-center gap-3 text-xs font-medium text-ink/80 xl:flex">
       <Metric
         label={t("components.topNav.avgLatency", "Avg latency")}
         value={`${Math.round(latency)}ms`}

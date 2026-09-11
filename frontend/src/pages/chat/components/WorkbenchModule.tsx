@@ -51,8 +51,8 @@ export function WorkbenchModule({
       >
         <span className={cn("size-2 shrink-0 rounded-pill", ACCENT_DOT[accent])} aria-hidden="true" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[11px] font-semibold text-ink">{title}</span>
-          <span className="block truncate text-[10px] text-ink-muted">{description}</span>
+          <span className="block truncate text-xs sm:text-sm font-semibold text-ink">{title}</span>
+          <span className="block truncate text-xs text-ink/75">{description}</span>
         </span>
         <Badge variant={statusVariant} size="xs" mono className="shrink-0">
           {status}

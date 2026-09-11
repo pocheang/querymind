@@ -24,7 +24,7 @@ CardHeader.displayName = "CardHeader";
 // heading's content is visible at the element itself (typescript:S6850).
 export const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, children, ...props }, ref) => (
-    <h3 ref={ref} className={cn("text-xs font-bold tracking-tight text-ink", className)} {...props}>
+    <h3 ref={ref} className={cn("text-sm font-bold tracking-tight text-ink", className)} {...props}>
       {children}
     </h3>
   )
@@ -32,7 +32,7 @@ export const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttribut
 CardTitle.displayName = "CardTitle";
 
 export const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
-  ({ className, ...props }, ref) => <p ref={ref} className={cn("text-[11px] text-ink-muted", className)} {...props} />
+  ({ className, ...props }, ref) => <p ref={ref} className={cn("text-xs leading-relaxed text-ink/75", className)} {...props} />
 );
 CardDescription.displayName = "CardDescription";
 

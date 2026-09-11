@@ -74,28 +74,28 @@ export function KeyboardHelp({ open, onClose }: Readonly<{ open: boolean; onClos
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
           {Object.entries(groupedShortcuts).map(([category, items]) => (
             <section key={category} className="space-y-1.5">
-              <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">{category}</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">{category}</h3>
               <dl className="space-y-1">
                 {items.map((shortcut) => (
                   <div
                     key={`${category}-${shortcut.keys.join("-")}-${shortcut.description}`}
-                    className="flex items-center justify-between gap-3 rounded-control border border-line bg-surface px-2 py-1.5"
+                    className="flex items-center justify-between gap-3 rounded-control border border-line bg-surface px-2.5 py-1.5"
                   >
                     <dt className="flex shrink-0 items-center gap-1">
                       {shortcut.keys.map((key: string, index: number) => (
                         <span key={key} className="flex items-center gap-1">
-                          <kbd className="rounded border border-line-strong bg-surface-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-ink">
+                          <kbd className="rounded border border-line-strong bg-surface-muted px-2 py-0.5 font-mono text-xs font-semibold text-ink">
                             {key}
                           </kbd>
                           {index < shortcut.keys.length - 1 && (
-                            <span className="text-[10px] text-ink-faint" aria-hidden="true">
+                            <span className="text-xs text-ink/60" aria-hidden="true">
                               +
                             </span>
                           )}
                         </span>
                       ))}
                     </dt>
-                    <dd className="min-w-0 flex-1 text-right text-[11px] text-ink-muted">{shortcut.description}</dd>
+                    <dd className="min-w-0 flex-1 text-right text-xs sm:text-sm font-medium text-ink/80">{shortcut.description}</dd>
                   </div>
                 ))}
               </dl>
@@ -104,7 +104,7 @@ export function KeyboardHelp({ open, onClose }: Readonly<{ open: boolean; onClos
         </div>
 
         <div className="shrink-0 border-t border-line-subtle p-3">
-          <p className="text-center text-[10px] text-ink-muted">{t("components.keyboard.footer")}</p>
+          <p className="text-center text-xs text-ink/75">{t("components.keyboard.footer")}</p>
         </div>
       </div>
     </>

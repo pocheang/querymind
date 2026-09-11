@@ -13,6 +13,7 @@ vi.mock("react-i18next", () => ({
       if (key === "features.executionTrace.show") return "Show";
       if (key === "features.executionTrace.count") return `${options?.count} steps`;
       if (key === "features.executionTrace.event") return `${options?.stage}: ${options?.message}`;
+      if (key === "features.executionTrace.summary.copy") return "Copy Log";
       return (options?.defaultValue as string) ?? key;
     },
   }),
@@ -103,5 +104,56 @@ describe("remembering the choice", () => {
     expect(screen.getByRole("button", { name: "Show" })).toBeTruthy();
     storage.mockRestore();
     setter.mockRestore();
+  });
+});
+
+describe("view mode toggling and structured view", () => {
+  it("switches between structured view and raw log view", () => {
+    render(<ExecutionTracePanel trace={trace} />);
+
+    // Default view has structured timeline elements
+    expect(screen.getByText("route")).toBeTruthy();
+    expect(screen.getByText("knowledge")).toBeTruthy();
+
+    // Toggle to raw log view
+    const rawBtn = screen.getByTitle("features.executionTrace.views.raw");
+    fireEvent.click(rawBtn);
+
+    // In raw view, list items are rendered
+    expect(screen.getByText("Copy Log", { exact: false })).toBeTruthy();
+
+    // Toggle back to structured
+    const structuredBtn = screen.getByTitle("features.executionTrace.views.structured");
+    fireEvent.click(structuredBtn);
+    expect(screen.getByText("route")).toBeTruthy();
+  });
+
+  it("renders sub-sources when present in knowledge stage", () => {
+    const traceWithSources = {
+      ...initialExecutionTraceState,
+      events: [
+        {
+          version: "1" as const,
+          stage: "knowledge" as const,
+          status: "completed" as const,
+          duration_ms: 1200,
+          message: "web retrieval completed",
+          metadata: [{ key: "source", value: "web" }],
+          occurred_at: "2026-08-31T00:00:01Z",
+        },
+        {
+          version: "1" as const,
+          stage: "knowledge" as const,
+          status: "completed" as const,
+          duration_ms: 1205,
+          message: "",
+          metadata: [],
+          occurred_at: "2026-08-31T00:00:02Z",
+        },
+      ],
+    };
+
+    render(<ExecutionTracePanel trace={traceWithSources} />);
+    expect(screen.getByText("WEB")).toBeTruthy();
   });
 });

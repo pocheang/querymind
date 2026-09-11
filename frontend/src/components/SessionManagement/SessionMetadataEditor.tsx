@@ -139,12 +139,12 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-bold text-ink">{t("sessionManagement.editMetadata")}</h3>
+      <h3 className="text-sm font-bold text-ink">{t("sessionManagement.editMetadata")}</h3>
 
       {error && (
         <p
           role="alert"
-          className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+          className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-xs font-medium text-danger"
         >
           {error}
         </p>
@@ -152,7 +152,7 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
       {success && (
         <p
           role="status"
-          className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-[11px] text-success"
+          className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-xs font-medium text-success"
         >
           {t("sessionManagement.savedSuccessfully")}
         </p>
@@ -183,7 +183,7 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
             value={category || ""}
             onChange={(e) => setCategory((e.target.value || null) as SessionCategory | null)}
             disabled={saving}
-            className="h-8 w-full rounded-control border border-brand-border bg-surface px-2 text-xs text-ink transition-colors focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] disabled:opacity-60"
+            className="h-8 w-full rounded-control border border-brand-border bg-surface px-2 text-xs sm:text-sm text-ink transition-colors focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] disabled:opacity-60"
           >
             <option value="">{t("sessionManagement.selectCategory")}</option>
             {categories.map((cat) => (
@@ -205,12 +205,12 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
             maxLength={500}
             disabled={saving}
           />
-          <p className="text-right font-mono text-[10px] text-ink-muted">{description.length} / 500</p>
+          <p className="text-right font-mono text-xs font-medium text-ink/80">{description.length} / 500</p>
         </div>
 
         <div className="space-y-2 rounded-card border border-line bg-surface-inset p-2.5">
-          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-            <Tag className="size-3 text-brand-accent" aria-hidden="true" />
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-ink/80">
+            <Tag className="size-3.5 text-brand-accent" aria-hidden="true" />
             {t("sessionManagement.autoTags")}
           </p>
 
@@ -223,7 +223,7 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
               ))}
             </div>
           ) : (
-            <p className="text-[11px] text-ink-muted">{t("sessionManagement.noAutoTags")}</p>
+            <p className="text-xs font-medium text-ink/80">{t("sessionManagement.noAutoTags")}</p>
           )}
 
           <Button
@@ -232,7 +232,7 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
             onClick={handleExtractTags}
             disabled={extracting || messages.length === 0}
           >
-            {extracting && <Loader2 className="size-3 animate-spin" aria-hidden="true" />}
+            {extracting && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
             {t("sessionManagement.extractTags")}
           </Button>
         </div>

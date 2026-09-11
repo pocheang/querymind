@@ -45,8 +45,8 @@ export function SectionHead({
   return (
     <div className={cn("flex items-start justify-between gap-3", className)}>
       <div className="min-w-0">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-ink">{title}</h3>
-        {description && <p className="mt-0.5 text-[11px] text-ink-muted">{description}</p>}
+        <h3 className="text-sm font-bold uppercase tracking-wider text-ink">{title}</h3>
+        {description && <p className="mt-0.5 text-xs text-ink/75">{description}</p>}
       </div>
       {children && <div className="flex shrink-0 flex-wrap items-center gap-1.5">{children}</div>}
     </div>
@@ -60,7 +60,7 @@ export function RowActions({ children, className }: Readonly<{ children: ReactNo
 
 /** Secondary copy: help text, hints, empty notes. */
 export function Muted({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
-  return <p className={cn("text-[11px] leading-relaxed text-ink-muted", className)}>{children}</p>;
+  return <p className={cn("text-xs sm:text-sm leading-relaxed text-ink/80", className)}>{children}</p>;
 }
 
 const KPI_TONE = {
@@ -83,10 +83,10 @@ export function KpiCard({
   tone = "neutral",
 }: Readonly<{ label: ReactNode; value: ReactNode; note?: ReactNode; tone?: keyof typeof KPI_TONE }>) {
   return (
-    <div className="glass-card rounded-card p-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">{label}</div>
-      <div className={cn("mt-1 font-mono text-xl font-bold", KPI_TONE[tone])}>{value}</div>
-      {note && <div className="mt-0.5 text-[10px] text-ink-muted">{note}</div>}
+    <div className="glass-card rounded-card p-3 sm:p-4">
+      <div className="text-xs font-bold uppercase tracking-wider text-ink/80">{label}</div>
+      <div className={cn("mt-1 font-mono text-xl sm:text-2xl font-bold", KPI_TONE[tone])}>{value}</div>
+      {note && <div className="mt-1 text-xs text-ink/75 leading-relaxed">{note}</div>}
     </div>
   );
 }
@@ -146,7 +146,7 @@ export function TrendRow({
 }: Readonly<{ label: ReactNode; title?: string; value: ReactNode; percent?: number }>) {
   return (
     <div className="grid grid-cols-[minmax(0,140px)_1fr_auto] items-center gap-3 rounded-control p-2 transition-colors hover:bg-brand-surface-hover">
-      <span className="truncate font-mono text-[11px] font-semibold text-ink-muted" title={title}>
+      <span className="truncate font-mono text-xs font-semibold text-ink/80" title={title}>
         {label}
       </span>
       {percent === undefined ? (
@@ -159,7 +159,7 @@ export function TrendRow({
           />
         </div>
       )}
-      <strong className="min-w-10 text-right font-mono text-[11px] font-bold text-ink">{value}</strong>
+      <strong className="min-w-10 text-right font-mono text-xs sm:text-sm font-bold text-ink">{value}</strong>
     </div>
   );
 }
@@ -213,7 +213,7 @@ export function AdminField({
 }: Readonly<{ label: ReactNode; required?: boolean; children: ReactNode; className?: string }>) {
   return (
     <label className={cn("grid gap-1.5", className)}>
-      <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+      <span className="text-xs font-bold uppercase tracking-wider text-ink/80">
         {label}
         {required && (
           <span className="ml-1 text-danger" aria-hidden="true">
@@ -228,7 +228,7 @@ export function AdminField({
 
 /** A one-line note under a heading or a field. */
 export function Hint({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
-  return <p className={cn("-mt-1 font-mono text-[11px] text-ink-muted", className)}>{children}</p>;
+  return <p className={cn("-mt-1 font-mono text-xs text-ink-muted", className)}>{children}</p>;
 }
 
 const STATE_TONE = {
@@ -342,7 +342,7 @@ export function AuditBadge({ value, kind }: Readonly<{ value?: string | null; ki
   return (
     <span
       className={cn(
-        "inline-flex min-w-16 items-center justify-center rounded border px-2 py-[3px] font-mono text-[10px] font-bold uppercase tracking-wider",
+        "inline-flex min-w-16 items-center justify-center rounded border px-2 py-0.5 font-mono text-xs font-bold uppercase tracking-wider",
         AUDIT_BADGE_TONE[tone],
       )}
     >

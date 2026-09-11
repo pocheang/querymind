@@ -118,7 +118,7 @@ export function AdminWebActivityDashboard() {
           <Button variant="secondary" size="xs" onClick={() => void fetchData()}>{t("admin.webActivity.refresh", "Refresh")}</Button>
         </RowActions></SectionHead>
 
-      <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 whitespace-nowrap rounded-control border border-transparent px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted transition-colors hover:border-brand-border hover:bg-brand-surface">
+      <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 whitespace-nowrap rounded-control border border-transparent px-3 py-2 text-xs font-bold uppercase tracking-wider text-ink/80 transition-colors hover:border-brand-border hover:bg-brand-surface">
         <input className="size-3.5 shrink-0 accent-[var(--brand)]" type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
         <span>{t("admin.ui.autoRefresh30")}</span>
       </label>

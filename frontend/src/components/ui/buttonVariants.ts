@@ -49,9 +49,9 @@ export const buttonVariants = cva(
         link: "text-brand-text underline-offset-4 hover:underline",
       },
       size: {
-        xs: "h-6 rounded-control px-2 text-[11px]",
-        sm: "h-7 rounded-control px-2.5 text-[11px]",
-        default: "h-8 rounded-control px-3 text-xs",
+        xs: "h-6 rounded-control px-2 text-xs",
+        sm: "h-7 rounded-control px-2.5 text-xs",
+        default: "h-8 rounded-control px-3 text-xs sm:text-sm",
         lg: "h-10 rounded-panel px-6 text-sm",
         icon: "size-8 rounded-control [&_svg]:size-4",
         "icon-sm": "size-6 rounded-control [&_svg]:size-3.5",

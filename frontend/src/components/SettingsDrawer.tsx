@@ -88,16 +88,16 @@ export function SettingsDrawer({ isOpen, onClose }: Readonly<Props>) {
         <header className="flex shrink-0 items-start justify-between gap-2 border-b border-line-subtle p-4">
           <div className="flex min-w-0 items-center gap-2.5">
             <span
-              className="flex size-9 shrink-0 items-center justify-center rounded-card bg-[image:var(--brand-gradient)] font-mono text-[10px] font-bold text-white shadow-elev-1"
+              className="flex size-9 shrink-0 items-center justify-center rounded-card bg-[image:var(--brand-gradient)] font-mono text-xs font-bold text-white shadow-elev-1"
               aria-hidden="true"
             >
               SET
             </span>
             <div className="min-w-0">
-              <h2 id="settings-drawer-title" className="text-sm font-bold text-ink">
+              <h2 id="settings-drawer-title" className="text-base font-bold text-ink">
                 {t("components.settings.title")}
               </h2>
-              <p className="truncate text-[11px] text-ink-muted">{t("components.settings.subtitle")}</p>
+              <p className="truncate text-xs sm:text-sm text-ink/75">{t("components.settings.subtitle")}</p>
             </div>
           </div>
           <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("components.settings.close")}>
@@ -109,22 +109,22 @@ export function SettingsDrawer({ isOpen, onClose }: Readonly<Props>) {
           <section aria-labelledby="settings-model-heading" className="space-y-2">
             <h3
               id="settings-model-heading"
-              className="text-xs font-bold uppercase tracking-wider text-ink-muted"
+              className="text-xs font-bold uppercase tracking-wider text-ink/80"
             >
               {t("components.settings.modelHeading")}
             </h3>
-            <div className="flex gap-2 rounded-card border border-line-subtle bg-surface-muted p-2.5">
-              <Info className="mt-0.5 size-3.5 shrink-0 text-brand-accent" aria-hidden="true" />
-              <div className="min-w-0 space-y-1 text-[11px]">
+            <div className="flex gap-2.5 rounded-card border border-line-subtle bg-surface-muted p-3">
+              <Info className="mt-0.5 size-4 shrink-0 text-brand-accent" aria-hidden="true" />
+              <div className="min-w-0 space-y-1 text-xs sm:text-sm">
                 {activeModel?.managedByAdmin ? (
                   <>
                     <strong className="block break-words font-mono text-ink">
                       {activeModel.provider} / {activeModel.model}
                     </strong>
-                    <p className="text-ink-muted">{t("components.settings.managedByAdmin")}</p>
+                    <p className="font-medium text-ink/80">{t("components.settings.managedByAdmin")}</p>
                   </>
                 ) : (
-                  <p className="text-ink-muted">
+                  <p className="font-medium text-ink/80">
                     {modelUnavailable
                       ? t("components.settings.modelUnavailable")
                       : t("components.settings.deploymentDefault")}

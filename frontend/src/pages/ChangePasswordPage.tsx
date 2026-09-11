@@ -68,15 +68,15 @@ export function ChangePasswordPage() {
           </Badge>
           <div className="space-y-2">
             <h1 className="text-xl font-bold tracking-tight">{t("pages.changePassword.title")}</h1>
-            <p className="text-xs leading-relaxed text-white/80">{t("pages.changePassword.description")}</p>
+            <p className="text-sm leading-relaxed text-white/90">{t("pages.changePassword.description")}</p>
           </div>
           <PasswordRequirements password={newPassword} />
         </section>
 
         <section className="space-y-3 bg-surface p-6 sm:p-8">
           <div className="space-y-1">
-            <h2 className="text-lg font-bold tracking-tight text-ink">{t("pages.changePassword.formTitle")}</h2>
-            <p className="text-[11px] text-ink-muted">{t("pages.changePassword.formSubtitle")}</p>
+            <h2 className="text-lg font-bold tracking-tight text-ink sm:text-xl">{t("pages.changePassword.formTitle")}</h2>
+            <p className="text-xs sm:text-sm text-ink/75">{t("pages.changePassword.formSubtitle")}</p>
           </div>
 
           <div className="space-y-1">
@@ -143,23 +143,23 @@ export function ChangePasswordPage() {
           </div>
 
           {oldPassword === newPassword && newPassword.length > 0 && (
-            <p className="rounded-control border border-warning-border bg-warning-surface px-2.5 py-1.5 text-[11px] text-warning">
+            <p className="rounded-control border border-warning-border bg-warning-surface px-2.5 py-1.5 text-xs sm:text-sm font-medium text-warning">
               {t("pages.changePassword.samePassword")}
             </p>
           )}
 
           <div className="flex items-center gap-2">
-            <Button className="flex-1" disabled={!formValid || loading} onClick={() => void changePassword()}>
+            <Button className="flex-1 text-xs sm:text-sm font-semibold" disabled={!formValid || loading} onClick={() => void changePassword()}>
               {loading ? t("pages.changePassword.submitting") : t("pages.changePassword.submit")}
             </Button>
-            <Button variant="secondary" onClick={() => navigate("/app")}>
+            <Button variant="secondary" className="text-xs sm:text-sm font-semibold" onClick={() => navigate("/app")}>
               {t("pages.changePassword.cancel")}
             </Button>
           </div>
 
           {status && (
             <p
-              className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-[11px] text-success"
+              className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-xs sm:text-sm font-medium text-success"
               role="status"
             >
               {status}
@@ -167,7 +167,7 @@ export function ChangePasswordPage() {
           )}
           {error && (
             <p
-              className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-[11px] text-danger"
+              className="rounded-control border border-danger-border bg-danger-surface px-2.5 py-1.5 text-xs sm:text-sm font-medium text-danger"
               role="alert"
             >
               {error}

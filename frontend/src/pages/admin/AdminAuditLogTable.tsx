@@ -41,7 +41,7 @@ type Props = {
 const COLORS = ["#5b8cff", "#4fc3f7", "#8b7aff", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
 
 /** A one-line mono cell: a timestamp, an ip, a secondary id. */
-const MONO_CELL = "truncate font-mono text-[11px] text-ink-muted";
+const MONO_CELL = "truncate font-mono text-xs text-ink/75";
 
 export function AdminAuditLogTable({ logs, formatAuditTime }: Readonly<Props>) {
   const { t } = useTranslation();
@@ -193,7 +193,7 @@ export function AdminAuditLogTable({ logs, formatAuditTime }: Readonly<Props>) {
               <td className={MONO_CELL}>{formatAuditTime(entry.created_at)}</td>
               <td>
                 <CellStack>
-                  <span className="truncate font-mono text-[11px] font-semibold" title={entry.actor_user_id || "-"}>
+                  <span className="truncate font-mono text-xs font-semibold" title={entry.actor_user_id || "-"}>
                     {entry.actor_user_id || "-"}
                   </span>
                   <span className={MONO_CELL}>{entry.actor_role || "-"}</span>
@@ -224,7 +224,7 @@ export function AdminAuditLogTable({ logs, formatAuditTime }: Readonly<Props>) {
                 <AuditBadge value={entry.result} kind="result" />
               </td>
               <td className={MONO_CELL}>{entry.ip || "-"}</td>
-              <td className="max-w-[300px] truncate text-[11px] text-ink-muted" title={entry.detail || "-"}>
+              <td className="max-w-[300px] truncate text-xs text-ink/75" title={entry.detail || "-"}>
                 {entry.detail || "-"}
               </td>
             </tr>

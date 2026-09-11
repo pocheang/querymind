@@ -74,7 +74,7 @@ export function AgentWorkbench({ agentClassHint, agentModes, agentDistribution, 
 
   return (
     <div className="space-y-2">
-      <p className="text-[10px] text-ink-muted">
+      <p className="text-xs font-medium text-ink/75">
         {t("components.messages.current", { mode: agentClassHint || t("components.workbench.auto") })}
       </p>
 
@@ -100,10 +100,10 @@ export function AgentWorkbench({ agentClassHint, agentModes, agentDistribution, 
               onClick={() => onSwitchAgentMode(mode.key)}
               title={`${label.title}: ${label.desc}`}
             >
-              <strong className={cn("block text-[11px]", active ? "text-brand-text-strong" : "text-ink")}>
+              <strong className={cn("block text-xs sm:text-sm font-semibold", active ? "text-brand-text-strong" : "text-ink")}>
                 {label.title}
               </strong>
-              <span className="mt-0.5 block text-[10px] leading-snug text-ink-muted">{label.desc}</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-ink/75">{label.desc}</span>
             </button>
           );
         })}
@@ -111,7 +111,7 @@ export function AgentWorkbench({ agentClassHint, agentModes, agentDistribution, 
 
       <div className="flex flex-wrap gap-1">
         {agentDistribution.length === 0 && (
-          <span className="text-[10px] text-ink-muted">{t("components.messages.noIndexedDocs")}</span>
+          <span className="text-xs text-ink/75">{t("components.messages.noIndexedDocs")}</span>
         )}
         {agentDistribution.map((item) => (
           <Badge key={item.agent} variant="neutral" size="xs" mono>

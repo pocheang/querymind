@@ -1,13 +1,13 @@
 {
   "name": "querymind-frontend",
-  "version": "0.6.2.1",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "test": "vitest --config vitest.config.ts",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "preview": "vite preview --host 127.0.0.1 --port 5174",
     "lint": "eslint . --max-warnings 20",
     "lint:fix": "eslint . --fix",
     "lint:design": "node scripts/check-design-scale.mjs",

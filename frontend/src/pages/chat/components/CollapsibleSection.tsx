@@ -20,14 +20,14 @@ export function CollapsibleSection({ title, ariaLabel, open, className, children
   return (
     <details
       open={open}
-      className={cn("group rounded-card border border-line bg-surface-inset p-2.5 text-xs", className)}
+      className={cn("group rounded-card border border-line bg-surface-inset p-3 text-xs sm:text-sm", className)}
     >
       <summary
         aria-label={ariaLabel}
-        className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-semibold text-ink marker:content-none hover:text-brand-text [&::-webkit-details-marker]:hidden"
+        className="flex cursor-pointer list-none items-center gap-1.5 text-xs sm:text-sm font-semibold text-ink marker:content-none hover:text-brand-text [&::-webkit-details-marker]:hidden"
       >
         <ChevronRight
-          className="size-3 shrink-0 text-brand-accent transition-transform group-open:rotate-90"
+          className="size-3.5 shrink-0 text-brand-accent transition-transform group-open:rotate-90"
           aria-hidden="true"
         />
         {title}

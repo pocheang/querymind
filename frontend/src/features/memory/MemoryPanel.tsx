@@ -152,16 +152,16 @@ export function MemoryPanel() {
         </summary>
 
         <div className="space-y-2.5 border-t border-line-subtle p-3">
-          <p className="text-[11px] leading-relaxed text-ink-muted">{t("features.memory.description")}</p>
+          <p className="text-xs sm:text-sm leading-relaxed text-ink/80">{t("features.memory.description")}</p>
 
           {loading && (
-            <p aria-live="polite" className="py-3 text-center text-[11px] text-ink-muted">
+            <p aria-live="polite" className="py-3 text-center text-xs text-ink/75">
               {t("features.memory.loading")}
             </p>
           )}
 
           {!loading && loadError === null && memories.length === 0 && (
-            <p className="rounded-control border border-dashed border-line px-3 py-4 text-center text-[11px] text-ink-muted">
+            <p className="rounded-control border border-dashed border-line px-3 py-4 text-center text-xs sm:text-sm text-ink/75">
               {t("features.memory.empty")}
             </p>
           )}
@@ -186,7 +186,7 @@ export function MemoryPanel() {
                   )}
                 >
                   <div className="min-w-0 flex-1 space-y-1">
-                    <p className="break-words text-[11px] leading-relaxed text-ink">{memory.content}</p>
+                    <p className="break-words text-xs sm:text-sm leading-relaxed text-ink font-medium">{memory.content}</p>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge variant={KIND_TONE[memory.kind] ?? "neutral"} size="xs">
                         {kindLabel(memory.kind)}
@@ -199,7 +199,7 @@ export function MemoryPanel() {
                         </Badge>
                       )}
                       {memory.created_at && (
-                        <span className="font-mono text-[9px] text-ink-muted">{formatDate(memory.created_at)}</span>
+                        <span className="font-mono text-xs text-ink/75">{formatDate(memory.created_at)}</span>
                       )}
                     </div>
                   </div>
@@ -235,7 +235,7 @@ export function MemoryPanel() {
               role="status"
               aria-live="polite"
               className={cn(
-                "rounded-control border px-2.5 py-1.5 text-[11px]",
+                "rounded-control border px-2.5 py-1.5 text-xs font-semibold",
                 shownNotice.tone === "error"
                   ? "border-danger-border bg-danger-surface text-danger"
                   : "border-success-border bg-success-surface text-success"

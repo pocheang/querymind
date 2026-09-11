@@ -234,13 +234,13 @@ export function SessionList({
               value={sessionQuery}
               onChange={(event) => setSessionQuery(event.target.value)}
               placeholder={t("components.chat.searchSessions")}
-              className="w-full bg-transparent text-xs text-ink placeholder:text-ink-faint focus-visible:outline-none"
+              className="w-full bg-transparent text-xs sm:text-sm text-ink placeholder:text-ink-faint focus-visible:outline-none"
             />
           </label>
 
           <Button
             variant="soft"
-            className="group w-full justify-start"
+            className="group w-full justify-start text-xs sm:text-sm font-semibold"
             onClick={() => void onCreateSession()}
             disabled={sessionLoading || isCreatingSession}
           >
@@ -263,13 +263,13 @@ export function SessionList({
           )}
 
           {!sessionLoading && sessions.length === 0 && (
-            <p className="px-2 py-6 text-center text-[11px] text-ink-muted">{t("components.chat.noSessions")}</p>
+            <p className="px-2 py-6 text-center text-xs text-ink/75">{t("components.chat.noSessions")}</p>
           )}
 
           {!sessionLoading && sessions.length > 0 && filteredSessions.length === 0 && (
             <div className="space-y-2 px-2 py-6 text-center">
               <Search className="mx-auto size-5 text-ink-faint" aria-hidden="true" />
-              <p className="text-[11px] font-medium text-ink-muted">{t("components.chat.noSessionMatches")}</p>
+              <p className="text-xs font-medium text-ink/75">{t("components.chat.noSessionMatches")}</p>
             </div>
           )}
 
@@ -295,7 +295,7 @@ export function SessionList({
                       <input
                         ref={renameInputRef}
                         type="text"
-                        className="w-full rounded-control border border-brand-accent bg-surface px-1.5 py-0.5 text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+                        className="w-full rounded-control border border-brand-accent bg-surface px-2 py-1 text-xs sm:text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         onBlur={() => handleRenameBlur(session.session_id)}
@@ -313,20 +313,20 @@ export function SessionList({
                         >
                           {session.pinned && (
                             <Pin
-                              className="size-3 shrink-0 text-brand-accent"
+                              className="size-3.5 shrink-0 text-brand-accent"
                               aria-label={t("components.chat.pinSession")}
                             />
                           )}
                           <span className="min-w-0 flex-1">
                             <span
                               className={cn(
-                                "block truncate text-xs",
+                                "block truncate text-xs sm:text-sm",
                                 isActive ? "font-bold text-brand-text-strong" : "font-medium text-ink"
                               )}
                             >
                               {title}
                             </span>
-                            <span className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] text-ink-muted">
+                            <span className="mt-0.5 flex items-center gap-1.5 font-mono text-xs text-ink-muted">
                               <span>
                                 {formatSessionTime(session.updated_at, t("components.chat.recent"), i18n.language)}
                               </span>

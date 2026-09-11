@@ -15,8 +15,8 @@ export function ThinkingIndicator({ elapsedSeconds = 0 }: Readonly<ThinkingIndic
   const { t } = useTranslation();
 
   return (
-    <div className="flex items-center gap-2 text-[11px] text-ink-muted" role="status">
-      <span className="flex items-center gap-1" aria-hidden="true">
+    <div className="flex items-center gap-2 text-xs sm:text-sm text-ink/80" role="status">
+      <span className="flex items-center gap-1.5" aria-hidden="true">
         {[0, 1, 2].map((dot) => (
           <span
             key={dot}

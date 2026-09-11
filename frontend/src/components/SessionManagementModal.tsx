@@ -72,12 +72,12 @@ export function SessionManagementModal({
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-line-subtle p-4">
           <div className="flex min-w-0 items-center gap-2.5">
             <span
-              className="flex size-9 shrink-0 items-center justify-center rounded-card bg-[image:var(--brand-gradient)] font-mono text-[10px] font-bold text-white shadow-elev-1"
+              className="flex size-9 shrink-0 items-center justify-center rounded-card bg-[image:var(--brand-gradient)] font-mono text-xs font-bold text-white shadow-elev-1"
               aria-hidden="true"
             >
               SM
             </span>
-            <h2 id="session-management-title" className="truncate text-sm font-bold text-ink">
+            <h2 id="session-management-title" className="truncate text-base font-bold text-ink">
               {t("sessionManagement.searchSessions")}
             </h2>
           </div>
@@ -101,7 +101,7 @@ export function SessionManagementModal({
                 title={title}
                 onClick={() => setTab(key)}
                 className={cn(
-                  "flex-1 rounded-control px-2 py-1 text-[11px] font-medium transition-all",
+                  "flex-1 rounded-control px-2.5 py-1.5 text-xs sm:text-sm font-semibold transition-all",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
                   "disabled:cursor-not-allowed disabled:opacity-50",
                   tab === key

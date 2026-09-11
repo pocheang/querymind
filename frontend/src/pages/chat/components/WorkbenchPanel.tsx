@@ -149,7 +149,7 @@ export function WorkbenchPanel({
        column and collapsed the sessions to 5px. */
     <div className="flex max-h-[45%] shrink-0 flex-col gap-2 overflow-y-auto border-t border-line-subtle px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+        <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
           {t("components.workbench.workbench")}
         </span>
         <Button variant="ghost" size="xs" onClick={toggleAllTools}>
@@ -203,29 +203,29 @@ export function WorkbenchPanel({
         onToggle={() => toggleToolSection("docs")}
       >
         <div className="grid grid-cols-4 gap-1.5">
-          <div className="rounded-control border border-line bg-surface p-1.5 text-center">
-            <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+          <div className="rounded-control border border-line bg-surface p-2 text-center">
+            <span className="block truncate text-xs font-semibold uppercase tracking-wider text-ink/75">
               {t("components.workbench.indexed")}
             </span>
-            <strong className="block font-mono text-xs font-bold text-brand-text">{indexedCount}</strong>
+            <strong className="block font-mono text-sm font-bold text-brand-text">{indexedCount}</strong>
           </div>
-          <div className="rounded-control border border-line bg-surface p-1.5 text-center">
-            <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+          <div className="rounded-control border border-line bg-surface p-2 text-center">
+            <span className="block truncate text-xs font-semibold uppercase tracking-wider text-ink/75">
               {t("components.workbench.pending")}
             </span>
-            <strong className="block font-mono text-xs font-bold text-brand-text">{indexingCount}</strong>
+            <strong className="block font-mono text-sm font-bold text-brand-text">{indexingCount}</strong>
           </div>
-          <div className="rounded-control border border-line bg-surface p-1.5 text-center">
-            <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+          <div className="rounded-control border border-line bg-surface p-2 text-center">
+            <span className="block truncate text-xs font-semibold uppercase tracking-wider text-ink/75">
               {t("components.workbench.ready", "Ready")}
             </span>
-            <strong className="block font-mono text-xs font-bold text-brand-text">{readyCount}</strong>
+            <strong className="block font-mono text-sm font-bold text-brand-text">{readyCount}</strong>
           </div>
-          <div className="rounded-control border border-line bg-surface p-1.5 text-center">
-            <span className="block truncate text-[9px] uppercase tracking-wider text-ink-muted">
+          <div className="rounded-control border border-line bg-surface p-2 text-center">
+            <span className="block truncate text-xs font-semibold uppercase tracking-wider text-ink/75">
               {t("components.workbench.failed", "Failed")}
             </span>
-            <strong className="block font-mono text-xs font-bold text-brand-text">{failedCount}</strong>
+            <strong className="block font-mono text-sm font-bold text-brand-text">{failedCount}</strong>
           </div>
         </div>
         <DocumentsPanel

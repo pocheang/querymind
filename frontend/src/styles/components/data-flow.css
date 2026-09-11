@@ -152,8 +152,8 @@
   /* Attribution */
   .reactflow-wrapper .react-flow__attribution {
     background: transparent;
-    opacity: 0.5;
-    font-size: 10px;
+    opacity: 0.7;
+    font-size: 12px;
   }
 
   /* Responsive */
@@ -163,7 +163,7 @@
     }
 
     .reactflow-wrapper .react-flow__node {
-      font-size: 11px;
+      font-size: 12px;
       padding: 10px 12px;
       min-width: 120px;
       line-height: 1.45;

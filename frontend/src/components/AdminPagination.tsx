@@ -30,18 +30,18 @@ export function AdminPagination({
   return (
     <nav
       aria-label={t("admin.ui.pagination", "Pagination")}
-      className="flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle pt-2 text-[11px]"
+      className="flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle pt-2.5 text-xs sm:text-sm"
     >
-      <span className="text-ink-muted">{t("admin.ui.totalItems", { count: totalItems })}</span>
+      <span className="font-medium text-ink/80">{t("admin.ui.totalItems", { count: totalItems })}</span>
 
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-1.5 text-ink-muted">
+        <label className="flex items-center gap-1.5 font-medium text-ink/80">
           <span>{t("admin.ui.showPerPage")}</span>
           <select
             value={safePageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value) || pageSizeOptions[0])}
             aria-label={t("admin.ui.itemsPerPage", "Items per page")}
-            className="h-6 rounded-control border border-brand-border bg-surface px-1.5 text-[11px] text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+            className="h-7 rounded-control border border-brand-border bg-surface px-2 text-xs text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
           >
             {pageSizeOptions.map((option) => (
               <option key={option} value={option}>

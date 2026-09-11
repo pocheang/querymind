@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Release](https://img.shields.io/badge/release-v0.6.2.1-green.svg)](https://github.com/pocheang/querymind/releases)
+[![Release](https://img.shields.io/badge/release-v0.7-green.svg)](https://github.com/pocheang/querymind/releases)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 **Enterprise-grade Agentic RAG system for private knowledge bases**  
@@ -478,8 +478,8 @@ This project uses open-source technologies:
 
 See [CHANGELOG.md](CHANGELOG.md) for version history and [GitHub Issues](https://github.com/pocheang/querymind/issues) for planned features.
 
-**Current Version:** v0.6.2.1  
-**Latest Release:** [v0.6.2.1](https://github.com/pocheang/querymind/releases/tag/v0.6.2.1)
+**Current Version:** v0.7  
+**Latest Release:** [v0.7](https://github.com/pocheang/querymind/releases/tag/v0.7)
 
 ---
 

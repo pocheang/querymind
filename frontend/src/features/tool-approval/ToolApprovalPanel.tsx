@@ -44,14 +44,14 @@ export function ToolApprovalPanel({ approval, onApproved, onDismiss }: Readonly<
       className="tool-approval-panel mx-auto w-full max-w-4xl shrink-0 px-4 pb-1"
       aria-label={t("features.toolApproval.ariaLabel")}
     >
-      <div className="glass-card space-y-2 rounded-card border-2 border-warning-border bg-warning-surface/70 p-3">
-        <h2 className="flex items-center gap-1.5 text-[11px] font-bold text-ink">
+      <div className="glass-card space-y-2.5 rounded-card border-2 border-warning-border bg-warning-surface/70 p-3.5">
+        <h2 className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-ink">
           <AlertTriangle className="size-4 text-warning" aria-hidden="true" />
           {t("features.toolApproval.title")}
         </h2>
-        <p className="font-mono text-[11px] text-ink">{approval.summary || approval.tool_id}</p>
+        <p className="font-mono text-xs sm:text-sm text-ink">{approval.summary || approval.tool_id}</p>
         {error ? (
-          <p className="text-[11px] text-danger" role="alert">
+          <p className="text-xs font-semibold text-danger" role="alert">
             {error}
           </p>
         ) : null}
