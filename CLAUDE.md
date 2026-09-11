@@ -18,24 +18,70 @@ conda activate rag-local
 - **Language Support**: Bilingual (Chinese/English) via i18next
 - **License**: MIT
 
+### Repository Directory Layout
+
+```
+multi_agent_rag_local_v4/
+├── app/                        # Backend Application Core (Python / FastAPI)
+│   ├── api/                    # REST routes (public, admin, operations, optimization)
+│   ├── orchestration/          # LangGraph state machine, policies, timeout control, answer streaming
+│   │   └── langgraph/          # Canonical workflow definition (workflow.py, nodes.py, state.py)
+│   ├── agents/                 # Specialized domain agents (router, rag, planner, synthesizer, tool)
+│   ├── retrieval/              # Hybrid retrieval engine (vector, BM25, graph, reranking, fusion)
+│   ├── privacy/                # Tenant scoping & DLP streaming redactor
+│   ├── memory/                 # User long-term episodic & semantic memory
+│   ├── security/               # Access scopes, approval tokens, permission policies
+│   ├── models/                 # Model adapters (OpenAI, Anthropic relays, DeepSeek, Ollama, local BGE)
+│   ├── domain/                 # Typed domain contracts, errors, events, and value objects
+│   └── core/                   # Application settings (pydantic-settings), logging, config
+├── frontend/                   # Frontend SPA (React 18 + TypeScript + Vite + Tailwind CSS v4)
+│   └── src/
+│       ├── features/           # Domain feature modules (execution-trace, integrations, memory, tool-approval)
+│       ├── pages/              # Primary route views (Chat, Admin, Analytics, Architecture, Auth)
+│       ├── components/         # Shared UI primitives, BaseDialog modals, TopNav, ChatComposer
+│       ├── hooks/              # Reusable React hooks (useAppShortcuts, useSettingsPolling, useSession)
+│       ├── services/           # HTTP API client, SSE event stream subscriptions
+│       ├── stores/             # Zustand state management slices
+│       ├── styles/             # Tailwind theme tokens and minimal core CSS (surfaces.css)
+│       └── i18n/               # Bilingual internationalization resources (zh-CN, en-US)
+├── deploy/                     # Deployment configurations and automation
+│   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
+│   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
+├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
+└── tests/                      # Automated test suite (1,754 backend pytest tests + 154 frontend vitest tests)
+```
+
 ## Table of Contents
 
 - [Environment Setup](#environment-setup)
 - [Project Information](#project-information)
+  - [Repository Directory Layout](#repository-directory-layout)
 - [Common Commands](#common-commands)
   - [Backend](#backend)
   - [Frontend](#frontend)
   - [Docker Deployment](#docker-deployment)
 - [Architecture Overview](#architecture-overview)
   - [Canonical LangGraph Architecture (v0.7.0 Milestone)](#canonical-langgraph-architecture-v070-milestone)
-  - [Core Components](#core-components)
+  - [Core Components (LangGraph Nodes)](#core-components-langgraph-nodes)
+  - [LangGraph State Machine Specification](#langgraph-state-machine-specification)
+  - [API Routes & Protocols Reference](#api-routes--protocols-reference)
   - [Execution Flow](#execution-flow)
   - [Observability & Inspection](#observability--inspection-v070)
   - [Quality Assurance](#quality-assurance)
+- [Core Systems & Technical Invariants](#core-systems--technical-invariants)
+  - [Model Configuration & Relays](#model-configuration-is-an-administrators-and-applies-to-everyone)
+  - [Privacy, Telemetry & Analytics Dashboard Rules](#privacy-telemetry--analytics-dashboard-rules)
+  - [Local Embeddings & Retrieval Safeguards](#local-embeddings--retrieval-safeguards)
+  - [Bilingual Localization & Formatting Guarantees](#bilingual-localization--formatting-guarantees)
+  - [DLP Redaction & Reference List Stripping](#dlp-redaction--reference-list-stripping)
+  - [Web Search & DDGS Concurrency Constraints](#web-search--ddgs-concurrency-constraints)
+  - [User Profile & Session Metadata Scoping](#user-profile--session-metadata-scoping)
 - [Development Patterns](#development-patterns)
-  - [Working with the Current Architecture](#working-with-the-current-architecture)
   - [Frontend Styling & Design System](#frontend-styling-rewritten-2026-09-07)
   - [Modal Dialog & Accessibility Standards](#modal-dialog--accessibility-standards)
+  - [Admin Console Component Architecture & Primitives](#admin-console-component-architecture--primitives)
+  - [Application Keyboard Shortcuts](#application-keyboard-shortcuts)
+  - [Asynchronous Purity & Event Loop Protection](#asynchronous-purity--event-loop-protection)
   - [Testing Strategy](#testing-strategy)
   - [Sensitive Content Gate](#sensitive-content-gate-added-2026-09-04)
 - [Important Notes](#important-notes)
@@ -88,23 +134,6 @@ make up                             # start Neo4j for local dev (Browser on :747
 make down                           # stop it
 make eval-retrieval                 # BM25 retrieval quality over config/eval/ (no model needed)
 ```
-
-Note (2026-08-29): A backend agent audit found several components documented above
-that no longer matched the running code — an orphaned router/clarification rewrite
-(`app/agents/router/{enhanced_service,hybrid_clarification,accuracy,frontend_integration,validator,adapter,pipeline}.py`),
-an orphaned RAG fusion/vector duplicate (`app/agents/rag/{fusion.py::fuse_evidence,enhanced_vector.py}`),
-an orphaned second quality-scoring engine (`app/agents/validation/quality_orchestrator.py`),
-and an unreachable ReAct tool loop (`app/agents/tool/react.py`). All were deleted; the
-claims above were corrected to describe what actually runs today.
-
-Note (2026-08-29, second pass): A full-backend audit found the chat path was not
-persisting messages, conversation context was filled but never read, the query
-endpoint never returned its execution_id, the `graph` route never queried the
-graph, and 184 modules (~13,000 lines) had zero importers. All were fixed or
-deleted; `app/` went from 583 to 371 Python files and Settings from 261 to 216
-fields. Those are what the audit left behind, not a ceiling — today it is 372 files and
-235 settings fields (2026-09-05). See `docs/superpowers/plans/2026-08-29-backend-full-audit-remediation.md`
-for the plan, what was deliberately left dormant, and what remains open.
 
 ### Frontend
 
@@ -181,71 +210,96 @@ QueryMind v0.7.0 operates on a **Canonical LangGraph multi-agent architecture**.
 - **Multi-Tier Answer Verification**: Citation grounding, token overlap scoring, and NLI entailment validation with automatic bounded retry loop.
 - **Output DLP Redaction**: Streaming and finalized answers undergo sensitive information redaction at chunk boundaries.
 
-### Core Components
+### Core Components (LangGraph Nodes)
 
-The system has **3 primary components** and **3 optional components**:
+The runtime execution pipeline is structured around **7 canonical nodes** defined in [workflow.py](app/orchestration/langgraph/workflow.py) and [nodes.py](app/orchestration/langgraph/nodes.py):
 
-**Primary (always active)**:
-1. **Router** ([app/agents/router/service.py](app/agents/router/service.py))
-   - Query intent classification and route selection
+1. **`privacy_permission`** ([app/privacy/service.py](app/privacy/service.py))
+   - Caller tenant validation and data access scope verification (`AccessScopeResolver`).
+   - Ensures no retrieval query or tool execution runs without authenticated tenant and user boundaries.
 
-2. **Retriever** ([app/agents/rag/service.py](app/agents/rag/service.py))
-   - Hybrid search: vector (ChromaDB) + BM25 + reranking
-   - Optional: Knowledge graph (Neo4j), web search
+2. **`router`** ([app/agents/router/service.py](app/agents/router/service.py))
+   - Query intent classification and route selection (`rag`, `react`, `graph`, `direct`, or `clarification`).
+   - Evaluates query completeness; returns clarification requests if essential slots are missing.
 
-3. **Synthesizer** ([app/agents/synthesizer/service.py](app/agents/synthesizer/service.py))
-   - Citation-first answer generation from evidence
+3. **`planner`** ([app/agents/planner/service.py](app/agents/planner/service.py)) - *Conditional*
+   - Decomposes multi-faceted or complex inquiries into a DAG of focused sub-tasks.
+   - Executed only when `after_router` decides planning is required.
 
-**Optional (route-dependent)**:
-4. **Planner** - Task decomposition for complex queries
-5. **Tool Runner** - Governed connector actions, selected by a model from a
-   schema-declared catalogue (`app/agents/tool/selector.py` + `service.py`,
-   reworked 2026-08-30). Two actions are registered (2026-09-04): a `read` that
-   lists the caller's own connectors (`querymind_connector_list_owned`) and a
-   `write` that disables one (`querymind_connector_disable_owned`). The read is
-   what makes the loop worth having -- it is how the model finds the id of a
-   connector before acting on it, and `operation="read"` skips approval entirely
-   so it costs the user no confirmation. Its summary is composed from
-   `connector_id` and `status` alone, never `ConnectorView.name`: a read-only
-   tool's summary *is* fed back as a `ToolObservation`, `name` is user-authored
-   free text, and a summary built from a `^[a-z][a-z0-9_-]{0,63}$` id and a
-   two-value Literal is structurally incapable of carrying an instruction. That
-   is what makes the read-then-write composition safe rather than untested, and
-   `tests/security/test_connector_list_tool_scoping.py` pins it. Selection is **multi-step**: select → invoke → observe → repeat,
-   bounded by `TOOL_MAX_STEPS` (default 3) and by the shared
-   `STAGE_TIMEOUT_TOOL_MS` ceiling. The loop stops on anything other than a clean
-   success — an `approval_required` result means the action has *not* happened,
-   so planning a next step on top of it would be reasoning from a false premise —
-   and it stops if the model repeats a call it already made.
+4. **`knowledge`** ([app/agents/rag/service.py](app/agents/rag/service.py), [app/agents/tool/service.py](app/agents/tool/service.py))
+   - **Hybrid Retrieval**: Parallel execution across vector (ChromaDB + BGE-M3), lexical (BM25 with jieba), graph (Neo4j), and web search (DDGS), consolidated via Reciprocal Rank Fusion (RRF).
+   - **Governed Tool Runner**: Multi-step model-selected connector execution (`app/agents/tool/selector.py`), bounded by `TOOL_MAX_STEPS` (default 3) and `STAGE_TIMEOUT_TOOL_MS`.
+     - **Evidence-Blind Selector**: Tool selection inputs are strictly `(query, conversation, tool_catalog)`. The selector receives **no retrieved evidence** (`EvidenceBundle`), preventing untrusted retrieved chunks from triggering indirect prompt injections.
+     - **Read vs. Write Governance**: Read tools (`operation="read"`, e.g. `querymind_connector_list_owned`) run without human interruption. Write tools (`operation="write"`, e.g. `querymind_connector_disable_owned`) return `approval_required` on first call; user must sign off with an approval token to execute.
+     - **Open-World Summaries**: When a tool accesses open-world content, its returned observation carries only `(id, status)`, never raw untrusted text, to prevent poisoning subsequent steps.
 
-   **The selector is deliberately blind to retrieved content.** Its inputs are
-   the user's question, the conversation, and the tool catalogue; it takes no
-   `EvidenceBundle`/`ContextBundle`, and `ToolRunner` no longer receives evidence
-   either, so there is no argument to pass by mistake. Retrieved chunks are
-   attacker-controllable the moment one user can put a document where another
-   user's query will retrieve it, and a model that chose tools from them would
-   put this system in the middle of the lethal trifecta. While selection was a
-   regex over the question this was true by accident;
-   `tests/security/test_tool_selection_is_evidence_blind.py` makes it a property.
-   If a tool ever genuinely needs retrieved content, that is a deliberate change
-   with its own threat model.
+5. **`synthesizer`** ([app/agents/synthesizer/service.py](app/agents/synthesizer/service.py))
+   - Grounded generation using evidence snippets, inserting internal citation markers (`[E{k}]`).
+   - Streams draft answer fragments to the process-wide `AnswerStreamStore` (`app/orchestration/answer_stream.py`).
 
-   **Feeding results back re-opens that question one layer down**, which is what
-   `ToolRisk == "open_world"` now answers: such a tool reaches content this
-   system does not control, so its summary is somebody else's writing and
-   contributes only its id and status to the next decision, never its text
-   (`app/agents/tool/service.py::_observation`). Every tool registered today
-   composes its own summary, so today they all contribute it.
+6. **`verifier`** ([app/services/retrieval/citation_grounding.py](app/services/retrieval/citation_grounding.py), [app/services/verification/](app/services/verification/))
+   - Validates citation support, token overlap grounding (hedges sentences under 0.22 overlap), and NLI cross-encoder entailment.
+   - Evaluates quality thresholds; if confidence falls below threshold, triggers an automated bounded retry loop (`after_verifier` -> `knowledge`).
 
-   Arguments come from a model now, so `ToolDefinition.parameters` (name,
-   required, `max_length`, `pattern`) is the only thing between it and the
-   executor; `ToolRegistry.invoke` validates against it before spending an
-   approval round trip, and `ToolRegistry.catalog(actor)` only offers tools the
-   actor is authorized to run.
+7. **`output_filter`** ([app/privacy/streaming.py](app/privacy/streaming.py), [app/orchestration/finalization.py](app/orchestration/finalization.py))
+   - Sensitive DLP redaction on completed answers.
+   - Strips model-hallucinated reference lists via `strip_model_reference_list`.
+   - Remaps internal evidence markers `[E{k}]` into clean, consecutive reader-facing citation numbers `[1]`, appending the verified reference list.
 
-   A `write` tool always returns `approval_required` on its first call; the
-   caller confirms and re-sends with the token. See "Governed tool stack" below.
-6. **Finalizer** - Quality validation and safety checks
+### LangGraph State Machine Specification
+
+The pipeline state is governed by a single typed `StateGraph(OrchestrationGraphState)` in [state.py](app/orchestration/langgraph/state.py):
+
+| State Attribute | Type | Description |
+|---|---|---|
+| `request` | `OrchestrationRequest` | Incoming user question, `session_id`, `tenant_id`, `user_id`, `timeout_ms` |
+| `route` | `RouteDecision` | Assigned route (`rag`, `react`, `graph`, `direct`, `clarification`) and intent |
+| `plan` | `TaskPlan \| None` | Sub-task DAG emitted when planner is conditionally invoked |
+| `context` | `ContextBundle \| None` | Retrieved evidence items, token budgets, and tool observation records |
+| `candidate_answer` | `CandidateAnswer \| None` | Draft answer synthesized by LLM carrying internal `[E{k}]` evidence markers |
+| `verification` | `VerificationDecision \| None` | Grounding evaluation, citation precision, and NLI entailment scores |
+| `verifier_retries` | `int` | Current retry loop iteration count (bounded by `Settings.verifier_max_retries`) |
+| `final_answer` | `FinalAnswer \| None` | DLP-redacted answer with renumbered `[1]` citations and structured sources |
+
+**Conditional Edge Transitions**:
+- `after_router(state)`: Checks if the query requires multi-step decomposition. Returns `"planner"` if decomposed planning is required; otherwise returns `"knowledge"`.
+- `after_verifier(state)`: Checks if verification passed or if `verifier_retries >= max_verifier_retries`. If verification failed and retries remain, increments `verifier_retries` and loops back to `"knowledge"`; otherwise routes to `"output_filter"`.
+
+### API Routes & Protocols Reference
+
+#### Core REST Endpoints
+
+- **Chat & Advanced RAG**:
+  - `POST /api/advanced-rag/query`: Primary RAG pipeline query. Accepts `query`, `session_id`, `timeout_ms`. Returns `PipelineResult` with execution ID, contributing sources, and final answer.
+  - `POST /api/v1/chat/completions`: OpenAI-compatible endpoint supporting streaming (`stream=true`) and standard responses.
+- **Sessions & History**:
+  - `GET /api/v1/sessions`: List sessions for the authenticated user.
+  - `POST /api/v1/sessions`: Create a new chat session.
+  - `PUT /api/v1/sessions/{session_id}`: Rename or toggle pin for a session.
+  - `POST /api/v1/sessions/search`: Search session metadata (description, tags, timestamps).
+  - `DELETE /api/v1/sessions/{session_id}`: Delete a session and its message history.
+- **Connectors & Tools**:
+  - `GET /api/v1/connectors/owned`: List connectors owned by the caller (`operation="read"`).
+  - `POST /api/v1/connectors/{id}/disable`: Disable connector (`operation="write"`, requires `approval_token`).
+- **Administration & System Health**:
+  - `GET /api/v1/user/active-model`: Current active model status for authenticated caller.
+  - `GET` / `PUT /api/v1/admin/model-settings`: Global model provider configuration (OpenAI, Anthropic relays, DeepSeek, Ollama).
+  - `GET /api/v1/operations/health`: Health status of SQLite, ChromaDB, Neo4j, and Redis.
+  - `GET /api/v1/operations/analytics/overview`: Latency percentiles and retrieval success rates.
+
+#### Real-Time SSE Streaming Protocol
+
+Endpoint: `GET /api/v1/orchestration/executions/{execution_id}/events`
+
+Subscribers receive two multiplexed event types:
+1. `event: execution_event`:
+   - Emitted as the LangGraph state machine enters and completes each node (`privacy_permission`, `router`, `planner`, `knowledge`, `synthesizer`, `verifier`, `output_filter`).
+   - Payload: JSON object with `stage`, `status` (`running` / `completed` / `failed`), `timestamp`, and timing metrics.
+2. `event: answer_fragment`:
+   - Emitted chunk-by-chunk by `SynthesizerAgentService._generate_streaming` into `AnswerStreamStore`.
+   - Payload: Plain text chunk of the in-progress draft answer.
+   - **Draft Safety**: Fragments are displayed in a temporary draft bubble. Final DLP redaction, citation renumbering, and reference formatting are performed by `output_filter` upon completion.
+
 
 ### Pipeline Profile
 
@@ -2077,461 +2131,45 @@ this file already records; the two skipped nodes are both on `--brand-mark-gradi
 logotype exemption. `__probe()` caught all three planted bad nodes first, so the scanner
 was known able to fail before its pass was believed.
 
-#### Configuring a real relay for the first time found six defects
+#### Model Configuration & Relay Rules
 
-On 2026-09-09 an Anthropic-compatible relay was configured through the admin
-console -- the first time anybody had done it. Everything about the change above
-was already tested and green. Six things broke anyway, and the shape they share
-is worth more than any one of them: **each sat on a path that no test and no
-reader had ever walked end to end.**
+- **Relay Adapter Constraints**: `AnthropicRelayChatModel` (and compatible OpenAI gateways) connects to a provider at `base_url`. It must **not** be passed `streaming=True` at construction time (the adapter streams by providing an asynchronous `.stream()` generator). Constructor parameters must explicitly forward `request_timeout_seconds` mapped from `Settings.llm_request_timeout_seconds`.
+- **Client Timeout vs. Server Stage Deadline**: The browser HTTP client (`services/http/client.ts`) must not abort prematurely. The overall server budget `STAGE_TIMEOUT_TOTAL_MS` is **120s** (with LLM synthesis up to 30s-60s). The frontend passes `timeout_ms` in the request body to constrain the server's budget, and the client-side `AbortController` is set strictly **above** `timeout_ms` (e.g. +5s margin). This guarantees the server always reaches its graceful degradation path before the client drops the connection.
+- **Cache Invalidation on Save**: When an administrator saves a model provider in the admin console, the runtime chat model cache is invalidated immediately (`_drop_cached_chat_model()`). The frontend `EFFECTIVE CONFIGURATION` panel refetches on the falling edge of a successful save and manual refresh (never on incremental draft patches to avoid unwanted probing).
+- **Test Isolation**: Tests asserting model configuration (e.g. `test_effective_model_config.py`) must isolate their database state using autouse fixtures and temporary SQLite instances, never reading developer `.runtime/` databases.
+- **Stable Polling References**: Hook `useSettingsPolling` must hold callbacks and translation functions in stable `useRef`s to prevent endless teardown/resubscribe loops on render.
 
-- **The relay branch had never run.** `AnthropicRelayChatModel` exists for
-  exactly one situation, a gateway reached at a `base_url`, and the only code
-  constructing it passed `streaming=True`, which its `__init__` does not accept.
-  Every relay configuration raised `TypeError` at construction. The flag was
-  never needed either: the adapter streams by *having a `stream()` method*.
-  The same call also dropped `request_timeout_seconds`, so the relay kept a 30s
-  default and `LLM_REQUEST_TIMEOUT_SECONDS` did not reach the one provider most
-  likely to sit behind a slow hop.
-  `tests/services/test_anthropic_relay_construction.py` pins both, and
-  parametrizes over the constructor's parameters so a *second* unsupported
-  keyword fails the same way rather than waiting for the next person to configure
-  a relay.
+#### Privacy, Telemetry & Analytics Dashboard Rules
 
-- **The client gave up before the server did.** `services/http/client.ts`
-  defaults to a 30s abort; `STAGE_TIMEOUT_TOTAL_MS` is **120s** and synthesis
-  alone may take 30s. Measured on the first real question: **52,943ms**, well
-  formed, with citations -- and the browser had already aborted it at 30s and
-  rendered "Request timed out" with no sources, while the server logged `200 OK`.
-  A client timeout shorter than one of the server's stages throws away the whole
-  degradation design, which exists precisely to turn a slow run into a marked
-  answer rather than nothing.
+- **Hashed Query Digests**: In `RetrievalLogger` and `retrieval_logs` table, `question` is always stored as a SHA-256 digest (`hashlib.sha256(text.encode()).hexdigest()`), never raw query text. This prevents PII or sensitive enterprise data from being exported into CSV dumps.
+- **Fail-Safe Observability**: Analytics collection is strictly observer-mode telemetry. Metric logging must never fail or block the primary query response path.
+- **Empty-Log Guards**: `TopNavMetrics` and analytics charts must guard against empty logs (`total_queries == 0`) and render empty placeholders instead of alarming warning badges (e.g. "Success: 0.0%").
 
-  The fix declares the deadline to **both** ends: `timeout_ms` (a field wired in
-  2026-08-31 that the frontend had never once sent) narrows the server's budget,
-  and the client's abort sits a margin *above* it, so the server always reaches
-  its own deadline first and answers with its degradation path. Equal values
-  would leave the race to scheduling.
+#### Local Embeddings & Retrieval Safeguards
 
-- **The panel that exists to be authoritative went stale on save.** The
-  `EFFECTIVE CONFIGURATION` fetch was `useEffect(..., [])` -- mount only, with a
-  correct comment explaining why it must not run on every patch (probing loads
-  the optional models). But a save is the one event that invalidates it, so after
-  saving a provider the page showed `chat DEGRADED local -- "No provider is
-  configured"` directly under a stored-configuration strip reading `Anthropic`.
-  Two contradictory claims on one page, and the stale one was the panel whose
-  entire job is to answer "what will the next question use". It refetches on the
-  falling edge of a save and on Refresh; still never on a patch.
+- **Offline Local Model Execution**: `LOCAL_EMBED_MODEL` (default `BAAI/bge-m3`) is loaded with `local_files_only=True`. If weights are not downloaded locally, the system falls back gracefully to deterministic offline hash embeddings. It must never initiate unauthenticated, un-throttled network downloads during an incoming user request.
+- **Synchronous Execution on Thread**: Embeddings are computed via `asyncio.to_thread(...)`. Every caller reaches embeddings from a worker thread to keep the event loop responsive.
+- **ChromaDB Reindex Rule**: Switching the embedding model or vector dimension invalidates existing vector spaces. Chroma collections must be cleared and reindexed when changing `LOCAL_EMBED_MODEL`.
 
-- **Three surfaces described the deleted per-user configuration**, and each was
-  corrected in a different pass. The schema description was fixed with the
-  removal itself; the **checkbox an administrator actually reads** still said
-  "replaces every user's own API settings" in both locales; and both chat
-  branches of the effective panel described "those with personal settings". The
-  backend test passed the whole time the label lied, because the two ends had no
-  place where they met. `test_the_checkbox_a_human_reads_says_the_same_thing`
-  and `test_the_effective_panel_does_not_promise_a_per_user_configuration` are
-  that place -- they check the locale files and the inline `defaultValue` too,
-  since a missing key renders the inline copy forever and silently.
+#### Bilingual Localization & Formatting Guarantees
 
-- **`test_effective_model_config.py` was reading the developer's database.**
-  `_chat()` reads the stored configuration from `APP_DB_PATH`, and nothing in
-  that file stubbed it -- so its environment-branch tests asserted against
-  whatever was last saved in the admin console. They passed for months and went
-  red the moment a provider was configured on the machine running them. The
-  autouse fixture stubs it now, and the branch that had no test at all -- an
-  enabled administrator configuration, the one a configured deployment takes --
-  has one.
+- **100% Locale Consistency**: UI elements, agent cards, system prompts, and toast notifications must provide full Chinese and English translations via i18next. Language fallback to English is prevented by `tests/i18n/locales.test.ts`, which validates that all translation keys exist in both locales and that Chinese values are not bare copies of English.
+- **Sentence Grounding Boundaries**: Sentence grounding hedges (`apply_sentence_grounding`) are inserted by character offsets into candidate answers. Offsets must never splice hedges into URLs, filenames, or non-claim sentences (e.g. bare citation markers `[1]`).
 
-- **The model-change poller re-ran on most renders.** `useSettingsPolling` keyed
-  its effect on `[onNotify, t]`; react-i18next returns a fresh `t` and the
-  notifier is a new closure, so the effect tore down and re-ran constantly and
-  each run repeated its seeding fetch. Measured on an **idle** page: 3 requests
-  per 30s against the one a 25s interval intends, and far worse while an answer
-  streams. Both are held in refs now so the effect depends on nothing; measured
-  again afterwards, 1 per 30s. Same trap this file already records for the memory
-  panel, reached from the other direction -- there it was an unbounded loop, here
-  merely triple the traffic, which is why nobody noticed.
+#### DLP Redaction & Reference List Stripping
 
-**What made all six visible was using the thing.** `make test`, ruff, tsc,
-eslint, the design ratchet and the dead-class scan were green before and after;
-none of them can ask "does a relay work", because every one of them measures the
-code against itself. The relay defect in particular had been shipping since the
-class was written.
+- **Token Leak Prevention**: DLP redaction placeholders (e.g. `[REDACTED_...]`) must never leak into client-visible citation lists or SSE streams.
+- **Hallucinated Reference Stripping**: LLMs frequently generate redundant, hallucinated `References:` or `Sources:` sections at the bottom of their responses. `strip_model_reference_list` strips model-generated reference text, ensuring only the verified, engine-numbered citation list is appended by `output_filter`.
 
-One detail worth keeping for the next person configuring a provider: choose
-`anthropic`, not `custom`. `custom` reports `supports_embeddings = True`, so
-saving it changes the embedding signature, triggers `rebuild_all_vector_index()`,
-and then sends embedding requests to a relay that almost certainly does not serve
-them. `anthropic` reports False, and the page says so in its own words:
-"Embedding pipeline unchanged".
+#### Web Search & DDGS Concurrency Constraints
 
-#### Walking the app as a user found five more, and one open question
+- **DuckDuckGo Thread Safety**: Concurrent instantiation of `DDGS()` across threads causes process lockups. Web search calls must be serialized or pooled with appropriate timeout guards (`STAGE_TIMEOUT_WEB_SEARCH_MS`).
+- **Result Filtering**: Web search results are capped (default 5 items), sanitized of tracking parameters, and filtered against `WEB_MIN_SOURCE_SCORE`. If no results meet the threshold, the retriever relies on vector/graph evidence rather than incorporating noisy web snippets.
 
-2026-09-09, immediately after the relay went in. Same lesson as the section
-above, so it is worth stating once rather than twice: **every one of these was
-found by opening a surface, and none of them is visible to any check that
-measures the code against itself.**
+#### User Profile & Session Metadata Scoping
 
-- **Tesseract was installed and reported missing.** `_ocr()` asked
-  `shutil.which("tesseract")`, and the Windows installer does not add itself to
-  PATH -- so the binary sat at `C:/Program Files/Tesseract-OCR/` while the
-  console said `unavailable` and image captioning stayed blocked behind it (an
-  external captioning backend is fail-closed on the masking detector, which is
-  this same Tesseract). `resolve_tesseract_command` in
-  `app/ingestion/extraction/ocr.py` is now the single answer to "can this
-  process run Tesseract", used by **both** the panel and ingestion -- a panel
-  reporting `unavailable` over an OCR that works is as bad as the reverse. An
-  explicit `TESSERACT_CMD` still wins and its absence is still reported, because
-  falling back to a standard location when an operator named a different binary
-  would silently run something they did not choose.
-
-  Its fallback paths are written with **forward slashes**, and the comment says
-  why: the first version went through a shell heredoc and shipped
-  `Tesseract-OCR\tesseract.exe` with the `\t` already collapsed to a TAB. It
-  resolved to nothing and read completely normally until `cat -A`. Same defect
-  class as the `\\+` regex this file records for `check_sensitive.py`.
-
-- **`_embedding()` never consulted the administrator configuration.**
-  `get_embedding_model()` reads the global override before the environment;
-  this reported purely from `MODEL_BACKEND`. So an admin who configured OpenAI
-  got OpenAI embeddings and a panel still reading "local hash embeddings,
-  degraded". Providers with no embedding endpoint still fall through, because
-  for them the environment really is what runs.
-
-- **Two `accept` lists, neither matching the server.** `ChatComposer` offered
-  `.pdf` and seven image types, `DocumentsPanel` added `.md` and `.txt`, and the
-  upload endpoint takes both plus `.gif` and four Office formats. So a `.md` was
-  greyed out in the composer's picker while the hint beneath it read "Supports
-  PDF / images / text", and no picker anywhere offered a `.docx` the server
-  would have accepted. One list now (`lib/uploadFormats.ts`), compared against
-  the endpoint's set by `tests/api/test_upload_formats_agree.py`. A narrower
-  `accept` was never a safety measure -- `store_uploaded_files` validates the
-  suffix regardless -- only a promise to whoever is choosing a file.
-
-- **Every shared-corpus document offered three buttons that always answered
-  404.** Visible and manageable are different sets and the gap is not derivable
-  by a client: `list_visible_document_rows` includes `docs_path`, which everyone
-  can search, while `_is_source_manageable_for_user` requires `uploads_path` --
-  for administrators too, deliberately, so a `?source=` cannot reach another
-  tenant's file. The panel guessed with four clauses, one of which read
-  `!doc.owner_user_id` -- "nobody owns it, so anyone may manage it" -- which is
-  exactly backwards for a corpus that has no owner *because it belongs to the
-  deployment*. `IndexedFileSummary.can_manage` is answered by the same predicate
-  the write endpoints enforce, so an offered button is a request that will be
-  accepted.
-
-  Worth knowing having found it: with `AUTO_INGEST_ENABLED` false (the default)
-  there is now **no reachable path in the UI that indexes `docs_path` at all**.
-  Uploads land in `uploads_path` and are managed normally; the shared corpus is
-  a deployment concern, and pretending otherwise was what produced the dead
-  buttons.
-
-- **Two claims in Technology Stack were false**, and both would have sent a
-  reader the wrong way about the degraded embedding directly above:
-  "Sentence-Transformers BGE-M3 embeddings" (there is no bi-encoder embedding
-  path at all -- `sentence_transformers` is imported only for `CrossEncoder`, by
-  the reranker and NLI) and "Claude Haiku ... in `image_processor.py`" (that
-  path was deleted on 2026-09-05, as this file records elsewhere).
-
-**Open, and deliberately not fixed in this pass: the analytics dashboard has no
-producer.** `RetrievalLogger.log_retrieval` has **zero callers in `app/`** -- the
-only occurrence is its own `def`. So `/app/analytics` (total queries, success
-rate, average response time, agent distribution, document ranking, and both
-export buttons) reads a deque nothing ever appends to, and reports zeros
-forever. The top-bar metrics strip reads the same endpoint and is therefore
-permanently hidden, which is why its carefully-argued "renders nothing until
-there are samples" guard has never been seen to do anything.
-
-Two reasons it is a decision rather than a patch. There are already two metrics
-systems -- the `request_rows` ring the middleware writes, which works and feeds
-the ops SLOs, and this one, which does not -- and a duplicate is the shape this
-file keeps deleting rather than feeding. And `RetrievalLog.question` stores the
-**raw question text**, which `export_logs` writes into a downloadable CSV: wiring
-it as-is would build exactly the question-text store `question_ref()` exists to
-prevent. If it is wired, the field carries a digest.
-
-#### The analytics dashboard has a producer (2026-09-09)
-
-`RetrievalLogger.log_retrieval` had **no caller anywhere in `app/`** -- the only
-occurrence in the tree was its own `def`. So `/app/analytics` reported 0 queries,
-0% success and 0ms forever, both export buttons produced an empty file, and the
-top bar's metrics strip stayed permanently hidden behind the "render nothing
-until there are samples" guard this file describes at length as a considered
-design. It had never had samples and could not have.
-
-`record_query_analytics` (`api/routes/internal/pipeline_contract.py`) is the
-producer, called from the query endpoint beside `record_grounding_support`.
-Four decisions in it are the point:
-
-- **The question is stored as a digest, never as text.** `RetrievalLog.question`
-  held the raw string and `export_logs` writes rows into a downloadable CSV, so
-  wiring it unchanged would have built exactly the store `question_ref()` exists
-  to prevent -- and **nothing in the dashboard ever read that field**. It is
-  `question_ref` now, which keeps the one property the export needs: the same
-  question yields the same handle, so rows can be correlated.
-- **`filtered_docs_count` was deleted rather than filled.** It had no reader and
-  no honest source -- there is no separate agent-filter stage to count -- and the
-  only plausible value was `retrieved_count` again, which is a number that looks
-  measured and is not.
-- **It cannot fail a request.** Analytics is a by-product of answering; the whole
-  builder is wrapped, because an answer that was produced must not be lost
-  because a counter could not be updated.
-- **The timing key was wrong in the first version and would have shipped a zero.**
-  It read `stage_durations_ms`; `summarize_workflow_execution` emits
-  `stage_latency_ms`. Every row's retrieval time would have been 0, which the
-  dashboard displays as a fast retrieval -- the exact "reports something other
-  than what ran" this function exists to undo, reintroduced one key deep.
-  `test_the_timing_key_is_the_one_the_diagnostics_emit` pins it **against the
-  producer**, not against the test's own fixture, because a fixture that invents
-  the key lets the builder read nothing and still pass.
-
-Verified end to end rather than by unit test alone: one real question, then the
-dashboard reading `TOTAL QUERIES 1`, `AVERAGE RESPONSE TIME 19203ms`,
-`Retrieval: 4630ms`, `general: 100%`. That query had failed to find evidence, and
-the row said `has_result: false` and the page said `SUCCESS RATE 0%` -- correct,
-and the first evidence that the panel now reports rather than decorates.
-
-**And the message that reported it was wrong twice over** (fixed the same day).
-`SYNTHESIS_FALLBACK_MESSAGE` -- "抱歉，当前答案生成服务暂时不可用" -- was returned
-from **13 sites** covering a synthesis timeout, an LLM error, an empty
-completion, and *having no evidence to answer from*. The last is the most common
-failure on an installation with an empty corpus, and it sent the reader to an
-administrator when what they needed was a document or a web search; the model
-was answering perfectly. `synthesize_candidate` **already tagged that branch
-`no_evidence`** -- the code knew the cause and the string did not say it.
-
-It was also **Chinese only**, in an application whose reason for existing is
-that it works in both languages, with `detected_language` in scope at every one
-of those sites. So an English speaker hitting any of the thirteen got a Chinese
-sentence about the wrong thing.
-
-`synthesis_fallback(reason, language)` replaces it, and `is_synthesis_fallback`
-replaces the `text == SYNTHESIS_FALLBACK_MESSAGE` comparison that
-`synthesize_candidate` used to detect the state -- a state inferred from
-user-facing text stops being correct the moment the text varies, which this
-change makes it do. The constant survives as the zh generation-failure string
-because one orchestration test names it; new code calls the function.
-
-#### Local embeddings are semantic when the model is present (2026-09-09)
-
-`MODEL_BACKEND=local` -- what a fresh checkout runs -- had exactly one embedding
-option: `LocalHashEmbeddings`, blake2b hash buckets whose own docstring says
-"for offline/dev RAG smoke use". Vector search therefore matched on little more
-than exact overlap, which is the largest single quality ceiling in the system,
-and the console correctly called it `degraded`. Meanwhile the Technology Stack
-section claimed "Sentence-Transformers BGE-M3 embeddings" and had for a long
-time -- there was no bi-encoder anywhere, `sentence_transformers` being imported
-only for `CrossEncoder`. A reader hitting the degraded embedding would have gone
-looking for a misconfiguration rather than a missing feature.
-
-`LocalSemanticEmbeddings` + `_load_local_embedder` (`services/models/runtime.py`)
-close it, copying `_load_cross_encoder` deliberately:
-
-- **`local_files_only=True`.** A model that was never downloaded returns `None`
-  and the caller falls back to hash buckets. Without it the first query on a
-  fresh machine starts a multi-gigabyte download inside a request, with no
-  timeout and no breaker -- the defect this repository already fixed once for the
-  NLI stage.
-- **Synchronous.** Every caller reaches embeddings from a worker thread, and
-  nothing reached from `asyncio.to_thread` may drive an event loop.
-- **The console reports which one is running**, not which one is named.
-  "Configured" and "present on this machine" are different facts and only the
-  second changes an answer; `local_embedding_backend()` answers the second, and
-  the degraded message names the model that is missing.
-
-**Changing the embedder requires a reindex, and the store now says so.** A Chroma
-collection is dimension-locked -- hash is 384, bge-m3 is 1024 -- so an existing
-store fails every query after a switch. Chroma's own message names two integers
-and no remedy, which reads as a corrupt database to somebody who has just
-changed a setting; `_as_dimension_mismatch` turns it into one that names the
-reindex, keeps the original text, and deliberately leaves every non-dimension
-error alone rather than swallowing all failures as this one.
-
-**Getting the model onto a machine here needs a mirror.** `huggingface.co`
-answers, but `cdn-lfs.huggingface.co` does not resolve from this network, so a
-download stalls at 0 bytes on the weights after fetching 36K of metadata --
-which looks like a hang rather than a DNS failure. `HF_ENDPOINT=https://hf-mirror.com`
-is the drop-in; ModelScope is reachable too.
-
-#### Simulating a user found four more (2026-09-09)
-
-Every one came from operating a surface, and none is visible to a check that
-measures the code against itself.
-
-- **Five agent cards stayed English when the UI switched to Chinese.**
-  `AGENT_MODES` carried English `title`/`desc` literals and `AgentWorkbench`
-  rendered them straight, so the sidebar around them translated and they did
-  not -- in an application whose reason for existing is that it works in
-  Chinese. `i18n/locales.test.ts` scans for LITERAL `t("...")` calls and these
-  went through none, which is the `KeyboardHelp` shortcut list and the
-  `IntegrationsPanel` class names again in a third guise. The fix is a switch of
-  ten literal keys rather than `t(`agentModes.${mode.key}.title`)`, because an
-  interpolated key is invisible to that same scan.
-
-- **There were FOUR upload format lists, not two.** The `accept` fix recorded
-  above missed `SUPPORTED_CHAT_RE` and `SUPPORTED_DOC_RE` in `useFileUpload` --
-  the regexes that decide what is actually *kept* -- because the guard checked
-  `accept=` only. **Widening the composer's `accept` to all fifteen therefore
-  made it offer files the very next line discarded without a word**, which is
-  worse than the state it replaced. There really are two sets: a question is
-  asked *about* a document you look at, and a corpus is loaded in the Knowledge
-  Base. `lib/uploadFormats.ts` derives both accept attributes and both matchers
-  from two lists, the guard asserts the subset relation, and it now catches a
-  regex copy as well as an attribute.
-
-- **A rejected file was dropped silently unless every file was rejected.** Each
-  caller tested `if (!files.length)`, so a `.docx` dropped beside two PDFs
-  uploaded the PDFs and lost the third with no message. `partitionUploads`
-  returns the rejected names and the notice says which -- and the three messages
-  were hardcoded English, now `chat.upload.*`.
-
-- **The sentence-grounding hedge was being spliced into filenames.** Observed in
-  a real answer:
-
-  ```
-  ... (如 config.基于当前可用证据，py、settings.基于当前可用证据，yaml ...)
-  ```
-
-  This is the defect class CLAUDE.md records as fixed on 2026-09-05, in a form
-  that fix could not cover: `_ABBREVIATION_RE` protects "Dr." and "pp.", and a
-  filename is not an abbreviation -- there is no list of extensions to keep up
-  with. `_INLINE_DOT_RE` states the property instead: **a dot between two
-  alphanumerics is not a sentence boundary in either language this system
-  writes**, since an English sentence ends with a dot plus a space or nothing
-  and a Chinese one ends with "。". `config.py`, `settings.yaml`,
-  `app.services.models` and `v1.2.3` are all covered by one rule.
-  `tests/services/test_sentence_grounding_inline_dots.py` asserts both
-  directions, because a protection that is too broad stops splitting real
-  sentences and scores a whole paragraph as one claim -- worse than the defect,
-  and silent.
-
-Both halves of that answer's other defect were fixed the same day -- the
-duplicate reference list and the `<URL_7>` inside it. See the redaction section
-below.
-
-#### A redaction token must not reach the reader (2026-09-09)
-
-The model is shown `<URL_7>` in place of a URL and **writes it back**. A real
-answer ended with the model's own reference section listing `[1] <URL_7>`,
-directly above the pipeline's list showing the actual link.
-
-`OutboundRedactedChatModel` restores the values in the reply now.
-`redact_messages_with_restorer` hands back the payload and a closure, and **the
-mapping never leaves that one call** -- which is the point rather than an
-implementation detail. A per-request ContextVar or a module-level map would work
-equally well and would risk the one failure that actually matters here: one
-user's values resolving inside another user's answer. A cosmetic token is worth
-far less than that, so most of
-`tests/security/test_redaction_is_restored_in_the_reply.py` is about the
-boundary rather than the substitution.
-
-Three details:
-
-- `_RedactionState` now records the value **as written**. `seen` is keyed on the
-  normalized form (URLs and emails are lower-cased so one address in two casings
-  gets one token), and restoring from that key would hand a reader
-  `https://example.com/docs/x` where the document said `Docs/X` -- a URL path is
-  case-sensitive.
-- Longest token first, so `<URL_1>` cannot eat the prefix of `<URL_11>`.
-- **The streaming path is deliberately not restored.** A token can straddle a
-  chunk boundary and half of one substituted is worse than the whole of one left
-  alone; the fragments are a draft the frontend replaces with the answer from
-  the query response, which comes through `invoke`.
-
-**The duplicate heading was a second defect**, and `strip_model_reference_list`
-removes a reference section the model wrote for itself before `output_filter`
-appends the authoritative one. It is conservative on purpose -- only at the end
-of the answer, only when every line after the heading is a bracketed entry,
-bounded to forty. A model that wrote prose under that heading keeps it: losing
-an answer's last paragraph to a tidy-up is far worse than one repeated heading.
-
-#### Web search finds five results and keeps none, by design
-
-Chased because two questions in a row answered "没有找到可以用来回答的资料"
-while `search_web` returned five results in three seconds when called directly.
-The chain, measured:
-
-```
-total_results 5 -> filtered_results 5 -> final_results 0
-"No results passed quality filters (min_score=0.5)"
-```
-
-`WEB_DOMAIN_ALLOWLIST` **ships non-empty** -- eleven entries -- and in allowlist
-mode `_source_score` returns 1.0 for a listed host and **0.0 for everything
-else**. So `arxiv.org`, `en.wikipedia.org` and `*.gov` pass while `veso.ai`,
-`thequery.in` and `blog.csdn.net` do not. That is why some questions that day
-answered with web citations and some found nothing: it depends entirely on which
-domains DuckDuckGo happened to return.
-
-This is a trust policy working correctly, not a bug, and widening it is an
-operator's decision. What was wrong is that **nothing said so**: the warning read
-only "No results passed quality filters (min_score=0.5)", which does not
-distinguish a throttled search engine from an allowlist doing its job -- and
-those need opposite responses. It names the rejected hosts and the setting now.
-
-**`WEB_MIN_SOURCE_SCORE` is inert on a default installation.** Its value (0.2) is
-read only in the `else` branch, and the allowlist branch is taken whenever
-`WEB_DOMAIN_ALLOWLIST` is non-empty, which it is by default -- that branch
-hardcodes `min_score = 0.5`. The hardcoding is harmless in itself (scores there
-are only 1.0 or 0.0, so any threshold in between behaves identically), but a
-setting that reads 0.2 and cannot apply is the shape this file keeps recording.
-It is left as-is and documented rather than "fixed" by threading the setting
-into a branch where it would change nothing.
-
-#### A user pass over the surfaces nobody had opened (2026-09-09)
-
-Session rename, pin, `Ctrl+N`, `Ctrl+B`, `Ctrl+K`, `?`, the prompt library and
-the architecture page all work. Two things did not, and both are the shape this
-file keeps recording -- a write nobody reads, and a sentence that describes
-something other than what runs.
-
-- **A saved display name never came back.** `PUT /auth/profile` persists it
-  correctly -- verified straight out of SQLite -- and returns it, because that
-  response is built from a `SELECT` inside the writing transaction. But
-  `SessionManager.get_user_by_token` joins `auth_sessions` to `users` and selects
-  `role`, `status` and `credit_balance` from `users` while **not selecting
-  `display_name`**, so the dict handed to `AuthUser(**user)` had no such key and
-  the model default filled in. `GET /auth/me` therefore reported `None` for
-  everyone, always, and the profile page said "个人资料已保存" and showed the old
-  value on reload.
-
-  The write half working perfectly is what let this survive: the endpoint's own
-  response looked right. `tests/api/test_profile_display_name_round_trip.py`
-  reads it back through a **second** service with its own connection, so
-  "committed" and "echoed inside the transaction" cannot be confused.
-
-  `get_user_profile` omits the column too and was **left alone**: its two callers
-  want existence, role and the approval token, and adding a column nothing reads
-  is what this repository removes. A first draft of the test asserted otherwise
-  and was corrected -- the test was wrong, not the code.
-
-- **Session search could never find a session.** `POST /sessions` writes a
-  session to `HistoryStore` and **no `SessionMetadata`**; the only writers of
-  metadata are the edit-metadata endpoint and session import. `POST
-  /api/v1/sessions/search` reads `SessionMetadata` alone, and its text query
-  matches `description` -- `SessionMetadata` has no title field at all. So on an
-  ordinary account every search returns `{"results": [], "total": 0}` while two
-  sessions sit visible in the sidebar, and the panel answered "No sessions found
-  -- try adjusting your search criteria or filters".
-
-  The plumbing is coherent: it is a metadata search, not a session search.
-  Making it a session search means merging two stores with pagination and
-  scoring across both, which is a design change rather than a correction. **The
-  sentence was what was wrong**, and it now names what is searched and the tab
-  that fills it.
-
-**Two things checked and deliberately not changed.** The profile page shows
-"不限" for an administrator's credits against a `credit_balance` of 10 -- and
-`reserve_chat_credit` really does exempt them (`AND lower(role) <> 'admin'`), so
-the page is right. And `get_user_profile`, above.
-
-**Two of my own diagnoses were wrong and are worth recording**, because both
-looked like application defects and were the automation: `computer.key` needs
-`Enter`, not `Return`, and `?` does not arrive as `shift+slash`. Dispatching a
-real `KeyboardEvent` proved the command palette and the shortcut sheet were fine
-in both cases. The rule from the contrast auditor holds for input too -- check
-the instrument before filing the finding.
+- **Profile Updates**: `PUT /auth/profile` updates `display_name` and persists it directly into `users` table, isolated per user.
+- **Session Search**: `POST /api/v1/sessions/search` searches `SessionMetadata` (description, tags, user metadata).
 
 ### Technology Stack
 
@@ -3099,317 +2737,35 @@ a pixel-diff CI gate -- without a pinned font stack and a seeded corpus it fails
 someone upgrades Chromium, not the day the UI breaks. Do not "fix" a cascade problem by
 re-freezing the design baseline.
 
-#### Migrating a stylesheet is not adopting a design
+#### Admin Console Component Architecture & Primitives
 
-The console was moved off hand-written CSS on 2026-09-07 and **the first pass got
-the wrong half of the job**. It rewrote the console's OWN visual language in
-Tailwind -- the sci-fi corner bracket on every panel, a status dot on every KPI
-label, an amber tick before every heading, `auto-fit minmax()` grids -- all
-inherited from `admin/*.css`. Every check passed: the CSS was gone, the tokens
-were amber, contrast was clean. And the console still did not look like the
-design, because none of those ornaments are in it.
+- **Separation of Component and Class Declarations**: The admin console's design vocabulary is structured into two paired files in `frontend/src/pages/admin/components/`:
+  - `AdminPrimitives.tsx`: React components (`AdminPanel`, `SectionHead`, `SubTitle`, `AdminBlock`, `KpiGrid`, `KpiCard`, `TrendRow`, `ControlsRow`, `FilterGrid`, `RowActions`, `StatePanel`, `AuditBadge`, etc.).
+  - `adminClasses.ts`: Literal class strings (`ADMIN_FIELD`, `ADMIN_TABLE`, `ADMIN_TABLE_WRAP`, `ADMIN_TABLE_WIDE`, `ADMIN_CODE`, `CHART_TOOLTIP`, `CHART_GRID`, `CHART_AXIS`).
+  - **ESLint Constant Export Constraint**: `adminClasses.ts` is separated from `AdminPrimitives.tsx` because class strings composed with `.join(" ")` are call expressions. The `react-refresh/only-export-components` rule permits exporting components or literal constants, but forbids exporting call expressions alongside components.
+- **Descendant Table Styling**: Tables use a unified class string of Tailwind arbitrary variant selectors (`[&_thead_th]:...`, `[&_tbody_tr:nth-child(2n)]:...`) applied to `<table>`, rather than wrapping every cell in wrapper components. Sticky table columns declare their `left` offsets beside their widths.
 
-Measured against the prototype's admin view, which is the check that would have
-caught it:
+#### Core Scenery Stylesheets & Bounds
 
-| | prototype | first pass |
-|---|---|---|
-| panel surface | `glass-card` x30 | 0 -- opaque `bg-surface` |
-| corner bracket | none | on every panel |
-| KPI tile | label / mono value / **note** (21 of them) | label / value, plus a dot |
-| block heading | `text-xs font-bold uppercase tracking-wider` | the same, behind an amber tick |
-| grids | `grid-cols-2 md:grid-cols-3 lg:grid-cols-6` | `auto-fit minmax()` x4 |
-| header | ONE `glass-panel` bar holding title, subtitle and the tab rail | a `PageHeader` plus a separate tray |
-| section root | a bare `space-y-6` stack of sibling cards | one outer panel, cards nested inside it |
+- **Remaining Pure CSS Files**: Hand-written CSS is constrained to 3 targeted files under `frontend/src/`:
+  1. `styles/core/surfaces.css`: Element selectors for form fields (`input, textarea, select`) and behavioral container hooks (`.page-shell`, `.bubble`, `.composer-panel`, `.reactflow-wrapper`).
+  2. `components/data-flow.css`: ReactFlow topology node styling and categorical node colors.
+  3. `components/charts.css`: Recharts legend label color overrides.
+- **Dead Class Prevention**: Run `npm run lint:classes` to verify that all class names in `src/` resolve to valid rules. All escape lists in `check-dead-classes.mjs` are self-policing (stale exemptions fail the check).
 
-**The rule: when the target is a new visual language, "which classes does this
-element have" is not the question -- "which of the design's parts does this
-element have" is.** `grep -c glass-card src/pages/admin` returns 0 and takes a
-second; nothing in lint, type-check, tests, the design ratchet or the contrast
-audit reports it, because every one of them measures the code against itself.
+#### Application Keyboard Shortcuts
 
-The second pass is what the table's left column describes. `AdminPanel` is
-`glass-card rounded-card p-4` and nothing else; `KpiCard` gained the `note` line
-and lost the dot; `SectionHead`/`SubTitle`/`AdminBlock` titles are plain
-uppercase; the grids take a column count; `AdminPage` builds the one-bar header
-itself and each section is a bare stack. `AdminPanel` survives for the one thing
-that genuinely is a single card -- the prototype builds its Delegation form that
-way -- and `AdminSystemMonitor` keeps a card per chart, which is that shape
-already.
+Shortcuts are centrally managed in `frontend/src/hooks/useAppShortcuts.ts` and mounted by `AppShell`:
+- `Ctrl+K`: Open command palette / global search
+- `Ctrl+N`: Start new chat session
+- `Ctrl+B`: Toggle left navigation sidebar
+- `?` or `Ctrl+/`: Open keyboard shortcuts cheat sheet
+- `Ctrl+Enter`: Send message in chat composer
 
-#### A help panel is a claim about the code
+#### Top Bar System Status & Telemetry Readout
 
-`KeyboardHelp` has listed `Ctrl+K`, `Ctrl+N`, `Ctrl+B`, `Ctrl+W` and `Ctrl+R` since it was
-written. **None of them existed.** The only keydown handler in the whole frontend was the
-one that opens that same sheet (`?` and `Ctrl+/`), plus `Ctrl+Enter` in the composer. Five
-documented shortcuts, zero implementations, and nothing anywhere reported it -- a shortcut
-that does nothing is indistinguishable from one you pressed wrong, which is why this
-survived. It predates the 2026-09-07 rewrite; `git show HEAD:./src/components/KeyboardHelp.tsx`
-has the same list and the same absent handlers.
-
-Three are implemented now in `hooks/useAppShortcuts.ts`, mounted by `AppShell` so they work
-on every signed-in route rather than on the chat page alone -- `?` used to work on one route
-out of five, because the listener lived in the sheet and the sheet lived in `ChatPage`.
-
-**`Ctrl+W` and `Ctrl+R` are deliberately not implemented and no longer documented.** The
-browser owns them (close tab, reload) and a page cannot reliably take them back, so
-promising them promises something the user experiences as the page eating a keystroke.
-Their toggles live in the composer and the command palette instead.
-`useAppShortcuts.test.tsx` asserts that pairing in both directions -- the keys that must
-work, and the two that must be left alone -- and was verified able to fail by deleting the
-`Ctrl+K` and `Ctrl+B` branches, which reproduces the pre-fix state exactly.
-
-**The palette is the reason two of those keys are worth having.** `components/CommandPalette.tsx`
-(cmdk, which was a dependency this rewrite installed and then never imported) puts the five
-routes, the session list, the settings and session-management drawers, the shortcut sheet,
-the language toggle and sign-out behind one keystroke. Nothing in it is new capability; what
-was missing was any way to reach the chat-only drawers from the other four views.
-
-**Both overlays are hand-rolled, so neither got dismissal for free, and one lost it in this
-change.** `KeyboardHelp` implemented Escape inside its own key listener; moving that listener
-into `useAppShortcuts` dropped Escape and nothing failed. cmdk's bare `Command` never had it
--- the string "Escape" does not appear in its bundle, since `Command.Dialog` is the wrapper
-that handles dismissal. `hooks/useDismissable.ts` gives both Escape and focus restore, and is
-pinned by test. It does **not** trap focus; if either overlay grows past a list of commands,
-that is the point to reach for `@radix-ui/react-dialog` rather than to extend this.
-
-**`Esc` was the sixth**, and the subtlest, because it half worked. The sheet called it
-"clear input"; the handler called `onStop()` and only `while (isSending)`, so in the ordinary
-case -- a half-typed question, nothing streaming -- the key did nothing at all, and in the
-case where it did fire it did something other than what the row said. Both meanings are
-worth having, so both are implemented and both are documented: Escape cancels the run while
-one streams, and clears the draft otherwise. It claims neither when there is nothing to
-undo, so a parent overlay can still take it.
-
-**The guard is the point, not the six fixes.** `components/keyboardShortcuts.ts` is the
-shipped list as DATA, and `keyboardShortcuts.test.tsx` fires every row of it at a live
-handler -- `useAppShortcuts` on `window` for an `app` shortcut, the real `ChatComposer` for
-a `composer` one -- and requires each to be claimed. A row added with nothing behind it
-fails; a handler deleted while its row stays fails; and `BROWSER_OWNED` asserts the reverse
-for `Ctrl+W`/`Ctrl+R`/`Ctrl+T`, which must be neither documented nor claimed. Parametrized
-per shortcut, so a failure names the key. Verified able to fail by putting the `Ctrl+W` row
-back exactly as it used to ship: two tests go red, one from each direction.
-
-That is what was missing before. The documentation was a literal inside the component and
-the handlers were in another file; there was no place where the two met, so nothing could
-notice they disagreed for the entire life of the component.
-
-`Shift+Enter` is the one row asserted the other way round: it is the textarea's own newline,
-so what must hold is that nothing claims it.
-
-One ordering detail worth keeping: `autoFocus` is applied by React during the commit, before
-any passive effect, so a hook that records "what had focus before" in a `useEffect` records
-the overlay's own input. The palette focuses its input from an effect ordered after
-`useDismissable` instead.
-
-#### What is left
-
-
-
-The console was the last route on hand-written CSS and is now Tailwind like the rest
-(2026-09-07). `styles/pages/` is deleted -- five sheets and their entry, 2,118 lines --
-along with `core/tokens.css`, whose only remaining job was feeding them non-colour scales.
-`src/styles/` is **nine files**: `main.css`, six in `core/` (theme-amber, critical,
-reset, elevation, surfaces, app-utilities) and two component sheets kept on purpose.
-This paragraph said "four files" until 2026-09-08, counting the groups rather than
-the files -- worth naming, because the number a reader checks a claim against is the
-one that has to be right.
-
-The console's vocabulary lives in `pages/admin/components/`:
-
-- `AdminPrimitives.tsx` -- `AdminPanel`, `SectionHead`, `SubTitle`, `AdminBlock`,
-  `KpiGrid`/`KpiCard`, `TrendRow`, `TwoCol`/`OpsGrid`/`SectionBlock`, `ControlsRow`,
-  `FilterGrid`/`FilterRow`, `AdminField`, `Hint`, `Muted`, `RowActions`, `StatePanel`,
-  `StateIcon`, `CellStack`, `AuditBadge`, `AdminSkeleton`.
-- `adminClasses.ts` -- the class *strings*: `ADMIN_FIELD`, `ADMIN_TABLE`,
-  `ADMIN_TABLE_WRAP`, `ADMIN_TABLE_WIDE`, `ADMIN_CODE`, and the recharts chrome
-  (`CHART_TOOLTIP` / `CHART_GRID` / `CHART_AXIS`, which were copied into five dashboards).
-
-**They are two files for the lint reason, not a taste one.** `ADMIN_TABLE` is built by
-`.join(" ")` -- a call expression -- and `react-refresh/only-export-components` lets a
-component file export literal constants only, so each one in `AdminPrimitives.tsx` would
-cost a warning against a budget that sits at exactly its ceiling. Same rule that already
-splits `buttonVariants.ts` out of `button.tsx`.
-
-**A table is styled by one class string of arbitrary variants**
-(`[&_thead_th]:…`, `[&_tbody_tr:nth-child(2n)]:…`), not a wrapper component per cell.
-Table styling is descendant styling by nature; a `<TableCell>` per `<td>` would have meant
-editing several hundred cells across five tables to change nothing about the output. It
-still lands in `utilities` and still merges through `cn()`.
-
-**The user table's four sticky columns carry their `left` offsets as written-out
-utilities**, beside the written-out widths they are the running total of. Two derived
-numbers that must agree are worse than one pair sitting side by side.
-
-**`core/surfaces.css` lost 28 of its 39 selectors in the same pass**, and that is the more
-general lesson. It exists to apply the elevation language to class names a Tailwind class
-list cannot reach, and it was written against the vocabulary of 73 stylesheets --
-`.sidebar-module`, `.agent-mode-card`, `.session-item`, `.modal-content`, the `.admin-shell`
-block. Nothing renders any of those now. What remains is the part that still has a job:
-`input, textarea, select` as ELEMENT selectors (since `reset.css` is the preflight, an
-unclassed field has nothing else to give it a shape), plus the five class names that are
-behavioural hooks rather than styling -- `.page-shell`, `.bubble`, `.composer-panel`,
-`.reactflow-wrapper` -- each styled from here because the rule reaches a descendant
-or a container whose class list is assembled elsewhere, with `.page-shell` additionally
-read by `scripts/screenshots.mjs`.
-
-**The naive way to find those 28 says all 39 are alive**, because `grep -l 'card' src`
-matches `KpiCard`. A class name has to be matched as a whole token inside a string literal,
-and the literal is not always a `className=` attribute -- `cn()` takes bare strings, `cva()`
-tables hold them, and a couple are built as `` `sidebar ${open ? "open" : ""}` ``. Collecting
-every whitespace-delimited token of every string literal in `src/` over-approximates what
-the app can emit, which is the safe direction for a deletion.
-
-Five defects surfaced while converting, and every one is the same shape this file keeps
-recording -- a rule that matched nothing:
-
-- `AdminOpsDataTables` wrapped its two tables in `.audit-wrap` / `.audit-table`. Neither
-  selector has ever existed; the sheet defines `.audit-table-wrap` and `.admin-audit-table`.
-  Both tables had been rendering with no border, no header fill and no zebra since they were
-  written.
-- `AdminOpsDiagnostics` used `badge badge-success` / `badge-danger` / `badge-info`, whose
-  sheet was deleted in the first pass of this rewrite -- so the modifiers were inert. They
-  are `<Badge variant>` now.
-- `AdminSystemMonitor`'s four recharts blocks carried a hardcoded cool-slate palette
-  (`#0f172a` tooltips, `#334155` grid, `#94a3b8` axes) that the amber pass never reached,
-  because it reads CSS files and these are JSX props.
-- `exportUtils.tsx`'s CSV and JSON buttons were `className="secondary tiny-btn"`, a
-  stylesheet deleted in the first pass of this rewrite -- so both had been rendering as bare
-  text beside every export-capable dashboard. They are `<Button variant="secondary">` now.
-- `surfaces.css`'s input focus ring was `rgba(79, 70, 229, 0.12)`, indigo, from the palette
-  this theme replaced. It is an ELEMENT selector, so it reached every control carrying no
-  Tailwind `focus:ring-*` of its own -- a range slider, a bare checkbox -- which is why a
-  cool blue glow survived an amber sweep on exactly the controls nobody had focused.
-
-`ChatTopbar.tsx` went with them: it was replaced by `TopNav` in the shell pass and left in
-the tree with no importer.
-
-#### Is the stylesheet migration finished?
-
-Measured on 2026-09-08 rather than asserted, because three of the numbers in this file
-had gone stale and one had never been right:
-
-| | |
-|---|---|
-| stylesheets under `src/` | **9**, 1,194 lines (from 79 / 15,781) |
-| class names in `src/` resolving to no rule | **0** of 379 (`npm run lint:classes`) |
-| class selectors in those 9 files matching nothing | **0** of 29 |
-| inline styles | **4**, every one a computed value |
-| `components/ui/` primitives | 8 |
-| `tailwind.config.js`, `components.json`, `tw:` prefix | none (the two `tw:` hits are comments *about* dropping it) |
-| design-scale ratchet | 1 file / 1 radius / 4 shadows, all in `data-flow.css` |
-
-So: yes, with the last three findings closed in that pass.
-
-**`.topbar-menu-trigger` matched nothing, and three places said otherwise.** `ChatTopbar`
-and `TopbarMenu` were deleted in the shell pass, taking the only element that carried it
--- but the rule stayed in `surfaces.css`, the comment above it named two readers, and it
-sat in `check-dead-classes.mjs`'s escape list, which is the file whose job is finding
-exactly this. The comment is the worst of the three: a reader checks it and stops.
-
-One of those claimed readers had also stopped being one. `useSectionToggle` used to do
-`querySelectorAll(".execution-trace-panel, .tool-approval-panel, .composer-panel")` and
-now returns state; its own docstring says so. A comment naming a reader is a claim with a
-shelf life.
-
-**So the escape list now polices itself**: an entry naming a class `src/` no longer emits
-fails the check. Same rule as `SECRET_BASELINE` and `KNOWN_OFFENDERS` -- an exemption list
-can only shrink -- and verified by putting the stale entry back.
-
-The third finding was one inline style that was not a computed value:
-`style={{ borderRadius: "var(--composer-radius-inner)" }}` is a utility nobody wrote, and
-is `rounded-[var(--composer-radius-inner)]` now, on the same element. That restores this
-file's "every one a computed value" to being true.
-
-**Two sweeps, opposite directions, and both are needed.** `lint:classes` asks "does this
-class name resolve to a rule" and found `IntegrationsPanel`'s two; the selector sweep asks
-"does this rule match anything the app can emit" and found `.topbar-menu-trigger`. Neither
-sees the other's defect. The selector sweep is a scratch script rather than a gate,
-because it over-approximates what the app emits on purpose -- the safe direction when the
-output is "consider deleting this rule" -- and it reported `.animated` in `data-flow.css`,
-which ReactFlow applies itself from `animated: true` on an edge. A finding list that needs
-a human is not a gate.
-
-#### What is not done
-
-- `components/data-flow.css` keeps five categorical node colours for the ReactFlow diagram.
-  Those are deliberately not amber: a diagram distinguishes node *types* by hue, and
-  collapsing them to one brand colour would lose the distinction. All five clear AA with
-  white text (worst 4.59).
-- `components/charts.css` is one rule and cannot become a utility: recharts writes the
-  series colour as an INLINE style on its legend label, and an inline style beats every
-  cascade layer -- only `!important` reaches it.
-- The design-scale ratchet is down to **1 file / 1 radius / 4 shadows**, all inside
-  `data-flow.css`.
-- `components/ui/` holds 8 primitives, not 19. Eleven were written because shadcn/ui ships
-  them -- dialog, select, table, tabs, switch, checkbox, progress, scroll-area, separator,
-  skeleton, tooltip -- and nothing ever imported one; they went on 2026-09-07 with the nine
-  Radix packages they carried, plus `axios` and `framer-motion`, which had been unimported
-  since before this rewrite. The check is one line and worth repeating before a release:
-  a component is dead if no OTHER file imports its module, which is not the same question as
-  whether its own file mentions it.
-- `TopbarMenu.tsx` went with `ChatTopbar`, which the shell pass replaced and left in the
-  tree with no importer.
-- The eslint ratchet is 20, down from 25. Four of the five it lost were `catch (e) {}` with
-  the binding unused; each is a deliberate silent catch and each now uses the optional catch
-  binding, so the syntax says so rather than a comment. The comments were checked before
-  being trusted -- `pinSession` and `deleteSession` really do report through
-  `handleApiError` before re-throwing, so `SessionList` catching to reset a spinner is
-  correct.
-
-**The top bar's live readout is built, and what it took to make it honest is the point.**
-The prototype's `Latency: 184ms` / `Cache Hit: 89.4%` is hardcoded demo text. This system
-has no cache-hit metric, and the only figure available is the corpus-wide average from
-`/api/analytics/overview` -- not "your last request", which is what a bare "Latency" in a
-top bar reads as. So the labels say *average*, the second slot carries success rate, which
-this system does measure, and the strip renders for admins only, because that endpoint is
-gated on `ADMIN_OPS_MANAGE` and a control permanently empty for everyone else reads as
-broken rather than absent.
-
-**It renders nothing until there are samples, and that is the load-bearing line.**
-`RetrievalLogger` answers an empty log with `avg_total_time_ms: 0, success_rate: 0`, which
-rendered as "Success: 0.0%" in warning amber -- a bar telling every reader on every page
-that the system was failing, when what it meant was that nobody had asked it anything. The
-guard is on `total_queries`, not on the values, because no samples is not zero performance.
-`TopNavMetrics.test.tsx` pins the empty case and the failed-fetch case; a decorative readout
-must never be able to break the bar it sits in.
-
-The prototype's separate Integrations button was deliberately not built: it is a second name
-for a destination this app already has -- `IntegrationsPanel` is a section of the settings
-drawer, which the palette opens.
-
-**Thirteen translation keys were missing from BOTH locales.** i18next returns the inline
-`defaultValue` when a key is absent, so the Chinese UI rendered the English string --
-silently, forever, in an application whose reason for existing is that it works in Chinese.
-Among them: all five top-bar view names, `auth.signIn`, `common.logout` and
-`sessionManagement.title`, which the top bar had been falling back on since the shell pass.
-`i18n/locales.test.ts` walks every literal `t("...")` in `src/` against both files and
-checks three things -- every asked key exists in each locale, the two locales hold the same
-key set, and no long Chinese value is byte-identical to its English one (a key copied rather
-than translated). It opens by asserting the scan found at least 200 keys, because a scan
-that stops matching makes every later assertion pass vacuously.
-
-**36 literal inline styles were still hiding in two admin files and three error boundaries.**
-`style={{ width: "60px", textAlign: "center" }}` on a `<th>` is a utility that was not
-written; a bar's `width: ${pct}%` is data and stays. The three error boundaries were the last
-surfaces on the palette this theme replaced -- `#007bff` buttons on `#f8f9fa` cards, written
-as `var(--bg-primary, #fff)` pairs whose variables no longer exist, so what rendered was
-always the fallback. They are the only thing a reader sees when the page they were on has
-broken, and the amber pass had never reached them. Four inline styles remain in `src/`, every
-one a computed value.
-
-#### Two pre-existing defects found while verifying this
-
-Neither was caused by the refactor; both were found by opening a surface that had not been
-opened during it.
-
-- **`/model-catalog` was never in the Vite dev proxy.** Vite's SPA fallback answered it with
-  `index.html`, so the settings drawer parsed a web page as a model catalogue. Added to
-  `vite.config.ts` alongside its `/app/`-prefixed twin.
-- **`catalog?.providers[x]` guarded `catalog` but not `providers`**, so that malformed
-  response threw and `ChatErrorBoundary` swallowed the entire chat page. Now
-  `catalog?.providers?.[x]`. A drawer that cannot load its options should render without
-  them, not take the page down.
+- **Admin-Gated Metrics**: `TopNavMetrics` renders average response latency and retrieval success rate from `/api/analytics/overview`.
+- **Zero-Sample Guard**: The bar renders empty until samples exist (`total_queries > 0`), avoiding false-alarm warning states (e.g. "Success: 0.0%") on uninitialized instances.
 
 ### The query guard's Redis fallback could not catch a Redis failure
 
@@ -4038,280 +3394,11 @@ Two things learned doing this the first time:
   content key and a provenance key out of each other's way in the same
   dictionary; a variable-length tuple with a discriminant at position zero only
   implied that.
-- **`python:S7503` is 12 open findings as of 2026-09-10, and every one is a
-  contract.** The 2026-09-10 pass took 26 to 12, and three of the fourteen it
-  closed were real defects rather than rule noise: `_persist_exchange` (the
-  chat endpoint's history write), `disable_owned_connector` and the multimodal
-  retriever's two Chroma queries all ran **synchronous SQLite or Chroma I/O
-  inside `async def`**, blocking the event loop every other request waits on --
-  and the two multimodal queries, "gathered in parallel", ran one after the
-  other for the same reason. All four go through `asyncio.to_thread` now, as
-  does `FactVerificationStage.verify`, which is pure CPU. The rest: `clarify`,
-  `start_periodic_cleanup` and the cache manager's `initialize` chain became
-  plain functions (none awaited anything, and `RedisCache` connects lazily);
-  `suggest_corrections`, the callerless `FactVerifier` facade and
-  `services/optimization/batch_processor.py` were deleted; and three private
-  copies of "drop this event" became one `discard_trace`.
-
-  A second pass the same day took 12 to **7**, and corrected a classification
-  the first pass got wrong. "Every one is a contract" was asserted without
-  checking whether the contract had a single genuinely asynchronous
-  implementation, and two did not:
-
-  - **The event-reporting chain is synchronous now.** `EventPublisher.publish`,
-    the engine's reporter, `TraceReporter`, `DegradationReporter` and the
-    graph state's `reporter` were all `Callable[..., Awaitable[None]]`, and
-    every implementation in production ended at an in-process append -- the
-    three publishers, `discard_trace`, and `execute_stream`'s closure, whose
-    `await queue.put` on an unbounded queue never suspended either. So each
-    stage awaited something that could not wait. They are `Callable[..., None]`
-    and nothing awaits them; `report_event`, which nothing in `app/` calls,
-    drops the event when no reporter is bound rather than falling back to a
-    null publisher. **If a reporter ever needs I/O, it enqueues and returns** --
-    see the `EventPublisher` docstring. The failure to watch for is an `async
-    def` passed as a reporter: calling it builds a coroutine nobody awaits and
-    the event vanishes silently, so the suite was run looking for "never
-    awaited" (zero).
-  - **`AuditLog.append` and `ToolRegistry._finish`** are plain methods; the log
-    has one implementation and one caller.
-
-  The 7 left are genuinely mixed contracts -- a sibling implementation really
-  does await -- and are the set to mark *Accepted* in SonarCloud: the
-  unavailable knowledge adapter (the others `to_thread`),
-  `LocalEvidenceChatModel.ainvoke` (the provider wrappers do network I/O), the
-  citation and rule validators (NLI and deep await), and the three
-  `run_with_timeout` closures. Those three hide a real question worth its own
-  change: their bodies are synchronous, so the ceilings `run_with_timeout`
-  sets on `privacy_permission` and `output_filter` cannot interrupt them.
-
-  The history of the count, kept because the method matters more than the
-  number: 26 open findings on 2026-09-05 (it was 39, and
-  the 13 that went were deleted code, not silenced rules). "async without await"
-  cannot see a contract, and the ones that remain are the correct-but-unfixable
-  kind the earlier count described: awaited normally, handed to
-  `run_with_timeout` as a closure, awaited through a variable as a default
-  callback, or gathered as coroutines. Do **not** re-derive that breakdown by
-  counting `async def`s -- S7503 flags only those containing no `await`, which is
-  a subset of each module's coroutines. Ask SonarCloud.
-
-  What the earlier count called "the remaining 7" was the useful part: findings
-  whose *classes* had no caller, where removing `async` would satisfy the rule
-  and leave the dead code standing. That question is now answered.
-  **`SmartChunker` and `ChartAnalyzer` are deleted** (2026-09-05).
-  `ImageProcessor` and `TableExtractor` are constructed by `ingest_paths` and
-  stay, and are now only what their one reachable method needs.
-  `ingest_paths` calls `index_image` and `index_table`; the other 23 methods
-  between them had no caller, and included a second OCR implementation, a second
-  PDF image extractor, two table extractors, and `_call_gpt4v` /
-  `_call_claude_vision` -- a direct-to-OpenAI vision path that would have been
-  the unmasked one had anybody wired it. All deleted 2026-09-05, along with
-  `ImageProcessor.__init__`, whose nine attributes `index_image` reads none of;
-  that took `VISION_MODEL`, `ENABLE_OCR`, `OCR_LANGUAGES`, `MAX_IMAGE_TOKENS` and
-  `ENABLE_TABLE_EXTRACTION` with it. Note what `ENABLE_OCR` was: a switch named
-  for a feature it did not gate -- `app/ingestion/extraction/ocr.py` never read
-  it. The same goes for `python:S7484` on
-  `agent_tracking.py`'s SSE poll: no client calls that endpoint, and
-  `AgentExecutionTracker` is `threading.Lock`-based, so an `asyncio.Event` there
-  would need `call_soon_threadsafe` -- the defect class fixed twice already.
-- **`python:S3776` is 89 open findings, and 85 of them are live code** (swept
-  2026-09-06). The question was worth asking because the finding in
-  `user_manager.py` was answered by `git grep`, not by refactoring:
-  `UserManager.create_user` carried a complexity of 18 and had no caller
-  anywhere -- `AuthDBService._create_user_record` is the live copy, left behind
-  when it moved so it could share a connection with the OAuth identity insert,
-  and the two had already drifted (only the live one has `raise ... from exc`).
-  Refactoring it would have satisfied the rule and left the dead code standing.
-
-  `scripts/audit/reachability.py` asks that question for every finding at once;
-  `--sonar issues.json` cross-references a SonarCloud query. **Read its docstring
-  before believing it**: it is a name-based call graph, so it over-approximates,
-  and its first version reported two live HTTP endpoints as dead by resolving
-  `from .export import router` in a package `__init__.py` against the package's
-  parent. UNREACHABLE is a candidate to confirm with `git grep -w`, never a
-  verdict, which is also why the script always exits 0 and must not become a CI
-  gate.
-
-  **The tool was itself three `python:S3776` findings** (35, 28, 21) for a day,
-  because SonarCloud analyses `scripts/` too — a detail that also made the
-  projected count after the dead-code sweep wrong: 89 − 6 cleared **+ 3 added by
-  the audit script** = 86, not the 83 predicted. Fixed 2026-09-06 by extracting
-  `package_of` / `resolve_relative` / `import_targets` out of `imports_of`,
-  `_seed_roots` / `_propagate` / `_is_import_time_root` out of
-  `_resolve_reachable`, and `dead_buckets` / `print_bucket` / `is_reportable` out
-  of `report_dead`; the tool's own output over `app/` is unchanged in both modes,
-  header line aside. A tool that adds to the backlog it exists to shrink is worth
-  noticing early.
-
-  **Progress on the live findings**, each verified by diffing the full output of
-  the old and new implementations rather than by reading: 89 → 86 (dead code) →
-  82 (`splitter.py` 58, and the audit tool's own three) → **79**
-  (`agent_execution_tracker.py`: `get_quality_stats` 51, `get_execution_stats` 36,
-  `track_agent_execution` 27 — the last of those because cognitive complexity
-  counts a closure into its enclosing function, and its `async` and `sync`
-  wrappers were 46 duplicated lines apart from two `await`s).
-
-  **The tracker refactor exposed a divergence worth knowing about and did not
-  fix it.** `/admin/agent-quality` and the agent-health endpoint label the same
-  failed step differently: `get_quality_stats` clamps an error type to fifty
-  characters and answers `"Unknown"` for an empty message, `get_execution_stats`
-  does neither, and the two have always been able to group the same data under
-  different labels. Unifying them changes what the quality dashboard shows, which
-  is a decision with a visible consequence rather than a side effect of a
-  complexity refactor — so `_execution_error_type` and `_quality_error_type` are
-  two named functions whose docstrings say they differ on purpose, and
-  `tests/services/test_execution_tracker_stats.py` pins both.
-
-  Four findings were unreachable, and deleting them cascaded to two more whose
-  only caller was one of the four: `extract_formula_relationships` and
-  `extract_formula_semantics` (`extraction/formulas.py`), `split_wide_table` and
-  `extract_nested_tables` (`extraction/tables_nested.py`), `merge_table_pages`
-  with `is_table_start` and `extract_table_header` (`extraction/tables.py`), and
-  `_require_existing_session_for_query` with `_latest_answer_for_same_question`
-  (`api/deps/sessions.py`) -- 338 lines, four findings closed, no behaviour
-  changed.
-
-  **The cost of not knowing what is dead is already being paid.** `9120f987`, the
-  commit before this one, named `_SINGLE_LETTER_VARIABLE_RE` in `formulas.py`
-  because "two of its three uses produce the sets that the left and right of an
-  equation are compared by" -- careful reasoning about a divergence that would
-  "report a relationship that is not there", in two functions nothing called. All
-  three uses are gone with them. The same commit's other half,
-  `_SEPARATOR_ROW_RE` in `tables.py`, was written for three call sites and has
-  one left; its docstring says so rather than continuing to claim three.
-
-  **The second batch (2026-09-06) cleared `api/deps/documents.py` and three
-  left-behind twins**, and two of them were worth more than the lines they cost.
-
-  Nine of that module's helpers were unreachable and a tenth, `_source_mtime_ns`,
-  was reachable only from one of the nine. Two of the nine were labelled
-  "compatibility adapter for callers that still import the old API helper" -- with
-  no such callers, and importing `app.orchestration.compatibility_post_execution`,
-  a module `4994d7f3` deleted. They would have raised `ModuleNotFoundError`. **A
-  function-local import is what hid that**: at module scope it would have failed at
-  startup.
-
-  One of them was the only writer of `AuditAction.QUERY_SOURCE_SCOPE`, so that
-  member and its console filter option are gone too -- the "filter that can only
-  ever return nothing" this file describes under Audit log vocabulary, arrived at
-  from the other direction.
-  `test_every_action_in_the_vocabulary_is_named_by_some_module` closes it:
-  `test_the_console_filter_offers_actions_that_exist` checks only that the console
-  offers nothing the enum lacks, and passes happily on a member nothing writes.
-
-  The twins: `retrievers/hybrid/fusion.py::reciprocal_rank_fusion` beside the live
-  `knowledge/fusion.py::reciprocal_rank_fuse`,
-  `outbound_redaction.py::redact_text_for_provider` beside the live plural and
-  `..._messages_...` forms, and `citation_grounding.py::_split_sentences`, whose
-  name `_makes_a_claim`'s docstring gave as the function in the path when the
-  caller is `_sentence_spans`.
-
-  **Neither test-only definition was a test helper, and that is the useful half.**
-  `_resolve_manageable_source_for_filename` was a back-compat wrapper no endpoint
-  called, and the security test asserting an ambiguous filename refuses was the
-  only thing keeping it alive -- so the refusal it proved was the wrapper's, not
-  the resolver's. The wrapper is gone and the test asserts against
-  `_resolve_manageable_document`. And `clear_router_decision_cache` was **not dead
-  at all**: `decide_route` is memoized for 30 minutes on a key of question and
-  hints only, its result reads two admin-editable settings (`ENABLE_CALIBRATION`
-  through `_calibrated`, `ENABLE_WEB_ROUTE_DOWNGRADE` through `_llm_route`), and
-  `apply_config_reload` did not clear it -- so toggling either from the console
-  reported success and left every question already cached routing the old way
-  until its entry expired. Same defect as the reranker's `lru_cache`, in a store
-  `test_the_reload_reaches_every_cache_that_holds_an_editable_setting` cannot see,
-  because that guard walks `@lru_cache` and this is hand-rolled. It is wired into
-  the reload now.
-
-  **`reachability.py` had a second bug of the first one's kind**, found by noticing
-  it had never listed `_source_mtime_ns`. Its walk treated statements inside
-  function bodies as module-level, so every name mentioned anywhere in a module
-  became an import-time root -- and a helper called only from dead code looked
-  alive. Fixed 2026-09-06; the correction surfaced six more, including
-  `request_helpers.py::get_string_param` and `resilience.py::circuit_breaker_snapshot`,
-  each called only from a function that is itself dead. Both of its bugs
-  under- or over-reported in ways only reading caught, which is the argument for
-  the docstring's "candidate, never a verdict" and for it never becoming a gate.
-
-  **The third batch (2026-09-06) took 24 functions, five config classes and four
-  "compatibility adapter" methods**, about 500 net lines. `api/utils/request_helpers.py`
-  went entirely -- all four of its parameter helpers, and the module's only
-  importer was `dependencies.py`'s `__getattr__` fallback list. The rest:
-  `resilience.py` (four), `ingestion/processing/structure.py` (three),
-  `evidence_conflict.py` (two, both labelled "legacy function kept for
-  compatibility" with no compatibility to keep), `rag/web_utils.py` (three) and
-  `agents/shared/config.py` (seven accessors).
-
-  Three of those are worth knowing about beyond the line count:
-
-  - **The circuit breaker is fine, and now has one implementation.**
-    `call_with_circuit_breaker` is live in the reranker, the NLI stage and the
-    graph client, and it inlines its own threshold-and-cooldown logic.
-    `record_circuit_failure` / `record_circuit_success` were a second, unused
-    implementation of the same thing over the same `_BREAKERS` registry -- two
-    definitions of "record a failure", which is the divergence this file keeps
-    recording, waiting to happen.
-  - **`agents/shared/config.py`'s dead sections contradicted the running system.**
-    `SynthesisConfig.enable_fact_verification` read `True` beside a synthesizer
-    that passes `False`, and `RouterConfig.use_calibration` read `True` beside an
-    `ENABLE_CALIBRATION` that defaults `False`. Anyone reading that file for the
-    configuration found the opposite of what runs. `vector_rag` is the one section
-    with a live reader (`app/agents/rag/vector.py`) and is what remains.
-  - **`run_parallel_web_research` was a loaded gun.** It built a
-    `ThreadPoolExecutor` over `run_web_research` -- precisely the shape that wedged
-    this process at zero CPU through concurrent `DDGS()` construction (see Common
-    Issues). It had never run. Its sibling `is_time_sensitive_query` was an
-    English-only duplicate of the bilingual freshness pattern
-    `KnowledgeAgentService` actually consults.
-
-  **`cascade.py::_request` was a third kind of false positive**, and the reason the
-  script says "confirm with `git grep -w`". It was reported TEST-ONLY because two
-  test modules define their own local `_request` helper and the graph matches on
-  name alone. In fact it had no test at all: its only consumers were
-  `ValidationCascade.validate_level1` through `validate_level4`, four methods whose
-  docstrings say they exist "for focused <stage>-stage tests" that do not exist --
-  and which preserved the level numbering this file records as wrong
-  (`validate_level2` called the NLI validator, `validate_level3` the citation one).
-  Deleted with `run_cascade`, one more consumerless alias in the same class.
-
-  **One thing was deliberately not deleted**, and it is the only entry left:
-  `orchestration/engine.py::_terminal_payload`, unreachable because
-  `OrchestrationEngine.execute_stream` is, and that because nothing calls
-  `RAGPipeline.execute_stream`. That is a second streaming design on a declared
-  Protocol, so removing it is a design decision rather than a cleanup -- written up
-  as open technical debt under **SSE streaming** in Important Notes, which is where
-  someone looking at streaming will actually land.
-
-  **The fourth batch (2026-09-06) took the remaining 25 and three whole packages**,
-  about 420 lines. The 25 were one-line-each confirmations -- every one had exactly
-  one `git grep -w` hit, its own `def` -- and deleting them exposed one cascade,
-  `registry.py::get_document_record`, whose only caller had been among them.
-
-  The three packages are the more interesting half. `app/baselines/` was a
-  re-export shim nothing imported, and it was the *only* importer of
-  `app/evaluation/baselines/chroma/{vector,rerank,hybrid}.py` -- so those three
-  died with it. **They are worth noticing on the way out**: each calls
-  `self.vectorstore.similarity_search_with_relevance_scores(query, k=...)` on a raw
-  Chroma handle, with no tenant, no owner and no source filter. That escapes
-  `test_no_unrestricted_retrieval.py` entirely, because the guard looks for this
-  repository's own `similarity_search` and these call LangChain's differently-named
-  method on an injected store. Nothing constructed them, and the classes offer no
-  way to scope a search, so wiring one up would have been an unscoped read across
-  every tenant. The allowlisted harness is a different file --
-  `baselines/api_retriever.py`, still live, still allowlisted, and
-  `test_the_ownerless_allowlist_is_not_stale` still passes.
-
-  `app/graph/streaming/` was the third, and it was already broken:
-  `run_query_stream` imports `app.graph.streaming.stream_processor`, which does not
-  exist, behind a function-local import -- the same defect shape as the
-  `compatibility_post_execution` adapters in batch two, hidden the same way. Its own
-  comment read "Retained import alias only; public API/SSE uses typed Engine
-  streaming." The admin console's log-filter placeholder named
-  `app.graph.streaming` as its example logger, in both locales; it names
-  `app.orchestration.engine` now.
-
-  **1 non-reachable definition remains in `app/`**, the deliberate one above: 0 in
-  unimported modules, 0 reached only from tests. That is the clean ground for the
-  85 `python:S3776` findings that are live code -- refactoring judgement now goes
-  only to code that runs.
+- **Asynchronous Purity & Event Loop Protection**:
+  - **No Blocking I/O or CPU in `async def`**: Any synchronous database access (SQLite `sqlite3` queries), vector store access (ChromaDB queries), or CPU-heavy processing (e.g., cross-encoder scoring, `FactVerificationStage.verify`) called inside `async def` coroutines **must** be dispatched via `await asyncio.to_thread(...)`. Failing to do so blocks the Python asyncio event loop, stalling all concurrent requests.
+  - **Synchronous Reporter & Callback Signatures**: Event publishers and telemetry reporters (`EventPublisher.publish`, `TraceReporter`, `AuditLog.append`, `discard_trace`) are typed as synchronous callbacks (`Callable[..., None]`). If a reporter ever requires external I/O, it must push the event to an in-memory `asyncio.Queue` or background buffer and return immediately. Never pass an `async def` coroutine function as an unawaited reporter, as doing so constructs a coroutine object that is never scheduled and silently drops the event.
+  - **Cognitive Complexity & Modularity**: Functions should adhere to bounded cognitive complexity. Decompose deeply nested branching and loops into focused, single-responsibility helper functions.
+  - **Dead Code Elimination**: Before refactoring or restructuring components, verify live caller reachability using `scripts/audit/reachability.py` and `git grep -w`. Never retain orphaned facades or unused duplicate implementations.
 - **Answer provenance**: what a message may claim about where it came from is computed in
   one place — `retrieval_summary` (`app/api/routes/internal/pipeline_contract.py`), from the
   knowledge diagnostics both entry points already carry. **`used` means a source contributed
@@ -4486,6 +3573,8 @@ which is what the broken assertion was accidentally reaching for.
 Note what you will see once it is up: with `MODEL_BACKEND=local` the graph is
 **empty by design**, because rule-extracted triplets are now correctly filtered
 out (see "Knowledge graph extraction"). An empty Neo4j Browser there is the
+system working normally, not a broken ingest.
+
 **Frontend CORS errors**: Ensure backend is running on port 8000. In development, Vite reverse-proxies `/api`, `/auth`, `/sessions`, `/query`, etc. directly to `127.0.0.1:8000`.
 
 **PowerShell Script Execution Policy on Windows**:
