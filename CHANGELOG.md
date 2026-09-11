@@ -4,20 +4,46 @@ All notable changes to this project will be documented in this file.
 
 ## [0.7.0] - 2026-09-11
 
-### 🚀 Visual Observability, Interactive Architecture & Performance Release
+### 🚀 Canonical LangGraph Architecture, Multimodal Knowledge & Observability Release
 
-This release introduces **multi-perspective architecture visualization**, **real-time LangGraph execution trace debugging**, **deep-dive feature exploration modals**, and **production-grade bundle performance optimizations**.
+This release represents a comprehensive architectural milestone for QueryMind, consolidating the entire system into a **Canonical LangGraph multi-agent pipeline**, migrating frontend styling to **Tailwind CSS v4**, performing deep **SonarCloud reliability and cognitive complexity hardening**, and introducing **multi-perspective visual observability**.
 
-#### 🗺️ Architecture & Flow Visualization (NEW)
-- **PipelineFlowDiagram Component**: Multi-perspective visualization allowing users to inspect the pipeline from 5 different angles:
-  - **Story Mode**: Narrative user journey through the request lifecycle.
-  - **Tech Mode**: Granular engineering contracts, stage timeouts, and fallbacks.
-  - **Table Mode**: Matrix breakdown of components, execution budgets, and policies.
-  - **Blueprint Mode**: High-resolution system flow diagram.
-  - **Topology Mode**: Interactive topological graph powered by ReactFlow.
+#### 🏗️ Canonical LangGraph Orchestration & Core Pipeline (MAJOR)
+- **Unified LangGraph Workflow**: Replaced legacy procedural pipelines with a single canonical stateful LangGraph engine (`app/orchestration/langgraph/workflow.py`).
+- **Deterministic Privacy & Scope Preflight**: Prior to retrieval, requests pass through deterministic scope verification, guaranteeing tenant isolation before querying.
+- **Multimodal Visual & Knowledge Ingestion**: Added versioned evidence ingestion, PDF chart/table extraction, Tesseract OCR fallback, and parent-child chunk indexing (1500/600 token boundaries).
+- **Knowledge Strategy & Unified Retriever**: Consolidated vector search (ChromaDB + BGE-M3), lexical search (BM25 with Chinese jieba tokenization), and Reciprocal Rank Fusion (RRF) with widened BGE-Reranker-V2-M3.
+- **Governed Tool Loop & Bounded Planner DAG**: Added dynamic query decomposition and an optional ReAct tool execution cycle with strict per-stage budgets and circuit breakers.
+- **Cross-Session Memory & Versioned Wiki Layer**: Integrated long-term enterprise memory governance and automated knowledge graph consolidation.
+- **Bounded Verification Loop**: Multi-tier answer validation combining citation-completeness checks, sentence-level grounding, and NLI entailment validation.
+- **Output DLP Redaction**: Streaming draft and finalized answer sanitization, redacting sensitive tokens at every chunk boundary.
+
+#### 🛡️ SonarCloud Quality Gate & Backend Hardening (QUALITY)
+- **Cognitive Complexity Reduction (S3776)**: Systematically refactored scores of high-complexity functions across `app/orchestration/`, `app/retrievers/`, `app/services/query/`, `app/agents/synthesizer/`, and `app/services/documents/index_manager.py` down below Sonar thresholds.
+- **Async Event Loop Reliability**: Eliminated blocking I/O calls within async contexts, optimized regex scanning engines, and pruned dead async routines.
+- **Synchronous Event Reporting Chain**: Refactored execution event broadcasting to be strictly synchronous and thread-safe, significantly cutting event transit latency.
+- **Legacy Pruning**: Deleted 40+ legacy compatibility wrappers, unreferenced domain agents, dead caching layers, and deprecated test fixtures (-20,000+ lines of dead code).
+
+#### 🎨 Frontend Modernization & Tailwind CSS v4 Migration (UI/UX)
+- **Tailwind CSS v4 Migration**: Replaced legacy hand-written CSS sheets with Tailwind v4 `@theme` tokens, utilities, and `tw-animate-css` animations.
+- **Accessible Modal Dialog Primitives**: Replaced native browser popups (`window.alert`, `window.confirm`, `window.prompt`) with Promise-based, accessible, and theme-compliant `ConfirmDialog` and `PromptDialog` components.
+- **Zustand Store Architecture**: Refactored `useChatStore` and `useAdminStore` with granular slice subscriptions, preventing full-page re-renders during streaming.
+- **Chat Workspace & Layout Optimization**:
+  - Full-viewport responsive layout (100vh flex growth with 0 bottom gap).
+  - Compact composer panel with auto-expanding textarea and keyboard shortcuts.
+  - Interactive document management chips on the sidebar (re-index, file delete, index clearing).
+  - High-readability message cards with syntax-highlighted markdown blocks and copy utilities.
+
+#### 🗺️ Multi-Perspective Architecture & Flow Visualization (NEW)
+- **PipelineFlowDiagram Component**: Interactive visualizer providing 5 distinct viewing perspectives:
+  - **Story Mode**: Narrative journey explaining the lifecycle of a user inquiry.
+  - **Tech Mode**: Granular view of engineering contracts, per-stage timeouts, and fallback mechanisms.
+  - **Table Mode**: Structured matrix of components, execution budgets, and policies.
+  - **Blueprint Mode**: High-resolution system flow architecture diagram.
+  - **Topology Mode**: Interactive topological node graph powered by ReactFlow.
 - **Scenario Simulation**: Instant toggle between `RAG (Standard Retrieval)`, `ReAct (Tool Loop)`, and `Graph RAG (Knowledge Graph Multi-Hop)`.
-- **System Metrics & KPIs**: Live readouts of router intent accuracy (>99%), grounding verification, and stage latency budgets.
-- **REST Endpoints Explorer**: Filterable directory of all system endpoints categorized across the 6 architectural pillars.
+- **System Metrics & KPIs**: Real-time readouts of router accuracy (>99%), grounding verification, and stage latency budgets.
+- **Filterable REST Endpoint Catalog**: Interactive directory of all system endpoints categorized across the 6 architectural pillars.
 
 #### 🔍 Execution Trace Introspection (NEW)
 - **ExecutionTracePanel**: Complete UI overhaul for inspecting real-time SSE stream events from the LangGraph workflow engine.
@@ -33,6 +59,7 @@ This release introduces **multi-perspective architecture visualization**, **real
 - Bumped project version to `v0.7` across `pyproject.toml`, `app/__version__.py`, `frontend/package.json`, `uv.lock`, `README.md`, and locale bundles.
 
 ## [0.6.2.1] - 2026-07-18
+
 
 
 ### 🏗️ Configuration Governance & GitHub Open Source Release
