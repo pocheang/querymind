@@ -13,10 +13,34 @@ conda activate rag-local
 
 ## Project Information
 
-**Name**: QueryMind（智询）  
-**Version**: 0.7.0  
-**Language Support**: Bilingual (Chinese/English) via i18next  
-**License**: MIT
+- **Name**: QueryMind（智询）
+- **Version**: 0.7.0 (Released 2026-09-11)
+- **Language Support**: Bilingual (Chinese/English) via i18next
+- **License**: MIT
+
+## Table of Contents
+
+- [Environment Setup](#environment-setup)
+- [Project Information](#project-information)
+- [Common Commands](#common-commands)
+  - [Backend](#backend)
+  - [Frontend](#frontend)
+  - [Docker Deployment](#docker-deployment)
+- [Architecture Overview](#architecture-overview)
+  - [Canonical LangGraph Architecture (v0.7.0 Milestone)](#canonical-langgraph-architecture-v070-milestone)
+  - [Core Components](#core-components)
+  - [Execution Flow](#execution-flow)
+  - [Observability & Inspection](#observability--inspection-v070)
+  - [Quality Assurance](#quality-assurance)
+- [Development Patterns](#development-patterns)
+  - [Working with the Current Architecture](#working-with-the-current-architecture)
+  - [Frontend Styling & Design System](#frontend-styling-rewritten-2026-09-07)
+  - [Modal Dialog & Accessibility Standards](#modal-dialog--accessibility-standards)
+  - [Testing Strategy](#testing-strategy)
+  - [Sensitive Content Gate](#sensitive-content-gate-added-2026-09-04)
+- [Important Notes](#important-notes)
+- [Common Issues](#common-issues)
+- [Documentation Management](#documentation-management)
 
 ## Common Commands
 
@@ -35,16 +59,11 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (2026-08-28, counts refreshed 2026-09-05): `tests/` and `scripts/` were cleared ahead
-of the v0.7 rewrite. `scripts/` was down to one file then and holds nine now — `audit/frontend_audit.py`,
-`audit/cognitive_complexity.py`, `audit/reachability.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`,
-`create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py` — each added with the thing it verifies,
-and still no `scripts/init_db.py`. `tests/` is being rebuilt incrementally alongside bug fixes — see
-Testing Strategy below.
+Note (counts refreshed 2026-09-11, v0.7.0 milestone): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **1,754 backend tests** and **154 frontend tests** (**1,908 total tests**, 0 failures). Scripts hold nine focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
-make test                           # pytest -q
+make test                           # pytest -q (1,754 tests)
 make test-ci                        # the same suite, with CI's optional packages hidden
 make lint                           # ruff check . && ruff format --check .
 ```
@@ -100,43 +119,67 @@ npm run dev                         # Starts Vite dev server (port 5173)
 ```bash
 cd frontend
 npm run build                       # TypeScript compile + Vite build
-npm run preview                     # Preview production build (port 4173)
+npm run preview                     # Preview production build (port 5174, proxies /api to 8000)
 ```
 
 **Checks and visual verification**
 ```bash
 cd frontend
-npm run lint                        # eslint, gates on errors (warning ratchet: 25)
-npm run type-check                  # tsc -b --noEmit
+npm run lint                        # eslint, gates on errors (warning ratchet: 20, currently 19)
+npm run type-check                  # tsc -b --noEmit (clean with ES2022.Object, ES2023.Array)
 npm run lint:design                 # shape/depth scale ratchet (see Frontend styling)
-npm test -- --run                   # vitest (.test.ts and .test.tsx)
+npm run lint:classes                # dead classes audit against built CSS
+npm run format:check                # prettier format check
+npm test -- --run                   # vitest (.test.ts and .test.tsx, 154 tests)
 npm run screenshots                 # both servers up; PNGs of 8 app states
 ```
 
 CI runs everything above except `screenshots`, which is a local before/after tool
-by design — see [Frontend styling](#frontend-styling-adopted-2026-08-31) for when to
+by design — see [Frontend styling](#frontend-styling-rewritten-2026-09-07) for when to
 reach for which.
 
 ### Docker Deployment
 
+**Linux / macOS / WSL**:
 ```bash
 export OPENAI_API_KEY="your-api-key"
 ./deploy/scripts/deploy.sh production balanced
+# Optional flags: --monitoring (Prometheus/Grafana), --with-n8n (n8n workflows)
 ```
 
-Configuration lives in `config/` and runtime files in `.runtime/`.
+**Windows PowerShell**:
+```powershell
+$env:OPENAI_API_KEY = "your-api-key"
+.\deploy\scripts\deploy.ps1 -Environment production -Profile balanced
+```
+
+**Deployment Directory Layout**:
+- `deploy/compose/`: Compose manifests:
+  - `compose.yaml`: Base topology (backend, frontend, redis, neo4j; optional postgres & n8n)
+  - `compose.production.yaml`: Publishes frontend on `80:8080`
+  - `compose.dev.yaml`: Publishes dev ports (`8000`, `5173`, `7474`, `7687`, `6379`)
+  - `compose.monitoring.yaml`: Prometheus (`9090`), Alertmanager (`9093`), Grafana (`3000`)
+- `deploy/scripts/`:
+  - `config.py`: Environment generator & validator (`render`, `validate`)
+  - `deploy.sh` / `deploy.ps1`: End-to-end deployment script
+  - `init_app.py`: Database bootstrap & schema initialization
+  - `healthcheck.py`: End-to-end readiness verification
+- Config templates live in `config/` and generated secrets/runtime files live in `.runtime/` (gitignored).
 
 ## Architecture Overview
 
-### Pragmatic RAG System in Transition
+### Canonical LangGraph Architecture (v0.7.0 Milestone)
 
-This is a **working RAG system** built on proven components (LangChain, ChromaDB, FastAPI). The system evolved from a multi-agent LangGraph architecture and is currently in a **transition state** - core functionality is stable, but the architecture is being incrementally modernized.
+QueryMind v0.7.0 operates on a **Canonical LangGraph multi-agent architecture**. The legacy transition state has been fully consolidated into a stateful, bounded LangGraph pipeline defined in `app/orchestration/langgraph/workflow.py` (`build_workflow`).
 
-**Current architecture**: Legacy retrieval and synthesis components wrapped with adapter services for cleaner interfaces. The `RAGPipeline` provides the public API, while `OrchestrationEngine` coordinates execution flow.
+**Public Interface**: `RAGPipeline` (`app/pipeline/service.py`) remains the backward-compatible entry point, delegating directly to the compiled LangGraph `StateGraph(OrchestrationGraphState)`.
 
-**What works well**: Retrieval quality, answer synthesis, bilingual support, session management.
-
-**What's being improved**: Service boundaries, configuration management, error handling consistency.
+**What makes it robust**:
+- **Deterministic Tenant & Scope Preflight**: Verified before any retrieval query runs.
+- **Unified Multimodal Retrieval**: Hybrid vector (ChromaDB + BGE-M3) + BM25 (jieba) + Graph (Neo4j) fused via Reciprocal Rank Fusion (RRF).
+- **Governed Multi-Step Tool Loop**: Model-selected connector actions bounded by per-stage timeouts and circuit breakers.
+- **Multi-Tier Answer Verification**: Citation grounding, token overlap scoring, and NLI entailment validation with automatic bounded retry loop.
+- **Output DLP Redaction**: Streaming and finalized answers undergo sensitive information redaction at chunk boundaries.
 
 ### Core Components
 
@@ -218,19 +261,43 @@ it was deleted on 2026-08-29, leaving only the `PipelineProfile` enum.
 ```
 Request → RAGPipeline.execute()
    ↓
-OrchestrationEngine
+LangGraph Engine (app/orchestration/langgraph/workflow.py)
    ↓
-1. Router → determines query type and route
-2. Planner → (optional) decomposes complex queries
-3. Retriever → gathers evidence from vector/BM25/graph/web
-4. Tool Runner → (optional) multi-step governed tool loop, react route only
-5. Synthesizer → generates answer with inline citations
-6. Finalizer → (optional) validates quality and safety
+START
    ↓
-PipelineResult → returned to caller
+1. privacy_permission ──> Scope & tenant verification preflight
+   ↓
+2. router ───────────────> Intent classification & route determination
+   ↓ (conditional edge: planner needed?)
+   ├──> [Yes] 3. planner ──> Query decomposition DAG ──┐
+   └──> [No] ──────────────────────────────────────────┴──> 4. knowledge (hybrid retrieval & RRF)
+                                                                 ↓
+                                                            5. synthesizer (grounded answer draft)
+                                                                 ↓
+                                                            6. verifier (citation/grounding/NLI)
+                                                                 ├──> [Retry loop if under threshold]
+                                                                 ↓
+                                                            7. output_filter (DLP redaction & SSE formatting)
+                                                                 ↓
+                                                                END
+                                                                 ↓
+                                              PipelineResult (and SSE event stream)
 ```
 
-**Note**: Steps 2, 4, 6 are conditionally executed based on route and profile settings. The flow is sequential with concurrent retrieval from multiple sources in step 3.
+**Note**: The workflow is compiled via `build_workflow(services, policy=..., settings=..., monitor=...)` using a single typed `StateGraph(OrchestrationGraphState)`. Edge decisions are purely deterministic or model-guided via `after_router` and `after_verifier`.
+
+### Observability & Inspection (v0.7.0)
+
+QueryMind v0.7.0 introduced multi-perspective visual introspection:
+1. **`PipelineFlowDiagram`** (`frontend/src/components/architecture/PipelineFlowDiagram.tsx`):
+   - **5 Viewing Perspectives**: Story Mode (user inquiry narrative), Tech Mode (contracts, timeouts, and fallbacks), Table Mode (matrix of stage budgets and policies), Blueprint Mode (architecture layout), and Topology Mode (interactive node graph via ReactFlow).
+   - **Interactive Scenarios**: Instant simulation between `RAG (Standard Retrieval)`, `ReAct (Tool Loop)`, and `Graph RAG (Knowledge Graph Multi-Hop)`.
+   - **Router Accuracy & Metrics**: Real-time KPI readouts (>99% router accuracy, grounding verification, and stage latency budgets).
+   - **Filterable REST Catalog**: Categorized directory of all system endpoints across the 6 architectural pillars.
+2. **`ExecutionTracePanel`** (`frontend/src/features/execution-trace/`):
+   - Real-time SSE stream inspection for stage events emitted by the LangGraph engine.
+   - Structured trace tree displaying nested tool calls, retrievals, LLM synthesis chunks, and verification retries.
+   - Per-stage elapsed timings, token usage telemetry, and circuit breaker status indicators.
 
 ### Quality Assurance
 
@@ -2669,8 +2736,7 @@ Tailwind's 6px, `.shadow-sm`, `.text-primary`, `.bg-surface`, ...) and `utilitie
 `@theme inline` block. Each component is `React.forwardRef` (React 18 -- not the React 19
 ref-as-prop form) + `cva()` + `cn()`.
 
-Two lint shapes are forced by `--max-warnings 25`, which is a ratchet that sits at exactly
-25 with no headroom:
+Two lint shapes are forced by `--max-warnings 20` (lowered from 25; currently sitting at 19 warnings with 0 errors):
 
 - **Variant tables live in a sibling file** (`button.tsx` + `buttonVariants.ts`).
   `react-refresh/only-export-components` allows constant exports but `cva(...)` is a *call
@@ -2679,6 +2745,13 @@ Two lint shapes are forced by `--max-warnings 25`, which is a ratchet that sits 
 - **Radix re-exports are declared as real function components**, not
   `export const Dialog = DialogPrimitive.Root`. The rule cannot tell a value re-export is a
   component. This is also what current shadcn/ui upstream does.
+
+#### Modal Dialog & Accessibility Standards
+
+- **BaseDialog, ConfirmDialog, and PromptDialog**: Native browser modal popups (`window.alert`, `window.confirm`, `window.prompt`) are strictly prohibited in user-facing flows. All confirmations and text prompts use the Promise-based, theme-compliant dialogs rooted in `BaseDialog` (`frontend/src/components/BaseDialog.tsx`).
+- **Accessible Backdrop & Scenery Rule**: The backdrop wrapper has `role="presentation"` with `onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}` and renders the modal child `<dialog open aria-modal="true" aria-labelledby={titleId}>`.
+  **Never place `aria-hidden="true"` on a backdrop container that wraps `<dialog>`**: doing so hides the entire dialog, form controls, and confirm buttons from screen readers and Testing Library queries.
+- **Language Level**: `frontend/tsconfig.app.json` explicitly declares `"lib": ["ES2020", "ES2022.Object", "ES2023.Array", "DOM", "DOM.Iterable"]`, allowing standard ES2022 `Object.hasOwn(...)` and ES2023 `findLast(...)`.
 
 #### The amber palette does not clear WCAG AA as published, and the theme corrects it
 
@@ -3469,7 +3542,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-09 there are 1747 tests covering the chat round trip,
+back-filling effort. As of 2026-09-11 (v0.7.0 release) there are 1,754 backend pytest tests
+and 154 frontend Vitest tests (1,908 total tests, 0 failures), covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -4412,8 +4486,18 @@ which is what the broken assertion was accidentally reaching for.
 Note what you will see once it is up: with `MODEL_BACKEND=local` the graph is
 **empty by design**, because rule-extracted triplets are now correctly filtered
 out (see "Knowledge graph extraction"). An empty Neo4j Browser there is the
-system working, not a broken ingest.
-**Frontend CORS errors**: Ensure backend is running on port 8000
+**Frontend CORS errors**: Ensure backend is running on port 8000. In development, Vite reverse-proxies `/api`, `/auth`, `/sessions`, `/query`, etc. directly to `127.0.0.1:8000`.
+
+**PowerShell Script Execution Policy on Windows**:
+If PowerShell blocks scripts (`npm.ps1 cannot be loaded because running scripts is disabled on this system`):
+- Run via cmd: `cmd /c npm <command>` (e.g., `cmd /c npm run dev`, `cmd /c npm test -- --run`).
+- Or unblock scripts in PowerShell: `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`.
+
+**Data Persistence & Docker Volumes**:
+SQLite metadata lives in `data/querymind.db` (`app_data` volume) and Chroma embeddings in `data/chroma` (`chroma_data` volume).
+When updating deployments, **never pass `-v` to docker compose down**:
+`docker compose down -v` destroys named volumes and all persisted user embeddings and metadata.
+Use in-place update: `docker compose up -d --remove-orphans` or `./deploy/scripts/deploy.sh production balanced`.
 
 ## Documentation Management
 
