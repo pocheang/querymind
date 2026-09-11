@@ -61,5 +61,5 @@ function isExecutionMetadataItem(value: unknown): value is ExecutionMetadataItem
 // demanding an exact key set meant any field added to the backend
 // ExecutionEvent would make the UI discard every event, not just misread one.
 function hasKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
-  return keys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+  return keys.every((key) => Object.hasOwn(value, key));
 }

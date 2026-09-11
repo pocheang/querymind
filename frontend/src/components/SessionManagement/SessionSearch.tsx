@@ -10,7 +10,6 @@ import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { sessionManagementApi, SearchQuery, SearchResult, SessionCategory } from "../../services/sessionManagement";
 import { TagInput } from "./TagInput";
-import { activateOnKey } from "@/lib/a11y";
 import { Search, SlidersHorizontal } from "lucide-react";
 
 import { cn } from "@/lib/utils";

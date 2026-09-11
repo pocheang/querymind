@@ -89,8 +89,8 @@ _MOBILE_CN_RE = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
 # "this kind matched" means, in the one file where getting that wrong means a
 # real passport number reaches an external provider. Left as measured.
 _PASSPORT_CN_RE = re.compile(
-    r"(?<![A-Za-z0-9])[EGDSPH](?!(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])(?![A-Za-z0-9]))\d{8}(?![A-Za-z0-9])"
-)  # NOSONAR
+    r"(?<![A-Za-z0-9])[EGDSPH](?!(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])(?![A-Za-z0-9]))\d{8}(?![A-Za-z0-9])"  # NOSONAR
+)
 # Unified social credit code: 18 characters from a checksum alphabet that omits
 # I, O, Z, S and V, with the six-digit administrative division in the middle.
 _USCC_RE = re.compile(r"(?<![A-Za-z0-9])[0-9A-HJ-NPQRTUWXY]{2}\d{6}[0-9A-HJ-NPQRTUWXY]{10}(?![A-Za-z0-9])")

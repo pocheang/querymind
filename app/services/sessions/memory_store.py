@@ -330,8 +330,8 @@ class MemoryStore:
         if not memory_id:
             return False
         # Fully evaluate all payloads without short-circuiting so both copies expire
-        expired_results = [self._expire_in_payload(sid, memory_id) for sid in self._payload_ids()]  # NOSONAR
-        return any(expired_results)
+        expired_results = [self._expire_in_payload(sid, memory_id) for sid in self._payload_ids()]
+        return any(expired_results)  # NOSONAR
 
     def forget_all(self) -> int:
         """Forget every memory this user has, and report how many that was.
