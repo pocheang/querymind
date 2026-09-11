@@ -14,7 +14,7 @@ from pathlib import Path
 # Unicode word character, which would let a config key through this gate that
 # the shell environment it is destined for was never going to accept as an
 # identifier. Left narrow on purpose.
-KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")  # NOSONAR
 VALID_ENVIRONMENTS = {"development", "test", "production"}
 VALID_PROFILES = {"fast", "balanced", "deep"}
 VALID_BACKENDS = {"openai", "anthropic", "ollama", "local", "custom", "deepseek"}

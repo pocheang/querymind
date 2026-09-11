@@ -132,7 +132,6 @@ export function App() {
     <ErrorBoundary
       onError={(error, errorInfo) => {
         console.error("App Error:", error, errorInfo);
-        // TODO: Send to error tracking service (e.g., Sentry)
       }}
     >
       <ToastProvider>

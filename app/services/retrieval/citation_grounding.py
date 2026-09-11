@@ -6,7 +6,7 @@ import re
 # and CLAUDE.md already records what `\w+` did to it: a verbatim clause
 # scored 1.00 and a paraphrase scored 0.00, because a whole clause became one
 # token. Left narrow on purpose.
-_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")  # NOSONAR
 _CJK_PUNCTUATION_CLASS = "\u3002\uff01\uff1f"
 _ABBREVIATIONS = {
     "dr.",

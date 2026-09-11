@@ -79,9 +79,9 @@ export function SettingsDrawer({ isOpen, onClose }: Readonly<Props>) {
         onClick={onClose}
         aria-label={t("components.settings.close")}
       />
-      <aside
-        className="glass-panel fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-y-0 border-r-0 shadow-elev-3 animate-in slide-in-from-right duration-300"
-        role="dialog"
+      <dialog
+        open
+        className="glass-panel fixed inset-y-0 right-0 z-50 m-0 flex max-h-none w-full max-w-md flex-col border-y-0 border-r-0 bg-transparent p-0 shadow-elev-3 animate-in slide-in-from-right duration-300"
         aria-modal="true"
         aria-labelledby="settings-drawer-title"
       >
@@ -138,7 +138,7 @@ export function SettingsDrawer({ isOpen, onClose }: Readonly<Props>) {
 
           <MemoryPanel />
         </div>
-      </aside>
+      </dialog>
     </>
   );
 }

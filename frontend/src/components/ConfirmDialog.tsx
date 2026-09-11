@@ -56,14 +56,14 @@ export function ConfirmDialog({
     // changed here.
     <div
       className="confirm-dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm"
-      role="presentation"
+      aria-hidden="true"
       onClick={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}
     >
-      <div
-        className="glass-panel w-full max-w-sm space-y-3 rounded-panel border-brand-border-strong p-5 shadow-elev-3 animate-in fade-in-0 zoom-in-95"
-        role="dialog"
+      <dialog
+        open
+        className="glass-panel w-full max-w-sm space-y-3 rounded-panel border-brand-border-strong p-5 shadow-elev-3 animate-in fade-in-0 zoom-in-95 m-0 max-h-none max-w-none bg-transparent"
         aria-modal="true"
         aria-labelledby={titleId}
       >
@@ -85,7 +85,7 @@ export function ConfirmDialog({
             {confirmText || t("common.confirm")}
           </Button>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 }

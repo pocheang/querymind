@@ -79,7 +79,7 @@ def test_concurrent_construction_does_not_hang() -> None:
         # a bare `TimeoutError` after a 30s wait -- but the whole point of the
         # bound is to turn a hang into a fast, legible failure; letting it
         # propagate keeps the fast part and throws away the legible part.
-        try:
+        try:  # NOSONAR
             results = [future.result(timeout=30) for future in futures]
         except concurrent.futures.TimeoutError:  # pragma: no cover - the regression
             pytest.fail(

@@ -235,13 +235,11 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
 
           <div className="space-y-2">
             {results.map((result) => (
-              <div
+              <button
+                type="button"
                 key={result.session_id}
-                className="cursor-pointer rounded-card border border-line bg-surface p-3 transition-all hover:border-brand-border-strong hover:bg-brand-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
-                role="button"
-                tabIndex={0}
+                className="w-full text-left cursor-pointer rounded-card border border-line bg-surface p-3 transition-all hover:border-brand-border-strong hover:bg-brand-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
                 onClick={() => handleResultClick(result.session_id)}
-                onKeyDown={activateOnKey(() => handleResultClick(result.session_id))}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-mono text-xs sm:text-sm font-semibold text-ink">{result.session_id}</span>
@@ -280,7 +278,7 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
                     ))}
                   </div>
                 )}
-              </div>
+              </button>
             ))}
           </div>
 

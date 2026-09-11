@@ -71,7 +71,7 @@ async def test_slot_is_released_when_the_body_raises():
     # assertion: what this pins is that the context manager lets the error
     # through and still gives the permit back. Hoisting it out would test
     # nothing.
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # NOSONAR
         async with guard.acquire_async("u1"):
             raise ValueError("boom")
     # If the exit had leaked the permit this would time out instead.

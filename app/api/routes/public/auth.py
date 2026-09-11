@@ -261,8 +261,8 @@ def change_password(
             "token_rotated": True,
         }
     else:
-        # 密码已改但token轮换失败
-        # 清除现有cookie，强制用户重新登录
+        # Password changed but token rotation failed
+        # Clear existing cookie, force user to login again
         _clear_auth_cookie(response)
         _audit(
             request,

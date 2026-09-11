@@ -179,7 +179,7 @@ def _extract_json_from_text(text: str) -> dict | None:
     # chart/table extraction produces routinely. The lazy form keeps expanding
     # until the whole suffix (closing fence included) matches, which is what
     # lets it close on the outer brace instead of the first inner one.
-    code_block_match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
+    code_block_match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)  # NOSONAR
     if code_block_match:
         try:
             return json.loads(code_block_match.group(1))

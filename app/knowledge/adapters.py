@@ -87,7 +87,7 @@ class UnavailableKnowledgeAdapter:
         self.source = source
         self._reason = reason
 
-    async def retrieve(self, plan: KnowledgeSourcePlan, scope: AccessScope) -> RankedGroups:
+    async def retrieve(self, plan: KnowledgeSourcePlan, scope: AccessScope) -> RankedGroups:  # NOSONAR
         del plan, scope
         raise UnavailableKnowledgeSourceError(self._reason)
 

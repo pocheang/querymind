@@ -290,7 +290,7 @@ def similarity_search(
                 # of its stable public API, so narrowing the catch risks missing
                 # the rewrap for a Chroma version that raises something else, and
                 # anything that is not a dimension mismatch comes back unchanged.
-                raise _as_dimension_mismatch(error) from error
+                raise _as_dimension_mismatch(error) from error  # NOSONAR
             return _verify_sources(matches, allowed_sources)
 
         # 仅在显式允许时才不使用过滤（系统级操作）

@@ -364,7 +364,7 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
             "absolute inset-0 z-20 bg-stone-900/40 backdrop-blur-sm transition-opacity sidebar:hidden",
             sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
           )}
-          role="presentation"
+          aria-hidden="true"
           onClick={() => setSidebarOpen(false)}
         />
 

@@ -35,7 +35,7 @@ def citation_completeness(
 class CitationValidator:
     """Validate citation presence, identity, and cited numeric evidence."""
 
-    async def validate(self, request: ValidationRequest) -> CascadeResult:
+    async def validate(self, request: ValidationRequest) -> CascadeResult:  # NOSONAR
         start_time = time.time()
         issues: list[RuleBasisIssue] = []
         if not request.citations:

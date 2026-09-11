@@ -112,7 +112,7 @@ SIMILARITY_STOP_THRESHOLD = 0.92
 # characters as one token instead of one token per character -- the exact
 # defect CLAUDE.md records for the NLI deterministic fallback, reached here
 # through token-overlap similarity instead. Left narrow on purpose.
-_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")  # NOSONAR
 
 
 # `_parse_source_docs_from_contexts` used to live here: it reconstructed

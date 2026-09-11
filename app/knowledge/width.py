@@ -34,7 +34,7 @@ def query_complexity(query: str) -> int:
     # counting one per character, changing `token_count` -- and therefore
     # which questions cross the `>= 28` threshold below -- for every Chinese
     # query. Left narrow on purpose.
-    token_count = len(re.findall(r"[A-Za-z0-9_]+|[一-鿿]", text))
+    token_count = len(re.findall(r"[A-Za-z0-9_]+|[一-鿿]", text))  # NOSONAR
     complexity = 0
     if token_count >= 28:
         complexity += 1

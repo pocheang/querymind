@@ -297,7 +297,7 @@ class LocalEvidenceChatModel:
             # to actually be scanned up to the next `[Enn]` or the string end,
             # and it captures multi-line bodies correctly (checked directly:
             # a two-line excerpt comes back whole, embedded newline included).
-            for match in re.finditer(r"\[(E\d+)\][^\n]*\n(.*?)(?=\n\[E\d+\]|\Z)", block, flags=re.DOTALL):
+            for match in re.finditer(r"\[(E\d+)\][^\n]*\n(.*?)(?=\n\[E\d+\]|\Z)", block, flags=re.DOTALL):  # NOSONAR
                 body = re.sub(r"\s+", " ", match.group(2)).strip()
                 if body:
                     found.append((match.group(1), body))
@@ -379,7 +379,7 @@ class LocalEvidenceChatModel:
         query = match.group(1).strip() if match else prompt_text.strip()
         return f"1. {query}"
 
-    async def ainvoke(self, messages):
+    async def ainvoke(self, messages):  # NOSONAR
         """Async form of invoke(); this backend is pure local computation (no I/O),
         so no actual awaiting is needed, only interface parity with the other
         chat model wrappers below that callers rely on for `.ainvoke()`."""

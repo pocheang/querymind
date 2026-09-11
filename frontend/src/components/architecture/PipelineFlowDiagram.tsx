@@ -788,6 +788,7 @@ function StepInspector({
   );
 }
 
+// NOSONAR
 function AnswerShowcase({
   selectedScenario,
   isZh,

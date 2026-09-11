@@ -48,7 +48,7 @@ def classify_query_complexity(query: str | None) -> ComplexityLevel:
     # python:S6353 wants `\w` for `[a-zA-Z0-9_]`; `\w` matches CJK too, so
     # `\b\w+\b` would also consume Chinese runs as English "tokens" here,
     # double-counting them against `chinese_chars` below. Left narrow.
-    english_tokens = len(re.findall(r"\b[a-zA-Z0-9_]+\b", query_str))
+    english_tokens = len(re.findall(r"\b[a-zA-Z0-9_]+\b", query_str))  # NOSONAR
     chinese_chars = len(re.findall(r"[一-鿿]", query_str))
     # Approximate: ~2 Chinese chars = 1 token
     total_tokens = english_tokens + (chinese_chars // 2)

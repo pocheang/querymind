@@ -103,7 +103,7 @@ def test_the_slot_comes_back_even_when_the_body_raises(redis: _FakeRedis) -> Non
 
     # See the note in `test_query_guard_async.py`: the raise inside is the
     # assertion, not a second thing that might throw.
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # NOSONAR
         with guard.acquire("user-1"):
             raise ValueError("boom")
 

@@ -51,9 +51,9 @@ export function KeyboardHelp({ open, onClose }: Readonly<{ open: boolean; onClos
         onClick={onClose}
         aria-hidden="true"
       />
-      <div
-        className="glass-panel fixed left-1/2 top-1/2 z-50 flex max-h-[80vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col rounded-panel border-brand-border-strong shadow-elev-3 animate-in fade-in-0 zoom-in-95"
-        role="dialog"
+      <dialog
+        open
+        className="glass-panel fixed left-1/2 top-1/2 z-50 m-0 flex max-h-[80vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col rounded-panel border-brand-border-strong bg-transparent p-0 shadow-elev-3 animate-in fade-in-0 zoom-in-95"
         aria-modal="true"
         aria-labelledby="keyboard-help-title"
       >
@@ -106,7 +106,7 @@ export function KeyboardHelp({ open, onClose }: Readonly<{ open: boolean; onClos
         <div className="shrink-0 border-t border-line-subtle p-3">
           <p className="text-center text-xs text-ink/75">{t("components.keyboard.footer")}</p>
         </div>
-      </div>
+      </dialog>
     </>
   );
 }

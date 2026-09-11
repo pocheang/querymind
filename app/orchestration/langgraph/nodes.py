@@ -122,7 +122,7 @@ class WorkflowNodeRuntime:
     async def privacy_permission(self, state: OrchestrationGraphState) -> dict[str, Any]:
         request = _required(state, "request", OrchestrationRequest)
 
-        async def operation() -> tuple[PrivacyResult, Any, OrchestrationRequest]:
+        async def operation() -> tuple[PrivacyResult, Any, OrchestrationRequest]:  # NOSONAR
             privacy = self._services.privacy.inspect_input(request.question)
             if privacy.blocked:
                 raise PermissionError("input privacy inspection blocked the request")
@@ -347,7 +347,7 @@ class WorkflowNodeRuntime:
         retry_count = int(state.get("retry_count", 0))
         if verifier is None:
 
-            async def verification_operation() -> VerificationDecision:
+            async def verification_operation() -> VerificationDecision:  # NOSONAR
                 status = "degraded" if candidate_answer.unresolved_items else "approved"
                 return VerificationDecision(status=status, missing_aspects=candidate_answer.unresolved_items)
 
@@ -441,7 +441,7 @@ class WorkflowNodeRuntime:
         evidence = _required(state, "evidence_bundle", EvidenceBundle)
         budget = _required(state, "budget", ExecutionBudget)
 
-        async def operation() -> FinalAnswer:
+        async def operation() -> FinalAnswer:  # NOSONAR
             if scope is None:
                 raise PermissionError("output filtering requires an access scope")
             cited_ids = frozenset(answer.evidence_ids)

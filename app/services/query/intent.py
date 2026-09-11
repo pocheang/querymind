@@ -76,7 +76,7 @@ def _is_casual_chat_by_rules(text: str) -> bool:
     # would merge a Chinese run into one token instead of one per character,
     # shrinking `len(tokens)` for the same text and moving it across the
     # `<= 12` casual-chat threshold below. Left narrow on purpose.
-    tokens = re.findall(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]", t)
+    tokens = re.findall(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]", t)  # NOSONAR
     if 0 < len(tokens) <= 12 and any(x in t for x in ("你", "我", "咱们", "我们")):
         return True
     return False

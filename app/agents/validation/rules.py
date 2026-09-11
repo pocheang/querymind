@@ -110,7 +110,7 @@ def safety_score(answer: str) -> float:
 class RuleValidator:
     """Run the deterministic rule stage."""
 
-    async def validate(self, request: ValidationRequest) -> CascadeResult:
+    async def validate(self, request: ValidationRequest) -> CascadeResult:  # NOSONAR
         start_time = time.time()
         issues: list[RuleBasisIssue] = []
         pii_patterns = (

@@ -66,7 +66,7 @@ class TestACachePrefixIsAName:
         # python:S5778 sees two call expressions here, but `clear_prefix`
         # builds a coroutine that does not run until `asyncio.run` drives it --
         # there is one thing that can raise, not two.
-        with pytest.raises(ValueError, match="cache prefix"):
+        with pytest.raises(ValueError, match="cache prefix"):  # NOSONAR
             asyncio.run(manager.clear_prefix(prefix))
 
     @pytest.mark.parametrize("prefix", ["retrieval", "route-decisions", "a", "A_1-b"])
