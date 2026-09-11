@@ -703,12 +703,12 @@ def _explicit_chat_override(raw: dict) -> dict:
     }
 
 
-def _global_chat_override() -> dict:
+def _build_global_model_override(model_key: str, fallback_key: str | None = None) -> dict:
     raw = get_global_model_settings()
     if not bool(raw.get("enabled", False)):
         return {}
     provider = str(raw.get("provider", "") or "").strip().lower()
-    model = str(raw.get("chat_model", "") or "").strip()
+    model = str(raw.get(model_key, "") or (raw.get(fallback_key, "") if fallback_key else "") or "").strip()
     if not provider or not model:
         return {}
     backend = _normalize_backend(provider)
@@ -725,30 +725,14 @@ def _global_chat_override() -> dict:
         "temperature": raw.get("temperature", None),
         "max_tokens": raw.get("max_tokens", None),
     }
+
+
+def _global_chat_override() -> dict:
+    return _build_global_model_override("chat_model")
 
 
 def _global_reasoning_override() -> dict:
-    raw = get_global_model_settings()
-    if not bool(raw.get("enabled", False)):
-        return {}
-    provider = str(raw.get("provider", "") or "").strip().lower()
-    model = str(raw.get("reasoning_model", "") or raw.get("chat_model", "") or "").strip()
-    if not provider or not model:
-        return {}
-    backend = _normalize_backend(provider)
-    if provider == "custom" and _looks_like_claude_model(model):
-        backend = "anthropic"
-    return {
-        "provider": provider,
-        "backend": backend,
-        "model": model,
-        "api_key": str(raw.get("api_key", "") or "").strip(),
-        "base_url": _anthropic_relay_base_url(str(raw.get("base_url", "") or "").strip())
-        if backend == "anthropic"
-        else str(raw.get("base_url", "") or "").strip(),
-        "temperature": raw.get("temperature", None),
-        "max_tokens": raw.get("max_tokens", None),
-    }
+    return _build_global_model_override("reasoning_model", fallback_key="chat_model")
 
 
 def _global_embedding_override() -> dict:

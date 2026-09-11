@@ -16,6 +16,7 @@ import {
   StatePanel,
 } from "./components/AdminPrimitives";
 import { ADMIN_FIELD, ADMIN_TABLE, ADMIN_TABLE_WIDE, ADMIN_TABLE_WRAP } from "./components/adminClasses";
+import { LogLimitActions } from "./components/LogLimitActions";
 
 type Props = {
   systemLogs: SystemLogEntry[];
@@ -85,20 +86,7 @@ export function AdminSystemLogTable({
   return (
     <main className="space-y-6">
       <SectionHead title={t("admin.ui.systemLogs")}>
-<RowActions className="flex-nowrap justify-end gap-1.5 rounded-card border border-line bg-brand-surface-hover p-1">
-          <select
-            className={ADMIN_FIELD + " w-auto min-w-32 shrink-0 font-mono font-semibold"}
-            value={systemLogLimit}
-            onChange={(e) => onSystemLogLimitChange(Number(e.target.value) || 200)}
-          >
-            <option value={100}>{t("admin.ui.last100")}</option>
-            <option value={200}>{t("admin.ui.last200")}</option>
-            <option value={500}>{t("admin.ui.last500")}</option>
-          </select>
-          <Button variant="secondary" size="xs" onClick={onRefresh}>
-            {t("common.refresh")}
-          </Button>
-        </RowActions>
+        <LogLimitActions limit={systemLogLimit} onLimitChange={onSystemLogLimitChange} onRefresh={onRefresh} />
       </SectionHead>
       <Hint>{t("admin.ui.systemLogHint")}</Hint>
       <FilterGrid>

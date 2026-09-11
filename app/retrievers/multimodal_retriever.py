@@ -138,45 +138,46 @@ class MultiModalRetriever:
                 evidence.append(item)
         return tuple(evidence)
 
-    def _retrieve_images(self, query: str, top_k: int, **kwargs: Any) -> list[RetrievalResult]:
-        """Retrieve image descriptions."""
+    def _query_chroma_modality(
+        self,
+        collection_name: str,
+        modality: str,
+        label: str,
+        query: str,
+        top_k: int,
+        **kwargs: Any,
+    ) -> list[RetrievalResult]:
+        """Helper to query a Chroma collection and convert results to RetrievalResults."""
         try:
             from app.retrievers.stores.vector import get_chroma_client
 
             client = get_chroma_client()
 
             try:
-                collection = client.get_collection(name="image_descriptions")
+                collection = client.get_collection(name=collection_name)
             except Exception:
-                logger.info("Image collection not found, skipping image retrieval")
-                collection = None
+                logger.info("%s collection not found, skipping %s retrieval", label, modality)
+                return []
 
-            # Query collection
-            results = (
-                collection.query(
-                    query_texts=[query],
-                    n_results=top_k,
-                    where=kwargs.get("where"),
-                    include=["documents", "metadatas", "distances"],
-                )
-                if collection is not None
-                else {"ids": [], "documents": [], "metadatas": [], "distances": []}
+            results = collection.query(
+                query_texts=[query],
+                n_results=top_k,
+                where=kwargs.get("where"),
+                include=["documents", "metadatas", "distances"],
             )
 
-            # Convert to RetrievalResult
             retrieval_results: list[RetrievalResult] = []
-
-            if results["ids"] and results["ids"][0]:
+            if results.get("ids") and results["ids"][0]:
                 for i, doc_id in enumerate(results["ids"][0]):
-                    metadata = results["metadatas"][0][i] if results["metadatas"] else {}
-                    distance = results["distances"][0][i] if results["distances"] else 1.0
+                    metadata = results["metadatas"][0][i] if results.get("metadatas") else {}
+                    distance = results["distances"][0][i] if results.get("distances") else 1.0
                     score = 1.0 / (1.0 + distance)
 
                     result = RetrievalResult(
                         id=doc_id,
                         content=results["documents"][0][i],
                         score=score,
-                        modality="image",
+                        modality=modality,
                         doc_id=metadata.get("doc_id", ""),
                         page_number=metadata.get("page_number", 0),
                         metadata=metadata,
@@ -186,55 +187,30 @@ class MultiModalRetriever:
             return retrieval_results[:top_k]
 
         except Exception:
-            logger.exception("Image retrieval error")
+            logger.exception("%s retrieval error", label)
             return []
+
+    def _retrieve_images(self, query: str, top_k: int, **kwargs: Any) -> list[RetrievalResult]:
+        """Retrieve image descriptions."""
+        return self._query_chroma_modality(
+            collection_name="image_descriptions",
+            modality="image",
+            label="Image",
+            query=query,
+            top_k=top_k,
+            **kwargs,
+        )
 
     def _retrieve_tables(self, query: str, top_k: int, **kwargs: Any) -> list[RetrievalResult]:
         """Retrieve table summaries."""
-        try:
-            from app.retrievers.stores.vector import get_chroma_client
-
-            client = get_chroma_client()
-
-            try:
-                collection = client.get_collection(name="table_summaries")
-            except Exception:
-                logger.info("Table collection not found, skipping table retrieval")
-                return []
-
-            # Query collection
-            results = collection.query(
-                query_texts=[query],
-                n_results=top_k,
-                where=kwargs.get("where"),
-                include=["documents", "metadatas", "distances"],
-            )
-
-            # Convert to RetrievalResult
-            retrieval_results: list[RetrievalResult] = []
-
-            if results["ids"] and results["ids"][0]:
-                for i, doc_id in enumerate(results["ids"][0]):
-                    metadata = results["metadatas"][0][i] if results["metadatas"] else {}
-                    distance = results["distances"][0][i] if results["distances"] else 1.0
-                    score = 1.0 / (1.0 + distance)
-
-                    result = RetrievalResult(
-                        id=doc_id,
-                        content=results["documents"][0][i],
-                        score=score,
-                        modality="table",
-                        doc_id=metadata.get("doc_id", ""),
-                        page_number=metadata.get("page_number", 0),
-                        metadata=metadata,
-                    )
-                    retrieval_results.append(result)
-
-            return retrieval_results
-
-        except Exception:
-            logger.exception("Table retrieval error")
-            return []
+        return self._query_chroma_modality(
+            collection_name="table_summaries",
+            modality="table",
+            label="Table",
+            query=query,
+            top_k=top_k,
+            **kwargs,
+        )
 
     def _reciprocal_rank_fusion(
         self, results_by_modality: list[list[RetrievalResult]], top_k: int

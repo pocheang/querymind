@@ -11,15 +11,9 @@ import { DocumentsPanel } from "@/pages/chat/components/DocumentsPanel";
 import { PdfWorkbench } from "@/pages/chat/components/PdfWorkbench";
 import { PromptTemplates } from "@/pages/chat/components/PromptTemplates";
 
-type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
+import type { AgentClassHint, AgentMode, WorkbenchActionProps } from "@/pages/chat/types";
 
-type AgentMode = {
-  key: AgentClassHint;
-  title: string;
-  desc: string;
-};
-
-type Props = {
+type Props = WorkbenchActionProps & {
   agentClassHint: AgentClassHint;
   agentModes: AgentMode[];
   agentDistribution: Array<{ agent: string; count: number }>;
@@ -44,24 +38,6 @@ type Props = {
   editingPromptId: string | null;
   promptCheckInfo: string;
   fileInputRef: React.RefObject<HTMLInputElement>;
-  onSwitchAgentMode: (mode: AgentClassHint) => void;
-  onPdfTargetFileChange: (filename: string) => void;
-  onDraftQuestion: () => void;
-  onRefreshDocuments: () => Promise<void>;
-  onUploadVisibilityChange: (visibility: "private" | "public") => void;
-  onMainUploadChange: (evt: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  onDocsDrop: (evt: React.DragEvent<HTMLDivElement>) => Promise<void>;
-  onDocDropActiveChange: (active: boolean) => void;
-  onReindexDocument: (doc: IndexedFileSummary) => Promise<void>;
-  onDeleteDocument: (doc: IndexedFileSummary, removeFile: boolean) => Promise<void>;
-  onRefreshPrompts: () => Promise<void>;
-  onPromptTitleChange: (title: string) => void;
-  onPromptContentChange: (content: string) => void;
-  onCheckPrompt: () => Promise<void>;
-  onSavePrompt: () => Promise<void>;
-  onUsePrompt: (prompt: PromptTemplate) => void;
-  onEditPrompt: (prompt: PromptTemplate) => void;
-  onDeletePrompt: (prompt: PromptTemplate) => Promise<void>;
 };
 
 export function WorkbenchPanel({

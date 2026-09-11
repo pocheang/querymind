@@ -15,25 +15,13 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from pathlib import Path
 
-from app.core.config import get_settings
 from app.services.connectors.contracts import ConnectorMetadata
+from app.services.connectors.repository import BaseConnectorRepository
 
 
-class ConnectorMetadataRepository:
+class ConnectorMetadataRepository(BaseConnectorRepository):
     """Store connector metadata without co-locating or exposing credentials."""
-
-    def __init__(self, db_path: Path | None = None) -> None:
-        self.db_path = db_path or get_settings().app_db_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_schema()
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
 
     def _init_schema(self) -> None:
         with self._connect() as conn:

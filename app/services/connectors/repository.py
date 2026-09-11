@@ -22,8 +22,8 @@ from app.core.config import get_settings
 from app.mcp.contracts import ConnectorCredential
 
 
-class CredentialRepository:
-    """Persist encrypted credentials without a plaintext accessor."""
+class BaseConnectorRepository:
+    """Base repository managing SQLite schema initialization and connections."""
 
     def __init__(self, db_path: Path | None = None) -> None:
         self.db_path = db_path or get_settings().app_db_path
@@ -35,6 +35,13 @@ class CredentialRepository:
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
+
+    def _init_schema(self) -> None:
+        raise NotImplementedError
+
+
+class CredentialRepository(BaseConnectorRepository):
+    """Persist encrypted credentials without a plaintext accessor."""
 
     def _init_schema(self) -> None:
         with self._connect() as conn:

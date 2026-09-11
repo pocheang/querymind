@@ -45,6 +45,8 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 
+from app.agents.validation.hallucination_patterns import _extract_numbers
+
 logger = logging.getLogger(__name__)
 
 
@@ -149,41 +151,6 @@ class AnswerVerificationResult(BaseModel):
     unverified_claims: list[str] = Field(default_factory=list)
     issues: list[str] = Field(default_factory=list)
     execution_time_ms: int = 0
-
-
-def _extract_numbers(text: str) -> list[float]:
-    """Extract numeric values from text (reuses logic from hallucination_patterns)"""
-    numbers = []
-    pattern = r"\$?\d+(?:,\d{3})*(?:\.\d+)?(?:\s*(?:million|billion|thousand|[MBK]|%))?"
-    matches = re.findall(pattern, text, re.IGNORECASE)
-
-    for match in matches:
-        cleaned = re.sub(r"[,$\s]", "", match)
-
-        if "%" in match:
-            try:
-                value = float(cleaned.replace("%", ""))
-                numbers.append(value)
-            except ValueError:
-                pass
-            continue
-
-        multiplier = 1
-        if "billion" in match.lower() or "B" in match:
-            multiplier = 1e9
-        elif "million" in match.lower() or "M" in match:
-            multiplier = 1e6
-        elif "thousand" in match.lower() or "K" in match:
-            multiplier = 1e3
-
-        cleaned = re.sub(r"[a-zA-Z%]", "", cleaned)
-        try:
-            value = float(cleaned) * multiplier
-            numbers.append(value)
-        except ValueError:
-            pass
-
-    return numbers
 
 
 def _extract_dates(text: str) -> list[str]:

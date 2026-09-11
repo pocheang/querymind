@@ -13,15 +13,9 @@ import { WorkbenchPanel } from "@/pages/chat/components/WorkbenchPanel";
 import { useChatStore } from "@/stores/useChatStore";
 import { useShallow } from "zustand/react/shallow";
 
-type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
+import type { AgentClassHint, AgentMode, WorkbenchActionProps } from "@/pages/chat/types";
 
-type AgentMode = {
-  key: AgentClassHint;
-  title: string;
-  desc: string;
-};
-
-type Props = {
+type Props = WorkbenchActionProps & {
   agentModes: AgentMode[];
   agentDistribution: Array<{ agent: string; count: number }>;
   pdfDocuments: IndexedFileSummary[];
@@ -36,24 +30,6 @@ type Props = {
   onDeleteSession: (sessionId: string) => Promise<void>;
   onRenameSession?: (sessionId: string, newTitle: string) => Promise<void>;
   onPinSession?: (sessionId: string, pinned: boolean) => Promise<void>;
-  onSwitchAgentMode: (mode: AgentClassHint) => void;
-  onPdfTargetFileChange: (filename: string) => void;
-  onDraftQuestion: () => void;
-  onRefreshDocuments: () => Promise<void>;
-  onUploadVisibilityChange: (visibility: "private" | "public") => void;
-  onMainUploadChange: (evt: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  onDocsDrop: (evt: React.DragEvent<HTMLDivElement>) => Promise<void>;
-  onDocDropActiveChange: (active: boolean) => void;
-  onReindexDocument: (doc: IndexedFileSummary) => Promise<void>;
-  onDeleteDocument: (doc: IndexedFileSummary, removeFile: boolean) => Promise<void>;
-  onRefreshPrompts: () => Promise<void>;
-  onPromptTitleChange: (title: string) => void;
-  onPromptContentChange: (content: string) => void;
-  onCheckPrompt: () => Promise<void>;
-  onSavePrompt: () => Promise<void>;
-  onUsePrompt: (prompt: PromptTemplate) => void;
-  onEditPrompt: (prompt: PromptTemplate) => void;
-  onDeletePrompt: (prompt: PromptTemplate) => Promise<void>;
   onLogout: () => Promise<void>;
 };
 

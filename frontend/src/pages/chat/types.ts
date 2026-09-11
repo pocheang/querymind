@@ -1,5 +1,33 @@
-import type React from "react";
-import type { AuthUser, Citation, SessionMessage, ToolRun } from "@/types/api";
+import type { AuthUser, Citation, IndexedFileSummary, PromptTemplate, SessionMessage, ToolRun } from "@/types/api";
+
+export type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
+
+export type AgentMode = {
+  key: AgentClassHint;
+  title: string;
+  desc: string;
+};
+
+export type WorkbenchActionProps = {
+  onSwitchAgentMode: (mode: AgentClassHint) => void;
+  onPdfTargetFileChange: (filename: string) => void;
+  onDraftQuestion: () => void;
+  onRefreshDocuments: () => Promise<void>;
+  onUploadVisibilityChange: (visibility: "private" | "public") => void;
+  onMainUploadChange: (evt: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  onDocsDrop: (evt: React.DragEvent<HTMLDivElement>) => Promise<void>;
+  onDocDropActiveChange: (active: boolean) => void;
+  onReindexDocument: (doc: IndexedFileSummary) => Promise<void>;
+  onDeleteDocument: (doc: IndexedFileSummary, removeFile: boolean) => Promise<void>;
+  onRefreshPrompts: () => Promise<void>;
+  onPromptTitleChange: (title: string) => void;
+  onPromptContentChange: (content: string) => void;
+  onCheckPrompt: () => Promise<void>;
+  onSavePrompt: () => Promise<void>;
+  onUsePrompt: (prompt: PromptTemplate) => void;
+  onEditPrompt: (prompt: PromptTemplate) => void;
+  onDeletePrompt: (prompt: PromptTemplate) => Promise<void>;
+};
 
 export type Props = {
   user: AuthUser | null;

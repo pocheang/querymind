@@ -8,48 +8,14 @@ from pathlib import Path
 from langchain_core.documents import Document
 
 from app.core.config import get_settings
+from app.ingestion.extraction.ocr import (
+    _apply_vision_captioning as _add_vision_metadata,
+)
+from app.ingestion.extraction.ocr import (
+    _image_metadata as _build_base_metadata,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _build_base_metadata(image, source: Path, page: int | None, image_index: int | None) -> tuple[dict, str]:
-    """构建基础 metadata 和 summary."""
-    width, height = image.size
-    mode = image.mode or "unknown"
-    file_format = (image.format or "unknown").lower()
-    summary = f"[image_meta] format={file_format}; mode={mode}; size={width}x{height}."
-
-    metadata = {
-        "source": str(source),
-        "modality": "image_ocr",
-        "width": width,
-        "height": height,
-        "image_mode": mode,
-        "image_format": file_format,
-    }
-    if page is not None:
-        metadata["page"] = page
-    if image_index is not None:
-        metadata["image_index"] = image_index
-
-    return metadata, summary
-
-
-def _add_vision_metadata(metadata: dict, img_bytes: bytes, settings) -> str:
-    """添加图像描述信息."""
-    from app.ingestion.extraction.vision import build_vision_summary, describe_image_with_vision
-
-    # 图像描述
-    vision_info = describe_image_with_vision(img_bytes, settings)
-    metadata["image_caption_status"] = str(vision_info.get("status", "unknown"))
-    metadata["image_caption_model"] = str(vision_info.get("model", "") or "")
-    if vision_info.get("caption"):
-        metadata["image_caption"] = str(vision_info.get("caption", ""))
-    if vision_info.get("error"):
-        metadata["image_caption_error"] = str(vision_info.get("error", ""))
-    vision_summary = build_vision_summary(vision_info)
-
-    return vision_summary
 
 
 def _add_block_statistics(metadata: dict, blocks) -> None:

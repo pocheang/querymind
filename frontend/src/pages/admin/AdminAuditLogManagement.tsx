@@ -5,17 +5,16 @@ import { AdminAuditLogTable } from "@/pages/admin/AdminAuditLogTable";
 import { AdminFormSelect } from "@/components/AdminFormField";
 import { AdminPagination } from "@/components/AdminPagination";
 import { ACTION_KEYWORD_OPTIONS } from "@/pages/admin/constants";
-import { Button } from "@/components/ui/button";
 import {
   AdminField,
   AdminSkeleton,
   FilterGrid,
   Hint,
-  RowActions,
   SectionHead,
   StatePanel,
 } from "./components/AdminPrimitives";
 import { ADMIN_FIELD } from "./components/adminClasses";
+import { LogLimitActions } from "./components/LogLimitActions";
 
 
 type Props = {
@@ -85,20 +84,7 @@ export function AdminAuditLogManagement({
   return (
     <main className="space-y-6">
       <SectionHead title={t("admin.auditLog")}>
-<RowActions className="flex-nowrap justify-end gap-1.5 rounded-card border border-line bg-brand-surface-hover p-1">
-          <select
-            className={ADMIN_FIELD + " w-auto min-w-32 shrink-0 font-mono font-semibold"}
-            value={auditLimit}
-            onChange={(e) => onAuditLimitChange(Number(e.target.value) || 200)}
-          >
-            <option value={100}>{t("admin.ui.last100")}</option>
-            <option value={200}>{t("admin.ui.last200")}</option>
-            <option value={500}>{t("admin.ui.last500")}</option>
-          </select>
-          <Button variant="secondary" size="xs" onClick={onRefresh}>
-            {t("common.refresh")}
-          </Button>
-        </RowActions>
+        <LogLimitActions limit={auditLimit} onLimitChange={onAuditLimitChange} onRefresh={onRefresh} />
       </SectionHead>
 
       <Hint>{t("admin.ui.auditHint")}</Hint>

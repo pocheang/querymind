@@ -103,30 +103,6 @@ def _get_vector_store_cached(
     return store
 
 
-def get_vector_store() -> Chroma:
-    settings = get_settings()
-    backend = str(getattr(settings, "model_backend", "local") or "local").strip().lower()
-    if backend == "openai":
-        embed_model = str(getattr(settings, "openai_embed_model", "") or "")
-        embed_base_url = str(getattr(settings, "openai_base_url", "") or "")
-    elif backend == "local":
-        embed_model = "local-hash-384"
-        embed_base_url = ""
-    else:
-        embed_model = str(getattr(settings, "ollama_embed_model", "") or "")
-        embed_base_url = str(getattr(settings, "ollama_base_url", "") or "")
-    collection_name = settings.chroma_collection
-    if backend == "local" and not collection_name.endswith("_local"):
-        collection_name = f"{collection_name}_local"
-    return _get_vector_store_cached(
-        collection_name=collection_name,
-        persist_directory=str(settings.chroma_path),
-        embedding_backend=backend,
-        embedding_model=embed_model,
-        embedding_base_url=embed_base_url,
-    )
-
-
 def get_named_vector_store(collection_name: str) -> Chroma:
     """Return a named collection through the canonical vector-store factory."""
 
@@ -148,6 +124,15 @@ def get_named_vector_store(collection_name: str) -> Chroma:
         embedding_model=embed_model,
         embedding_base_url=embed_base_url,
     )
+
+
+def get_vector_store() -> Chroma:
+    settings = get_settings()
+    backend = str(getattr(settings, "model_backend", "local") or "local").strip().lower()
+    collection_name = settings.chroma_collection
+    if backend == "local" and not collection_name.endswith("_local"):
+        collection_name = f"{collection_name}_local"
+    return get_named_vector_store(collection_name)
 
 
 def get_chroma_client():
