@@ -30,7 +30,9 @@ def _add_block_statistics(metadata: dict, blocks) -> None:
 def _try_paddleocr(img_bytes: bytes, width: int, height: int, metadata: dict) -> tuple[str | None, dict]:
     """尝试使用 PaddleOCR 进行结构识别."""
     try:
-        from paddleocr import PaddleOCR
+        from paddleocr import (  # type: ignore[import-not-found,import-untyped] # pyright: ignore[reportMissingImports]
+            PaddleOCR,
+        )
 
         from app.ingestion.extraction.layout import integrate_with_paddleocr
         from app.ingestion.processing.text_structure import blocks_to_markdown
@@ -46,7 +48,7 @@ def _try_paddleocr(img_bytes: bytes, width: int, height: int, metadata: dict) ->
             structured_blocks = integrate_with_paddleocr(result[0], width, height)
 
             # 转换为 Markdown
-            structured_text = blocks_to_markdown(structured_blocks)
+            structured_text = blocks_to_markdown(structured_blocks)  # type: ignore[arg-type]
 
             metadata["ocr_status"] = "ok"
             metadata["ocr_engine"] = "paddleocr"
