@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from app.__version__ import __version__
 from app.api import dependencies as api_dependencies
 from app.api.dependencies import runtime_metrics
+from app.api.deps.admin import _check_chroma_ready, _check_ollama_ready
 from app.api.deps.auth import require_admin
 
 router = APIRouter()
@@ -24,35 +25,6 @@ def _public_readiness_detail(detail: dict[str, Any]) -> dict[str, Any]:
     if detail.get("error"):
         public["error"] = "dependency check failed"
     return public
-
-
-def _check_ollama_ready() -> dict[str, Any]:
-    settings = api_dependencies.get_query_runtime().settings
-    start = time.perf_counter()
-    url = (settings.ollama_base_url or "http://localhost:11434").rstrip("/") + "/api/tags"
-    try:
-        with httpx.Client(timeout=3.0) as client:
-            resp = client.get(url)
-            resp.raise_for_status()
-            payload = resp.json()
-        models = [str(x.get("name", "") or "") for x in (payload or {}).get("models", []) or [] if x]
-        latency = int((time.perf_counter() - start) * 1000)
-        return {
-            "ok": True,
-            "required": settings.model_backend.lower() == "ollama",
-            "latency_ms": latency,
-            "path": url,
-            "models": models[:8],
-        }
-    except Exception as e:
-        latency = int((time.perf_counter() - start) * 1000)
-        return {
-            "ok": False,
-            "required": settings.model_backend.lower() == "ollama",
-            "latency_ms": latency,
-            "path": url,
-            "error": str(e),
-        }
 
 
 def _check_neo4j_ready() -> dict[str, Any]:
@@ -70,27 +42,6 @@ def _check_neo4j_ready() -> dict[str, Any]:
     except Exception as e:
         latency = int((time.perf_counter() - start) * 1000)
         return {"ok": False, "required": True, "latency_ms": latency, "error": str(e)}
-
-
-def _check_chroma_ready() -> dict[str, Any]:
-    settings = api_dependencies.get_query_runtime().settings
-    start = time.perf_counter()
-    try:
-        settings.chroma_path.mkdir(parents=True, exist_ok=True)
-        probe = settings.chroma_path / ".ready_probe"
-        probe.write_text("ok", encoding="utf-8")
-        probe.unlink(missing_ok=True)
-        latency = int((time.perf_counter() - start) * 1000)
-        return {"ok": True, "required": True, "latency_ms": latency, "path": str(settings.chroma_path)}
-    except Exception as e:
-        latency = int((time.perf_counter() - start) * 1000)
-        return {
-            "ok": False,
-            "required": True,
-            "latency_ms": latency,
-            "path": str(settings.chroma_path),
-            "error": str(e),
-        }
 
 
 def _check_redis_ready() -> dict[str, Any]:

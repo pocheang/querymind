@@ -1,37 +1,20 @@
-import { Component, type ReactNode, type ErrorInfo } from "react";
+import type React from "react";
+import type { ReactNode, ErrorInfo } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorBoundary, ErrorFallbackCard } from "@/components/ErrorBoundary";
 
 interface Props {
   children: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
-interface State {
-  hasError: boolean;
-  error: Error | null;
-}
-
 /**
  * Error boundary specifically for the Chat page
  * Provides chat-specific error recovery
  */
-export class ChatErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("ChatPage Error:", error, errorInfo);
-    this.props.onError?.(error, errorInfo);
-  }
-
-  handleReset = () => {
+export function ChatErrorBoundary({ children, onError }: Readonly<Props>) {
+  const handleReset = (reset: () => void) => {
     // Clear local storage cache that might be corrupted
     try {
       const keysToPreserve = new Set(["auth_token", "theme"]);
@@ -45,40 +28,32 @@ export class ChatErrorBoundary extends Component<Props, State> {
       console.warn("Failed to clear cache:", e);
     }
 
-    this.setState({ hasError: false, error: null });
+    reset();
     window.location.href = "/app";
   };
 
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="aurora-bg flex min-h-screen flex-col items-center justify-center p-8">
-          <div className="glass-card w-full max-w-lg rounded-panel p-8 text-center">
-            <div className="mb-4 text-5xl" aria-hidden="true">
-              💬
-            </div>
-            <h2 className="mb-4 text-base sm:text-lg font-bold text-ink">Chat Error</h2>
-            <p className="mb-6 text-sm text-ink/80 leading-relaxed">
-              The chat encountered an error. Your conversation data is safe.
-            </p>
-            {this.state.error && (
-              <details className="mb-6 text-left">
-                <summary className="mb-2 cursor-pointer text-xs font-semibold text-ink/80">Error details</summary>
-                <pre className="overflow-auto rounded-control bg-surface-muted p-2.5 font-mono text-xs text-ink">
-                  {this.state.error.message}
-                </pre>
-              </details>
-            )}
-            <Button size="sm" onClick={this.handleReset}>
-              Return to Chat
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
+  return (
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        console.error("ChatPage Error:", error, errorInfo);
+        onError?.(error, errorInfo);
+      }}
+      fallbackRender={(error, reset) => (
+        <ErrorFallbackCard
+          icon="💬"
+          title="Chat Error"
+          description="The chat encountered an error. Your conversation data is safe."
+          error={error}
+        >
+          <Button size="sm" onClick={() => handleReset(reset)}>
+            Return to Chat
+          </Button>
+        </ErrorFallbackCard>
+      )}
+    >
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 // HOC for functional components

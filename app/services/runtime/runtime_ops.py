@@ -408,6 +408,43 @@ _BENCHMARK_QUERY_PATHS = (
 )
 
 
+def _execute_and_summarize_batch(
+    items: list[str],
+    execute_query: Callable[[str], dict[str, Any]],
+    count_key: str,
+) -> dict[str, Any]:
+    latencies: list[float] = []
+    support_ratios: list[float] = []
+    citation_counts: list[int] = []
+    for question in items:
+        started = time.perf_counter()
+        result = execute_query(question)
+        latencies.append((time.perf_counter() - started) * 1000.0)
+        support_ratios.append(float((result.get("grounding", {}) or {}).get("support_ratio", 0.0) or 0.0))
+        citation_counts.append(
+            len(result.get("vector_result", {}).get("citations", []) or [])
+            + len(result.get("web_result", {}).get("citations", []) or [])
+        )
+
+    return {
+        "created_at": _now_iso(),
+        count_key: len(items),
+        "latency_ms": {
+            "p50": round(statistics.median(latencies), 2),
+            "p95": round(sorted(latencies)[max(0, int(len(latencies) * 0.95) - 1)], 2),
+            "avg": round(statistics.mean(latencies), 2),
+        },
+        "grounding_support_ratio": {
+            "avg": round(statistics.mean(support_ratios), 4),
+            "min": round(min(support_ratios), 4),
+        },
+        "citations": {
+            "avg": round(statistics.mean(citation_counts), 2),
+            "max": max(citation_counts),
+        },
+    }
+
+
 def run_benchmark(
     *,
     max_queries: int,
@@ -432,36 +469,7 @@ def run_benchmark(
     if not queries:
         raise ValueError("benchmark query set is empty")
 
-    latencies: list[float] = []
-    support_ratios: list[float] = []
-    citation_counts: list[int] = []
-    for question in queries:
-        started = time.perf_counter()
-        result = execute_query(question)
-        latencies.append((time.perf_counter() - started) * 1000.0)
-        support_ratios.append(float((result.get("grounding", {}) or {}).get("support_ratio", 0.0) or 0.0))
-        citation_counts.append(
-            len(result.get("vector_result", {}).get("citations", []) or [])
-            + len(result.get("web_result", {}).get("citations", []) or [])
-        )
-
-    entry = {
-        "created_at": _now_iso(),
-        "num_queries": len(queries),
-        "latency_ms": {
-            "p50": round(statistics.median(latencies), 2),
-            "p95": round(sorted(latencies)[max(0, int(len(latencies) * 0.95) - 1)], 2),
-            "avg": round(statistics.mean(latencies), 2),
-        },
-        "grounding_support_ratio": {
-            "avg": round(statistics.mean(support_ratios), 4),
-            "min": round(min(support_ratios), 4),
-        },
-        "citations": {
-            "avg": round(statistics.mean(citation_counts), 2),
-            "max": max(citation_counts),
-        },
-    }
+    entry = _execute_and_summarize_batch(queries, execute_query, "num_queries")
     append_benchmark_trend(entry)
     return entry
 
@@ -513,35 +521,7 @@ def run_replay(
 ) -> dict[str, Any]:
     """Replay historical questions through an injected standard pipeline adapter."""
     questions = _collect_replay_questions(history_store=history_store, max_questions=max_questions)
-    latencies: list[float] = []
-    support_ratios: list[float] = []
-    citation_counts: list[int] = []
-    for question in questions:
-        started = time.perf_counter()
-        result = execute_query(question)
-        latencies.append((time.perf_counter() - started) * 1000.0)
-        support_ratios.append(float((result.get("grounding", {}) or {}).get("support_ratio", 0.0) or 0.0))
-        citation_counts.append(
-            len(result.get("vector_result", {}).get("citations", []) or [])
-            + len(result.get("web_result", {}).get("citations", []) or [])
-        )
-    entry = {
-        "created_at": _now_iso(),
-        "num_questions": len(questions),
-        "latency_ms": {
-            "p50": round(statistics.median(latencies), 2),
-            "p95": round(sorted(latencies)[max(0, int(len(latencies) * 0.95) - 1)], 2),
-            "avg": round(statistics.mean(latencies), 2),
-        },
-        "grounding_support_ratio": {
-            "avg": round(statistics.mean(support_ratios), 4),
-            "min": round(min(support_ratios), 4),
-        },
-        "citations": {
-            "avg": round(statistics.mean(citation_counts), 2),
-            "max": max(citation_counts),
-        },
-    }
+    entry = _execute_and_summarize_batch(questions, execute_query, "num_questions")
     append_replay_trend(entry)
     return entry
 

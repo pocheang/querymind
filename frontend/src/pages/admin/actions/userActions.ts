@@ -154,6 +154,24 @@ export function createUserActions(params: AdminActionsParams, errorHandler: Erro
     }
   };
 
+  const promptApprovalFields = async (title: string, reasonPromptKey: string) => {
+    const approvalTokenRaw = await promptInput({
+      title,
+      message: t("admin.actions.yourApprovalTokenPrompt"),
+      inputType: "password",
+    });
+    const approvalToken = (approvalTokenRaw || "").trim();
+    const ticketIdRaw = await promptInput({ title, message: t("admin.actions.ticketIdPrompt") });
+    const ticketId = (ticketIdRaw || "").trim();
+    const reasonRaw = await promptInput({ title, message: t(reasonPromptKey) });
+    const reason = (reasonRaw || "").trim();
+    if (!approvalToken || !ticketId || reason.length < 5) {
+      setError(t("admin.actions.incompleteApprovalFields"));
+      return null;
+    }
+    return { approvalToken, ticketId, reason };
+  };
+
   const resetAdminApprovalToken = async (target: AdminUserSummary) => {
     if ((target.role || "").toLowerCase() !== "admin") return;
     const newTokenRaw = await promptInput({
@@ -163,17 +181,9 @@ export function createUserActions(params: AdminActionsParams, errorHandler: Erro
     });
     const newToken = (newTokenRaw || "").trim();
     if (!newToken || newToken.length < 12) return setError(t("admin.actions.newAdminTokenRequirements"));
-    const approvalTokenRaw = await promptInput({
-      title: t("admin.ui.resetToken"),
-      message: t("admin.actions.yourApprovalTokenPrompt"),
-      inputType: "password",
-    });
-    const approvalToken = (approvalTokenRaw || "").trim();
-    const ticketIdRaw = await promptInput({ title: t("admin.ui.resetToken"), message: t("admin.actions.ticketIdPrompt") });
-    const ticketId = (ticketIdRaw || "").trim();
-    const reasonRaw = await promptInput({ title: t("admin.ui.resetToken"), message: t("admin.actions.reasonPrompt") });
-    const reason = (reasonRaw || "").trim();
-    if (!approvalToken || !ticketId || reason.length < 5) return setError(t("admin.actions.incompleteApprovalFields"));
+    const approval = await promptApprovalFields(t("admin.ui.resetToken"), "admin.actions.reasonPrompt");
+    if (!approval) return;
+    const { approvalToken, ticketId, reason } = approval;
     try {
       const updated = await appApi.adminResetApprovalToken({
         userId: target.user_id,
@@ -197,17 +207,9 @@ export function createUserActions(params: AdminActionsParams, errorHandler: Erro
     });
     const newPassword = (newPasswordRaw || "").trim();
     if (!newPassword) return;
-    const approvalTokenRaw = await promptInput({
-      title: t("admin.ui.resetPassword"),
-      message: t("admin.actions.yourApprovalTokenPrompt"),
-      inputType: "password",
-    });
-    const approvalToken = (approvalTokenRaw || "").trim();
-    const ticketIdRaw = await promptInput({ title: t("admin.ui.resetPassword"), message: t("admin.actions.ticketIdPrompt") });
-    const ticketId = (ticketIdRaw || "").trim();
-    const reasonRaw = await promptInput({ title: t("admin.ui.resetPassword"), message: t("admin.actions.resetReasonPrompt") });
-    const reason = (reasonRaw || "").trim();
-    if (!approvalToken || !ticketId || reason.length < 5) return setError(t("admin.actions.incompleteApprovalFields"));
+    const approval = await promptApprovalFields(t("admin.ui.resetPassword"), "admin.actions.resetReasonPrompt");
+    if (!approval) return;
+    const { approvalToken, ticketId, reason } = approval;
     try {
       const updated = await appApi.adminResetPassword({
         userId: target.user_id,

@@ -15,144 +15,47 @@ import 'reactflow/dist/style.css';
 import '@/styles/components/data-flow.css';
 
 // Node translations
-const nodeTranslations: Record<string, { zh: string; en: string }> = {
-  '1': {
-    zh: '🌐 Browser UI\n用户界面',
-    en: '🌐 Browser UI\nUser Interface'
-  },
-  '2': {
-    zh: '🔐 认证层 /auth/login\nJWT + HttpOnly Cookie\nPBKDF2 哈希 + Salt',
-    en: '🔐 Auth Layer /auth/login\nJWT + HttpOnly Cookie\nPBKDF2 Hash + Salt'
-  },
-  '3': {
-    zh: '📡 查询入口 /query/stream\nBearer Token + RBAC\n用户/管理员角色隔离',
-    en: '📡 Query Entry /query/stream\nBearer Token + RBAC\nUser/Admin Role Isolation'
-  },
-  '4': {
-    zh: '✅ 安全检查\n输入规范化\n危险指令拦截\nSQL注入防护',
-    en: '✅ Security Check\nInput Normalization\nDangerous Command Block\nSQL Injection Protection'
-  },
-  '5': {
-    zh: '⏱️ 速率限制\n管理员 1-5 req/hour\n查询配额控制',
-    en: '⏱️ Rate Limit\nAdmin 1-5 req/hour\nQuery Quota Control'
-  },
-  '6': {
-    zh: '🔤 中文NLP预处理\n分词 + 同义词扩展\n查询重写去重优化',
-    en: '🔤 Chinese NLP\nTokenization + Synonyms\nQuery Rewrite & Dedup'
-  },
-  '7': {
-    zh: '🧠 高级RAG处理\n查询分解\nSelf-RAG 评估',
-    en: '🧠 Advanced RAG\nQuery Decomposition\nSelf-RAG Evaluation'
-  },
-  '8': {
-    zh: '🎯 Router Agent\nLangGraph 工作流\n条件路由 + 分层执行\nFast/Balanced/Deep',
-    en: '🎯 Router Agent\nLangGraph Workflow\nConditional Routing\nFast/Balanced/Deep'
-  },
-  '9': {
-    zh: '🔍 Vector RAG Agent\n混合检索 Vector+BM25\nRRF 融合\nBGE-reranker-v2-m3',
-    en: '🔍 Vector RAG Agent\nHybrid Retrieval Vector+BM25\nRRF Fusion\nBGE-reranker-v2-m3'
-  },
-  '10': {
-    zh: '🕸️ Graph RAG Agent\nNeo4j 实体匹配\n邻居关系查询\nAPOC 插件',
-    en: '🕸️ Graph RAG Agent\nNeo4j Entity Matching\nNeighbor Relations\nAPOC Plugin'
-  },
-  '11': {
-    zh: '🌍 Web Research Agent\n外部搜索引擎\n实时信息获取',
-    en: '🌍 Web Research Agent\nExternal Search Engine\nReal-time Info'
-  },
-  '12': {
-    zh: '🤖 ReAct Agent\nReasoning + Acting\n迭代工具调用 (最多5轮)',
-    en: '🤖 ReAct Agent\nReasoning + Acting\nIterative Tool Use (max 5 cycles)'
-  },
-  '13': {
-    zh: '✨ Synthesis Agent\n答案生成 + 引用\n上下文整合',
-    en: '✨ Synthesis Agent\nAnswer Generation + Citations\nContext Integration'
-  },
-  '30': {
-    zh: '🎯 Route Validator Agent\n路由验证代理\n3层验证 (95%+准确率)\n规则+置信度+LLM',
-    en: '🎯 Route Validator Agent\nRoute Validation Agent\n3-Layer Validation (95%+)\nRule+Confidence+LLM'
-  },
-  '31': {
-    zh: '📊 Retrieval Quality Agent\n检索质量代理\n多维度指标评估\nPrecision+Recall+F1',
-    en: '📊 Retrieval Quality Agent\nRetrieval Quality Agent\nMulti-dimensional Metrics\nPrecision+Recall+F1'
-  },
-  '32': {
-    zh: '🛡️ Answer Validator Agent\n答案验证代理\nNLI幻觉检测 (92%+)\n3层验证流水线',
-    en: '🛡️ Answer Validator Agent\nAnswer Validation Agent\nNLI Hallucination (92%+)\n3-Level Pipeline'
-  },
-  '33': {
-    zh: '💭 Context Tracker Agent\n上下文跟踪代理\n多轮对话追踪 (50轮)\n线程安全LRU缓存',
-    en: '💭 Context Tracker Agent\nContext Tracking Agent\nMulti-turn Tracking (50)\nThread-safe LRU Cache'
-  },
-  '34': {
-    zh: '⚖️ Quality Orchestrator Agent\n质量编排代理\n分数融合 + 决策逻辑\n接受/优化/拒绝',
-    en: '⚖️ Quality Orchestrator Agent\nQuality Orchestration Agent\nScore Fusion + Decision\nAccept/Refine/Reject'
-  },
-  '14': {
-    zh: '💾 ChromaDB\n向量索引\n父子分块策略\nparent 1500 / child 600',
-    en: '💾 ChromaDB\nVector Index\nParent-Child Chunks\nparent 1500 / child 600'
-  },
-  '15': {
-    zh: '📊 BM25 + JSONL\nchunks.jsonl\nparents.jsonl\n稀疏检索',
-    en: '📊 BM25 + JSONL\nchunks.jsonl\nparents.jsonl\nSparse Retrieval'
-  },
-  '16': {
-    zh: '🗄️ Neo4j 5.26\n关系图谱\nAPOC 插件\n实体关系',
-    en: '🗄️ Neo4j 5.26\nKnowledge Graph\nAPOC Plugin\nEntity Relations'
-  },
-  '17': {
-    zh: '📄 文档处理\n流式PDF (70%内存优化)\nOCR (Tesseract)\n图像字幕',
-    en: '📄 Document Processing\nStreaming PDF (70% Memory)\nOCR (Tesseract)\nImage Captions'
-  },
-  '18': {
-    zh: '📤 SSE 流式返回\nchunk 返回\n心跳保活\nAgent 执行追踪',
-    en: '📤 SSE Streaming\nChunk Response\nHeartbeat Keepalive\nAgent Execution Tracking'
-  },
-  '19': {
-    zh: '💿 SQLite 持久化\n用户 + 会话\n审计日志\nPrompt版本 + API设置',
-    en: '💿 SQLite Persistence\nUsers + Sessions\nAudit Log\nPrompt Version + API Config'
-  },
-  '20': {
-    zh: '📁 会话历史\nsessions/user_*/*.json\n按用户隔离\n多会话管理',
-    en: '📁 Session History\nsessions/user_*/*.json\nUser Isolation\nMulti-Session Management'
-  },
-  '21': {
-    zh: '📂 文件存储\nuploads/user_*/\nOCR 缓存\n文档管理',
-    en: '📂 File Storage\nuploads/user_*/\nOCR Cache\nDocument Management'
-  },
-  '22': {
-    zh: '📊 运维监控\n金丝雀路由\n配置回滚\n基准测试 + 查询重放',
-    en: '📊 Ops Monitoring\nCanary Routing\nConfig Rollback\nBenchmark + Query Replay'
-  },
-  '23': {
-    zh: '🔧 Prompt 管理\n版本控制\n审批流 + 回滚\n性能对比',
-    en: '🔧 Prompt Management\nVersion Control\nApproval + Rollback\nPerformance Comparison'
-  },
-  '24': {
-    zh: '🛡️ 熔断器\n故障隔离\n舱壁模式\n重试逻辑',
-    en: '🛡️ Circuit Breaker\nFault Isolation\nBulkhead Pattern\nRetry Logic'
-  },
-  '25': {
-    zh: '⚡ 负载降级\n高负载检测 (>80%)\n自动降档\nFast/Balanced/Deep',
-    en: '⚡ Load Degradation\nHigh Load Detection (>80%)\nAuto Downgrade\nFast/Balanced/Deep'
-  },
-  '26': {
-    zh: '💨 内存缓存\n检索配置缓存\n运行时状态\n热数据加速',
-    en: '💨 Memory Cache\nRetrieval Config Cache\nRuntime State\nHot Data Acceleration'
-  },
-  '27': {
-    zh: '🔒 API密钥加密\nAES加密存储\n白名单URL验证\n安全配置管理',
-    en: '🔒 API Key Encryption\nAES Encrypted Storage\nURL Whitelist\nSecure Config Management'
-  },
-  '28': {
-    zh: '🚀 CI/CD 质门\n自动化RAG评估\n性能基准测试\n回归测试',
-    en: '🚀 CI/CD Quality Gate\nAutomated RAG Evaluation\nPerformance Benchmarks\nRegression Testing'
-  },
-  '29': {
-    zh: '📈 批量图表提取\n并行处理\n吞吐量优化\n图像分析',
-    en: '📈 Batch Chart Extraction\nParallel Processing\nThroughput Optimization\nImage Analysis'
-  }
-};
+const nodeTranslations: Record<string, { zh: string; en: string }> = (
+  [
+    ['1', '🌐 Browser UI\n用户界面', '🌐 Browser UI\nUser Interface'],
+    ['2', '🔐 认证层 /auth/login\nJWT + HttpOnly Cookie\nPBKDF2 哈希 + Salt', '🔐 Auth Layer /auth/login\nJWT + HttpOnly Cookie\nPBKDF2 Hash + Salt'],
+    ['3', '📡 查询入口 /query/stream\nBearer Token + RBAC\n用户/管理员角色隔离', '📡 Query Entry /query/stream\nBearer Token + RBAC\nUser/Admin Role Isolation'],
+    ['4', '✅ 安全检查\n输入规范化\n危险指令拦截\nSQL注入防护', '✅ Security Check\nInput Normalization\nDangerous Command Block\nSQL Injection Protection'],
+    ['5', '⏱️ 速率限制\n管理员 1-5 req/hour\n查询配额控制', '⏱️ Rate Limit\nAdmin 1-5 req/hour\nQuery Quota Control'],
+    ['6', '🔤 中文NLP预处理\n分词 + 同义词扩展\n查询重写去重优化', '🔤 Chinese NLP\nTokenization + Synonyms\nQuery Rewrite & Dedup'],
+    ['7', '🧠 高级RAG处理\n查询分解\nSelf-RAG 评估', '🧠 Advanced RAG\nQuery Decomposition\nSelf-RAG Evaluation'],
+    ['8', '🎯 Router Agent\nLangGraph 工作流\n条件路由 + 分层执行\nFast/Balanced/Deep', '🎯 Router Agent\nLangGraph Workflow\nConditional Routing\nFast/Balanced/Deep'],
+    ['9', '🔍 Vector RAG Agent\n混合检索 Vector+BM25\nRRF 融合\nBGE-reranker-v2-m3', '🔍 Vector RAG Agent\nHybrid Retrieval Vector+BM25\nRRF Fusion\nBGE-reranker-v2-m3'],
+    ['10', '🕸️ Graph RAG Agent\nNeo4j 实体匹配\n邻居关系查询\nAPOC 插件', '🕸️ Graph RAG Agent\nNeo4j Entity Matching\nNeighbor Relations\nAPOC Plugin'],
+    ['11', '🌍 Web Research Agent\n外部搜索引擎\n实时信息获取', '🌍 Web Research Agent\nExternal Search Engine\nReal-time Info'],
+    ['12', '🤖 ReAct Agent\nReasoning + Acting\n迭代工具调用 (最多5轮)', '🤖 ReAct Agent\nReasoning + Acting\nIterative Tool Use (max 5 cycles)'],
+    ['13', '✨ Synthesis Agent\n答案生成 + 引用\n上下文整合', '✨ Synthesis Agent\nAnswer Generation + Citations\nContext Integration'],
+    ['30', '🎯 Route Validator Agent\n路由验证代理\n3层验证 (95%+准确率)\n规则+置信度+LLM', '🎯 Route Validator Agent\nRoute Validation Agent\n3-Layer Validation (95%+)\nRule+Confidence+LLM'],
+    ['31', '📊 Retrieval Quality Agent\n检索质量代理\n多维度指标评估\nPrecision+Recall+F1', '📊 Retrieval Quality Agent\nRetrieval Quality Agent\nMulti-dimensional Metrics\nPrecision+Recall+F1'],
+    ['32', '🛡️ Answer Validator Agent\n答案验证代理\nNLI幻觉检测 (92%+)\n3层验证流水线', '🛡️ Answer Validator Agent\nAnswer Validation Agent\nNLI Hallucination (92%+)\n3-Level Pipeline'],
+    ['33', '💭 Context Tracker Agent\n上下文跟踪代理\n多轮对话追踪 (50轮)\n线程安全LRU缓存', '💭 Context Tracker Agent\nContext Tracking Agent\nMulti-turn Tracking (50)\nThread-safe LRU Cache'],
+    ['34', '⚖️ Quality Orchestrator Agent\n质量编排代理\n分数融合 + 决策逻辑\n接受/优化/拒绝', '⚖️ Quality Orchestrator Agent\nQuality Orchestration Agent\nScore Fusion + Decision\nAccept/Refine/Reject'],
+    ['14', '💾 ChromaDB\n向量索引\n父子分块策略\nparent 1500 / child 600', '💾 ChromaDB\nVector Index\nParent-Child Chunks\nparent 1500 / child 600'],
+    ['15', '📊 BM25 + JSONL\nchunks.jsonl\nparents.jsonl\n稀疏检索', '📊 BM25 + JSONL\nchunks.jsonl\nparents.jsonl\nSparse Retrieval'],
+    ['16', '🗄️ Neo4j 5.26\n关系图谱\nAPOC 插件\n实体关系', '🗄️ Neo4j 5.26\nKnowledge Graph\nAPOC Plugin\nEntity Relations'],
+    ['17', '📄 文档处理\n流式PDF (70%内存优化)\nOCR (Tesseract)\n图像字幕', '📄 Document Processing\nStreaming PDF (70% Memory)\nOCR (Tesseract)\nImage Captions'],
+    ['18', '📤 SSE 流式返回\nchunk 返回\n心跳保活\nAgent 执行追踪', '📤 SSE Streaming\nChunk Response\nHeartbeat Keepalive\nAgent Execution Tracking'],
+    ['19', '💿 SQLite 持久化\n用户 + 会话\n审计日志\nPrompt版本 + API设置', '💿 SQLite Persistence\nUsers + Sessions\nAudit Log\nPrompt Version + API Config'],
+    ['20', '📁 会话历史\nsessions/user_*/*.json\n按用户隔离\n多会话管理', '📁 Session History\nsessions/user_*/*.json\nUser Isolation\nMulti-Session Management'],
+    ['21', '📂 文件存储\nuploads/user_*/\nOCR 缓存\n文档管理', '📂 File Storage\nuploads/user_*/\nOCR Cache\nDocument Management'],
+    ['22', '📊 运维监控\n金丝雀路由\n配置回滚\n基准测试 + 查询重放', '📊 Ops Monitoring\nCanary Routing\nConfig Rollback\nBenchmark + Query Replay'],
+    ['23', '🔧 Prompt 管理\n版本控制\n审批流 + 回滚\n性能对比', '🔧 Prompt Management\nVersion Control\nApproval + Rollback\nPerformance Comparison'],
+    ['24', '🛡️ 熔断器\n故障隔离\n舱壁模式\n重试逻辑', '🛡️ Circuit Breaker\nFault Isolation\nBulkhead Pattern\nRetry Logic'],
+    ['25', '⚡ 负载降级\n高负载检测 (>80%)\n自动降档\nFast/Balanced/Deep', '⚡ Load Degradation\nHigh Load Detection (>80%)\nAuto Downgrade\nFast/Balanced/Deep'],
+    ['26', '💨 内存缓存\n检索配置缓存\n运行时状态\n热数据加速', '💨 Memory Cache\nRetrieval Config Cache\nRuntime State\nHot Data Acceleration'],
+    ['27', '🔒 API密钥加密\nAES加密存储\n白名单URL验证\n安全配置管理', '🔒 API Key Encryption\nAES Encrypted Storage\nURL Whitelist\nSecure Config Management'],
+    ['28', '🚀 CI/CD 质门\n自动化RAG评估\n性能基准测试\n回归测试', '🚀 CI/CD Quality Gate\nAutomated RAG Evaluation\nPerformance Benchmarks\nRegression Testing'],
+    ['29', '📈 批量图表提取\n并行处理\n吞吐量优化\n图像分析', '📈 Batch Chart Extraction\nParallel Processing\nThroughput Optimization\nImage Analysis'],
+  ] as const
+).reduce<Record<string, { zh: string; en: string }>>((acc, [id, zh, en]) => {
+  acc[id] = { zh, en };
+  return acc;
+}, {});
 
 const initialNodes: Node[] = [
   // ========== Layer 0: User Interface (y: 0-100) ==========
