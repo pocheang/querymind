@@ -158,12 +158,9 @@ export function ChangePasswordPage() {
           </div>
 
           {status && (
-            <p
-              className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-xs sm:text-sm font-medium text-success"
-              role="status"
-            >
+            <output className="block rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-xs sm:text-sm font-medium text-success">
               {status}
-            </p>
+            </output>
           )}
           {error && (
             <p

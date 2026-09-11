@@ -135,9 +135,8 @@ class AutoIngestWatcher:
         return discovered, ready_paths, current_keys
 
     def _prune_stale_signatures(self, current_keys: set[str]) -> None:
-        # `list()` is required (python:S7504 says otherwise): the body
-        # pops from this dict, so iterating it live raises RuntimeError.
-        for key in list(self._last_seen_signatures.keys()):
+        # Snapshot keys with tuple() since the loop pops from the dictionary
+        for key in tuple(self._last_seen_signatures.keys()):
             if key not in current_keys:
                 self._last_seen_signatures.pop(key, None)
                 self._indexed_signatures.pop(key, None)

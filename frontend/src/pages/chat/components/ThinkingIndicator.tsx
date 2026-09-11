@@ -15,7 +15,7 @@ export function ThinkingIndicator({ elapsedSeconds = 0 }: Readonly<ThinkingIndic
   const { t } = useTranslation();
 
   return (
-    <div className="flex items-center gap-2 text-xs sm:text-sm text-ink/80" role="status">
+    <output className="flex items-center gap-2 text-xs sm:text-sm text-ink/80">
       <span className="flex items-center gap-1.5" aria-hidden="true">
         {[0, 1, 2].map((dot) => (
           <span
@@ -27,6 +27,6 @@ export function ThinkingIndicator({ elapsedSeconds = 0 }: Readonly<ThinkingIndic
       </span>
       <span className="font-medium">{t("components.messages.processing", "Thinking")}</span>
       {elapsedSeconds > 0 && <span className="font-mono text-ink-faint">{elapsedSeconds}s</span>}
-    </div>
+    </output>
   );
 }

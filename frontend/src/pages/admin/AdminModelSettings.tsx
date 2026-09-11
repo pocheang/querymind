@@ -250,7 +250,7 @@ export function AdminModelSettings({
           )}
 
           {modelSettings.environment_pinned && (
-            <div className={cn(BANNER, "border-l-warning bg-warning-surface")} role="status">
+            <output className={cn(BANNER, "border-l-warning bg-warning-surface block")}>
               <span className={cn(BANNER_MARK, "border-warning text-warning")}>!</span>
               <div>
                 <strong>
@@ -267,7 +267,7 @@ export function AdminModelSettings({
                     )}
                 </p>
               </div>
-            </div>
+            </output>
           )}
 
           <div className={cn(BANNER, "border-l-info bg-info-surface")}>

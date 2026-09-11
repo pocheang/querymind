@@ -100,6 +100,33 @@ function attachLeftoverSubSources(stages: StructuredStage[], pendingSubSources: 
   }
 }
 
+function buildStageItem(
+  event: ExecutionEvent,
+  meta: Record<string, string>,
+  index: number,
+  round: number,
+  pendingSubSources: SubSourceItem[]
+): { stageItem: StructuredStage; remainingSubSources: SubSourceItem[] } {
+  const stageItem: StructuredStage = {
+    id: `${event.stage}-${round}-${index}`,
+    stage: event.stage,
+    status: event.status,
+    duration_ms: event.duration_ms,
+    labelKey: `features.executionTrace.stages.${event.stage}`,
+    message: event.message || undefined,
+    round,
+    isRefinement: round > 1,
+    metadata: Object.keys(meta).length > 0 ? meta : undefined,
+  };
+
+  let remaining = pendingSubSources;
+  if ((event.stage === "knowledge" || event.stage === "rag") && pendingSubSources.length > 0) {
+    stageItem.subSources = [...pendingSubSources];
+    remaining = [];
+  }
+  return { stageItem, remainingSubSources: remaining };
+}
+
 /**
  * Group flat execution events into structured, readable stages and detect refinement rounds.
  */
@@ -161,26 +188,9 @@ export function groupExecutionEvents(events: readonly ExecutionEvent[]): {
       continue;
     }
 
-    const stageItem: StructuredStage = {
-      id: `${event.stage}-${currentRound}-${i}`,
-      stage: event.stage,
-      status: event.status,
-      duration_ms: event.duration_ms,
-      labelKey: `features.executionTrace.stages.${event.stage}`,
-      message: event.message || undefined,
-      round: currentRound,
-      isRefinement: currentRound > 1,
-      metadata: Object.keys(meta).length > 0 ? meta : undefined,
-    };
-
-    if (event.stage === "knowledge" || event.stage === "rag") {
-      if (pendingSubSources.length > 0) {
-        stageItem.subSources = [...pendingSubSources];
-        pendingSubSources = [];
-      }
-    }
-
-    stages.push(stageItem);
+    const built = buildStageItem(event, meta, i, currentRound, pendingSubSources);
+    pendingSubSources = built.remainingSubSources;
+    stages.push(built.stageItem);
   }
 
   attachLeftoverSubSources(stages, pendingSubSources);

@@ -330,7 +330,9 @@ class Settings(BaseSettings):
     response_signing_enabled: bool = Field(default=True, alias="RESPONSE_SIGNING_ENABLED")
     response_signing_secret: str = Field(default="", alias="RESPONSE_SIGNING_SECRET")
     response_signing_active_kid: str = Field(default="v1", alias="RESPONSE_SIGNING_ACTIVE_KID")
-    response_signing_keys: str = Field(default="", alias="RESPONSE_SIGNING_KEYS")  # kid:secret;kid2:secret2
+    response_signing_keys: str = Field(
+        default="", alias="RESPONSE_SIGNING_KEYS"
+    )  # semicolon-separated pairs of key ID and secret
     api_settings_encryption_key: str = Field(default="", alias="API_SETTINGS_ENCRYPTION_KEY")
     api_base_url_allowlist: str = Field(default="", alias="API_BASE_URL_ALLOWLIST")  # csv host suffixes
     api_base_url_allow_private: bool = Field(default=False, alias="API_BASE_URL_ALLOW_PRIVATE")

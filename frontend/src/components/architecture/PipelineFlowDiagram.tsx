@@ -193,14 +193,14 @@ function StepBadge({
   badgeText,
   activeStepText,
   completeStepText,
-}: {
+}: Readonly<{
   isCurrentActive: boolean;
   isPastCompleted: boolean;
   hasCompletedOnce: boolean;
   badgeText: string;
   activeStepText: string;
   completeStepText: string;
-}) {
+}>) {
   if (isCurrentActive) {
     return (
       <Badge variant="brand" size="xs" mono className="text-xs py-0.5 px-2 animate-pulse font-semibold">
@@ -250,7 +250,7 @@ function StepCard({
   isZh,
   onSelect,
   t,
-}: StepCardProps) {
+}: Readonly<StepCardProps>) {
   const Icon = stg.icon;
   const roleTitle = t(`architecture.flow.stages.${stg.stepKey}.role`);
   const techTitle = t(`architecture.flow.stages.${stg.stepKey}.techTitle`);
@@ -337,7 +337,7 @@ function StepCard({
   );
 }
 
-function BlueprintView({ isZh }: { isZh: boolean }) {
+function BlueprintView({ isZh }: Readonly<{ isZh: boolean }>) {
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface-muted/50 p-4 sm:p-5 rounded-control border border-line">
@@ -398,7 +398,7 @@ function BlueprintView({ isZh }: { isZh: boolean }) {
   );
 }
 
-function TableView({ isZh, t }: { isZh: boolean; t: (key: string) => string }) {
+function TableView({ isZh, t }: Readonly<{ isZh: boolean; t: (key: string) => string }>) {
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface-muted/50 p-4 sm:p-5 rounded-control border border-line">
@@ -494,7 +494,7 @@ function TableView({ isZh, t }: { isZh: boolean; t: (key: string) => string }) {
   );
 }
 
-function TopologyView({ t }: { t: (key: string) => string }) {
+function TopologyView({ t }: Readonly<{ t: (key: string) => string }>) {
   return (
     <div className="space-y-4">
       <DataFlowVisualization />
@@ -531,11 +531,11 @@ function FlowHeader({
   perspective,
   setPerspective,
   t,
-}: {
+}: Readonly<{
   perspective: ViewPerspective;
   setPerspective: (p: ViewPerspective) => void;
   t: (key: string) => string;
-}) {
+}>) {
   return (
     <CardHeader className="flex flex-col gap-4 border-b border-line bg-surface-muted/40 p-5 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="space-y-1.5">
@@ -609,7 +609,7 @@ function SimulationBar({
   resetSimulation,
   isZh,
   t,
-}: {
+}: Readonly<{
   selectedScenario: ScenarioKey;
   setSelectedScenario: (sc: ScenarioKey) => void;
   isSimulating: boolean;
@@ -617,7 +617,7 @@ function SimulationBar({
   resetSimulation: () => void;
   isZh: boolean;
   t: (key: string) => string;
-}) {
+}>) {
   return (
     <div className="rounded-card border border-brand-border bg-surface-muted/40 p-5 shadow-elev-1">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-line/60 pb-3.5">
@@ -689,11 +689,11 @@ function SimulationProgress({
   activeStepConfig,
   isZh,
   t,
-}: {
+}: Readonly<{
   activeStepConfig: StepConfig;
   isZh: boolean;
   t: (key: string) => string;
-}) {
+}>) {
   return (
     <div className="rounded-control border border-brand-accent/50 bg-brand-surface/80 p-4 shadow-elev-2 animate-in fade-in slide-in-from-top-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -725,11 +725,11 @@ function StepInspector({
   currentFocusedStep,
   isZh,
   t,
-}: {
+}: Readonly<{
   currentFocusedStep: StepConfig;
   isZh: boolean;
   t: (key: string) => string;
-}) {
+}>) {
   return (
     <div className="rounded-control border border-line bg-surface-muted/30 p-5 space-y-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3">
@@ -792,11 +792,11 @@ function AnswerShowcase({
   selectedScenario,
   isZh,
   t,
-}: {
+}: Readonly<{
   selectedScenario: ScenarioKey;
   isZh: boolean;
   t: (key: string) => string;
-}) {
+}>) {
   return (
     <div className="rounded-card border border-emerald-500/30 bg-surface p-5 shadow-elev-1">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3">
@@ -963,7 +963,7 @@ function AnswerShowcase({
   );
 }
 
-function PipelineSummaryStream({ isZh, t }: { isZh: boolean; t: (key: string) => string }) {
+function PipelineSummaryStream({ isZh, t }: Readonly<{ isZh: boolean; t: (key: string) => string }>) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-2.5 rounded-control border border-line bg-surface-muted/40 p-4 text-sm text-ink-muted">
       <span className="font-bold text-ink">{isZh ? "全链路流转：" : "Full Data Stream:"}</span>

@@ -140,7 +140,24 @@ const PILLAR_TABS: { id: PillarId; labelKey: string }[] = [
   { id: "endpoints", labelKey: "architecture.tabs.endpoints" },
 ];
 
-const ENDPOINT_LINE_RE = /^([A-Z]+(?:\s*,\s*[A-Z]+)*)\s+(\S+)(?:\s*-\s*(.*))?$/;
+function parseEndpointLine(line: string): { methods: string[]; path: string; description: string } | null {
+  const dashIndex = line.indexOf(" - ");
+  const head = dashIndex !== -1 ? line.slice(0, dashIndex).trim() : line.trim();
+  const description = dashIndex !== -1 ? line.slice(dashIndex + 3).trim() : "";
+
+  const firstSlash = head.indexOf("/");
+  if (firstSlash <= 0) return null;
+
+  const methodPart = head.slice(0, firstSlash).trim();
+  const path = head.slice(firstSlash).trim();
+  if (!methodPart || !path) return null;
+
+  const methods = methodPart.split(",").map((m) => m.trim()).filter(Boolean);
+  if (methods.length === 0 || !methods.every((m) => /^[A-Z]+$/.test(m))) {
+    return null;
+  }
+  return { methods, path, description };
+}
 
 function parseEndpoints(rawMarkdown: string): ParsedEndpoint[] {
   const lines = rawMarkdown.split("\n");
@@ -155,21 +172,15 @@ function parseEndpoints(rawMarkdown: string): ParsedEndpoint[] {
       currentCategory = trimmed.replace(/^#+\s*/, "").trim();
       continue;
     }
-    const match = ENDPOINT_LINE_RE.exec(trimmed);
-    if (match) {
-      const methods = match[1]
-        .split(",")
-        .map((m) => m.trim())
-        .filter(Boolean);
-      const path = match[2].trim();
-      const description = match[3]?.trim() || "";
-      for (const method of methods) {
+    const parsed = parseEndpointLine(trimmed);
+    if (parsed) {
+      for (const method of parsed.methods) {
         counter++;
         items.push({
-          id: `${method}-${path}-${counter}`,
+          id: `${method}-${parsed.path}-${counter}`,
           method,
-          path,
-          description,
+          path: parsed.path,
+          description: parsed.description,
           category: currentCategory,
         });
       }

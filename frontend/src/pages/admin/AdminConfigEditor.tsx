@@ -110,9 +110,9 @@ export function AdminConfigEditor() {
 
       {!centreEnabled && <Muted>{t("admin.config.noCentre")}</Muted>}
       {message && (
-        <p className={message.kind === "error" ? "text-danger" : "text-success"} role="status">
+        <output className={`block ${message.kind === "error" ? "text-danger" : "text-success"}`}>
           {message.text}
-        </p>
+        </output>
       )}
 
       {groups.map(([group, groupFields]) => (

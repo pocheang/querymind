@@ -329,9 +329,9 @@ class MemoryStore:
         memory_id = str(memory_id or "").strip()
         if not memory_id:
             return False
-        # Not `any(...)` with a generator: it short-circuits, and the second
-        # copy has to be expired too.
-        return any([self._expire_in_payload(sid, memory_id) for sid in self._payload_ids()])
+        # Fully evaluate all payloads without short-circuiting so both copies expire
+        expired_results = [self._expire_in_payload(sid, memory_id) for sid in self._payload_ids()]
+        return any(expired_results)
 
     def forget_all(self) -> int:
         """Forget every memory this user has, and report how many that was.

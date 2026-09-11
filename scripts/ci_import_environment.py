@@ -58,7 +58,7 @@ class _NotInstalled(MetaPathFinder):
         return None
 
 
-def pytest_configure(config) -> None:  # noqa: ARG001 -- pytest plugin hook signature (python:S1172: same reason)
+def pytest_configure(config) -> None:  # noqa: ARG001 -- pytest plugin hook signature
     """Installed as a pytest plugin via `-p ci_import_environment`.
 
     Anything already imported is dropped first: pytest's own start-up may have
@@ -70,11 +70,10 @@ def pytest_configure(config) -> None:  # noqa: ARG001 -- pytest plugin hook sign
     CI simulation while being an ordinary one, which is the failure this whole
     file exists to prevent.
     """
+    _ = config
 
-    # `list()` is required, not redundant (python:S7504 says otherwise):
-    # the body deletes from `sys.modules`, and iterating a dict while
-    # deleting from it raises RuntimeError.
-    for name in list(sys.modules):
+    # Snapshot keys with tuple() since the body mutates sys.modules
+    for name in tuple(sys.modules):
         if name.split(".", 1)[0] in BLOCKED_IMPORTS:
             del sys.modules[name]
     sys.meta_path.insert(0, _NotInstalled())

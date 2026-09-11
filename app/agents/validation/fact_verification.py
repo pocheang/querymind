@@ -570,6 +570,7 @@ class FactVerificationStage:
         """
         import time
 
+        _ = citations
         start_time = time.time()
 
         if not answer or not answer.strip():

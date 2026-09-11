@@ -150,12 +150,9 @@ export const SessionMetadataEditor: React.FC<SessionMetadataEditorProps> = ({
         </p>
       )}
       {success && (
-        <p
-          role="status"
-          className="rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-xs font-medium text-success"
-        >
+        <output className="block rounded-control border border-success-border bg-success-surface px-2.5 py-1.5 text-xs font-medium text-success">
           {t("sessionManagement.savedSuccessfully")}
-        </p>
+        </output>
       )}
 
       <form

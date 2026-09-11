@@ -138,9 +138,8 @@ class AuthDBService:
         conn = sqlite3.connect(self.db_path, timeout=timeout_s, check_same_thread=False)
         conn.row_factory = sqlite3.Row
 
-        # 安全修复：严格验证后才拼接PRAGMA语句
-        # SQLite的PRAGMA不支持参数化查询，因此必须在严格验证后使用f-string
-        # timeout_ms已经被验证为安全的整数，范围 [1000, 3600000]
+        # PRAGMA statements do not accept bind parameters.
+        # timeout_ms is strictly clamped to an integer in [1000, 3600000] above.
         assert isinstance(timeout_ms, int) and 1000 <= timeout_ms <= 3600000, "timeout_ms validation failed"
         conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
 

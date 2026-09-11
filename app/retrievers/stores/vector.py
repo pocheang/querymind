@@ -211,6 +211,8 @@ def _as_dimension_mismatch(error: Exception) -> Exception:
 
     text = str(error).lower()
     if "dimension" not in text:
+        if type(error) is Exception:
+            return RuntimeError(str(error))
         return error
     return EmbeddingDimensionMismatch(
         "The vector store was built with a different embedding model, so its vectors "
