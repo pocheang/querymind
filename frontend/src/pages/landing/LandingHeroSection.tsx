@@ -177,14 +177,14 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
                       <span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">
                         [1]
                       </span>
-                      。
+                      {"。"}
                     </li>
                     <li>
                       {t("pages.landing.heroAnswerPoint2")}
                       <span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">
                         [2]
                       </span>
-                      。
+                      {"。"}
                     </li>
                     <li>{t("pages.landing.heroAnswerPoint3")}</li>
                   </ol>

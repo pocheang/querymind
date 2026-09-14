@@ -147,7 +147,9 @@ def match_template_aggregation(query: str, schema: TableSchema) -> str | None:
 
 def extract_sql_from_markdown(llm_output: str) -> str:
     """Extract raw SQL statement from markdown code block or plain text."""
-    m = re.search(r"```(?:sql)?\s*([\s\S]*?)\s*```", llm_output, re.IGNORECASE)
+    # No `\s*` around the lazy body: the result is stripped anyway, and the three
+    # adjacent quantifiers could all claim the same whitespace (python:S8786).
+    m = re.search(r"```(?:sql)?([\s\S]*?)```", llm_output, re.IGNORECASE)
     if m:
         return m.group(1).strip()
     return llm_output.strip()

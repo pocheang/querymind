@@ -22,7 +22,9 @@ class DocumentSection:
 
 
 _NUMBERED_HEADING_RE = re.compile(r"^(\d+\.)+\s+[A-Z]")
-_ROW_LABEL_HEADING_RE = re.compile(r"^#+\s*\(Rows?\s+\d+(?:-\d+)?\s+of\s+\d+.*\)$", re.IGNORECASE)
+# After the last number: `)` directly, or a non-digit first. `\d+.*` let both
+# halves claim the same digits -- 370 ms on 20,000 digits (python:S8786).
+_ROW_LABEL_HEADING_RE = re.compile(r"^#+\s*\(Rows?\s+\d+(?:-\d+)?\s+of\s+\d+(?:[^\d\n].*)?\)$", re.IGNORECASE)
 
 
 def _markdown_heading(line: str) -> int | None:

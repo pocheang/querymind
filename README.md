@@ -242,7 +242,7 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (超高速 Linter & Formatter), Pre-commit
-    ├── Testing: Vitest (前端 154 用例), Pytest (后端 1,980 用例), Prettier (前端格式门禁)
+    ├── Testing: Vitest (前端 154 用例), Pytest (后端 1,991 用例), Prettier (前端格式门禁)
     ├── Static Analysis: SonarCloud Cognitive Complexity (S3776 Clean)
     └── Observability: Prometheus Metrics (/metrics), Grafana Dashboard
 ```
@@ -294,7 +294,7 @@ QueryMind 坚持严格的工程代码质量与安全规范，所有核心逻辑�
 cd frontend && npm test -- --run
 npm run format:check
 
-# 2. 运行后端核心业务与安全回归测试 (Pytest, 1,980 项用例)
+# 2. 运行后端核心业务与安全回归测试 (Pytest, 1,991 项用例)
 pytest -q
 
 # 3. 运行代码静态检查与格式化验证 (Ruff)

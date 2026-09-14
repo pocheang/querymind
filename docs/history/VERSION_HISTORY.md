@@ -94,7 +94,8 @@ Public highlights:
 
 - **Pre-merge Review (2026-09-14)**: fourteen defects fixed before release, four of them isolation failures -- cross-user table reads, DuckDB file access, cross-tenant community summaries and graph descriptions. Security defaults (`AUTH_COOKIE_SECURE`, `AUTH_COOKIE_SAMESITE`, `AUTH_EXPOSE_TOKEN_IN_RESPONSE`) restored; the injection detector no longer blocks ordinary questions.
   - Upgrade note: graphs written by a pre-release build need a reingest or `POST /admin/graph-rag/communities/build`.
-  - Verification: backend 1,980 passed, frontend 154 passed, 0 failures.
+  - SonarCloud: quality gate green; ten super-linear regular expressions over document text rewritten and pinned against their previous forms.
+  - Verification: backend 1,991 passed, frontend 154 passed, 0 failures.
 
 ## v0.7.0
 

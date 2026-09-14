@@ -2,7 +2,9 @@
 
 import re
 
-_HTML_TABLE_RE = re.compile(r"<table.*?>.*?</table>", re.IGNORECASE | re.DOTALL)
+# `[^>]*>` is what the lazy `<table.*?>` meant; two lazy dot-alls in a row could
+# trade characters between them (python:S8786).
+_HTML_TABLE_RE = re.compile(r"<table[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
 _ESCAPED_PIPE_TABLE_RE = re.compile(r"\\\|.+?\\\|")
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
@@ -68,8 +70,13 @@ def flatten_nested_table(text: str) -> str:
     processed = _HTML_TABLE_RE.sub(_clean_html_cell, text)
 
     # Flatten bracketed sub-tables [| a | b |] -> [a; b] before splitting by pipes
+    # The same shape `detect_nested_table` gates on. `\[\|\s*(.+?)\s*\|\]` put
+    # three quantifiers over the same whitespace -- 8.4 s on one line of 2,000
+    # spaces (python:S8786) -- and the parts are stripped below anyway. The only
+    # inputs it treats differently are degenerate: a whitespace-only body such as
+    # `[| |]|]`, where the old pattern ran on into the next `|]`.
     processed = re.sub(
-        r"\[\|\s*(.+?)\s*\|\]",
+        r"\[\|(.+?)\|\]",
         lambda m: "[" + "; ".join(part.strip() for part in m.group(1).split("|") if part.strip()) + "]",
         processed,
     )
@@ -93,7 +100,11 @@ def flatten_nested_table(text: str) -> str:
             c = cell.strip()
             # Replace escaped pipes with semicolons cleanly
             if "\\|" in c:
-                c = re.sub(r"\s*\\\|\s*", "; ", c)
+                # A split, not `re.sub(r"\s*\\\|\s*", "; ", c)`: the leading `\s*`
+                # restarted at every offset of a long space run (python:S8786).
+                # `c` is already stripped, so stripping every part removes exactly
+                # the whitespace next to each separator -- identical output.
+                c = "; ".join(part.strip() for part in c.split("\\|"))
             # Remove any residual HTML tags
             if "<" in c and ">" in c:
                 c = _HTML_TAG_RE.sub("", c).strip()

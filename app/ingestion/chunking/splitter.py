@@ -199,7 +199,7 @@ def _heading_scope(text: str, carried: str | None) -> tuple[str | None, str | No
     headings = section_headings(text)
     if not headings:
         return carried, carried
-    cleaned_headings = [_ROW_LABEL_PATTERN.sub("", h).strip() for h in headings]
+    cleaned_headings = [_strip_row_labels(h).strip() for h in headings]
     cleaned_headings = [h for h in cleaned_headings if h and h not in ("###", "##", "#")]
     if not cleaned_headings:
         return carried, carried
@@ -219,8 +219,25 @@ def _heading_scope(text: str, carried: str | None) -> tuple[str | None, str | No
 # same pattern lives in classification.py, extraction/tables.py and
 # office_loader.py; tests/ingestion/test_table_separator_regex.py keeps them in step.
 _TABLE_SEP_PATTERN = re.compile(r"^\|(?:\s*:?-[-:]*\s*\|)+$")
-_ROW_LABEL_PATTERN = re.compile(r"\s*\(Rows?\s+\d+(?:-\d+)?\s+of\s+\d+\)", re.IGNORECASE)
-_ROW_LABEL_MATCH = re.compile(r"\(Rows?\s+(\d+)(?:-(\d+))?\s+of\s+(\d+)[^)]*\)", re.IGNORECASE)
+# The label alone; the whitespace before it is trimmed by `_strip_row_labels`.
+# A leading `\s*` in the pattern made every offset inside a long run of spaces a
+# fresh start that consumed the run and then failed (python:S8786): 1.8 s on
+# 20,000 spaces, against 0.1 ms for 200,000 now. Output is identical.
+_ROW_LABEL_PATTERN = re.compile(r"\(Rows?\s+\d+(?:-\d+)?\s+of\s+\d+\)", re.IGNORECASE)
+# After the last number: `)` directly, or a non-digit and then anything but `)`.
+# `(\d+)[^)]*` let both halves claim the same digits.
+_ROW_LABEL_MATCH = re.compile(r"\(Rows?\s+(\d+)(?:-(\d+))?\s+of\s+(\d+)(?:[^)\d][^)]*)?\)", re.IGNORECASE)
+
+
+def _strip_row_labels(text: str) -> str:
+    """Remove every row label together with the whitespace immediately before it."""
+    parts: list[str] = []
+    last = 0
+    for match in _ROW_LABEL_PATTERN.finditer(text):
+        parts.append(text[last : match.start()].rstrip())
+        last = match.end()
+    parts.append(text[last:])
+    return "".join(parts)
 
 
 def _is_table_row(line: str) -> bool:
@@ -239,7 +256,7 @@ def _clean_prefix(prefix_lines: list[str]) -> str:
     """Clean prefix lines by removing any leftover row coordinate labels to avoid label stacking."""
     cleaned: list[str] = []
     for line in prefix_lines:
-        c = _ROW_LABEL_PATTERN.sub("", line).strip()
+        c = _strip_row_labels(line).strip()
         if c and c not in ("###", "##", "#"):
             cleaned.append(c)
     return "\n\n".join(cleaned)

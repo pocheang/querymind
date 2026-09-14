@@ -48,7 +48,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (1,980 backend pytest tests + 154 frontend vitest tests)
+└── tests/                      # Automated test suite (1,991 backend pytest tests + 154 frontend vitest tests)
 ```
 
 ## Table of Contents
@@ -105,11 +105,11 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-14, v0.7.0.1): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **1,980 backend tests** and **154 frontend tests** (**2,134 total tests**, 0 failures). Scripts hold ten focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
+Note (counts refreshed 2026-09-14, v0.7.0.1): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **1,991 backend tests** and **154 frontend tests** (**2,145 total tests**, 0 failures). Scripts hold ten focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
-make test                           # pytest -q (1,980 tests)
+make test                           # pytest -q (1,991 tests)
 make test-ci                        # the same suite, with CI's optional packages hidden
 make lint                           # ruff check . && ruff format --check .
 ```
@@ -2279,6 +2279,8 @@ orders what survives, so a floor only removes evidence;
 
 **The table-separator regex exists four times, and SonarCloud counted each.** `^\|(\s*:?-+[-:]*\s*\|)+$` was copied into `splitter.py`, `classification.py`, `extraction/tables.py` and `office_loader.py`; `-+` and `[-:]*` both match a dash, so a long dashed cell that never closes backtracks (python:S5852), and the four copies were four critical vulnerabilities that failed the quality gate on the first v0.7.0.1 push. `-[-:]*` accepts the same language -- zero differences over 40,000 generated lines -- and `tests/ingestion/test_table_separator_regex.py` asserts the four sites agree and none carries the old form. Consolidating them into one definition is the better end state and was not done here.
 
+**Ten more patterns in the same release were super-linear, and the gate did not count them** (fixed 2026-09-14). With the gate green, reliability still showed twelve open issues: ten `python:S8786` over document text -- row-label stripping/parsing/headings, currency affixes, a SQL fence, HTML and bracketed sub-tables, escaped-pipe cells, a Chinese injection rule -- and two `typescript:S6772` JSX text nodes. Measured before rewriting: the bracket flattener `\[\|\s*(.+?)\s*\|\]` took **8.4 s on one line of 2,000 spaces**, the row-label stripper 1.8 s on 20,000. Three of the fixes are not regexes at all -- a `finditer` + `rstrip`, a two-ended scan, a `split` -- which is often the cleanest way to stop adjacent quantifiers competing for the same whitespace. `tests/ingestion/test_reliability_regex_rewrites.py` pins each against its old pattern over 3,000 generated inputs; the one intended difference is a whitespace-only `[| |]|]` body, where the flattener now stops at the first `|]` exactly as the detector gating it always did. For S6772, prettier moves text after `</span>` onto its own line, so the fix is `{"。"}`, not a reflow.
+
 **Web-search provider credentials are not console-editable.** `TAVILY_API_KEY`,
 `BING_SEARCH_API_KEY`, `WEB_PROXY_URL` and `SEARXNG_BASE_URL` fail the schema's
 shape rule, and `GET /admin/config/schema` echoes every editable value;
@@ -3014,8 +3016,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-14 (v0.7.0.1) there are 1,980 backend pytest tests
-and 154 frontend Vitest tests (2,134 total tests, 0 failures), covering the chat round trip,
+back-filling effort. As of 2026-09-14 (v0.7.0.1) there are 1,991 backend pytest tests
+and 154 frontend Vitest tests (2,145 total tests, 0 failures), covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval

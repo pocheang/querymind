@@ -57,6 +57,28 @@
 
 验证：全量 1,980 passed；`test-ci` 1,974 passed / 3 skipped；守卫对已提交版本的 4 个文件均能命中旧式。
 
+## SonarCloud Reliability：12 个开放问题
+
+门禁通过后，项目可靠性评级为 A、0 个 bug，但仍有 12 个带可靠性影响的开放问题：10 个 `python:S8786`（正则超线性回溯）和 2 个 `typescript:S6772`（JSX 文本空白歧义）。先逐个测量旧式，再改写：
+
+| 位置 | 旧式问题 | 改写 | 实测（旧） |
+|---|---|---|---|
+| `splitter.py` 行号标签剥离 | `\s*\(Rows?…\)` 的前导 `\s*` 在每个偏移重启 | `_strip_row_labels`：`finditer` + `rstrip` | 20,000 空格 1.8 s |
+| `splitter.py` 行号标签解析 | `[^)]*` 与 `\d+` 竞争数字 | `(?:[^)\d][^)]*)?` | — |
+| `metadata.py` 数字提取前的标签剥离 | `.*?` | `[^)\n]*` | — |
+| `structure.py` 标签标题 | `\d+.*\)$` | `(?:[^\d\n].*)?` | 20,000 位数字 370 ms |
+| `engine.py` 货币剥离 | 首尾两个字符类 + `\s` | `_strip_currency_affixes` 两端扫描 | — |
+| `nl2sql.py` SQL 代码块 | `\s*([\s\S]*?)\s*` | 捕获后 `.strip()` | — |
+| `tables_nested.py` HTML 表格 | `<table.*?>.*?</table>` | `<table[^>]*>.*?</table>` | — |
+| `tables_nested.py` 方括号子表 | `\[\|\s*(.+?)\s*\|\]` | `\[\|(.+?)\|\]`（与检测门控同形） | 2,000 空格 8.4 s |
+| `tables_nested.py` 转义竖线 | `re.sub(r"\s*\\\|\s*", …)` | `split("\\|")` + `strip` | — |
+| `injection_defense.py` 中文“从现在起”规则 | 三段 `.*` | `.{0,60}` | — |
+| `LandingHeroSection.tsx` ×2 | `</span>` 后换行的 `。` | `{"。"}` | — |
+
+每个改写都在 `tests/ingestion/test_reliability_regex_rewrites.py`（11 项）中与旧式在 3,000 个生成输入上比对。唯一有差异的是方括号子表的退化输入（仅含空白的 `[| |]|]`）：旧式会越过第一个 `|]`，新式在此停下，与门控检测一致；测试以参数化用例写明。计时不做断言。
+
+验证：全量 1,991 passed；`test-ci` 1,985 passed / 3 skipped；前端 tsc / format:check / vitest 154 / build / lint:classes 通过，lint 0 errors。
+
 ## 表格持久化的实测
 
 - 两个独立进程（非 pytest，真实 `get_table_store()`，DuckDB 1.5.5，`APP_DB_PATH` 指向会话临时库）：

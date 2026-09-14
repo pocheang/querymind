@@ -183,7 +183,11 @@ _INSTRUCTION_OVERRIDE_PATTERNS: list[tuple[re.Pattern, str]] = [
     ),
     (
         re.compile(
-            r"从现在(?:起|开始).*(?:只听从|完全听从|只执行|严格执行).*(?:我|用户).*(?:的)?(?:指令|命令)", re.IGNORECASE
+            # Bounded gaps, not three `.*`: adjacent unbounded gaps backtrack
+            # polynomially on a long line with no match (python:S8786), and an
+            # instruction override is one short sentence, not a paragraph.
+            r"从现在(?:起|开始).{0,60}(?:只听从|完全听从|只执行|严格执行).{0,60}(?:我|用户).{0,60}(?:的)?(?:指令|命令)",
+            re.IGNORECASE,
         ),
         "rule_from_now_on_override_zh",
     ),

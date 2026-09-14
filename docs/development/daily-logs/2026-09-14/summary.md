@@ -15,13 +15,15 @@ v0.7.0.1 合并前审查发现 14 个问题（其中 4 个是隔离失效），�
 | 表格持久化（重启 / 多 worker） | 已完成：SQLite 后端 + 引擎 LRU，双进程实测 |
 | DuckDB 实测（用户同意安装 duckdb 1.5.5） | 完成 |
 | 前端格式（116 个文件漂移 + 82 个仅 CRLF） | 已修复，CI 新增 `format:check` |
+| SonarCloud 门禁（7 个阻断项） | 已通过 |
+| SonarCloud 可靠性开放问题（10 × S8786 + 2 × S6772） | 已修复，逐个与旧式比对 |
 | 原本失败的测试 | 11 → 0 |
 | ruff 错误 / 格式问题 | 46 / 29 → 0 / 0 |
 | 发布文档（CHANGELOG / 发布说明 / 版本历史 / CLAUDE.md / releases 索引 / README） | 已更正 |
 
 ## 验证结果
 
-- **后端 `pytest -q` → 1,980 passed, 0 failed**（本日开始时 1,910 passed / 11 failed）
+- **后端 `pytest -q` → 1,991 passed, 0 failed**（本日开始时 1,910 passed / 11 failed）；`test-ci` 1,985 passed / 3 skipped
 - **前端**：vitest 154 passed；eslint 0 errors（19 warnings，棘轮 20）；`tsc -b --noEmit`、`format:check`、`lint:design`、`build`、`lint:classes` 全部通过
 - `ruff check .` / `ruff format --check .` → 通过
 - 敏感内容门禁（已跟踪 + 新文件）→ PASS
