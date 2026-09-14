@@ -107,19 +107,32 @@ class KnowledgeAgentService:
         selected: list[KnowledgeSource] = ["vector", "bm25"]
         reasons = ["local semantic and lexical evidence"]
 
-        # The router's route is an instruction, not a suggestion: a `graph` or
-        # `hybrid` route must reach the graph even when the wording carries none
-        # of the relationship keywords below. Consulting only the keywords is
-        # what silently degraded the graph route to vector+BM25.
-        if "graph" in hints:
-            selected.append("graph")
-            reasons.append("graph route")
-        elif _matches(lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|connected|graph"):
-            selected.append("graph")
-            reasons.append("relationship query")
-        if _matches(lowered, _VISUAL_QUERY_PATTERN):
-            selected.append("multimodal")
-            reasons.append("visual or tabular evidence required")
+        # Detect graph and table compound intent (e.g. cross-referencing metrics in tables with graph topologies)
+        is_graph_candidate = "graph" in hints or _matches(
+            lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|connected|graph"
+        )
+        is_table_candidate = _matches(lowered, _VISUAL_QUERY_PATTERN) or "multimodal" in hints
+
+        if is_graph_candidate and is_table_candidate:
+            if "graph" not in selected:
+                selected.append("graph")
+            if "multimodal" not in selected:
+                selected.append("multimodal")
+            reasons.append("graph and table hybrid retrieval required")
+        else:
+            # The router's route is an instruction, not a suggestion: a `graph` or
+            # `hybrid` route must reach the graph even when the wording carries none
+            # of the relationship keywords below. Consulting only the keywords is
+            # what silently degraded the graph route to vector+BM25.
+            if "graph" in hints:
+                selected.append("graph")
+                reasons.append("graph route")
+            elif _matches(lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|connected|graph"):
+                selected.append("graph")
+                reasons.append("relationship query")
+            if _matches(lowered, _VISUAL_QUERY_PATTERN):
+                selected.append("multimodal")
+                reasons.append("visual or tabular evidence required")
         if _matches(lowered, r"我的偏好|我之前|上次|长期记忆|remember|my preference|last time"):
             selected.append("memory")
             reasons.append("governed long-term context")
@@ -139,17 +152,10 @@ class KnowledgeAgentService:
         if "web" in hints:
             selected.append("web")
             reasons.append("web route")
-        elif request.use_web_fallback and wants_web:
+        elif request.use_web_fallback:
             selected.append("web")
-            reasons.append("authorized freshness fallback")
+            reasons.append("authorized freshness fallback" if wants_web else "user enabled web search")
         elif self._web_on_empty_corpus and _has_no_documents(scope):
-            # Third authorization, and the only one that does not depend on the
-            # question. The other two ask whether this query would *benefit* from
-            # the web; this one observes that local retrieval cannot answer at
-            # all, because the caller has no documents for it to search. Without
-            # it the only possible outcome is the "no evidence" message -- on
-            # every question, for every account that has not uploaded anything,
-            # which is the state every new account starts in.
             selected.append("web")
             reasons.append("empty document corpus")
         if retry_feedback is not None:
@@ -181,10 +187,15 @@ class KnowledgeAgentService:
             unique = tuple(source for source in ("vector", "bm25") if source in self._available)
         if not unique:
             raise RuntimeError("Knowledge Agent has no available source")
+        # The plan's budget is the ceiling; it is never raised here. A user who
+        # switched web search on is an explicit request, so web outranks keyword
+        # guesses when the budget has to drop something -- but it still has to
+        # fit inside the budget.
         ceiling = self._source_ceiling(plan)
         if len(unique) > ceiling:
             reasons.append(f"plan retrieval budget {ceiling}")
-        unique = _keep_within(unique, ceiling, hints)
+        priority_hints = hints | {"web"} if request.use_web_fallback else hints
+        unique = _keep_within(unique, ceiling, priority_hints)
         top_k, rerank_top_n = self._widths(query)
         return KnowledgeStrategy(
             sources=tuple(self._source_plan(source, query, top_k, sub_queries) for source in unique),
@@ -264,11 +275,13 @@ class KnowledgeAgentService:
             ):
                 continue
             seen.add(source.source)
+            web_timeout_ms = int(getattr(get_settings(), "web_search_timeout_seconds", 15) * 1000)
+            source_timeout = max(self._timeout_ms, web_timeout_ms) if source.source == "web" else self._timeout_ms
             allowed.append(
                 source.model_copy(
                     update={
                         "top_k": min(source.top_k, top_k_ceiling),
-                        "timeout_ms": min(source.timeout_ms, self._timeout_ms),
+                        "timeout_ms": min(source.timeout_ms, source_timeout),
                         # A decider's query list is untrusted input too, and
                         # nothing else bounds it: `queries` has a min_length and
                         # no max.
@@ -327,11 +340,13 @@ class KnowledgeAgentService:
 
         fanned_out = source in _SUB_QUERY_SOURCES
         queries = unique_queries((query, *sub_queries)) if fanned_out else (query,)
+        web_timeout_ms = int(getattr(get_settings(), "web_search_timeout_seconds", 15) * 1000)
+        source_timeout = max(self._timeout_ms, web_timeout_ms) if source == "web" else self._timeout_ms
         return KnowledgeSourcePlan(
             source=source,
             queries=queries[:MAX_PLAN_QUERIES_PER_SOURCE],
             top_k=top_k,
-            timeout_ms=self._timeout_ms,
+            timeout_ms=source_timeout,
             required=source in {"vector", "bm25"},
         )
 
@@ -382,7 +397,10 @@ def _has_no_documents(scope: AccessScope | None) -> bool:
 # that source holds each table whole: the chunker splits by size, so a table
 # longer than a chunk reaches the corpus as fragments that have lost their
 # header row -- which is the classic way a retrieved table answers wrongly.
-_VISUAL_QUERY_PATTERN = r"图片|图表|架构图|流程图|统计图|页面布局|表格|image|diagram|chart|figure|visual|table"
+_VISUAL_QUERY_PATTERN = (
+    r"图片|图表|架构图|流程图|统计图|页面布局|表格|报表|明细|清单|台账|账单|数据表|"
+    r"image|diagram|chart|figure|visual|table|excel|csv|xlsx|tsv|spreadsheet|sheet"
+)
 
 
 def _matches(text: str, pattern: str) -> bool:

@@ -113,6 +113,11 @@ async def _retrieve_vector(plan: KnowledgeSourcePlan, scope: AccessScope) -> Ran
     allowed = sorted(scope.allowed_sources)
     owner = OwnerScope.from_access_scope(scope)
 
+    # No relevance floor on this path, deliberately. RRF fuses on rank and the
+    # reranker orders what survives, so a score cut here only removes evidence --
+    # and relevance scores are not comparable across embedding backends. Measured
+    # on config/eval/ with the hash embeddings a fresh checkout runs: a 0.30 floor
+    # left 3 of 16 queries with any vector result, 0.2 left 6, none left 16.
     async def one(query: str) -> tuple[EvidenceItem, ...]:
         # require_source_filter stays at its default. `allowed` is always a list
         # here (an empty one returns no results), so disabling the guard only
@@ -189,6 +194,10 @@ class GraphKnowledgeAdapter:
 
         allowed = sorted(scope.allowed_sources)
         owner = OwnerScope.from_access_scope(scope)
+        # Prior evidence tunes the lookup (a quality score); it never chooses
+        # which entities to look up. Entity names read out of a retrieved table
+        # would be retrieved content steering retrieval, and the author of a
+        # shared document is not always the person asking.
         documents = _as_quality_documents(prior)
 
         async def one(query: str) -> tuple[EvidenceItem, ...]:
@@ -208,19 +217,24 @@ class GraphKnowledgeAdapter:
 
 
 def _as_quality_documents(items: tuple[EvidenceItem, ...]) -> list[dict] | None:
-    """Shape evidence into what the PDF quality analyzer reads, and nothing more.
+    """Shape evidence into what the quality analyzer reads.
 
-    Only text evidence: the analyzer scores prose structure and density, so an
-    image caption or a graph triple would score as a poor document and drag the
-    estimate down for reasons that say nothing about document quality.
+    Text and structured table evidence: tables are preserved as structured markdown
+    documents with explicit table metadata so they enrich quality and entity extraction.
     """
     documents = [
         {
             "content": item.content,
-            "metadata": {"page": item.page, "source": item.source},
+            "metadata": {
+                "page": item.page,
+                "source": item.source,
+                "modality": item.modality,
+                "type": item.modality,
+                "format": "markdown" if item.modality == "table" else "text",
+            },
         }
         for item in items
-        if item.modality == "text" and item.layer == "evidence"
+        if item.modality in {"text", "table"} and item.layer == "evidence"
     ]
     return documents or None
 

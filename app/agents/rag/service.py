@@ -293,11 +293,18 @@ class RAGAgentService:
         if "rag" not in route.allowed_capabilities:
             return ContextBundle()
 
+        from app.core.config import get_settings
+
+        web_timeout_ms = int(getattr(get_settings(), "web_search_timeout_seconds", 15) * 1000)
         bounded = strategy.model_copy(
             update={
                 "sources": tuple(
                     source.model_copy(
-                        update={"timeout_ms": min(source.timeout_ms, int(self._retriever_timeout * 1000))}
+                        update={
+                            "timeout_ms": max(source.timeout_ms, web_timeout_ms)
+                            if source.source == "web"
+                            else min(source.timeout_ms, int(self._retriever_timeout * 1000))
+                        }
                     )
                     for source in strategy.sources
                 )

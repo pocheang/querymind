@@ -102,6 +102,18 @@ EDITABLE: tuple[EditableField, ...] = (
         "routing",
         "Per-entity graph lookup instead of the batched one. Roughly 3 Neo4j round trips become up to 9.",
     ),
+    # --- web -----------------------------------------------------------------
+    # Provider credentials and endpoints (TAVILY_API_KEY, BING_SEARCH_API_KEY,
+    # WEB_PROXY_URL, SEARXNG_BASE_URL) are deliberately absent: the schema
+    # endpoint echoes every editable value back, and an editable proxy or base
+    # URL lets console access redirect all outbound search traffic.
+    EditableField("WEB_SEARCH_PROVIDER", "web", "Search provider: duckduckgo, tavily, bing, or searxng."),
+    EditableField("WEB_SEARCH_TIMEOUT_SECONDS", "web", "Timeout in seconds for web search requests."),
+    EditableField("WEB_SEARCH_MAX_RETRIES", "web", "Maximum retry attempts on transient network failures."),
+    EditableField(
+        "WEB_STRICT_ALLOWLIST", "web", "Strict allowlist mode: reject all domains not in WEB_DOMAIN_ALLOWLIST."
+    ),
+    EditableField("WEB_MIN_SOURCE_SCORE", "web", "Minimum source trust score threshold for web citations."),
     # --- answer --------------------------------------------------------------
     # --- images -------------------------------------------------------------
     # Captioning is what makes an image searchable when OCR cannot read it -- a

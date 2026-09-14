@@ -18,6 +18,35 @@ _URL = re.compile(r"https?://\S+", re.IGNORECASE)
 # ============================================================================
 
 
+_PIPE_TABLE_SEP = re.compile(r"^\|?(:?-+:?\|)+:?-+:?\|?$")
+_KV_ROW_PATTERN = re.compile(r"^-\s+\*\*([^*]+)\*\*:")
+
+
+def extract_table_columns(text: str) -> list[str]:
+    """Extract table column names from markdown pipe tables or KV-folded entity blocks."""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+
+    # 1. Pipe table: look for header row followed by separator row
+    for idx, line in enumerate(lines):
+        if idx + 1 < len(lines) and "|" in line:
+            sep = lines[idx + 1].strip().replace(" ", "")
+            if bool(sep) and bool(_PIPE_TABLE_SEP.match(sep)):
+                raw_cells = [c.strip().replace(r"\|", "|") for c in re.split(r"(?<!\\)\|", line.strip("|"))]
+                # Filter out synthetic column_0, column_1 placeholders if meaningful names exist
+                meaningful = [c for c in raw_cells if c and not re.match(r"^(?:column|col)_\d+$", c, re.IGNORECASE)]
+                return meaningful if meaningful else [c for c in raw_cells if c]
+
+    # 2. KV-folded entity blocks (- **Key**: Value)
+    kv_cols: list[str] = []
+    for line in lines:
+        m = _KV_ROW_PATTERN.match(line)
+        if m:
+            k = m.group(1).strip()
+            if k and k not in kv_cols:
+                kv_cols.append(k)
+    return kv_cols
+
+
 def enhance_chunk_metadata(
     chunk_text: str,
     base_metadata: dict[str, Any],
@@ -45,8 +74,10 @@ def enhance_chunk_metadata(
     # Chunk基本信息
     metadata["chunk_index"] = chunk_index
     metadata["total_chunks"] = total_chunks
-    metadata["chunk_length"] = len(chunk_text)
-    metadata["word_count"] = len(chunk_text.split())
+    # Multilingual word/character count (supports both English words and CJK characters)
+    zh_chars = len(re.findall(r"[\u4e00-\u9fa5]", chunk_text))
+    en_words = len(re.findall(r"\b[A-Za-z0-9_]+\b", chunk_text))
+    metadata["word_count"] = zh_chars + en_words if zh_chars > 0 else len(chunk_text.split())
 
     # Chunk类型分类
     chunk_type = classify_chunk_type(chunk_text, metadata)
@@ -61,6 +92,13 @@ def enhance_chunk_metadata(
     entities = extract_entities(chunk_text)
     if entities:
         metadata["entities"] = entities
+
+    # 结构化表格元数据提取
+    if chunk_type == "table" or metadata.get("modality") == "table":
+        if not metadata.get("table_columns"):
+            cols = extract_table_columns(chunk_text)
+            if cols:
+                metadata["table_columns"] = ", ".join(cols)
 
     # 语义特征
     metadata["has_question"] = "?" in chunk_text or "？" in chunk_text
@@ -93,9 +131,14 @@ def enhance_chunk_metadata(
     return metadata
 
 
+try:
+    import jieba  # type: ignore
+except ImportError:
+    jieba = None
+
+
 def extract_keywords(text: str, top_n: int = 10) -> list[str]:
-    """
-    Extract keywords (simplified version based on word frequency and length)
+    """Extract keywords with dual support for Chinese (via jieba/bigrams) and English.
 
     Args:
         text: Text content
@@ -104,11 +147,6 @@ def extract_keywords(text: str, top_n: int = 10) -> list[str]:
     Returns:
         List of keywords
     """
-    # 移除标点和特殊字符
-    clean_text = re.sub(r"[^\w\s]", " ", text.lower())
-    words = clean_text.split()
-
-    # 停用词（简化版）
     stopwords = {
         "the",
         "a",
@@ -124,6 +162,28 @@ def extract_keywords(text: str, top_n: int = 10) -> list[str]:
         "of",
         "with",
         "by",
+        "from",
+        "as",
+        "is",
+        "are",
+        "was",
+        "were",
+        "this",
+        "that",
+        "these",
+        "those",
+        "sheet",
+        "sheets",
+        "table",
+        "tables",
+        "row",
+        "rows",
+        "col",
+        "cols",
+        "column",
+        "columns",
+        "part",
+        "total",
         "是",
         "的",
         "了",
@@ -137,19 +197,42 @@ def extract_keywords(text: str, top_n: int = 10) -> list[str]:
         "将",
         "可以",
         "进行",
+        "对于",
+        "通过",
+        "一个",
+        "没有",
+        "我们",
+        "他们",
     }
 
-    # 过滤停用词和短词
-    keywords = [w for w in words if len(w) > 3 and w not in stopwords]
+    candidates: list[str] = []
 
-    # 词频统计
+    # Chinese keyword segmentation
+    if re.search(r"[\u4e00-\u9fa5]", text):
+        if jieba is not None:
+            zh_tokens = [
+                w.strip()
+                for w in jieba.cut(text)
+                if len(w.strip()) >= 2 and w.strip() not in stopwords and re.match(r"^[\u4e00-\u9fa5]+$", w.strip())
+            ]
+            candidates.extend(zh_tokens)
+        else:
+            zh_tokens = [w for w in re.findall(r"[\u4e00-\u9fa5]{2,4}", text) if w not in stopwords]
+            candidates.extend(zh_tokens)
+
+    # English / alphanumeric keywords (excluding structural placeholders like column_1, row_2)
+    en_tokens = [
+        w.lower()
+        for w in re.findall(r"\b[A-Za-z0-9_]{3,}\b", text)
+        if w.lower() not in stopwords and not re.match(r"^(?:column|col|row|sheet|part|table)_\d+$", w.lower())
+    ]
+    candidates.extend(en_tokens)
+
     word_freq: dict[str, int] = {}
-    for word in keywords:
+    for word in candidates:
         word_freq[word] = word_freq.get(word, 0) + 1
 
-    # 按频率排序
     sorted_keywords = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
-
     return [word for word, freq in sorted_keywords[:top_n]]
 
 
@@ -188,8 +271,9 @@ def extract_entities(text: str) -> dict[str, list[str]]:
     if acronyms:
         entities["acronyms"] = _first_distinct(acronyms, 5)
 
-    # 数字（版本号、ID等）
-    numbers = re.findall(r"\b\d+(?:\.\d+)*\b", text)
+    # 数字（版本号、ID等，过滤掉行号坐标标记如 (Rows 1-20 of 50)）
+    cleaned_for_numbers = re.sub(r"\(Rows?\s+\d+(?:-\d+)?\s+of\s+\d+.*?\)", " ", text, flags=re.IGNORECASE)
+    numbers = re.findall(r"\b\d+(?:\.\d+)*\b", cleaned_for_numbers)
     if numbers:
         entities["numbers"] = _first_distinct(numbers, 5)
 
@@ -223,12 +307,12 @@ def calculate_importance_score(text: str, chunk_type: ChunkType, metadata: dict[
     Returns:
         Importance score
     """
-    # 类型加权（默认 0.5，与下方 `.get` 的回退值一致）
+    # 类型加权（表格在企业业务数据中包含高密度关键事实，给予高基础权重 0.85）
     type_weights = {
         "heading": 0.9,
+        "table": 0.85,
         "definition": 0.8,
         "procedure": 0.8,
-        "table": 0.7,
         "code": 0.6,
         "list": 0.6,
         "quote": 0.5,
@@ -259,6 +343,10 @@ def calculate_importance_score(text: str, chunk_type: ChunkType, metadata: dict[
     if metadata.get("keywords") and len(metadata["keywords"]) >= 3:
         score += 0.05
     if metadata.get("entities"):
+        score += 0.05
+    # 表格结构化元数据或高密度数值实体加分
+    num_entities = metadata.get("entities", {}).get("numbers", []) if isinstance(metadata.get("entities"), dict) else []
+    if metadata.get("table_columns") or len(num_entities) >= 3:
         score += 0.05
 
     # 限制在0-1范围

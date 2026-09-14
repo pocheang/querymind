@@ -31,24 +31,29 @@ import pytest
 
 
 def test_importing_the_module_resolves_the_proxy() -> None:
-    """After importing our module, `ddgs.ddgs` is already in sys.modules."""
+    """After importing the search entry point, `ddgs.ddgs` is already in sys.modules.
+
+    The entry point is `app.tools.web.search`; since the provider split, the
+    DDGS client and its eager resolution live in the DuckDuckGo provider, which
+    the search module imports through the factory.
+    """
 
     importlib.import_module("app.tools.web.search")
 
     assert "ddgs.ddgs" in sys.modules, (
         "ddgs is still lazy: the first DDGS(...) call will run importlib while "
         "holding a lock, and concurrent first calls deadlock. See "
-        "app/tools/web/search.py::_resolve_ddgs_eagerly."
+        "app/tools/web/providers/duckduckgo.py::_resolve_ddgs_eagerly."
     )
 
 
 def test_the_name_is_the_real_class_not_the_proxy() -> None:
-    from app.tools.web import search
+    from app.tools.web.providers import duckduckgo
 
     # The proxy's metaclass is `_ProxyMeta`; the resolved class is an ordinary
     # type. Checking the metaclass name is what distinguishes them without
     # importing ddgs internals.
-    assert type(search.DDGS).__name__ != "_ProxyMeta" or "ddgs.ddgs" in sys.modules
+    assert type(duckduckgo.DDGS).__name__ != "_ProxyMeta" or "ddgs.ddgs" in sys.modules
 
 
 def test_concurrent_construction_does_not_hang() -> None:
@@ -58,7 +63,7 @@ def test_concurrent_construction_does_not_hang() -> None:
     defect never returned at all.
     """
 
-    from app.tools.web.search import DDGS
+    from app.tools.web.providers.duckduckgo import DDGS
 
     def build() -> str:
         try:

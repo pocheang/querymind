@@ -60,17 +60,20 @@ def classify_chunk_type(text: str, metadata: dict[str, Any]) -> ChunkType:
     # Deleted rather than turned into an assignment: making it one would change
     # what every document classifies as, which is a decision, not a cleanup.
 
+    # 优先检查表格和代码块（防止以标题开头的表格块/代码块被错误识别为标题）
+    if _is_table(text, metadata):
+        return "table"
+
+    if _is_code_block(text):
+        return "code"
+
     # 检查标题模式
     if _is_heading(text, metadata):
         return "heading"
 
-    # 检查代码块
-    if _is_code_block(text):
-        return "code"
-
-    # 检查表格
-    if _is_table(text, metadata):
-        return "table"
+    # 检查步骤/流程（必须优先于通用列表，防止有序操作步骤被误判为普通列表）
+    if _is_procedure(text):
+        return "procedure"
 
     # 检查列表
     if _is_list(text):
@@ -84,10 +87,6 @@ def classify_chunk_type(text: str, metadata: dict[str, Any]) -> ChunkType:
     if _is_definition(text):
         return "definition"
 
-    # 检查步骤/流程
-    if _is_procedure(text):
-        return "procedure"
-
     # 检查元数据信息（文档属性、标签等）
     if _is_metadata_info(text):
         return "metadata"
@@ -98,17 +97,67 @@ def classify_chunk_type(text: str, metadata: dict[str, Any]) -> ChunkType:
 
 def _is_heading(text: str, metadata: dict[str, Any]) -> bool:
     """检查是否为标题"""
+    if not text or not text.strip():
+        return False
+
     # 检查元数据中的标题标记
     if metadata.get("is_heading") or metadata.get("heading_level"):
         return True
 
-    # 短文本 + 行末无标点 + 大写开头
-    if len(text) < 100 and not text.rstrip().endswith((".", "。", "!", "！", "?", "？")):
-        if text[0].isupper() or any(char in text for char in "第一二三四五六七八九十"):
+    stripped = text.strip()
+
+    # Markdown标题（仅对单行或简短的纯标题生效）
+    if stripped.startswith("#"):
+        lines = stripped.splitlines()
+        if len(lines) == 1:
+            return True
+        if len(lines) <= 2 and len(stripped) < 120:
             return True
 
-    # Markdown标题
-    if text.startswith("#"):
+    # 显式章节结构标记（如“第一章 引言”、“Chapter 1: Overview”）
+    if re.match(r"^(?:第[一二三四五六七八九十\d]+[章节部分篇条]|Chapter\s+\d+|Section\s+\d+)", stripped, re.IGNORECASE):
+        lines = stripped.splitlines()
+        if len(lines) <= 2 and len(stripped) < 100:
+            return True
+
+    # 单行无终结标点的简短独立标题（排除含逗号、分号的多分句文本）
+    lines = stripped.splitlines()
+    if len(lines) == 1 and len(stripped) < 60:
+        if not stripped.rstrip().endswith((".", "。", "!", "！", "?", "？", ":", "：", ",", "，", ";", "；")):
+            if not any(p in stripped for p in (",", "，", ";", "；")):
+                words = stripped.split()
+                if 1 <= len(words) <= 7 and (stripped.isupper() or all(w[0].isupper() for w in words if w)):
+                    return True
+
+    return False
+
+
+def _is_table(text: str, metadata: dict[str, Any]) -> bool:
+    """检查是否为表格"""
+    if not text or not text.strip():
+        return False
+
+    # 元数据标记
+    if metadata.get("is_table") or metadata.get("table_index") is not None or metadata.get("modality") == "table":
+        return True
+
+    # HTML表格
+    lowered = text.lower()
+    if "<table" in lowered or "<tr>" in lowered:
+        return True
+
+    # Markdown Pipe 表格结构检测 (任意位置包含表头 + 分隔行)
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    for i, line in enumerate(lines):
+        if line.startswith("|") and line.endswith("|") and line.count("|") >= 2:
+            if i + 1 < len(lines):
+                next_line = lines[i + 1]
+                if next_line.startswith("|") and re.match(r"^\|(\s*:?-+[-:]*\s*\|)+$", next_line):
+                    return True
+
+    # KV折叠表格结构检测
+    kv_lines = [ln for ln in lines if ln.startswith("- **") and "**: " in ln]
+    if len(kv_lines) >= 2 and any("(Row " in ln or "Sheet:" in ln or "Table:" in ln for ln in lines[:3]):
         return True
 
     return False
@@ -130,25 +179,6 @@ def _is_code_block(text: str) -> bool:
     special_chars = ["{", "}", "(", ")", ";", "=>", "->"]
     char_count = sum(text.count(char) for char in special_chars)
     if char_count >= 5:
-        return True
-
-    return False
-
-
-def _is_table(text: str, metadata: dict[str, Any]) -> bool:
-    """检查是否为表格"""
-    # 元数据标记
-    if metadata.get("is_table") or metadata.get("table_index") is not None:
-        return True
-
-    # 包含表格分隔符
-    if "|" in text and text.count("|") >= 4:
-        lines = text.split("\n")
-        if len(lines) >= 2 and all("|" in line for line in lines[:3]):
-            return True
-
-    # HTML表格
-    if "<table" in text.lower() or "<tr>" in text.lower():
         return True
 
     return False
@@ -221,12 +251,12 @@ def _is_procedure(text: str) -> bool:
     # 步骤标记
     step_patterns = [
         r"(?:step|步骤)\s*\d+",
-        r"第[一二三四五六七八九十]+步",
-        r"^\d+\.\s+\w+",  # 1. Do something
+        r"第[一二三四五六七八九十\d]+步",
+        r"^\s*\d+\.\s*(?:打开|运行|点击|配置|设置|启动|停止|创建|修改|删除|执行|输入|选择|检查|验证|download|install|configure|run|click|open|start|stop|create|update|delete|verify|check|please|first|then|ensure)\b",
     ]
 
     for pattern in step_patterns:
-        if re.search(pattern, text.lower()):
+        if re.search(pattern, text.lower(), flags=re.MULTILINE):
             return True
 
     # 包含流程关键词

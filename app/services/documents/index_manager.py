@@ -195,19 +195,41 @@ def _delete_triplets_by_sources(sources: list[str]) -> int:
     removed = 0
     try:
         client = Neo4jClient()
-    except (RuntimeError, ValueError) as e:
+    except Exception as e:
         logger.warning(f"Failed to create Neo4j client: {e}")
         return 0
     try:
         for source_key in sources:
             try:
                 removed += client.delete_by_source(source_key)
-            except (RuntimeError, ValueError) as e:
+            except Exception as e:
                 logger.warning(f"Failed to delete triplets for source {source_key}: {e}")
                 continue
+    except Exception as e:
+        logger.warning(f"Failed during Neo4j triplet deletion: {e}")
     finally:
-        client.close()
+        try:
+            client.close()
+        except Exception:
+            pass
     return removed
+
+
+def _delete_tables_by_sources(sources: list[str]) -> int:
+    """Drop the SQL-queryable copies of a deleted document's tables.
+
+    Full source paths only, never basenames: two users routinely hold a
+    `report.xlsx`, and matching on the name would delete the other one's tables.
+    """
+    if not sources:
+        return 0
+    try:
+        from app.services.tables.store import get_table_store
+
+        return get_table_store().delete_by_sources(sources)
+    except Exception as e:
+        logger.warning(f"Failed to delete tables for removed sources: {e}")
+        return 0
 
 
 def _delete_vector_documents(ids: list[str]) -> None:
@@ -293,6 +315,7 @@ def delete_file_index(
     for source_value in removed_sources:
         source_keys.add(Path(source_value).name)
     triplets_removed = _delete_triplets_by_sources(sorted(source_keys))
+    _delete_tables_by_sources(removed_sources)
 
     settings = get_settings()
     file_removed = False

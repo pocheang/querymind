@@ -231,6 +231,11 @@ def analyze_pdf_quality(text: str, metadata: dict) -> float:
     Returns:
         Quality score (0-1)
     """
+    if metadata.get("type") == "table" or metadata.get("modality") == "table":
+        # Structured tabular documents have high inherent structural fidelity
+        score = max(0.65, _pdf_structure_score(text) + _pdf_content_score(text) + _pdf_metadata_score(metadata))
+        return min(1.0, score)
+
     score = _pdf_structure_score(text) + _pdf_content_score(text) + _pdf_metadata_score(metadata)
     return min(1.0, score)
 
@@ -312,6 +317,17 @@ def get_document_context_for_query(
         quality_scores.append(analyze_pdf_quality(content, metadata))
         all_entities.update(extract_document_entities(content, limit=10))
 
+        # Also extract table entities if content represents a table
+        is_table = (
+            metadata.get("type") == "table"
+            or metadata.get("modality") == "table"
+            or bool(PATTERN_TABLES.search(content))
+        )
+        if is_table:
+            from app.graph.knowledge.table_linking import extract_table_entities
+
+            all_entities.update(extract_table_entities(content, max_entities=10))
+
     avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 0.5
 
     # Determine confidence level
@@ -380,10 +396,25 @@ def _format_entity_lines(entities: list[dict]) -> list[str]:
         name = item.get("entity", "")
         if not name:
             continue
-        lines.append(f"Entity: {name}")
+        ent_type = item.get("type", "")
+        desc = item.get("description", "")
+        if ent_type and desc:
+            lines.append(f"Entity: {name} [{ent_type}] - {desc}")
+        elif ent_type and ent_type != "CONCEPT":
+            lines.append(f"Entity: {name} [{ent_type}]")
+        elif desc:
+            lines.append(f"Entity: {name} - {desc}")
+        else:
+            lines.append(f"Entity: {name}")
+
         for rel in item.get("relations", []):
             if rel.get("other"):
-                lines.append(f"  - {rel.get('relation')} ({rel.get('weight', 0):.2f}) -> {rel.get('other')}")
+                weight = rel.get("weight", 0)
+                rel_desc = rel.get("rel_desc", "")
+                if rel_desc:
+                    lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')} ({rel_desc})")
+                else:
+                    lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}")
     return lines
 
 
@@ -408,8 +439,20 @@ def _format_path_lines(paths: list[dict]) -> list[str]:
     return lines
 
 
-def _format_graph_lines(entities: list[dict], neighbors: list[dict], paths: list[dict]) -> list[str]:
-    return _format_entity_lines(entities) + _format_neighbor_lines(neighbors) + _format_path_lines(paths)
+def _format_graph_lines(
+    entities: list[dict],
+    neighbors: list[dict],
+    paths: list[dict],
+    community_context: str = "",
+) -> list[str]:
+    lines = []
+    if community_context and community_context.strip():
+        lines.append(community_context.strip())
+        lines.append("")
+    lines.extend(_format_entity_lines(entities))
+    lines.extend(_format_neighbor_lines(neighbors))
+    lines.extend(_format_path_lines(paths))
+    return lines
 
 
 def run_graph_rag_with_pdf_context(
@@ -419,10 +462,12 @@ def run_graph_rag_with_pdf_context(
     agent_class: str | None = None,
 ) -> dict:
     """
-    Enhanced Graph RAG with PDF-aware optimizations.
+    Enhanced Graph RAG with PDF and table-aware optimizations.
 
     This is a drop-in replacement for run_graph_rag that applies
-    PDF quality analysis and adaptive parameters.
+    PDF/Table quality analysis and adaptive parameters. The retrieved documents
+    tune *how wide* the lookup is; the entities looked up come from the question
+    alone, never from document text.
 
     Args:
         question: User query
@@ -456,16 +501,19 @@ def run_graph_rag_with_pdf_context(
     entities = graph_result.get("entities", [])
     neighbors = graph_result.get("neighbors", [])
     paths = graph_result.get("paths", [])
+    communities = graph_result.get("communities", [])
+    community_context = graph_result.get("community_context", "")
     graph_signal_score = float(graph_result.get("graph_signal_score", 0.0) or 0.0)
     confidence = graph_result.get("confidence", "medium")
 
-    lines = _format_graph_lines(entities, neighbors, paths)
+    lines = _format_graph_lines(entities, neighbors, paths, community_context=community_context)
 
     return {
         "context": "\n".join(lines),
         "entities": [item.get("entity") for item in entities if item.get("entity")],
         "neighbors": neighbors,
         "paths": paths,
+        "communities": communities,
         "graph_signal_score": graph_signal_score,
         "confidence": confidence,
         "pdf_context": context,
@@ -509,6 +557,11 @@ def should_use_graph_rag(
             return False, "low_quality_documents"
 
     # Check query characteristics
+    from app.graph.knowledge.community import is_macro_thematic_query
+
+    if is_macro_thematic_query(question):
+        return True, "macro_thematic_query:global_graph"
+
     potential_entities = sum(len(p.findall(question)) for p in PATTERN_QUERY_ENTITIES)
     if potential_entities >= 3:
         return True, f"multi_entity_query:{potential_entities}_entities"

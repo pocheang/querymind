@@ -1,8 +1,14 @@
 """Nested table detection and flattening."""
 
+import re
+
+_HTML_TABLE_RE = re.compile(r"<table.*?>.*?</table>", re.IGNORECASE | re.DOTALL)
+_ESCAPED_PIPE_TABLE_RE = re.compile(r"\\\|.+?\\\|")
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+
 
 def detect_nested_table(text: str) -> bool:
-    """Detect if text contains nested tables (table within table cells).
+    """Detect if text contains nested tables (table within table cells, HTML tables, etc.).
 
     Args:
         text: Markdown text
@@ -10,23 +16,29 @@ def detect_nested_table(text: str) -> bool:
     Returns:
         True if nested tables detected
     """
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
+    if not text:
+        return False
 
-    # Look for patterns like: | cell1 | cell2: | inner | table | |
-    # or cells with multiple pipe separators
+    if "<table" in text.lower() and "</table" in text.lower():
+        return True
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
     for line in lines:
-        if "|" not in line:
+        if not (line.startswith("|") and line.endswith("|")):
             continue
 
-        # Split by pipes
-        cells = [cell.strip() for cell in line.split("|")]
-        cells = [c for c in cells if c]  # Remove empty
+        # Check for escaped pipe structures inside cells (e.g. "\| sub1 \| sub2 \|")
+        if _ESCAPED_PIPE_TABLE_RE.search(line):
+            return True
 
-        # Check if any cell contains pipes (nested table indicator)
-        for cell in cells:
-            # Count pipes in cell content
-            if cell.count("|") > 0:
-                return True
+        # Check for HTML table tags inside cells
+        lowered = line.lower()
+        if "<td" in lowered or "<tr" in lowered or "<th" in lowered:
+            return True
+
+        # Check for nested bracketed sub-tables: [| ... |]
+        if re.search(r"\[\|.+?\|\]", line):
+            return True
 
     return False
 
@@ -43,32 +55,50 @@ def flatten_nested_table(text: str) -> str:
     if not detect_nested_table(text):
         return text
 
-    lines = text.split("\n")
-    flattened_lines = []
+    # First, replace any inline HTML table tags with flattened text
+    def _clean_html_cell(match: re.Match) -> str:
+        inner = match.group(0)
+        # Extract cell contents separated by semicolons
+        cell_contents = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", inner, re.IGNORECASE | re.DOTALL)
+        if cell_contents:
+            cleaned = "; ".join(_HTML_TAG_RE.sub("", c).strip() for c in cell_contents if c.strip())
+            return cleaned
+        return _HTML_TAG_RE.sub(" ", inner).strip()
+
+    processed = _HTML_TABLE_RE.sub(_clean_html_cell, text)
+
+    # Flatten bracketed sub-tables [| a | b |] -> [a; b] before splitting by pipes
+    processed = re.sub(
+        r"\[\|\s*(.+?)\s*\|\]",
+        lambda m: "[" + "; ".join(part.strip() for part in m.group(1).split("|") if part.strip()) + "]",
+        processed,
+    )
+
+    lines = processed.splitlines()
+    flattened_lines: list[str] = []
 
     for line in lines:
-        if "|" not in line:
+        stripped = line.strip()
+        if not (stripped.startswith("|") and stripped.endswith("|")):
             flattened_lines.append(line)
             continue
 
-        # Process table row
-        cells = line.split("|")
-        processed_cells = []
+        # Process cell contents for escaped pipes or HTML remnants
+        # Strip outer pipes
+        inner_content = stripped[1:-1]
+        raw_cells = re.split(r"(?<!\\)\|", inner_content)
+        processed_cells: list[str] = []
 
-        for cell in cells:
-            cell = cell.strip()
-            if not cell:
-                processed_cells.append("")
-                continue
+        for cell in raw_cells:
+            c = cell.strip()
+            # Replace escaped pipes with semicolons cleanly
+            if "\\|" in c:
+                c = re.sub(r"\s*\\\|\s*", "; ", c)
+            # Remove any residual HTML tags
+            if "<" in c and ">" in c:
+                c = _HTML_TAG_RE.sub("", c).strip()
+            processed_cells.append(c)
 
-            # If cell contains nested table markers, flatten it
-            # Replace inner pipes with semicolons
-            if "|" in cell:
-                cell = cell.replace("|", "; ")
-
-            processed_cells.append(cell)
-
-        # Reconstruct line
         flattened_line = "| " + " | ".join(processed_cells) + " |"
         flattened_lines.append(flattened_line)
 
@@ -87,14 +117,15 @@ def simplify_complex_table(text: str) -> str:
     # Flatten nested tables
     text = flatten_nested_table(text)
 
-    # Remove excessive whitespace
-    lines = text.split("\n")
+    # Normalize cell spacing
+    lines = text.splitlines()
     cleaned_lines = []
 
     for line in lines:
-        if "|" in line:
-            # Normalize cell spacing
-            cells = [c.strip() for c in line.split("|")]
+        stripped = line.strip()
+        if stripped.startswith("|") and stripped.endswith("|"):
+            inner = stripped[1:-1]
+            cells = [c.strip() for c in re.split(r"(?<!\\)\|", inner)]
             cleaned_line = "| " + " | ".join(cells) + " |"
             cleaned_lines.append(cleaned_line)
         else:

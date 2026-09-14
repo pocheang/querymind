@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
-from langchain_community.document_loaders import TextLoader
+try:
+    from langchain_community.document_loaders import TextLoader  # type: ignore
+except ImportError:
+    TextLoader = None  # type: ignore[assignment]
 from langchain_core.documents import Document
 
 
@@ -15,5 +18,8 @@ def load_text_file(path: Path) -> list[Document]:
         except UnicodeDecodeError:
             continue
     # Keep compatibility with custom/legacy TextLoader behavior in tests.
-    loader = TextLoader(str(path), encoding="gb18030")
-    return loader.load()
+    if TextLoader is not None:
+        loader = TextLoader(str(path), encoding="gb18030")
+        return loader.load()
+    text = path.read_text(encoding="gb18030", errors="replace")
+    return [Document(page_content=text, metadata={"source": str(path)})]

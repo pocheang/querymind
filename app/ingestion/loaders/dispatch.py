@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.ingestion.loaders.image_loader import load_image_file as _load_image_file
 from app.ingestion.loaders.office_loader import (
     OFFICE_EXTENSIONS,
+    extract_markdown_tables,
     load_office_document,
     parsed_to_documents,
 )
@@ -26,7 +27,7 @@ from app.ingestion.loaders.pdf_loader import (
     load_pdf_with_docling as _load_pdf_with_docling,
 )
 from app.ingestion.loaders.text_loader import load_text_file as _load_text_file
-from app.services.evidence.models import EvidenceDocument, ParsedDocument, ParsedPage, TextBlock
+from app.services.evidence.models import EvidenceDocument, ParsedDocument, ParsedPage, TableBlock, TextBlock
 
 logger = logging.getLogger(__name__)
 
@@ -230,10 +231,28 @@ def load_document_with_evidence(
     documents = _load_single_path(path)
     pages, blocks, parser = _pages_and_blocks(documents, digest)
     fallback_chain = _pdf_fallback_chain(parser) if path.suffix.lower() == ".pdf" else [parser]
+    tables: list[TableBlock] = []
+    for doc in documents:
+        page_content = str(doc.page_content or "")
+        if "|" in page_content:
+            page_num = (doc.metadata or {}).get("page", 1)
+            try:
+                page_num = max(1, int(page_num))
+            except (TypeError, ValueError):
+                page_num = 1
+            extracted = extract_markdown_tables(
+                page_content,
+                document,
+                page=page_num,
+                start_index=len(tables) + 1,
+            )
+            tables.extend(extracted)
+
     parsed = ParsedDocument(
         document=document,
         pages=tuple(pages),
         text_blocks=tuple(blocks),
+        tables=tuple(tables),
         parser=parser,
         fallback_chain=tuple(fallback_chain),
     )

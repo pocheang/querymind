@@ -1,6 +1,6 @@
 import type React from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, EyeOff, Loader2, Paperclip, Square } from "lucide-react";
+import { ArrowRight, EyeOff, Globe, Loader2, Paperclip, Square } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,8 @@ export function ChatComposer({
   const setQuestion = useChatStore((s) => s.setQuestion);
   const runStatus = useChatStore((s) => s.runStatus);
   const composerDropActive = useChatStore((s) => s.composerDropActive);
+  const useWebSearch = useChatStore((s) => s.useWebSearch);
+  const setUseWebSearch = useChatStore((s) => s.setUseWebSearch);
   useTextareaAutoResize({ ref: questionRef, value: question });
 
   return (
@@ -125,7 +127,9 @@ export function ChatComposer({
                 title={t("components.chat.uploadFiles")}
               >
                 <Paperclip className="size-4" aria-hidden="true" />
-                <span className="hidden text-xs sm:text-sm font-medium sm:inline">{t("components.chat.uploadFiles")}</span>
+                <span className="hidden text-xs sm:text-sm font-medium sm:inline">
+                  {t("components.chat.uploadFiles")}
+                </span>
                 <input
                   ref={chatUploadInputRef}
                   type="file"
@@ -136,6 +140,32 @@ export function ChatComposer({
                   aria-label={t("components.chat.uploadFilesAria")}
                 />
               </label>
+
+              <button
+                type="button"
+                onClick={() => setUseWebSearch((prev) => !prev)}
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1 rounded-control p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                  useWebSearch
+                    ? "bg-brand-surface text-brand-text font-semibold ring-1 ring-[var(--brand-ring)]"
+                    : "text-ink-muted hover:bg-brand-surface hover:text-brand-text"
+                )}
+                title={
+                  useWebSearch
+                    ? t("components.chat.webSearchEnabled", "联网检索已开启")
+                    : t("components.chat.webSearchDisabled", "开启联网检索")
+                }
+                aria-label={t("components.chat.webSearchToggle", "切换联网检索")}
+                aria-pressed={useWebSearch}
+              >
+                <Globe
+                  className={cn("size-4 transition-transform", useWebSearch && "text-brand-text scale-110")}
+                  aria-hidden="true"
+                />
+                <span className="hidden text-xs sm:text-sm font-medium sm:inline">
+                  {t("components.chat.webSearch", "联网")}
+                </span>
+              </button>
 
               <Badge variant="brand" size="pill" mono className="hidden truncate sm:inline-flex">
                 {t("components.chat.modeHint.advancedReasoning")}
@@ -182,7 +212,9 @@ export function ChatComposer({
         {" / "}
         <kbd className="rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-ink">Cmd</kbd>
         {" + "}
-        <kbd className="rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-ink">Enter</kbd>{" "}
+        <kbd className="rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs text-ink">
+          Enter
+        </kbd>{" "}
         {t("components.chat.composerDropHint")}
       </p>
 

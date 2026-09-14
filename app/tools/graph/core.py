@@ -1,9 +1,12 @@
+import logging
 import re
 
 from app.domain.text import normalize_string
 from app.graph.knowledge.client import Neo4jClient
 from app.services.runtime.bulkhead import bulkhead
 from app.services.runtime.resilience import call_with_circuit_breaker
+
+logger = logging.getLogger(__name__)
 
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_\-]+|[\u4e00-\u9fff]{2,}")
 _NOISY_RELATIONS = {
@@ -171,7 +174,14 @@ def _normalized_entities(entities) -> tuple[list[dict], list[str]]:
             if not other or weight <= 0:
                 continue
             normalized_rels.append({"relation": relation, "other": other, "weight": weight})
-        normalized_entities.append({"entity": entity_name, "relations": normalized_rels})
+        normalized_entities.append(
+            {
+                "entity": entity_name,
+                "type": str(row.get("type", "CONCEPT") or "CONCEPT"),
+                "description": str(row.get("description", "") or ""),
+                "relations": normalized_rels,
+            }
+        )
         lookup_entity_names.append(raw_entity_name)
     return normalized_entities, lookup_entity_names
 
@@ -268,24 +278,35 @@ def graph_lookup(
     """
     tokens = _lookup_tokens(question, use_robust_extraction)
 
-    with bulkhead("neo4j"):
-        client = Neo4jClient()
-        try:
-            entities = call_with_circuit_breaker(
-                "neo4j.search_entities",
-                lambda: client.search_entities(tokens, limit=8, allowed_sources=allowed_sources),
-            )
-            normalized_entities, lookup_entity_names = _normalized_entities(entities)
+    try:
+        with bulkhead("neo4j"):
+            client = Neo4jClient()
+            try:
+                entities = call_with_circuit_breaker(
+                    "neo4j.search_entities",
+                    lambda: client.search_entities(tokens, limit=8, allowed_sources=allowed_sources),
+                )
+                normalized_entities, lookup_entity_names = _normalized_entities(entities)
 
-            entities_to_lookup = lookup_entity_names[:3]
-            neighbor_rows = _neighbor_rows(client, entities_to_lookup, allowed_sources) if entities_to_lookup else []
-            path_rows = _path_rows(client, entities_to_lookup, allowed_sources) if entities_to_lookup else []
+                entities_to_lookup = lookup_entity_names[:3]
+                neighbor_rows = (
+                    _neighbor_rows(client, entities_to_lookup, allowed_sources) if entities_to_lookup else []
+                )
+                path_rows = _path_rows(client, entities_to_lookup, allowed_sources) if entities_to_lookup else []
 
-            return {
-                "entities": normalized_entities,
-                "neighbors": neighbor_rows,
-                "paths": path_rows,
-                "graph_signal_score": _graph_signal_score(normalized_entities, neighbor_rows, path_rows),
-            }
-        finally:
-            client.close()
+                return {
+                    "entities": normalized_entities,
+                    "neighbors": neighbor_rows,
+                    "paths": path_rows,
+                    "graph_signal_score": _graph_signal_score(normalized_entities, neighbor_rows, path_rows),
+                }
+            finally:
+                client.close()
+    except Exception as e:
+        logger.warning(f"Graph lookup unavailable, proceeding without graph signal: {e}")
+        return {
+            "entities": [],
+            "neighbors": [],
+            "paths": [],
+            "graph_signal_score": 0.0,
+        }

@@ -105,4 +105,53 @@ def _score(item: EvidenceItem) -> float:
     return item.score if item.score is not None else -1.0
 
 
-__all__ = ["reciprocal_rank_fuse", "rerank_evidence"]
+def cross_modal_hybrid_resonance(
+    items: Sequence[EvidenceItem],
+    *,
+    resonance_boost: float = 0.08,
+) -> tuple[tuple[EvidenceItem, ...], int]:
+    """Identify cross-modal business entities shared between graph triples and tabular data.
+
+    Boosts mutually reinforcing evidence items so linked tabular facts and graph
+    topological structures rise to top attention in context assembly.
+
+    Returns:
+        tuple[fused_items, match_count]
+    """
+    if not items:
+        return (), 0
+
+    from app.graph.knowledge.table_linking import detect_graph_table_overlap
+
+    # Separate graph and table evidence
+    graph_indices = [i for i, item in enumerate(items) if item.modality == "graph"]
+    table_indices = [i for i, item in enumerate(items) if item.modality == "table"]
+
+    if not graph_indices or not table_indices:
+        return tuple(items), 0
+
+    boosted_items = list(items)
+    matched_pairs = 0
+
+    # Cross-check graph items against table items
+    for g_idx in graph_indices:
+        g_item = boosted_items[g_idx]
+        for t_idx in table_indices:
+            t_item = boosted_items[t_idx]
+            overlap = detect_graph_table_overlap(g_item.content, t_item.content)
+            if overlap:
+                matched_pairs += 1
+                # Apply resonance boost to both items
+                g_score = min(1.0, (g_item.score or 0.0) + resonance_boost)
+                t_score = min(1.0, (t_item.score or 0.0) + resonance_boost)
+                boosted_items[g_idx] = g_item.model_copy(update={"score": g_score})
+                boosted_items[t_idx] = t_item.model_copy(update={"score": t_score})
+
+    if matched_pairs > 0:
+        # Re-sort preserving relative order of ties
+        boosted_items.sort(key=lambda item: item.score or 0.0, reverse=True)
+
+    return tuple(boosted_items), matched_pairs
+
+
+__all__ = ["reciprocal_rank_fuse", "rerank_evidence", "cross_modal_hybrid_resonance"]

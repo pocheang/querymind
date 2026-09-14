@@ -40,6 +40,13 @@ BLOCKED_IMPORTS: dict[str, str] = {
     "paddleocr": "The alternative OCR engine is optional.",
     "docling": "The advanced PDF loader is optional.",
     "sentence_transformers": "The reranker and NLI cross-encoder load from local files or not at all.",
+    # The `office` extra: spreadsheets and the table SQL engine. CI installs none
+    # of them, so an Excel test that imports openpyxl at module scope fails at
+    # collection there while passing here.
+    "openpyxl": "XLSX parsing is the optional `office` extra.",
+    "pandas": "XLS parsing is the optional `office` extra.",
+    "xlrd": "XLS parsing is the optional `office` extra.",
+    "duckdb": "The table SQL engine falls back to SQLite without it.",
 }
 
 REQUIREMENTS = Path(__file__).resolve().parents[1] / "requirements" / "ci.txt"

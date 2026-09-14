@@ -101,6 +101,7 @@ class Settings(BaseSettings):
     parent_chunk_overlap: int = Field(default=200, alias="PARENT_CHUNK_OVERLAP")
     child_chunk_size: int = Field(default=600, alias="CHILD_CHUNK_SIZE")
     child_chunk_overlap: int = Field(default=120, alias="CHILD_CHUNK_OVERLAP")
+    table_row_overlap: int = Field(default=1, alias="TABLE_ROW_OVERLAP")
 
     top_k: int = Field(default=4, alias="TOP_K")
     max_context_chunks: int = Field(default=6, alias="MAX_CONTEXT_CHUNKS")
@@ -223,11 +224,22 @@ class Settings(BaseSettings):
     """
 
     web_domain_allowlist: str = Field(
-        default="gov.cn,gov,edu,org,nist.gov,cisa.gov,mitre.org,wikipedia.org,owasp.org,microsoft.com,openai.com",
+        default="gov.cn,gov,edu,org,nist.gov,cisa.gov,mitre.org,wikipedia.org,owasp.org,microsoft.com,openai.com,python.org,github.com,realpython.com,stackoverflow.com,pypi.org",
         alias="WEB_DOMAIN_ALLOWLIST",
     )
     web_min_source_score: float = Field(default=0.2, alias="WEB_MIN_SOURCE_SCORE")
+    web_search_provider: str = Field(default="duckduckgo", alias="WEB_SEARCH_PROVIDER")
+    web_proxy_url: str | None = Field(default=None, alias="WEB_PROXY_URL")
+    web_search_timeout_seconds: int = Field(default=15, alias="WEB_SEARCH_TIMEOUT_SECONDS")
+    web_search_max_retries: int = Field(default=2, alias="WEB_SEARCH_MAX_RETRIES")
+    web_strict_allowlist: bool = Field(default=True, alias="WEB_STRICT_ALLOWLIST")
+    tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
+    bing_search_api_key: str | None = Field(default=None, alias="BING_SEARCH_API_KEY")
+    searxng_base_url: str | None = Field(default=None, alias="SEARXNG_BASE_URL")
     answer_safety_scan_enabled: bool = Field(default=True, alias="ANSWER_SAFETY_SCAN_ENABLED")
+    prompt_injection_defense_enabled: bool = Field(default=True, alias="PROMPT_INJECTION_DEFENSE_ENABLED")
+    prompt_injection_strict_mode: bool = Field(default=True, alias="PROMPT_INJECTION_STRICT_MODE")
+    prompt_injection_risk_threshold: float = Field(default=0.7, alias="PROMPT_INJECTION_RISK_THRESHOLD")
 
     enable_reranker: bool = Field(default=True, alias="ENABLE_RERANKER")
     reranker_model_name: str = Field(default="BAAI/bge-reranker-v2-m3", alias="RERANKER_MODEL_NAME")
@@ -371,7 +383,7 @@ class Settings(BaseSettings):
     stage_timeout_total_ms: int = Field(default=120_000, ge=5_000, le=600_000, alias="STAGE_TIMEOUT_TOTAL_MS")
     stage_timeout_route_ms: int = Field(default=8_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_ROUTE_MS")
     stage_timeout_plan_ms: int = Field(default=5_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_PLAN_MS")
-    stage_timeout_retrieval_ms: int = Field(default=15_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_RETRIEVAL_MS")
+    stage_timeout_retrieval_ms: int = Field(default=30_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_RETRIEVAL_MS")
     stage_timeout_tool_ms: int = Field(default=10_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_TOOL_MS")
     stage_timeout_synthesis_ms: int = Field(default=30_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_SYNTHESIS_MS")
     stage_timeout_finalization_ms: int = Field(default=8_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_FINALIZATION_MS")

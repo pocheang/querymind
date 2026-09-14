@@ -9,6 +9,7 @@ from app.domain.contracts import EvidenceItem
 from app.domain.knowledge import AccessScope
 from app.domain.workflow import ContextBundle
 from app.privacy.dlp import mask_evidence
+from app.services.security.injection_defense import escape_sandbox_tags
 
 logger = logging.getLogger(__name__)
 
@@ -134,8 +135,9 @@ def _render_item(index: int, item: EvidenceItem, *, include_content: bool = True
         location += f", chunk={item.chunk_id}"
     if item.image_id:
         location += f", image={item.image_id}"
-    header = f"[E{index}] {location}; source={item.source}; layer={item.layer}; retriever={item.retriever}"
-    return f"{header}\n{item.content}" if include_content else header
+    header = f"[E{index}] {location}; source={item.source}; layer={item.layer}; retriever={item.retriever}; modality={item.modality}"
+    content = escape_sandbox_tags(item.content) if include_content else ""
+    return f"{header}\n{content}" if include_content else header
 
 
 def _priority(item: EvidenceItem) -> int:

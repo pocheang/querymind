@@ -212,11 +212,25 @@ def _format_entity_lines(entities: list[dict]) -> list[str]:
         name = item.get("entity", "")
         if not name:
             continue
-        lines.append(f"Entity: {name}")
+        ent_type = item.get("type", "")
+        desc = item.get("description", "")
+        if ent_type and desc:
+            lines.append(f"Entity: {name} [{ent_type}] - {desc}")
+        elif ent_type and ent_type != "CONCEPT":
+            lines.append(f"Entity: {name} [{ent_type}]")
+        elif desc:
+            lines.append(f"Entity: {name} - {desc}")
+        else:
+            lines.append(f"Entity: {name}")
+
         for rel in item.get("relations", []):
             if rel.get("other"):
                 weight = rel.get("weight", 0)
-                lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}")
+                rel_desc = rel.get("rel_desc", "")
+                if rel_desc:
+                    lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')} ({rel_desc})")
+                else:
+                    lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}")
     return lines
 
 
@@ -354,7 +368,9 @@ class GraphRetrievalService:
 
     @staticmethod
     def _has_graph_evidence(result: dict) -> bool:
-        return bool(result.get("entities") or result.get("neighbors") or result.get("paths"))
+        return bool(
+            result.get("entities") or result.get("neighbors") or result.get("paths") or result.get("communities")
+        )
 
     @staticmethod
     def _normalize_result(result: dict, *, allowed_sources: list[str] | None) -> dict:
@@ -371,6 +387,7 @@ class GraphRetrievalService:
                 len(normalized.get("entities") or [])
                 + len(normalized.get("neighbors") or [])
                 + len(normalized.get("paths") or [])
+                + len(normalized.get("communities") or [])
             )
             effective_hit_count = retrieved_count
             diagnostics = dict(normalized.get("retrieval_diagnostics") or {})

@@ -27,6 +27,7 @@ from app.retrievers.reranker import clear_reranker_cache
 from app.retrievers.stores.vector import clear_vector_store_cache
 from app.services.models.runtime import clear_model_caches
 from app.services.runtime.bulkhead import reset_bulkheads
+from app.tools.web.factory import clear_provider_cache
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,9 @@ def apply_config_reload() -> Settings:
     # by test_the_reload_reaches_every_cache_that_holds_an_editable_setting, which
     # walks `@lru_cache` functions -- this one is a hand-rolled TTL store.
     clear_router_decision_cache()
+    # Search providers are cached with the Settings object they were built from,
+    # so WEB_SEARCH_PROVIDER / WEB_SEARCH_MAX_RETRIES edits need a fresh instance.
+    clear_provider_cache()
     Neo4jClient.close_shared_driver()
     reset_bulkheads()
     return new_settings

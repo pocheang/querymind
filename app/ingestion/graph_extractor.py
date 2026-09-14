@@ -3,6 +3,7 @@ import logging
 import re
 from collections import Counter
 from dataclasses import dataclass
+from typing import Any
 
 from app.core.config import get_settings
 from app.services.models.runtime import get_chat_model
@@ -35,17 +36,42 @@ class GraphTriplet:
     tail: str
     confidence: float
     method: str
+    head_type: str = "CONCEPT"
+    tail_type: str = "CONCEPT"
+    head_description: str = ""
+    tail_description: str = ""
+    relation_description: str = ""
 
 
 EXTRACTION_PROMPT = """
-你是知识图谱抽取器。请从给定文本中抽取高价值三元组。
+你是知识图谱抽取器。请从给定文本中抽取高价值实体与关系（符合现代富属性图谱标准）。
 
 要求：
-1. 只抽取文本中明确表达的事实，不要臆造。
-2. 三元组格式：[{"head":"...","relation":"...","tail":"..."}]
-3. relation 使用大写下划线风格，例如 USES, DEPENDS_ON, PART_OF, STORES_IN, IMPLEMENTED_BY。
-4. 去掉过于泛化的实体，如“系统”“模块”“功能”这类若无具体限定则不要抽。
-5. 最多返回 12 个三元组。
+1. 只抽取文本中明确表达的事实，严禁臆造。
+2. 每个抽取项包含：
+   - head: 实体名称（规范名称，如 "FastAPI", "用户鉴权"）
+   - head_type: 实体类型（如 CONCEPT, TECHNOLOGY, ORGANIZATION, PERSON, COMPONENT, METRIC）
+   - head_description: 实体在本文中的简要说明/定义（1句简短描述）
+   - relation: 关系动词，大写下划线风格（如 DEPENDS_ON, USES, PART_OF, STORES_IN, IMPLEMENTED_BY, INTERACTS_WITH）
+   - tail: 尾实体名称
+   - tail_type: 尾实体类型
+   - tail_description: 尾实体在本文中的简要说明/定义
+   - relation_description: 关系发生的情境或具体事实说明（1句简短描述）
+3. 去掉过于泛化且无具体限定的代词或通用词（如“系统”“模块”“功能”这类若无限定则不抽）。
+4. 最多返回 12 个条目。
+5. 必须输出合法 JSON 数组：
+[
+  {
+    "head": "...",
+    "head_type": "...",
+    "head_description": "...",
+    "relation": "...",
+    "tail": "...",
+    "tail_type": "...",
+    "tail_description": "...",
+    "relation_description": "..."
+  }
+]
 6. 只输出 JSON 数组，不要解释。
 """
 
@@ -94,32 +120,54 @@ def _extract_json_array(text: str) -> list[dict]:
         return []
 
 
-def extract_triplets_llm(text: str) -> list[tuple[str, str, str]]:
+def extract_triplets_llm(text: str) -> list[dict[str, str]]:
     model = get_chat_model()
     batch_chars = get_settings().graph_triplet_batch_chars
     payload = text[:batch_chars]
     result = model.invoke([("system", EXTRACTION_PROMPT), ("human", payload)])
     content = result.content if hasattr(result, "content") else str(result)
     rows = _extract_json_array(content)
-    triplets: list[tuple[str, str, str]] = []
+    triplets: list[dict[str, str]] = []
     for row in rows:
         head = str(row.get("head", "")).strip()
         relation = str(row.get("relation", "")).strip().upper().replace(" ", "_")
         tail = str(row.get("tail", "")).strip()
         if head and relation and tail and head != tail:
-            triplets.append((head, relation, tail))
+            triplets.append(
+                {
+                    "head": head,
+                    "head_type": str(row.get("head_type", "CONCEPT")).strip().upper() or "CONCEPT",
+                    "head_description": str(row.get("head_description", "")).strip(),
+                    "relation": relation,
+                    "tail": tail,
+                    "tail_type": str(row.get("tail_type", "CONCEPT")).strip().upper() or "CONCEPT",
+                    "tail_description": str(row.get("tail_description", "")).strip(),
+                    "relation_description": str(row.get("relation_description", "")).strip(),
+                }
+            )
     return triplets
 
 
-def dedupe_triplets(triplets: list[tuple[str, str, str]]) -> list[tuple[str, str, str]]:
+def dedupe_triplets(triplets: list[Any]) -> list[Any]:
     out = []
     seen = set()
     for item in triplets:
-        key = tuple(x.strip() for x in item)
+        if isinstance(item, dict):
+            key = (
+                str(item.get("head", "")).strip(),
+                str(item.get("relation", "")).strip(),
+                str(item.get("tail", "")).strip(),
+            )
+        elif isinstance(item, list | tuple) and len(item) >= 3:
+            key = (str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip())
+        elif hasattr(item, "head") and hasattr(item, "relation") and hasattr(item, "tail"):
+            key = (str(item.head).strip(), str(item.relation).strip(), str(item.tail).strip())
+        else:
+            continue
         if key in seen:
             continue
         seen.add(key)
-        out.append(key)
+        out.append(item)
     return out
 
 
@@ -137,11 +185,37 @@ def filter_triplets(triplets: list[GraphTriplet], min_confidence: float = 0.5) -
     return list(best.values())
 
 
-def _stamp(raw: list[tuple[str, str, str]], confidence: float, method: str) -> list[GraphTriplet]:
-    return [
-        GraphTriplet(head=head, relation=relation, tail=tail, confidence=confidence, method=method)
-        for head, relation, tail in dedupe_triplets(raw)
-    ]
+def _stamp(raw: list[Any], confidence: float, method: str) -> list[GraphTriplet]:
+    stamped = []
+    for item in dedupe_triplets(raw):
+        if isinstance(item, dict):
+            stamped.append(
+                GraphTriplet(
+                    head=str(item.get("head", "")).strip(),
+                    relation=str(item.get("relation", "")).strip(),
+                    tail=str(item.get("tail", "")).strip(),
+                    confidence=confidence,
+                    method=method,
+                    head_type=str(item.get("head_type", "CONCEPT")),
+                    tail_type=str(item.get("tail_type", "CONCEPT")),
+                    head_description=str(item.get("head_description", "")),
+                    tail_description=str(item.get("tail_description", "")),
+                    relation_description=str(item.get("relation_description", "")),
+                )
+            )
+        elif isinstance(item, list | tuple) and len(item) >= 3:
+            stamped.append(
+                GraphTriplet(
+                    head=str(item[0]).strip(),
+                    relation=str(item[1]).strip(),
+                    tail=str(item[2]).strip(),
+                    confidence=confidence,
+                    method=method,
+                )
+            )
+        elif isinstance(item, GraphTriplet):
+            stamped.append(item)
+    return stamped
 
 
 def extract_triplets(text: str) -> list[GraphTriplet]:

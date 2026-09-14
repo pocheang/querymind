@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { appApi } from "@/lib/api";
+import { useChatStore } from "@/stores/useChatStore";
 import type { NormalizedQueryResult, PendingApproval, SessionMessage, SessionSummary } from "@/types/api";
 import { EMPTY_METADATA } from "@/pages/chat/constants";
 import { isAbortError, createInitialStreamMessages } from "./streamUtils";
@@ -22,7 +23,7 @@ function finishRun(
     runLifecycleRef: React.MutableRefObject<RunLifecycle>;
   },
   setIsSending: (sending: boolean) => void,
-  setRunStatus: (status: string) => void,
+  setRunStatus: (status: string) => void
 ): void {
   if (active) {
     setIsSending(false);
@@ -47,7 +48,7 @@ function applyStreamResult(messages: SessionMessage[], result: NormalizedQueryRe
             quality_report: result.qualityReport,
           },
         }
-      : message,
+      : message
   );
 }
 
@@ -84,12 +85,7 @@ interface UseMessageActionsReturn {
   removeMessage: (msg: SessionMessage) => Promise<void>;
   ensureSessionForAsk: () => Promise<string | null>;
   stopCurrentRun: (isSending: boolean) => void;
-  ask: (params: {
-    question: string;
-    isSending: boolean;
-    sessionId?: string;
-    approvalToken?: string;
-  }) => Promise<void>;
+  ask: (params: { question: string; isSending: boolean; sessionId?: string; approvalToken?: string }) => Promise<void>;
 }
 
 type RunRefs = {
@@ -110,7 +106,7 @@ function claimRunSlot(
   q: string,
   isSending: boolean,
   runLifecycleRef: React.MutableRefObject<RunLifecycle>,
-  activeRunRef: React.MutableRefObject<number | null>,
+  activeRunRef: React.MutableRefObject<number | null>
 ): number | null {
   if (!q || isSending) return null;
   const run = runLifecycleRef.current.begin();
@@ -195,11 +191,13 @@ async function runQueryAndStream({
   actions,
 }: RunQueryStreamParams): Promise<void> {
   try {
+    const useWebSearch = useChatStore.getState().useWebSearch;
     const result = await appApi.advanced({
       query: q,
       sessionId: sid,
       enableDecomposition: true,
       enableSelfRag: true,
+      useWebFallback: useWebSearch,
       ...(approvalToken ? { approvalToken } : {}),
       signal: runAbort.signal,
     });
@@ -334,7 +332,14 @@ export function useMessageActions({
         actions,
       });
     } finally {
-      finishRun(isRunActive(), run, runAbort, { activeRunRef, streamAbortRef, runLifecycleRef }, setIsSending, setRunStatus);
+      finishRun(
+        isRunActive(),
+        run,
+        runAbort,
+        { activeRunRef, streamAbortRef, runLifecycleRef },
+        setIsSending,
+        setRunStatus
+      );
     }
   };
 

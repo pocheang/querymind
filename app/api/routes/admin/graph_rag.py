@@ -8,6 +8,7 @@ Provides endpoints to:
 - Monitor performance
 """
 
+import asyncio
 import logging
 from typing import Any
 
@@ -95,6 +96,30 @@ async def clear_graph_rag_caches(
     }
 
 
+@router.post("/communities/build")
+async def trigger_build_communities(
+    request: Request,
+    user: dict = Depends(_require_user),
+) -> dict[str, Any]:
+    """
+    Trigger community detection and summary generation across all graph entities.
+
+    Requires admin permission.
+    """
+    _require_permission(user, Permission.ADMIN_OPS_MANAGE, request, "admin")
+    from app.graph.knowledge.community import build_all_communities
+
+    # A full graph scan plus a batch write, synchronously: off the event loop.
+    count = await asyncio.to_thread(build_all_communities)
+    logger.info(f"Graph RAG communities built by admin: {count} communities")
+
+    return {
+        "status": "success",
+        "message": f"Successfully generated and stored {count} community summaries",
+        "communities_count": count,
+    }
+
+
 @router.get("/config")
 async def get_graph_rag_config(
     request: Request,
@@ -116,6 +141,12 @@ async def get_graph_rag_config(
     return {
         "enhanced_mode": settings.graph_rag_enhanced,
         "min_pdf_quality": settings.graph_rag_min_pdf_quality,
+        "modern_capabilities": {
+            "rich_schema_enabled": True,
+            "community_global_search_enabled": True,
+            "fulltext_indexing_enabled": True,
+            "chunk_entity_grounding_enabled": True,
+        },
         "thresholds": {
             "quality_high": config_values["quality_threshold_high"],
             "quality_medium": config_values["quality_threshold_medium"],

@@ -18,7 +18,7 @@ class TableExtractor:
     The pandas dependency went with them.
     """
 
-    def format_table_as_text(self, table: TableContent, max_rows: int = 10) -> str:
+    def format_table_as_text(self, table: TableContent, max_rows: int = 15) -> str:
         """Format table as plain text for indexing.
 
         Args:
@@ -31,8 +31,11 @@ class TableExtractor:
         try:
             lines = []
 
-            # Add headers
-            lines.append("Table: " + " | ".join(table.headers))
+            sheet = str(table.metadata.get("sheet", "") or "")
+            if sheet:
+                lines.append(f"Sheet: {sheet}")
+            lines.append(f"Columns ({len(table.headers)}): " + " | ".join(table.headers))
+            lines.append(f"Total Rows: {len(table.rows)}")
             lines.append("-" * 50)
 
             # Add rows (limited)
@@ -85,8 +88,11 @@ class TableExtractor:
                         "page_number": table.page_number,
                         "source": table.metadata.get("source", table.doc_id),
                         "type": "table",
-                        "num_rows": table.metadata.get("num_rows", 0),
-                        "num_cols": table.metadata.get("num_cols", 0),
+                        "table_id": table.table_id,
+                        "sheet": str(table.metadata.get("sheet", "") or ""),
+                        "columns": ", ".join(table.headers)[:500],
+                        "num_rows": table.metadata.get("num_rows", len(table.rows)),
+                        "num_cols": table.metadata.get("num_cols", len(table.headers)),
                         "extraction_method": table.metadata.get("extraction_method", "unknown"),
                     }
                 ],

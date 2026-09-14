@@ -42,6 +42,7 @@ export const ACCEPTED_UPLOAD_EXTENSIONS = [
   ".pptx",
   ".xlsx",
   ".xls",
+  ".csv",
 ] as const;
 
 /**
@@ -84,10 +85,7 @@ export const CHAT_ACCEPT_RE = matcher(CHAT_ATTACHMENT_EXTENSIONS);
  * lost the third silently. Returning the rejected names lets the notice say
  * which ones, which is the difference between a warning and an explanation.
  */
-export function partitionUploads(
-  files: readonly File[],
-  pattern: RegExp
-): { accepted: File[]; rejected: string[] } {
+export function partitionUploads(files: readonly File[], pattern: RegExp): { accepted: File[]; rejected: string[] } {
   const accepted: File[] = [];
   const rejected: string[] = [];
   for (const file of files) {

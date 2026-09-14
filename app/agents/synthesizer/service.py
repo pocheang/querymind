@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 
 from app.agents.shared.config import SKILL_DEFAULT
 from app.agents.synthesizer.citations import EVIDENCE_MARKER_RE, normalize_answer_citations
 from app.agents.synthesizer.generation import is_synthesis_fallback, synthesis_fallback
 from app.core.config import Settings, get_settings
-from app.domain.contracts import EvidenceBundle, FinalAnswer, RouteDecision, TaskPlan, ToolResult
+from app.domain.contracts import EvidenceBundle, EvidenceItem, FinalAnswer, RouteDecision, TaskPlan, ToolResult
 from app.domain.knowledge import EvidenceRef
 from app.domain.workflow import CandidateAnswer, ContextBundle
 from app.orchestration.answer_stream import current_answer_stream_id
@@ -88,6 +88,9 @@ class SynthesizerAgentService:
         text = normalize_answer_citations(_answer_text(generated), allowed_labels)
         if not text:
             text = synthesis_fallback("generation_failed", detect_language(request.question))
+
+        if is_synthesis_fallback(text) and context.evidence:
+            text = _build_evidence_summary_fallback(context.evidence, detect_language(request.question))
 
         conflict_notes = tuple(str(value) for value in context.diagnostics.get("context_conflicts", ()) or ())
         if conflict_notes:
@@ -285,6 +288,34 @@ def _conflict_disclosure(question: str) -> str:
     if re.search(r"[\u4e00-\u9fff]", question):
         return "注：检索上下文存在派生知识与原始证据冲突；本答案以原始证据为准。"
     return "Note: Derived knowledge conflicted with original evidence; this answer follows the original evidence."
+
+
+def _build_evidence_summary_fallback(
+    evidence: Sequence[EvidenceItem],
+    language: str = "zh",
+) -> str:
+    """Provide a structured evidence summary when LLM generation fails but retrieval succeeded."""
+    is_zh = not str(language or "").lower().startswith("en")
+    header = (
+        "已为您完成检索，基于检索到的相关证据摘要如下："
+        if is_zh
+        else "Here is a summary of the relevant evidence retrieved for your query:"
+    )
+    blocks = [header, ""]
+    for idx, item in enumerate(evidence[:5], 1):
+        content = str(item.content or "").strip()
+        # Clean internal markers if any
+        cleaned_lines = [line.strip() for line in content.splitlines() if line.strip() and not line.startswith("[E")]
+        snippet = " ".join(cleaned_lines) if cleaned_lines else content
+        if len(snippet) > 260:
+            snippet = snippet[:260].rstrip() + "..."
+        source_label = item.source or item.document_id
+        marker = f"[E{idx}]"
+        if is_zh:
+            blocks.append(f"- {marker} **来源**: {source_label}\n  {snippet}")
+        else:
+            blocks.append(f"- {marker} **Source**: {source_label}\n  {snippet}")
+    return "\n\n".join(blocks)
 
 
 __all__ = ["SynthesisGenerator", "SynthesizerAgentService"]

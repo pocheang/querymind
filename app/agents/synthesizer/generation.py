@@ -28,6 +28,7 @@ from app.services.observability.log_safety import question_ref
 from app.services.query.intent import is_casual_chat_query
 from app.services.runtime.bulkhead import bulkhead
 from app.services.runtime.request_context import deadline_exceeded, overload_mode_enabled
+from app.services.security.injection_defense import OutputInjectionValidator, SandboxedPromptBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -134,8 +135,9 @@ def _build_prompt_with_language(
     graph_context: str = "",
     web_context: str = "",
     include_evidence_guidance: bool = True,
+    nonce: str = "",
 ) -> str:
-    """Build prompt with language hint and query-type-specific template for multilingual support."""
+    """Build prompt with language hint, sandboxed boundaries, and query-type-specific template."""
     language_hint = f"[Language: {detected_language}]\n"
 
     template_section = ""
@@ -147,25 +149,55 @@ def _build_prompt_with_language(
         cot_prompt = get_cot_reasoning_prompt()
         template_section = f"\n答案模板指导（Skill: {skill_name}）：\n{answer_template}\n\n{cot_prompt}\n"
 
+    if nonce:
+        user_section = f"用户问题:\n{SandboxedPromptBuilder.sandbox_user_query(question, nonce)}"
+        vector_section = (
+            f"向量检索上下文:\n{SandboxedPromptBuilder.sandbox_evidence_context(vector_context, nonce)}"
+            if vector_context
+            else "向量检索上下文:\n无"
+        )
+        graph_section = (
+            f"图谱上下文:\n{SandboxedPromptBuilder.sandbox_evidence_context(graph_context, nonce)}"
+            if graph_context
+            else "图谱上下文:\n无"
+        )
+        web_section = (
+            f"联网补充上下文:\n{SandboxedPromptBuilder.sandbox_evidence_context(web_context, nonce)}"
+            if web_context
+            else "联网补充上下文:\n无"
+        )
+    else:
+        user_section = f"用户问题:\n{question}"
+        vector_section = f"向量检索上下文:\n{vector_context or '无'}"
+        graph_section = f"图谱上下文:\n{graph_context or '无'}"
+        web_section = f"联网补充上下文:\n{web_context or '无'}"
+
     return (
         f"{language_hint}"
         f"技能: {skill_name}\n\n"
-        f"用户问题:\n{question}\n\n"
+        f"{user_section}\n\n"
         f"记忆上下文:\n{memory_context or '无'}\n\n"
-        f"向量检索上下文:\n{vector_context or '无'}\n\n"
-        f"图谱上下文:\n{graph_context or '无'}\n\n"
-        f"联网补充上下文:\n{web_context or '无'}\n"
+        f"{vector_section}\n\n"
+        f"{graph_section}\n\n"
+        f"{web_section}\n"
         f"{template_section}"
     )
 
 
-def _evidence_generation_prompt(allowed_labels: Collection[str]) -> str:
+def _evidence_generation_prompt(
+    allowed_labels: Collection[str],
+    nonce: str = "",
+    canary: str = "",
+) -> str:
     markers = ", ".join(f"[{label}]" for label in sorted(allowed_labels))
-    return (
+    base = (
         f"{ANSWER_PROMPT}\n\n"
         "Allowed citation markers from retrieved evidence: "
         f"{markers}. Use only these exact markers; never invent citation markers."
     )
+    if nonce and canary:
+        base += f"\n\n{SandboxedPromptBuilder.build_security_invariants(nonce, canary)}"
+    return base
 
 
 def _evidence_review_prompt(allowed_labels: Collection[str]) -> str:
@@ -447,9 +479,14 @@ def synthesize_answer(
     detected_language = force_language if force_language else detect_language(question)
     _log_language_detection(question, detected_language, force_language, session_id)
 
+    settings = get_settings()
+    defense_enabled = bool(getattr(settings, "prompt_injection_defense_enabled", True))
+    nonce = SandboxedPromptBuilder.generate_nonce() if defense_enabled else ""
+    canary = SandboxedPromptBuilder.generate_canary() if defense_enabled else ""
+
     allowed_labels = citation_labels_from_contexts(vector_context, graph_context, web_context)
 
-    # Build prompt with language hint
+    # Build prompt with language hint and sandboxed boundaries
     prompt = _build_prompt_with_language(
         question=question,
         detected_language=detected_language,
@@ -459,13 +496,25 @@ def synthesize_answer(
         graph_context=graph_context,
         web_context=web_context,
         include_evidence_guidance=bool(allowed_labels),
+        nonce=nonce,
     )
-    system_prompt = _evidence_generation_prompt(allowed_labels) if allowed_labels else NO_EVIDENCE_ANSWER_PROMPT
+    if allowed_labels:
+        system_prompt = _evidence_generation_prompt(allowed_labels, nonce=nonce, canary=canary)
+    else:
+        system_prompt = NO_EVIDENCE_ANSWER_PROMPT
+        if nonce and canary:
+            system_prompt = (
+                f"{NO_EVIDENCE_ANSWER_PROMPT}\n\n{SandboxedPromptBuilder.build_security_invariants(nonce, canary)}"
+            )
 
     try:
         with bulkhead("llm"):
             model = _build_generation_model(use_reasoning=use_reasoning, question=question)
             initial = _generate_initial_content(model, system_prompt, prompt, on_token)
+        # No silent substitution of the offline stand-in: a configured provider
+        # that fails must surface as `generation_failed`, which the synthesizer
+        # service turns into an explicit evidence summary, rather than as a
+        # keyword-assembled answer that reads like the configured model ran.
         if not initial:
             return {
                 "answer": synthesis_fallback("generation_failed", detected_language),
@@ -485,6 +534,13 @@ def synthesize_answer(
                 detected_language=detected_language,
             )
         final_answer = normalize_answer_citations(final_answer, allowed_labels)
+
+        # Output injection & canary token verification
+        if defense_enabled and canary:
+            final_answer, val_report = OutputInjectionValidator.validate_output(final_answer, canary_token=canary)
+            if val_report.get("compromised"):
+                final_answer = synthesis_fallback("generation_failed", detected_language)
+
         if not final_answer:
             final_answer = synthesis_fallback("generation_failed", detected_language)
 
@@ -606,9 +662,13 @@ def stream_synthesize_answer(
     logger.info(f"Streaming synthesis language: {detected_language} (forced={bool(force_language)})")
     _log_language_detection(question, detected_language, force_language, session_id)
 
+    settings = get_settings()
+    defense_enabled = bool(getattr(settings, "prompt_injection_defense_enabled", True))
+    nonce = SandboxedPromptBuilder.generate_nonce() if defense_enabled else ""
+
     allowed_labels = citation_labels_from_contexts(vector_context, graph_context, web_context)
 
-    # Build prompt with language hint
+    # Build prompt with language hint and sandboxed boundaries
     prompt = _build_prompt_with_language(
         question=question,
         detected_language=detected_language,
@@ -617,6 +677,7 @@ def stream_synthesize_answer(
         vector_context=vector_context,
         graph_context=graph_context,
         web_context=web_context,
+        nonce=nonce,
     )
 
     try:

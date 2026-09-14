@@ -184,6 +184,8 @@ def _score_and_normalize_entities(raw_entities: list[dict], tokens: list[str], c
         scored_entities.append(
             {
                 "entity": entity_name,
+                "type": str(row.get("type", "CONCEPT") or "CONCEPT"),
+                "description": str(row.get("description", "") or ""),
                 "relations": normalized_rels,
                 "relevance": relevance,
                 "raw_name": raw_entity_name,
@@ -260,7 +262,7 @@ def graph_lookup_enhanced(
     max_paths: int = 10,
 ) -> dict:
     """
-    Enhanced graph lookup with better accuracy for PDF content.
+    Enhanced graph lookup with better accuracy for PDF and tabular content.
 
     Improvements over basic graph_lookup:
     - Better entity normalization and alias matching
@@ -279,7 +281,8 @@ def graph_lookup_enhanced(
     Returns:
         Dictionary with entities, neighbors, paths, and enhanced scoring
     """
-    # Extract and normalize tokens
+    # Extract and normalize tokens from the question -- the only input that
+    # chooses which entities are looked up.
     raw_tokens = TOKEN_PATTERN.findall(question)
     tokens = [_normalize_token(token) for token in raw_tokens if _normalize_token(token)]
 
@@ -371,18 +374,39 @@ def graph_lookup_enhanced(
             )
 
             # Remove internal scoring fields from output
-            clean_entities = [{"entity": entity["entity"], "relations": entity["relations"]} for entity in top_entities]
+            clean_entities = [
+                {
+                    "entity": entity["entity"],
+                    "type": entity.get("type", "CONCEPT"),
+                    "description": entity.get("description", ""),
+                    "relations": entity["relations"],
+                }
+                for entity in top_entities
+            ]
+
+            # Check for macro/thematic communities (Global Search aspect)
+            from app.graph.knowledge.community import global_graph_search, is_macro_thematic_query
+
+            community_info = None
+            if is_macro_thematic_query(question) or len(top_entities) <= 1:
+                try:
+                    community_info = global_graph_search(question, limit=3, allowed_sources=allowed_sources)
+                except Exception as comm_err:
+                    logger.debug("Community global search fallback: %s", comm_err)
 
             return {
                 "entities": clean_entities,
                 "neighbors": neighbor_rows,
                 "paths": path_rows,
+                "communities": (community_info or {}).get("communities", []),
+                "community_context": (community_info or {}).get("context", ""),
                 "graph_signal_score": graph_signal_score,
                 "confidence": confidence,
                 "diagnostics": {
                     "query_tokens": len(tokens),
                     "context_quality": context_quality,
                     "top_entity_relevance": top_entities[0]["relevance"] if top_entities else 0.0,
+                    "global_search_ran": bool(community_info and community_info.get("communities")),
                 },
             }
 

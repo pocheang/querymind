@@ -259,28 +259,53 @@ def _index_one_table(extractor: Any, table: Any, canonical: dict[str, Any]) -> b
     if not headers and not rows:
         return False
     sheet = str(getattr(table, "sheet", "") or "")
+    cols_preview = ", ".join(headers[:8]) if headers else ""
+    summary = (
+        f"Table on page {table.page}"
+        + (f" (sheet: {sheet})" if sheet else "")
+        + (f" with columns: {cols_preview}" if cols_preview else "")
+        + f" ({len(rows)} rows, {len(headers)} columns)"
+    )
     try:
-        extractor.index_table(
-            TableContent(
-                table_id=table.table_id,
-                doc_id=str(canonical.get("document_id", "") or ""),
-                page_number=table.page,
-                headers=headers,
-                rows=rows,
-                summary=f"Table on page {table.page}" + (f" (sheet: {sheet})" if sheet else ""),
-                metadata={
-                    "document_id": str(canonical.get("document_id", "") or ""),
-                    "tenant_id": str(canonical.get("tenant_id", "") or ""),
-                    "owner_user_id": str(canonical.get("owner_user_id", "") or ""),
-                    "visibility": str(canonical.get("visibility", "private") or "private"),
-                    "version": int(canonical.get("version", 1) or 1),
-                    "source": str(canonical.get("source", "") or ""),
-                    "num_rows": len(rows),
-                    "num_cols": len(headers),
-                    "extraction_method": "loader_markdown",
-                },
-            )
+        content = TableContent(
+            table_id=table.table_id,
+            doc_id=str(canonical.get("document_id", "") or ""),
+            page_number=table.page,
+            headers=headers,
+            rows=rows,
+            summary=summary,
+            metadata={
+                "document_id": str(canonical.get("document_id", "") or ""),
+                "tenant_id": str(canonical.get("tenant_id", "") or ""),
+                "owner_user_id": str(canonical.get("owner_user_id", "") or ""),
+                "visibility": str(canonical.get("visibility", "private") or "private"),
+                "version": int(canonical.get("version", 1) or 1),
+                "source": str(canonical.get("source", "") or ""),
+                "sheet": sheet,
+                "table_id": table.table_id,
+                "num_rows": len(rows),
+                "num_cols": len(headers),
+                "extraction_method": "loader_markdown",
+            },
         )
+        extractor.index_table(content)
+
+        # Register in TableStore for exact SQL analytics, carrying the same
+        # ownership the vector index was just given -- the store refuses reads
+        # by anyone the document's visibility does not admit.
+        try:
+            from app.services.tables.store import get_table_store
+
+            get_table_store().save_table(
+                str(canonical.get("tenant_id", "") or ""),
+                content,
+                owner_user_id=str(canonical.get("owner_user_id", "") or ""),
+                visibility=str(canonical.get("visibility", "private") or "private"),
+                source=str(canonical.get("source", "") or ""),
+            )
+        except Exception as te:
+            logger.debug(f"TableStore registration skipped for {table.table_id}: {te}")
+
         return True
     except Exception as e:
         logger.warning(f"table_index_failed table_id={table.table_id} error={e}")
@@ -430,6 +455,11 @@ def _triplet_rows(
                         "head": triplet.head,
                         "relation": triplet.relation,
                         "tail": triplet.tail,
+                        "head_type": getattr(triplet, "head_type", "CONCEPT"),
+                        "tail_type": getattr(triplet, "tail_type", "CONCEPT"),
+                        "head_description": getattr(triplet, "head_description", ""),
+                        "tail_description": getattr(triplet, "tail_description", ""),
+                        "relation_description": getattr(triplet, "relation_description", ""),
                         **provenance,
                         "confidence": triplet.confidence,
                     }
@@ -502,6 +532,13 @@ def _insert_triplets(
 
     try:
         count = client.batch_upsert_triplets(rows)
+        if count > 0:
+            try:
+                from app.graph.knowledge.community import build_communities_from_rows
+
+                build_communities_from_rows(rows, client=client)
+            except Exception as comm_err:
+                logger.debug("Community auto-clustering after ingest skipped or failed: %s", comm_err)
     except Exception:
         logger.exception(f"Failed to batch insert {len(rows)} triplets to Neo4j. Graph features may be incomplete.")
         return 0

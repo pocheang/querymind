@@ -222,6 +222,7 @@ def similarity_search(
         k: 返回结果数量
         allowed_sources: 允许的文档源列表（用于用户隔离）
         require_source_filter: 是否强制要求提供 allowed_sources（默认 True，用于安全隔离）
+        owner: 拥有者范围
 
     Returns:
         相似文档列表及其相关性分数

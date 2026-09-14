@@ -15,7 +15,7 @@ from app.domain.workflow import ContextBundle
 from app.knowledge.adapters import KnowledgeAdapter, build_default_adapters, flatten_ranked_groups
 from app.knowledge.context import ContextBuilder
 from app.knowledge.deduplication import deduplicate_evidence
-from app.knowledge.fusion import reciprocal_rank_fuse, rerank_evidence
+from app.knowledge.fusion import cross_modal_hybrid_resonance, reciprocal_rank_fuse, rerank_evidence
 from app.knowledge.queries import unique_queries as _unique_queries
 from app.privacy.dlp import mask_evidence
 from app.services.query.rule_rewrite import build_rewrite_queries
@@ -106,6 +106,7 @@ class KnowledgeOrchestrator:
         ranked_lists = tuple(group for outcome in outcomes if outcome.status == "completed" for group in outcome.groups)
         fused = reciprocal_rank_fuse(ranked_lists, rrf_k=self._rrf_k)
         deduplicated = deduplicate_evidence(fused)
+        resonated, hybrid_matches = cross_modal_hybrid_resonance(deduplicated)
         primary_query = strategy.sources[0].queries[0]
         # The Knowledge Agent sizes the answer set together with the search that
         # produces it; the setting is the default when it has no opinion.
@@ -113,13 +114,13 @@ class KnowledgeOrchestrator:
         if strategy.rerank:
             reranked, reranker_diagnostics = await rerank_evidence(
                 primary_query,
-                deduplicated,
+                resonated,
                 top_n=rerank_top_n,
                 timeout_ms=self._reranker_timeout_ms,
                 enabled=self._reranker_enabled,
             )
         else:
-            reranked = deduplicated[:rerank_top_n]
+            reranked = resonated[:rerank_top_n]
             reranker_diagnostics = {
                 "reranker_backend": "skipped",
                 "reranker_fallback_reason": "strategy_disabled",
@@ -151,6 +152,7 @@ class KnowledgeOrchestrator:
             "pre_fusion_count": sum(len(items) for items in ranked_lists),
             "post_rrf_count": len(fused),
             "post_dedup_count": len(deduplicated),
+            "hybrid_resonance_matches": hybrid_matches,
             "rrf_k": self._rrf_k,
             **reranker_diagnostics,
             "rerank_top_n": rerank_top_n,

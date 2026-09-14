@@ -228,3 +228,13 @@ def test_complexity_signal(query: str, expected: int) -> None:
     from app.knowledge.width import query_complexity
 
     assert query_complexity(query) == expected
+
+
+def test_a_user_enabled_web_search_is_kept_within_the_budget_ahead_of_keyword_guesses() -> None:
+    """The toggle is an explicit request, so when the plan's budget has to drop
+    sources, keyword matches go before web does -- but the budget itself is
+    never raised to make room. Raising it is what let a two-retrieval plan run
+    four sources."""
+    strategy = _decide(MANY_SOURCES, route=_route("vector", "bm25"), plan=_plan(3))
+
+    assert _sources(strategy) == ("vector", "bm25", "web")

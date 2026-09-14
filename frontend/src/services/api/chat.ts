@@ -16,15 +16,30 @@ import type {
   SessionSummary,
   UploadResponse,
 } from "@/types/api";
-import { ApiError, authFetch, authRequest, getToken, parseOrThrow, safeParsePayload, toUrl } from "@/services/http/client";
+import {
+  ApiError,
+  authFetch,
+  authRequest,
+  getToken,
+  parseOrThrow,
+  safeParsePayload,
+  toUrl,
+} from "@/services/http/client";
 import { authApi } from "@/services/api/auth";
-import { buildGetRequest, buildPatchRequest, buildPostRequest, buildQueryString, encodePathParam } from "@/lib/api-helpers";
+import {
+  buildGetRequest,
+  buildPatchRequest,
+  buildPostRequest,
+  buildQueryString,
+  encodePathParam,
+} from "@/lib/api-helpers";
 
 type AdvancedQueryInput = {
   query: string;
   sessionId?: string;
   enableDecomposition: boolean;
   enableSelfRag: boolean;
+  useWebFallback?: boolean;
   /** Resume a run whose governed action was awaiting confirmation. The backend
    *  replays the approved call rather than re-selecting a tool. */
   approvalToken?: string;
@@ -37,11 +52,13 @@ function citationList(value: unknown): Citation[] {
     if (typeof citation !== "object" || citation === null || Array.isArray(citation)) return [];
     const record = citation as Record<string, unknown>;
     if (typeof record.source !== "string") return [];
-    return [{
-      ...record,
-      source: record.source,
-      content: typeof record.content === "string" ? record.content : "",
-    }];
+    return [
+      {
+        ...record,
+        source: record.source,
+        content: typeof record.content === "string" ? record.content : "",
+      },
+    ];
   });
 }
 
@@ -51,11 +68,13 @@ function toolRunList(value: unknown): ToolRun[] {
     if (typeof run !== "object" || run === null || Array.isArray(run)) return [];
     const record = run as Record<string, unknown>;
     if (typeof record.tool_id !== "string" || typeof record.status !== "string") return [];
-    return [{
-      tool_id: record.tool_id,
-      status: record.status,
-      summary: typeof record.summary === "string" ? record.summary : "",
-    }];
+    return [
+      {
+        tool_id: record.tool_id,
+        status: record.status,
+        summary: typeof record.summary === "string" ? record.summary : "",
+      },
+    ];
   });
 }
 
@@ -71,7 +90,7 @@ function pendingApproval(value: unknown): PendingApproval | null {
 }
 
 function recordOrUndefined(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 }
 
 /**
@@ -107,11 +126,12 @@ export const queryApi = {
           ...(input.sessionId ? { session_id: input.sessionId } : {}),
           enable_decomposition: input.enableDecomposition,
           enable_self_rag: input.enableSelfRag,
+          use_web_fallback: input.useWebFallback ?? false,
           timeout_ms: QUERY_DEADLINE_MS,
           ...(input.approvalToken ? { approval_token: input.approvalToken } : {}),
         }),
       },
-      { timeoutMs: QUERY_ABORT_MS },
+      { timeoutMs: QUERY_ABORT_MS }
     );
     const payload = await parseOrThrow<AdvancedQueryResponse>(res);
     const metadata = recordOrUndefined(payload.metadata) ?? {};
@@ -140,38 +160,29 @@ export const sessionApi = {
     return authRequest<SessionDetail>(`/sessions/${encodePathParam(sessionId)}`, { signal });
   },
   sessionDelete(sessionId: string) {
-    return authRequest<{ ok: boolean; session_id: string }>(`/sessions/${encodePathParam(sessionId)}`, { method: "DELETE" });
+    return authRequest<{ ok: boolean; session_id: string }>(`/sessions/${encodePathParam(sessionId)}`, {
+      method: "DELETE",
+    });
   },
   sessionRename(sessionId: string, title: string) {
-    return buildPatchRequest<SessionDetail>(
-      `/sessions/${encodePathParam(sessionId)}`,
-      { title },
-    );
+    return buildPatchRequest<SessionDetail>(`/sessions/${encodePathParam(sessionId)}`, { title });
   },
   sessionPin(sessionId: string, pinned: boolean) {
-    return buildPatchRequest<SessionDetail>(
-      `/sessions/${encodePathParam(sessionId)}`,
-      { pinned },
-    );
+    return buildPatchRequest<SessionDetail>(`/sessions/${encodePathParam(sessionId)}`, { pinned });
   },
-  messageUpdate(
-    sessionId: string,
-    messageId: string,
-    content: string,
-    rerun: boolean,
-  ) {
+  messageUpdate(sessionId: string, messageId: string, content: string, rerun: boolean) {
     const qs = buildQueryString({
       rerun: rerun ? "true" : "false",
     });
     return buildPatchRequest<SessionDetail>(
       `/sessions/${encodePathParam(sessionId)}/messages/${encodePathParam(messageId)}?${qs}`,
-      { content },
+      { content }
     );
   },
   messageDelete(sessionId: string, messageId: string) {
     return authRequest<SessionDetail>(
       `/sessions/${encodePathParam(sessionId)}/messages/${encodePathParam(messageId)}`,
-      { method: "DELETE" },
+      { method: "DELETE" }
     );
   },
 };
@@ -180,7 +191,7 @@ export const documentApi = {
   upload(
     files: File[],
     onProgress?: (percent: number) => void,
-    visibility: "private" | "public" = "private",
+    visibility: "private" | "public" = "private"
   ): Promise<UploadResponse> {
     if (!onProgress) {
       return (async () => {
@@ -228,9 +239,10 @@ export const documentApi = {
           return;
         }
         if (xhr.status < 200 || xhr.status >= 300) {
-          const detail = payload && typeof payload === "object" && !Array.isArray(payload)
-            ? (payload as Record<string, unknown>).detail
-            : undefined;
+          const detail =
+            payload && typeof payload === "object" && !Array.isArray(payload)
+              ? (payload as Record<string, unknown>).detail
+              : undefined;
           reject(new ApiError(xhr.status, typeof detail === "string" ? detail : "request failed"));
           return;
         }
@@ -246,7 +258,9 @@ export const documentApi = {
   },
 
   deleteDocument(filename: string) {
-    return authFetch(`/documents/${encodePathParam(filename)}`, { method: "DELETE" }).then(parseOrThrow<{ ok: boolean; filename: string }>);
+    return authFetch(`/documents/${encodePathParam(filename)}`, { method: "DELETE" }).then(
+      parseOrThrow<{ ok: boolean; filename: string }>
+    );
   },
 
   // Prefer the document_id form: a filename is not an identifier (two users
@@ -262,7 +276,9 @@ export const documentApi = {
   },
 
   reindexDocument(filename: string) {
-    return authFetch(`/documents/${encodePathParam(filename)}/reindex`, { method: "POST" }).then(parseOrThrow<FileIndexActionResponse>);
+    return authFetch(`/documents/${encodePathParam(filename)}/reindex`, { method: "POST" }).then(
+      parseOrThrow<FileIndexActionResponse>
+    );
   },
 
   async documentReindex(filename: string, source: string, documentId?: string | null) {
@@ -315,8 +331,6 @@ export const clarificationApi = {
   },
 
   getClarificationContext(sessionId: string) {
-    return buildGetRequest<ClarificationContext>(
-      `/api/v1/clarification/context/${encodePathParam(sessionId)}`
-    );
+    return buildGetRequest<ClarificationContext>(`/api/v1/clarification/context/${encodePathParam(sessionId)}`);
   },
 };

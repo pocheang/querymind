@@ -1,5 +1,11 @@
+import logging
 import re
 import unicodedata
+
+from app.core.config import get_settings
+from app.services.security.injection_defense import TextDeobfuscator, detect_prompt_injection
+
+logger = logging.getLogger(__name__)
 
 _MULTI_PUNCT_RE = re.compile(r"[!?！？。．\.]{3,}")
 _SPACE_RE = re.compile(r"[ \u3000\t]+")
@@ -35,8 +41,8 @@ _SHORT_TOKEN_RE = re.compile(r"[\u4e00-\u9fffA-Za-z0-9_]+")
 
 
 def normalize_user_question(question: str) -> str:
-    text = unicodedata.normalize("NFKC", str(question or ""))
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    cleaned = TextDeobfuscator.clean(str(question or ""))
+    text = cleaned.replace("\r\n", "\n").replace("\r", "\n")
 
     chars: list[str] = []
     for ch in text:
@@ -62,13 +68,31 @@ def normalize_user_question(question: str) -> str:
 def validate_user_question_security(question: str) -> None:
     text = str(question or "")
     danger = _DANGEROUS_COMMAND_RE.search(text)
-    injection = _PROMPT_INJECTION_RE.search(text)
     action_intent = _ACTION_INTENT_RE.search(text)
 
     if danger and action_intent:
         raise ValueError(f"question blocked: potentially dangerous instruction '{danger.group(0)}'")
-    if injection:
-        raise ValueError("question blocked: prompt-injection like instruction detected")
+
+    # Run state-of-the-art injection detector
+    settings = get_settings()
+    defense_enabled = bool(getattr(settings, "prompt_injection_defense_enabled", True))
+    if defense_enabled:
+        assessment = detect_prompt_injection(text)
+        if assessment.is_blocked:
+            logger.warning(
+                "Prompt injection blocked: threat=%s risk=%.2f rules=%s",
+                assessment.threat_type,
+                assessment.risk_score,
+                assessment.matched_rules,
+            )
+            raise ValueError(
+                f"question blocked: prompt-injection like instruction detected ({assessment.threat_type.value if assessment.threat_type else 'threat'})"
+            )
+    else:
+        # Fallback legacy regex if defense is explicitly disabled
+        injection = _PROMPT_INJECTION_RE.search(text)
+        if injection:
+            raise ValueError("question blocked: prompt-injection like instruction detected")
 
 
 def normalize_and_validate_user_question(question: str) -> str:

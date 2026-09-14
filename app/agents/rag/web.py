@@ -160,13 +160,21 @@ def run_web_research(
         logger.info("Query sanitized before web search")
 
     settings = get_settings()
-    allowlist = _parse_allowlist(getattr(settings, "web_domain_allowlist", ""))
+    raw_allowlist = getattr(settings, "web_domain_allowlist", "")
+    parsed_allowlist = _parse_allowlist(raw_allowlist)
+    strict_mode = getattr(settings, "web_strict_allowlist", True)
 
-    # Adjust min_score based on whether allowlist is provided
-    if allowlist:
+    # If "*" is in allowlist or strict_mode is disabled, use open trust scoring mode
+    if "*" in parsed_allowlist or not strict_mode:
+        allowlist = []
+        min_score = float(getattr(settings, "web_min_source_score", 0.2) or 0.2)
+        logger.info(f"Using open scoring mode with min_score={min_score}")
+    elif parsed_allowlist:
+        allowlist = parsed_allowlist
         min_score = 0.5  # Only accept whitelisted domains (score=1.0)
         logger.info(f"Using whitelist mode with {len(allowlist)} allowed domains")
     else:
+        allowlist = []
         min_score = float(getattr(settings, "web_min_source_score", 0.6) or 0.6)
         logger.info(f"Using TLD scoring mode with min_score={min_score}")
 

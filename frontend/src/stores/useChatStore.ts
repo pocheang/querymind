@@ -23,6 +23,7 @@ export interface ChatState {
   runStatus: string;
   agentClassHint: AgentClassHint;
   pdfTargetFile: string;
+  useWebSearch: boolean;
 
   // Document State
   documents: IndexedFileSummary[];
@@ -63,6 +64,7 @@ export interface ChatState {
   setRunStatus: (status: Updater<string>) => void;
   setAgentClassHint: (hint: Updater<AgentClassHint>) => void;
   setPdfTargetFile: (file: Updater<string>) => void;
+  setUseWebSearch: (useWebSearch: Updater<boolean>) => void;
 
   setDocuments: (docs: Updater<IndexedFileSummary[]>) => void;
   setDocsLoading: (loading: Updater<boolean>) => void;
@@ -125,6 +127,7 @@ const INITIAL_STATE: ChatData = {
   runStatus: "",
   agentClassHint: "",
   pdfTargetFile: "",
+  useWebSearch: false,
 
   // Document State
   documents: [],
@@ -169,6 +172,7 @@ export const useChatStore = create<ChatState>((set) => ({
   setRunStatus: (val) => set((s) => ({ runStatus: updateValue(val, s.runStatus) })),
   setAgentClassHint: (val) => set((s) => ({ agentClassHint: updateValue(val, s.agentClassHint) })),
   setPdfTargetFile: (val) => set((s) => ({ pdfTargetFile: updateValue(val, s.pdfTargetFile) })),
+  setUseWebSearch: (val) => set((s) => ({ useWebSearch: updateValue(val, s.useWebSearch) })),
 
   setDocuments: (val) => set((s) => ({ documents: updateValue(val, s.documents) })),
   setDocsLoading: (val) => set((s) => ({ docsLoading: updateValue(val, s.docsLoading) })),

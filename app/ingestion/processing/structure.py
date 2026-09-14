@@ -22,6 +22,7 @@ class DocumentSection:
 
 
 _NUMBERED_HEADING_RE = re.compile(r"^(\d+\.)+\s+[A-Z]")
+_ROW_LABEL_HEADING_RE = re.compile(r"^#+\s*\(Rows?\s+\d+(?:-\d+)?\s+of\s+\d+.*\)$", re.IGNORECASE)
 
 
 def _markdown_heading(line: str) -> int | None:
@@ -88,6 +89,9 @@ def detect_heading_level(line: str) -> int | None:
     # and coreference resolution were discarded along with the structure, and the
     # switch could not usefully be turned on.
     if not line:
+        return None
+
+    if _ROW_LABEL_HEADING_RE.match(line):
         return None
 
     for rule in _HEADING_RULES:

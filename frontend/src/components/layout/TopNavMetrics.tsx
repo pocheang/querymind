@@ -65,6 +65,7 @@ export function TopNavMetrics() {
 
   const latency = overview.avg_total_time_ms;
   const success = overview.success_rate;
+  const successPct = success <= 1.0 ? success * 100 : success;
 
   return (
     <div className="ml-2 hidden items-center gap-3 text-xs font-medium text-ink/80 xl:flex">
@@ -78,8 +79,8 @@ export function TopNavMetrics() {
       </span>
       <Metric
         label={t("components.topNav.successRate", "Success")}
-        value={`${(success * 100).toFixed(1)}%`}
-        tone={success >= 0.95 ? "good" : "warn"}
+        value={`${successPct.toFixed(1)}%`}
+        tone={successPct >= 95 ? "good" : "warn"}
       />
     </div>
   );
@@ -88,8 +89,7 @@ export function TopNavMetrics() {
 function Metric({ label, value, tone }: Readonly<{ label: string; value: string; tone: "good" | "warn" }>) {
   return (
     <span className="whitespace-nowrap">
-      {label}:{" "}
-      <b className={`font-mono font-semibold ${tone === "good" ? "text-success" : "text-warning"}`}>{value}</b>
+      {label}: <b className={`font-mono font-semibold ${tone === "good" ? "text-success" : "text-warning"}`}>{value}</b>
     </span>
   );
 }

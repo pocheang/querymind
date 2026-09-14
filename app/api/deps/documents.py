@@ -100,4 +100,6 @@ def _is_probably_valid_upload_signature(suffix: str, head: bytes) -> bool:
         return prefix.startswith(b"PK\x03\x04")
     if suffix == ".xls":
         return prefix.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1")
+    if suffix == ".csv":
+        return not prefix.startswith((b"MZ", b"\x7fELF", b"\xca\xfe\xba\xbe", b"\xfe\xed\xfa\xce"))
     return True

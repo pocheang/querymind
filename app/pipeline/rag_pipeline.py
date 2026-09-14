@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from typing import Any, Protocol
 
+from app.core.config import get_settings
 from app.domain.contracts import FinalAnswer
 from app.orchestration.capabilities import CoreCapabilities
 from app.orchestration.engine import OrchestrationEngine
@@ -24,6 +25,7 @@ from app.pipeline.contracts import (
     to_orchestration_request,
 )
 from app.pipeline.profiles import PipelineProfile
+from app.services.query.input_normalizer import validate_user_question_security
 
 
 def _parse_citation_label(label: str) -> PipelineCitation:
@@ -110,6 +112,8 @@ class RAGPipeline:
         selected = request.profile if profile is None else PipelineProfile(profile)
         if selected != request.profile:
             raise ValueError("Pipeline profile must match PipelineRequest.profile")
+        if getattr(get_settings(), "prompt_injection_defense_enabled", True):
+            validate_user_question_security(request.question)
         orchestration_request = to_orchestration_request(request)
         answer = await self._engine_for(selected).execute(orchestration_request)
         return self._result_from_final_answer(selected, answer)
@@ -126,6 +130,8 @@ class RAGPipeline:
     ) -> AsyncIterator[dict[str, Any]]:
         del result_postprocessor
         selected = request.profile
+        if getattr(get_settings(), "prompt_injection_defense_enabled", True):
+            validate_user_question_security(request.question)
         orchestration_request = to_orchestration_request(request).model_copy(update={"execution_id": execution_id})
         async for event in self._engine_for(selected).execute_stream(orchestration_request):
             yield event
