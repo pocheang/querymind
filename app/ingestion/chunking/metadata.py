@@ -272,9 +272,13 @@ def extract_entities(text: str) -> dict[str, list[str]]:
         entities["acronyms"] = _first_distinct(acronyms, 5)
 
     # 数字（版本号、ID等，过滤掉行号坐标标记如 (Rows 1-20 of 50)）
-    # `[^)\n]*` is what the lazy `.*?` meant (up to the first ")" on the line),
-    # without a lazy scan that can be restarted from every offset (python:S8786).
-    cleaned_for_numbers = re.sub(r"\(Rows?\s+\d+(?:-\d+)?\s+of\s+\d+[^)\n]*\)", " ", text, flags=re.IGNORECASE)
+    # What the lazy `.*?` meant -- up to the first ")" on the line -- without a
+    # class that also matches digits sitting next to `\d+` and competing with it
+    # for the same characters (python:S8786). The label's tail must start with a
+    # non-digit, which `\d+` being greedy made true of every match anyway.
+    cleaned_for_numbers = re.sub(
+        r"\(Rows?\s+\d+(?:-\d+)?\s+of\s+\d+(?:[^)\d\n][^)\n]*)?\)", " ", text, flags=re.IGNORECASE
+    )
     numbers = re.findall(r"\b\d+(?:\.\d+)*\b", cleaned_for_numbers)
     if numbers:
         entities["numbers"] = _first_distinct(numbers, 5)
