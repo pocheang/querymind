@@ -124,6 +124,15 @@ because a genuinely absent package is still satisfied from `sys.modules` and a
 test that injects a fake there must keep working -- the first version got that
 wrong and reported a failure CI does not have, which is worse than no simulation:
 it sends you to fix code that is not broken.
+**Packages were not the only difference, and on 2026-09-14 that reached CI.** Three
+table-tool tests passed under `make test-ci` and failed in CI: the governed tool stack
+requires `API_SETTINGS_ENCRYPTION_KEY`, and the developer's rendered
+`.runtime/development.env` supplied one that a CI checkout never has. The opposite
+case showed up the same day -- tests failing locally and not in CI, because the local
+Chroma store held 1024-dim vectors and CI starts with none. The plugin now also points
+`RUNTIME_ENV_FILE` at an empty file and `CHROMA_PERSIST_DIR` / `APP_DB_PATH` at a
+temporary directory, unless the caller set them, and says so in the line it prints.
+
 `tests/core/test_ci_import_environment.py` checks the blocked set against
 `requirements/ci.txt` in both directions, so it cannot claim CI lacks something
 CI installs, and cannot shrink to nothing and keep reporting success.

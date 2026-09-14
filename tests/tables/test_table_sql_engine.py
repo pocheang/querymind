@@ -2,14 +2,43 @@
 
 from __future__ import annotations
 
+import shutil
+import tempfile
+from pathlib import Path
+
 import pytest
 
+from app.core.config import get_settings
+from app.mcp.runtime import reset_tool_stack
 from app.services.multimodal.models import TableContent
 from app.services.tables.engine import TableEngine, _clean_and_parse_value, _sanitize_column_name
 from app.services.tables.nl2sql import (
     match_template_aggregation,
 )
 from app.services.tables.store import TableStore, get_table_store
+
+
+@pytest.fixture
+def _tool_stack(monkeypatch):
+    """What the governed tool stack needs, without the developer's runtime env.
+
+    `get_tool_stack()` refuses to build without API_SETTINGS_ENCRYPTION_KEY. These
+    tests passed locally only because `.runtime/development.env` supplies one; CI
+    renders no such file and they failed there. Same shape as the connector tool
+    tests: a test key, the app database in a throwaway directory (deliberately not
+    tmp_path -- see tests/mcp/test_tool_stack_sharing.py), a fresh stack.
+    """
+    monkeypatch.setenv("API_SETTINGS_ENCRYPTION_KEY", "test-key-for-table-tool")
+    root = Path(tempfile.mkdtemp(prefix="querymind-table-tool-"))
+    monkeypatch.setenv("APP_DB_PATH", str(root / "app.db"))
+    get_settings.cache_clear()
+    reset_tool_stack()
+    try:
+        yield
+    finally:
+        reset_tool_stack()
+        get_settings.cache_clear()
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_sanitize_column_name() -> None:
@@ -312,6 +341,7 @@ def test_ingest_pipeline_registers_table_in_table_store() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("_tool_stack")
 async def test_mcp_querymind_table_query_tool() -> None:
     from app.mcp.contracts import ToolArgument, ToolCall
     from app.mcp.runtime import QUERY_TABLE_TOOL_ID, get_tool_stack
@@ -369,6 +399,7 @@ def test_nl2sql_prompt_injection_guardrail() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("_tool_stack")
 async def test_mcp_table_tool_blocks_prompt_injection() -> None:
     from app.mcp.contracts import ToolArgument, ToolCall
     from app.mcp.runtime import QUERY_TABLE_TOOL_ID, get_tool_stack
@@ -403,6 +434,7 @@ async def test_mcp_table_tool_blocks_prompt_injection() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("_tool_stack")
 async def test_mcp_table_tool_reports_another_users_table_as_not_found() -> None:
     from app.mcp.contracts import ToolArgument, ToolCall
     from app.mcp.runtime import QUERY_TABLE_TOOL_ID, get_tool_stack

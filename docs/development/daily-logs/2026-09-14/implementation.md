@@ -37,6 +37,13 @@
 
 结果：CI 模拟 1,960 passed / 3 skipped（Excel 场景）/ 0 failed。
 
+## 推送后 CI 失败与修复
+
+推送 `15a59a59` 后 CI 后端 Tests 失败（前一提交 `532cd7af` 为绿）。日志需要登录才能下载，改为在本地复刻 CI 配置：`RUNTIME_ENV_FILE` 指向空文件 + 全新数据目录 + 隐藏 CI 未安装的包，精确复现 3 个失败：表格工具测试需要 `API_SETTINGS_ENCRYPTION_KEY`，本机由 `.runtime/development.env` 提供，CI 没有。
+
+- 修复：三个测试使用与连接器工具测试相同形状的 fixture（测试密钥 + 临时 `APP_DB_PATH` + 重置工具栈）。
+- 根治：`scripts/ci_import_environment.py` 现在同时中和本机的运行时 env 文件与数据目录，`make test-ci` 与 CI 的配置一致，而不只是依赖包一致。
+
 ## 表格持久化的实测
 
 - 两个独立进程（非 pytest，真实 `get_table_store()`，DuckDB 1.5.5，`APP_DB_PATH` 指向会话临时库）：
@@ -50,7 +57,7 @@
   扫描上限 256MB 防解压炸弹），超过 20 万单元格或文件超过 20MB 就走只读模式、不做前向填充。
 - **关系描述分隔符**：`_DESC_SEP = "\x1f"`。第一次写入时控制字符以原始字节落盘（可用但不可见），已改成转义写法。
 - **社区 ID**：`comm_{sha256(source)[:12]}_{序号}`，同一来源重建前先删除旧社区，避免序号缩减时残留节点和 `BELONGS_TO` 边。
-- **格式化**：29 个文件 `ruff format`；前端只对本次改动的 6 个文件跑 prettier（全仓 198 个文件的历史格式问题不在本次范围）。
+- **格式化**：29 个文件 `ruff format`；前端 prettier 覆盖全部 116 个真实漂移的文件（另有 82 个只是 Windows CRLF 噪声，改 `endOfLine: auto` 后消失），单独成一个提交 `1a297493`。
 
 ## 遇到的问题
 
