@@ -4,16 +4,20 @@ Official release notes for QueryMind（智询）.
 
 ## Latest Release
 
-**[v0.7.0](v0.7.0-release-notes.md)** - 2026-09-11
-- Interactive pipeline & architecture flow visualization (5 perspectives)
-- Real-time LangGraph execution trace panel & step tree formatter
-- Interactive landing page feature modals & technical deep-dives
-- Production preview performance optimization (Vite proxy + bundle optimization)
+**[v0.7.0.1](v0.7.0.1-release-notes.md)** - 2026-09-14
+- Full CSV/TSV tabular ingestion with multi-encoding fallback and delimiter sniffing
+- Table-aware header-preserving chunking preventing column hallucination in RAG
+- Multi-sheet Excel context enrichment (`### Sheet: {name}`)
+- TableExtractor metadata enrichment and Word DOCX table extraction
+- Owner-scoped table SQL tool (DuckDB with external access disabled), per-source graph descriptions and communities
+- Prompt-injection screening, pluggable web-search providers and a composer web-search toggle
+- **Upgrade note**: graphs written by a pre-release build need a reingest or `POST /admin/graph-rag/communities/build`
 
 ## Recent Releases
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| [v0.7.0.1](v0.7.0.1-release-notes.md) | 2026-09-14 | Patch / Feature / Security | Table & Excel pipeline, CSV support, header retention chunking, owner-scoped table SQL, injection screening |
 | [v0.7.0](v0.7.0-release-notes.md) | 2026-09-11 | Major | Architecture visualization, execution trace, UI observability |
 | [v0.6.2.1](v0.6.2.1-release-notes.md) | 2026-07-18 | Infrastructure | Config governance, deployment standardization, docs restructure |
 

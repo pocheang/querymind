@@ -2,6 +2,67 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0.1] - 2026-09-14
+
+### 📊 Table & Excel Ingestion Pipeline Fixes & Header-Preserving Chunking Extension
+
+- **CSV/TSV Tabular Ingestion Support (NEW)**:
+  - Added `.csv` to accepted upload extensions in frontend (`ACCEPTED_UPLOAD_EXTENSIONS`) and backend document routes (`OFFICE_EXTENSIONS`).
+  - Added `_csv_rows` in `app/ingestion/loaders/office_loader.py` with multi-encoding fallback (`utf-8-sig`, `utf-8`, `gb18030`, `gbk`, `latin1`) and delimiter sniffing (`,`, `;`, `\t`, `|`).
+  - Integrated CSV directly into `ParsedDocument` as `TableBlock` with `modality="table"` and indexed into Chroma's dedicated `table_summaries` collection.
+- **Table-Aware Header-Preserving Chunking (FIX / MAJOR)**:
+  - Implemented `_split_markdown_table_text` in `app/ingestion/chunking/splitter.py` to preserve Markdown table headers (`| col1 | col2 | ... |` and separator line) across every single child chunk.
+  - Injected row span indicators (e.g. `(Rows 15-30 of 60)`) and sheet titles into each table chunk, eliminating column hallucination and context loss during RAG retrieval.
+- **Excel Merged-Cell Forward-Fill & Row Guardrails (NEW / ENHANCEMENT)**:
+  - Implemented `_extract_sheet_rows_with_merged_cells` in `office_loader.py` to inspect `sheet.merged_cells.ranges` and automatically forward-fill top-left values across merged cells, preserving category and department labels on all rows.
+  - Added `MAX_TABLE_ROWS = 5000` guardrail with automatic markdown truncation indicators to protect against memory bloat.
+- **Universal Non-Office `TableBlock` Extraction (PDF & Markdown)**:
+  - Enabled automatic extraction of Markdown pipe tables in `app/ingestion/loaders/dispatch.py` for PDF and Markdown files.
+  - Populates `ParsedDocument.tables` with globally unique `TableBlock` IDs, indexing non-Office tables into Chroma's `table_summaries`.
+- **Tabular & Spreadsheet Business Query Routing Expansion**:
+  - Expanded `_VISUAL_QUERY_PATTERN` in `app/agents/knowledge/service.py` to recognize Chinese and English business terms (`excel`, `csv`, `xlsx`, `tsv`, `spreadsheet`, `sheet`, `报表`, `明细`, `清单`, `台账`, `账单`, `数据表`).
+- **Nested & Irregular Table Normalization Bugfix**:
+  - Rewrote `detect_nested_table` and `flatten_nested_table` in `tables_nested.py`, fixing dead logic and using negative lookbehind `(?<!\\)\|` to safely preserve escaped pipes within cells.
+- **Multi-Sheet Excel Context Enrichment & DOCX Extraction**:
+  - Automatically injected `### Sheet: {sheet_name}\n\n` into Markdown table content in `_rows_to_markdown`.
+  - Implemented and exported `extract_markdown_tables` in `office_loader.py` for Word `.docx` and generic pipe table parsing.
+- **Enhanced TableExtractor & Dedicated Vector Indexing**:
+  - Enriched `format_table_as_text` in `app/services/multimodal/table_extractor.py` to include total rows, column schema overview, and sheet metadata.
+  - Added `sheet` and `columns` metadata to Chroma's `table_summaries` index.
+- **Automated Real-World Scenario & Regression Testing**:
+  - Added `tests/ingestion/test_real_world_tables.py` validating realistic multi-sheet merged Excel workbooks, procurement CSV ledgers, markdown architecture specs, and natural language query routing.
+  - Added `tests/ingestion/test_table_enhancements.py` and `tests/ingestion/test_table_excel_ingest.py`.
+
+### 🧮 Structured Table SQL, Rich Graph & Web Search (NEW)
+
+- **Table SQL tool** `querymind_table_query` (`app/mcp/runtime.py`) over `TableStore` / `TableEngine` (`app/services/tables/`): DuckDB with a SQLite fallback, NL2SQL by template matching with a guarded LLM path.
+- **Rich graph properties**: entity types and descriptions, community detection and global search (`app/graph/knowledge/community.py`), `POST /admin/graph-rag/communities/build`, a full-text entity index.
+- **Pluggable web search**: `duckduckgo`, `tavily`, `bing`, `searxng` via `WEB_SEARCH_PROVIDER`, with proxy, timeout and retry settings; a web-search toggle in the chat composer (`use_web_fallback`).
+- **Prompt-injection screening** (`app/services/security/injection_defense.py`): input detection, nonce-sandboxed prompts, canary tokens, output egress checks.
+
+### 🔒 Pre-merge Review Fixes (2026-09-14)
+
+- **Table isolation**: reads are owner-scoped (`user_id` keyword-only, the vector store's owner rule), every table has its own engine so a statement cannot name another table, and a deleted document's tables are dropped.
+- **Table persistence**: tables live in SQLite (`APP_DB_PATH`) with an LRU of in-memory engines over them, so they survive restarts and are shared by every worker; ownership and version are re-read on every call.
+- **Frontend formatting**: prettier applied to the 116 files that had drifted, `endOfLine: auto` so a Windows checkout agrees with Linux, and `npm run format:check` added to CI.
+- **DuckDB lockdown**: `enable_external_access=false` plus refused table functions (`read_text`, `read_csv*`, `glob`, `query`, `getenv`, ...); verified against duckdb 1.5.5.
+- **Graph isolation**: entity and relationship descriptions are stored and read per source; communities are built per source and returned only when every source is in scope; `seed_entities` taken from retrieved evidence was removed.
+- **Injection detector**: false positives fixed (developer-mode, `vssadmin`/`rm -rf` detection questions, names such as "Dan", `.gitignore` rules); image egress decided on the parsed host.
+- **Defaults restored**: `AUTH_EXPOSE_TOKEN_IN_RESPONSE=false`, `AUTH_COOKIE_SECURE=true`, `AUTH_COOKIE_SAMESITE=strict`; provider API keys and URLs are not console-editable.
+- **No silent substitution**: a failing provider is `generation_failed`, never the offline model; the chat vector path has no relevance-score floor (`VECTOR_SIMILARITY_THRESHOLD` default back to 0.2 -- a 0.30 floor left 3 of 16 eval queries with any vector result on hash embeddings).
+- **Runtime**: NL2SQL and community builds run off the event loop; the planner's retrieval budget is no longer raised; the web provider cache is cleared on config reload; an `.xlsx` declaring a huge merged range is streamed instead of loaded in full.
+
+### ⚠️ Upgrade Notes
+
+- Graphs written by a pre-release build keep descriptions where nothing reads them: reingest, or call `POST /admin/graph-rag/communities/build`.
+- `duckdb>=1.0.0` joins the `office` and `multimodal` extras.
+- SQL-queryable tables are persisted to a new `structured_tables` table in `APP_DB_PATH` (created on first use); tables ingested before this build must be reingested to become queryable.
+
+### ✅ Verification
+
+- Backend `pytest -q`: **1,966 passed, 0 failed**. Frontend vitest: **154 passed**; lint, type-check, `format:check`, build and dead-class checks clean. `ruff check` / `ruff format --check`: clean. Sensitive-content gate: PASS. OpenAPI operations: 157. CI simulation (`make test-ci` with fresh data dirs): 1,960 passed, 3 skipped (Excel cases without `openpyxl`).
+- Table persistence verified across two separate processes on DuckDB 1.5.5: a table saved by one is queryable by the other, invisible to another user, and a deletion in one is seen by the next.
+
 ## [0.7.0] - 2026-09-11
 
 ### 🚀 Canonical LangGraph Architecture, Multimodal Knowledge & Observability Release

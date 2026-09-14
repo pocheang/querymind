@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.0-brightgreen.svg?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.0.1-brightgreen.svg?style=flat-square" alt="Release"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.138+-009688.svg?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-18.3-61DAFB.svg?style=flat-square&logo=react&logoColor=black" alt="React"></a>
@@ -88,6 +88,7 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 | **Planner** | 复杂多步任务拆解 | 针对多实体对比或复合统计问题构建有向无环图（DAG），设定明确的任务预算上限。 |
 | **Retriever** | 混合多模态与图谱检索 | BGE-M3 + BM25 并行查询，经过 RRF 融合与 Cross-Encoder 重排，兼顾语义与精确匹配。 |
 | **Tool Runner** | 受控工具调用与环境交互 | 工具选择对检索文档盲调用（Prompt Injection 防御），具备调用频次与超时熔断。 |
+| **Table SQL** | 结构化表格精确分析 | 按文档属主隔离、一表一引擎；DuckDB 关闭外部文件/网络访问，只读 SQL 校验；表格持久化到 SQLite，重启与多 worker 一致。 |
 | **Synthesizer** | 引用优先文本生成 | 生成时注入 `[E1]`, `[E2]` 证据标记，并在流式传输过程中动态解析为前端锚点。 |
 | **Verifier** | 抗幻觉与事实一致性校验 | 基于自然语言推理（NLI）对比生成的陈述与召回切片，证据不足时自动增加对齐免责提示。 |
 | **Output DLP** | 数据防泄漏与最终过滤 | 在生成流与最终文本边界运行敏感词/正则扫描，屏蔽手机号、身份证、密钥等企业敏感资产。 |
@@ -101,11 +102,16 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 - **动态重排机制**：引入 BGE-Reranker-V2-M3 进行二阶段交叉注意力打分，根据提问复杂度自动缩放候选池窗口（Top-K: 10~30）。
 - **知识图谱协同 (Graph RAG)**：集成 Neo4j Cypher 查询，针对跨部门、跨实体多跳关联推理，自动提取子图关系补全上下文。
 - **多模态流式解析**：内置 PDF 解析引擎，支持流式解析、父子分块（Parent-Child 1500/600 字符切分）、表格结构化抽取与 Tesseract OCR 离线文字识别。
+- **表格与电子表格（v0.7.0.1）**：支持 Excel（`.xlsx`/`.xls`）、CSV、Word 内嵌表格；合并单元格前向填充；长表切块时每个切片都保留表头与行号范围（如 `(Rows 16-30 of 60)`），避免列错位幻觉；可通过 `querymind_table_query` 工具对表格做精确的求和、均值、分组等 SQL 分析。
+- **图谱富属性与社区摘要**：实体带类型与描述，社区检测支持宏观问题的全局检索；描述与社区摘要按文档来源存储和读取。
+- **可插拔联网检索**：`WEB_SEARCH_PROVIDER` 可选 DuckDuckGo / Tavily / Bing / SearXNG，支持代理、超时与重试；聊天输入框提供「联网」开关。
 
 ### 2. 🛡️ 确定性安全架构与输出合规 (Zero-Trust Security & DLP)
 - **非后置的数据隔离**：传统的 RAG 往往全量召回后再过滤未授权切片，容易造成泄露。QueryMind 在检索发起时直接在底层向量数据库与 SQL 查询条件中注入 `tenant_id` 与 `data_scope`。
 - **实时输出 DLP（Data Loss Prevention）**：在 SSE 字符流输出边界以滑动窗口检测敏感凭证、手机号、身份证和自定义正则规则，实时用掩码替换。
 - **安全日志脱敏**：用户提问与私密文档内容通过 AST 守卫拦截，日志系统仅记录不可逆的内容指纹与耗时度量，符合金融医疗合规要求。
+- **表格与图谱同样按归属隔离**：结构化表格只对文档属主（或公开文档、共享语料）可见，他人一律返回「不存在」；知识图谱的实体描述与社区摘要按来源授权，不会跨租户泄露。
+- **提示词注入防护**：输入侧识别指令覆盖、越狱与系统提示词探测（按意图而非关键词判断，不误拦安全分析类正常提问）；提示词沙箱化与金丝雀令牌检测泄露；输出侧拦截外链图片外传。
 
 ### 3. 🎨 极致的前端现代化与全景可观测性 (Modern Web & Observability)
 - **5 重动态视角流转图 (`PipelineFlowDiagram`)**：
@@ -156,6 +162,8 @@ conda activate rag-local
 
 # 2. 安装项目依赖
 pip install -e .
+# 可选：Excel / CSV 表格解析与表格 SQL 分析（openpyxl、pandas、DuckDB）
+pip install -e ".[office]"
 
 # 3. 启动 FastAPI 后端服务（自动初始化 SQLite 与内置 ChromaDB）
 uvicorn app.api.main:app --host 127.0.0.1 --port 8000
@@ -223,6 +231,7 @@ QueryMind Technology Stack
 │   ├── Graph Database: Neo4j 5.24+ (Cypher 图遍历，关系推理)
 │   ├── Search & Tokenizer: rank-bm25, jieba, Sentence-Transformers
 │   ├── Embeddings & Reranker: BGE-M3 (密集向量), BGE-Reranker-V2-M3
+│   ├── Table Analytics: DuckDB (只读、关闭外部访问) / SQLite 回退
 │   └── Database & Security: SQLite (本地轻量持久化), Passlib PBKDF2, PyJWT
 ├── Frontend Modern Web
 │   ├── Core Framework: React 18.3, TypeScript 5.9, Vite 6
@@ -233,7 +242,7 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (超高速 Linter & Formatter), Pre-commit
-    ├── Testing: Vitest (前端 150+ 用例), Pytest (后端 500+ 用例)
+    ├── Testing: Vitest (前端 154 用例), Pytest (后端 1,966 用例), Prettier (前端格式门禁)
     ├── Static Analysis: SonarCloud Cognitive Complexity (S3776 Clean)
     └── Observability: Prometheus Metrics (/metrics), Grafana Dashboard
 ```
@@ -268,7 +277,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # 模块化 Docker Compose 文件
 │   └── scripts/                # 容器健康检查与自动化部署脚本
 ├── docs/                       # 架构与开发文档中心
-│   └── releases/               # 历史版本发布说明 (v0.7.0 Release Notes)
+│   └── releases/               # 历史版本发布说明 (v0.7.0.1 Release Notes)
 ├── tests/                      # 自动化测试套件 (Pytest 单元、集成、安全回归测试)
 ├── pyproject.toml              # Python 构建配置与依赖锁定声明
 └── CLAUDE.md                   # 架构技术规范与工程实现备忘录
@@ -281,10 +290,11 @@ multi_agent_rag_local_v4/
 QueryMind 坚持严格的工程代码质量与安全规范，所有核心逻辑均包含自动化测试保障：
 
 ```bash
-# 1. 运行前端全套单元与组件测试 (154 项用例)
+# 1. 运行前端全套单元与组件测试 (154 项用例) 与格式检查
 cd frontend && npm test -- --run
+npm run format:check
 
-# 2. 运行后端核心业务与安全回归测试 (Pytest)
+# 2. 运行后端核心业务与安全回归测试 (Pytest, 1,966 项用例)
 pytest -q
 
 # 3. 运行代码静态检查与格式化验证 (Ruff)
@@ -303,7 +313,8 @@ python scripts/eval_retrieval.py
 ## 📜 Documentation Index (文档索引)
 
 - 📗 **[CLAUDE.md](CLAUDE.md)**：系统底层实现细节、设计决策演进与工程规范
-- 📝 **[v0.7.0 发布说明](docs/releases/v0.7.0-release-notes.md)**：最新 v0.7.0 重构与新特性详细清单
+- 📝 **[v0.7.0.1 发布说明](docs/releases/v0.7.0.1-release-notes.md)**：最新版本——表格与 Excel/CSV、表格 SQL 分析、图谱社区、多搜索源、提示词注入防护及升级说明
+- 📝 **[v0.7.0 发布说明](docs/releases/v0.7.0-release-notes.md)**：v0.7.0 LangGraph 重构与可观测性详细清单
 - 📚 **[版本发布总览](docs/releases/README.md)**：历史版本演进历程与发布说明
 - 🔒 **[安全合规政策](SECURITY.md)**：安全模型、漏洞披露流程与数据防护规范
 - 🤝 **[贡献指南](CONTRIBUTING.md)**：代码规范、分支模型与 Pull Request 流程

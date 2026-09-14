@@ -7,10 +7,12 @@ QueryMind（智询）企业级私有知识库 Agentic RAG 系统的文档入口�
 ## 说明
 
 QueryMind 现已正式发布 **v0.7** 版本，包含交互式系统全景架构（五重视角动态切换）、LangGraph 实时执行轨迹调试面板、着陆页核心能力交互弹窗，以及全套性能优化。
+最新补丁 **v0.7.0.1** 增加 Excel/CSV 表格解析与表格 SQL 分析、图谱社区摘要、可插拔联网检索与提示词注入防护，并修复了合并前审查发现的全部隔离问题。
 
 ## 核心文档入口
 
 - [项目 README](../README.md) — 项目核心特性与快速启动指南
+- [v0.7.0.1 发布说明](releases/v0.7.0.1-release-notes.md) — 最新补丁：表格与 SQL 分析、图谱社区、多搜索源、注入防护及升级说明
 - [v0.7.0 发布说明](releases/v0.7.0-release-notes.md) — v0.7.0 架构升级、执行跟踪与性能优化详细说明
 - [版本发布总览](releases/README.md) — 历史版本发布说明总览
 - [开发日志](development/daily-logs/README.md) — 按日期归档的日常研发工作记录

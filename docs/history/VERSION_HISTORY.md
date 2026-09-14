@@ -1,7 +1,7 @@
 # Version History
 
 **Status**: Public  
-**Last Updated**: 2026-07-18  
+**Last Updated**: 2026-09-14  
 **Audience**: Users, operators, contributors, maintainers  
 
 This file is the public version timeline for QueryMind（智询）. It keeps a
@@ -15,6 +15,8 @@ For current release notes, also see [../../CHANGELOG.md](../../CHANGELOG.md).
 
 | Version | Date | Type | Public Summary |
 | --- | --- | --- | --- |
+| v0.7.0.1 | 2026-09-14 | Patch / Feature / Security | Table & Excel pipeline fixes, CSV/TSV ingestion, header-preserving table chunking, owner-scoped table SQL, rich graph with per-source communities, web-search providers, prompt-injection screening |
+| v0.7.0 | 2026-09-11 | Major | Canonical LangGraph multi-agent architecture, Tailwind CSS v4, observability & execution trace |
 | v0.6.2.1 | 2026-07-18 | Infrastructure & Docs | Configuration governance system, deployment standardization, documentation restructuring (284 files, -23,595 lines net), GitHub open source preparation |
 | v0.6.2 | 2026-07-06 | Rebranding & Monitoring | Project rebranding to QueryMind, production monitoring stack (Prometheus + Grafana), enhanced health checks, business metrics tracking, structured logging |
 | v0.6.1 | 2026-07-06 | Architecture & Docker | Agent architecture improvements, Docker containerization, admin dashboard features, security enhancements, web research agent improvements |
@@ -38,6 +40,105 @@ For current release notes, also see [../../CHANGELOG.md](../../CHANGELOG.md).
 | v0.2.0 | 2026-04-08 | Feature | Admin operations and user management |
 | v0.1.0 | 2026-04-08 | Initial release | Initial public baseline |
 
+## v0.7.0.1
+
+**Release Date**: September 14, 2026  
+**Type**: Patch / Feature / Security (Table & Excel Ingestion, Table SQL, Rich Graph, Injection Screening)  
+**Status**: Production Ready  
+
+Public highlights:
+
+- **Unified CSV & Tabular Document Ingestion**:
+  - Registered `.csv` across backend limits (`app/api/deps/documents.py`, `app/api/routes/public/documents.py`) and frontend allowed file types (`frontend/src/lib/uploadFormats.ts`).
+  - Added robust CSV loading in `app/ingestion/loaders/office_loader.py` with multi-encoding fallback (`utf-8-sig`, `utf-8`, `gb18030`, `gbk`, `latin-1`) and automatic delimiter detection (comma, semicolon, tab, pipe).
+  - Generated first-class structured `TableBlock` records with `modality="table"` for direct multimodal vector storage.
+
+- **Table-Aware Header-Preserving Chunking (Anti-Hallucination)**:
+  - Eliminated column transposition and semantic loss during RAG retrieval when long spreadsheets or markdown tables are sliced across chunk boundaries.
+  - Implemented `_is_markdown_table_content` and `_split_markdown_table_text` in `app/ingestion/chunking/splitter.py`.
+  - Every sliced child chunk retains sheet context, column definitions (`| Col1 | Col2 |`), separator rows (`|---|---|`), and row range markers (e.g., `(Rows 16-30 of 60)`).
+
+- **Excel Merged-Cell Forward-Fill & Table Ingestion Guardrails**:
+  - Implemented `_extract_sheet_rows_with_merged_cells` in `app/ingestion/loaders/office_loader.py` to inspect `sheet.merged_cells.ranges` and automatically forward-fill top-left values across merged cells.
+  - Subordinate rows retain their category and department context rather than becoming empty cells, preventing dimension loss during chunking and semantic search.
+  - Added `MAX_TABLE_ROWS = 5000` guardrail with automatic markdown truncation indicators to protect against memory bloat on large workbooks.
+
+- **Universal Non-Office `TableBlock` Extraction (PDF & Markdown)**:
+  - Enabled automatic extraction of Markdown pipe tables in `app/ingestion/loaders/dispatch.py` for PDF and Markdown files.
+  - Generates structured `TableBlock` instances with globally unique deterministic IDs across document pages, populating `ParsedDocument.tables`.
+  - Ensures tables in PDF and Markdown files are indexed into ChromaDB's dedicated `table_summaries` collection.
+
+- **Tabular & Spreadsheet Business Query Routing Expansion**:
+  - Expanded `_VISUAL_QUERY_PATTERN` in `app/agents/knowledge/service.py` with comprehensive business vocabulary (`excel`, `csv`, `xlsx`, `tsv`, `spreadsheet`, `sheet`, `报表`, `明细`, `清单`, `台账`, `账单`, `数据表`).
+  - Ensures natural language questions referencing spreadsheets and financial/sales ledgers reliably route to multimodal table retrieval.
+
+- **Nested & Irregular Table Normalization Bugfix**:
+  - Rewrote `detect_nested_table` and `flatten_nested_table` in `app/ingestion/extraction/tables_nested.py`, eliminating dead code where string splitting previously made pipe count checks impossible.
+  - Added HTML table cell stripping and negative lookbehind regex `(?<!\\)\|` to safely preserve escaped pipes within cells without fracturing table structures.
+
+- **Multi-Sheet Context Enrichment & DOCX Extraction**:
+  - Enhanced `_rows_to_markdown` in `app/ingestion/loaders/office_loader.py` with explicit `### Sheet: {sheet_name}` demarcation for multi-sheet workbooks.
+  - Added `extract_markdown_tables` to parse embedded pipe tables from Word `.docx` documents into structured `TableBlock` instances.
+  - Updated `TableExtractor` (`app/services/multimodal/table_extractor.py`) and ingestion pipeline (`app/services/documents/ingest.py`) with column schema lists, total row counts, and sheet metadata.
+
+- **Automated Verification & Real-World Enterprise Scenario Suite**:
+  - Added `tests/ingestion/test_real_world_tables.py` (multi-sheet merged Excel, Chinese procurement CSV ledger, markdown infrastructure table, 7 natural language query routing scenarios).
+  - Added `tests/ingestion/test_table_enhancements.py` (routing pattern, nested table flatten, markdown table extraction, merged-cell extraction, max row truncation).
+  - Maintained full regression coverage across `test_table_excel_ingest.py`, `test_upload_formats_agree.py`, and `test_multimodal_indexing.py`.
+
+- **Table SQL Analytics, Rich Graph, Web Search & Injection Screening**:
+  - Owner-scoped `querymind_table_query` tool over DuckDB (external access disabled) with a SQLite fallback.
+  - Typed graph entities with per-source descriptions and community summaries; `POST /admin/graph-rag/communities/build`.
+  - Pluggable web-search providers (`duckduckgo`, `tavily`, `bing`, `searxng`) and a composer web-search toggle.
+  - Prompt-injection screening with nonce-sandboxed prompts, canary tokens and output egress checks.
+
+- **Pre-merge Review (2026-09-14)**: fourteen defects fixed before release, four of them isolation failures -- cross-user table reads, DuckDB file access, cross-tenant community summaries and graph descriptions. Security defaults (`AUTH_COOKIE_SECURE`, `AUTH_COOKIE_SAMESITE`, `AUTH_EXPOSE_TOKEN_IN_RESPONSE`) restored; the injection detector no longer blocks ordinary questions.
+  - Upgrade note: graphs written by a pre-release build need a reingest or `POST /admin/graph-rag/communities/build`.
+  - Verification: backend 1,966 passed, frontend 154 passed, 0 failures.
+
+## v0.7.0
+
+**Release Date**: September 11, 2026  
+**Type**: Major Architecture, Visual Observability & Performance Release  
+
+Public highlights:
+
+- **Canonical LangGraph Multi-Agent Architecture**:
+  - Replaced legacy multi-path procedural agents with a unified, stateful LangGraph engine (`app/orchestration/langgraph/workflow.py`).
+  - Deterministic tenant scope preflight guaranteeing strict isolation before search.
+  - Multimodal evidence ingestion (PDF, Office, charts, OCR) with parent-child chunk indexing.
+  - Hybrid retrieval engine combining ChromaDB (BGE-M3), BM25 (jieba), and Reciprocal Rank Fusion (RRF) with BGE-Reranker-V2-M3.
+  - Governed DAG task planner and bounded ReAct tool loop with strict stage budgets and circuit breakers.
+  - Cross-session persistent enterprise memory and versioned knowledge wiki layer.
+  - Bounded verification loop (citation completeness, sentence-level grounding, NLI entailment) and live DLP output redaction.
+
+- **Deep Code Hardening & SonarCloud Quality Gate**:
+  - Cognitive Complexity Reduction (S3776): Systematic refactoring across orchestrator, retrievers, query services, synthesizers, and index managers.
+  - Eliminated blocking I/O calls in async loops, optimized regex scanning, and pruned 40+ legacy wrappers (-20,000+ lines of dead code).
+  - Synchronous thread-safe event reporting eliminating SSE micro-latencies.
+
+- **Frontend Modernization & Tailwind CSS v4 Migration**:
+  - Fully migrated frontend styles to Tailwind CSS v4 `@theme` design tokens and utilities.
+  - Replaced native browser popups with Promise-based, accessible `ConfirmDialog` and `PromptDialog` primitives.
+  - Zustand state store refactoring with granular slice subscriptions to prevent unnecessary re-renders during active streaming.
+  - Responsive workspace layout with 100vh full-viewport utilization and compact composer panel.
+
+- **Interactive Architecture & Execution Trace Observability**:
+  - `PipelineFlowDiagram`: 5 distinct perspectives (Story, Tech, Table, Blueprint, Topology via ReactFlow) with scenario simulation (RAG, ReAct, Graph RAG).
+  - `ExecutionTracePanel`: Real-time timeline inspector for LangGraph SSE execution events with hierarchical trace tree formatting.
+  - `FeatureDetailModal`: Interactive landing page technical deep-dive modals with bilingual localization.
+  - Production preview build with Vite proxy to backend, achieving >91% gzipped bundle size reduction and sub-150ms DOM Ready.
+
+## v0.6.2.1
+
+**Release Date**: July 18, 2026  
+**Type**: Infrastructure & Documentation Governance  
+
+Public highlights:
+- Configuration governance system and deployment standardization across environments.
+- Large-scale documentation restructuring and consolidation (284 files, -23,595 lines net).
+- Preparation for open-source repository release and licensing hygiene.
+
 ## v0.6.0
 
 **Release Date**: June 28, 2026  
@@ -52,37 +153,37 @@ Public highlights:
   - NLI validation accuracy improved from 92% to 95.5% (+3.8%)
   - Hallucination rate reduced from 27.5% to 8.0% (-70.9% reduction)
   - Citation completeness improved from 85% to 96.0% (+12.9%)
-  
+
 - **Router Agent Enhancements**:
   - Few-shot prompting system with 6 carefully selected examples
   - Historical accuracy-based confidence calibration
   - Intelligent fallback strategies for low-confidence scenarios
   - Bucket-based calibration across 5 confidence ranges
-  
+
 - **Retrieval Quality Improvements**:
   - Query expansion with entity extraction and synonym mapping
   - Dynamic parameter tuning based on query complexity
   - LLM-based relevance scoring with 3-point scale
   - Adaptive top-k selection (15/20/30)
-  
+
 - **Validation & Quality Assurance**:
   - 4-level validation cascade (rules → NLI → citations → deep LLM)
   - Hallucination pattern detection (dates, numbers, entities, negations)
   - Sentence-level NLI batch validation
   - Post-generation fact verification layer
-  
+
 - **Synthesis & Orchestration**:
   - Citation-first generation discipline
   - Answer templates by query type
   - Graceful degradation strategies with circuit breaker pattern
   - Intelligent retry with variation (increase top-k, alternative routes, reasoning models)
-  
+
 - **Comprehensive Testing**:
   - Golden dataset with 100 annotated test queries (7 categories)
   - A/B comparison testing framework
   - Performance & regression testing (50 concurrent users, 95.3% test coverage)
   - Bilingual support (English 70%, Chinese 30%)
-  
+
 - **Configuration Externalization**:
   - router_calibration.json - Confidence calibration settings
   - circuit_breaker.json - Circuit breaker thresholds
@@ -115,31 +216,31 @@ Performance impact:
 
 Public highlights:
 
-- **Comprehensive RBAC System**: 
+- **Comprehensive RBAC System**:
   - Implemented Viewer and Analyst role distinction
   - Viewer role: Read-only access to documents and queries
   - Analyst role: Full access including document management and advanced features
   - Fine-grained permission controls across all API endpoints
-  
+
 - **Frontend Permission Integration**:
   - React hooks for permission checking (`usePermissions`)
   - Component-level permission enforcement
   - UI elements conditionally rendered based on user roles
   - Permission-aware routing and navigation
-  
+
 - **New Features**:
   - Data isolation with user-scoped data access
   - Agent tracking enhancements with permission-based filtering
   - React Agent for reasoning and action loops
   - AI-powered report generation and editing
   - Centralized prompt management system with versioning
-  
+
 - **Code Quality Improvements**:
   - Removed 17+ internal development reports from root directory
   - Enhanced .gitignore with pattern-based rules for internal docs
   - Cleaned up temporary files and deprecated directories
   - Established clear public vs. private documentation policy
-  
+
 - **Security Enhancements**:
   - Stricter permission checks on sensitive operations
   - Audit logging for admin actions
@@ -164,17 +265,17 @@ Public highlights:
   - Redis connection leak with proper pooling and cleanup
   - Request timeout boundary eliminating edge case bugs
   - Atomic quota enforcement preventing concurrent bypass
-  
+
 - **Reliability Improvements**:
   - Redis counter auto-recovery with self-healing mechanism
   - SQLite configuration validation for security
   - Shared PDF logic extraction eliminating 90 lines of duplication
-  
+
 - **Performance Optimizations**:
   - 67% memory usage reduction (3000 → 1000 metrics buffer)
   - Thread safety issues resolved
   - Redis stability with auto-recovery
-  
+
 - **Configuration Updates**:
   - Updated default models from invalid `gpt-5.4-codex` to `gpt-4o`/`o1-preview`
   - Test infrastructure updated for workflow refactoring
@@ -193,22 +294,22 @@ Public highlights:
   - Eliminated 93.8% code duplication
   - Smart routing based on configuration and document quality
   - Clear layered design: Management → Agent → Infrastructure → Tools
-  
+
 - **LRU Caching System**:
   - 3-level specialized caches with decorators
   - PDF quality analysis cache (500 entries, 1h TTL)
   - Entity extraction cache (500 entries, 1h TTL)
   - Document context cache (200 entries, 30min TTL)
   - Real-time cache statistics and monitoring
-  
+
 - **Configuration Centralization**:
   - 350+ configuration constants centrally managed
   - 15+ pre-compiled regex patterns
   - Immutable configuration with type safety
-  
+
 - **Management API**:
   - 4 monitoring endpoints for cache stats, clearing, config, health
-  
+
 - **System-wide Optimization**:
   - Shared cache infrastructure for all agents
   - 3 specialized cache instances (vector search, routing, synthesis)
@@ -232,7 +333,7 @@ Public highlights:
   - Created 2 reusable components: AdminFormField, ConfirmDialog
   - Unified API client patterns across 7 API modules
   - Removed 3,562 lines of backup CSS files
-  
+
 - **Backend Refactoring** (8 commits, ~300 lines removed):
   - Created 4 utility modules: error_responses (9 functions), request_helpers, string_utils, token_utils
   - Consolidated duplicate admin_users.py files (eliminated 480 lines)
@@ -504,4 +605,3 @@ Key metrics:
 - One-command deployment: `docker-compose up -d`
 - Health checks for all services
 - Zero breaking changes
-

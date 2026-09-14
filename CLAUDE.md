@@ -14,7 +14,7 @@ conda activate rag-local
 ## Project Information
 
 - **Name**: QueryMind（智询）
-- **Version**: 0.7.0 (Released 2026-09-11)
+- **Version**: 0.7.0.1 (Released 2026-09-14)
 - **Language Support**: Bilingual (Chinese/English) via i18next
 - **License**: MIT
 
@@ -48,7 +48,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (1,754 backend pytest tests + 154 frontend vitest tests)
+└── tests/                      # Automated test suite (1,966 backend pytest tests + 154 frontend vitest tests)
 ```
 
 ## Table of Contents
@@ -105,11 +105,11 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-11, v0.7.0 milestone): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **1,754 backend tests** and **154 frontend tests** (**1,908 total tests**, 0 failures). Scripts hold nine focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`) and zero orphan fixtures.
+Note (counts refreshed 2026-09-14, v0.7.0.1): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **1,966 backend tests** and **154 frontend tests** (**2,120 total tests**, 0 failures). Scripts hold ten focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
-make test                           # pytest -q (1,754 tests)
+make test                           # pytest -q (1,966 tests)
 make test-ci                        # the same suite, with CI's optional packages hidden
 make lint                           # ruff check . && ruff format --check .
 ```
@@ -2171,6 +2171,111 @@ was known able to fail before its pass was believed.
 - **Profile Updates**: `PUT /auth/profile` updates `display_name` and persists it directly into `users` table, isolated per user.
 - **Session Search**: `POST /api/v1/sessions/search` searches `SessionMetadata` (description, tags, user metadata).
 
+### Tables, graph descriptions and injection screening (v0.7.0.1, reviewed 2026-09-14)
+
+v0.7.0.1 added a table SQL tool, typed/described graph entities with community
+summaries, a prompt-injection detector and pluggable web-search providers. A
+pre-merge review found fourteen defects in that work -- four of them isolation
+failures -- and the rules below are what the fixes rest on.
+
+**A structured table is readable by exactly who may read its document.**
+`TableStore` (`app/services/tables/store.py`) records `owner_user_id`,
+`visibility` and `source` for every table, and every read takes the reader's
+`user_id` keyword-only with no default -- the same shape as `owner` on the
+retrieval path. The rule mirrors `_owner_clause`: the owner, a public document,
+or the shared corpus. Anything else answers "not found", identically to a table
+that does not exist. The first version keyed tables on tenant alone, so the
+`querymind_table_query` tool (a read tool, so no approval) handed any user a
+colleague's private table.
+
+**One in-memory engine per table.** The first version shared one engine per
+tenant, and a caller allowed to query table `a` read table `b` with
+`SELECT * FROM tbl_a, tbl_b` -- measured, it returned the other user's rows. A
+statement can now name nothing but its own table. `delete_file_index` drops a
+document's tables by **full source path, never basename**: two users routinely
+hold a `report.xlsx`.
+
+**Tables are persisted; engines are a cache.** Rows and ownership live in the
+`structured_tables` table of `APP_DB_PATH`, so a table survives a restart and
+every worker reads the same one -- the first version held them in one process's
+memory, and a table was queryable only on the worker that happened to ingest it.
+Ownership and version are read from SQLite on **every** call; a cached engine is
+used only when its version matches, which is what makes a deletion or re-ingest
+on another worker visible on the next read here rather than when the cache
+happens to evict. Engines are an LRU of 64 and are rebuilt from the database.
+Under pytest the shared store stays in memory, the rule the administrator
+bootstrap already follows (`tests/tables/test_table_store_persistence.py` drives
+persistence against a temporary file).
+
+**DuckDB runs with external access disabled**, set at `connect` and impossible to
+re-enable while the database is open. Verified against duckdb 1.5.5:
+`read_text(...)` raises `PermissionException`, `FROM 'file.csv'` finds no table,
+`getenv` does not exist, and `SET enable_external_access = true` is refused.
+`validate_sql` additionally refuses table functions (`_FORBIDDEN_FUNCTIONS`) as
+the engine-independent layer the SQLite fallback also gets, and blanks string
+literals before its keyword scan so `WHERE status = 'deleted'` is data. The
+natural-language path calls the chat model synchronously, so the tool runs it
+through `asyncio.to_thread`.
+
+**Graph descriptions are stored and read per source.** Entity nodes and `RELATED`
+edges are shared by name across every tenant (`MERGE` on name), so a single
+`e.description` written from tenant A's document was shown to tenant B whose
+document mentioned the same name. Entity descriptions live on the
+`(entity)-[:MENTIONED_IN]->(source)` edge; relationship descriptions in
+`r.source_descriptions` as `source\x1ftext`, since a relationship property cannot
+hold a map. Scoped reads project only descriptions whose source is in scope.
+
+**Communities are built per source and shown only when every source is in
+scope.** A community summary embeds its members' descriptions; clustering across
+sources would put A's description into a summary B reaches through one shared
+entity. `c.sources` is recorded, a scoped read requires all of them to be allowed,
+and an unattributed community is never returned. Rebuilding a source deletes its
+previous communities first, and `delete_by_source` removes its communities and
+`Chunk` nodes before the orphan-entity sweep. **Operator note**: a graph written
+by the pre-review build keeps its descriptions on the node and edge, where nothing
+reads them now -- reingest, or `POST /admin/graph-rag/communities/build`, which
+runs off the event loop.
+
+**Prior evidence still never chooses what the graph looks up.** The same change
+had `GraphKnowledgeAdapter` read entity names out of retrieved tables and pass
+them to `graph_lookup_enhanced` as seeds -- retrieved content steering retrieval,
+which Retrieval Strategy above forbids. The `seed_entities` parameter was removed
+from every function on that path rather than left defaulted, so it cannot be
+wired back one call site at a time.
+
+**The injection detector screens intent, not vocabulary.** Its first version
+blocked "安卓手机的开发者模式怎么打开", "How do I enable developer mode on
+Windows 11?", "Dan 负责的项目", "CPU 如何输出指令", ".gitignore 的忽略规则" and
+every incident-response question naming `vssadmin delete shadows` -- in an
+application whose skills include `incident_response_playbook`. Rules now require
+the instruction to be addressed to the assistant ("你进入开发者模式", "act as
+DAN"), a qualifier before "忽略规则", and an explicit execution request before a
+dangerous command counts. `tests/security/test_prompt_injection_defense.py` pins
+those questions as passing and the attack forms as blocked. Output image egress
+is decided on the parsed host, not a substring match.
+
+**Three defaults that were quietly changed and are back.**
+`AUTH_EXPOSE_TOKEN_IN_RESPONSE=false`, `AUTH_COOKIE_SECURE=true` and
+`AUTH_COOKIE_SAMESITE=strict` are the code defaults again; development and test
+relax them in `config/env/*.env.example`, which is where a relaxation belongs.
+The synthesizer no longer substitutes `LocalEvidenceChatModel` when the configured
+provider fails -- that is `generation_failed`, which the synthesizer service turns
+into an explicit evidence summary. And the chat path's vector source has **no
+relevance-score floor**: one was added at 0.30, and measured over `config/eval/`
+with the hash embeddings a fresh checkout runs it left 3 of 16 queries with any
+vector result (0.2 left 6; none leaves 16). RRF fuses on rank and the reranker
+orders what survives, so a floor only removes evidence;
+`tests/knowledge/test_vector_source_has_no_score_floor.py` pins it and the removed
+`score_threshold` parameter.
+
+**Web-search provider credentials are not console-editable.** `TAVILY_API_KEY`,
+`BING_SEARCH_API_KEY`, `WEB_PROXY_URL` and `SEARXNG_BASE_URL` fail the schema's
+shape rule, and `GET /admin/config/schema` echoes every editable value;
+`WEB_DOMAIN_ALLOWLIST` stays out too. The provider cache holds the `Settings` it
+was built from, so `apply_config_reload` now clears it. A user who switches web
+search on in the composer outranks keyword-matched sources when the plan's budget
+must drop one, but the budget itself is never raised.
+
 ### Technology Stack
 
 **Backend**: FastAPI + LangChain
@@ -2180,7 +2285,7 @@ was known able to fail before its pass was believed.
 (`app/services/auth/auth_service.py`, `app/services/sessions/history.py`,
 `app/services/sessions/metadata_db.py`, `app/services/prompts/store.py`,
 `app/wiki/store.py`, `app/retrievers/stores/vector.py`,
-`app/services/connectors/{metadata_repository,repository}.py`). There is no shared connection
+`app/services/connectors/{metadata_repository,repository}.py`, `app/services/tables/store.py`). There is no shared connection
 pool and no PostgreSQL support: an async SQLAlchemy pool existed but was never used by
 any business code and was removed on 2026-08-29, along with the `asyncpg`/`aiosqlite`
 dependencies. `DATABASE_URL` **still exists** as a `Settings` field and is still read, by
@@ -2898,8 +3003,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-11 (v0.7.0 release) there are 1,754 backend pytest tests
-and 154 frontend Vitest tests (1,908 total tests, 0 failures), covering the chat round trip,
+back-filling effort. As of 2026-09-14 (v0.7.0.1) there are 1,966 backend pytest tests
+and 154 frontend Vitest tests (2,120 total tests, 0 failures), covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3147,7 +3252,7 @@ or every later query in the file finds two of everything.
 
 Note: do not use `len(app.routes)` to count endpoints. FastAPI 0.138+ stores an
 `_IncludedRouter` wrapper in `app.routes` instead of flattening child routes, so that number
-varies by version. Count OpenAPI operations instead; the current baseline is 156 (CI asserts a >= 140 floor).
+varies by version. Count OpenAPI operations instead; the current baseline is 157 (CI asserts a >= 140 floor).
 It read 153 until 2026-09-06 and had been 154 for some time before that — a number in this file that
 nothing recomputes goes stale the way the test count did.
 
