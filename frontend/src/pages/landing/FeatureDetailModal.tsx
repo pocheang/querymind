@@ -1,16 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  ArrowRight,
-  CheckCircle2,
-  Code2,
-  ExternalLink,
-  GitCommit,
-  Layers,
-  LucideIcon,
-  X,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, Code2, ExternalLink, GitCommit, Layers, LucideIcon, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +63,9 @@ export function FeatureDetailModal({ feature, isOpen, onClose }: Readonly<Featur
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-line-subtle bg-surface-muted/50 p-5 sm:p-6">
           <div className="flex items-center gap-3.5">
-            <span className={cn("flex size-12 items-center justify-center rounded-card border shadow-xs", feature.accent)}>
+            <span
+              className={cn("flex size-12 items-center justify-center rounded-card border shadow-xs", feature.accent)}
+            >
               <Icon className="size-6" aria-hidden="true" />
             </span>
             <div>
@@ -146,16 +139,17 @@ export function FeatureDetailModal({ feature, isOpen, onClose }: Readonly<Featur
 
           {/* Key Engineering Specifications */}
           <div className="space-y-2.5">
-            <span className="text-sm font-bold text-ink">
-              {t("pages.landing.featureModalSpecs")}
-            </span>
+            <span className="text-sm font-bold text-ink">{t("pages.landing.featureModalSpecs")}</span>
             <ul className="grid grid-cols-1 gap-2.5">
               {feature.engineeringSpecs.map((spec) => (
                 <li
                   key={spec}
                   className="flex items-start gap-2.5 rounded-card border border-line-subtle/80 bg-surface/60 p-3"
                 >
-                  <CheckCircle2 className="mt-0.5 size-4.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                  <CheckCircle2
+                    className="mt-0.5 size-4.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                    aria-hidden="true"
+                  />
                   <span className="text-ink text-xs sm:text-sm font-medium leading-normal">{spec}</span>
                 </li>
               ))}

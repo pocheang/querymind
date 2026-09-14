@@ -4,9 +4,9 @@
  * Provides typed interfaces for session metadata, search, and export/import operations.
  */
 
-import { authFetch, authRequest, parseOrThrow } from '@/services/http/client';
+import { authFetch, authRequest, parseOrThrow } from "@/services/http/client";
 
-function sessionPath(sessionId: string, suffix = ''): string {
+function sessionPath(sessionId: string, suffix = ""): string {
   return `/api/v1/sessions/${encodeURIComponent(sessionId)}${suffix}`;
 }
 
@@ -14,9 +14,9 @@ function sessionPath(sessionId: string, suffix = ''): string {
 // Types
 // ============================================================================
 
-export type SessionCategory = 'research' | 'development' | 'debugging' | 'learning' | 'other';
-export type ExportFormat = 'json' | 'zip';
-export type ConflictStrategy = 'skip' | 'overwrite' | 'rename';
+export type SessionCategory = "research" | "development" | "debugging" | "learning" | "other";
+export type ExportFormat = "json" | "zip";
+export type ConflictStrategy = "skip" | "overwrite" | "rename";
 
 export interface SessionMetadata {
   session_id: string;
@@ -49,7 +49,7 @@ export interface SearchQuery {
   min_queries?: number;
   max_queries?: number;
   sort_by?: string;
-  sort_order?: 'asc' | 'desc';
+  sort_order?: "asc" | "desc";
   limit?: number;
   offset?: number;
 }
@@ -100,13 +100,10 @@ export const sessionManagementApi = {
   /**
    * Create or update session metadata
    */
-  async updateMetadata(
-    sessionId: string,
-    request: UpdateMetadataRequest
-  ): Promise<SessionMetadata> {
-    return authRequest<SessionMetadata>(sessionPath(sessionId, '/metadata'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+  async updateMetadata(sessionId: string, request: UpdateMetadataRequest): Promise<SessionMetadata> {
+    return authRequest<SessionMetadata>(sessionPath(sessionId, "/metadata"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
     });
   },
@@ -115,14 +112,14 @@ export const sessionManagementApi = {
    * Get session metadata
    */
   async getMetadata(sessionId: string): Promise<SessionMetadata> {
-    return authRequest<SessionMetadata>(sessionPath(sessionId, '/metadata'));
+    return authRequest<SessionMetadata>(sessionPath(sessionId, "/metadata"));
   },
 
   /**
    * Delete session metadata
    */
   async deleteMetadata(sessionId: string): Promise<void> {
-    await authRequest(sessionPath(sessionId, '/metadata'), { method: 'DELETE' });
+    await authRequest(sessionPath(sessionId, "/metadata"), { method: "DELETE" });
   },
 
   /**
@@ -132,9 +129,9 @@ export const sessionManagementApi = {
     sessionId: string,
     messages: Array<{ role: string; content: string }>
   ): Promise<SessionMetadata> {
-    return authRequest<SessionMetadata>(sessionPath(sessionId, '/metadata/extract-tags'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    return authRequest<SessionMetadata>(sessionPath(sessionId, "/metadata/extract-tags"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
     });
   },
@@ -143,9 +140,9 @@ export const sessionManagementApi = {
    * Search sessions
    */
   async search(query: SearchQuery): Promise<SearchResponse> {
-    return authRequest<SearchResponse>('/api/v1/sessions/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    return authRequest<SearchResponse>("/api/v1/sessions/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(query),
     });
   },
@@ -154,7 +151,7 @@ export const sessionManagementApi = {
    * Get all unique tags
    */
   async getAllTags(): Promise<string[]> {
-    const response = await authRequest<{ tags: string[] }>('/api/v1/sessions/tags');
+    const response = await authRequest<{ tags: string[] }>("/api/v1/sessions/tags");
     return response.tags;
   },
 
@@ -162,19 +159,16 @@ export const sessionManagementApi = {
    * Get search facets
    */
   async getFacets(): Promise<Facets> {
-    return authRequest<Facets>('/api/v1/sessions/facets');
+    return authRequest<Facets>("/api/v1/sessions/facets");
   },
 
   /**
    * Export session
    */
-  async exportSession(
-    sessionId: string,
-    request: ExportRequest = {}
-  ): Promise<Blob> {
-    const response = await authFetch(sessionPath(sessionId, '/export'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+  async exportSession(sessionId: string, request: ExportRequest = {}): Promise<Blob> {
+    const response = await authFetch(sessionPath(sessionId, "/export"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
     });
     if (!response.ok) return parseOrThrow<never>(response);
@@ -184,16 +178,13 @@ export const sessionManagementApi = {
   /**
    * Import session
    */
-  async importSession(
-    file: File,
-    conflictStrategy: ConflictStrategy = 'skip'
-  ): Promise<ImportResponse> {
+  async importSession(file: File, conflictStrategy: ConflictStrategy = "skip"): Promise<ImportResponse> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     return authRequest<ImportResponse>(
       `/api/v1/sessions/import?conflict_strategy=${encodeURIComponent(conflictStrategy)}`,
-      { method: 'POST', body: formData },
+      { method: "POST", body: formData }
     );
   },
 };

@@ -107,10 +107,7 @@ export function SettingsDrawer({ isOpen, onClose }: Readonly<Props>) {
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
           <section aria-labelledby="settings-model-heading" className="space-y-2">
-            <h3
-              id="settings-model-heading"
-              className="text-xs font-bold uppercase tracking-wider text-ink/80"
-            >
+            <h3 id="settings-model-heading" className="text-xs font-bold uppercase tracking-wider text-ink/80">
               {t("components.settings.modelHeading")}
             </h3>
             <div className="flex gap-2.5 rounded-card border border-line-subtle bg-surface-muted p-3">

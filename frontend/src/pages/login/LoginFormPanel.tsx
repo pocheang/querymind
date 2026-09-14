@@ -64,9 +64,7 @@ export function LoginFormPanel({
             {mode === "register" ? t("auth.register") : t("auth.login")}
           </h2>
           <p className="text-xs sm:text-sm text-stone-600 font-normal">
-            {mode === "register"
-              ? t("pages.login.registerSubtitle")
-              : t("pages.login.loginSubtitle")}
+            {mode === "register" ? t("pages.login.registerSubtitle") : t("pages.login.loginSubtitle")}
           </p>
         </div>
 
@@ -107,9 +105,7 @@ export function LoginFormPanel({
                 {t("auth.username")}
               </Label>
               {username.length > 0 && (
-                <span className="text-xs font-mono font-bold text-stone-400">
-                  {username.length}/32
-                </span>
+                <span className="text-xs font-mono font-bold text-stone-400">{username.length}/32</span>
               )}
             </div>
             <AuthInput
@@ -124,13 +120,9 @@ export function LoginFormPanel({
             />
             <div className="flex items-center justify-between pt-0.5 text-xs">
               {username.length > 0 && !isUsernameValid ? (
-                <p className="font-bold text-rose-600">
-                  {t("pages.login.invalidFormat")}
-                </p>
+                <p className="font-bold text-rose-600">{t("pages.login.invalidFormat")}</p>
               ) : (
-                <p className="text-stone-500 font-normal">
-                  {t("pages.login.usernameHint")}
-                </p>
+                <p className="text-stone-500 font-normal">{t("pages.login.usernameHint")}</p>
               )}
               {mode === "login" && !username && (
                 <button
@@ -151,12 +143,7 @@ export function LoginFormPanel({
                 {t("auth.password")}
               </Label>
               {mode === "register" && password.length > 0 && (
-                <span
-                  className={cn(
-                    "text-xs font-bold",
-                    isPasswordValid ? "text-emerald-700" : "text-amber-700"
-                  )}
-                >
+                <span className={cn("text-xs font-bold", isPasswordValid ? "text-emerald-700" : "text-amber-700")}>
                   {isPasswordValid ? t("pages.login.passwordValid") : t("pages.login.weakPassword")}
                 </span>
               )}
@@ -196,13 +183,9 @@ export function LoginFormPanel({
               </div>
             )}
             {password.length > 0 && mode === "register" && !isPasswordValid ? (
-              <p className="text-xs font-bold text-rose-600">
-                {t("pages.login.weakPassword")}
-              </p>
+              <p className="text-xs font-bold text-rose-600">{t("pages.login.weakPassword")}</p>
             ) : (
-              <p className="text-xs text-stone-500 font-normal">
-                {t("pages.login.passwordHint")}
-              </p>
+              <p className="text-xs text-stone-500 font-normal">{t("pages.login.passwordHint")}</p>
             )}
           </div>
 
@@ -252,9 +235,7 @@ export function LoginFormPanel({
                 />
                 <span>{t("pages.login.rememberMe")}</span>
               </label>
-              <span className="text-xs text-stone-500 font-normal">
-                {t("pages.login.secureStorage")}
-              </span>
+              <span className="text-xs text-stone-500 font-normal">{t("pages.login.secureStorage")}</span>
             </div>
           )}
 
@@ -293,12 +274,7 @@ export function LoginFormPanel({
         </div>
 
         {/* Social Logins / SSO (Login mode) */}
-        {mode === "login" && (
-          <LoginSocialButtons
-            onGoogleLogin={onGoogleLogin}
-            onGitHubLogin={onGitHubLogin}
-          />
-        )}
+        {mode === "login" && <LoginSocialButtons onGoogleLogin={onGoogleLogin} onGitHubLogin={onGitHubLogin} />}
       </div>
 
       {/* Toast / Alert Status Outputs */}

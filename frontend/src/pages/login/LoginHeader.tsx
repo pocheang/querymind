@@ -10,9 +10,7 @@ export function LoginHeader() {
       <div className="flex items-center gap-3">
         <BrandMark size="sm" />
         <div className="flex items-baseline gap-2">
-          <span className="text-base sm:text-lg font-extrabold tracking-tight text-stone-900">
-            {t("app.title")}
-          </span>
+          <span className="text-base sm:text-lg font-extrabold tracking-tight text-stone-900">{t("app.title")}</span>
           <span className="hidden sm:inline-block text-xs sm:text-sm font-semibold text-amber-800/80">
             {t("app.subtitle")}
           </span>

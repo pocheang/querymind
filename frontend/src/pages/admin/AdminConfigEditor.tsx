@@ -99,20 +99,19 @@ export function AdminConfigEditor() {
   return (
     <section className="rounded-panel shadow-elev-1 bg-surface p-4">
       <SectionHead title={t("admin.config.title")}>
-<RowActions>
+        <RowActions>
           <Button variant="secondary" size="xs" onClick={() => void load()} disabled={loading}>
             {t("common.refresh")}
           </Button>
           <Button size="xs" onClick={() => void save()} disabled={!dirty || saving}>
             {saving ? t("admin.ui.running") : t("admin.config.save", { count: Object.keys(edits).length })}
           </Button>
-        </RowActions></SectionHead>
+        </RowActions>
+      </SectionHead>
 
       {!centreEnabled && <Muted>{t("admin.config.noCentre")}</Muted>}
       {message && (
-        <output className={`block ${message.kind === "error" ? "text-danger" : "text-success"}`}>
-          {message.text}
-        </output>
+        <output className={`block ${message.kind === "error" ? "text-danger" : "text-success"}`}>{message.text}</output>
       )}
 
       {groups.map(([group, groupFields]) => (
@@ -137,7 +136,8 @@ export function AdminConfigEditor() {
                     </td>
                     <td>
                       {field.type === "bool" ? (
-                        <input className="size-3.5 shrink-0 accent-[var(--brand)]"
+                        <input
+                          className="size-3.5 shrink-0 accent-[var(--brand)]"
                           type="checkbox"
                           aria-label={field.alias}
                           disabled={!editable}
@@ -153,9 +153,7 @@ export function AdminConfigEditor() {
                           className="rounded-control"
                           disabled={!editable}
                           value={current}
-                          onChange={(event) =>
-                            setEdits((prev) => ({ ...prev, [field.alias]: event.target.value }))
-                          }
+                          onChange={(event) => setEdits((prev) => ({ ...prev, [field.alias]: event.target.value }))}
                         />
                       )}
                     </td>

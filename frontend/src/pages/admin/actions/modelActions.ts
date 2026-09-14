@@ -67,7 +67,9 @@ export function createModelActions(params: AdminActionsParams, errorHandler: Err
   const refreshOpsSnapshot = async () => {
     if (!isAdmin) return;
     try {
-      setOps(await appApi.adminOpsOverview({ hours: params.opsHours, actorUserId: undefined, actionKeyword: undefined }));
+      setOps(
+        await appApi.adminOpsOverview({ hours: params.opsHours, actorUserId: undefined, actionKeyword: undefined })
+      );
     } catch (e) {
       await handleApiError(e, t("admin.actions.refreshOpsSnapshotFailed"));
     }

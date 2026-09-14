@@ -160,6 +160,13 @@ jobs:
       - name: Type check
         run: npm run type-check
 
+      # Prettier, as the backend job runs `ruff format --check`. It was listed
+      # in CLAUDE.md as a CI check long before any step ran it, and 116 files
+      # drifted in the meantime. `.prettierrc` uses `endOfLine: auto` so a
+      # Windows checkout (core.autocrlf=true) reports the same thing this does.
+      - name: Format check
+        run: npm run format:check
+
       # Shape and depth scale, as a ratchet. The chat screen once carried eight
       # radii and eighteen distinct shadows at the same time; that drift is
       # cheap to prevent and expensive to undo. Existing counts are frozen per

@@ -15,9 +15,7 @@ export function LoginShowcasePanel() {
       <div className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <BrandMark size="sm" />
-          <span className="text-sm sm:text-base font-extrabold tracking-tight text-stone-900">
-            {t("app.title")}
-          </span>
+          <span className="text-sm sm:text-base font-extrabold tracking-tight text-stone-900">{t("app.title")}</span>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100/90 px-2.5 py-0.5 text-xs font-bold text-amber-900 shadow-xs">
           <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
@@ -32,9 +30,7 @@ export function LoginShowcasePanel() {
         </div>
 
         <h1 className="text-2xl lg:text-[28px] xl:text-3xl font-black leading-snug tracking-tight text-stone-900">
-          {t("pages.login.headline")
-            .split("\n")
-            .join(" · ")}
+          {t("pages.login.headline").split("\n").join(" · ")}
         </h1>
 
         <p className="text-xs sm:text-sm leading-relaxed text-stone-700 font-medium max-w-lg">
@@ -48,12 +44,8 @@ export function LoginShowcasePanel() {
               <Boxes className="size-4" />
             </div>
             <div className="space-y-1">
-              <div className="text-xs sm:text-sm font-bold text-stone-900">
-                {t("features.multiAgent")}
-              </div>
-              <div className="text-xs text-stone-600 leading-normal font-normal">
-                {t("pages.login.multiAgentDesc")}
-              </div>
+              <div className="text-xs sm:text-sm font-bold text-stone-900">{t("features.multiAgent")}</div>
+              <div className="text-xs text-stone-600 leading-normal font-normal">{t("pages.login.multiAgentDesc")}</div>
             </div>
           </div>
 
@@ -62,9 +54,7 @@ export function LoginShowcasePanel() {
               <Search className="size-4" />
             </div>
             <div className="space-y-1">
-              <div className="text-xs sm:text-sm font-bold text-stone-900">
-                {t("features.hybridSearch")}
-              </div>
+              <div className="text-xs sm:text-sm font-bold text-stone-900">{t("features.hybridSearch")}</div>
               <div className="text-xs text-stone-600 leading-normal font-normal">
                 {t("pages.login.hybridSearchDesc")}
               </div>
@@ -76,12 +66,8 @@ export function LoginShowcasePanel() {
               <ShieldCheck className="size-4" />
             </div>
             <div className="space-y-1">
-              <div className="text-xs sm:text-sm font-bold text-stone-900">
-                {t("features.enterpriseSecurity")}
-              </div>
-              <div className="text-xs text-stone-600 leading-normal font-normal">
-                {t("pages.login.securityDesc")}
-              </div>
+              <div className="text-xs sm:text-sm font-bold text-stone-900">{t("features.enterpriseSecurity")}</div>
+              <div className="text-xs text-stone-600 leading-normal font-normal">{t("pages.login.securityDesc")}</div>
             </div>
           </div>
         </div>

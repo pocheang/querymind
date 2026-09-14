@@ -75,7 +75,9 @@ export function ChangePasswordPage() {
 
         <section className="space-y-3 bg-surface p-6 sm:p-8">
           <div className="space-y-1">
-            <h2 className="text-lg font-bold tracking-tight text-ink sm:text-xl">{t("pages.changePassword.formTitle")}</h2>
+            <h2 className="text-lg font-bold tracking-tight text-ink sm:text-xl">
+              {t("pages.changePassword.formTitle")}
+            </h2>
             <p className="text-xs sm:text-sm text-ink/75">{t("pages.changePassword.formSubtitle")}</p>
           </div>
 
@@ -149,7 +151,11 @@ export function ChangePasswordPage() {
           )}
 
           <div className="flex items-center gap-2">
-            <Button className="flex-1 text-xs sm:text-sm font-semibold" disabled={!formValid || loading} onClick={() => void changePassword()}>
+            <Button
+              className="flex-1 text-xs sm:text-sm font-semibold"
+              disabled={!formValid || loading}
+              onClick={() => void changePassword()}
+            >
               {loading ? t("pages.changePassword.submitting") : t("pages.changePassword.submit")}
             </Button>
             <Button variant="secondary" className="text-xs sm:text-sm font-semibold" onClick={() => navigate("/app")}>

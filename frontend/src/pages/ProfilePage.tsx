@@ -86,9 +86,7 @@ export function ProfilePage({ user, onUserUpdated }: Readonly<Props>) {
         </div>
 
         <div className="space-y-3.5 border-t border-line-subtle pt-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-ink/80">
-            {t("pages.profile.basicInfo")}
-          </h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink/80">{t("pages.profile.basicInfo")}</h3>
 
           <div className="space-y-1">
             <Label htmlFor="username">{t("pages.profile.username")}</Label>
@@ -111,9 +109,7 @@ export function ProfilePage({ user, onUserUpdated }: Readonly<Props>) {
         </div>
 
         <div className="space-y-2.5 border-t border-line-subtle pt-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-ink/80">
-            {t("pages.profile.accountInfo")}
-          </h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink/80">{t("pages.profile.accountInfo")}</h3>
 
           <dl className="grid grid-cols-2 gap-2.5">
             {[
@@ -137,7 +133,11 @@ export function ProfilePage({ user, onUserUpdated }: Readonly<Props>) {
           <Button onClick={handleSave} disabled={loading} className="text-xs sm:text-sm font-semibold">
             {loading ? t("pages.profile.saving") : t("pages.profile.saveChanges")}
           </Button>
-          <Button variant="secondary" onClick={() => navigate("/app/change-password")} className="text-xs sm:text-sm font-semibold">
+          <Button
+            variant="secondary"
+            onClick={() => navigate("/app/change-password")}
+            className="text-xs sm:text-sm font-semibold"
+          >
             {t("pages.profile.changePassword")}
           </Button>
         </div>

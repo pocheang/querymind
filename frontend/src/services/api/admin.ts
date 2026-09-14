@@ -13,7 +13,13 @@ import type {
   SystemLogEntry,
 } from "@/types/api";
 import { request, ApiError, safeParsePayload, authFetch, parseOrThrow } from "@/services/http/client";
-import { buildPatchRequest, buildPostRequest, buildGetRequest, buildQueryString, encodePathParam } from "@/lib/api-helpers";
+import {
+  buildPatchRequest,
+  buildPostRequest,
+  buildGetRequest,
+  buildQueryString,
+  encodePathParam,
+} from "@/lib/api-helpers";
 
 export const adminUserApi = {
   adminUsers() {
@@ -23,14 +29,16 @@ export const adminUserApi = {
     return buildPatchRequest<AdminUserSummary>(`/admin/users/${encodePathParam(userId)}/role`, { role });
   },
   adminUpdateStatus(userId: string, statusValue: string) {
-    return buildPatchRequest<AdminUserSummary>(`/admin/users/${encodePathParam(userId)}/status`, { status: statusValue });
+    return buildPatchRequest<AdminUserSummary>(`/admin/users/${encodePathParam(userId)}/status`, {
+      status: statusValue,
+    });
   },
   adminAddCredits(userId: string, amount: number) {
     return buildPostRequest<AdminUserSummary>(`/admin/users/${encodePathParam(userId)}/credits/add`, { amount });
   },
   adminUpdateClassification(
     userId: string,
-    input: { businessUnit?: string; department?: string; userType?: string; dataScope?: string },
+    input: { businessUnit?: string; department?: string; userType?: string; dataScope?: string }
   ) {
     return buildPatchRequest<AdminUserSummary>(`/admin/users/${encodePathParam(userId)}/classification`, {
       business_unit: input.businessUnit || null,
@@ -107,9 +115,10 @@ export const adminOpsApi = {
     if (!res.ok) {
       const text = await res.text();
       const payload = safeParsePayload(text);
-      const detail = payload && typeof payload === "object" && !Array.isArray(payload)
-        ? (payload as Record<string, unknown>).detail
-        : undefined;
+      const detail =
+        payload && typeof payload === "object" && !Array.isArray(payload)
+          ? (payload as Record<string, unknown>).detail
+          : undefined;
       throw new ApiError(res.status, typeof detail === "string" ? detail : "request failed");
     }
     return res.text();

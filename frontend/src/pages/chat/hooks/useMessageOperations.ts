@@ -10,19 +10,17 @@ interface UseMessageOperationsParams {
   notify: (text: string, kind?: Toast["kind"], ttl?: number) => void;
   handleApiError: (e: unknown, fallback: string) => Promise<void>;
   refreshSessions: (preferSelectFirst?: boolean, silent?: boolean) => Promise<SessionSummary[]>;
-  promptInput: (opts: { message: string; title?: string; defaultValue?: string; multiline?: boolean }) => Promise<string | null>;
+  promptInput: (opts: {
+    message: string;
+    title?: string;
+    defaultValue?: string;
+    multiline?: boolean;
+  }) => Promise<string | null>;
 }
 
 export function useMessageOperations(params: UseMessageOperationsParams) {
   const { t } = useTranslation();
-  const {
-    currentSessionId,
-    setMessages,
-    notify,
-    handleApiError,
-    refreshSessions,
-    promptInput,
-  } = params;
+  const { currentSessionId, setMessages, notify, handleApiError, refreshSessions, promptInput } = params;
 
   const editMessage = async (msg: SessionMessage) => {
     if (!currentSessionId || !msg.message_id) return;
@@ -35,12 +33,7 @@ export function useMessageOperations(params: UseMessageOperationsParams) {
     if (next === null) return;
     try {
       const rerun = msg.role === "user";
-      const detail = await appApi.messageUpdate(
-        currentSessionId,
-        msg.message_id,
-        next,
-        rerun,
-      );
+      const detail = await appApi.messageUpdate(currentSessionId, msg.message_id, next, rerun);
       setMessages(detail.messages || []);
       await refreshSessions();
       notify(t("components.messages.updateSuccess"), "success");

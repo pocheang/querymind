@@ -108,7 +108,10 @@ describe("the long-term memory panel", () => {
   });
 
   it("deletes one memory and drops it from the list", async () => {
-    listMemories.mockResolvedValue([memory({ memory_id: "m0", content: "first" }), memory({ memory_id: "m1", content: "second" })]);
+    listMemories.mockResolvedValue([
+      memory({ memory_id: "m0", content: "first" }),
+      memory({ memory_id: "m1", content: "second" }),
+    ]);
     render(<MemoryPanel />);
     await waitFor(() => expect(screen.getByText("first")).toBeInTheDocument());
 

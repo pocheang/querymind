@@ -73,9 +73,7 @@ export function PipelineSimulationBar({
         </div>
         <div className="flex-1 space-y-1.5">
           <div className="flex items-center gap-2.5">
-            <span className="text-xs font-semibold text-ink-muted">
-              {isZh ? "用户发送的问题" : "User Chat Input"}
-            </span>
+            <span className="text-xs font-semibold text-ink-muted">{isZh ? "用户发送的问题" : "User Chat Input"}</span>
             <Badge variant="brand" size="xs" mono className="text-xs py-0.5 px-2 font-medium">
               {t(`architecture.flow.scenarios.${selectedScenario}.tag`)}
             </Badge>
@@ -95,11 +93,7 @@ interface PipelineSimulationProgressProps {
   t: (key: string) => string;
 }
 
-export function PipelineSimulationProgress({
-  activeStepConfig,
-  isZh,
-  t,
-}: Readonly<PipelineSimulationProgressProps>) {
+export function PipelineSimulationProgress({ activeStepConfig, isZh, t }: Readonly<PipelineSimulationProgressProps>) {
   return (
     <div className="rounded-control border border-brand-accent/50 bg-brand-surface/80 p-4 shadow-elev-2 animate-in fade-in slide-in-from-top-2">
       <div className="flex flex-wrap items-center justify-between gap-3">

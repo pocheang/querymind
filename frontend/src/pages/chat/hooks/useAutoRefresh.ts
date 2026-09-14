@@ -6,11 +6,7 @@ interface UseAutoRefreshOptions {
   refreshPrompts: (silent?: boolean) => Promise<void>;
 }
 
-export function useAutoRefresh({
-  refreshSessions,
-  refreshDocuments,
-  refreshPrompts,
-}: UseAutoRefreshOptions) {
+export function useAutoRefresh({ refreshSessions, refreshDocuments, refreshPrompts }: UseAutoRefreshOptions) {
   useEffect(() => {
     const timer = window.setInterval(() => {
       void refreshSessions(false, true);

@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  ArrowRight,
-  CheckCircle2,
-  Database,
-  Network,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, Database, Network, ShieldCheck, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +19,11 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
     { value: "100%", label: t("pages.landing.trustPrivate"), desc: t("pages.landing.trustPrivateDesc") },
     { value: "< 800ms", label: t("pages.landing.trustLatency"), desc: t("pages.landing.trustLatencyDesc") },
     { value: "99.8%", label: t("pages.landing.trustGrounding"), desc: t("pages.landing.trustGroundingDesc") },
-    { value: t("pages.landing.trustZeroDepsVal"), label: t("pages.landing.trustZeroDeps"), desc: t("pages.landing.trustZeroDepsDesc") },
+    {
+      value: t("pages.landing.trustZeroDepsVal"),
+      label: t("pages.landing.trustZeroDeps"),
+      desc: t("pages.landing.trustZeroDepsDesc"),
+    },
   ];
 
   return (
@@ -93,9 +90,7 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
               <span className="size-2.5 rounded-pill bg-warning/80" />
               <span className="size-2.5 rounded-pill bg-success/80" />
             </div>
-            <span className="ml-2 font-mono text-xs text-ink/70">
-              querymind-deck://session/enterprise-kb-v4
-            </span>
+            <span className="ml-2 font-mono text-xs text-ink/70">querymind-deck://session/enterprise-kb-v4</span>
           </div>
 
           {/* Interactive Preview Switch Tabs */}
@@ -175,19 +170,23 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
                   AI
                 </div>
                 <div className="space-y-2.5 rounded-panel rounded-tl-sm border border-line-subtle bg-surface p-4 text-sm leading-relaxed text-ink shadow-xs">
-                  <p className="leading-relaxed text-ink font-normal">
-                    {t("pages.landing.heroAnswerIntro")}
-                  </p>
+                  <p className="leading-relaxed text-ink font-normal">{t("pages.landing.heroAnswerIntro")}</p>
                   <ol className="list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-ink/85 sm:text-sm">
                     <li>
-                      {t("pages.landing.heroAnswerPoint1")}<span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">[1]</span>。
+                      {t("pages.landing.heroAnswerPoint1")}
+                      <span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">
+                        [1]
+                      </span>
+                      。
                     </li>
                     <li>
-                      {t("pages.landing.heroAnswerPoint2")}<span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">[2]</span>。
+                      {t("pages.landing.heroAnswerPoint2")}
+                      <span className="ml-1 cursor-pointer font-mono font-bold text-brand-text hover:underline">
+                        [2]
+                      </span>
+                      。
                     </li>
-                    <li>
-                      {t("pages.landing.heroAnswerPoint3")}
-                    </li>
+                    <li>{t("pages.landing.heroAnswerPoint3")}</li>
                   </ol>
 
                   <div className="flex flex-wrap items-center gap-2.5 pt-2.5 border-t border-line-subtle text-xs">
@@ -209,7 +208,9 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
               <div className="mx-auto flex max-w-md items-center justify-center gap-3 py-6">
                 <div className="rounded-card border border-blue-500/30 bg-blue-500/10 p-3.5 text-center">
                   <Network className="mx-auto size-6 text-blue-500" />
-                  <span className="mt-1.5 block text-sm font-bold text-ink">{t("pages.landing.heroEntityRegulation")}</span>
+                  <span className="mt-1.5 block text-sm font-bold text-ink">
+                    {t("pages.landing.heroEntityRegulation")}
+                  </span>
                   <span className="text-xs font-medium text-ink/70">Node: Regulation</span>
                 </div>
                 <div className="h-0.5 w-12 bg-blue-500/40 relative">
@@ -217,11 +218,15 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
                 </div>
                 <div className="rounded-card border border-amber-500/30 bg-amber-500/10 p-3.5 text-center">
                   <Database className="mx-auto size-6 text-amber-500" />
-                  <span className="mt-1.5 block text-sm font-bold text-ink">{t("pages.landing.heroEntityProduct")}</span>
+                  <span className="mt-1.5 block text-sm font-bold text-ink">
+                    {t("pages.landing.heroEntityProduct")}
+                  </span>
                   <span className="text-xs font-medium text-ink/70">Node: Product</span>
                 </div>
                 <div className="h-0.5 w-12 bg-amber-500/40 relative">
-                  <span className="absolute -top-3 left-1 text-xs font-mono font-semibold text-ink/70">GOVERNED_BY</span>
+                  <span className="absolute -top-3 left-1 text-xs font-mono font-semibold text-ink/70">
+                    GOVERNED_BY
+                  </span>
                 </div>
                 <div className="rounded-card border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-center">
                   <ShieldCheck className="mx-auto size-6 text-emerald-500" />
@@ -229,9 +234,7 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
                   <span className="text-xs font-medium text-ink/70">Node: AuditEvent</span>
                 </div>
               </div>
-              <p className="text-xs leading-relaxed text-ink/80 sm:text-sm">
-                {t("pages.landing.heroGraphDesc")}
-              </p>
+              <p className="text-xs leading-relaxed text-ink/80 sm:text-sm">{t("pages.landing.heroGraphDesc")}</p>
             </div>
           )}
 
@@ -253,8 +256,12 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
                 <span className="text-xs font-medium text-ink/70">{t("pages.landing.heroTpsSub")}</span>
               </div>
               <div className="rounded-card border border-line-subtle bg-surface p-3.5 text-center">
-                <span className="text-xs font-medium text-ink/80 sm:text-sm">{t("pages.landing.heroLeakageLabel")}</span>
-                <p className="mt-1 font-mono text-xl font-bold text-success sm:text-2xl">{t("pages.landing.heroZeroExfil")}</p>
+                <span className="text-xs font-medium text-ink/80 sm:text-sm">
+                  {t("pages.landing.heroLeakageLabel")}
+                </span>
+                <p className="mt-1 font-mono text-xl font-bold text-success sm:text-2xl">
+                  {t("pages.landing.heroZeroExfil")}
+                </p>
                 <span className="text-xs font-medium text-ink/70">{t("pages.landing.heroAirGapped")}</span>
               </div>
             </div>

@@ -26,10 +26,7 @@ export type ConnectorProbeResult = {
 };
 
 export async function listConnectors(signal?: AbortSignal): Promise<readonly ConnectorView[]> {
-  const response = await authRequest<{ connectors: ConnectorView[] }>(
-    "/api/v1/connectors",
-    { signal },
-  );
+  const response = await authRequest<{ connectors: ConnectorView[] }>("/api/v1/connectors", { signal });
   return response.connectors;
 }
 
@@ -43,10 +40,9 @@ export function createConnector(input: ConnectorCreate): Promise<ConnectorView> 
 
 export function setConnectorEnabled(connectorId: string, enabled: boolean): Promise<ConnectorView> {
   const action = enabled ? "enable" : "disable";
-  return authRequest<ConnectorView>(
-    `/api/v1/connectors/${encodeURIComponent(connectorId)}/${action}`,
-    { method: "POST" },
-  );
+  return authRequest<ConnectorView>(`/api/v1/connectors/${encodeURIComponent(connectorId)}/${action}`, {
+    method: "POST",
+  });
 }
 
 /**
@@ -62,8 +58,7 @@ export function deleteConnector(connectorId: string): Promise<void> {
 }
 
 export function testConnector(connectorId: string): Promise<ConnectorProbeResult> {
-  return authRequest<ConnectorProbeResult>(
-    `/api/v1/connectors/${encodeURIComponent(connectorId)}/test`,
-    { method: "POST" },
-  );
+  return authRequest<ConnectorProbeResult>(`/api/v1/connectors/${encodeURIComponent(connectorId)}/test`, {
+    method: "POST",
+  });
 }

@@ -28,12 +28,7 @@ export function ConfirmDialog({
   const { t } = useTranslation();
 
   return (
-    <BaseDialog
-      isOpen={isOpen}
-      title={title}
-      onCancel={onCancel}
-      className="max-w-sm"
-    >
+    <BaseDialog isOpen={isOpen} title={title} onCancel={onCancel} className="max-w-sm">
       <p className="text-xs leading-relaxed text-ink-muted">{message}</p>
       <div className="flex items-center justify-end gap-2 pt-1">
         <Button variant="secondary" size="sm" onClick={onCancel}>

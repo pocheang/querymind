@@ -5,8 +5,8 @@
  * Syncs with backend RBAC permissions defined in app/services/rbac.py
  */
 
-import { useMemo } from 'react';
-import { toKnownUserRole, type KnownUserRole, type UserIdentity } from '@/types/auth';
+import { useMemo } from "react";
+import { toKnownUserRole, type KnownUserRole, type UserIdentity } from "@/types/auth";
 
 export interface PermissionCheck {
   // Session permissions
@@ -70,7 +70,7 @@ const ROLE_PERMISSIONS: Record<KnownUserRole, PermissionCheck> = {
     canViewAnalytics: true,
     canQuery: true,
     canViewAgentTracking: true,
-    role: 'admin',
+    role: "admin",
     isAdmin: true,
     isAnalyst: false,
     isViewer: false,
@@ -94,31 +94,31 @@ const ROLE_PERMISSIONS: Record<KnownUserRole, PermissionCheck> = {
     canViewAnalytics: false,
     canQuery: true,
     canViewAgentTracking: true,
-    role: 'analyst',
+    role: "analyst",
     isAdmin: false,
     isAnalyst: true,
     isViewer: false,
   },
   viewer: {
     canCreateSession: true,
-    canDeleteSession: true,      // Changed: viewers can delete their own sessions
-    canLockStrategy: true,        // Changed: viewers can lock strategy
-    canEditMessage: true,         // Changed: viewers can edit their own messages
-    canDeleteMessage: true,       // Changed: viewers can delete their own messages
+    canDeleteSession: true, // Changed: viewers can delete their own sessions
+    canLockStrategy: true, // Changed: viewers can lock strategy
+    canEditMessage: true, // Changed: viewers can edit their own messages
+    canDeleteMessage: true, // Changed: viewers can delete their own messages
     canViewPrompts: true,
-    canCreatePrompt: true,        // Changed: viewers can create prompts
-    canEditPrompt: true,          // Changed: viewers can edit their own prompts
-    canDeletePrompt: true,        // Changed: viewers can delete their own prompts
-    canUploadDocument: true,      // Changed: viewers can upload documents
-    canDeleteDocument: true,      // Changed: viewers can delete their own documents
-    canReindexDocument: true,     // Changed: viewers can reindex their own documents
+    canCreatePrompt: true, // Changed: viewers can create prompts
+    canEditPrompt: true, // Changed: viewers can edit their own prompts
+    canDeletePrompt: true, // Changed: viewers can delete their own prompts
+    canUploadDocument: true, // Changed: viewers can upload documents
+    canDeleteDocument: true, // Changed: viewers can delete their own documents
+    canReindexDocument: true, // Changed: viewers can reindex their own documents
     canAccessAdmin: false,
     canManageUsers: false,
     canConfigureSystem: false,
     canViewAnalytics: false,
     canQuery: true,
     canViewAgentTracking: true,
-    role: 'viewer',
+    role: "viewer",
     isAdmin: false,
     isAnalyst: false,
     isViewer: true,
@@ -189,10 +189,7 @@ export function usePermissions(user: UserIdentity | null): PermissionCheck {
  * }
  * ```
  */
-export function hasPermission(
-  user: UserIdentity | null,
-  permission: keyof PermissionCheck
-): boolean {
+export function hasPermission(user: UserIdentity | null, permission: keyof PermissionCheck): boolean {
   const permissions = getPermissionCheck(user);
   return Boolean(permissions[permission]);
 }
@@ -222,9 +219,7 @@ export function withPermission<P extends object>(
     const { user, ...rest } = props;
     const permissions = usePermissions(user);
 
-    const hasAllPermissions = requiredPermissions.every(
-      (perm) => permissions[perm] === true
-    );
+    const hasAllPermissions = requiredPermissions.every((perm) => permissions[perm] === true);
 
     if (!hasAllPermissions) {
       return <>{fallback}</>;
@@ -261,9 +256,7 @@ export function PermissionGate({
 }) {
   const permissions = usePermissions(user);
 
-  const hasAllPermissions = requires.every(
-    (perm) => permissions[perm] === true
-  );
+  const hasAllPermissions = requires.every((perm) => permissions[perm] === true);
 
   if (!hasAllPermissions) {
     return <>{fallback}</>;
@@ -278,14 +271,10 @@ export function PermissionGate({
 export function RoleBadge({ role }: Readonly<{ role: string }>) {
   const knownRole = toKnownUserRole(role);
   const labels: Record<KnownUserRole, string> = {
-    admin: 'Admin',
-    analyst: 'Analyst',
-    viewer: 'Viewer',
+    admin: "Admin",
+    analyst: "Analyst",
+    viewer: "Viewer",
   };
 
-  return (
-    <span className={`role-badge role-badge--${knownRole}`}>
-      {labels[knownRole]}
-    </span>
-  );
+  return <span className={`role-badge role-badge--${knownRole}`}>{labels[knownRole]}</span>;
 }

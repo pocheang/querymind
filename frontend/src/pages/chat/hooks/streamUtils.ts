@@ -23,7 +23,7 @@ export function createInitialStreamMessages(question: string): SessionMessage[] 
       message_id: "local-assistant-stream",
       role: "assistant",
       content: "",
-      metadata: { ...EMPTY_METADATA }
+      metadata: { ...EMPTY_METADATA },
     },
   ];
 }

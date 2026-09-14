@@ -32,25 +32,16 @@ export function ArchitecturePage({ isLoggedIn }: Readonly<Props>) {
         <ArchitectureKpiBanner />
 
         {/* Interactive Navigation Filter Tabs */}
-        <ArchitecturePillarTabs
-          activePillar={activePillar}
-          onSelectPillar={setActivePillar}
-        />
+        <ArchitecturePillarTabs activePillar={activePillar} onSelectPillar={setActivePillar} />
 
         {/* Section 1: End-to-End DataFlow Pipeline & Explorer */}
-        {(activePillar === "all" || activePillar === "pipeline") && (
-          <PipelineFlowDiagram />
-        )}
+        {(activePillar === "all" || activePillar === "pipeline") && <PipelineFlowDiagram />}
 
         {/* Section 2: Architecture Pillars Cards Grid */}
-        {visibleCards.length > 0 && (
-          <ArchitectureCardsGrid cards={visibleCards} />
-        )}
+        {visibleCards.length > 0 && <ArchitectureCardsGrid cards={visibleCards} />}
 
         {/* Section 3: Interactive Full API Explorer */}
-        {(activePillar === "all" || activePillar === "endpoints") && (
-          <ArchitectureApiExplorer />
-        )}
+        {(activePillar === "all" || activePillar === "endpoints") && <ArchitectureApiExplorer />}
       </main>
     </div>
   );

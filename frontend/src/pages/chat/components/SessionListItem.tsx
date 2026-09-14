@@ -88,10 +88,7 @@ export function SessionListItem({
             disabled={isBusy || isLoading}
           >
             {session.pinned && (
-              <Pin
-                className="size-3.5 shrink-0 text-brand-accent"
-                aria-label={t("components.chat.pinSession")}
-              />
+              <Pin className="size-3.5 shrink-0 text-brand-accent" aria-label={t("components.chat.pinSession")} />
             )}
             <span className="min-w-0 flex-1">
               <span
@@ -103,9 +100,7 @@ export function SessionListItem({
                 {title}
               </span>
               <span className="mt-0.5 flex items-center gap-1.5 font-mono text-xs text-ink-muted">
-                <span>
-                  {formatSessionTime(session.updated_at, t("components.chat.recent"), i18n.language)}
-                </span>
+                <span>{formatSessionTime(session.updated_at, t("components.chat.recent"), i18n.language)}</span>
                 <span>{session.message_count || 0}</span>
               </span>
             </span>

@@ -18,6 +18,6 @@ export function useFormState() {
     setError,
     loading,
     setLoading,
-    reset
+    reset,
   };
 }

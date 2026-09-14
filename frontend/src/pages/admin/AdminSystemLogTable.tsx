@@ -72,7 +72,9 @@ export function AdminSystemLogTable({
   const { t } = useTranslation();
 
   const formatLocation = (entry: SystemLogEntry) => {
-    const parts = [entry.module, entry.func ? `${entry.func}()` : null, entry.line ? `L${entry.line}` : null].filter(Boolean);
+    const parts = [entry.module, entry.func ? `${entry.func}()` : null, entry.line ? `L${entry.line}` : null].filter(
+      Boolean
+    );
     return parts.length > 0 ? parts.join(" / ") : "-";
   };
 
@@ -183,7 +185,7 @@ export function AdminSystemLogTable({
                           LOG_TEXT,
                           x.exception
                             ? "rounded-control border border-danger-border bg-danger-surface px-2.5 py-2 text-ink-muted"
-                            : "text-ink-muted",
+                            : "text-ink-muted"
                         )}
                         title={x.exception || "-"}
                       >

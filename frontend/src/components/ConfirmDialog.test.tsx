@@ -32,7 +32,7 @@ function open(onCancel = vi.fn(), onConfirm = vi.fn()) {
       message="This cannot be undone."
       onConfirm={onConfirm}
       onCancel={onCancel}
-    />,
+    />
   );
   return { onCancel, onConfirm };
 }
@@ -55,9 +55,7 @@ describe("the dialog announces itself as one", () => {
   });
 
   it("does not present the backdrop as something to interact with", () => {
-    const { container } = render(
-      <ConfirmDialog isOpen title="t" message="m" onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    const { container } = render(<ConfirmDialog isOpen title="t" message="m" onConfirm={vi.fn()} onCancel={vi.fn()} />);
     const backdrop = container.querySelector(".confirm-dialog-overlay");
 
     expect(backdrop?.getAttribute("role")).toBe("presentation");

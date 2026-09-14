@@ -19,7 +19,7 @@ export function useExecutionTrace(executionId: string | null) {
       executionId,
       controller.signal,
       (event) => dispatch({ type: "event_received", event }),
-      (text) => dispatch({ type: "answer_fragment", text }),
+      (text) => dispatch({ type: "answer_fragment", text })
     );
     return () => controller.abort();
   }, [executionId]);

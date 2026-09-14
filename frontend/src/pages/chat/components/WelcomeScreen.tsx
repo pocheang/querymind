@@ -38,7 +38,9 @@ export function WelcomeScreen({
 
       <div className="space-y-2">
         <h2 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">{t("components.chat.welcomeTitle")}</h2>
-        <p className="mx-auto max-w-lg text-sm sm:text-base text-ink/80 leading-relaxed">{t("components.chat.welcomeSubtitle")}</p>
+        <p className="mx-auto max-w-lg text-sm sm:text-base text-ink/80 leading-relaxed">
+          {t("components.chat.welcomeSubtitle")}
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-2.5">
@@ -59,7 +61,12 @@ export function WelcomeScreen({
           <Plus className="size-4" strokeWidth={2.5} aria-hidden="true" />
           {t("components.chat.startConversation")}
         </Button>
-        <Button size="lg" variant="secondary" className="text-sm sm:text-base font-semibold" onClick={onNavigateToArchitecture}>
+        <Button
+          size="lg"
+          variant="secondary"
+          className="text-sm sm:text-base font-semibold"
+          onClick={onNavigateToArchitecture}
+        >
           <Boxes className="size-4" aria-hidden="true" />
           {t("components.chat.viewArchitecture")}
         </Button>

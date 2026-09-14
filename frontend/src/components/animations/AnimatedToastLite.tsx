@@ -140,10 +140,7 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
-  const contextValue = useMemo(
-    () => ({ toasts, addToast, removeToast }),
-    [toasts, addToast, removeToast]
-  );
+  const contextValue = useMemo(() => ({ toasts, addToast, removeToast }), [toasts, addToast, removeToast]);
 
   return (
     <ToastContext.Provider value={contextValue}>

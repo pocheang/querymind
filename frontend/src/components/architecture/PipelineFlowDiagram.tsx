@@ -104,16 +104,13 @@ export function PipelineFlowDiagram() {
                   <ArrowRight className="size-4 text-brand-accent" />
                   {isZh ? "AI 内部流转的 6 个执行阶段" : "6 Sequential Execution Phases Inside AI"}
                 </span>
-                <span className="text-xs text-ink-faint">
-                  {t("architecture.flow.clickHint")}
-                </span>
+                <span className="text-xs text-ink-faint">{t("architecture.flow.clickHint")}</span>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {STEPS.map((stg) => {
                   const isCurrentActive = activeStepConfig?.id === stg.id;
-                  const isPastCompleted =
-                    isSimulating && activeStepConfig ? activeStepConfig.id > stg.id : false;
+                  const isPastCompleted = isSimulating && activeStepConfig ? activeStepConfig.id > stg.id : false;
                   const isFocused = focusedStepId === stg.id;
 
                   return (

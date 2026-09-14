@@ -101,7 +101,9 @@ export function AdminWebActivityDashboard() {
         <SectionHead title={t("admin.webActivity.title", "Web Search Activity")}></SectionHead>
         <StatePanel tone="error">
           <p>{error}</p>
-          <Button variant="secondary" size="xs" onClick={handleRetry}>{t("admin.webActivity.retry", "Retry")}</Button>
+          <Button variant="secondary" size="xs" onClick={handleRetry}>
+            {t("admin.webActivity.retry", "Retry")}
+          </Button>
         </StatePanel>
       </main>
     );
@@ -110,16 +112,24 @@ export function AdminWebActivityDashboard() {
   return (
     <main className="space-y-6">
       <SectionHead title={t("admin.webActivity.title", "Web Search Activity")}>
-<RowActions>
+        <RowActions>
           <ExportButtons
             data={stats ? [{ ...stats.summary, top_users: usersData, top_websites: websitesData }] : []}
             filename={`web-activity-${new Date().toISOString().split("T")[0]}`}
           />
-          <Button variant="secondary" size="xs" onClick={() => void fetchData()}>{t("admin.webActivity.refresh", "Refresh")}</Button>
-        </RowActions></SectionHead>
+          <Button variant="secondary" size="xs" onClick={() => void fetchData()}>
+            {t("admin.webActivity.refresh", "Refresh")}
+          </Button>
+        </RowActions>
+      </SectionHead>
 
       <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 whitespace-nowrap rounded-control border border-transparent px-3 py-2 text-xs font-bold uppercase tracking-wider text-ink/80 transition-colors hover:border-brand-border hover:bg-brand-surface">
-        <input className="size-3.5 shrink-0 accent-[var(--brand)]" type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+        <input
+          className="size-3.5 shrink-0 accent-[var(--brand)]"
+          type="checkbox"
+          checked={autoRefresh}
+          onChange={(e) => setAutoRefresh(e.target.checked)}
+        />
         <span>{t("admin.ui.autoRefresh30")}</span>
       </label>
 

@@ -88,9 +88,7 @@ export class ErrorBoundary extends Component<Props, State> {
            rendered. */
         <div className="mx-auto my-8 max-w-xl rounded-panel border border-danger-border bg-danger-surface p-8 text-center">
           <h2 className="mb-4 text-sm font-bold text-danger">Something went wrong</h2>
-          <p className="mb-4 text-xs text-ink-muted">
-            {this.state.error?.message || "An unexpected error occurred"}
-          </p>
+          <p className="mb-4 text-xs text-ink-muted">{this.state.error?.message || "An unexpected error occurred"}</p>
           <Button size="sm" onClick={this.handleReset}>
             Try Again
           </Button>

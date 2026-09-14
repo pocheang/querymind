@@ -34,8 +34,7 @@ import { cn } from "@/lib/utils";
  * class-name drift this project has already shipped once.
  */
 const BANNER = "mt-5 flex items-start gap-3 rounded-card border border-line border-l-[3px] p-4";
-const BANNER_MARK =
-  "flex-none rounded border px-2 py-1 font-mono text-xs font-extrabold tracking-[0.12em]";
+const BANNER_MARK = "flex-none rounded border px-2 py-1 font-mono text-xs font-extrabold tracking-[0.12em]";
 
 const PROVIDERS: ModelProvider[] = ["local", "ollama", "openai", "deepseek", "anthropic", "custom"];
 
@@ -43,11 +42,36 @@ const FALLBACK_DEFAULTS: Record<
   ModelProvider,
   Pick<AdminModelSettingsView, "base_url" | "chat_model" | "reasoning_model" | "embedding_model">
 > = {
-  local: { base_url: "", chat_model: "local-evidence", reasoning_model: "local-evidence", embedding_model: "local-hash-384" },
-  ollama: { base_url: import.meta.env.VITE_OLLAMA_BASE_URL || "http://localhost:11434", chat_model: "qwen3:14b", reasoning_model: "deepseek-r1:32b", embedding_model: "nomic-embed-text" },
-  openai: { base_url: "https://api.openai.com/v1", chat_model: "gpt-5.5", reasoning_model: "gpt-5.5", embedding_model: "text-embedding-3-small" },
-  deepseek: { base_url: "https://api.deepseek.com/v1", chat_model: "deepseek-v4-flash", reasoning_model: "deepseek-v4-pro", embedding_model: "" },
-  anthropic: { base_url: "https://api.anthropic.com", chat_model: "claude-sonnet-5", reasoning_model: "claude-fable-5", embedding_model: "" },
+  local: {
+    base_url: "",
+    chat_model: "local-evidence",
+    reasoning_model: "local-evidence",
+    embedding_model: "local-hash-384",
+  },
+  ollama: {
+    base_url: import.meta.env.VITE_OLLAMA_BASE_URL || "http://localhost:11434",
+    chat_model: "qwen3:14b",
+    reasoning_model: "deepseek-r1:32b",
+    embedding_model: "nomic-embed-text",
+  },
+  openai: {
+    base_url: "https://api.openai.com/v1",
+    chat_model: "gpt-5.5",
+    reasoning_model: "gpt-5.5",
+    embedding_model: "text-embedding-3-small",
+  },
+  deepseek: {
+    base_url: "https://api.deepseek.com/v1",
+    chat_model: "deepseek-v4-flash",
+    reasoning_model: "deepseek-v4-pro",
+    embedding_model: "",
+  },
+  anthropic: {
+    base_url: "https://api.anthropic.com",
+    chat_model: "claude-sonnet-5",
+    reasoning_model: "claude-fable-5",
+    embedding_model: "",
+  },
   custom: { base_url: "", chat_model: "", reasoning_model: "", embedding_model: "" },
 };
 
@@ -133,9 +157,12 @@ export function AdminModelSettings({
 
   useEffect(() => {
     let active = true;
-    void appApi.modelCatalog().then((data) => {
-      if (active) setCatalog(data);
-    }).catch(() => undefined);
+    void appApi
+      .modelCatalog()
+      .then((data) => {
+        if (active) setCatalog(data);
+      })
+      .catch(() => undefined);
     return () => {
       active = false;
     };
@@ -145,7 +172,7 @@ export function AdminModelSettings({
   const metadata = catalog?.providers?.[provider];
   const providerOptions = useMemo(
     () => PROVIDERS.map((value) => ({ value, label: catalog?.providers?.[value]?.label || value })),
-    [catalog],
+    [catalog]
   );
   const chatOptions = optionsForRole(metadata, "chat");
   const reasoningOptions = optionsForRole(metadata, "reasoning");
@@ -172,12 +199,13 @@ export function AdminModelSettings({
     label: string,
     value: string,
     options: Array<{ value: string; label: string }>,
-    onChange: (value: string) => void,
-  ) => options.length > 0 ? (
-    <AdminFormSelect label={label} value={value} onChange={onChange} options={options} required />
-  ) : (
-    <AdminFormField label={label} value={value} onChange={onChange} placeholder="model-id" required />
-  );
+    onChange: (value: string) => void
+  ) =>
+    options.length > 0 ? (
+      <AdminFormSelect label={label} value={value} onChange={onChange} options={options} required />
+    ) : (
+      <AdminFormField label={label} value={value} onChange={onChange} placeholder="model-id" required />
+    );
 
   return (
     <main className="space-y-6">
@@ -192,7 +220,9 @@ export function AdminModelSettings({
         }
       >
         <RowActions>
-          <Button variant="secondary" size="xs" onClick={refreshAll}>{t("common.refresh", "Refresh")}</Button>
+          <Button variant="secondary" size="xs" onClick={refreshAll}>
+            {t("common.refresh", "Refresh")}
+          </Button>
           <Button variant="secondary" size="xs" onClick={onTest} disabled={modelTesting || modelSaving}>
             {modelTesting ? t("admin.ui.testing", "Testing") : t("admin.ui.connectionTest", "Connection test")}
           </Button>
@@ -228,10 +258,7 @@ export function AdminModelSettings({
                 <>
                   {t("admin.ui.effectiveConfig", "Effective configuration")}
                   <span className="ml-2 font-normal normal-case tracking-normal text-ink-muted">
-                    {t(
-                      "admin.ui.effectiveConfigNote",
-                      "What the next question will actually use, not what is stored.",
-                    )}
+                    {t("admin.ui.effectiveConfigNote", "What the next question will actually use, not what is stored.")}
                   </span>
                 </>
               }
@@ -253,17 +280,12 @@ export function AdminModelSettings({
             <output className={cn(BANNER, "border-l-warning bg-warning-surface block")}>
               <span className={cn(BANNER_MARK, "border-warning text-warning")}>!</span>
               <div>
-                <strong>
-                  {t(
-                    "admin.ui.modelSettingsPinned",
-                    "These settings are saved but not in effect",
-                  )}
-                </strong>
+                <strong>{t("admin.ui.modelSettingsPinned", "These settings are saved but not in effect")}</strong>
                 <p>
                   {modelSettings.pinned_reason ||
                     t(
                       "admin.ui.modelSettingsPinnedReason",
-                      "The process environment pins the model backend; this configuration takes effect once that is unset.",
+                      "The process environment pins the model backend; this configuration takes effect once that is unset."
                     )}
                 </p>
               </div>
@@ -274,7 +296,9 @@ export function AdminModelSettings({
             <span className={cn(BANNER_MARK, "border-info text-info")}>API</span>
             <div>
               <strong>{metadata?.note || "Provider settings are validated by the backend before activation."}</strong>
-              {selected?.deprecated_after && <p>Deprecated after {new Date(selected.deprecated_after).toLocaleString()}</p>}
+              {selected?.deprecated_after && (
+                <p>Deprecated after {new Date(selected.deprecated_after).toLocaleString()}</p>
+              )}
             </div>
           </div>
 
@@ -289,39 +313,78 @@ export function AdminModelSettings({
               <span className="text-xs font-bold uppercase tracking-wider text-ink/80">
                 {t(
                   "admin.ui.enableGlobalModelOverride",
-                  "Apply this model configuration to every user (when off, the deployment's own environment is used)",
+                  "Apply this model configuration to every user (when off, the deployment's own environment is used)"
                 )}
               </span>
             </label>
-            <AdminFormSelect label={t("admin.ui.backendType", "Backend type")} value={provider} onChange={(value) => changeProvider(value as ModelProvider)} options={providerOptions} />
+            <AdminFormSelect
+              label={t("admin.ui.backendType", "Backend type")}
+              value={provider}
+              onChange={(value) => changeProvider(value as ModelProvider)}
+              options={providerOptions}
+            />
           </TwoCol>
 
           {provider !== "local" && (
             <TwoCol>
-              <AdminFormField label="Base URL" value={modelSettings.base_url} onChange={(value) => onPatch({ base_url: value })} placeholder="https://api.example.com/v1" required />
-              <AdminFormField label="API Key" type="password" value={modelApiKey} onChange={onApiKeyChange} placeholder={modelSettings.api_key_masked ? `Saved: ${modelSettings.api_key_masked}` : "Stored securely after save"} required={requiresApiKey} />
+              <AdminFormField
+                label="Base URL"
+                value={modelSettings.base_url}
+                onChange={(value) => onPatch({ base_url: value })}
+                placeholder="https://api.example.com/v1"
+                required
+              />
+              <AdminFormField
+                label="API Key"
+                type="password"
+                value={modelApiKey}
+                onChange={onApiKeyChange}
+                placeholder={
+                  modelSettings.api_key_masked ? `Saved: ${modelSettings.api_key_masked}` : "Stored securely after save"
+                }
+                required={requiresApiKey}
+              />
             </TwoCol>
           )}
 
           <TwoCol>
-            {renderModelField(t("admin.ui.chatModel", "Chat model"), modelSettings.chat_model, chatOptions, (value) => onPatch({ chat_model: value }))}
-            {renderModelField(t("admin.ui.reasoningModel", "Reasoning model"), modelSettings.reasoning_model, reasoningOptions, (value) => onPatch({ reasoning_model: value }))}
+            {renderModelField(t("admin.ui.chatModel", "Chat model"), modelSettings.chat_model, chatOptions, (value) =>
+              onPatch({ chat_model: value })
+            )}
+            {renderModelField(
+              t("admin.ui.reasoningModel", "Reasoning model"),
+              modelSettings.reasoning_model,
+              reasoningOptions,
+              (value) => onPatch({ reasoning_model: value })
+            )}
           </TwoCol>
 
           <TwoCol>
-            {supportsEmbeddings ? renderModelField(t("admin.ui.embeddingModel", "Embedding model"), modelSettings.embedding_model, embeddingOptions, (value) => onPatch({ embedding_model: value })) : (
+            {supportsEmbeddings ? (
+              renderModelField(
+                t("admin.ui.embeddingModel", "Embedding model"),
+                modelSettings.embedding_model,
+                embeddingOptions,
+                (value) => onPatch({ embedding_model: value })
+              )
+            ) : (
               <StatePanel>
                 <strong className="text-xs font-bold text-ink">Embedding pipeline unchanged</strong>
-                <Muted>This provider has no embedding endpoint. Existing vectors and the configured environment embedding model remain active.</Muted>
+                <Muted>
+                  This provider has no embedding endpoint. Existing vectors and the configured environment embedding
+                  model remain active.
+                </Muted>
               </StatePanel>
             )}
-            <AdminFormField label="Max Tokens" type="number" value={String(modelSettings.max_tokens)} onChange={(value) => onPatch({ max_tokens: Number(value) || 2048 })} />
+            <AdminFormField
+              label="Max Tokens"
+              type="number"
+              value={String(modelSettings.max_tokens)}
+              onChange={(value) => onPatch({ max_tokens: Number(value) || 2048 })}
+            />
           </TwoCol>
 
-          <AdminField
-            className="gap-2.5"
-            label={`Temperature ${Number(modelSettings.temperature || 0).toFixed(1)}`}
-          >
+          <AdminField className="gap-2.5" label={`Temperature ${Number(modelSettings.temperature || 0).toFixed(1)}`}>
             <input
               className="w-full accent-[var(--brand)]"
               type="range"

@@ -138,9 +138,7 @@ describe("the integrations panel", () => {
     render(<IntegrationsPanel />);
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(2));
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "features.integrations.removeNamed:Atlas CI" })
-    );
+    await userEvent.click(screen.getByRole("button", { name: "features.integrations.removeNamed:Atlas CI" }));
 
     expect(deleteConnector).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "features.integrations.remove" }));
@@ -156,9 +154,7 @@ describe("the integrations panel", () => {
     render(<IntegrationsPanel />);
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(2));
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "features.integrations.removeNamed:Atlas CI" })
-    );
+    await userEvent.click(screen.getByRole("button", { name: "features.integrations.removeNamed:Atlas CI" }));
     await userEvent.click(screen.getByRole("button", { name: "common.cancel" }));
 
     expect(deleteConnector).not.toHaveBeenCalled();

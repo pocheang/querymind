@@ -13,7 +13,9 @@ export function PipelineBlueprintView({ isZh }: Readonly<{ isZh: boolean }>) {
           <div className="flex items-center gap-2">
             <Images className="size-5 text-brand-accent" />
             <h3 className="text-base sm:text-lg font-bold text-ink">
-              {isZh ? "QueryMind RAG 7阶段端到端系统架构全景蓝图" : "QueryMind RAG 7-Stage End-to-End Architecture Blueprint"}
+              {isZh
+                ? "QueryMind RAG 7阶段端到端系统架构全景蓝图"
+                : "QueryMind RAG 7-Stage End-to-End Architecture Blueprint"}
             </h3>
           </div>
           <p className="text-xs sm:text-sm text-ink-muted leading-relaxed">

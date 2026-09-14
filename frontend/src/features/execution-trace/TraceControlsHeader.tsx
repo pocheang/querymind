@@ -73,9 +73,7 @@ export function TraceControlsHeader({
               type="button"
               onClick={() => onChangeViewMode("structured")}
               className={`flex size-6 items-center justify-center rounded transition-colors ${
-                viewMode === "structured"
-                  ? "bg-surface text-ink shadow-xs"
-                  : "text-ink-muted hover:text-ink"
+                viewMode === "structured" ? "bg-surface text-ink shadow-xs" : "text-ink-muted hover:text-ink"
               }`}
               title={t("features.executionTrace.views.structured")}
               aria-label={t("features.executionTrace.views.structured")}
@@ -86,9 +84,7 @@ export function TraceControlsHeader({
               type="button"
               onClick={() => onChangeViewMode("raw")}
               className={`flex size-6 items-center justify-center rounded transition-colors ${
-                viewMode === "raw"
-                  ? "bg-surface text-ink shadow-xs"
-                  : "text-ink-muted hover:text-ink"
+                viewMode === "raw" ? "bg-surface text-ink shadow-xs" : "text-ink-muted hover:text-ink"
               }`}
               title={t("features.executionTrace.views.raw")}
               aria-label={t("features.executionTrace.views.raw")}

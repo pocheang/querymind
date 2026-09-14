@@ -34,7 +34,10 @@ export function PasswordRequirements({ password }: Readonly<PasswordRequirements
       </h3>
       <ul className="space-y-1.5">
         {rows.map(({ met, label }) => (
-          <li key={label} className={cn("flex items-center gap-1.5 text-xs sm:text-sm", met ? "font-medium" : "opacity-75")}>
+          <li
+            key={label}
+            className={cn("flex items-center gap-1.5 text-xs sm:text-sm", met ? "font-medium" : "opacity-75")}
+          >
             {met ? (
               <Check className="size-3.5 shrink-0" strokeWidth={3} aria-hidden="true" />
             ) : (

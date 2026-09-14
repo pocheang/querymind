@@ -87,7 +87,14 @@ export function AdminUserManagement({
   const filteredUsers = useMemo(() => {
     const q = kw.trim().toLowerCase();
     return users.filter((u) => {
-      if (q && ![u.username, u.user_id, u.business_unit, u.department, u.user_type, u.data_scope].join(" ").toLowerCase().includes(q)) return false;
+      if (
+        q &&
+        ![u.username, u.user_id, u.business_unit, u.department, u.user_type, u.data_scope]
+          .join(" ")
+          .toLowerCase()
+          .includes(q)
+      )
+        return false;
       if (fRole && (u.role || "") !== fRole) return false;
       if (fStatus && (u.status || "") !== fStatus) return false;
       if (fOnline === "online" && !u.is_online) return false;
@@ -112,12 +119,20 @@ export function AdminUserManagement({
   return (
     <main className="space-y-6">
       <SectionHead title={t("admin.userManagement")}>
-<Button variant="secondary" size="xs" onClick={onLoadUsers}>{t("common.refresh")}</Button></SectionHead>
+        <Button variant="secondary" size="xs" onClick={onLoadUsers}>
+          {t("common.refresh")}
+        </Button>
+      </SectionHead>
       <Hint>{t("admin.ui.usersHint")}</Hint>
 
       <FilterGrid>
         <AdminField label={t("admin.ui.search")}>
-          <input className={ADMIN_FIELD} placeholder={t("admin.ui.userSearchPlaceholder")} value={kw} onChange={(e) => onKwChange(e.target.value)} />
+          <input
+            className={ADMIN_FIELD}
+            placeholder={t("admin.ui.userSearchPlaceholder")}
+            value={kw}
+            onChange={(e) => onKwChange(e.target.value)}
+          />
         </AdminField>
         <AdminField label={t("admin.ui.role")}>
           <select className={ADMIN_FIELD} value={fRole} onChange={(e) => onFRoleChange(e.target.value)}>
@@ -150,14 +165,37 @@ export function AdminUserManagement({
       {editingUser && (
         <AdminPanel as="div" className="mb-3">
           <SectionHead title={t("admin.ui.userClassification", { username: editingUser.username })}>
-<Button variant="secondary" size="xs" onClick={() => onEditingUserChange(null)}>{t("common.cancel")}</Button></SectionHead>
+            <Button variant="secondary" size="xs" onClick={() => onEditingUserChange(null)}>
+              {t("common.cancel")}
+            </Button>
+          </SectionHead>
           <TwoCol>
-            <input className={ADMIN_FIELD} placeholder={t("admin.ui.businessUnit")} value={editBu} onChange={(e) => onEditBuChange(e.target.value)} />
-            <input className={ADMIN_FIELD} placeholder={t("admin.ui.department")} value={editDept} onChange={(e) => onEditDeptChange(e.target.value)} />
+            <input
+              className={ADMIN_FIELD}
+              placeholder={t("admin.ui.businessUnit")}
+              value={editBu}
+              onChange={(e) => onEditBuChange(e.target.value)}
+            />
+            <input
+              className={ADMIN_FIELD}
+              placeholder={t("admin.ui.department")}
+              value={editDept}
+              onChange={(e) => onEditDeptChange(e.target.value)}
+            />
           </TwoCol>
           <TwoCol>
-            <input className={ADMIN_FIELD} placeholder={t("admin.ui.userType")} value={editType} onChange={(e) => onEditTypeChange(e.target.value)} />
-            <input className={ADMIN_FIELD} placeholder={t("admin.ui.dataScope")} value={editScope} onChange={(e) => onEditScopeChange(e.target.value)} />
+            <input
+              className={ADMIN_FIELD}
+              placeholder={t("admin.ui.userType")}
+              value={editType}
+              onChange={(e) => onEditTypeChange(e.target.value)}
+            />
+            <input
+              className={ADMIN_FIELD}
+              placeholder={t("admin.ui.dataScope")}
+              value={editScope}
+              onChange={(e) => onEditScopeChange(e.target.value)}
+            />
           </TwoCol>
           <RowActions>
             <Button size="sm" disabled={savingClass} onClick={onSaveClass}>

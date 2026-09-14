@@ -63,10 +63,14 @@ export function LandingHeader({ isLoggedIn }: Readonly<LandingHeaderProps>) {
         ) : (
           <>
             <Button asChild variant="secondary" size="sm">
-              <Link to="/app/login?mode=login" className="text-xs sm:text-sm font-semibold">{t("auth.login")}</Link>
+              <Link to="/app/login?mode=login" className="text-xs sm:text-sm font-semibold">
+                {t("auth.login")}
+              </Link>
             </Button>
             <Button asChild size="sm">
-              <Link to="/app/login?mode=register" className="text-xs sm:text-sm font-semibold">{t("pages.landing.register")}</Link>
+              <Link to="/app/login?mode=register" className="text-xs sm:text-sm font-semibold">
+                {t("pages.landing.register")}
+              </Link>
             </Button>
           </>
         )}

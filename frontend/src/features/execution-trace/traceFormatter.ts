@@ -56,11 +56,7 @@ function metadataToDict(metadata?: readonly { key: string; value: string }[]): R
 
 const RETRIEVAL_OUTCOME_RE = /^(\w+)\s+retrieval\s+(completed|skipped|failed)$/i;
 
-function parseSubSourceItem(
-  event: ExecutionEvent,
-  meta: Record<string, string>,
-  index: number,
-): SubSourceItem | null {
+function parseSubSourceItem(event: ExecutionEvent, meta: Record<string, string>, index: number): SubSourceItem | null {
   if (event.stage !== "knowledge") return null;
   const sourceMatch = event.message ? RETRIEVAL_OUTCOME_RE.exec(event.message) : null;
   const sourceName = meta.source || (sourceMatch ? sourceMatch[1] : null);
@@ -81,12 +77,15 @@ function parseSubSourceItem(
 
 function updateRoundState(
   event: ExecutionEvent,
-  seenVerifier: boolean,
+  seenVerifier: boolean
 ): { newRound: boolean; newSeenVerifier: boolean } {
   if (event.stage === "verifier") {
     return { newRound: false, newSeenVerifier: true };
   }
-  if (seenVerifier && (event.stage === "knowledge_strategy" || event.stage === "knowledge" || event.stage === "synthesize")) {
+  if (
+    seenVerifier &&
+    (event.stage === "knowledge_strategy" || event.stage === "knowledge" || event.stage === "synthesize")
+  ) {
     return { newRound: true, newSeenVerifier: false };
   }
   return { newRound: false, newSeenVerifier: seenVerifier };
@@ -94,7 +93,10 @@ function updateRoundState(
 
 function attachLeftoverSubSources(stages: StructuredStage[], pendingSubSources: SubSourceItem[]): void {
   if (pendingSubSources.length === 0) return;
-  const lastKnowledge = stages.slice().reverse().find((s) => s.stage === "knowledge" || s.stage === "rag");
+  const lastKnowledge = stages
+    .slice()
+    .reverse()
+    .find((s) => s.stage === "knowledge" || s.stage === "rag");
   if (lastKnowledge && !lastKnowledge.subSources) {
     lastKnowledge.subSources = [...pendingSubSources];
   }
@@ -156,9 +158,8 @@ export function groupExecutionEvents(events: readonly ExecutionEvent[]): {
   let pendingSubSources: SubSourceItem[] = [];
 
   const terminalCompleteEvents = events.filter((e) => e.stage === "complete");
-  const finalCompleteEvent = terminalCompleteEvents.length > 0
-    ? terminalCompleteEvents[terminalCompleteEvents.length - 1]
-    : null;
+  const finalCompleteEvent =
+    terminalCompleteEvents.length > 0 ? terminalCompleteEvents[terminalCompleteEvents.length - 1] : null;
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];

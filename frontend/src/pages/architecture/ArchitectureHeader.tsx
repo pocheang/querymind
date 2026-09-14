@@ -28,9 +28,7 @@ export function ArchitectureHeader({ isLoggedIn }: Readonly<ArchitectureHeaderPr
             </Badge>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-4xl">QueryMind Architecture & Systems</h1>
-          <p className="max-w-4xl text-sm sm:text-base text-ink-muted leading-relaxed">
-            {t("dataFlow.description")}
-          </p>
+          <p className="max-w-4xl text-sm sm:text-base text-ink-muted leading-relaxed">{t("dataFlow.description")}</p>
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-ink-muted">
             <Badge variant="outline" size="sm" mono>
               {t("architecture.badges.stack")}

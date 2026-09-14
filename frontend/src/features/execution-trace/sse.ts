@@ -41,7 +41,7 @@ export async function consumeExecutionEventStream(
   response: Response,
   onEvent: (event: ExecutionEvent) => void,
   signal: AbortSignal,
-  onAnswerFragment?: (text: string) => void,
+  onAnswerFragment?: (text: string) => void
 ): Promise<void> {
   if (!response.body) return;
   const reader = response.body.getReader();

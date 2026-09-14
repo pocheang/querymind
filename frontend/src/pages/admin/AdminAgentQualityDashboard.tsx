@@ -151,7 +151,9 @@ export function AdminAgentQualityDashboard() {
   }
 
   const filteredAgents =
-    selectedAgent === "all" ? stats?.agents || [] : stats?.agents.filter((agent) => agent.agent_name === selectedAgent) || [];
+    selectedAgent === "all"
+      ? stats?.agents || []
+      : stats?.agents.filter((agent) => agent.agent_name === selectedAgent) || [];
 
   const errorData = Object.entries(stats?.error_distribution || {}).map(([name, value]) => ({
     name,
@@ -161,7 +163,7 @@ export function AdminAgentQualityDashboard() {
   return (
     <main className="space-y-6">
       <SectionHead title={t("admin.agentQuality.title", "Agent Quality Monitor")}>
-<RowActions>
+        <RowActions>
           <ExportButtons
             data={(stats?.agents || []) as unknown as Array<Record<string, unknown>>}
             filename={`agent-quality-${new Date().toISOString().split("T")[0]}`}
@@ -169,10 +171,15 @@ export function AdminAgentQualityDashboard() {
           <Button variant="secondary" size="xs" onClick={() => void fetchStats()}>
             {t("common.refresh", "Refresh")}
           </Button>
-        </RowActions></SectionHead>
+        </RowActions>
+      </SectionHead>
 
       <ControlsRow>
-        <select className={ADMIN_FIELD} value={selectedAgent} onChange={(event) => setSelectedAgent(event.target.value)}>
+        <select
+          className={ADMIN_FIELD}
+          value={selectedAgent}
+          onChange={(event) => setSelectedAgent(event.target.value)}
+        >
           <option value="all">{t("admin.agentQuality.allAgents", "All Agents")}</option>
           {stats?.agents.map((agent) => (
             <option key={agent.agent_name} value={agent.agent_name}>
@@ -182,7 +189,12 @@ export function AdminAgentQualityDashboard() {
         </select>
 
         <label className="flex shrink-0 cursor-pointer select-none items-center gap-2 whitespace-nowrap rounded-control border border-transparent px-3 py-2 text-xs font-bold uppercase tracking-wider text-ink/80 transition-colors hover:border-brand-border hover:bg-brand-surface">
-          <input className="size-3.5 shrink-0 accent-[var(--brand)]" type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} />
+          <input
+            className="size-3.5 shrink-0 accent-[var(--brand)]"
+            type="checkbox"
+            checked={autoRefresh}
+            onChange={(event) => setAutoRefresh(event.target.checked)}
+          />
           <span>{t("admin.ui.autoRefresh30", "Auto refresh every 30s")}</span>
         </label>
       </ControlsRow>
@@ -218,12 +230,22 @@ export function AdminAgentQualityDashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                   <XAxis dataKey="timestamp" stroke={CHART_AXIS} fontSize={11} />
                   <YAxis stroke={CHART_AXIS} fontSize={12} />
-                  <Tooltip
-                    contentStyle={CHART_TOOLTIP}
-                  />
+                  <Tooltip contentStyle={CHART_TOOLTIP} />
                   <Legend />
-                  <Line type="monotone" dataKey="success" stroke="var(--success)" strokeWidth={2} name={t("admin.agentQuality.success", "Success")} />
-                  <Line type="monotone" dataKey="failure" stroke="var(--danger)" strokeWidth={2} name={t("admin.agentQuality.failure", "Failure")} />
+                  <Line
+                    type="monotone"
+                    dataKey="success"
+                    stroke="var(--success)"
+                    strokeWidth={2}
+                    name={t("admin.agentQuality.success", "Success")}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="failure"
+                    stroke="var(--danger)"
+                    strokeWidth={2}
+                    name={t("admin.agentQuality.failure", "Failure")}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </AdminBlock>
@@ -231,7 +253,15 @@ export function AdminAgentQualityDashboard() {
             <AdminBlock titleAs="h3" title={t("admin.agentQuality.errorDistribution", "Error Distribution")}>
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                  <Pie data={errorData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} labelLine={false}>
+                  <Pie
+                    data={errorData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    labelLine={false}
+                  >
                     {errorData.map((entry, index) => (
                       <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                     ))}
@@ -292,9 +322,7 @@ export function AdminAgentQualityDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                     <XAxis type="number" stroke={CHART_AXIS} fontSize={11} />
                     <YAxis dataKey="agent_name" type="category" stroke={CHART_AXIS} fontSize={10} width={150} />
-                    <Tooltip
-                      contentStyle={CHART_TOOLTIP}
-                    />
+                    <Tooltip contentStyle={CHART_TOOLTIP} />
                     <Bar dataKey="total_executions" fill="var(--accent)" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -306,9 +334,7 @@ export function AdminAgentQualityDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
                     <XAxis type="number" stroke={CHART_AXIS} fontSize={11} />
                     <YAxis dataKey="agent_name" type="category" stroke={CHART_AXIS} fontSize={10} width={150} />
-                    <Tooltip
-                      contentStyle={CHART_TOOLTIP}
-                    />
+                    <Tooltip contentStyle={CHART_TOOLTIP} />
                     <Bar dataKey="avg_execution_time" fill="var(--warning)" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

@@ -9,23 +9,15 @@ interface PipelineFlowHeaderProps {
   t: (key: string) => string;
 }
 
-export function PipelineFlowHeader({
-  perspective,
-  setPerspective,
-  t,
-}: Readonly<PipelineFlowHeaderProps>) {
+export function PipelineFlowHeader({ perspective, setPerspective, t }: Readonly<PipelineFlowHeaderProps>) {
   return (
     <CardHeader className="flex flex-col gap-4 border-b border-line bg-surface-muted/40 p-5 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="space-y-1.5">
         <div className="flex items-center gap-2.5">
           <Layers className="size-5 text-brand-accent" aria-hidden="true" />
-          <CardTitle className="text-lg sm:text-xl font-bold text-ink">
-            {t("architecture.flow.title")}
-          </CardTitle>
+          <CardTitle className="text-lg sm:text-xl font-bold text-ink">{t("architecture.flow.title")}</CardTitle>
         </div>
-        <p className="text-sm sm:text-base text-ink-muted leading-relaxed">
-          {t("architecture.flow.subtitle")}
-        </p>
+        <p className="text-sm sm:text-base text-ink-muted leading-relaxed">{t("architecture.flow.subtitle")}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 rounded-control border border-line bg-surface p-1.5">

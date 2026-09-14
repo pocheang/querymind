@@ -1,15 +1,6 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  ArrowRight,
-  Brain,
-  Check,
-  Compass,
-  Cpu,
-  FileText,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, Brain, Check, Compass, Cpu, FileText, ShieldCheck, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -130,12 +121,21 @@ export function LandingAgentsSection() {
               <div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-control border shadow-xs", agent.accent)}>
+                    <span
+                      className={cn(
+                        "flex size-9 shrink-0 items-center justify-center rounded-control border shadow-xs",
+                        agent.accent
+                      )}
+                    >
                       <Icon className="size-4.5" aria-hidden="true" />
                     </span>
                     <h3 className="text-base font-bold text-ink">{agent.title}</h3>
                   </div>
-                  <Badge variant={agent.featured ? "brand" : "neutral"} size="xs" className="text-xs font-semibold px-2 py-0.5">
+                  <Badge
+                    variant={agent.featured ? "brand" : "neutral"}
+                    size="xs"
+                    className="text-xs font-semibold px-2 py-0.5"
+                  >
                     {agent.badge}
                   </Badge>
                 </div>
@@ -159,7 +159,12 @@ export function LandingAgentsSection() {
               </div>
 
               <div className="pt-3">
-                <Button asChild variant={agent.featured ? "default" : "secondary"} size="sm" className="w-full shadow-xs text-xs sm:text-sm font-semibold">
+                <Button
+                  asChild
+                  variant={agent.featured ? "default" : "secondary"}
+                  size="sm"
+                  className="w-full shadow-xs text-xs sm:text-sm font-semibold"
+                >
                   <Link to={agent.link} className="gap-1.5">
                     <span>{agent.actionText}</span>
                     <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -179,9 +184,7 @@ export function LandingAgentsSection() {
           </div>
           <div className="text-left">
             <h4 className="text-sm font-bold text-ink sm:text-base">{t("pages.landing.agentsBannerTitle")}</h4>
-            <p className="mt-1 text-xs leading-relaxed text-ink/80 sm:text-sm">
-              {t("pages.landing.agentsBannerDesc")}
-            </p>
+            <p className="mt-1 text-xs leading-relaxed text-ink/80 sm:text-sm">{t("pages.landing.agentsBannerDesc")}</p>
           </div>
         </div>
         <Button asChild size="sm" className="shrink-0 shadow-xs text-xs sm:text-sm font-semibold">

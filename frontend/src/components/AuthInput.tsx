@@ -62,7 +62,15 @@ export function AuthInput({
   };
 
   return (
-    <div className={cn("field-shell group relative flex h-11 items-center gap-3 rounded-xl border bg-stone-50/50 px-3.5 transition-all duration-150 border-stone-200 hover:border-stone-300 hover:bg-stone-50 focus-within:bg-white focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-200/60 shadow-xs", isValid === false && value.length > 0 && "border-rose-400 focus-within:border-rose-500 focus-within:ring-rose-200/60", className)}>
+    <div
+      className={cn(
+        "field-shell group relative flex h-11 items-center gap-3 rounded-xl border bg-stone-50/50 px-3.5 transition-all duration-150 border-stone-200 hover:border-stone-300 hover:bg-stone-50 focus-within:bg-white focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-200/60 shadow-xs",
+        isValid === false &&
+          value.length > 0 &&
+          "border-rose-400 focus-within:border-rose-500 focus-within:ring-rose-200/60",
+        className
+      )}
+    >
       <Icon
         className={cn(
           "size-4.5 shrink-0 transition-colors duration-150",

@@ -124,9 +124,7 @@ export function AdminBlock({
 }>) {
   return (
     <div className={cn("glass-card rounded-card space-y-3 p-4", className)}>
-      {title && (
-        <TitleTag className="text-xs font-bold uppercase tracking-wider text-ink">{title}</TitleTag>
-      )}
+      {title && <TitleTag className="text-xs font-bold uppercase tracking-wider text-ink">{title}</TitleTag>}
       {children}
     </div>
   );
@@ -181,9 +179,7 @@ export function SectionBlock({
 /** A toolbar strip: a range picker on the left, a refresh toggle on the right. */
 export function ControlsRow({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
-    <div
-      className={cn("glass-card flex flex-wrap items-center justify-between gap-3 rounded-card p-3", className)}
-    >
+    <div className={cn("glass-card flex flex-wrap items-center justify-between gap-3 rounded-card p-3", className)}>
       {children}
     </div>
   );
@@ -267,7 +263,7 @@ export function StateIcon({
     <span
       className={cn(
         "inline-flex size-9 items-center justify-center rounded-pill text-xs font-extrabold tracking-widest",
-        STATE_ICON_TONE[tone],
+        STATE_ICON_TONE[tone]
       )}
     >
       {children}
@@ -343,7 +339,7 @@ export function AuditBadge({ value, kind }: Readonly<{ value?: string | null; ki
     <span
       className={cn(
         "inline-flex min-w-16 items-center justify-center rounded border px-2 py-0.5 font-mono text-xs font-bold uppercase tracking-wider",
-        AUDIT_BADGE_TONE[tone],
+        AUDIT_BADGE_TONE[tone]
       )}
     >
       {value || "-"}

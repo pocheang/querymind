@@ -31,13 +31,7 @@ export type AppShellProps = TopNavProps & {
  * is the box-model error that previously made the whole page scroll behind a
  * fixed sidebar.
  */
-export function AppShell({
-  children,
-  scroll = false,
-  className,
-  onNewSession,
-  ...nav
-}: Readonly<AppShellProps>) {
+export function AppShell({ children, scroll = false, className, onNewSession, ...nav }: Readonly<AppShellProps>) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 

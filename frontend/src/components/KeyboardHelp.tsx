@@ -46,11 +46,7 @@ export function KeyboardHelp({ open, onClose }: Readonly<{ open: boolean; onClos
 
   return (
     <>
-      <div
-        className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <dialog
         open
         className="glass-panel fixed left-1/2 top-1/2 z-50 m-0 flex max-h-[80vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col rounded-panel border-brand-border-strong bg-transparent p-0 shadow-elev-3 animate-in fade-in-0 zoom-in-95"
@@ -61,12 +57,7 @@ export function KeyboardHelp({ open, onClose }: Readonly<{ open: boolean; onClos
           <h2 id="keyboard-help-title" className="text-sm font-bold text-ink">
             {t("components.keyboard.title")}
           </h2>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onClose}
-            aria-label={t("components.keyboard.close")}
-          >
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label={t("components.keyboard.close")}>
             <X aria-hidden="true" />
           </Button>
         </div>
@@ -95,7 +86,9 @@ export function KeyboardHelp({ open, onClose }: Readonly<{ open: boolean; onClos
                         </span>
                       ))}
                     </dt>
-                    <dd className="min-w-0 flex-1 text-right text-xs sm:text-sm font-medium text-ink/80">{shortcut.description}</dd>
+                    <dd className="min-w-0 flex-1 text-right text-xs sm:text-sm font-medium text-ink/80">
+                      {shortcut.description}
+                    </dd>
                   </div>
                 ))}
               </dl>

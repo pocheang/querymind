@@ -44,8 +44,12 @@ export function generateSmartPrompts(messages: SessionMessage[], isZh = true): s
 
   if (agentClass === "cybersecurity") {
     prompts.push(
-      isZh ? "深入分析这个安全问题的攻击面和防护措施" : "Analyze attack surfaces and mitigation strategies for this security issue",
-      isZh ? "给出具体的安全加固建议和实施步骤" : "Provide concrete security hardening recommendations and action steps",
+      isZh
+        ? "深入分析这个安全问题的攻击面和防护措施"
+        : "Analyze attack surfaces and mitigation strategies for this security issue",
+      isZh
+        ? "给出具体的安全加固建议和实施步骤"
+        : "Provide concrete security hardening recommendations and action steps",
       isZh ? "分析相关的安全合规要求" : "Assess relevant regulatory and compliance requirements"
     );
   } else if (agentClass === "artificial_intelligence") {
@@ -63,7 +67,12 @@ export function generateSmartPrompts(messages: SessionMessage[], isZh = true): s
   }
 
   // 2. 根据问题类型推荐深入提示
-  if (userQuestion.includes("什么") || userQuestion.includes("介绍") || userQuestion.includes("what") || userQuestion.includes("intro")) {
+  if (
+    userQuestion.includes("什么") ||
+    userQuestion.includes("介绍") ||
+    userQuestion.includes("what") ||
+    userQuestion.includes("intro")
+  ) {
     prompts.push(
       isZh ? "详细展开说明，包含具体案例" : "Elaborate with concrete examples and real-world scenarios",
       isZh ? "给出实际应用场景和最佳实践" : "Provide practical deployment patterns and best practices"
@@ -73,7 +82,12 @@ export function generateSmartPrompts(messages: SessionMessage[], isZh = true): s
       isZh ? "给出详细的实施步骤和注意事项" : "Provide a step-by-step rollout plan and cautionary notes",
       isZh ? "提供具体的配置示例和代码" : "Show specific configuration files and executable snippets"
     );
-  } else if (userQuestion.includes("对比") || userQuestion.includes("区别") || userQuestion.includes("compare") || userQuestion.includes("difference")) {
+  } else if (
+    userQuestion.includes("对比") ||
+    userQuestion.includes("区别") ||
+    userQuestion.includes("compare") ||
+    userQuestion.includes("difference")
+  ) {
     prompts.push(
       isZh ? "制作详细的对比表格" : "Structure a comprehensive comparison matrix table",
       isZh ? "分析各自的优缺点和适用场景" : "Evaluate advantages, pitfalls, and target scenarios for each option"
@@ -88,7 +102,12 @@ export function generateSmartPrompts(messages: SessionMessage[], isZh = true): s
     );
   }
 
-  if (assistantAnswer.includes("风险") || assistantAnswer.includes("threat") || assistantAnswer.includes("vulnerability") || assistantAnswer.includes("risk")) {
+  if (
+    assistantAnswer.includes("风险") ||
+    assistantAnswer.includes("threat") ||
+    assistantAnswer.includes("vulnerability") ||
+    assistantAnswer.includes("risk")
+  ) {
     prompts.push(
       isZh ? "给出具体的风险评估和处置建议" : "Deliver a granular risk assessment and remediation priority list",
       isZh ? "制定应急响应预案" : "Draft an incident response runbook"
@@ -154,12 +173,7 @@ export function generateTopicPrompts(topic: string, isZh = true): string[] {
 
   if (topicLower.includes("ai") || topicLower.includes("人工智能") || topicLower.includes("machine learning")) {
     return isZh
-      ? [
-          "详细解释技术原理和数学基础",
-          "给出代码实现和实际应用案例",
-          "对比不同方法的优缺点",
-          "分析性能优化和调优策略",
-        ]
+      ? ["详细解释技术原理和数学基础", "给出代码实现和实际应用案例", "对比不同方法的优缺点", "分析性能优化和调优策略"]
       : [
           "Explain technical foundations and mathematical formulations",
           "Provide reference code implementation and enterprise use cases",
@@ -170,12 +184,7 @@ export function generateTopicPrompts(topic: string, isZh = true): string[] {
 
   if (topicLower.includes("架构") || topicLower.includes("architecture")) {
     return isZh
-      ? [
-          "详细说明各组件的职责和交互流程",
-          "分析架构的优缺点和适用场景",
-          "给出架构演进和优化建议",
-          "对比其他架构方案",
-        ]
+      ? ["详细说明各组件的职责和交互流程", "分析架构的优缺点和适用场景", "给出架构演进和优化建议", "对比其他架构方案"]
       : [
           "Detail component responsibilities and end-to-end data flows",
           "Analyze architectural trade-offs and recommended scale",

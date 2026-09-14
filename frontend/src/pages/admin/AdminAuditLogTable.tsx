@@ -14,15 +14,7 @@ import {
 } from "recharts";
 import type { AuditLogEntry } from "@/types/api";
 import { cn } from "@/lib/utils";
-import {
-  AdminBlock,
-  AuditBadge,
-  CellStack,
-  KpiCard,
-  KpiGrid,
-  SectionHead,
-  TwoCol,
-} from "./components/AdminPrimitives";
+import { AdminBlock, AuditBadge, CellStack, KpiCard, KpiGrid, SectionHead, TwoCol } from "./components/AdminPrimitives";
 import {
   ADMIN_CODE,
   ADMIN_TABLE,
@@ -174,61 +166,61 @@ export function AdminAuditLogTable({ logs, formatAuditTime }: Readonly<Props>) {
 
       <div className={ADMIN_TABLE_WRAP}>
         <table className={cn(ADMIN_TABLE, ADMIN_TABLE_WIDE, "min-w-[1760px]")}>
-        <thead>
-          <tr>
-            <th className="min-w-[170px]">{t("admin.ui.time")}</th>
-            <th className="min-w-[260px]">{t("admin.ui.actor")}</th>
-            <th className="min-w-[220px]">{t("admin.ui.action")}</th>
-            <th className="w-[100px] text-center">{t("admin.ui.category")}</th>
-            <th className="w-20 text-center">{t("admin.ui.severity")}</th>
-            <th className="min-w-[260px]">{t("admin.ui.resource")}</th>
-            <th className="w-20 text-center">{t("admin.ui.result")}</th>
-            <th className="min-w-[110px]">IP</th>
-            <th className="min-w-[360px]">{t("admin.ui.detail")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {logs.map((entry) => (
-            <tr key={entry.event_id}>
-              <td className={MONO_CELL}>{formatAuditTime(entry.created_at)}</td>
-              <td>
-                <CellStack>
-                  <span className="truncate font-mono text-xs font-semibold" title={entry.actor_user_id || "-"}>
-                    {entry.actor_user_id || "-"}
-                  </span>
-                  <span className={MONO_CELL}>{entry.actor_role || "-"}</span>
-                </CellStack>
-              </td>
-              <td>
-                <span className={ADMIN_CODE} title={entry.action || "-"}>
-                  {entry.action || "-"}
-                </span>
-              </td>
-              <td className="text-center">
-                <AuditBadge value={entry.event_category} />
-              </td>
-              <td className="text-center">
-                <AuditBadge value={entry.severity} kind="severity" />
-              </td>
-              <td>
-                <CellStack>
-                  <span className={ADMIN_CODE} title={entry.resource_type || "-"}>
-                    {entry.resource_type || "-"}
-                  </span>
-                  <span className={MONO_CELL} title={entry.resource_id || "-"}>
-                    {entry.resource_id || "-"}
-                  </span>
-                </CellStack>
-              </td>
-              <td className="text-center">
-                <AuditBadge value={entry.result} kind="result" />
-              </td>
-              <td className={MONO_CELL}>{entry.ip || "-"}</td>
-              <td className="max-w-[300px] truncate text-xs text-ink/75" title={entry.detail || "-"}>
-                {entry.detail || "-"}
-              </td>
+          <thead>
+            <tr>
+              <th className="min-w-[170px]">{t("admin.ui.time")}</th>
+              <th className="min-w-[260px]">{t("admin.ui.actor")}</th>
+              <th className="min-w-[220px]">{t("admin.ui.action")}</th>
+              <th className="w-[100px] text-center">{t("admin.ui.category")}</th>
+              <th className="w-20 text-center">{t("admin.ui.severity")}</th>
+              <th className="min-w-[260px]">{t("admin.ui.resource")}</th>
+              <th className="w-20 text-center">{t("admin.ui.result")}</th>
+              <th className="min-w-[110px]">IP</th>
+              <th className="min-w-[360px]">{t("admin.ui.detail")}</th>
             </tr>
-          ))}
+          </thead>
+          <tbody>
+            {logs.map((entry) => (
+              <tr key={entry.event_id}>
+                <td className={MONO_CELL}>{formatAuditTime(entry.created_at)}</td>
+                <td>
+                  <CellStack>
+                    <span className="truncate font-mono text-xs font-semibold" title={entry.actor_user_id || "-"}>
+                      {entry.actor_user_id || "-"}
+                    </span>
+                    <span className={MONO_CELL}>{entry.actor_role || "-"}</span>
+                  </CellStack>
+                </td>
+                <td>
+                  <span className={ADMIN_CODE} title={entry.action || "-"}>
+                    {entry.action || "-"}
+                  </span>
+                </td>
+                <td className="text-center">
+                  <AuditBadge value={entry.event_category} />
+                </td>
+                <td className="text-center">
+                  <AuditBadge value={entry.severity} kind="severity" />
+                </td>
+                <td>
+                  <CellStack>
+                    <span className={ADMIN_CODE} title={entry.resource_type || "-"}>
+                      {entry.resource_type || "-"}
+                    </span>
+                    <span className={MONO_CELL} title={entry.resource_id || "-"}>
+                      {entry.resource_id || "-"}
+                    </span>
+                  </CellStack>
+                </td>
+                <td className="text-center">
+                  <AuditBadge value={entry.result} kind="result" />
+                </td>
+                <td className={MONO_CELL}>{entry.ip || "-"}</td>
+                <td className="max-w-[300px] truncate text-xs text-ink/75" title={entry.detail || "-"}>
+                  {entry.detail || "-"}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

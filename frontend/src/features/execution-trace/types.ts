@@ -41,20 +41,31 @@ export function isExecutionEvent(value: unknown): value is ExecutionEvent {
   const event = value as Record<string, unknown>;
   const statuses: ExecutionStatus[] = ["completed", "failed", "skipped"];
 
-  return hasKeys(event, ["version", "stage", "status", "duration_ms", "message", "metadata", "occurred_at"])
-    && event.version === "1"
-    && typeof event.stage === "string" && EXECUTION_STAGES.includes(event.stage as ExecutionStage)
-    && typeof event.status === "string" && statuses.includes(event.status as ExecutionStatus)
-    && typeof event.duration_ms === "number" && Number.isFinite(event.duration_ms) && event.duration_ms >= 0
-    && typeof event.message === "string" && typeof event.occurred_at === "string"
-    && Array.isArray(event.metadata) && event.metadata.every(isExecutionMetadataItem);
+  return (
+    hasKeys(event, ["version", "stage", "status", "duration_ms", "message", "metadata", "occurred_at"]) &&
+    event.version === "1" &&
+    typeof event.stage === "string" &&
+    EXECUTION_STAGES.includes(event.stage as ExecutionStage) &&
+    typeof event.status === "string" &&
+    statuses.includes(event.status as ExecutionStatus) &&
+    typeof event.duration_ms === "number" &&
+    Number.isFinite(event.duration_ms) &&
+    event.duration_ms >= 0 &&
+    typeof event.message === "string" &&
+    typeof event.occurred_at === "string" &&
+    Array.isArray(event.metadata) &&
+    event.metadata.every(isExecutionMetadataItem)
+  );
 }
 
 function isExecutionMetadataItem(value: unknown): value is ExecutionMetadataItem {
-  return !!value && typeof value === "object"
-    && hasKeys(value as Record<string, unknown>, ["key", "value"])
-    && typeof (value as Record<string, unknown>).key === "string"
-    && typeof (value as Record<string, unknown>).value === "string";
+  return (
+    !!value &&
+    typeof value === "object" &&
+    hasKeys(value as Record<string, unknown>, ["key", "value"]) &&
+    typeof (value as Record<string, unknown>).key === "string" &&
+    typeof (value as Record<string, unknown>).value === "string"
+  );
 }
 
 // Required fields must be present and well-typed, but extra ones are allowed:

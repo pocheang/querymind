@@ -52,29 +52,21 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
     <>
       {usersData.length > 0 && (
         <SectionBlock>
-          <SubTitle>
-            {t("admin.webActivity.topUsers", "Top Active Users")}
-          </SubTitle>
+          <SubTitle>{t("admin.webActivity.topUsers", "Top Active Users")}</SubTitle>
           <div className={ADMIN_TABLE_WRAP}>
             <table className={ADMIN_TABLE}>
               <thead>
                 <tr>
                   <th className="w-[60px] text-center">#</th>
                   <th>{t("admin.webActivity.userId", "User ID")}</th>
-                  <th className="w-[120px] text-right">
-                    {t("admin.webActivity.searchCount", "Searches")}
-                  </th>
-                  <th className="w-[100px] text-center">
-                    {t("admin.webActivity.activity", "Status")}
-                  </th>
+                  <th className="w-[120px] text-right">{t("admin.webActivity.searchCount", "Searches")}</th>
+                  <th className="w-[100px] text-center">{t("admin.webActivity.activity", "Status")}</th>
                 </tr>
               </thead>
               <tbody>
                 {usersData.map((user, index) => (
                   <tr key={user.user_id}>
-                    <td className="text-center font-semibold text-ink-muted">
-                      {index + 1}
-                    </td>
+                    <td className="text-center font-semibold text-ink-muted">{index + 1}</td>
                     <td className="font-mono">{user.user_id}</td>
                     <td className="text-right font-semibold">{user.search_count}</td>
                     <td className="text-center">
@@ -94,21 +86,15 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
 
       {websitesData.length > 0 && (
         <SectionBlock>
-          <SubTitle>
-            {t("admin.webActivity.websiteDetails", "Website Access Details")}
-          </SubTitle>
+          <SubTitle>{t("admin.webActivity.websiteDetails", "Website Access Details")}</SubTitle>
           <div className={ADMIN_TABLE_WRAP}>
             <table className={ADMIN_TABLE}>
               <thead>
                 <tr>
                   <th className="w-[60px] text-center">#</th>
                   <th>{t("admin.webActivity.domain", "Domain")}</th>
-                  <th className="w-[100px] text-right">
-                    {t("admin.webActivity.visitCount", "Visits")}
-                  </th>
-                  <th className="w-[120px] text-center">
-                    {t("admin.webActivity.trustScore", "Trust")}
-                  </th>
+                  <th className="w-[100px] text-right">{t("admin.webActivity.visitCount", "Visits")}</th>
+                  <th className="w-[120px] text-center">{t("admin.webActivity.trustScore", "Trust")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -117,9 +103,7 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
 
                   return (
                     <tr key={website.domain}>
-                      <td className="text-center font-semibold text-ink-muted">
-                        {index + 1}
-                      </td>
+                      <td className="text-center font-semibold text-ink-muted">{index + 1}</td>
                       <td>
                         <a
                           href={`https://${website.domain}`}
@@ -147,30 +131,22 @@ export function WebActivityTables({ usersData, websitesData, alerts }: Readonly<
 
       {alerts.length > 0 && (
         <SectionBlock>
-          <SubTitle>
-            {t("admin.webActivity.securityAlerts", "Security Alerts (24h)")}
-          </SubTitle>
+          <SubTitle>{t("admin.webActivity.securityAlerts", "Security Alerts (24h)")}</SubTitle>
           <div className={ADMIN_TABLE_WRAP}>
             <table className={ADMIN_TABLE}>
               <thead>
                 <tr>
                   <th className="w-40">{t("admin.webActivity.time", "Time")}</th>
-                  <th className="w-20 text-center">
-                    {t("admin.webActivity.level", "Level")}
-                  </th>
+                  <th className="w-20 text-center">{t("admin.webActivity.level", "Level")}</th>
                   <th className="w-[180px]">{t("admin.webActivity.rule", "Rule")}</th>
                   <th>{t("admin.webActivity.message", "Message")}</th>
-                  <th className="w-[120px] text-right">
-                    {t("admin.webActivity.value", "Value")}
-                  </th>
+                  <th className="w-[120px] text-right">{t("admin.webActivity.value", "Value")}</th>
                 </tr>
               </thead>
               <tbody>
                 {alerts.map((alert) => (
                   <tr key={`${alert.timestamp}-${alert.rule_name}`}>
-                    <td className="font-mono text-xs">
-                      {formatAlertTime(alert.timestamp)}
-                    </td>
+                    <td className="font-mono text-xs">{formatAlertTime(alert.timestamp)}</td>
                     <td className="text-center">
                       <span className={`badge badge-${alert.level === "critical" ? "danger" : alert.level}`}>
                         {alert.level.toUpperCase()}

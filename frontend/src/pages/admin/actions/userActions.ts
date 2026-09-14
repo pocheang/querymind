@@ -126,7 +126,7 @@ export function createUserActions(params: AdminActionsParams, errorHandler: Erro
       const updated = await appApi.adminAddCredits(target.user_id, amount);
       setUsers((prev) => prev.map((x) => (x.user_id === updated.user_id ? updated : x)));
       setStatusText(
-        t("admin.actions.creditsAdded", { username: updated.username, amount, balance: updated.credit_balance }),
+        t("admin.actions.creditsAdded", { username: updated.username, amount, balance: updated.credit_balance })
       );
       setError("");
     } catch (e) {

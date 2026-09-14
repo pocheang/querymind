@@ -122,16 +122,19 @@ export type SessionMessageMetadata = {
       relation: string;
       direction: "in" | "out";
     }>;
-    paths: Array<{
-      entities: string[];
-      relations: string[];
-    } | {
-      source: string;
-      rel1?: string;
-      middle: string;
-      rel2?: string;
-      target: string;
-    }>;
+    paths: Array<
+      | {
+          entities: string[];
+          relations: string[];
+        }
+      | {
+          source: string;
+          rel1?: string;
+          middle: string;
+          rel2?: string;
+          target: string;
+        }
+    >;
     context?: string;
   };
 };

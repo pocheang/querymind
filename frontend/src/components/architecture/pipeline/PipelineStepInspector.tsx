@@ -8,11 +8,7 @@ interface PipelineStepInspectorProps {
   t: (key: string) => string;
 }
 
-export function PipelineStepInspector({
-  currentFocusedStep,
-  isZh,
-  t,
-}: Readonly<PipelineStepInspectorProps>) {
+export function PipelineStepInspector({ currentFocusedStep, isZh, t }: Readonly<PipelineStepInspectorProps>) {
   return (
     <div className="rounded-control border border-line bg-surface-muted/30 p-5 space-y-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3">
@@ -21,7 +17,8 @@ export function PipelineStepInspector({
             <currentFocusedStep.icon className="size-4" />
           </div>
           <span className="text-sm sm:text-base font-bold text-ink">
-            {t("architecture.flow.step")} 0{currentFocusedStep.id} · {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.role`)}
+            {t("architecture.flow.step")} 0{currentFocusedStep.id} ·{" "}
+            {t(`architecture.flow.stages.${currentFocusedStep.stepKey}.role`)}
           </span>
           <span className="text-xs sm:text-sm text-ink-muted font-mono">
             ({t(`architecture.flow.stages.${currentFocusedStep.stepKey}.techTitle`)})

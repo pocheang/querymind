@@ -7,14 +7,7 @@ import {
   adminConfigApi,
 } from "@/services/api/admin";
 
-export {
-  adminUserApi,
-  adminAuditApi,
-  adminOpsApi,
-  adminModelApi,
-  adminSystemLogApi,
-  adminConfigApi,
-};
+export { adminUserApi, adminAuditApi, adminOpsApi, adminModelApi, adminSystemLogApi, adminConfigApi };
 
 export const adminApi = {
   ...adminUserApi,

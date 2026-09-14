@@ -118,9 +118,7 @@ export function TraceTimelineItem({
           )}
 
           {/* Duration Badge */}
-          <span className="font-mono text-xs text-ink/75">
-            ({formatDuration(stageItem.duration_ms)})
-          </span>
+          <span className="font-mono text-xs text-ink/75">({formatDuration(stageItem.duration_ms)})</span>
         </div>
 
         {/* Sub-sources (e.g. Vector, BM25, Web search) */}

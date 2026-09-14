@@ -174,14 +174,7 @@ export function AdminOpsDataTables({ ops, formatAuditTime }: Readonly<Props>) {
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={loggerChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
-                  <XAxis
-                    dataKey="logger"
-                    stroke={CHART_AXIS}
-                    fontSize={10}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
+                  <XAxis dataKey="logger" stroke={CHART_AXIS} fontSize={10} angle={-45} textAnchor="end" height={60} />
                   <YAxis stroke={CHART_AXIS} fontSize={11} />
                   <Tooltip contentStyle={CHART_TOOLTIP} />
                   <Bar dataKey="count" fill="var(--danger)" radius={[4, 4, 0, 0]} />

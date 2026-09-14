@@ -155,9 +155,7 @@ export function ArchitectureApiExplorer() {
                       </span>
                       <span className="font-mono text-sm font-semibold text-ink select-all">{ep.path}</span>
                       {ep.description && (
-                        <span className="hidden text-sm text-ink-muted md:inline-block">
-                          • {ep.description}
-                        </span>
+                        <span className="hidden text-sm text-ink-muted md:inline-block">• {ep.description}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">

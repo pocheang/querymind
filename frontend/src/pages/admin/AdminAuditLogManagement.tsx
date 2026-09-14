@@ -18,7 +18,6 @@ import {
 import { ADMIN_FIELD } from "./components/adminClasses";
 import { LogLimitActions } from "./components/LogLimitActions";
 
-
 type Props = {
   logs: AuditLogEntry[];
   users: AdminUserSummary[];
@@ -74,7 +73,7 @@ export function AdminAuditLogManagement({
     users.some(
       (user) =>
         (user.username || "").toLowerCase() === auditActorUserId.trim().toLowerCase() ||
-        user.user_id === auditActorUserId.trim(),
+        user.user_id === auditActorUserId.trim()
     );
 
   const paginatedLogs = useMemo(() => {
@@ -91,9 +90,7 @@ export function AdminAuditLogManagement({
 
       <Hint>{t("admin.ui.auditHint")}</Hint>
 
-      {!hasExactActorMatch && (
-        <Hint className="-mt-1.5 text-info">{t("admin.ui.actorFuzzyHint")}</Hint>
-      )}
+      {!hasExactActorMatch && <Hint className="-mt-1.5 text-info">{t("admin.ui.actorFuzzyHint")}</Hint>}
 
       <FilterGrid>
         <AdminField label={t("admin.ui.actor")}>
@@ -156,8 +153,12 @@ export function AdminAuditLogManagement({
           ]}
         />
         <RowActions className="self-end">
-          <Button variant="secondary" size="xs" onClick={() => onAuditResultChange("failed")}>{t("admin.ui.failedOnly")}</Button>
-          <Button variant="secondary" size="xs" onClick={() => onAuditSeverityChange("high")}>{t("admin.ui.highRiskOnly")}</Button>
+          <Button variant="secondary" size="xs" onClick={() => onAuditResultChange("failed")}>
+            {t("admin.ui.failedOnly")}
+          </Button>
+          <Button variant="secondary" size="xs" onClick={() => onAuditSeverityChange("high")}>
+            {t("admin.ui.highRiskOnly")}
+          </Button>
           <Button variant="secondary" size="xs" onClick={onClearFilters}>
             {t("admin.ui.clear")}
           </Button>

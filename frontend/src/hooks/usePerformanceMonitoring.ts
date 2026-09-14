@@ -20,7 +20,6 @@ export function usePerformanceMonitoring(enabled: boolean = true) {
     // Report metrics to console (can be sent to analytics service)
     const reportMetric = (metric: WebVitalsMetric) => {
       console.log(`[Performance] ${metric.name}:`, metric.value.toFixed(2), "ms");
-
     };
 
     // Measure Largest Contentful Paint (LCP)

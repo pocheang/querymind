@@ -29,9 +29,7 @@ export function PipelineTopologyView({ t }: Readonly<PipelineTopologyViewProps>)
             <span className="size-2.5 rounded-full bg-[#f59e0b]" /> Multi-Store
           </span>
         </div>
-        <span className="font-mono text-xs text-ink-faint">
-          {t("architecture.flow.topologyLegend")}
-        </span>
+        <span className="font-mono text-xs text-ink-faint">{t("architecture.flow.topologyLegend")}</span>
       </div>
     </div>
   );

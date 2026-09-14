@@ -40,7 +40,11 @@ function CodeBlock({ code, className = "" }: Readonly<{ code: string; className?
           className="inline-flex h-7 items-center gap-1.5 rounded border border-white/15 bg-white/5 px-2.5 text-xs font-medium text-slate-200 transition-colors hover:border-white/25 hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
           onClick={() => void copy(code)}
         >
-          {copied ? <Check className="size-3.5" aria-hidden="true" /> : <Copy className="size-3.5" aria-hidden="true" />}
+          {copied ? (
+            <Check className="size-3.5" aria-hidden="true" />
+          ) : (
+            <Copy className="size-3.5" aria-hidden="true" />
+          )}
           {copied ? t("components.codeBlock.copied") : t("components.codeBlock.copy")}
         </button>
       </div>
@@ -78,7 +82,9 @@ const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
   },
   p: ({ children }) => <p className="mb-2.5 leading-relaxed text-ink last:mb-0">{children}</p>,
   h1: ({ children }) => <h1 className="mb-2.5 mt-4 text-lg sm:text-xl font-bold text-brand-text-strong">{children}</h1>,
-  h2: ({ children }) => <h2 className="mb-2 mt-3.5 text-base sm:text-lg font-bold text-brand-text-strong">{children}</h2>,
+  h2: ({ children }) => (
+    <h2 className="mb-2 mt-3.5 text-base sm:text-lg font-bold text-brand-text-strong">{children}</h2>
+  ),
   h3: ({ children }) => (
     <h3 className="mb-2 mt-3 border-l-[3px] border-brand-accent pl-2.5 text-sm sm:text-base font-bold text-brand-text-strong">
       {children}
@@ -89,7 +95,12 @@ const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
   ol: ({ children }) => <ol className="mb-2.5 ml-5 list-decimal space-y-1.5">{children}</ol>,
   li: ({ children }) => <li className="leading-relaxed text-ink">{children}</li>,
   a: ({ children, href }) => (
-    <a href={href} target="_blank" rel="noreferrer" className="text-brand-text underline underline-offset-2 hover:text-brand-accent">
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-brand-text underline underline-offset-2 hover:text-brand-accent"
+    >
       {children}
     </a>
   ),

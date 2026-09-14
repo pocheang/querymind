@@ -1,22 +1,11 @@
-import {
-  ArrowRight,
-  CheckCircle2,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Workflow,
-  Wrench,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, Search, ShieldCheck, Sparkles, Workflow, Wrench } from "lucide-react";
 
 interface PipelineSummaryStreamProps {
   isZh: boolean;
   t: (key: string) => string;
 }
 
-export function PipelineSummaryStream({
-  isZh,
-  t,
-}: Readonly<PipelineSummaryStreamProps>) {
+export function PipelineSummaryStream({ isZh, t }: Readonly<PipelineSummaryStreamProps>) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-2.5 rounded-control border border-line bg-surface-muted/40 p-4 text-sm text-ink-muted">
       <span className="font-bold text-ink">{isZh ? "全链路流转：" : "Full Data Stream:"}</span>

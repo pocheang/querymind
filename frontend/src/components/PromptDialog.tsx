@@ -49,12 +49,7 @@ export function PromptDialog({
   }, [isOpen]);
 
   return (
-    <BaseDialog
-      isOpen={isOpen}
-      title={title}
-      onCancel={onCancel}
-      className="max-w-md"
-    >
+    <BaseDialog isOpen={isOpen} title={title} onCancel={onCancel} className="max-w-md">
       <div className="space-y-2">
         <p className="text-xs leading-relaxed text-ink-muted">{message}</p>
         {multiline ? (

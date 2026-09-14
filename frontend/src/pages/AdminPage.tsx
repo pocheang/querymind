@@ -431,9 +431,7 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
         </div>
       )}
 
-      {state.statusText && (
-        <StatePanel className="mx-4 mb-4 font-mono sm:mx-6">{state.statusText}</StatePanel>
-      )}
+      {state.statusText && <StatePanel className="mx-4 mb-4 font-mono sm:mx-6">{state.statusText}</StatePanel>}
       {state.error && (
         <StatePanel tone="error" className="mx-4 mb-4 font-mono sm:mx-6">
           {state.error}

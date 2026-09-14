@@ -49,9 +49,7 @@ export function AdminErrorBoundary({ children, onError }: Readonly<Props>) {
   );
 }
 
-export function withAdminErrorBoundary<P extends object>(
-  Component: React.ComponentType<P>
-): React.ComponentType<P> {
+export function withAdminErrorBoundary<P extends object>(Component: React.ComponentType<P>): React.ComponentType<P> {
   return function AdminErrorBoundaryWrapper(props: P) {
     return (
       <AdminErrorBoundary>

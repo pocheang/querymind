@@ -93,7 +93,12 @@ export function CommandPalette({
     () =>
       [
         { icon: MessageSquare, label: t("nav.deck", "Operations Deck"), to: "/app", show: !!user },
-        { icon: BarChart3, label: t("nav.analytics", "Analytics"), to: "/app/analytics", show: permissions.canViewAnalytics },
+        {
+          icon: BarChart3,
+          label: t("nav.analytics", "Analytics"),
+          to: "/app/analytics",
+          show: permissions.canViewAnalytics,
+        },
         { icon: Settings2, label: t("nav.admin", "Admin Console"), to: "/app/admin", show: permissions.canAccessAdmin },
         { icon: Boxes, label: t("nav.architecture", "Architecture"), to: "/app/architecture", show: true },
         { icon: Globe, label: t("nav.landing", "Showcase"), to: "/", show: true },
@@ -103,8 +108,10 @@ export function CommandPalette({
 
   if (!open) return null;
 
-  const item = "flex cursor-pointer items-center gap-2.5 rounded-control px-2.5 py-2 text-xs sm:text-sm font-medium text-ink data-[selected=true]:bg-brand-surface data-[selected=true]:text-brand-text-strong";
-  const group = "[&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-ink/80";
+  const item =
+    "flex cursor-pointer items-center gap-2.5 rounded-control px-2.5 py-2 text-xs sm:text-sm font-medium text-ink data-[selected=true]:bg-brand-surface data-[selected=true]:text-brand-text-strong";
+  const group =
+    "[&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-ink/80";
 
   return (
     <>
@@ -179,7 +186,11 @@ export function CommandPalette({
                   </Command.Item>
                 )}
                 {onOpenSessionManagement && (
-                  <Command.Item value="session management 会话管理" onSelect={run(onOpenSessionManagement)} className={item}>
+                  <Command.Item
+                    value="session management 会话管理"
+                    onSelect={run(onOpenSessionManagement)}
+                    className={item}
+                  >
                     <MessagesSquare className="size-3.5 shrink-0 text-brand-accent" aria-hidden="true" />
                     {t("sessionManagement.title", "Session management")}
                   </Command.Item>
@@ -247,7 +258,10 @@ export function CommandPalette({
                   <Command.Item
                     value="sign out 退出"
                     onSelect={run(onLogout)}
-                    className={cn(item, "text-danger data-[selected=true]:bg-danger-surface data-[selected=true]:text-danger")}
+                    className={cn(
+                      item,
+                      "text-danger data-[selected=true]:bg-danger-surface data-[selected=true]:text-danger"
+                    )}
                   >
                     <LogOut className="size-3.5 shrink-0" aria-hidden="true" />
                     {t("common.logout", "Sign out")}
@@ -267,7 +281,10 @@ function Shortcut({ keys }: Readonly<{ keys: string }>) {
   return (
     <span className="ml-auto flex shrink-0 items-center gap-1">
       {keys.split(" ").map((k) => (
-        <kbd key={k} className="rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-ink/80">
+        <kbd
+          key={k}
+          className="rounded border border-line bg-surface-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-ink/80"
+        >
           {k}
         </kbd>
       ))}

@@ -75,7 +75,7 @@ describe("draft accumulation", () => {
           metadata: [],
           occurred_at: "2026-08-30T00:00:00Z",
         },
-      },
+      }
     );
 
     expect(state.draft).toBe("draft");

@@ -35,7 +35,8 @@ const STICKY_HEAD = "z-[3] bg-brand-surface-hover shadow-[1px_0_0_var(--brand-bo
 const STICKY_CELL = "group-hover/row:bg-brand-surface";
 
 /** A small uppercase state pill: online, token set, unlimited credits. */
-const FLAG = "inline-flex min-h-[24px] items-center justify-center whitespace-nowrap rounded-pill border px-2.5 text-xs font-bold uppercase tracking-wide";
+const FLAG =
+  "inline-flex min-h-[24px] items-center justify-center whitespace-nowrap rounded-pill border px-2.5 text-xs font-bold uppercase tracking-wide";
 const FLAG_TONE = {
   on: "border-success-border bg-success-surface text-success",
   active: "border-info-border bg-info-surface text-info",
@@ -155,9 +156,7 @@ export function AdminUserTable({
             <td>
               <CellStack>
                 <span className="truncate">{renderValue(row.created_by_username || row.created_by_user_id)}</span>
-                <span className="truncate font-mono text-xs text-ink/75">
-                  {renderValue(row.admin_ticket_id)}
-                </span>
+                <span className="truncate font-mono text-xs text-ink/75">{renderValue(row.admin_ticket_id)}</span>
               </CellStack>
             </td>
             <td>

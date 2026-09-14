@@ -10,13 +10,7 @@ type Props = {
   children: ReactNode;
 };
 
-export function BaseDialog({
-  isOpen,
-  title,
-  className,
-  onCancel,
-  children,
-}: Readonly<Props>) {
+export function BaseDialog({ isOpen, title, className, onCancel, children }: Readonly<Props>) {
   const titleId = useId();
 
   useEffect(() => {

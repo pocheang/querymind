@@ -77,21 +77,11 @@ const init = (spec: ShortcutSpec) => ({
 function fire(spec: ShortcutSpec): boolean {
   if (spec.scope === "app") {
     const spies = mountApp();
-    const before = JSON.stringify([
-      useChatStore.getState().sidebarOpen,
-      useChatStore.getState().sidebarCollapsed,
-    ]);
+    const before = JSON.stringify([useChatStore.getState().sidebarOpen, useChatStore.getState().sidebarCollapsed]);
     const event = new KeyboardEvent("keydown", init(spec));
     window.dispatchEvent(event);
-    const after = JSON.stringify([
-      useChatStore.getState().sidebarOpen,
-      useChatStore.getState().sidebarCollapsed,
-    ]);
-    return (
-      event.defaultPrevented ||
-      before !== after ||
-      Object.values(spies).some((s) => s.mock.calls.length > 0)
-    );
+    const after = JSON.stringify([useChatStore.getState().sidebarOpen, useChatStore.getState().sidebarCollapsed]);
+    return event.defaultPrevented || before !== after || Object.values(spies).some((s) => s.mock.calls.length > 0);
   }
 
   useChatStore.getState().setQuestion("a draft");
@@ -122,16 +112,13 @@ describe("every documented shortcut is implemented", () => {
 });
 
 describe("keys the browser owns", () => {
-  it.each(BROWSER_OWNED.map((k) => [`Ctrl+${k.key.toUpperCase()}`, k] as const))(
-    "%s is left alone",
-    (_name, k) => {
-      // Not documented...
-      expect(SHORTCUTS.some((s) => s.event.key === k.key && s.event.mod === k.mod)).toBe(false);
-      // ...and not silently claimed either.
-      mountApp();
-      const event = new KeyboardEvent("keydown", { key: k.key, ctrlKey: true, bubbles: true, cancelable: true });
-      window.dispatchEvent(event);
-      expect(event.defaultPrevented).toBe(false);
-    }
-  );
+  it.each(BROWSER_OWNED.map((k) => [`Ctrl+${k.key.toUpperCase()}`, k] as const))("%s is left alone", (_name, k) => {
+    // Not documented...
+    expect(SHORTCUTS.some((s) => s.event.key === k.key && s.event.mod === k.mod)).toBe(false);
+    // ...and not silently claimed either.
+    mountApp();
+    const event = new KeyboardEvent("keydown", { key: k.key, ctrlKey: true, bubbles: true, cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
 });

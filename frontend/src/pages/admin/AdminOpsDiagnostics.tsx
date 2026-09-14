@@ -99,8 +99,7 @@ export function AdminOpsDiagnostics({ ops }: Readonly<Props>) {
                 </div>
                 {service.path && (
                   <p className="mt-1 truncate text-xs text-ink/80">
-                    <strong className="font-semibold">Path:</strong>{" "}
-                    <code className="font-mono">{service.path}</code>
+                    <strong className="font-semibold">Path:</strong> <code className="font-mono">{service.path}</code>
                   </p>
                 )}
                 {service.models && service.models.length > 0 && (

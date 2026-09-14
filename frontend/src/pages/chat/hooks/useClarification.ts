@@ -9,11 +9,7 @@ interface UseClarificationOptions {
   onNotify: (message: string, type: "success" | "error" | "info") => void;
 }
 
-export function useClarification({
-  currentSessionId,
-  onClarificationComplete,
-  onNotify,
-}: UseClarificationOptions) {
+export function useClarification({ currentSessionId, onClarificationComplete, onNotify }: UseClarificationOptions) {
   const { t } = useTranslation();
   const [clarification, setClarification] = useState<ClarificationResponse | null>(null);
   const [isClarifying, setIsClarifying] = useState(false);
@@ -66,10 +62,7 @@ export function useClarification({
     }
   };
 
-  const checkAndInitiateClarification = async (
-    questionText: string,
-    sessionId: string
-  ): Promise<boolean> => {
+  const checkAndInitiateClarification = async (questionText: string, sessionId: string): Promise<boolean> => {
     try {
       const response = await clarificationApi.checkClarification({
         question: questionText,
@@ -89,10 +82,7 @@ export function useClarification({
       const status = apiError?.response?.status || apiError?.status;
 
       if (status === 403 || status === 401) {
-        onNotify(
-          t("clarification.authError", "Authentication required for advanced features"),
-          "error"
-        );
+        onNotify(t("clarification.authError", "Authentication required for advanced features"), "error");
         throw error; // Re-throw auth errors
       }
 

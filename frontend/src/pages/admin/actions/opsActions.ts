@@ -27,11 +27,13 @@ export function createOpsActions(params: AdminActionsParams, errorHandler: Error
     if (!isAdmin) return;
     setLoadingOps(true);
     try {
-      setOps(await appApi.adminOpsOverview({
-        hours: opsHours,
-        actorUserId: resolveUserIdFromInput(opsActorUserId, users, { allowRawId: false }),
-        actionKeyword: opsActionKeyword.trim() || undefined,
-      }));
+      setOps(
+        await appApi.adminOpsOverview({
+          hours: opsHours,
+          actorUserId: resolveUserIdFromInput(opsActorUserId, users, { allowRawId: false }),
+          actionKeyword: opsActionKeyword.trim() || undefined,
+        })
+      );
       setError("");
     } catch (e) {
       await handleApiError(e, t("admin.actions.loadOpsFailed"));

@@ -9,18 +9,14 @@ export function createStreamMessageUpdater({ setMessages }: StreamMessageUpdater
     replaceWithStoppedMessage: (content: string) => {
       setMessages((prev) =>
         prev.map((m) =>
-          m.message_id === "local-assistant-stream"
-            ? { ...m, content: content.trim() || "[Stopped by user]" }
-            : m
+          m.message_id === "local-assistant-stream" ? { ...m, content: content.trim() || "[Stopped by user]" } : m
         )
       );
     },
 
     replaceWithErrorMessage: (errorText: string) => {
       setMessages((prev) =>
-        prev.map((m) =>
-          m.message_id === "local-assistant-stream" ? { ...m, content: errorText } : m
-        )
+        prev.map((m) => (m.message_id === "local-assistant-stream" ? { ...m, content: errorText } : m))
       );
     },
   };

@@ -41,7 +41,12 @@ interface UseChatActionsParams {
   onLogout: () => Promise<void>;
   closeSidebar: () => void;
   confirm: (opts: { message: string; title?: string; isDanger?: boolean }) => Promise<boolean>;
-  promptInput: (opts: { message: string; title?: string; defaultValue?: string; multiline?: boolean }) => Promise<string | null>;
+  promptInput: (opts: {
+    message: string;
+    title?: string;
+    defaultValue?: string;
+    multiline?: boolean;
+  }) => Promise<string | null>;
 }
 
 export function useChatActions(params: UseChatActionsParams) {

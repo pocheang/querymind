@@ -241,7 +241,12 @@ export function IntegrationsPanel() {
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
-                      <Button variant="secondary" size="xs" onClick={() => void toggle(connector)} disabled={busyId !== null}>
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        onClick={() => void toggle(connector)}
+                        disabled={busyId !== null}
+                      >
                         {connector.status === "enabled"
                           ? t("features.integrations.disable")
                           : t("features.integrations.enable")}
@@ -271,7 +276,10 @@ export function IntegrationsPanel() {
             </ul>
           )}
 
-          <form className="space-y-2 rounded-control border border-line-subtle bg-surface p-2.5" onSubmit={(event) => void submit(event)}>
+          <form
+            className="space-y-2 rounded-control border border-line-subtle bg-surface p-2.5"
+            onSubmit={(event) => void submit(event)}
+          >
             <h3 className="text-xs font-bold uppercase tracking-wider text-ink">
               {t("features.integrations.connectTitle")}
             </h3>

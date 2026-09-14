@@ -20,7 +20,9 @@ import type { ConfigField } from "@/types/api";
  */
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string, options?: { count?: number }) => (options ? `${key}:${options.count}` : key) }),
+  useTranslation: () => ({
+    t: (key: string, options?: { count?: number }) => (options ? `${key}:${options.count}` : key),
+  }),
 }));
 
 const schema = vi.fn();
@@ -59,10 +61,7 @@ describe("AdminConfigEditor", () => {
   it("disables a field pinned in the process environment", async () => {
     schema.mockResolvedValue({
       config_centre_enabled: true,
-      fields: [
-        field(),
-        field({ alias: "RERANKER_TOP_N", value: 9, layer: "environment", editable_here: false }),
-      ],
+      fields: [field(), field({ alias: "RERANKER_TOP_N", value: 9, layer: "environment", editable_here: false })],
     });
 
     render(<AdminConfigEditor />);

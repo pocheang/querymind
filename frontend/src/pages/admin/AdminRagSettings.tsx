@@ -31,18 +31,26 @@ export function AdminRagSettings({
       <AdminConfigEditor />
 
       <SectionHead title={t("admin.ui.ragOps")}>
-<RowActions>
-          <Button variant="secondary" size="xs" onClick={onRefresh}>{t("common.refresh")}</Button>
-          <Button variant="secondary" size="xs" onClick={onReloadConfig}>{t("admin.ui.hotReloadConfig")}</Button>
-          <Button variant="secondary" size="xs" onClick={onExportAuditReport}>{t("admin.ui.exportAuditReport")}</Button>
-        </RowActions></SectionHead>
+        <RowActions>
+          <Button variant="secondary" size="xs" onClick={onRefresh}>
+            {t("common.refresh")}
+          </Button>
+          <Button variant="secondary" size="xs" onClick={onReloadConfig}>
+            {t("admin.ui.hotReloadConfig")}
+          </Button>
+          <Button variant="secondary" size="xs" onClick={onExportAuditReport}>
+            {t("admin.ui.exportAuditReport")}
+          </Button>
+        </RowActions>
+      </SectionHead>
 
       <SectionHead title={t("admin.ui.benchmarkTrend")} className="mt-2">
-<RowActions>
+        <RowActions>
           <Button variant="secondary" size="xs" disabled={benchmarkRunning} onClick={onRunBenchmark}>
             {benchmarkRunning ? t("admin.ui.running") : t("admin.ui.runBenchmark")}
           </Button>
-        </RowActions></SectionHead>
+        </RowActions>
+      </SectionHead>
       {benchmarkTrends.length === 0 && <Muted>{t("admin.ui.noTrend")}</Muted>}
       {benchmarkTrends.length > 0 && (
         <table className={ADMIN_TABLE}>

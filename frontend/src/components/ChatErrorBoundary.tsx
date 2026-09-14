@@ -67,9 +67,7 @@ export function ChatErrorBoundary({ children, onError }: Readonly<Props>) {
 }
 
 // HOC for functional components
-export function withChatErrorBoundary<P extends object>(
-  Component: React.ComponentType<P>
-): React.ComponentType<P> {
+export function withChatErrorBoundary<P extends object>(Component: React.ComponentType<P>): React.ComponentType<P> {
   return function ChatErrorBoundaryWrapper(props: P) {
     return (
       <ChatErrorBoundary>

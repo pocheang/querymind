@@ -1,4 +1,11 @@
-import type { AdminUserSummary, AdminModelSettingsView, AuditLogEntry, SystemLogEntry, OpsOverview, BenchmarkTrendItem } from "@/types/api";
+import type {
+  AdminUserSummary,
+  AdminModelSettingsView,
+  AuditLogEntry,
+  SystemLogEntry,
+  OpsOverview,
+  BenchmarkTrendItem,
+} from "@/types/api";
 
 export interface AdminActionsParams {
   users: AdminUserSummary[];
@@ -31,13 +38,20 @@ export interface AdminActionsParams {
   editScope: string;
   isAdmin: boolean;
   onLogout: () => Promise<void>;
-  promptInput: (opts: { message: string; title?: string; defaultValue?: string; inputType?: "text" | "password" }) => Promise<string | null>;
+  promptInput: (opts: {
+    message: string;
+    title?: string;
+    defaultValue?: string;
+    inputType?: "text" | "password";
+  }) => Promise<string | null>;
   setUsers: (users: AdminUserSummary[] | ((prev: AdminUserSummary[]) => AdminUserSummary[])) => void;
   setLogs: (logs: AuditLogEntry[]) => void;
   setSystemLogs: (logs: SystemLogEntry[]) => void;
   setOps: (ops: OpsOverview | ((prev: OpsOverview | null) => OpsOverview | null) | null) => void;
   setBenchmarkTrends: (trends: BenchmarkTrendItem[] | ((prev: BenchmarkTrendItem[]) => BenchmarkTrendItem[])) => void;
-  setModelSettings: (settings: AdminModelSettingsView | null | ((prev: AdminModelSettingsView | null) => AdminModelSettingsView | null)) => void;
+  setModelSettings: (
+    settings: AdminModelSettingsView | null | ((prev: AdminModelSettingsView | null) => AdminModelSettingsView | null)
+  ) => void;
   setError: (error: string) => void;
   setStatusText: (text: string) => void;
   setLoadingUsers: (loading: boolean) => void;

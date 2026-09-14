@@ -17,10 +17,7 @@ export type ExecutionTraceAction =
   | { type: "event_received"; event: unknown }
   | { type: "answer_fragment"; text: string };
 
-export function reduceExecutionTrace(
-  state: ExecutionTraceState,
-  action: ExecutionTraceAction,
-): ExecutionTraceState {
+export function reduceExecutionTrace(state: ExecutionTraceState, action: ExecutionTraceAction): ExecutionTraceState {
   if (action.type === "execution_started") return initialExecutionTraceState;
   if (action.type === "answer_fragment") return { ...state, draft: state.draft + action.text };
   if (!isExecutionEvent(action.event)) return state;

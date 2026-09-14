@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  CheckCircle2,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Workflow,
-  Wrench,
-} from "lucide-react";
+import { CheckCircle2, Search, ShieldCheck, Sparkles, Workflow, Wrench } from "lucide-react";
 
 export type ViewPerspective = "story" | "tech" | "table" | "blueprint" | "topology";
 export type ScenarioKey = "rag" | "react" | "graph";
@@ -45,7 +38,12 @@ export const STEPS: StepConfig[] = [
     simStatusZh: "安全门禁：核验用户租户鉴权，防范提示词注入与恶意代码...",
     simStatusEn: "Security Gate: Verifying JWT auth, blocking prompt injection & SQLi...",
     keyPointsZh: ["JWT HttpOnly 严格校验", "角色权限隔离 (RBAC)", "敏感操作频率限流", "输入代码恶意清洗"],
-    keyPointsEn: ["JWT HttpOnly Strict Auth", "Tenant RBAC Scope Isolation", "Sensitive Quota Rate Limit", "Malicious Input Sanitization"],
+    keyPointsEn: [
+      "JWT HttpOnly Strict Auth",
+      "Tenant RBAC Scope Isolation",
+      "Sensitive Quota Rate Limit",
+      "Malicious Input Sanitization",
+    ],
     inputZh: "客户端 HTTPS / SSE 原始请求 + JWT HttpOnly Cookie",
     inputEn: "Raw HTTPS / SSE Request + JWT HttpOnly Cookie",
     outputZh: "纯净合法提问文本 + 锁定租户范围 (owner_user_id)",
@@ -65,7 +63,12 @@ export const STEPS: StepConfig[] = [
     simStatusZh: "调度指挥官：进行中文语义分词与意图判定，分流至最适推理档位...",
     simStatusEn: "Router: Segmenting NLP tokens, determining intent, assigning optimal tier...",
     keyPointsZh: ["Jieba 中文语义分词", "相似意图识别去重", "3层仲裁判定 (>99% 准度)", "动态切换 Fast/Balanced/Deep"],
-    keyPointsEn: ["Jieba Token Preprocessing", "Semantic Query Dedup", "3-Tier Routing (>99% Accuracy)", "Dynamic Fast/Balanced/Deep Tiers"],
+    keyPointsEn: [
+      "Jieba Token Preprocessing",
+      "Semantic Query Dedup",
+      "3-Tier Routing (>99% Accuracy)",
+      "Dynamic Fast/Balanced/Deep Tiers",
+    ],
     inputZh: "清洗后的用户自然语言提问",
     inputEn: "Sanitized natural language query",
     outputZh: "执行路由分支 (RAG / ReAct / Graph) + 推理配置档位",
@@ -85,7 +88,12 @@ export const STEPS: StepConfig[] = [
     simStatusZh: "图书管理员：向量多维匹配 + BM25 关键词联合检索，深度重排截断...",
     simStatusEn: "Librarian: Dual vector + BM25 recall, RRF fusion, and cross-reranking...",
     keyPointsZh: ["ChromaDB 稠密向量索引", "BM25 倒排关键词快搜", "RRF 互惠排名权重融合", "BGE-Reranker 交叉打分"],
-    keyPointsEn: ["ChromaDB BGE-M3 Dense Vectors", "BM25 Inverted Sparse Index", "RRF Reciprocal Rank Fusion", "BGE-Reranker-V2 Cross-Scoring"],
+    keyPointsEn: [
+      "ChromaDB BGE-M3 Dense Vectors",
+      "BM25 Inverted Sparse Index",
+      "RRF Reciprocal Rank Fusion",
+      "BGE-Reranker-V2 Cross-Scoring",
+    ],
     inputZh: "分词优化查询与语义向量嵌入",
     inputEn: "Segmented query & semantic embedding vectors",
     outputZh: "Top-K 权威制度分块 (含 doc_id、页码、段落文本)",
@@ -105,7 +113,12 @@ export const STEPS: StepConfig[] = [
     simStatusZh: "特约助手：按需唤醒受控工具沙箱，携带审批令牌执行并观察反馈...",
     simStatusEn: "Tool Chamber: Invoking sandboxed tools with signed token, observing output...",
     keyPointsZh: ["Think-Act-Observe 思考循环", "单次有效签名审批令牌", "外部联网实时调研兜底", "独立工具超时熔断保护"],
-    keyPointsEn: ["Think-Act-Observe ReAct Loops", "Signed Single-Use Approval Tokens", "Dynamic Web Research Fallback", "Per-Tool Timeout Degradation"],
+    keyPointsEn: [
+      "Think-Act-Observe ReAct Loops",
+      "Signed Single-Use Approval Tokens",
+      "Dynamic Web Research Fallback",
+      "Per-Tool Timeout Degradation",
+    ],
     inputZh: "待求解子任务指令 (计算公式、API 调用参数)",
     inputEn: "Sub-task specifications (calculator expression, API params)",
     outputZh: "工具精确执行数据 (统计报表、实时数据回传)",
@@ -124,8 +137,18 @@ export const STEPS: StepConfig[] = [
     analogyEn: "Like a research author: writes answers grounded in evidence, citing [1] footnotes",
     simStatusZh: "主笔撰稿人：端到端引用优先合成，SSE 打字机逐字实时推流...",
     simStatusEn: "Lead Writer: Citation-first synthesis, streaming typewriter via SSE...",
-    keyPointsZh: ["引用标记 [1][2] 按序植入", "严格绑定原始文档页码分块", "SSE 流式逐字推向客户端", "心跳保活包防止网络断连"],
-    keyPointsEn: ["Inline Citations [1][2] Tagged", "Anchored to Document Page Chunks", "SSE Streaming Incremental Output", "Heartbeat Keepalive Packets"],
+    keyPointsZh: [
+      "引用标记 [1][2] 按序植入",
+      "严格绑定原始文档页码分块",
+      "SSE 流式逐字推向客户端",
+      "心跳保活包防止网络断连",
+    ],
+    keyPointsEn: [
+      "Inline Citations [1][2] Tagged",
+      "Anchored to Document Page Chunks",
+      "SSE Streaming Incremental Output",
+      "Heartbeat Keepalive Packets",
+    ],
     inputZh: "原始提问 + 检索到的事实原文 + 工具执行观测数据",
     inputEn: "User query + retrieved factual chunks + tool observations",
     outputZh: "打字机流式输出回答 + 行内引用标记 [1], [2]",
@@ -144,8 +167,18 @@ export const STEPS: StepConfig[] = [
     analogyEn: "Like an editor-in-chief: verifies zero fabrication and redacts private secrets",
     simStatusZh: "终审质检员：NLI 事实一致性蕴含核对，Output DLP 安全脱敏放行！",
     simStatusEn: "Chief Inspector: NLI factual entailment verified, DLP redacted, committed!",
-    keyPointsZh: ["句子级 Grounding 事实校验", "NLI 蕴含推断 (幻觉率 <10%)", "流式 Chunk 输出实时脱敏", "审计历史异步落库与监控"],
-    keyPointsEn: ["Sentence-Level Grounding Check", "NLI Entailment (Hallucination <10%)", "Streaming Chunk Output DLP", "Asynchronous Session State Commit"],
+    keyPointsZh: [
+      "句子级 Grounding 事实校验",
+      "NLI 蕴含推断 (幻觉率 <10%)",
+      "流式 Chunk 输出实时脱敏",
+      "审计历史异步落库与监控",
+    ],
+    keyPointsEn: [
+      "Sentence-Level Grounding Check",
+      "NLI Entailment (Hallucination <10%)",
+      "Streaming Chunk Output DLP",
+      "Asynchronous Session State Commit",
+    ],
     inputZh: "LLM 逐字候选答案流与对应依据段落",
     inputEn: "LLM candidate answer stream & evidence passages",
     outputZh: "最终呈现在屏幕上的可信回答 + 历史审计会话存储",

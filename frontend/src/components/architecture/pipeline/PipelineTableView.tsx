@@ -48,12 +48,12 @@ export function PipelineTableView({ isZh, t }: Readonly<PipelineTableViewProps>)
                 <tr key={stg.id} className="hover:bg-surface-muted/30 transition-colors">
                   <td className="p-3.5 sm:p-4 whitespace-nowrap">
                     <div className="flex items-center gap-2.5">
-                      <div className={`flex size-8 items-center justify-center rounded-control border ${stg.badgeClass}`}>
+                      <div
+                        className={`flex size-8 items-center justify-center rounded-control border ${stg.badgeClass}`}
+                      >
                         <Icon className="size-4" />
                       </div>
-                      <span className="font-mono text-sm font-bold text-ink">
-                        Stage 0{stg.id}
-                      </span>
+                      <span className="font-mono text-sm font-bold text-ink">Stage 0{stg.id}</span>
                     </div>
                   </td>
                   <td className="p-3.5 sm:p-4 whitespace-nowrap">

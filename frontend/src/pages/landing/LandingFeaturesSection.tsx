@@ -234,9 +234,7 @@ export function LandingFeaturesSection({ onSelectFeature }: Readonly<LandingFeat
   ];
 
   const filteredFeatures =
-    selectedCategory === "all"
-      ? features
-      : features.filter((f) => f.category === selectedCategory);
+    selectedCategory === "all" ? features : features.filter((f) => f.category === selectedCategory);
 
   return (
     <section id="features" className="mx-auto max-w-6xl space-y-8 px-4 py-14">
@@ -283,7 +281,9 @@ export function LandingFeaturesSection({ onSelectFeature }: Readonly<LandingFeat
             >
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className={cn("flex size-10 items-center justify-center rounded-card border shadow-xs", accent)}>
+                  <span
+                    className={cn("flex size-10 items-center justify-center rounded-card border shadow-xs", accent)}
+                  >
                     <Icon className="size-5" aria-hidden="true" />
                   </span>
                   <Badge variant="neutral" size="xs" mono className="text-xs font-medium px-2 py-0.5">

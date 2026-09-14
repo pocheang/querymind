@@ -133,18 +133,14 @@ export function usePromptActions(params: UsePromptActionsParams) {
       // Sanitize API response data to prevent XSS
       const sanitizedTitle = sanitizeString(res.title || title);
       const sanitizedContent = sanitizeString(res.content || content);
-      const sanitizedSuggestions = (res.suggestions || [])
-        .filter(Boolean)
-        .map((s) => sanitizeString(String(s)));
+      const sanitizedSuggestions = (res.suggestions || []).filter(Boolean).map((s) => sanitizeString(String(s)));
 
       const numberedSuggestions = sanitizedSuggestions.map((x, i) => `${i + 1}. ${x}`).join("\n");
       const suggestionBlock = sanitizedSuggestions.length
         ? `${t("components.workbench.suggestionsLabel")}${numberedSuggestions}`
         : "";
 
-      const sanitizedIssues = (res.issues || [])
-        .slice(0, 3)
-        .map((issue) => sanitizeString(String(issue)));
+      const sanitizedIssues = (res.issues || []).slice(0, 3).map((issue) => sanitizeString(String(issue)));
 
       setPromptTitle(sanitizedTitle);
       setPromptContent(`${sanitizedContent.trim()}${suggestionBlock}`);

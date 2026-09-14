@@ -54,7 +54,7 @@ describe("pending approval pairing", () => {
     const first = holdFor(result(), "what can you do?");
     const second = holdFor(
       result({ status: "pending_approval", pendingApproval: approval }),
-      "disable slack\n\nConfirmed constraints:\n- scenario: enterprise",
+      "disable slack\n\nConfirmed constraints:\n- scenario: enterprise"
     );
 
     expect(first).toBeNull();

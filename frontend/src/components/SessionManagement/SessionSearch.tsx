@@ -241,7 +241,9 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
                 onClick={() => handleResultClick(result.session_id)}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-mono text-xs sm:text-sm font-semibold text-ink">{result.session_id}</span>
+                  <span className="truncate font-mono text-xs sm:text-sm font-semibold text-ink">
+                    {result.session_id}
+                  </span>
                   <Badge variant="brand" size="xs" mono>
                     {t("sessionManagement.score")}: {result.score.toFixed(2)}
                   </Badge>
@@ -301,9 +303,7 @@ export const SessionSearch: React.FC<SessionSearchProps> = ({ onSelectSession })
         <div className="space-y-2 py-8 text-center">
           <Search className="mx-auto size-7 text-ink-faint" strokeWidth={1.5} aria-hidden="true" />
           <h4 className="text-sm font-semibold text-ink">{t("sessionManagement.noResults")}</h4>
-          <p className="text-xs sm:text-sm text-ink/80">
-            {t("sessionManagement.searchesMetadataOnly")}
-          </p>
+          <p className="text-xs sm:text-sm text-ink/80">{t("sessionManagement.searchesMetadataOnly")}</p>
         </div>
       )}
     </div>

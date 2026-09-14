@@ -1,15 +1,4 @@
-import {
-  Activity,
-  Cpu,
-  Database,
-  FileText,
-  Layers,
-  Lock,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Workflow,
-} from "lucide-react";
+import { Activity, Cpu, Database, FileText, Layers, Lock, Search, ShieldCheck, Sparkles, Workflow } from "lucide-react";
 
 export type PillarId = "all" | "pipeline" | "retrieval" | "security" | "database" | "operations" | "endpoints";
 
@@ -91,7 +80,14 @@ export const ARCHITECTURE_CARDS: CardSectionConfig[] = [
     titleKey: "architecture.sections.operations",
     pillar: "operations",
     icon: Activity,
-    tags: ["Canonical config/", "3 Profiles", "Prometheus Metrics", "14 Grafana Panels", "Alertmanager", "Circuit Breakers"],
+    tags: [
+      "Canonical config/",
+      "3 Profiles",
+      "Prometheus Metrics",
+      "14 Grafana Panels",
+      "Alertmanager",
+      "Circuit Breakers",
+    ],
   },
   {
     key: "frontend",
@@ -103,12 +99,36 @@ export const ARCHITECTURE_CARDS: CardSectionConfig[] = [
 ];
 
 export const KPI_ITEMS = [
-  { valueKey: "architecture.kpi.accuracy", labelKey: "architecture.kpi.accuracyLabel", descKey: "architecture.kpi.accuracyDesc" },
-  { valueKey: "architecture.kpi.hallucination", labelKey: "architecture.kpi.hallucinationLabel", descKey: "architecture.kpi.hallucinationDesc" },
-  { valueKey: "architecture.kpi.citation", labelKey: "architecture.kpi.citationLabel", descKey: "architecture.kpi.citationDesc" },
-  { valueKey: "architecture.kpi.latency", labelKey: "architecture.kpi.latencyLabel", descKey: "architecture.kpi.latencyDesc" },
-  { valueKey: "architecture.kpi.memory", labelKey: "architecture.kpi.memoryLabel", descKey: "architecture.kpi.memoryDesc" },
-  { valueKey: "architecture.kpi.coverage", labelKey: "architecture.kpi.coverageLabel", descKey: "architecture.kpi.coverageDesc" },
+  {
+    valueKey: "architecture.kpi.accuracy",
+    labelKey: "architecture.kpi.accuracyLabel",
+    descKey: "architecture.kpi.accuracyDesc",
+  },
+  {
+    valueKey: "architecture.kpi.hallucination",
+    labelKey: "architecture.kpi.hallucinationLabel",
+    descKey: "architecture.kpi.hallucinationDesc",
+  },
+  {
+    valueKey: "architecture.kpi.citation",
+    labelKey: "architecture.kpi.citationLabel",
+    descKey: "architecture.kpi.citationDesc",
+  },
+  {
+    valueKey: "architecture.kpi.latency",
+    labelKey: "architecture.kpi.latencyLabel",
+    descKey: "architecture.kpi.latencyDesc",
+  },
+  {
+    valueKey: "architecture.kpi.memory",
+    labelKey: "architecture.kpi.memoryLabel",
+    descKey: "architecture.kpi.memoryDesc",
+  },
+  {
+    valueKey: "architecture.kpi.coverage",
+    labelKey: "architecture.kpi.coverageLabel",
+    descKey: "architecture.kpi.coverageDesc",
+  },
 ] as const;
 
 export const PILLAR_TABS: { id: PillarId; labelKey: string }[] = [
@@ -133,7 +153,10 @@ function parseEndpointLine(line: string): { methods: string[]; path: string; des
   const path = head.slice(firstSlash).trim();
   if (!methodPart || !path) return null;
 
-  const methods = methodPart.split(",").map((m) => m.trim()).filter(Boolean);
+  const methods = methodPart
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
   if (methods.length === 0 || !methods.every((m) => /^[A-Z]+$/.test(m))) {
     return null;
   }

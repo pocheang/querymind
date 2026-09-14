@@ -4,29 +4,31 @@ export function exportToCSV(data: Array<Record<string, unknown>>, filename: stri
 
   const headers = Object.keys(data[0]);
   const csvContent = [
-    headers.join(','),
-    ...data.map(row =>
-      headers.map(header => {
-        const value = row[header];
-        // Skip complex objects and arrays
-        if (value && typeof value === 'object') {
-          return JSON.stringify(value);
-        }
-        // 转义包含逗号或引号的值
-        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-          return `"${value.replace(/"/g, '""')}"`;
-        }
-        return value;
-      }).join(',')
-    )
-  ].join('\n');
+    headers.join(","),
+    ...data.map((row) =>
+      headers
+        .map((header) => {
+          const value = row[header];
+          // Skip complex objects and arrays
+          if (value && typeof value === "object") {
+            return JSON.stringify(value);
+          }
+          // 转义包含逗号或引号的值
+          if (typeof value === "string" && (value.includes(",") || value.includes('"'))) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        })
+        .join(",")
+    ),
+  ].join("\n");
 
-  downloadFile(csvContent, filename, 'text/csv;charset=utf-8;');
+  downloadFile(csvContent, filename, "text/csv;charset=utf-8;");
 }
 
 export function exportToJSON(data: Array<Record<string, unknown>>, filename: string) {
   const jsonContent = JSON.stringify(data, null, 2);
-  downloadFile(jsonContent, filename, 'application/json');
+  downloadFile(jsonContent, filename, "application/json");
 }
 
 export function exportTableToExcel(tableId: string, filename: string) {
@@ -35,9 +37,9 @@ export function exportTableToExcel(tableId: string, filename: string) {
   if (!table) return;
 
   const html = table.outerHTML;
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+  const blob = new Blob([html], { type: "application/vnd.ms-excel" });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = url;
   link.download = `${filename}.xls`;
   link.click();
@@ -47,7 +49,7 @@ export function exportTableToExcel(tableId: string, filename: string) {
 function downloadFile(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
@@ -89,12 +91,7 @@ export function ExportButtons({ data, filename, onExport }: Readonly<ExportButto
         <FileSpreadsheet className="size-3.5" aria-hidden="true" />
         CSV
       </Button>
-      <Button
-        variant="secondary"
-        size="xs"
-        onClick={handleExportJSON}
-        title={t("admin.export.json", "Export as JSON")}
-      >
+      <Button variant="secondary" size="xs" onClick={handleExportJSON} title={t("admin.export.json", "Export as JSON")}>
         <FileJson className="size-3.5" aria-hidden="true" />
         JSON
       </Button>

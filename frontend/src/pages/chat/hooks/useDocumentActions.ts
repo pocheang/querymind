@@ -93,7 +93,7 @@ export function useDocumentActions(params: UseDocumentActionsParams) {
           setUploadProgress(percent);
           setUploadProgressText(t("components.workbench.uploadProgress", { progress: Math.round(percent) }));
         },
-        uploadVisibility,
+        uploadVisibility
       );
       setUploadProgress(100);
       setUploadProgressText(t("components.workbench.uploadComplete"));
@@ -112,7 +112,7 @@ export function useDocumentActions(params: UseDocumentActionsParams) {
       setUploadInfo(
         t("components.workbench.uploadFailedReason", {
           reason: e instanceof Error ? e.message : t("components.workbench.unknownError"),
-        }),
+        })
       );
       await handleApiError(e, t("components.workbench.uploadFailed"));
     } finally {
@@ -138,7 +138,7 @@ export function useDocumentActions(params: UseDocumentActionsParams) {
     try {
       const res = await appApi.documentDelete(item.filename, item.source, removeFile, item.document_id);
       setUploadInfo(
-        `${item.filename}: chunks_removed=${res.chunks_removed}, triplets_removed=${res.triplets_removed}, file_removed=${res.file_removed}`,
+        `${item.filename}: chunks_removed=${res.chunks_removed}, triplets_removed=${res.triplets_removed}, file_removed=${res.file_removed}`
       );
       notify(t("components.workbench.fileDeleted", { filename: item.filename }), "success");
       await refreshDocuments();

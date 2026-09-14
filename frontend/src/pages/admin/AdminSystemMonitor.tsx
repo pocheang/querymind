@@ -18,15 +18,7 @@ import {
 import type { AdminRuntimeSnapshot } from "@/types/api";
 import { adminOpsApi } from "@/services/api/admin";
 import { Button } from "@/components/ui/button";
-import {
-  AdminPanel,
-  KpiCard,
-  KpiGrid,
-  OpsGrid,
-  RowActions,
-  StatePanel,
-  SubTitle,
-} from "./components/AdminPrimitives";
+import { AdminPanel, KpiCard, KpiGrid, OpsGrid, RowActions, StatePanel, SubTitle } from "./components/AdminPrimitives";
 import { CHART_AXIS, CHART_GRID, CHART_TOOLTIP } from "./components/adminClasses";
 
 export function AdminSystemMonitor() {
@@ -185,7 +177,7 @@ export function AdminSystemMonitor() {
               <YAxis stroke={CHART_AXIS} domain={[0, 100]} fontSize={14} />
               <Tooltip
                 contentStyle={CHART_TOOLTIP}
-                formatter={(value: unknown) => [`${Number(value).toFixed(1)}%`, 'Usage']}
+                formatter={(value: unknown) => [`${Number(value).toFixed(1)}%`, "Usage"]}
               />
               <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                 {resourceData.map((entry) => (
@@ -202,30 +194,28 @@ export function AdminSystemMonitor() {
             <AreaChart
               data={[
                 {
-                  name: 'Current',
+                  name: "Current",
                   requests: snapshot.traffic.requests_total,
                   errors: Math.round((snapshot.traffic.requests_total * snapshot.traffic.error_rate_percent) / 100),
-                }
+                },
               ]}
               margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
             >
               <defs>
                 <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
                 </linearGradient>
                 <linearGradient id="colorErrors" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
               <XAxis dataKey="name" stroke={CHART_AXIS} fontSize={14} />
               <YAxis stroke={CHART_AXIS} fontSize={14} />
-              <Tooltip
-                contentStyle={CHART_TOOLTIP}
-              />
-              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+              <Tooltip contentStyle={CHART_TOOLTIP} />
+              <Legend wrapperStyle={{ paddingTop: "20px" }} />
               <Area
                 type="monotone"
                 dataKey="requests"
@@ -257,7 +247,7 @@ export function AdminSystemMonitor() {
               <YAxis stroke={CHART_AXIS} fontSize={14} />
               <Tooltip
                 contentStyle={CHART_TOOLTIP}
-                formatter={(value: unknown) => [`${Number(value)} ms`, 'Latency']}
+                formatter={(value: unknown) => [`${Number(value)} ms`, "Latency"]}
               />
               <Bar dataKey="latency" fill="#10b981" radius={[8, 8, 0, 0]} />
             </BarChart>
@@ -269,8 +259,8 @@ export function AdminSystemMonitor() {
           <ResponsiveContainer width="100%" height={280}>
             <LineChart
               data={[
-                { name: 'Avg', value: snapshot.traffic.avg_response_ms },
-                { name: 'P95', value: snapshot.traffic.p95_response_ms },
+                { name: "Avg", value: snapshot.traffic.avg_response_ms },
+                { name: "P95", value: snapshot.traffic.p95_response_ms },
               ]}
               margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
             >
@@ -279,14 +269,14 @@ export function AdminSystemMonitor() {
               <YAxis stroke={CHART_AXIS} fontSize={14} />
               <Tooltip
                 contentStyle={CHART_TOOLTIP}
-                formatter={(value: unknown) => [`${Number(value).toFixed(1)} ms`, 'Response Time']}
+                formatter={(value: unknown) => [`${Number(value).toFixed(1)} ms`, "Response Time"]}
               />
               <Line
                 type="monotone"
                 dataKey="value"
                 stroke="#f59e0b"
                 strokeWidth={3}
-                dot={{ fill: '#f59e0b', r: 6 }}
+                dot={{ fill: "#f59e0b", r: 6 }}
                 activeDot={{ r: 8 }}
               />
             </LineChart>

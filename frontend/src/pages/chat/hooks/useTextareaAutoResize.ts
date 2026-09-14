@@ -7,11 +7,7 @@ interface UseTextareaAutoResizeOptions {
   maxHeight?: number;
 }
 
-export function useTextareaAutoResize({
-  ref,
-  value,
-  maxHeight = 180,
-}: UseTextareaAutoResizeOptions) {
+export function useTextareaAutoResize({ ref, value, maxHeight = 180 }: UseTextareaAutoResizeOptions) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

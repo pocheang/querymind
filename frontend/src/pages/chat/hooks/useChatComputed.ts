@@ -13,15 +13,9 @@ export function useChatComputed({ documents, user }: UseChatComputedParams) {
   const canUploadAndManageDocs = true;
   const userBadge = user ? `${user.username} (${role})` : "unknown";
 
-  const pdfDocuments = useMemo(
-    () => documents.filter((doc) => PDF_FILE_RE.test(doc.filename || "")),
-    [documents]
-  );
+  const pdfDocuments = useMemo(() => documents.filter((doc) => PDF_FILE_RE.test(doc.filename || "")), [documents]);
 
-  const pdfNeedingReindex = useMemo(
-    () => pdfDocuments.filter((doc) => (doc.chunks || 0) <= 0),
-    [pdfDocuments]
-  );
+  const pdfNeedingReindex = useMemo(() => pdfDocuments.filter((doc) => (doc.chunks || 0) <= 0), [pdfDocuments]);
 
   const agentDistribution = useMemo(() => {
     const counts = new Map<string, number>();

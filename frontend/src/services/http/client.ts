@@ -1,4 +1,3 @@
-
 type Json = Record<string, unknown> | Array<unknown>;
 
 export type RequestOptions = {
@@ -46,8 +45,7 @@ function resolveApiBase() {
     const pageHost = window.location.hostname;
     const apiHost = parsed.hostname;
     const isLoopbackPair =
-      (apiHost === "localhost" || apiHost === "127.0.0.1") &&
-      (pageHost === "localhost" || pageHost === "127.0.0.1");
+      (apiHost === "localhost" || apiHost === "127.0.0.1") && (pageHost === "localhost" || pageHost === "127.0.0.1");
     if (!isLoopbackPair || apiHost === pageHost) return cleaned;
     parsed.hostname = pageHost;
     return withoutTrailingSlashes(parsed.toString());
@@ -155,12 +153,13 @@ function createRequestSignal(signal: AbortSignal | null | undefined, timeoutMs: 
     if (signal.aborted) controller.abort();
     else signal.addEventListener("abort", onAbort, { once: true });
   }
-  const timeoutId = timeoutMs && timeoutMs > 0
-    ? globalThis.setTimeout(() => {
-        timedOut = true;
-        controller.abort();
-      }, timeoutMs)
-    : undefined;
+  const timeoutId =
+    timeoutMs && timeoutMs > 0
+      ? globalThis.setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+        }, timeoutMs)
+      : undefined;
   return {
     signal: controller.signal,
     wasTimedOut: () => timedOut,
@@ -189,7 +188,11 @@ async function fetchWithTimeout(path: string, init: RequestInit, options: Reques
   }
 }
 
-export async function request<T = Json>(path: string, init: RequestInit = {}, options: RequestOptions = {}): Promise<T> {
+export async function request<T = Json>(
+  path: string,
+  init: RequestInit = {},
+  options: RequestOptions = {}
+): Promise<T> {
   const headers = new Headers(init.headers || {});
   const res = await fetchWithTimeout(path, { ...init, headers }, options);
 
@@ -201,11 +204,7 @@ export async function request<T = Json>(path: string, init: RequestInit = {}, op
   return payload as T;
 }
 
-export async function authFetch(
-  path: string,
-  init: RequestInit = {},
-  opts: AuthFetchOptions = {},
-) {
+export async function authFetch(path: string, init: RequestInit = {}, opts: AuthFetchOptions = {}) {
   const retries = Math.max(0, Number(opts.networkRetry || 0));
   const delayMs = Math.max(50, Number(opts.retryDelayMs || 300));
   let attempt = 0;
@@ -236,11 +235,7 @@ export async function parseOrThrow<T>(res: Response): Promise<T> {
   return payload as T;
 }
 
-export async function authRequest<T>(
-  path: string,
-  init: RequestInit = {},
-  opts: AuthFetchOptions = {},
-): Promise<T> {
+export async function authRequest<T>(path: string, init: RequestInit = {}, opts: AuthFetchOptions = {}): Promise<T> {
   const res = await authFetch(path, init, opts);
   return parseOrThrow<T>(res);
 }

@@ -7,10 +7,7 @@ interface ArchitecturePillarTabsProps {
   onSelectPillar: (pillar: PillarId) => void;
 }
 
-export function ArchitecturePillarTabs({
-  activePillar,
-  onSelectPillar,
-}: Readonly<ArchitecturePillarTabsProps>) {
+export function ArchitecturePillarTabs({ activePillar, onSelectPillar }: Readonly<ArchitecturePillarTabsProps>) {
   const { t } = useTranslation();
 
   return (

@@ -65,8 +65,12 @@ describe("the locale files", () => {
   });
 
   it("keeps the two locales on the same key set", () => {
-    const onlyEn = Object.keys(EN).filter((k) => !(k in ZH)).sort((a, b) => a.localeCompare(b));
-    const onlyZh = Object.keys(ZH).filter((k) => !(k in EN)).sort((a, b) => a.localeCompare(b));
+    const onlyEn = Object.keys(EN)
+      .filter((k) => !(k in ZH))
+      .sort((a, b) => a.localeCompare(b));
+    const onlyZh = Object.keys(ZH)
+      .filter((k) => !(k in EN))
+      .sort((a, b) => a.localeCompare(b));
     expect({ onlyEn, onlyZh }).toEqual({ onlyEn: [], onlyZh: [] });
   });
 

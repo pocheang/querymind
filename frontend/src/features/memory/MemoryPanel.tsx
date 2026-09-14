@@ -186,7 +186,9 @@ export function MemoryPanel() {
                   )}
                 >
                   <div className="min-w-0 flex-1 space-y-1">
-                    <p className="break-words text-xs sm:text-sm leading-relaxed text-ink font-medium">{memory.content}</p>
+                    <p className="break-words text-xs sm:text-sm leading-relaxed text-ink font-medium">
+                      {memory.content}
+                    </p>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge variant={KIND_TONE[memory.kind] ?? "neutral"} size="xs">
                         {kindLabel(memory.kind)}
@@ -219,12 +221,7 @@ export function MemoryPanel() {
 
           {memories.length > 0 && (
             <div className="flex justify-end">
-              <Button
-                variant="secondary"
-                size="xs"
-                onClick={() => void forgetEverything()}
-                disabled={busyId !== null}
-              >
+              <Button variant="secondary" size="xs" onClick={() => void forgetEverything()} disabled={busyId !== null}>
                 {busyId === "all" ? t("features.memory.forgettingAll") : t("features.memory.forgetAll")}
               </Button>
             </div>

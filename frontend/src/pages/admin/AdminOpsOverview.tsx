@@ -5,14 +5,7 @@ import { AdminOpsDiagnostics } from "./AdminOpsDiagnostics";
 import { AdminOpsTrendCharts } from "./AdminOpsTrendCharts";
 import { AdminOpsDataTables } from "./AdminOpsDataTables";
 import { Button } from "@/components/ui/button";
-import {
-  AdminSkeleton,
-  ControlsRow,
-  FilterRow,
-  Muted,
-  RowActions,
-  SectionHead,
-} from "./components/AdminPrimitives";
+import { AdminSkeleton, ControlsRow, FilterRow, Muted, RowActions, SectionHead } from "./components/AdminPrimitives";
 import { ADMIN_FIELD } from "./components/adminClasses";
 import { cn } from "@/lib/utils";
 
@@ -62,14 +55,15 @@ export function AdminOpsOverview({
   return (
     <main className="space-y-6">
       <SectionHead title={t("admin.ui.opsMonitor")}>
-<RowActions>
+        <RowActions>
           <Button variant="secondary" size="xs" onClick={onRefresh}>
             {t("common.refresh")}
           </Button>
           <Button variant="secondary" size="xs" onClick={onExportCsv}>
             {t("admin.ui.exportCsv")}
           </Button>
-        </RowActions></SectionHead>
+        </RowActions>
+      </SectionHead>
       <ControlsRow>
         <select
           className={cn(ADMIN_FIELD, "w-auto min-w-36 font-mono")}
@@ -89,9 +83,7 @@ export function AdminOpsOverview({
             checked={opsAutoRefresh}
             onChange={(event) => onOpsAutoRefreshChange(event.target.checked)}
           />
-          <span className="text-xs font-bold uppercase tracking-wider text-ink/80">
-            {t("admin.ui.autoRefresh30")}
-          </span>
+          <span className="text-xs font-bold uppercase tracking-wider text-ink/80">{t("admin.ui.autoRefresh30")}</span>
         </label>
       </ControlsRow>
       <FilterRow>
@@ -120,7 +112,13 @@ export function AdminOpsOverview({
       {!loading && ops && (
         <>
           <AdminOpsKpiCards ops={ops} />
-          <AdminOpsTrendCharts ops={ops} actionMax={actionMax} resourceMax={resourceMax} errorMax={errorMax} hourlyMax={hourlyMax} />
+          <AdminOpsTrendCharts
+            ops={ops}
+            actionMax={actionMax}
+            resourceMax={resourceMax}
+            errorMax={errorMax}
+            hourlyMax={hourlyMax}
+          />
           <AdminOpsDiagnostics ops={ops} />
           <AdminOpsDataTables ops={ops} formatAuditTime={formatAuditTime} />
         </>
