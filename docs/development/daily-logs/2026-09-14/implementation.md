@@ -44,6 +44,19 @@
 - 修复：三个测试使用与连接器工具测试相同形状的 fixture（测试密钥 + 临时 `APP_DB_PATH` + 重置工具栈）。
 - 根治：`scripts/ci_import_environment.py` 现在同时中和本机的运行时 env 文件与数据目录，`make test-ci` 与 CI 的配置一致，而不只是依赖包一致。
 
+## SonarCloud 质量门禁失败与修复
+
+`ceb93515` CI 通过，但 SonarCloud 门禁仍失败：新代码可靠性 D（3 个 bug）、安全性 D（4 个 critical 漏洞）。其余 73 个新问题是代码异味，不影响门禁。7 个阻断项全部来自本次发布的代码：
+
+| 规则 | 位置 | 修复 |
+|---|---|---|
+| S5852 ×4 | 表格分隔行正则 `-+[-:]*`，复制在 splitter / classification / extraction.tables / office_loader | 改为 `-[-:]*`；与旧式在 40,000 个生成输入上 0 差异；新增一致性守卫测试 |
+| S5842 | `splitter.py` 行号标签正则 `(?:[^)]*)?` 可匹配空串 | 改为 `[^)]*`，0 差异 |
+| S5850 | `engine.py` 货币剥离 `^A\|B$` 优先级不明确 | 显式分组，0 差异 |
+| S5779 | `engine.py` `assert` 位于 `except Exception` 内 | 改为显式检查抛 `RuntimeError` |
+
+验证：全量 1,980 passed；`test-ci` 1,974 passed / 3 skipped；守卫对已提交版本的 4 个文件均能命中旧式。
+
 ## 表格持久化的实测
 
 - 两个独立进程（非 pytest，真实 `get_table_store()`，DuckDB 1.5.5，`APP_DB_PATH` 指向会话临时库）：

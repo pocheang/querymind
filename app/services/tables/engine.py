@@ -216,7 +216,7 @@ def _clean_and_parse_value(val: Any) -> tuple[Any, str]:
         s = s[1:-1].strip()
 
     # Strip currency symbols and percent signs
-    stripped_num = re.sub(r"^[\$￥€£¥\s]+|[\$￥€£¥\s%]+$", "", s)
+    stripped_num = re.sub(r"(?:^[\$￥€£¥\s]+)|(?:[\$￥€£¥\s%]+$)", "", s)
     # Remove thousand separators: 1,234,567.89 -> 1234567.89
     if re.match(r"^-?\d{1,3}(,\d{3})+(\.\d+)?$", stripped_num):
         stripped_num = stripped_num.replace(",", "")
@@ -442,7 +442,11 @@ class TableEngine:
                     raw_cols = [desc[0] for desc in cursor.description] if cursor.description else []
                     fetched_rows = cursor.fetchall()
                 else:
-                    assert self._sqlite_conn is not None
+                    # Not an assert: this sits inside `except Exception`, which
+                    # would swallow an AssertionError (python:S5779), and asserts
+                    # vanish under -O anyway.
+                    if self._sqlite_conn is None:
+                        raise RuntimeError("TableEngine has no open connection")
                     cursor = self._sqlite_conn.cursor()
                     cursor.execute(run_sql)
                     raw_cols = [desc[0] for desc in cursor.description] if cursor.description else []

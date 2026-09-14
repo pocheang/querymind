@@ -152,7 +152,7 @@ def _is_table(text: str, metadata: dict[str, Any]) -> bool:
         if line.startswith("|") and line.endswith("|") and line.count("|") >= 2:
             if i + 1 < len(lines):
                 next_line = lines[i + 1]
-                if next_line.startswith("|") and re.match(r"^\|(\s*:?-+[-:]*\s*\|)+$", next_line):
+                if next_line.startswith("|") and re.match(r"^\|(?:\s*:?-[-:]*\s*\|)+$", next_line):
                     return True
 
     # KV折叠表格结构检测

@@ -21,7 +21,7 @@ v0.7.0.1 合并前审查发现 14 个问题（其中 4 个是隔离失效），�
 
 ## 验证结果
 
-- **后端 `pytest -q` → 1,966 passed, 0 failed**（本日开始时 1,910 passed / 11 failed）
+- **后端 `pytest -q` → 1,980 passed, 0 failed**（本日开始时 1,910 passed / 11 failed）
 - **前端**：vitest 154 passed；eslint 0 errors（19 warnings，棘轮 20）；`tsc -b --noEmit`、`format:check`、`lint:design`、`build`、`lint:classes` 全部通过
 - `ruff check .` / `ruff format --check .` → 通过
 - 敏感内容门禁（已跟踪 + 新文件）→ PASS

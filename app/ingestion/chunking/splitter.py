@@ -214,9 +214,13 @@ def _heading_scope(text: str, carried: str | None) -> tuple[str | None, str | No
     return current_scope, cleaned_headings[-1]
 
 
-_TABLE_SEP_PATTERN = re.compile(r"^\|(\s*:?-+[-:]*\s*\|)+$")
+# `-[-:]*`, not `-+[-:]*`: both halves of the latter match a dash, so a long
+# dashed cell that does not close backtracks polynomially (python:S5852). The
+# same pattern lives in classification.py, extraction/tables.py and
+# office_loader.py; tests/ingestion/test_table_separator_regex.py keeps them in step.
+_TABLE_SEP_PATTERN = re.compile(r"^\|(?:\s*:?-[-:]*\s*\|)+$")
 _ROW_LABEL_PATTERN = re.compile(r"\s*\(Rows?\s+\d+(?:-\d+)?\s+of\s+\d+\)", re.IGNORECASE)
-_ROW_LABEL_MATCH = re.compile(r"\(Rows?\s+(\d+)(?:-(\d+))?\s+of\s+(\d+)(?:[^)]*)?\)", re.IGNORECASE)
+_ROW_LABEL_MATCH = re.compile(r"\(Rows?\s+(\d+)(?:-(\d+))?\s+of\s+(\d+)[^)]*\)", re.IGNORECASE)
 
 
 def _is_table_row(line: str) -> bool:

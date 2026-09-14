@@ -50,6 +50,7 @@ All notable changes to this project will be documented in this file.
 - **Injection detector**: false positives fixed (developer-mode, `vssadmin`/`rm -rf` detection questions, names such as "Dan", `.gitignore` rules); image egress decided on the parsed host.
 - **Defaults restored**: `AUTH_EXPOSE_TOKEN_IN_RESPONSE=false`, `AUTH_COOKIE_SECURE=true`, `AUTH_COOKIE_SAMESITE=strict`; provider API keys and URLs are not console-editable.
 - **No silent substitution**: a failing provider is `generation_failed`, never the offline model; the chat vector path has no relevance-score floor (`VECTOR_SIMILARITY_THRESHOLD` default back to 0.2 -- a 0.30 floor left 3 of 16 eval queries with any vector result on hash embeddings).
+- **SonarCloud quality gate**: the seven issues that failed it are fixed -- the markdown table-separator regex (`-+[-:]*`, python:S5852, copied into four modules) no longer backtracks, an empty-matching group (S5842), implicit anchor precedence (S5850) and an `assert` swallowed by `except Exception` (S5779); a guard test keeps the four separator copies in step.
 - **Runtime**: NL2SQL and community builds run off the event loop; the planner's retrieval budget is no longer raised; the web provider cache is cleared on config reload; an `.xlsx` declaring a huge merged range is streamed instead of loaded in full.
 
 ### ⚠️ Upgrade Notes
@@ -60,7 +61,7 @@ All notable changes to this project will be documented in this file.
 
 ### ✅ Verification
 
-- Backend `pytest -q`: **1,966 passed, 0 failed**. Frontend vitest: **154 passed**; lint, type-check, `format:check`, build and dead-class checks clean. `ruff check` / `ruff format --check`: clean. Sensitive-content gate: PASS. OpenAPI operations: 157. CI simulation (`make test-ci` with fresh data dirs): 1,960 passed, 3 skipped (Excel cases without `openpyxl`).
+- Backend `pytest -q`: **1,980 passed, 0 failed**. Frontend vitest: **154 passed**; lint, type-check, `format:check`, build and dead-class checks clean. `ruff check` / `ruff format --check`: clean. Sensitive-content gate: PASS. OpenAPI operations: 157. CI simulation (`make test-ci`, which now mirrors CI's configuration): 1,974 passed, 3 skipped (Excel cases without `openpyxl`).
 - Table persistence verified across two separate processes on DuckDB 1.5.5: a table saved by one is queryable by the other, invisible to another user, and a deletion in one is seen by the next.
 
 ## [0.7.0] - 2026-09-11

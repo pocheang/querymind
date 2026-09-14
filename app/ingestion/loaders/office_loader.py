@@ -408,7 +408,7 @@ def _ppt_image_pages(archive: zipfile.ZipFile) -> dict[str, int]:
     return pages
 
 
-_TABLE_SEPARATOR_PATTERN = re.compile(r"^\|(\s*:?-+[-:]*\s*\|)+$")
+_TABLE_SEPARATOR_PATTERN = re.compile(r"^\|(?:\s*:?-[-:]*\s*\|)+$")
 
 
 def _rows_to_markdown(rows: list[list[object]], sheet_name: str | None = None) -> str:

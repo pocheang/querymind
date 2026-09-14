@@ -19,7 +19,7 @@ def _is_table_row(line: str) -> bool:
 
 def _is_table_separator(line: str) -> bool:
     s = line.strip()
-    return bool(re.match(r"^\|(\s*:?-+[-:]*\s*\|)+$", s))
+    return bool(re.match(r"^\|(?:\s*:?-[-:]*\s*\|)+$", s))
 
 
 def _extract_markdown_cells(line: str) -> list[str]:
