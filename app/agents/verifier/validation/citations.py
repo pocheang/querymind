@@ -7,7 +7,7 @@ import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from app.agents.validation.models import (
+from app.agents.verifier.validation.models import (
     CascadeLevel,
     CascadeResult,
     RuleBasisIssue,
@@ -15,7 +15,7 @@ from app.agents.validation.models import (
     ValidationCitation,
     ValidationRequest,
 )
-from app.agents.validation.rules import extract_dates, extract_numbers, numbers_match
+from app.agents.verifier.validation.rules import extract_dates, extract_numbers, numbers_match
 
 
 def citation_completeness(

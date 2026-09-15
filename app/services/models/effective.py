@@ -212,7 +212,7 @@ def _reranker() -> EffectiveComponent:
 
 
 def _nli() -> EffectiveComponent:
-    from app.agents.validation.nli import load_nli_cross_encoder
+    from app.agents.verifier.validation.nli import load_nli_cross_encoder
 
     settings = get_settings()
     name = str(settings.nli_model_name)

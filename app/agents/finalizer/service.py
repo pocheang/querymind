@@ -115,7 +115,7 @@ class FinalizationService:
 
 
 async def _validate(query: str, answer: str, documents: list[dict[str, Any]], citations: list[dict[str, Any]]) -> Any:
-    from app.agents.validation.public import validate_answer
+    from app.agents.verifier.validation.public import validate_answer
 
     return await validate_answer(query, answer, documents, citations)
 

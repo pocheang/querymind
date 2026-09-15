@@ -13,7 +13,7 @@ from app.agents.synthesizer.skills import skill_answer_template
 from app.agents.synthesizer.templates import (
     get_cot_reasoning_prompt,
 )
-from app.agents.validation.public import verify_generated_answer
+from app.agents.verifier.validation.public import verify_generated_answer
 from app.core.config import get_settings
 from app.prompts.core.canonical_agent_prompts import (
     ANSWER_PROMPT,

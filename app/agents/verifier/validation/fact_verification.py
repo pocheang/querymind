@@ -45,7 +45,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 
-from app.agents.validation.hallucination_patterns import _extract_numbers
+from app.agents.verifier.validation.hallucination_patterns import _extract_numbers
 
 logger = logging.getLogger(__name__)
 

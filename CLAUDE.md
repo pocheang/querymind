@@ -246,11 +246,12 @@ The runtime execution pipeline is structured around **7 canonical nodes** define
    - Grounded generation using evidence snippets, inserting internal citation markers (`[E{k}]`).
    - Streams draft answer fragments to the process-wide `AnswerStreamStore` (`app/orchestration/answer_stream.py`).
 
-6. **`verifier`** ([app/services/retrieval/citation_grounding.py](app/services/retrieval/citation_grounding.py), [app/services/verification/](app/services/verification/))
+6. **`verifier`** ([app/services/retrieval/citation_grounding.py](app/services/retrieval/citation_grounding.py), [app/services/verification/](app/services/verification/), [app/agents/finalizer/service.py](app/agents/finalizer/service.py))
    - Validates citation support, token overlap grounding (hedges sentences under 0.22 overlap), and NLI cross-encoder entailment.
    - Evaluates quality thresholds; if confidence falls below threshold, triggers an automated bounded retry loop (`after_verifier` -> `knowledge`).
+   - On an approved or degraded verdict, runs `FinalizationService.finalize` in the same node -- sentence grounding, answer safety sanitization, and the quality report -- before handing off to `output_filter`.
 
-7. **`output_filter`** ([app/privacy/streaming.py](app/privacy/streaming.py), [app/orchestration/finalization.py](app/orchestration/finalization.py))
+7. **`output_filter`** ([app/privacy/streaming.py](app/privacy/streaming.py))
    - Sensitive DLP redaction on completed answers.
    - Strips model-hallucinated reference lists via `strip_model_reference_list`.
    - Remaps internal evidence markers `[E{k}]` into clean, consecutive reader-facing citation numbers `[1]`, appending the verified reference list.
@@ -371,7 +372,7 @@ QueryMind v0.7.0 introduced multi-perspective visual introspection:
    (**switched on 2026-09-04; before that this line was false**, see below), and
    **sentence grounding** — `apply_sentence_grounding`
    (`app/services/retrieval/citation_grounding.py`), reached from
-   `app/orchestration/finalization.py`, scores each sentence's token overlap with the
+   `app/agents/finalizer/service.py`, scores each sentence's token overlap with the
    evidence and hedges the ones under 0.22. It skips sentences that make no claim, which is
    not a nicety: it once counted a bare `[1]` as a sentence, found it unsupported, and
    hedged the attribution instead of the claim.
@@ -504,7 +505,7 @@ QueryMind v0.7.0 introduced multi-perspective visual introspection:
 
    `app/services/answer_safety.py` (OpenAI-style keys, AWS key ids, private-key headers,
    `password=`/`token=`) is not a rival set: `filter_output` composes it with the shared
-   one. `app/agents/validation/rules.py` does keep its own SSN/credit-card/email/phone
+   one. `app/agents/verifier/validation/rules.py` does keep its own SSN/credit-card/email/phone
    patterns, and runs inside the validation cascade reached through the verifier.
 
    **China-specific identifiers were added on 2026-09-04, and there were none before

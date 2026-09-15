@@ -67,7 +67,7 @@ def _no_optional_models(monkeypatch):
     from app.services.models import runtime
 
     monkeypatch.setattr("app.retrievers.reranker._load_cross_encoder", lambda: None)
-    monkeypatch.setattr("app.agents.validation.nli.load_nli_cross_encoder", lambda: None)
+    monkeypatch.setattr("app.agents.verifier.validation.nli.load_nli_cross_encoder", lambda: None)
     # The local embedding model is stubbed absent for the same reason the stored
     # configuration is: `_load_local_embedder` looks on the developer's disk, so
     # without this the embedding assertions below report whichever models happen
@@ -139,7 +139,7 @@ def test_a_present_nli_model_reports_the_language_limit(monkeypatch):
     """Active is not unqualified here: the configured model is English, so
     Chinese answers take the deterministic path even when it loads."""
 
-    monkeypatch.setattr("app.agents.validation.nli.load_nli_cross_encoder", lambda: object())
+    monkeypatch.setattr("app.agents.verifier.validation.nli.load_nli_cross_encoder", lambda: object())
 
     nli = _by_component(monkeypatch, cascade_enable_nli=True)["validation_nli"]
 

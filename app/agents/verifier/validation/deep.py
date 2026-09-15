@@ -9,7 +9,7 @@ import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from app.agents.validation.models import CascadeLevel, CascadeResult, RuleBasisIssue, ValidationRequest
+from app.agents.verifier.validation.models import CascadeLevel, CascadeResult, RuleBasisIssue, ValidationRequest
 from app.services.models.runtime import get_chat_model
 
 logger = logging.getLogger(__name__)

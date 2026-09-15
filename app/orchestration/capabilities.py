@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.agents.finalizer.service import FinalizationService
 from app.agents.knowledge.service import KnowledgeAgentService
 from app.agents.planner.service import PlannerAgentService, default_llm_decompose
 from app.agents.rag.service import RAGAgentService
@@ -13,7 +14,6 @@ from app.agents.synthesizer.service import SynthesizerAgentService
 from app.agents.tool.service import ToolAgentService
 from app.agents.verifier.service import VerifierAgentService
 from app.orchestration.engine import OrchestrationServices
-from app.orchestration.finalization import FinalizationService
 from app.privacy.service import PrivacyService
 from app.services.security.access_scope import AccessScopeResolver
 

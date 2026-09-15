@@ -145,7 +145,7 @@ class Settings(BaseSettings):
     # were module constants read with `os.getenv` at import time -- settable
     # only as exported environment variables, and invisible to the render step
     # and to the configuration centre. Every one of them is read on the request
-    # path through `app/agents/validation/`.
+    # path through `app/agents/verifier/validation/`.
     answer_approve_threshold: float = Field(default=0.80, alias="ANSWER_APPROVE_THRESHOLD")
     answer_flag_threshold: float = Field(default=0.60, alias="ANSWER_FLAG_THRESHOLD")
     hallucination_high_risk_threshold: float = Field(default=0.30, alias="HALLUCINATION_HIGH_RISK_THRESHOLD")

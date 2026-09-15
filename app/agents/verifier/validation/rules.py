@@ -7,8 +7,8 @@ import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from app.agents.validation.hallucination_patterns import detect_all_patterns
-from app.agents.validation.models import (
+from app.agents.verifier.validation.hallucination_patterns import detect_all_patterns
+from app.agents.verifier.validation.models import (
     CascadeLevel,
     CascadeResult,
     RuleBasisIssue,

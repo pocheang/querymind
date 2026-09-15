@@ -24,7 +24,7 @@ def sanitize_answer(text: str) -> tuple[str, dict]:
 
     This covers credentials and canary tokens.  SSN / credit-card / email / phone patterns
     live on the separate validation-cascade path in
-    ``app/agents/validation/rules.py``.
+    ``app/agents/verifier/validation/rules.py``.
     """
     raw = str(text or "")
     if not bool(getattr(get_settings(), "answer_safety_scan_enabled", True)):

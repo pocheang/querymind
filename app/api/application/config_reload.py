@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 
 from app.agents.shared.cache import clear_router_decision_cache
-from app.agents.validation.public import clear_validation_caches
+from app.agents.verifier.validation.public import clear_validation_caches
 from app.api import dependencies as api_dependencies
 from app.core.config import Settings, get_settings, reload_settings
 from app.core.config_schema import describe, validate_values

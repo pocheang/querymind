@@ -187,7 +187,7 @@ async def _validate(
     documents: Sequence[Mapping[str, Any]],
     citations: Sequence[Mapping[str, Any]],
 ) -> Any:
-    from app.agents.validation.public import validate_answer
+    from app.agents.verifier.validation.public import validate_answer
 
     return await validate_answer(query, answer, documents, citations)
 

@@ -42,8 +42,8 @@ import time
 from functools import lru_cache
 from typing import Any
 
-from app.agents.validation.models import CascadeLevel, CascadeResult, RuleBasisIssue, ValidationRequest
-from app.agents.validation.rules import extract_dates, extract_numbers, numbers_match
+from app.agents.verifier.validation.models import CascadeLevel, CascadeResult, RuleBasisIssue, ValidationRequest
+from app.agents.verifier.validation.rules import extract_dates, extract_numbers, numbers_match
 from app.core.config import get_settings
 from app.services.runtime.resilience import call_with_circuit_breaker
 

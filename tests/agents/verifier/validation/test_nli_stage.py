@@ -15,10 +15,10 @@ from typing import Any
 
 import pytest
 
-from app.agents.validation import nli as nli_module
-from app.agents.validation.cascade import ValidationCascade
-from app.agents.validation.models import CascadeLevel, ValidationRequest
-from app.agents.validation.nli import NLIValidator, is_predominantly_latin, tokenize
+from app.agents.verifier.validation import nli as nli_module
+from app.agents.verifier.validation.cascade import ValidationCascade
+from app.agents.verifier.validation.models import CascadeLevel, ValidationRequest
+from app.agents.verifier.validation.nli import NLIValidator, is_predominantly_latin, tokenize
 
 _ZH_SOURCE = "根据财报，本季度营业成本为一千二百万元，同比上升百分之三。运营团队共有四十五人。"
 _EN_SOURCE = "According to the report the operating cost was twelve million this quarter, up three percent."
@@ -274,7 +274,7 @@ async def test_validation_method_names_the_backend_that_ran(no_model: None):
     """ "standard" must mean the cross-encoder ran, not that the stage was
     reached -- the model being absent is ordinary."""
 
-    from app.agents.validation.public import validate_answer
+    from app.agents.verifier.validation.public import validate_answer
 
     # Long enough to clear `quick_validation`'s minimum-length rejection, which
     # `validate_answer` enforces and which short-circuits every stage.

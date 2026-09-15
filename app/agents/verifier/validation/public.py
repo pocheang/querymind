@@ -17,19 +17,19 @@ from app.agents.shared.quality_models import (
     AnswerValidationDetails,
     AnswerValidationResult,
 )
-from app.agents.validation.cascade import ValidationCascade
-from app.agents.validation.citations import citation_completeness as _validate_citations
-from app.agents.validation.deep import deep_validation_score as _llm_deep_validation
-from app.agents.validation.fact_verification import AnswerVerificationResult
-from app.agents.validation.models import CascadeLevel, RuleBasisIssue, ValidationCascadeResult
-from app.agents.validation.nli import load_nli_cross_encoder
-from app.agents.validation.rules import (
+from app.agents.verifier.validation.cascade import ValidationCascade
+from app.agents.verifier.validation.citations import citation_completeness as _validate_citations
+from app.agents.verifier.validation.deep import deep_validation_score as _llm_deep_validation
+from app.agents.verifier.validation.fact_verification import AnswerVerificationResult
+from app.agents.verifier.validation.models import CascadeLevel, RuleBasisIssue, ValidationCascadeResult
+from app.agents.verifier.validation.nli import load_nli_cross_encoder
+from app.agents.verifier.validation.rules import (
     assess_answer_quality as _assess_answer_quality,
 )
-from app.agents.validation.rules import (
+from app.agents.verifier.validation.rules import (
     quick_validation as _quick_validation,
 )
-from app.agents.validation.rules import (
+from app.agents.verifier.validation.rules import (
     safety_score as _safety_check,
 )
 from app.core.config import get_settings

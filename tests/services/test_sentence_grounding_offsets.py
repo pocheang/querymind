@@ -26,7 +26,7 @@ sentence:
     'Access is based. The retention window is ninety days. Backu基于当前可用证据，Backups run nightly.'
 
 This reached the reader: `apply_sentence_grounding` runs from
-`app/orchestration/finalization.py` on the live answer path. It is the failure
+`app/agents/finalizer/service.py` on the live answer path. It is the failure
 CLAUDE.md already described for URLs -- "the hedge spliced into the middle of the
 link, which breaks the citation the sentence was carrying" -- happening to
 ordinary prose, because the same substitution was doing it.

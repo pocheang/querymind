@@ -7,21 +7,21 @@ import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from app.agents.validation.citations import CitationValidator, citation_completeness
-from app.agents.validation.deep import DeepValidator
-from app.agents.validation.fact_verification import (
+from app.agents.verifier.validation.citations import CitationValidator, citation_completeness
+from app.agents.verifier.validation.deep import DeepValidator
+from app.agents.verifier.validation.fact_verification import (
     AnswerVerificationResult,
     FactVerificationStage,
 )
-from app.agents.validation.models import (
+from app.agents.verifier.validation.models import (
     CascadeLevel,
     CascadeResult,
     RuleBasisIssue,
     ValidationCascadeResult,
     ValidationRequest,
 )
-from app.agents.validation.nli import NLIValidator
-from app.agents.validation.rules import RuleValidator, assess_answer_quality, quick_validation, safety_score
+from app.agents.verifier.validation.nli import NLIValidator
+from app.agents.verifier.validation.rules import RuleValidator, assess_answer_quality, quick_validation, safety_score
 
 
 class ValidationCascade:

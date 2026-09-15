@@ -130,7 +130,7 @@ def test_reloading_rebuilds_the_validation_cascade():
     than blocked by a stale cache.
     """
 
-    from app.agents.validation import public
+    from app.agents.verifier.validation import public
 
     first = public._get_validation_cascade()
     assert public._get_validation_cascade() is first, "the cascade is supposed to be cached"

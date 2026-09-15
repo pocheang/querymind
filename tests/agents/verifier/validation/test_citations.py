@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.validation.citations import CitationValidator
-from app.agents.validation.models import ValidationRequest
+from app.agents.verifier.validation.citations import CitationValidator
+from app.agents.verifier.validation.models import ValidationRequest
 
 
 @pytest.mark.asyncio

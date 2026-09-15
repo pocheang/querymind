@@ -17,6 +17,6 @@ def warm_nli_model() -> None:
     missing model returns None immediately.
     """
 
-    from app.agents.validation.nli import load_nli_cross_encoder
+    from app.agents.verifier.validation.nli import load_nli_cross_encoder
 
     load_nli_cross_encoder()

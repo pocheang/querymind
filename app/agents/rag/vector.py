@@ -4,7 +4,6 @@ Unified Vector RAG Agent - Optimized version integrating all features.
 This agent combines:
 - Basic vector retrieval (from vector_rag_agent.py)
 - Self-RAG evaluation (from enhanced_vector_rag_agent.py)
-- BaseAgent architecture for consistency
 - Unified configuration
 
 Replaces:
@@ -16,7 +15,6 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from app.agents.shared.base import BaseAgent
 from app.agents.shared.config import CHUNK_PREVIEW_LENGTH, DENSE_SCORE_THRESHOLD, get_vector_rag_config
 from app.core.config import get_settings
 from app.retrievers.hybrid.retriever import hybrid_search_with_diagnostics
@@ -32,7 +30,7 @@ logger = logging.getLogger(__name__)
 __all__ = ["UnifiedVectorRAGAgent", "run_vector_rag"]
 
 
-class UnifiedVectorRAGAgent(BaseAgent):
+class UnifiedVectorRAGAgent:
     """
     Unified Vector RAG Agent with all features integrated.
 
@@ -44,15 +42,13 @@ class UnifiedVectorRAGAgent(BaseAgent):
     - Standardized error handling and result format
     """
 
-    def __init__(self, config: dict[str, Any] | None = None, dependencies: dict[str, Any] | None = None):
+    def __init__(self, dependencies: dict[str, Any] | None = None):
         """
         Initialize unified vector RAG agent.
 
         Args:
-            config: Optional configuration override
+            dependencies: Optional dependency overrides, keyed by name (used in tests).
         """
-        super().__init__(config)
-
         # Get vector RAG specific config
         self.vector_config = get_vector_rag_config()
         self._dependencies = dependencies or {}
@@ -114,6 +110,26 @@ class UnifiedVectorRAGAgent(BaseAgent):
             search_query=search_query,
             dynamic_params=dynamic_params,
         )
+
+    def run(self, query: str, **kwargs: Any) -> dict[str, Any]:
+        """Run `execute`, turning a failure into an empty-evidence result.
+
+        This is the graph route's vector fallback (`run_vector_rag` below), and
+        the caller one level up already treats "no evidence" as an ordinary,
+        recoverable outcome. Letting an exception propagate here would turn a
+        degraded answer into a failed request instead.
+        """
+        try:
+            return self.execute(query, **kwargs)
+        except Exception:
+            logger.exception("UnifiedVectorRAGAgent.execute failed for %s", question_ref(query))
+            return {
+                "context": "",
+                "citations": [],
+                "retrieved_count": 0,
+                "effective_hit_count": 0,
+                "retrieval_diagnostics": {},
+            }
 
     def _apply_dynamic_tuning(self, query: str) -> dict[str, Any]:
         """Apply dynamic parameter tuning based on query complexity."""
@@ -308,13 +324,4 @@ def run_vector_rag(
         Dictionary with retrieval results
     """
     agent = UnifiedVectorRAGAgent()
-    result = agent.run(query=question, allowed_sources=allowed_sources, agent_class=agent_class, owner=owner)
-
-    # Extract core result (remove BaseAgent wrapper fields for compatibility)
-    return {
-        "context": result.get("context", ""),
-        "citations": result.get("citations", []),
-        "retrieved_count": result.get("retrieved_count", 0),
-        "effective_hit_count": result.get("effective_hit_count", 0),
-        "retrieval_diagnostics": result.get("retrieval_diagnostics", {}),
-    }
+    return agent.run(query=question, allowed_sources=allowed_sources, agent_class=agent_class, owner=owner)
