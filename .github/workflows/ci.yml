@@ -220,6 +220,15 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is canonical: it is what Dockerfile.frontend builds the shipped
+        # bundle with (node:20-alpine), so it is the one the linters, the
+        # coverage upload and the dead-class audit run on. 22 is the current LTS
+        # and the version a contributor's machine most likely has -- measured
+        # before adding it, the suite and the build both pass there.
+        node-version: ["20", "22"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -227,7 +236,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -239,9 +248,11 @@ jobs:
       # is stated, so this comment cannot drift out of date with it the way it
       # did while claiming 24. Lower it as the warnings are fixed; never raise it.
       - name: Lint
+        if: matrix.node-version == '20'
         run: npm run lint
 
       - name: Type check
+        if: matrix.node-version == '20'
         run: npm run type-check
 
       # Prettier, as the backend job runs `ruff format --check`. It was listed
@@ -249,6 +260,7 @@ jobs:
       # drifted in the meantime. `.prettierrc` uses `endOfLine: auto` so a
       # Windows checkout (core.autocrlf=true) reports the same thing this does.
       - name: Format check
+        if: matrix.node-version == '20'
         run: npm run format:check
 
       # Shape and depth scale, as a ratchet. The chat screen once carried eight
@@ -257,6 +269,7 @@ jobs:
       # file in scripts/design-scale-baseline.json -- a file may improve, never
       # regress, and a new file starts at zero.
       - name: Design scale
+        if: matrix.node-version == '20'
         run: npm run lint:design
 
       # Store-reset coverage: the Zustand stores live for the lifetime of the
@@ -272,7 +285,10 @@ jobs:
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
-        if: always()
+        # One report, from the canonical version, for the reason the backend
+        # uploads only from 3.11: two legs racing for one artifact name is an
+        # error in v4, and two numbers would not both be "the project's".
+        if: always() && matrix.node-version == '20'
         with:
           name: frontend-coverage
           path: frontend/coverage/lcov.info
@@ -287,6 +303,7 @@ jobs:
       # rewrite and two contrast audits, because lint, tsc and the tests are all
       # blind to a class that matches nothing.
       - name: Dead classes
+        if: matrix.node-version == '20'
         run: npm run lint:classes
 
   # What the deployment installs, which until now nothing in CI ever built. The
@@ -341,8 +358,35 @@ jobs:
       - name: Build the backend image
         run: docker build -f Dockerfile -t querymind-backend:ci .
 
+      - name: The backend image can import the application
+        # Building proves the layers assemble; it does not prove the image can
+        # run anything. This imports the FastAPI app inside the container, which
+        # is what the entrypoint does first and what a missing or mis-built
+        # dependency breaks -- the image installs requirements/runtime.txt, a
+        # different export from the ci.txt the test job proves.
+        #
+        # Deliberately not `docker run` of the real entrypoint with a port and a
+        # readiness poll: that needs runtime configuration this job has no
+        # business inventing, and a flaky wait would teach people to re-run a red
+        # build. The census number is asserted in pytest, so printing it here is
+        # a smoke signal, not a second baseline.
+        run: |
+          docker run --rm querymind-backend:ci python -c "
+          import app.api.main as m
+          paths = m.app.openapi()['paths']
+          print(f'{len(paths)} paths served from the image')
+          assert paths, 'the image built but serves nothing'
+          "
+
       - name: Build the frontend image
         run: docker build -f Dockerfile.frontend -t querymind-frontend:ci .
+
+      - name: The frontend image's nginx configuration is valid
+        # `nginx -t` as the unprivileged user the image ends on. CLAUDE.md
+        # records a `listen` directive left at 80 failing to bind in that base
+        # image in a way the build itself does not notice; this is the cheap,
+        # deterministic half of catching that class of thing.
+        run: docker run --rm querymind-frontend:ci nginx -t
 
   # A third job because the scanner needs both coverage reports in one workspace,
   # and the two that produce them run in parallel with separate workspaces. That
