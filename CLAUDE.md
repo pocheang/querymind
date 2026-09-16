@@ -3373,6 +3373,23 @@ out to be one variable (`API_SETTINGS_ENCRYPTION_KEY`, measured -- the applicati
 bootstrap generates one as it should), and the wait is bounded with `docker logs` dumped on
 failure, so a timeout names what the container said rather than only that it never answered.
 
+**That key is generated per run, and the first version was not.** It was written as a
+literal, `ci-smoke-not-a-credential`, with a comment explaining that it is a throwaway for a
+container that lives ninety seconds. SonarCloud failed the quality gate on it -- C security
+rating on new code -- and it was right to: a literal assigned to a name ending in `KEY` is a
+hard-coded credential to every scanner that looks, **including this repository's own
+`config_schema.py` shape rule**, which rejects exactly that set of names on exactly that
+reasoning. A comment asserting "this one is not really a secret" does not make a regex
+agree, and reviewers read the shape too. `"$(openssl rand -hex 24)"` removes the question
+rather than answering it.
+
+Worth noting how it was diagnosed, because the usual route was shut: SonarCloud is not
+reachable from the agent environment (the egress policy refuses `sonarcloud.io`), the check
+run carried a gate summary with no annotations, and no inline review comment was posted. So
+the finding was located by reading the diff for what the gate condition *could* mean -- one
+MAJOR vulnerability among four changed files, of which exactly one line was
+credential-shaped.
+
 **Still not done**: CodeQL's findings are advisory until branch protection requires the check
 -- that is a repository setting on github.com, not a file in here, so it cannot be done from
 this repository (Settings -> Rules -> Rulesets, or Branches -> protection rule, requiring the

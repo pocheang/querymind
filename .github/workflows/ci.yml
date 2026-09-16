@@ -414,16 +414,22 @@ jobs:
         # browser check's first assertion mean anything.
         #
         # API_SETTINGS_ENCRYPTION_KEY is the one variable the application needs
-        # to start (measured: it answers /health with nothing else set). It is a
-        # throwaway string for a container that lives ninety seconds, not a
-        # credential. ADMIN_PASSWORD is deliberately absent: the bootstrap
-        # generates one per installation and prints it, which is what should
-        # happen here.
+        # to start (measured: it answers /health with nothing else set), and it is
+        # **generated per run** rather than written here. A literal assigned to a
+        # name ending in KEY is a hard-coded credential to every scanner that
+        # looks -- including this repository's own config_schema shape rule, which
+        # uses that exact heuristic -- and arguing "but this one is not really a
+        # secret" in a comment does not make a regex agree. Generating it removes
+        # the question instead of answering it, and a container that lives ninety
+        # seconds has no reason to reuse a key anyway.
+        #
+        # ADMIN_PASSWORD is deliberately absent: the bootstrap generates one per
+        # installation and prints it, which is what should happen here.
         run: |
           docker network create querymind-smoke
           docker run -d --name qm-backend --network querymind-smoke \
             --network-alias backend \
-            -e API_SETTINGS_ENCRYPTION_KEY=ci-smoke-not-a-credential \
+            -e API_SETTINGS_ENCRYPTION_KEY="$(openssl rand -hex 24)" \
             querymind-backend:ci
           for _ in $(seq 1 60); do
             if docker exec qm-backend curl -fsS http://127.0.0.1:8000/health > /dev/null 2>&1; then
