@@ -21,6 +21,7 @@ an offered button is a request that will be accepted.
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 import pytest
@@ -37,14 +38,64 @@ def test_the_row_schema_carries_the_answer():
     assert IndexedFileSummary.model_fields["can_manage"].default is False
 
 
+def _list_documents_ast() -> ast.FunctionDef:
+    source = (APP / "api" / "routes" / "public" / "documents.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "list_documents":
+            return node
+    raise AssertionError("list_documents is gone from app/api/routes/public/documents.py")
+
+
 def test_the_listing_fills_it_from_the_predicate_the_writes_use():
     """Not a second implementation: the same function, or it will drift."""
 
-    source = (APP / "api" / "routes" / "public" / "documents.py").read_text(encoding="utf-8")
+    called = {
+        ast.unparse(node.func)
+        for node in ast.walk(_list_documents_ast())
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
 
-    assert "summary.can_manage = bool(source) and _is_source_manageable_for_user(source, user)" in source
+    assert "_is_source_manageable_for_user" in called
     # And the write paths still go through the resolver that applies it.
+    source = (APP / "api" / "routes" / "public" / "documents.py").read_text(encoding="utf-8")
     assert "_resolve_manageable_document(filename, user, normalize_string(source))" in source
+
+
+def test_the_listing_writes_can_manage_onto_a_dict_rather_than_an_attribute():
+    """This test used to assert the broken line, verbatim, and pass.
+
+    It read:
+
+        assert "summary.can_manage = bool(source) and _is_source_manageable_..."
+
+    -- a substring match on the source text, which is true of code that raises
+    the moment it runs. `merge_visible_document_status` returns plain dicts
+    (`response_model` coerces them into `IndexedFileSummary` on the way out),
+    so that assignment was an `AttributeError` on every caller who had a
+    document, and the endpoint answered a bare 500 from 2026-09-09 until
+    2026-09-16. A caller with none never entered the loop, so the shape that is
+    cheapest to fixture looked healthy.
+
+    The behaviour is pinned by `tests/api/test_documents_listing.py`, which
+    drives the real handler and would have caught it. This one keeps the
+    structural half, stated as the thing that actually went wrong: the rows are
+    dicts, so the write must be a subscript.
+    """
+
+    targets = [
+        target
+        for node in ast.walk(_list_documents_ast())
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if "can_manage" in ast.unparse(target)
+    ]
+
+    assert targets, "nothing in list_documents sets can_manage any more"
+    assert all(isinstance(target, ast.Subscript) for target in targets), (
+        "can_manage is being set as an attribute again; the rows are dicts and "
+        "this raises AttributeError for every caller who owns a document"
+    )
 
 
 def test_the_shared_corpus_is_manageable_by_nobody(monkeypatch: pytest.MonkeyPatch):

@@ -143,9 +143,16 @@ def list_documents(request: Request, user: dict[str, Any] = Depends(_require_use
     # a button the client offers is a request the server will accept. Visible is
     # wider than manageable -- the shared corpus is readable by everyone and
     # writable by no one -- and the client cannot derive that rule for itself.
+    # `merge_visible_document_status` returns dicts, not `IndexedFileSummary`s --
+    # `response_model` coerces them on the way out, which is what made the object
+    # form look right. Written as attributes, this raised AttributeError on every
+    # caller who had a document (a caller with none never entered the loop, which
+    # is why it read as healthy on a fresh account), and `getattr(dict, "source")`
+    # silently answered "" even before that, so `can_manage` could only ever have
+    # been False. Two defects in three lines, the second hiding the first.
     for summary in summaries:
-        source = str(getattr(summary, "source", "") or "").strip()
-        summary.can_manage = bool(source) and _is_source_manageable_for_user(source, user)
+        source = str(summary.get("source", "") or "").strip()
+        summary["can_manage"] = bool(source) and _is_source_manageable_for_user(source, user)
     return summaries
 
 
