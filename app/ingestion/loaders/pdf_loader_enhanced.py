@@ -10,6 +10,7 @@ from langchain_core.documents import Document
 
 from app.ingestion.extraction.tables import merge_cross_page_tables_with_spans
 from app.ingestion.extraction.tables_nested import simplify_complex_table
+from app.ingestion.loaders.pdf_loader import _extract_docling_pages_content as _extract_pages_content
 from app.ingestion.processing.cleaning import clean_pdf_pages
 
 logger = logging.getLogger(__name__)
@@ -77,47 +78,6 @@ def load_pdf_enhanced(
     except Exception as e:
         logger.exception(f"Enhanced PDF processing failed for {path.name}: {e}")
         return []
-
-
-def _extract_from_page_items(items: Any) -> list[str]:
-    content: list[str] = []
-    for p in items:
-        if hasattr(p, "export_to_markdown"):
-            md = p.export_to_markdown()
-            if md and md.strip():
-                content.append(md.strip())
-    return content
-
-
-def _extract_from_full_markdown(document: Any) -> list[str]:
-    if not hasattr(document, "export_to_markdown"):
-        return []
-    page_break = "<!-- page break -->"
-    try:
-        full_md = document.export_to_markdown(page_break_placeholder=page_break)
-    except Exception:
-        full_md = document.export_to_markdown()
-
-    if not full_md or not full_md.strip():
-        return []
-    if page_break in full_md:
-        return [part.strip() for part in full_md.split(page_break) if part and part.strip()]
-    return [full_md.strip()]
-
-
-def _extract_pages_content(document: Any) -> list[str]:
-    """Read each Docling page's markdown, dropping pages with no content."""
-    raw_pages = getattr(document, "pages", None)
-    if isinstance(raw_pages, (list, tuple)):  # noqa: UP038
-        pages_content = _extract_from_page_items(raw_pages)
-        if pages_content:
-            return pages_content
-    elif isinstance(raw_pages, dict):
-        pages_content = _extract_from_page_items(raw_pages.values())
-        if pages_content:
-            return pages_content
-
-    return _extract_from_full_markdown(document)
 
 
 def _apply_pdf_processing(

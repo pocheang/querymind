@@ -60,6 +60,11 @@ from app.agents.rag.config import (
     WORD_COUNT_HIGH,
     WORD_COUNT_MEDIUM,
 )
+from app.agents.rag.graph import (
+    _format_entity_lines,
+    _format_neighbor_lines,
+    _format_path_lines,
+)
 from app.services.observability.log_safety import question_ref
 from app.tools.graph.enhanced import graph_lookup_enhanced
 
@@ -388,62 +393,6 @@ def _graph_lookup_error_result(question: str, exc: Exception) -> dict:
         "confidence": "low",
         "error": f"graph_lookup_error:{error_type}",
     }
-
-
-def _format_single_entity_header(name: str, ent_type: str, desc: str) -> str:
-    if ent_type and desc:
-        return f"Entity: {name} [{ent_type}] - {desc}"
-    if ent_type and ent_type != "CONCEPT":
-        return f"Entity: {name} [{ent_type}]"
-    if desc:
-        return f"Entity: {name} - {desc}"
-    return f"Entity: {name}"
-
-
-def _format_relation_item(rel: dict) -> str | None:
-    if not rel.get("other"):
-        return None
-    weight = rel.get("weight", 0)
-    rel_desc = rel.get("rel_desc", "")
-    if rel_desc:
-        return f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')} ({rel_desc})"
-    return f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}"
-
-
-def _format_entity_lines(entities: list[dict]) -> list[str]:
-    lines = []
-    for item in entities:
-        name = item.get("entity", "")
-        if not name:
-            continue
-        lines.append(_format_single_entity_header(name, item.get("type", ""), item.get("description", "")))
-
-        for rel in item.get("relations", []):
-            rel_line = _format_relation_item(rel)
-            if rel_line:
-                lines.append(rel_line)
-    return lines
-
-
-def _format_neighbor_lines(neighbors: list[dict]) -> list[str]:
-    lines = []
-    for row in neighbors:
-        if row.get("entity") and row.get("relation") and row.get("other"):
-            lines.append(
-                f"Neighbor: {row['entity']} -[{row['relation']}|{float(row.get('weight', 0)):.2f}]- {row['other']}"
-            )
-    return lines
-
-
-def _format_path_lines(paths: list[dict]) -> list[str]:
-    lines = []
-    for row in paths:
-        if row.get("source") and row.get("middle") and row.get("target"):
-            lines.append(
-                f"Path2Hop: {row['source']} -[{row.get('rel1', '')}]- {row['middle']} "
-                f"-[{row.get('rel2', '')}]- {row['target']} | w={float(row.get('weight', 0)):.2f}"
-            )
-    return lines
 
 
 def _format_graph_lines(

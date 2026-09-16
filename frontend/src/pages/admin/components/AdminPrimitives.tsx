@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * The console's layout vocabulary, as components.
@@ -280,6 +281,47 @@ export function AdminSkeleton({ rows = 3 }: Readonly<{ rows?: number }>) {
       ))}
     </div>
   );
+}
+
+/** Common loading / error state wrapper for admin dashboard pages. */
+export function AdminDashboardStatus({
+  loading,
+  error,
+  title,
+  onRetry,
+  retryLabel = "Retry",
+}: Readonly<{
+  loading?: boolean;
+  error?: string | null;
+  title: ReactNode;
+  onRetry?: () => void;
+  retryLabel?: string;
+}>) {
+  if (loading) {
+    return (
+      <main className="space-y-6">
+        <AdminSkeleton />
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="space-y-6">
+        <SectionHead title={title} />
+        <StatePanel tone="error">
+          <p>{error}</p>
+          {onRetry && (
+            <Button variant="secondary" size="xs" onClick={onRetry}>
+              {retryLabel}
+            </Button>
+          )}
+        </StatePanel>
+      </main>
+    );
+  }
+
+  return null;
 }
 
 /** A stacked pair of values in one table cell. */

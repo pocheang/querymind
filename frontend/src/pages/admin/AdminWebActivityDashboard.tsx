@@ -6,7 +6,7 @@ import { WebActivityKpiCards } from "./components/WebActivityKpiCards";
 import { WebActivityCharts } from "./components/WebActivityCharts";
 import { WebActivityTables } from "./components/WebActivityTables";
 import { Button } from "@/components/ui/button";
-import { AdminSkeleton, RowActions, SectionHead, StatePanel } from "./components/AdminPrimitives";
+import { AdminDashboardStatus, RowActions, SectionHead } from "./components/AdminPrimitives";
 
 interface WebActivityStats {
   summary: {
@@ -87,25 +87,15 @@ export function AdminWebActivityDashboard() {
     void fetchData();
   };
 
-  if (loading) {
+  if (loading || error) {
     return (
-      <main className="space-y-6">
-        <AdminSkeleton />
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="space-y-6">
-        <SectionHead title={t("admin.webActivity.title", "Web Search Activity")}></SectionHead>
-        <StatePanel tone="error">
-          <p>{error}</p>
-          <Button variant="secondary" size="xs" onClick={handleRetry}>
-            {t("admin.webActivity.retry", "Retry")}
-          </Button>
-        </StatePanel>
-      </main>
+      <AdminDashboardStatus
+        loading={loading}
+        error={error}
+        title={t("admin.webActivity.title", "Web Search Activity")}
+        onRetry={handleRetry}
+        retryLabel={t("admin.webActivity.retry", "Retry")}
+      />
     );
   }
 

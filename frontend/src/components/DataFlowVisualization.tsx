@@ -181,341 +181,143 @@ const nodeTranslations: Record<string, { zh: string; en: string }> = (
   return acc;
 }, {});
 
-const initialNodes: Node[] = [
-  // ========== Layer 0: User Interface (y: 0-100) ==========
-  { id: "1", type: "default", data: { label: "" }, position: { x: 600, y: 0 }, className: "node-browser" },
+type NodeDef = [id: string, x: number, y: number, className: string];
 
-  // ========== Layer 1: Authentication & Security (y: 200-300) ==========
-  { id: "2", type: "default", data: { label: "" }, position: { x: 600, y: 200 }, className: "node-auth" },
-  { id: "27", type: "default", data: { label: "" }, position: { x: 1000, y: 200 }, className: "node-auth" },
-
-  // ========== Layer 2: Query Entry & Validation (y: 400-500) ==========
-  { id: "3", type: "default", data: { label: "" }, position: { x: 600, y: 400 }, className: "node-query" },
-  { id: "4", type: "default", data: { label: "" }, position: { x: 400, y: 500 }, className: "node-validation" },
-  { id: "5", type: "default", data: { label: "" }, position: { x: 800, y: 500 }, className: "node-validation" },
-
-  // ========== Layer 3: NLP Preprocessing (y: 700-800) ==========
-  { id: "6", type: "default", data: { label: "" }, position: { x: 600, y: 700 }, className: "node-nlp" },
-  { id: "7", type: "default", data: { label: "" }, position: { x: 600, y: 850 }, className: "node-nlp" },
-  { id: "24", type: "default", data: { label: "" }, position: { x: 1000, y: 700 }, className: "node-validation" },
-  { id: "25", type: "default", data: { label: "" }, position: { x: 1000, y: 850 }, className: "node-validation" },
-
-  // ========== Layer 4: Router & Route Validation (y: 1000-1050) ==========
-  { id: "8", type: "default", data: { label: "" }, position: { x: 600, y: 1000 }, className: "node-router" },
-  { id: "30", type: "default", data: { label: "" }, position: { x: 200, y: 1000 }, className: "node-validation" },
-  { id: "23", type: "default", data: { label: "" }, position: { x: 1000, y: 1000 }, className: "node-validation" },
-
-  // ========== Layer 5: AI Agents (y: 1200) ==========
-  { id: "9", type: "default", data: { label: "" }, position: { x: 100, y: 1200 }, className: "node-agent" },
-  { id: "10", type: "default", data: { label: "" }, position: { x: 300, y: 1200 }, className: "node-agent" },
-  { id: "11", type: "default", data: { label: "" }, position: { x: 500, y: 1200 }, className: "node-agent" },
-  { id: "12", type: "default", data: { label: "" }, position: { x: 700, y: 1200 }, className: "node-agent" },
-  { id: "13", type: "default", data: { label: "" }, position: { x: 900, y: 1200 }, className: "node-agent" },
-  { id: "26", type: "default", data: { label: "" }, position: { x: 1100, y: 1200 }, className: "node-retrieval" },
-
-  // ========== Layer 6: Data Retrieval (y: 1400) ==========
-  { id: "14", type: "default", data: { label: "" }, position: { x: 100, y: 1400 }, className: "node-retrieval" },
-  { id: "15", type: "default", data: { label: "" }, position: { x: 300, y: 1400 }, className: "node-retrieval" },
-  { id: "16", type: "default", data: { label: "" }, position: { x: 500, y: 1400 }, className: "node-retrieval" },
-  { id: "17", type: "default", data: { label: "" }, position: { x: 700, y: 1400 }, className: "node-retrieval" },
-  { id: "29", type: "default", data: { label: "" }, position: { x: 900, y: 1400 }, className: "node-retrieval" },
-
-  // ========== Layer 7: Retrieval Quality Check (y: 1550) ==========
-  { id: "31", type: "default", data: { label: "" }, position: { x: 400, y: 1550 }, className: "node-validation" },
-
-  // ========== Layer 8: Synthesis & Answer Generation (y: 1700) ==========
-  { id: "18", type: "default", data: { label: "" }, position: { x: 600, y: 1700 }, className: "node-output" },
-  { id: "22", type: "default", data: { label: "" }, position: { x: 1000, y: 1700 }, className: "node-validation" },
-
-  // ========== Layer 9: Quality Assurance (y: 1900-2000) ==========
-  { id: "32", type: "default", data: { label: "" }, position: { x: 400, y: 1900 }, className: "node-validation" },
-  { id: "33", type: "default", data: { label: "" }, position: { x: 800, y: 1900 }, className: "node-validation" },
-  { id: "34", type: "default", data: { label: "" }, position: { x: 600, y: 2050 }, className: "node-validation" },
-  { id: "28", type: "default", data: { label: "" }, position: { x: 1000, y: 2000 }, className: "node-validation" },
-
-  // ========== Layer 10: Final Output (y: 2250) ==========
-  { id: "19", type: "default", data: { label: "" }, position: { x: 400, y: 2250 }, className: "node-output" },
-  { id: "20", type: "default", data: { label: "" }, position: { x: 600, y: 2250 }, className: "node-output" },
-  { id: "21", type: "default", data: { label: "" }, position: { x: 800, y: 2250 }, className: "node-output" },
+const NODE_DEFINITIONS: NodeDef[] = [
+  // Layer 0: User Interface (y: 0-100)
+  ["1", 600, 0, "node-browser"],
+  // Layer 1: Authentication & Security (y: 200-300)
+  ["2", 600, 200, "node-auth"],
+  ["27", 1000, 200, "node-auth"],
+  // Layer 2: Query Entry & Validation (y: 400-500)
+  ["3", 600, 400, "node-query"],
+  ["4", 400, 500, "node-validation"],
+  ["5", 800, 500, "node-validation"],
+  // Layer 3: NLP Preprocessing (y: 700-800)
+  ["6", 600, 700, "node-nlp"],
+  ["7", 600, 850, "node-nlp"],
+  ["24", 1000, 700, "node-validation"],
+  ["25", 1000, 850, "node-validation"],
+  // Layer 4: Router & Route Validation (y: 1000-1050)
+  ["8", 600, 1000, "node-router"],
+  ["30", 200, 1000, "node-validation"],
+  ["23", 1000, 1000, "node-validation"],
+  // Layer 5: AI Agents (y: 1200)
+  ["9", 100, 1200, "node-agent"],
+  ["10", 300, 1200, "node-agent"],
+  ["11", 500, 1200, "node-agent"],
+  ["12", 700, 1200, "node-agent"],
+  ["13", 900, 1200, "node-agent"],
+  ["26", 1100, 1200, "node-retrieval"],
+  // Layer 6: Data Retrieval (y: 1400)
+  ["14", 100, 1400, "node-retrieval"],
+  ["15", 300, 1400, "node-retrieval"],
+  ["16", 500, 1400, "node-retrieval"],
+  ["17", 700, 1400, "node-retrieval"],
+  ["29", 900, 1400, "node-retrieval"],
+  // Layer 7: Retrieval Quality Check (y: 1550)
+  ["31", 400, 1550, "node-validation"],
+  // Layer 8: Synthesis & Answer Generation (y: 1700)
+  ["18", 600, 1700, "node-output"],
+  ["22", 1000, 1700, "node-validation"],
+  // Layer 9: Quality Assurance (y: 1900-2000)
+  ["32", 400, 1900, "node-validation"],
+  ["33", 800, 1900, "node-validation"],
+  ["34", 600, 2050, "node-validation"],
+  ["28", 1000, 2000, "node-validation"],
+  // Layer 10: Final Output (y: 2250)
+  ["19", 400, 2250, "node-output"],
+  ["20", 600, 2250, "node-output"],
+  ["21", 800, 2250, "node-output"],
 ];
 
-const initialEdges: Edge[] = [
-  { id: "e1-2", source: "1", target: "2", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e2-3", source: "2", target: "3", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e3-4", source: "3", target: "4", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e3-5", source: "3", target: "5", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e4-6", source: "4", target: "6", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e5-6", source: "5", target: "6", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e6-7", source: "6", target: "7", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e7-8", source: "7", target: "8", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
+const initialNodes: Node[] = NODE_DEFINITIONS.map(([id, x, y, className]) => ({
+  id,
+  type: "default",
+  data: { label: "" },
+  position: { x, y },
+  className,
+}));
+
+type EdgeDef = [source: string, target: string, stroke?: string, dashed?: boolean, animated?: boolean];
+
+const EDGE_DEFINITIONS: EdgeDef[] = [
+  ["1", "2"],
+  ["2", "3"],
+  ["3", "4"],
+  ["3", "5"],
+  ["4", "6"],
+  ["5", "6"],
+  ["6", "7"],
+  ["7", "8"],
   // Quality Assurance Flow - New in v0.5.0
-  {
-    id: "e8-30",
-    source: "8",
-    target: "30",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e30-9",
-    source: "30",
-    target: "9",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e30-10",
-    source: "30",
-    target: "10",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e30-11",
-    source: "30",
-    target: "11",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e30-12",
-    source: "30",
-    target: "12",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e30-13",
-    source: "30",
-    target: "13",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e14-31",
-    source: "14",
-    target: "31",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e15-31",
-    source: "15",
-    target: "31",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e16-31",
-    source: "16",
-    target: "31",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e17-31",
-    source: "17",
-    target: "31",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e18-32",
-    source: "18",
-    target: "32",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e18-33",
-    source: "18",
-    target: "33",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e32-34",
-    source: "32",
-    target: "34",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e33-34",
-    source: "33",
-    target: "34",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e31-34",
-    source: "31",
-    target: "34",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e30-34",
-    source: "30",
-    target: "34",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
-  {
-    id: "e34-19",
-    source: "34",
-    target: "19",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#10b981" },
-  },
+  ["8", "30", "#10b981"],
+  ["30", "9", "#10b981"],
+  ["30", "10", "#10b981"],
+  ["30", "11", "#10b981"],
+  ["30", "12", "#10b981"],
+  ["30", "13", "#10b981"],
+  ["14", "31", "#10b981"],
+  ["15", "31", "#10b981"],
+  ["16", "31", "#10b981"],
+  ["17", "31", "#10b981"],
+  ["18", "32", "#10b981"],
+  ["18", "33", "#10b981"],
+  ["32", "34", "#10b981"],
+  ["33", "34", "#10b981"],
+  ["31", "34", "#10b981"],
+  ["30", "34", "#10b981"],
+  ["34", "19", "#10b981"],
   // Original Flow
-  { id: "e8-9", source: "8", target: "9", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e8-10", source: "8", target: "10", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e8-11", source: "8", target: "11", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e8-12", source: "8", target: "12", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e8-13", source: "8", target: "13", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e9-14", source: "9", target: "14", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e9-15", source: "9", target: "15", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e10-16", source: "10", target: "16", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e11-17", source: "11", target: "17", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  {
-    id: "e12-14",
-    source: "12",
-    target: "14",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#9333ea" },
-  },
-  {
-    id: "e12-15",
-    source: "12",
-    target: "15",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#9333ea" },
-  },
-  {
-    id: "e12-16",
-    source: "12",
-    target: "16",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#9333ea" },
-  },
-  {
-    id: "e12-17",
-    source: "12",
-    target: "17",
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#9333ea" },
-  },
-  { id: "e14-18", source: "14", target: "18", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e15-18", source: "15", target: "18", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e16-18", source: "16", target: "18", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e17-18", source: "17", target: "18", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e13-18", source: "13", target: "18", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e18-19", source: "18", target: "19", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e18-20", source: "18", target: "20", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  { id: "e18-21", source: "18", target: "21", animated: true, markerEnd: { type: MarkerType.ArrowClosed } },
-  {
-    id: "e8-23",
-    source: "8",
-    target: "23",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#ed8936" },
-  },
-  {
-    id: "e18-22",
-    source: "18",
-    target: "22",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#ed8936" },
-  },
-  {
-    id: "e6-24",
-    source: "6",
-    target: "24",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#4a5568", strokeDasharray: "5,5" },
-  },
-  {
-    id: "e8-25",
-    source: "8",
-    target: "25",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#4a5568", strokeDasharray: "5,5" },
-  },
-  {
-    id: "e14-26",
-    source: "14",
-    target: "26",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#48bb78", strokeDasharray: "5,5" },
-  },
-  {
-    id: "e15-26",
-    source: "15",
-    target: "26",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#48bb78", strokeDasharray: "5,5" },
-  },
-  {
-    id: "e16-26",
-    source: "16",
-    target: "26",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#48bb78", strokeDasharray: "5,5" },
-  },
-  {
-    id: "e3-27",
-    source: "3",
-    target: "27",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#5a67d8", strokeDasharray: "5,5" },
-  },
-  {
-    id: "e18-28",
-    source: "18",
-    target: "28",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#ed8936", strokeDasharray: "5,5" },
-  },
-  {
-    id: "e17-29",
-    source: "17",
-    target: "29",
-    animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: "#48bb78", strokeDasharray: "5,5" },
-  },
+  ["8", "9"],
+  ["8", "10"],
+  ["8", "11"],
+  ["8", "12"],
+  ["8", "13"],
+  ["9", "14"],
+  ["9", "15"],
+  ["10", "16"],
+  ["11", "17"],
+  ["12", "14", "#9333ea"],
+  ["12", "15", "#9333ea"],
+  ["12", "16", "#9333ea"],
+  ["12", "17", "#9333ea"],
+  ["14", "18"],
+  ["15", "18"],
+  ["16", "18"],
+  ["17", "18"],
+  ["13", "18"],
+  ["18", "19"],
+  ["18", "20"],
+  ["18", "21"],
+  ["8", "23", "#ed8936", false, false],
+  ["18", "22", "#ed8936", false, false],
+  ["6", "24", "#4a5568", true, false],
+  ["8", "25", "#4a5568", true, false],
+  ["14", "26", "#48bb78", true, false],
+  ["15", "26", "#48bb78", true, false],
+  ["16", "26", "#48bb78", true, false],
+  ["3", "27", "#5a67d8", true, false],
+  ["18", "28", "#ed8936", true, false],
+  ["17", "29", "#48bb78", true, false],
 ];
+
+const initialEdges: Edge[] = EDGE_DEFINITIONS.map(([source, target, stroke, dashed, animated = true]) => {
+  const edge: Edge = {
+    id: `e${source}-${target}`,
+    source,
+    target,
+    animated,
+    markerEnd: { type: MarkerType.ArrowClosed },
+  };
+  if (stroke || dashed) {
+    edge.style = {
+      ...(stroke ? { stroke } : {}),
+      ...(dashed ? { strokeDasharray: "5,5" } : {}),
+    };
+  }
+  return edge;
+});
 
 export function DataFlowVisualization() {
   const { i18n } = useTranslation();

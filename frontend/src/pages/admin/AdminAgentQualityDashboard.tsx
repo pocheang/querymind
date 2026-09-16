@@ -20,14 +20,13 @@ import { ExportButtons } from "@/utils/exportUtils";
 import { Button } from "@/components/ui/button";
 import {
   AdminBlock,
-  AdminSkeleton,
+  AdminDashboardStatus,
   ControlsRow,
   KpiCard,
   KpiGrid,
   RowActions,
   SectionBlock,
   SectionHead,
-  StatePanel,
   SubTitle,
   TwoCol,
 } from "./components/AdminPrimitives";
@@ -128,25 +127,15 @@ export function AdminAgentQualityDashboard() {
     void fetchStats();
   };
 
-  if (loading) {
+  if (loading || error) {
     return (
-      <main className="space-y-6">
-        <AdminSkeleton />
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="space-y-6">
-        <SectionHead title={t("admin.agentQuality.title", "Agent Quality Monitor")}></SectionHead>
-        <StatePanel tone="error">
-          <p>{error}</p>
-          <Button variant="secondary" size="xs" onClick={handleRetry}>
-            {t("common.retry", "Retry")}
-          </Button>
-        </StatePanel>
-      </main>
+      <AdminDashboardStatus
+        loading={loading}
+        error={error}
+        title={t("admin.agentQuality.title", "Agent Quality Monitor")}
+        onRetry={handleRetry}
+        retryLabel={t("common.retry", "Retry")}
+      />
     );
   }
 
