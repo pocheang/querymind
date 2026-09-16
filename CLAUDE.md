@@ -48,7 +48,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (2,068 backend pytest tests + 214 frontend vitest tests)
+└── tests/                      # Automated test suite (2,085 backend pytest tests + 214 frontend vitest tests)
 ```
 
 ## Table of Contents
@@ -105,7 +105,8 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-16): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,068 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,282 total tests**, 0 failures). Scripts hold eleven focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
+Note (counts refreshed 2026-09-16): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,085 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,299 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
+`check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
@@ -3017,8 +3018,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-16 there are 2,068 backend pytest tests
-and 214 frontend Vitest tests (2,282 total tests, 0 failures), covering the chat round trip,
+back-filling effort. As of 2026-09-16 there are 2,085 backend pytest tests
+and 214 frontend Vitest tests (2,299 total tests, 0 failures), covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3102,11 +3103,14 @@ drops routers is `tests/api/test_endpoint_census.py` now, so it runs in `make te
 
 #### What CI runs, and the four things it only appeared to run (2026-09-16)
 
-Three jobs. `backend` (sensitive gate -> ruff -> install from the lock -> hygiene hooks ->
-pytest with coverage -> the coverage ratchet), `frontend` (eslint, tsc, prettier, the design
-scale ratchet, vitest with coverage, build, dead classes -- in that order, the last two after
-the build because they need what the browser receives), and `analysis`, which needs both and
-is where the SonarCloud scanner lives.
+Five jobs, all parallel except the last. `lint` (sensitive gate, ruff check, ruff format --
+no project dependencies, so it reports in under a minute), `backend` (install from the lock,
+hygiene hooks, pytest with coverage, the coverage ratchet; a 3.11/3.12 matrix), `frontend`
+(eslint, tsc, prettier, the design scale ratchet, vitest with coverage, build, dead classes --
+in that order, the last two after the build because they need what the browser receives),
+`images` (the configuration layers, then both Dockerfiles), and `analysis`, which needs
+backend and frontend and is where the SonarCloud scanner lives. A second workflow,
+`security.yml`, runs the vulnerability scans weekly.
 
 Each of the four fixes below was a check that read as present and was not, which is the
 failure this file spends most of its length on, applied to the thing that checks everything
@@ -3152,13 +3156,77 @@ hypothetical one -- 120s against a slowest test of 3.6s, measured over the whole
 `cache-dependency-path: requirements/ci.txt` on `setup-python`, which was keying the pip
 cache on whatever its defaults matched rather than on the file the job installs from.
 
-**Still not done, and deliberately listed rather than quietly skipped**: no dependabot or
-renovate (so the SHA pins never move), no dependency vulnerability scanning, `runtime.txt`
-and both Dockerfiles are never exercised in CI although they are what the image installs,
-`deploy/scripts/config.py validate` never runs, the cognitive-complexity scorer is not a
-ratchet while the scanner is dormant, only Python 3.11 and Node 20 are tested against a
-`requires-python = ">=3.11"`, and `cancel-in-progress` still applies to pushes to main --
-which will punch holes in the new-code baseline the day the scanner is switched on.
+#### The rest of that list, done the same day
+
+Everything the paragraph above used to say was still open, except where it says otherwise.
+
+- **`lint` is its own job.** A job stops at its first failure, so a style slip hid every
+  test result behind it and the answer was a second push to find out whether the suite was
+  broken too. It needs no project dependencies and reports in under a minute.
+- **Python 3.12 is tested.** `pyproject` declares `requires-python = ">=3.11"` and the lock
+  resolves across that whole range -- numpy is pinned twice in the exports for exactly that
+  reason -- and only 3.11 had ever run. Measured before adding it: the suite passes whole on
+  3.12 (2065 passed, 41s). 3.11 stays canonical, and the coverage ratchet, the hygiene hooks
+  and the artifact upload run only there: one baseline, measured on one interpreter, because
+  two would differ by whichever version-gated branches each takes and neither number would
+  mean "the project's coverage".
+- **The images are built.** Nothing in CI had ever built either Dockerfile, and the backend
+  one installs `requirements/runtime.txt` -- a *different* export of the lock from the
+  `ci.txt` every other job uses -- so a broken `make lock` could go green here and fail at
+  deploy. Built, never pushed: there is no registry in this workflow and no token that could
+  write to one.
+- **The configuration layers are validated**, all nine environment/profile combinations,
+  which is not redundant: production validates 35 keys where development validates 32, so a
+  key missing from one profile is invisible in the others.
+- **Dependabot moves the action pins** (`.github/dependabot.yml`), which is the half of
+  "pin third-party actions to a commit" that nobody was paying: a commit pin never moves on
+  its own, so a fixed action is a fixed vulnerability. **pip is deliberately absent** --
+  `uv.lock` is the lock and `requirements/*.txt` are exports of it, so a Dependabot PR
+  editing an export would leave the lock behind, and `test_dependency_locks_are_current.py`
+  would not catch it (it checks direct requirements, which a transitive bump satisfies).
+- **`cancel-in-progress` is now `${{ github.event_name == 'pull_request' }}`.** Superseding
+  a pull-request run is free; a run on main is the only analysis that commit will ever get.
+- **`workflow_dispatch`**, because a branch with no pull request open ran nothing at all.
+
+#### The vulnerability scan found six advisories with fixes, and one upstream cap
+
+`.github/workflows/security.yml` runs weekly, on dependency-file changes, and on demand --
+separate from CI because an advisory appears when somebody else publishes one, not because
+of the commit under test, so gating every pull request on it turns unrelated changes red
+for a reason their author cannot fix.
+
+It is a gate, not a report. `scripts/check_vulnerabilities.py` fails on any advisory not in
+`scripts/vulnerability-exemptions.json` **with a reason**, on an exemption whose advisory has
+since gained a fix, and on an exemption that no longer matches anything -- the rule
+`SECRET_BASELINE` and `KNOWN_OFFENDERS` already follow, because an allowlist that can only
+grow stops being a record of decisions and becomes a way of not making them.
+
+Ten advisories stand against `requirements/runtime.txt` today, and the diagnosis is worth
+recording because it is one decision rather than ten:
+
+- **chromadb ×4** have no published fix. The gate turns red the day one appears.
+- **cryptography ×4** are fixed in 48.0.1/49.0.0/50.0.0 and **cannot be taken**, because
+  `langgraph-api 0.7.27` requires `cryptography<47.0`. Nothing in `pyproject.toml` caps it;
+  `uv lock --upgrade-package cryptography` keeps 46.0.7 for that reason alone.
+- **langgraph-api ×2** are fixed in 0.10.0+, and that is the one blocker: langgraph-api past
+  0.7.x requires `langgraph-runtime-inmem >=0.34.0.dev0`, a **pre-release**, which the
+  resolver does not take by default. Everything else 0.14.1 asks for is already satisfied
+  (langgraph 1.2.11, langgraph-sdk 0.4.4, langgraph-checkpoint 4.2.0, starlette 1.6.0).
+
+So moving the langgraph stack clears six of the ten, and it is a dependency-policy decision
+-- allowing pre-release resolution on the orchestration library this application is built
+on -- with its own verification. It does not belong inside a CI change, which is why it is
+written down here instead of done quietly.
+
+`npm audit` gates production dependencies at `moderate` (clean today) and the build
+toolchain at `high`; three moderate advisories against vitest are open and none of them
+ships. Gating those at `moderate` would have landed red, which is how a security job gets
+switched off in its first week.
+
+**Still not done**: `requirements/ci.txt` is not audited (the dev toolchain's advisories
+move for reasons unrelated to what runs in production, and auditing it means a second
+exemption list with a different risk model), there is no CodeQL or equivalent SAST, the
+images are built but never run or scanned, and Node is still tested at 20 only.
 
 **The SonarCloud scanner in that workflow has never run** (checked 2026-09-05), and the
 green "SonarCloud Code Analysis" check on every commit is **Automatic Analysis**, not it.
@@ -3256,7 +3324,15 @@ diff is what it exists to avoid:
 | `render_prometheus` | 39 | 800 metric states | 0 |
 | `_extract_content` | 37 | 3005 payloads | 0 |
 
-Total excess across `app/` went 666 -> 486, and 67 functions remain over 15.
+Total excess across `app/` went 666 -> 486 that day, and the passes through 2026-09-16
+took it to **zero: no function in `app/` or `scripts/` scores above 15**, with fifteen
+sitting exactly at it. `tests/core/test_cognitive_complexity_is_bounded.py` holds that,
+because nothing else could -- the SonarCloud scanner is dormant, so a new 40-point
+function would have landed with every check green. It is a hard gate rather than a
+ratchet with a baseline, since there is nothing left to freeze, and a tight one: one
+added branch in any of those fifteen turns it red. `tests/` is out of scope (it is
+`sonar.tests`, and eight test functions are over 15 today, mostly table-driven checks
+where the branching is the data).
 Two details from those splits are worth keeping because a rewrite loses them
 quietly: `render_prometheus` emits a TYPE line for a labelled histogram with no
 samples and **nothing at all** for a flat one -- an asymmetry the shipped code

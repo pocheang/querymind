@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A branch that has no pull request open runs nothing otherwise, which is how
+  # a change lands on a branch unverified and is discovered at review time.
+  workflow_dispatch:
 
 # Least privilege, for the same threat model that pins the third-party action
 # below to a commit: that step runs with this token. Nothing in this workflow
@@ -20,12 +23,21 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseding a pull-request run is free -- only its latest head matters. A run
+  # on main is not: it is the only analysis that commit will ever get, and once
+  # the SonarCloud scanner is switched on, a cancelled one leaves a hole in the
+  # new-code baseline that nothing refills.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  backend:
+  # Its own job rather than the first four steps of `backend`, because a job
+  # stops at its first failure: a style slip used to hide every test result
+  # behind it, and the fix was a second push to find out whether the suite was
+  # also broken. It needs no project dependencies, so it reports in well under a
+  # minute while the suite is still installing.
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,15 +49,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
-          # Key the cache on the file this job actually installs from. Left
-          # unset, the action hashes whatever its default patterns happen to
-          # match, which is not requirements/ci.txt -- so a regenerated lock
-          # restored the previous run's wheels.
-          cache-dependency-path: requirements/ci.txt
 
-      # Ahead of lint for the same reason lint is ahead of install, and more
-      # so: stdlib only, and a credential reaching this repository is the one
+      # First, and stdlib only: a credential reaching this repository is the one
       # failure that cannot be fixed by a follow-up commit. The pre-commit hook
       # runs the same script over staged files; this is the copy that catches a
       # --no-verify or a clone with no hooks installed.
@@ -56,8 +61,6 @@ jobs:
       - name: Sensitive content gate
         run: python scripts/check_sensitive.py
 
-      # Lint first: it needs no project dependencies, so a style failure reports
-      # in seconds instead of after the full install.
       - name: Install ruff
         # Exact, and the same version pyproject's dev extra pins. `>=` meant CI
         # picked up every new release, so the formatter changed without anyone
@@ -70,6 +73,36 @@ jobs:
 
       - name: Format check
         run: ruff format --check .
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # Both answers are wanted. Cancelling 3.11 because 3.12 broke tells you
+      # less than the two results together, which is the whole point of running
+      # two.
+      fail-fast: false
+      matrix:
+        # pyproject declares `requires-python = ">=3.11"` and the lock resolves
+        # for that whole range -- numpy is pinned twice in the exports for
+        # exactly this reason. Until now only 3.11 was ever run, so the rest of
+        # that claim was untested. 3.11 stays canonical: it is what the image,
+        # the conda environment and the coverage baseline are.
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          # Key the cache on the file this job actually installs from. Left
+          # unset, the action hashes whatever its default patterns happen to
+          # match, which is not requirements/ci.txt -- so a regenerated lock
+          # restored the previous run's wheels.
+          cache-dependency-path: requirements/ci.txt
 
       - name: Install dependencies
         # From the lock, not from the ranges in pyproject.toml: every version is
@@ -102,6 +135,7 @@ jobs:
       # and the answer was to stop doing it rather than to pin it.
 
       - name: Cache pre-commit hook environments
+        if: matrix.python-version == '3.11'
         uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
@@ -123,6 +157,9 @@ jobs:
         # SKIP names the three that CI runs by itself: ruff and ruff-format are
         # the two steps above, and check-sensitive is the gate at the top, which
         # already reads every tracked file rather than the staged ones.
+        # Once, not once per interpreter: what it checks -- line endings, final
+        # newlines, parseable YAML -- cannot differ between them.
+        if: matrix.python-version == '3.11'
         env:
           SKIP: ruff,ruff-format,check-sensitive
         run: pre-commit run --all-files --show-diff-on-failure
@@ -159,11 +196,19 @@ jobs:
         # Prints the number, and fails if it falls below the tracked baseline.
         # It used to only print: with the SonarCloud scanner dormant, nothing
         # anywhere could turn a drop in coverage red.
+        #
+        # One baseline, measured on one interpreter. Two would differ by whichever
+        # version-gated branches each one takes, and neither number would mean
+        # "the project's coverage".
+        if: matrix.python-version == '3.11'
         run: python scripts/check_coverage.py ratchet
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
-        if: always()
+        # Not `always()` any more: the 3.12 leg would race the 3.11 one for the
+        # same artifact name, and v4 refuses the second upload rather than
+        # merging it.
+        if: always() && matrix.python-version == '3.11'
         with:
           name: backend-coverage
           path: coverage.xml
@@ -243,6 +288,61 @@ jobs:
       # blind to a class that matches nothing.
       - name: Dead classes
         run: npm run lint:classes
+
+  # What the deployment installs, which until now nothing in CI ever built. The
+  # backend image installs `requirements/runtime.txt` -- a different export of the
+  # lock from the `ci.txt` every other job uses -- so a broken `make lock` could
+  # go green here and fail at deploy, which is the worst place to find it. The
+  # frontend image repeats the npm build inside node:20-alpine against an
+  # unprivileged nginx base, where a `listen` directive left at 80 fails to bind
+  # in a way the build itself does not notice.
+  #
+  # Built, not pushed. There is no registry in this workflow and no token that
+  # could write to one -- the question being asked is whether the image can be
+  # produced from this commit at all.
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Configuration layers render and validate
+        # `deploy/scripts/config.py` is what turns config/env/* and
+        # config/profiles/* into the file the application reads, and it enforces
+        # rules no test covers -- duplicate keys, key shapes, the secrets each
+        # environment must carry. Nothing ran it, so a bad layer was found by
+        # deploying.
+        #
+        # All nine combinations, because they select different layers: production
+        # validates 35 keys where development validates 32, and a key missing from
+        # one profile is invisible in the others.
+        #
+        # The placeholder key is not a credential and is not one of this project's
+        # secrets -- production refuses to validate without OPENAI_API_KEY *set*,
+        # and what is being checked is the layer structure, not whether a key
+        # works. It is deliberately not sk-shaped: the sensitive-content gate
+        # matches shapes, and it is right to.
+        env:
+          OPENAI_API_KEY: placeholder-for-ci-validation
+        run: |
+          for environment in development test production; do
+            for profile in fast balanced deep; do
+              echo "--- $environment / $profile"
+              python deploy/scripts/config.py validate --environment "$environment" --profile "$profile"
+            done
+          done
+
+      - name: Build the backend image
+        run: docker build -f Dockerfile -t querymind-backend:ci .
+
+      - name: Build the frontend image
+        run: docker build -f Dockerfile.frontend -t querymind-frontend:ci .
 
   # A third job because the scanner needs both coverage reports in one workspace,
   # and the two that produce them run in parallel with separate workspaces. That
