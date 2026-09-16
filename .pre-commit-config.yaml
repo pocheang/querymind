@@ -13,8 +13,15 @@ repos:
         # nobody had touched. This flag is what it exists for.
         args: [--markdown-linebreak-ext=md]
       - id: mixed-line-ending
+  # Must match the `ruff==` pin in pyproject.toml and requirements/ci.txt.
+  # It did not: the hook formatted with v0.12.0 while CI checked with 0.16.5,
+  # and the two disagree about a docstring ending in an escaped quote. The
+  # hook rewrote a file into a form `ruff format --check .` rejects, reported
+  # success, and the commit sailed through to a red CI -- the failure mode
+  # pyproject's own pin comment exists to prevent, reached from the one side
+  # that pin does not cover. `test_ruff_versions_agree` keeps them together.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.0
+    rev: v0.16.5
     hooks:
       - id: ruff
         args: [--fix]

@@ -88,7 +88,8 @@ async def test_reasoning_with_no_secret_survives_the_pass_unredacted_in_content(
 @pytest.mark.asyncio
 async def test_no_reasoning_stays_none_rather_than_becoming_an_empty_string():
     """None means "the caller never asked to see reasoning" -- collapsing it
-    to "" would make that indistinguishable from "asked, and got nothing.\" """
+    to "" would make that indistinguishable from "asked, and got nothing".
+    """
     answer = await _run_output_filter(answer_text="An answer with no reasoning field at all.", reasoning=None)
 
     assert answer.reasoning is None
