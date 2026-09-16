@@ -5,6 +5,19 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege, for the same threat model that pins the third-party action
+# below to a commit: that step runs with this token. Nothing in this workflow
+# writes to the repository -- no comment, no label, no push -- so read is all of
+# it, and a job that ever needs more has to say so itself. Without this block the
+# token carries whatever the repository's default is, which is write on a
+# repository nobody has changed it on.
+#
+# tests/core/test_ci_workflow_is_loadable.py fails if it goes missing, because
+# the rule that would otherwise catch it lives in SonarCloud and only runs after
+# a push -- the same reason the SHA-pinning assertion is there.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -13,22 +26,23 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Job level, not step level: a step's own `env:` is not readable from that
-    # step's `if:`, and the scan below is conditional on this being set.
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
-          # Sonar reads SCM blame to decide what counts as new code, and every
-          # condition on this project's quality gate is a new-code condition. A
-          # shallow clone has no blame to read.
-          fetch-depth: 0
+          # Nothing in this job talks back to GitHub, so leaving a credential in
+          # .git/config for the rest of the run buys nothing -- and every step
+          # after this one executes third-party code that can read it.
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
+          # Key the cache on the file this job actually installs from. Left
+          # unset, the action hashes whatever its default patterns happen to
+          # match, which is not requirements/ci.txt -- so a regenerated lock
+          # restored the previous run's wheels.
+          cache-dependency-path: requirements/ci.txt
 
       # Ahead of lint for the same reason lint is ahead of install, and more
       # so: stdlib only, and a credential reaching this repository is the one
@@ -87,50 +101,73 @@ jobs:
       # resolves nothing and locks nothing, so the rule was right about the shape
       # and the answer was to stop doing it rather than to pin it.
 
-      - name: Endpoint census
-        # Guards against a refactor silently dropping routers. Counts OpenAPI
-        # operations, not len(app.routes): FastAPI 0.138+ stores an
-        # _IncludedRouter wrapper instead of flattening child routes, so that
-        # count varies by version (30 on 0.138.2 vs 156 on 0.135.3).
-        run: >-
-          python -c "import app.api.main as m; d = m.app.openapi()['paths'];
-          n = sum(1 for i in d.values() for k in i if k in {'get','post','put','patch','delete'});
-          print(f'{n} operations');
-          assert n >= 140, f'endpoint count collapsed to {n}'"
+      - name: Cache pre-commit hook environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Repository hygiene hooks
+        # .pre-commit-config.yaml declares six hooks that nothing here ran:
+        # check-yaml, check-json, end-of-file-fixer, trailing-whitespace,
+        # mixed-line-ending and check-sensitive. The first five had no CI copy at
+        # all, so a `--no-verify` commit -- or a clone where nobody ran
+        # `pre-commit install`, which is every fresh one -- drifted them silently.
+        # That is the argument the sensitive-content gate above already makes for
+        # itself; these five had only the hook.
+        #
+        # After the install rather than beside ruff, because pre-commit comes out
+        # of the lock there. Installing it separately would put back the unlocked
+        # `pip install` this job deliberately removed.
+        #
+        # SKIP names the three that CI runs by itself: ruff and ruff-format are
+        # the two steps above, and check-sensitive is the gate at the top, which
+        # already reads every tracked file rather than the staged ones.
+        env:
+          SKIP: ruff,ruff-format,check-sensitive
+        run: pre-commit run --all-files --show-diff-on-failure
+
+      # The endpoint census -- a guard against a refactor silently dropping
+      # routers -- used to be an inline `python -c` here, with a floor of 140
+      # against an actual 157: seventeen operations could disappear and this step
+      # stayed green. It is tests/api/test_endpoint_census.py now, against an
+      # exact tracked baseline, so `make test` catches it before a push and a
+      # failure names the number rather than a shell assertion.
 
       - name: Tests
-        # Coverage is written whether or not the scan below runs, so an upload
-        # that never happens shows up as a missing report rather than as a
-        # metric that quietly stays empty -- which is the state this project was
-        # in until now: Automatic Analysis cannot read a coverage report, so the
-        # suite's coverage had never reached SonarCloud at all.
-        run: pytest tests/ -q --cov=app --cov-report=xml:coverage.xml
-
-      - name: Coverage total
-        # One line in the log, so the number is visible on a run where the scan
-        # is skipped.
-        run: >-
-          python -c "import xml.etree.ElementTree as ET;
-          rate = float(ET.parse('coverage.xml').getroot().get('line-rate', 0));
-          print('line coverage: {:.1f}%'.format(rate * 100))"
-
-      - name: SonarCloud scan
-        # Skipped until a SONAR_TOKEN secret exists, so this change lands green
-        # and is switched on deliberately. Turning it on also means turning
-        # Automatic Analysis off in SonarCloud: the scanner refuses to run while
-        # that is enabled. See sonar-project.properties.
+        # --timeout is a hang detector, not a latency budget -- the same
+        # distinction the stage ceilings in Settings are documented with. A test
+        # that never returns otherwise consumes this job's whole 20-minute
+        # ceiling, and the run is reported as *cancelled* with nothing in the log
+        # naming the test; --timeout-method=thread dumps every thread's stack and
+        # fails that one test instead. This repository's two worst outages were
+        # both hangs (concurrent DDGS construction, an async cache driven from a
+        # worker thread), so the shape is not hypothetical.
         #
-        # Pinned to a commit, not to `@v8`: a tag on somebody else's repository
-        # can be moved, and this step runs with a token that can write analysis
-        # results for this project. The GitHub-owned actions above keep their
-        # major tags -- githubactions:S7637 flags third-party ones, and this was
-        # the only one.
-        if: env.SONAR_TOKEN != ''
-        # v8.2.1
-        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: "https://sonarcloud.io"
+        # 120s against a slowest test of 3.6s, measured over the whole suite in a
+        # clean requirements/ci.txt environment. A runner is slower than that
+        # measurement, not thirty times slower.
+        #
+        # Coverage is written whether or not the scan in the analysis job runs,
+        # so an upload that never happens shows up as a missing report rather
+        # than as a metric that quietly stays empty -- which is the state this
+        # project was in until now: Automatic Analysis cannot read a coverage
+        # report, so the suite's coverage had never reached SonarCloud at all.
+        run: pytest tests/ -q --timeout=120 --timeout-method=thread --cov=app --cov-report=xml:coverage.xml
+
+      - name: Coverage ratchet
+        # Prints the number, and fails if it falls below the tracked baseline.
+        # It used to only print: with the SonarCloud scanner dormant, nothing
+        # anywhere could turn a drop in coverage red.
+        run: python scripts/check_coverage.py ratchet
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: coverage.xml
+          if-no-files-found: ignore
 
   frontend:
     runs-on: ubuntu-latest
@@ -140,6 +177,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -151,9 +190,9 @@ jobs:
         run: npm ci --ignore-scripts
 
       # Gates on errors. The threshold is a ratchet at the current warning
-      # count (24: react-refresh, exhaustive-deps, unused-vars, explicit-any),
-      # so no new warning can land while those are worked through separately.
-      # Lower it as they are fixed; never raise it.
+      # count, `--max-warnings 20` in package.json -- which is the only place it
+      # is stated, so this comment cannot drift out of date with it the way it
+      # did while claiming 24. Lower it as the warnings are fixed; never raise it.
       - name: Lint
         run: npm run lint
 
@@ -181,9 +220,9 @@ jobs:
       # listing them, so it catches one added to the store but forgotten in
       # INITIAL_STATE.
       - name: Tests
-        # --coverage writes frontend/coverage/lcov.info, which the backend job's
-        # scanner step picks up alongside the Python report. Written whether or
-        # not that step runs, for the same reason.
+        # --coverage writes frontend/coverage/lcov.info, which the analysis job
+        # downloads and hands to the scanner. Written whether or not that scan
+        # runs, for the same reason the Python report is.
         run: npm test -- --run --coverage
 
       - name: Upload coverage
@@ -204,3 +243,71 @@ jobs:
       # blind to a class that matches nothing.
       - name: Dead classes
         run: npm run lint:classes
+
+  # A third job because the scanner needs both coverage reports in one workspace,
+  # and the two that produce them run in parallel with separate workspaces. That
+  # was the defect: this step lived in the backend job, under a comment claiming
+  # it picked the frontend's lcov up "alongside the Python report", and no step
+  # anywhere copied that file across. Sonar does not fail on a report path that
+  # does not exist -- it warns -- so switching the scanner on would have
+  # published Python coverage and a silent zero for TypeScript.
+  analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [backend, frontend]
+    # Job level, not step level: a step's own `env:` is not readable from that
+    # step's `if:`, and the scan below is conditional on this being set. The
+    # `secrets` context is not available in a job-level `if` at all, which is why
+    # the job runs either way and the scan step is what gets skipped.
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Sonar reads SCM blame to decide what counts as new code, and every
+          # condition on this project's quality gate is a new-code condition. A
+          # shallow clone has no blame to read.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: .
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+
+      - name: Coverage reports are where the scanner reads them
+        # Reads the paths out of sonar-project.properties rather than repeating
+        # them, so a rename on either side fails here instead of degrading the
+        # scan to a warning nobody looks at. Runs whether or not the scan does:
+        # with the scanner still dormant this is the only thing standing between
+        # today and a repeat of the defect described above.
+        run: python scripts/check_coverage.py reports
+
+      - name: SonarCloud scan
+        # Skipped until a SONAR_TOKEN secret exists, so this lands green and is
+        # switched on deliberately. Turning it on also means turning Automatic
+        # Analysis off in SonarCloud: the scanner refuses to run while that is
+        # enabled. See sonar-project.properties.
+        #
+        # Pinned to a commit, not to `@v8`: a tag on somebody else's repository
+        # can be moved, and this step runs with a token that can write analysis
+        # results for this project. The GitHub-owned actions above keep their
+        # major tags -- githubactions:S7637 flags third-party ones, and this was
+        # the only one.
+        if: env.SONAR_TOKEN != ''
+        # v8.2.1
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: "https://sonarcloud.io"
