@@ -123,6 +123,21 @@ dev = [
   "pre-commit>=3.7.0"
 ]
 
+# A security floor on a package this project does not import.
+#
+# langgraph-api is langgraph-cli[inmem]'s dependency, not ours -- the application
+# imports only `from langgraph.graph import END, START, StateGraph`. But 0.7.27
+# carries PYSEC-2026-3857/3858 and requires `cryptography<47.0`, which held four
+# more advisories open behind it, and `langgraph-cli[inmem]` asks only for
+# `>=0.5.35`, so a re-resolution is free to pick it again.
+#
+# A constraint rather than a dependency, because that is what this is: it does not
+# add langgraph-api to the graph, it says what version is acceptable if something
+# else pulls it in. Regenerating with `uv lock --upgrade` cannot now walk back into
+# the vulnerable range and leave the security workflow to notice a week later.
+[tool.uv]
+constraint-dependencies = ["langgraph-api>=0.10.0"]
+
 [tool.setuptools]
 include-package-data = true
 

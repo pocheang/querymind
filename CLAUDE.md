@@ -3188,7 +3188,7 @@ Everything the paragraph above used to say was still open, except where it says 
   a pull-request run is free; a run on main is the only analysis that commit will ever get.
 - **`workflow_dispatch`**, because a branch with no pull request open ran nothing at all.
 
-#### The vulnerability scan found six advisories with fixes, and one upstream cap
+#### The vulnerability scan found ten advisories, and six of them were one upgrade
 
 `.github/workflows/security.yml` runs weekly, on dependency-file changes, and on demand --
 separate from CI because an advisory appears when somebody else publishes one, not because
@@ -3201,22 +3201,55 @@ since gained a fix, and on an exemption that no longer matches anything -- the r
 `SECRET_BASELINE` and `KNOWN_OFFENDERS` already follow, because an allowlist that can only
 grow stops being a record of decisions and becomes a way of not making them.
 
-Ten advisories stand against `requirements/runtime.txt` today, and the diagnosis is worth
-recording because it is one decision rather than ten:
+Ten stood against `requirements/runtime.txt` when the scan was switched on. **Four remain**:
+chromadb, with no published fix, so the gate turns red the day one appears.
 
-- **chromadb ×4** have no published fix. The gate turns red the day one appears.
-- **cryptography ×4** are fixed in 48.0.1/49.0.0/50.0.0 and **cannot be taken**, because
-  `langgraph-api 0.7.27` requires `cryptography<47.0`. Nothing in `pyproject.toml` caps it;
-  `uv lock --upgrade-package cryptography` keeps 46.0.7 for that reason alone.
-- **langgraph-api ×2** are fixed in 0.10.0+, and that is the one blocker: langgraph-api past
-  0.7.x requires `langgraph-runtime-inmem >=0.34.0.dev0`, a **pre-release**, which the
-  resolver does not take by default. Everything else 0.14.1 asks for is already satisfied
-  (langgraph 1.2.11, langgraph-sdk 0.4.4, langgraph-checkpoint 4.2.0, starlette 1.6.0).
+**The other six were `langgraph-api 0.7.27`**, which carries two of its own and requires
+`cryptography<47.0`, holding four more open behind it. The upgrade to 0.14.1 clears all six,
+and `cryptography` goes 46.0.7 -> 50.0.1 with it.
 
-So moving the langgraph stack clears six of the ten, and it is a dependency-policy decision
--- allowing pre-release resolution on the orchestration library this application is built
-on -- with its own verification. It does not belong inside a CI change, which is why it is
-written down here instead of done quietly.
+**The first diagnosis of why it would not upgrade was wrong, and the way it was wrong is the
+lesson.** It read `langgraph-runtime-inmem >=0.34.0.dev0` in langgraph-api's metadata,
+concluded the fix needed a **pre-release**, and wrote that down as a dependency-policy
+decision to be taken deliberately later. `0.34.1` is a perfectly ordinary stable release --
+`>=0.34.0.dev0` is just a lower bound that happens to name a dev build of its own series, an
+idiom for "including the dev builds", not a demand for one.
+
+What actually held it was the lock itself. `uv lock --upgrade-package langgraph-api` frees
+*that* package and leaves every other pin frozen, and 0.14.1 requires `grpcio<1.82.0` and
+`opentelemetry-exporter-prometheus<0.64` against a lock holding grpcio 1.83.1 and
+opentelemetry 1.44.0 -- unsatisfiable. So the resolver kept 0.7.27, which `langgraph-cli[inmem]`
+is happy with (`>=0.5.35`), and reported success. **A resolver that cannot do what you asked
+picks something it can and says nothing**; reading its silence as a constraint from upstream
+produced a confident, published, wrong explanation. Naming the companions in the upgrade set
+(`--upgrade-package langgraph-runtime-inmem --upgrade-package cryptography`) plus an explicit
+`langgraph-api>=0.14` is what let it move.
+
+**The upgrade is not free, and the cost is downgrades.** grpcio 1.83.1 -> 1.81.1 and the
+whole OpenTelemetry stack 1.44.0 -> 1.42.1, because langgraph-api pins them; and
+`opentelemetry-exporter-prometheus 0.63b1`, a beta, enters the lock as a required dependency
+(uv takes it because the specifier explicitly names it). Trading four cryptography advisories
+and two of langgraph-api's own for older gRPC and OTel is the right way round, but it is a
+trade and not a pure win.
+
+**Almost nothing here imports any of it.** The application's entire langgraph surface is
+`from langgraph.graph import END, START, StateGraph`, and langgraph itself does not move
+(1.2.11) -- langgraph-api is the dev server behind `langgraph-cli[inmem]`, not the library the
+pipeline is built on. OpenTelemetry has exactly one reader, `traced_span`
+(`app/services/observability/tracing.py`), which imports lazily inside a `try/ImportError` and
+uses only `get_tracer`/`start_as_current_span`/`set_attribute` -- the most stable corner of
+that API. No test covers it, so it was exercised directly against 1.42.1 rather than assumed.
+
+`[tool.uv] constraint-dependencies = ["langgraph-api>=0.10.0"]` keeps it there. A constraint
+rather than a dependency, because that is what it is: the project does not import
+langgraph-api, and this says what version is acceptable if something else pulls it in.
+Without it `uv lock --upgrade` is free to walk back into the vulnerable range and leave the
+weekly scan to notice. Verified able to fail by setting it to `>=99.0.0`, which makes
+resolution fail rather than being ignored.
+
+**The exemption file shrank because the gate made it.** Six entries stopped matching anything
+the moment the upgrade landed, and the stale rule failed the run until they were deleted --
+which is the whole argument for that rule, met on real data in the same week it was written.
 
 `npm audit` gates production dependencies at `moderate` (clean today) and the build
 toolchain at `high`; three moderate advisories against vitest are open and none of them
