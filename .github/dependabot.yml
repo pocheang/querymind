@@ -1,0 +1,58 @@
+# Pinning without updating is how a pin becomes a stale pin.
+#
+# The workflows pin every third-party action to a commit, because a tag on
+# somebody else's repository can be moved and those steps run with this
+# repository's secrets. That is the right trade, and it has a cost nobody was
+# paying: a commit pin never moves on its own, so a fixed action is a fixed
+# vulnerability. This is the half that moves them, with a human reading each
+# bump.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the lot. These are four or five actions whose bumps are
+      # read together in thirty seconds; five separate PRs get skimmed.
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+      production-minor-patch:
+        dependency-type: production
+        update-types: [minor, patch]
+    commit-message:
+      prefix: deps
+
+# **pip is deliberately absent, and this is the part to read before adding it.**
+#
+# `uv.lock` is this project's lock; `requirements/runtime.txt` and
+# `requirements/ci.txt` are *exports* of it, regenerated together by `make lock`
+# so that one resolution produces all three and they cannot disagree. Dependabot
+# does not know that. Pointed at the requirements files it would edit an export
+# and leave `uv.lock` behind -- two sources of truth, differing silently, which
+# is the failure this repository spends most of CLAUDE.md on. It cannot update
+# `uv.lock` itself.
+#
+# `tests/core/test_dependency_locks_are_current.py` would not catch it either:
+# it checks that every *direct* requirement in pyproject.toml appears in both
+# exports at a version its specifier accepts, which a transitive bump in one
+# file satisfies while the lock says something else.
+#
+# So Python dependencies move by running `make lock`, which re-resolves, rehashes
+# every archive and re-runs scripts/check_lock_wheels.py. The weekly
+# vulnerability scan in .github/workflows/security.yml is what says when that is
+# worth doing.
