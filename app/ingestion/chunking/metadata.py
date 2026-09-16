@@ -76,7 +76,7 @@ def enhance_chunk_metadata(
     metadata["total_chunks"] = total_chunks
     # Multilingual word/character count (supports both English words and CJK characters)
     zh_chars = len(re.findall(r"[\u4e00-\u9fa5]", chunk_text))
-    en_words = len(re.findall(r"\b[A-Za-z0-9_]+\b", chunk_text))
+    en_words = len(re.findall(r"\b\w+\b", chunk_text))
     metadata["word_count"] = zh_chars + en_words if zh_chars > 0 else len(chunk_text.split())
 
     # Chunk类型分类
@@ -223,7 +223,7 @@ def extract_keywords(text: str, top_n: int = 10) -> list[str]:
     # English / alphanumeric keywords (excluding structural placeholders like column_1, row_2)
     en_tokens = [
         w.lower()
-        for w in re.findall(r"\b[A-Za-z0-9_]{3,}\b", text)
+        for w in re.findall(r"\b\w{3,}\b", text)
         if w.lower() not in stopwords and not re.match(r"^(?:column|col|row|sheet|part|table)_\d+$", w.lower())
     ]
     candidates.extend(en_tokens)

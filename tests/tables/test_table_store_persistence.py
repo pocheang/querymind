@@ -75,7 +75,8 @@ def test_a_deletion_on_one_worker_is_seen_by_another_that_had_it_cached(db_path:
 
     assert worker_b.get_schema("acme", "t", user_id="alice") is None
     res = worker_b.query_table("acme", "t", "SELECT * FROM table", user_id="alice")
-    assert res.error is not None and "not found" in res.error
+    assert res.error is not None
+    assert "not found" in res.error
 
 
 def test_a_reingest_on_one_worker_replaces_what_another_had_cached(db_path: Path) -> None:
@@ -96,7 +97,8 @@ def test_an_evicted_engine_is_rebuilt_from_the_database(db_path: Path) -> None:
 
     res = store.query_table("acme", "first", "SELECT SUM(sales) FROM table", user_id="alice")
 
-    assert res.error is None and res.rows[0][0] == 7
+    assert res.error is None
+    assert res.rows[0][0] == 7
 
 
 def test_the_test_run_never_persists_into_the_developer_database(monkeypatch) -> None:

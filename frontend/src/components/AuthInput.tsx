@@ -46,7 +46,8 @@ export function AuthInput({
   const [isFocused, setIsFocused] = useState(false);
 
   const isPassword = type === "password";
-  const actualType = isPassword ? (showPassword ? "text" : "password") : type;
+  const passwordType = showPassword ? "text" : "password";
+  const actualType = isPassword ? passwordType : type;
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (isPassword) {

@@ -11,7 +11,7 @@ _PATTERNS = [
     # makes safe incremental redaction impossible.
     re.compile(r"\b(?:password|passwd|token|secret)\s{0,8}[:=]\s{0,8}\S{4,}", flags=re.IGNORECASE),
     # Canary token pattern protecting against system prompt exfiltration
-    re.compile(r"CANARY_SEC_[0-9a-zA-Z_]{8,}"),
+    re.compile(r"CANARY_SEC_\w{8,}"),
 ]
 
 

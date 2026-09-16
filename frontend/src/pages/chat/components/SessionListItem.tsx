@@ -128,7 +128,9 @@ export function SessionListItem({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={(event) => void onPinToggle(session, event)}
+                onClick={(event) => {
+                  onPinToggle(session, event);
+                }}
                 disabled={isLoading}
                 title={session.pinned ? t("components.chat.unpinSession") : t("components.chat.pinSession")}
               >

@@ -106,7 +106,7 @@ def _extract_docling_pages_content(document: Any) -> list[str]:
         PAGE_BREAK = "<!-- page break -->"
         try:
             full_md = document.export_to_markdown(page_break_placeholder=PAGE_BREAK)
-        except (TypeError, Exception):
+        except Exception:
             full_md = document.export_to_markdown()
 
         if full_md and full_md.strip():

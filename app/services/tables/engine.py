@@ -312,7 +312,8 @@ class TableEngine:
             TableSchema describing the registered table
         """
         # 1. Determine safe table name
-        safe_name = table_name or f"tbl_{re.sub(r'[^a-zA-Z0-9_]', '_', table_id)}"
+        clean_id = re.sub(r"\W", "_", table_id)
+        safe_name = table_name or f"tbl_{clean_id}"
         safe_name = safe_name.lower().strip("_")
         if not safe_name or safe_name[0].isdigit():
             safe_name = f"tbl_{safe_name}"
@@ -424,14 +425,12 @@ class TableEngine:
         self,
         sql: str,
         max_rows: int = 100,
-        timeout_seconds: float = 5.0,
     ) -> TableQueryResult:
         """Safely execute a SQL query against registered tables.
 
         Args:
             sql: SQL statement
             max_rows: Maximum rows to return (auto-injects LIMIT if absent)
-            timeout_seconds: Maximum query execution time
 
         Returns:
             TableQueryResult with structured rows, columns, and markdown representation

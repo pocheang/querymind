@@ -650,7 +650,8 @@ The enterprise recorded ISO-27001 compliance with 4096 bit encryption keys."""
     # 27001 and 4096 are real entity numbers
     assert "27001" in numbers or "4096" in numbers
     # 50 from 'of 50' should not dominate
-    assert "1" not in numbers and "20" not in numbers
+    assert "1" not in numbers
+    assert "20" not in numbers
 
 
 def test_table_child_chunks_inherit_table_id_and_columns() -> None:
@@ -704,7 +705,8 @@ def test_table_child_chunks_auto_generate_table_id_if_missing() -> None:
 
     assert len(children) >= 2
     first_tbl_id = children[0].metadata.get("table_id")
-    assert first_tbl_id is not None and first_tbl_id.startswith("tbl-")
+    assert first_tbl_id is not None
+    assert first_tbl_id.startswith("tbl-")
     # All children from the same parent table block must share the identical table_id
     for child in children:
         assert child.metadata.get("table_id") == first_tbl_id

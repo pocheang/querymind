@@ -205,7 +205,8 @@ def test_a_private_table_in_the_same_tenant_is_not_readable() -> None:
 
     assert store.get_schema("acme", "theirs", user_id="alice") is None
     res = store.query_table("acme", "theirs", "SELECT * FROM table", user_id="alice")
-    assert res.error is not None and "not found" in res.error.lower()
+    assert res.error is not None
+    assert "not found" in res.error.lower()
 
 
 def test_a_readable_table_cannot_reach_another_table_by_name() -> None:

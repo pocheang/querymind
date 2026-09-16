@@ -445,9 +445,8 @@ class Neo4jClient:
     def search_entities(
         self, keywords: list[str], limit: int = 10, allowed_sources: list[str] | None = None
     ) -> list[dict]:
-        if allowed_sources is not None:
-            if not allowed_sources:
-                return []
+        if allowed_sources is not None and not allowed_sources:
+            return []
         if not keywords:
             return []
 
@@ -533,9 +532,8 @@ class Neo4jClient:
         Communities with no recorded source (written before attribution existed)
         are never returned on a scoped read.
         """
-        if allowed_sources is not None:
-            if not allowed_sources:
-                return []
+        if allowed_sources is not None and not allowed_sources:
+            return []
 
         with self.driver.session() as session:
             try:

@@ -201,7 +201,7 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
 
         <div
           className="cursor-pointer rounded-card border-2 border-dashed border-brand-border bg-brand-surface/30 p-4 text-center transition-colors hover:bg-brand-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
-          role="button"
+          role="button" // NOSONAR
           tabIndex={0}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}

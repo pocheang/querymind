@@ -29,6 +29,12 @@ interface LoginFormPanelProps {
   onGitHubLogin: () => void;
 }
 
+function getPasswordScoreColor(score: number): string {
+  if (score <= 2) return "bg-rose-500";
+  if (score <= 4) return "bg-amber-500";
+  return "bg-emerald-500";
+}
+
 export function LoginFormPanel({
   mode,
   setMode,
@@ -54,6 +60,8 @@ export function LoginFormPanel({
 }: Readonly<LoginFormPanelProps>) {
   const { t } = useTranslation();
   const submitLabel = mode === "login" ? t("auth.loginButton") : t("auth.registerButton");
+  const passwordValidity = mode === "register" ? isPasswordValid : true;
+  const passwordFieldValid = password.length > 0 ? passwordValidity : null;
 
   return (
     <section className="md:col-span-6 bg-white p-6 lg:p-7 xl:p-8 flex flex-col justify-between space-y-3">
@@ -161,7 +169,7 @@ export function LoginFormPanel({
                 }
               }}
               icon="lock"
-              isValid={password.length > 0 ? (mode === "register" ? isPasswordValid : true) : null}
+              isValid={passwordFieldValid}
             />
             {mode === "register" && password.length > 0 && (
               <div className="flex items-center gap-1.5 pt-0.5">
@@ -170,13 +178,7 @@ export function LoginFormPanel({
                     key={step}
                     className={cn(
                       "h-1.5 flex-1 rounded-full transition-all duration-300",
-                      passwordScore >= step
-                        ? passwordScore <= 2
-                          ? "bg-rose-500"
-                          : passwordScore <= 4
-                            ? "bg-amber-500"
-                            : "bg-emerald-500"
-                        : "bg-stone-200"
+                      passwordScore >= step ? getPasswordScoreColor(passwordScore) : "bg-stone-200"
                     )}
                   />
                 ))}

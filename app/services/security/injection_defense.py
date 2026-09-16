@@ -12,7 +12,6 @@ NIST AI RMF, and MITRE ATLAS standards:
 from __future__ import annotations
 
 import base64
-import binascii
 import enum
 import logging
 import re
@@ -128,7 +127,7 @@ class TextDeobfuscator:
                 decoded_str = decoded_bytes.decode("utf-8", errors="strict")
                 if any(c.isalnum() for c in decoded_str):
                     decoded_strings.append(decoded_str)
-            except (binascii.Error, UnicodeDecodeError, ValueError):
+            except ValueError:
                 continue
         return decoded_strings
 

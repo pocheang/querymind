@@ -306,5 +306,6 @@ def test_query_table_with_graph_entities(monkeypatch):
         store=store,
         user_id="not-ops",
     )
-    assert other.error is not None and "not found" in other.error
+    assert other.error is not None
+    assert "not found" in other.error
     assert other.rows == []

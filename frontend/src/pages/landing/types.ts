@@ -1,7 +1,5 @@
 import type { ComponentType } from "react";
-import type { FeatureItem } from "./FeatureDetailModal";
-
-export type { FeatureItem };
+export type { FeatureItem } from "./FeatureDetailModal";
 
 export interface SectionHeadingProps {
   lead: string;

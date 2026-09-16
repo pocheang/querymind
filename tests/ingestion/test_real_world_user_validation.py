@@ -87,11 +87,16 @@ def test_user_scenario_1_mixed_report_with_trailing_auditor_notes(user_session_e
     # 2. Block segmentation verification
     blocks = _extract_document_blocks(report_content)
     assert len(blocks) == 5, f"Expected 5 blocks (Intro, Table1, Notes, Table2, Conclusion), got {len(blocks)}"
-    assert blocks[0][0] == "text" and "集团2024年度经营分析报告" in blocks[0][1]
-    assert blocks[1][0] == "table" and "季度核心财务指标表" in blocks[1][1]
-    assert blocks[2][0] == "text" and "普华永道审计师特别指出" in blocks[2][1]
-    assert blocks[3][0] == "table" and "2025年度各研发中心预算规划表" in blocks[3][1]
-    assert blocks[4][0] == "text" and "全体研发预算已通过" in blocks[4][1]
+    assert blocks[0][0] == "text"
+    assert "集团2024年度经营分析报告" in blocks[0][1]
+    assert blocks[1][0] == "table"
+    assert "季度核心财务指标表" in blocks[1][1]
+    assert blocks[2][0] == "text"
+    assert "普华永道审计师特别指出" in blocks[2][1]
+    assert blocks[3][0] == "table"
+    assert "2025年度各研发中心预算规划表" in blocks[3][1]
+    assert blocks[4][0] == "text"
+    assert "全体研发预算已通过" in blocks[4][1]
 
     # 3. User Chunking Verification
     child_chunks, parent_records = split_documents(documents)
@@ -195,7 +200,8 @@ def test_user_scenario_3_sliding_window_trend_analysis_overlap(user_session_env:
     for i in range(len(chunks) - 1):
         lines_a = [ln.strip() for ln in chunks[i].splitlines() if ln.strip().startswith("| 20")]
         lines_b = [ln.strip() for ln in chunks[i + 1].splitlines() if ln.strip().startswith("| 20")]
-        assert len(lines_a) > 0 and len(lines_b) > 0
+        assert len(lines_a) > 0
+        assert len(lines_b) > 0
         last_row_a = lines_a[-1]
         first_row_b = lines_b[0]
         assert last_row_a == first_row_b, (

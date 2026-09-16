@@ -69,7 +69,8 @@ def test_a_low_scoring_match_still_reaches_fusion(monkeypatch) -> None:
     # query, k, allowed_sources, require_source_filter, owner -- and nothing that
     # could be a threshold.
     ((args, kwargs),) = calls
-    assert len(args) == 5 and not kwargs
+    assert len(args) == 5
+    assert not kwargs
 
 
 def test_the_store_offers_no_score_threshold_to_reintroduce() -> None:
