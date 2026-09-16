@@ -1,12 +1,13 @@
 import type React from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, EyeOff, Globe, Loader2, Paperclip, Square } from "lucide-react";
+import { ArrowRight, Brain, EyeOff, Globe, Loader2, Paperclip, Square } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QuickActions } from "@/pages/chat/components/QuickActions";
 import { useChatStore } from "@/stores/useChatStore";
+import { RUN_STATUS_PROCESSING } from "@/pages/chat/constants";
 import { useTextareaAutoResize } from "@/pages/chat/hooks/useTextareaAutoResize";
 import { CHAT_ACCEPT_ATTRIBUTE } from "@/lib/uploadFormats";
 
@@ -60,6 +61,8 @@ export function ChatComposer({
   const composerDropActive = useChatStore((s) => s.composerDropActive);
   const useWebSearch = useChatStore((s) => s.useWebSearch);
   const setUseWebSearch = useChatStore((s) => s.setUseWebSearch);
+  const showReasoning = useChatStore((s) => s.showReasoning);
+  const setShowReasoning = useChatStore((s) => s.setShowReasoning);
   useTextareaAutoResize({ ref: questionRef, value: question });
 
   return (
@@ -167,6 +170,32 @@ export function ChatComposer({
                 </span>
               </button>
 
+              <button
+                type="button"
+                onClick={() => setShowReasoning((prev) => !prev)}
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1 rounded-control p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                  showReasoning
+                    ? "bg-brand-surface text-brand-text font-semibold ring-1 ring-[var(--brand-ring)]"
+                    : "text-ink-muted hover:bg-brand-surface hover:text-brand-text"
+                )}
+                title={
+                  showReasoning
+                    ? t("components.chat.deepReasoningEnabled", "已开启思考过程展示")
+                    : t("components.chat.deepReasoningDisabled", "在回答前展示模型的思考过程")
+                }
+                aria-label={t("components.chat.deepReasoningToggle", "切换深度思考")}
+                aria-pressed={showReasoning}
+              >
+                <Brain
+                  className={cn("size-4 transition-transform", showReasoning && "text-brand-text scale-110")}
+                  aria-hidden="true"
+                />
+                <span className="hidden text-xs sm:text-sm font-medium sm:inline">
+                  {t("components.chat.deepReasoning", "深度思考")}
+                </span>
+              </button>
+
               <Badge variant="brand" size="pill" mono className="hidden truncate sm:inline-flex">
                 {t("components.chat.modeHint.advancedReasoning")}
               </Badge>
@@ -218,7 +247,12 @@ export function ChatComposer({
         {t("components.chat.composerDropHint")}
       </p>
 
-      {runStatus && (
+      {/* RUN_STATUS_PROCESSING is deliberately excluded: `ChatRuntimePanels`
+          shows `GenerationStatusLine` for that state instead -- a ticking
+          clock and a phrase grounded in the actual execution trace, not a
+          static word. This line stays for the other transient states (no
+          execution id exists yet to drive that richer view). */}
+      {runStatus && runStatus !== RUN_STATUS_PROCESSING && (
         <output className="mt-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-brand-text">
           <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
           {t(`chat.runStatus.${runStatus.toLowerCase().replace(/[^a-z_]/g, "")}`, { defaultValue: runStatus })}

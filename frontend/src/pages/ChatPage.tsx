@@ -14,7 +14,7 @@ import { ChatWorkspace } from "@/pages/chat/components/ChatWorkspace";
 import { ChatDialogsAndDrawers } from "@/pages/chat/components/ChatDialogsAndDrawers";
 import { useChatActions } from "@/pages/chat/hooks/useChatActions";
 import { useFileUpload } from "@/pages/chat/hooks/useFileUpload";
-import { useMessageActions } from "@/pages/chat/hooks/useMessageActions";
+import { useMessageActions, applyStreamDraft, applyThinkingDraft } from "@/pages/chat/hooks/useMessageActions";
 import { useChatPageState } from "@/pages/chat/hooks/useChatPageState";
 import { useDragHandlers } from "@/pages/chat/hooks/useDragHandlers";
 import { useChatComputed } from "@/pages/chat/hooks/useChatComputed";
@@ -284,10 +284,7 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
       onNewSession={() => void actions.createSession()}
     >
       <div
-        className={cn(
-          "page-shell relative flex min-h-0 flex-1 overflow-hidden",
-          sidebarCollapsed && "sidebar-collapsed"
-        )}
+        className={cn("page-shell relative flex min-h-0 flex-1 overflow-clip", sidebarCollapsed && "sidebar-collapsed")}
       >
         <ChatSidebar
           agentModes={AGENT_MODES}
@@ -371,15 +368,11 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
           onDismissApproval={() => setPendingApproval(null)}
           onDraft={(text) => {
             if (!text) return;
-            setMessages((prev) => {
-              const index = prev.findIndex(
-                (message) => message.message_id === "local-assistant-stream" && !message.content
-              );
-              if (index === -1) return prev;
-              const next = [...prev];
-              next[index] = { ...next[index], content: text };
-              return next;
-            });
+            setMessages((prev) => applyStreamDraft(prev, text));
+          }}
+          onThinking={(text) => {
+            if (!text) return;
+            setMessages((prev) => applyThinkingDraft(prev, text));
           }}
           clarification={clarification}
           onAnswerClarification={handleClarificationAnswer}

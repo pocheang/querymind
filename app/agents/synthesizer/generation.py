@@ -2,12 +2,15 @@ import asyncio
 import json
 import logging
 import re
+import time
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from typing import Any
 
 from app.agents.synthesizer.citations import (
     citation_labels_from_contexts,
+    extract_reasoning_block,
     normalize_answer_citations,
+    strip_conversation_meta_preamble,
 )
 from app.agents.synthesizer.skills import skill_answer_template
 from app.agents.synthesizer.templates import (
@@ -136,6 +139,7 @@ def _build_prompt_with_language(
     web_context: str = "",
     include_evidence_guidance: bool = True,
     nonce: str = "",
+    visible_reasoning: bool = False,
 ) -> str:
     """Build prompt with language hint, sandboxed boundaries, and query-type-specific template."""
     language_hint = f"[Language: {detected_language}]\n"
@@ -146,7 +150,7 @@ def _build_prompt_with_language(
         # question for the skills that name none. One block, not two -- see
         # app/agents/synthesizer/skills.py.
         answer_template = skill_answer_template(skill_name, question)
-        cot_prompt = get_cot_reasoning_prompt()
+        cot_prompt = get_cot_reasoning_prompt(visible=visible_reasoning)
         template_section = f"\n答案模板指导（Skill: {skill_name}）：\n{answer_template}\n\n{cot_prompt}\n"
 
     if nonce:
@@ -473,7 +477,9 @@ def synthesize_answer(
             opt-in only and capped at one round.
 
     Returns:
-        dict with 'answer', 'detected_language', and optional 'verification' keys
+        dict with 'answer', 'detected_language', 'reasoning' (None unless the
+        model wrote a <think> block -- only requested when use_reasoning is
+        True), 'reasoning_duration_ms', and optional 'verification' keys
     """
     # Detect language (or use forced language)
     detected_language = force_language if force_language else detect_language(question)
@@ -497,6 +503,7 @@ def synthesize_answer(
         web_context=web_context,
         include_evidence_guidance=bool(allowed_labels),
         nonce=nonce,
+        visible_reasoning=use_reasoning,
     )
     if allowed_labels:
         system_prompt = _evidence_generation_prompt(allowed_labels, nonce=nonce, canary=canary)
@@ -508,6 +515,7 @@ def synthesize_answer(
             )
 
     try:
+        generation_started = time.perf_counter()
         with bulkhead("llm"):
             model = _build_generation_model(use_reasoning=use_reasoning, question=question)
             initial = _generate_initial_content(model, system_prompt, prompt, on_token)
@@ -520,6 +528,17 @@ def synthesize_answer(
                 "answer": synthesis_fallback("generation_failed", detected_language),
                 "detected_language": detected_language,
             }
+        # Before self-review and citation normalization see it: a model that
+        # echoed its chain-of-thought scaffold instead of just answering
+        # should not have that scaffold reviewed, checked for citations, or
+        # shown, as though it were the answer. `reasoning` is None unless the
+        # model actually used the <think> tag (only requested when
+        # `use_reasoning` -- see COT_VISIBLE_REASONING_PROMPT); the fallback
+        # heuristic inside `extract_reasoning_block` still catches an
+        # unprompted leak either way.
+        reasoning, initial = extract_reasoning_block(initial)
+        reasoning_duration_ms = int((time.perf_counter() - generation_started) * 1000) if reasoning else None
+        initial = strip_conversation_meta_preamble(initial)
         final_answer = initial
         if _self_review_enabled(enable_self_review):
             final_answer = _refine_answer(
@@ -552,6 +571,8 @@ def synthesize_answer(
         result_dict = {
             "answer": final_answer,
             "detected_language": detected_language,
+            "reasoning": reasoning,
+            "reasoning_duration_ms": reasoning_duration_ms,
         }
 
         # Include verification result if available

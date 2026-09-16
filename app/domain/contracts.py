@@ -264,6 +264,12 @@ class FinalAnswer(ImmutableContract):
     quality_report: OrchestratedQualityReport | None = None
     quality_card: Any = None  # AnswerQualityCard from user_experience module
     execution_metadata: Mapping[str, Any] = Field(default_factory=dict)
+    # DLP-redacted by the time this reaches a caller (see CandidateAnswer.reasoning
+    # for where it originates and app/orchestration/langgraph/nodes.py::output_filter
+    # for the mandatory redaction pass). None whenever the caller did not opt in to
+    # visible reasoning, or the model did not produce a <think> block.
+    reasoning: str | None = None
+    reasoning_duration_ms: int | None = None
 
     @property
     def text(self) -> str:

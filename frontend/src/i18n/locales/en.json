@@ -441,6 +441,15 @@
         "complete": "Complete",
         "failed": "Failed"
       },
+      "phase": {
+        "getting_started": "Getting started",
+        "routing": "Figuring out how to answer",
+        "retrieving": "Retrieving evidence",
+        "writing": "Writing the answer",
+        "verifying": "Checking the answer",
+        "finalizing": "Wrapping up",
+        "almost_done": "Almost done"
+      },
       "views": {
         "structured": "Structured View",
         "raw": "Raw Log"
@@ -1091,7 +1100,9 @@
         "skipped": "not run",
         "approval_required": "awaiting your confirmation"
       },
-      "thoughtFor": "Thought for {{seconds}}s"
+      "thoughtFor": "Thought for {{seconds}}s",
+      "thoughtComplete": "Reasoning",
+      "thinkingInProgress": "Thinking..."
     },
     "apiSettings": {
       "connectionSuccess": "Connection succeeded ({{latency}}ms){{preview}}",
@@ -1175,6 +1186,10 @@
       "webSearchDisabled": "Enable web search",
       "webSearchEnabled": "Web search enabled",
       "webSearchToggle": "Toggle web search",
+      "deepReasoning": "Deep Reasoning",
+      "deepReasoningDisabled": "Show the model's reasoning before its answer",
+      "deepReasoningEnabled": "Showing reasoning before the answer",
+      "deepReasoningToggle": "Toggle deep reasoning",
       "analyzing": "Analyzing...",
       "startAnalysis": "Start analysis",
       "modeHint": {

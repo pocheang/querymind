@@ -71,6 +71,16 @@ class AdvancedRAGRequest(BaseModel):
         default=False,
         description="Enable Self-RAG evaluation",
     )
+    use_reasoning: bool = Field(
+        default=False,
+        description=(
+            "Use the reasoning model for this answer, and ask it to show its work: the model "
+            "writes its reasoning first, wrapped so it can be streamed and displayed separately "
+            "from the answer, then writes the answer itself. Off by default -- writing out the "
+            "full reasoning before answering costs meaningfully more time and tokens than the "
+            "default, silent-reasoning prompt."
+        ),
+    )
     approval_token: str | None = Field(
         default=None,
         min_length=24,
@@ -103,6 +113,22 @@ class AdvancedRAGRequest(BaseModel):
             "server's own budget and never extends it, so a value above STAGE_TIMEOUT_TOTAL_MS "
             "has no effect. Relative rather than absolute on purpose: a client's clock does not "
             "have to agree with the server's. Scope resolution and output redaction still run."
+        ),
+    )
+    execution_id: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        description=(
+            "Client-chosen id (a UUID) for this run's execution trace. This endpoint answers only "
+            "once the whole run has finished, so a caller that generates this id itself (and does "
+            "not wait for the response) can open "
+            "GET /api/v1/orchestration/executions/{execution_id}/events before or as it sends this "
+            "request, rather than after -- which is otherwise the only point at which the id becomes "
+            "known. Constrained to UUID shape rather than the trace endpoint's wider id charset: "
+            "trace ownership is enforced by the caller's identity, not by the id being unguessable, "
+            "but a short client-chosen id would still let one caller collide with another's in-flight "
+            "trace by chance. Omit it to have the server generate one, which means the trace can only "
+            "ever be inspected after the fact."
         ),
     )
 
@@ -194,6 +220,8 @@ def _response_metadata(
     tool_runs: list[dict[str, Any]],
     execution_id: str,
     session_id: str | None,
+    reasoning: str | None = None,
+    reasoning_duration_ms: int | None = None,
 ) -> dict[str, Any]:
     """Assemble the client-facing metadata block.
 
@@ -214,6 +242,11 @@ def _response_metadata(
         **summary,
         "execution_id": execution_id,
         "session_id": session_id,
+        # None unless the caller opted in with `use_reasoning`. Already
+        # DLP-redacted by output_filter, same as `answer` itself -- see
+        # FinalAnswer.reasoning.
+        "reasoning": reasoning,
+        "reasoning_duration_ms": reasoning_duration_ms,
     }
 
 
@@ -312,6 +345,31 @@ async def _sub_query_results(
     return results
 
 
+async def _run_self_rag_evaluation_impl(
+    *,
+    query: str,
+    pipeline_result: PipelineResult,
+    plan_data: dict[str, Any] | None,
+) -> tuple[AnswerQuality | None, list[SubQueryResult]]:
+    from app.services.models.runtime import get_reasoning_model
+    from app.services.retrieval.self_rag_evaluator import SelfRAGEvaluator
+
+    docs = _context_docs(pipeline_result.contexts)
+    llm_client = get_reasoning_model(temperature=0.0)
+    evaluator = SelfRAGEvaluator(llm_client)
+
+    relevance_scores = await evaluator.evaluate_retrieval_relevance(query, docs)
+    answer_quality = await evaluator.evaluate_answer_quality(query, pipeline_result.answer, docs)
+
+    # Capped at the same width the decomposer itself enforces
+    # (DEFAULT_MAX_SUB_QUERIES): this loop makes one sequential LLM call per
+    # task, and an uncapped plan would make the evaluation's cost scale with
+    # however many sub-tasks the planner happened to produce.
+    tasks = ((plan_data or {}).get("tasks") or [])[:DEFAULT_MAX_SUB_QUERIES]
+    sub_query_results = await _sub_query_results(tasks, docs, llm_client, relevance_scores) if len(tasks) > 1 else []
+    return answer_quality, sub_query_results
+
+
 async def _run_self_rag_evaluation(
     *,
     query: str,
@@ -320,25 +378,23 @@ async def _run_self_rag_evaluation(
 ) -> tuple[AnswerQuality | None, list[SubQueryResult]]:
     """Evaluate retrieval relevance and answer quality with the real SelfRAGEvaluator.
 
-    Degrades to (None, []) on any failure so an evaluation problem never breaks the
-    primary answer already produced by the pipeline.
+    Degrades to (None, []) on any failure, and on taking too long, so an
+    evaluation problem never breaks or stalls the primary answer already
+    produced by the pipeline. This runs after ``RAGPipeline.execute`` returns,
+    entirely outside its ``ExecutionBudget`` -- two fixed calls plus one per
+    sub-task, none of them counted against the caller's deadline -- so without
+    its own ceiling here a slow model or a wide plan could make the whole
+    response take arbitrarily longer than what the client declared.
     """
+    settings = get_settings()
     try:
-        from app.services.models.runtime import get_reasoning_model
-        from app.services.retrieval.self_rag_evaluator import SelfRAGEvaluator
-
-        docs = _context_docs(pipeline_result.contexts)
-        llm_client = get_reasoning_model(temperature=0.0)
-        evaluator = SelfRAGEvaluator(llm_client)
-
-        relevance_scores = await evaluator.evaluate_retrieval_relevance(query, docs)
-        answer_quality = await evaluator.evaluate_answer_quality(query, pipeline_result.answer, docs)
-
-        tasks = (plan_data or {}).get("tasks") or []
-        sub_query_results = (
-            await _sub_query_results(tasks, docs, llm_client, relevance_scores) if len(tasks) > 1 else []
+        return await asyncio.wait_for(
+            _run_self_rag_evaluation_impl(query=query, pipeline_result=pipeline_result, plan_data=plan_data),
+            timeout=max(1.0, settings.stage_timeout_synthesis_ms / 1000.0),
         )
-        return answer_quality, sub_query_results
+    except TimeoutError:
+        logger.warning("Self-RAG evaluation timed out; returning primary answer without quality data")
+        return None, []
     except Exception:
         logger.exception("Self-RAG evaluation failed; returning primary answer without quality data")
         return None, []
@@ -386,6 +442,7 @@ async def _run_advanced_query(
         source_scope=SourceScope(allowed_sources=frozenset(allowed_sources)),
         enable_decomposition=request_data.enable_decomposition,
         enable_self_rag=request_data.enable_self_rag,
+        use_reasoning=request_data.use_reasoning,
         approval_token=request_data.approval_token,
         use_web_fallback=request_data.use_web_fallback,
         deadline_at=_deadline_from(request_data.timeout_ms),
@@ -424,6 +481,8 @@ async def _run_advanced_query(
         tool_runs=[run.model_dump(mode="json") for run in pipeline_result.tool_runs],
         execution_id=execution_id,
         session_id=session_id,
+        reasoning=pipeline_result.reasoning,
+        reasoning_duration_ms=pipeline_result.reasoning_duration_ms,
     )
     await _persist_exchange(
         user=user,
@@ -500,8 +559,17 @@ async def _process_advanced_rag_query_impl(
     session_id = _require_valid_session_id(request_data.session_id) if request_data.session_id else None
 
     tracker = AgentExecutionTracker.get_instance()
+    # A client that generates its own id can open the SSE trace subscription
+    # before this request even reaches the server, rather than only after this
+    # endpoint returns -- see AdvancedRAGRequest.execution_id. Reused only if
+    # it does not already name a live trace: a client cannot claim (or
+    # collide into) an id someone else's in-flight request is using.
+    requested_execution_id = request_data.execution_id
+    if requested_execution_id is not None and tracker.get_execution_trace(requested_execution_id) is not None:
+        requested_execution_id = None
     execution_id = tracker.start_execution(
         request_data.query,
+        requested_execution_id,
         user_id=str(user.get("user_id", "") or "") or None,
         profile="advanced",
     )

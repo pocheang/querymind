@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDuration, groupExecutionEvents } from "./traceFormatter";
+import { formatDuration, formatElapsedClock, groupExecutionEvents } from "./traceFormatter";
 import type { ExecutionEvent } from "./types";
 
 describe("formatDuration", () => {
@@ -19,6 +19,23 @@ describe("formatDuration", () => {
     expect(formatDuration(3404)).toBe("3.40s");
     expect(formatDuration(15225)).toBe("15.2s");
     expect(formatDuration(40786)).toBe("40.8s");
+  });
+});
+
+describe("formatElapsedClock", () => {
+  it("formats zero and sub-minute elapsed time as m:ss", () => {
+    expect(formatElapsedClock(0)).toBe("0:00");
+    expect(formatElapsedClock(7_000)).toBe("0:07");
+    expect(formatElapsedClock(59_999)).toBe("0:59");
+  });
+
+  it("carries into minutes past 60 seconds, unlike formatDuration", () => {
+    expect(formatElapsedClock(67_000)).toBe("1:07");
+    expect(formatElapsedClock(605_000)).toBe("10:05");
+  });
+
+  it("clamps a negative value to 0:00 rather than going negative", () => {
+    expect(formatElapsedClock(-500)).toBe("0:00");
   });
 });
 

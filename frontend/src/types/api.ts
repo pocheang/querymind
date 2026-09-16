@@ -80,6 +80,9 @@ export type NormalizedQueryResult = {
   executionId?: string;
   qualityReport?: Record<string, unknown>;
   executionMetadata?: Record<string, unknown>;
+  /** None unless the request set `useReasoning`. Already DLP-redacted. */
+  reasoning?: string;
+  reasoningDurationMs?: number;
 };
 
 export type RetrievalSourceOutcome = {
@@ -103,6 +106,12 @@ export type SessionMessageMetadata = {
   contributing_sources?: string[];
   latency_ms?: number;
   thoughts?: string[];
+  /** The model's reasoning, only ever present when the request opted in
+   *  (`use_reasoning`). While `message_id === "local-assistant-stream"` this
+   *  is the live-growing draft; once persisted/reloaded it is the complete,
+   *  DLP-redacted text. See ThinkingPanel. */
+  reasoning?: string;
+  reasoning_duration_ms?: number;
   graph_entities?: string[];
   citations?: Citation[];
   /** What the governed tool loop actually did, so a multi-step run leaves a

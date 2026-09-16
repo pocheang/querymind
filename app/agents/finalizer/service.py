@@ -27,6 +27,13 @@ class FinalizationService:
     ) -> FinalAnswer:
         grounded, grounding = _ground(candidate.answer, evidence)
         safe, safety = _sanitize(grounded)
+        # Reasoning is unredacted the moment it leaves the model (see
+        # CandidateAnswer.reasoning) and reaches a reader through the live
+        # stream before this stage ever runs -- but the *persisted*/reloaded
+        # copy must not carry anything the answer itself would not be allowed
+        # to. No `_ground` here: reasoning carries no `[E{k}]` markers to
+        # hedge the same way the answer's sentences do.
+        safe_reasoning = _sanitize(candidate.reasoning)[0] if candidate.reasoning else None
         verified = candidate.validation.method.startswith("verifier")
         validation = candidate.validation if verified else await self._validation_status(request, safe, evidence)
         quality = _quality_report(validation, grounding, policy)
@@ -34,6 +41,7 @@ class FinalizationService:
         return candidate.model_copy(
             update={
                 "answer": safe,
+                "reasoning": safe_reasoning,
                 "citations": candidate.citations if verified else candidate.citations or evidence.citations,
                 "evidence": evidence,
                 "evidence_ids": candidate.evidence_ids if verified else candidate.evidence_ids or evidence.item_ids,

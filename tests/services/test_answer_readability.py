@@ -146,7 +146,7 @@ class TestGroundingLeavesStructureAlone:
         text = "- entirely unrelated assertion about Argentine monetary policy."
         grounded, _ = apply_sentence_grounding(text, self.EVIDENCE)
 
-        assert grounded.startswith("- 基于当前可用证据，")
+        assert grounded.startswith("- Based on the available evidence, ")
 
     def test_a_genuinely_unsupported_claim_is_still_hedged(self) -> None:
         """The fixes must not turn the check off -- that would trade a cosmetic
@@ -154,8 +154,24 @@ class TestGroundingLeavesStructureAlone:
         text = "Quantum tunnelling drives inflation in Argentina."
         grounded, report = apply_sentence_grounding(text, self.EVIDENCE)
 
-        assert grounded.startswith("基于当前可用证据，")
+        assert grounded.startswith("Based on the available evidence, ")
         assert report["rewritten_sentences"] == 1
+
+    def test_the_hedge_matches_the_answers_own_language_not_the_evidences(self) -> None:
+        """Observed live on a follow-up question (2026-09-15): an English answer
+        came back as "基于当前可用证据，The provided evidence does not contain
+        information about BM25's limitations." -- the hedge is spliced in after
+        generation, so it has to match what the model actually wrote, in either
+        direction, regardless of what language the evidence happens to be in."""
+        chinese_evidence = ["互惠排名融合是一种数学上合并排名的方法。"]
+
+        english_answer = "Quantum tunnelling drives inflation in Argentina."
+        grounded_en, _ = apply_sentence_grounding(english_answer, chinese_evidence)
+        assert grounded_en.startswith("Based on the available evidence, ")
+
+        chinese_answer = "量子隧穿效应导致了阿根廷的通货膨胀。"
+        grounded_zh, _ = apply_sentence_grounding(chinese_answer, self.EVIDENCE)
+        assert grounded_zh.startswith("基于当前可用证据，")
 
     def test_a_supported_claim_is_left_alone(self) -> None:
         text = "Reciprocal Rank Fusion merges rankings mathematically. [E1]"
@@ -163,6 +179,80 @@ class TestGroundingLeavesStructureAlone:
 
         assert grounded == text
         assert report["rewritten_sentences"] == 0
+
+    def test_a_sentence_that_already_declines_to_answer_is_not_hedged_twice(self) -> None:
+        """Observed live (2026-09-15): asked for facts the evidence did not
+        cover, the model wrote "Based on the provided information, I cannot
+        supply three unrelated random facts about deep sea creatures." --
+        already a refusal -- and it came back as "Based on the available
+        evidence, Based on the provided information, I cannot supply...".
+        None of the five original `_HEDGE_MARKERS` match ordinary English
+        "I cannot" / "unable to" / "does not contain" phrasing, so the
+        sentence scored as an unhedged claim and got a second, redundant
+        qualifier stacked in front of its own."""
+        text = (
+            "Based on the provided information, I cannot supply three unrelated random facts about deep sea creatures."
+        )
+        grounded, report = apply_sentence_grounding(text, self.EVIDENCE)
+
+        assert grounded == text
+        assert report["rewritten_sentences"] == 0
+
+    def test_other_common_self_disclaimer_shapes_are_recognised_too(self) -> None:
+        for text in (
+            "I could not find any evidence covering that topic.",
+            "The model was unable to determine an answer from the provided context.",
+            "The retrieved context does not contain information about BM25's limitations.",
+        ):
+            grounded, report = apply_sentence_grounding(text, self.EVIDENCE)
+            assert grounded == text, text
+            assert report["rewritten_sentences"] == 0, text
+
+    def test_a_chinese_sentence_that_declines_to_answer_is_not_hedged_twice(self) -> None:
+        """The same defect as the English case above, in the language this
+        application is mostly used in -- and it survived that fix because only
+        the English phrasings were added to `_HEDGE_MARKERS`.
+
+        Observed live (2026-09-16) on a web-search question the retrieval
+        stage could not answer. The model wrote a plain disclaimer and the
+        reader saw it hedged into self-contradiction:
+
+            基于当前可用证据，但需要说明的是，本轮回答基于上一轮查询的记忆
+            信息，当前未获取到新的联网数据。
+
+        "当前未获取到新的联网数据" is the sentence saying it HAS no evidence,
+        so prefixing it with "based on the available evidence" asserts the
+        opposite of what follows it.
+        """
+        text = "但需要说明的是，本轮回答基于上一轮查询的记忆信息，当前未获取到新的联网数据。"
+        grounded, report = apply_sentence_grounding(text, self.EVIDENCE)
+
+        assert grounded == text
+        assert report["rewritten_sentences"] == 0
+
+    def test_other_chinese_self_disclaimer_shapes_are_recognised_too(self) -> None:
+        for text in (
+            "当前检索结果中未包含该主题的相关内容。",
+            "现有证据无法支撑这一结论。",
+            "检索未能获取到与该问题相关的资料。",
+            "所提供的上下文没有提到该指标的具体数值。",
+        ):
+            grounded, report = apply_sentence_grounding(text, self.EVIDENCE)
+            assert grounded == text, text
+            assert report["rewritten_sentences"] == 0, text
+
+    def test_a_chinese_claim_that_merely_mentions_evidence_is_still_hedged(self) -> None:
+        """The guard above must key on the sentence disclaiming its own
+        support, not on it containing any of those characters. A sentence that
+        makes an unsupported assertion while happening to use the word 获取 or
+        包含 is still an unsupported assertion."""
+        for text in (
+            "该系统每秒可获取十万条阿根廷通胀数据。",
+            "这份文档包含了量子隧穿效应的完整推导。",
+        ):
+            grounded, report = apply_sentence_grounding(text, self.EVIDENCE)
+            assert grounded.startswith("基于当前可用证据，"), text
+            assert report["rewritten_sentences"] == 1, text
 
 
 class TestEveryRetrievedSourceIsUsed:

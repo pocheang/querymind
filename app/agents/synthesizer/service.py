@@ -9,6 +9,7 @@ from collections.abc import Callable, Mapping, Sequence
 from app.agents.shared.config import SKILL_DEFAULT
 from app.agents.synthesizer.citations import EVIDENCE_MARKER_RE, normalize_answer_citations
 from app.agents.synthesizer.generation import is_synthesis_fallback, synthesis_fallback
+from app.agents.synthesizer.thinking_stream import ReasoningStreamSplitter
 from app.core.config import Settings, get_settings
 from app.domain.contracts import EvidenceBundle, EvidenceItem, FinalAnswer, RouteDecision, TaskPlan, ToolResult
 from app.domain.knowledge import EvidenceRef
@@ -107,10 +108,14 @@ class SynthesizerAgentService:
         # user-facing text is fragile even when it happens to work.
         if is_synthesis_fallback(text):
             unresolved.append("generation_fallback")
+        reasoning = generated.get("reasoning") if isinstance(generated, Mapping) else None
+        reasoning_duration_ms = generated.get("reasoning_duration_ms") if isinstance(generated, Mapping) else None
         return CandidateAnswer(
             text=text,
             citations=references,
             unresolved_items=tuple(dict.fromkeys(unresolved)),
+            reasoning=str(reasoning) if reasoning else None,
+            reasoning_duration_ms=int(reasoning_duration_ms) if reasoning_duration_ms else None,
         )
 
     async def synthesize(
@@ -149,37 +154,70 @@ class SynthesizerAgentService:
             evidence_ids=cited_ids,
             unresolved_items=candidate.unresolved_items,
             execution_summary=f"evidence={len(evidence.items)} tool_results={len(tool_results)}",
+            reasoning=candidate.reasoning,
+            reasoning_duration_ms=candidate.reasoning_duration_ms,
         )
 
     def _generate_streaming(self, *args: object, **kwargs: object) -> object:
-        """Generate while publishing redacted fragments for the live view.
+        """Generate while publishing redacted fragments for the live view, on
+        two channels when the caller asked to see reasoning.
 
-        Every fragment passes through `StreamingRedactor`, which releases text
-        only once its redaction can no longer change -- streaming raw tokens
-        would put the user on the wrong side of `output_filter`, which is the one
-        stage with no degraded path precisely because skipping output DLP is a
-        hole rather than a degradation.
+        Every fragment passes through its channel's own `StreamingRedactor`,
+        which releases text only once its redaction can no longer change --
+        streaming raw tokens would put the user on the wrong side of
+        `output_filter`, which is the one stage with no degraded path precisely
+        because skipping output DLP is a hole rather than a degradation. Each
+        channel needs its own redactor instance: redaction boundaries are
+        computed from a channel's own accumulated text, and a shared instance
+        would compute them over the two interleaved -- wrong for both.
 
-        The fragments are a draft. Citation markers are internal (`[E1]`), so they
-        are stripped here; the numbered citations and the reference list are
-        decided in `output_filter` and arrive with the final answer.
+        The fragments are a draft. Citation markers are internal (`[E1]`), so
+        they are stripped from both channels here (the model's own reasoning
+        can reference them too, per the "Citation Planning" step of
+        `COT_VISIBLE_REASONING_PROMPT`); the numbered citations and the
+        reference list are decided in `output_filter` and arrive with the
+        final answer.
+
+        `ReasoningStreamSplitter` decides which channel a chunk belongs to;
+        this only touches the *streaming* publish path.  `_stream_content`'s
+        own accumulation into `parts` (used for the final non-streaming text)
+        is untouched, so `extract_reasoning_block` still does the
+        authoritative post-hoc split on the complete text, independently.
         """
 
-        from app.orchestration.answer_stream import get_default_answer_stream_store
+        from app.orchestration.answer_stream import get_default_answer_stream_store, get_default_thought_stream_store
 
         stream_id = current_answer_stream_id.get()
-        store = get_default_answer_stream_store()
-        redactor = StreamingRedactor()
+        answer_store = get_default_answer_stream_store()
+        thought_store = get_default_thought_stream_store()
+        answer_redactor = StreamingRedactor()
+        thought_redactor = StreamingRedactor()
+        splitter = ReasoningStreamSplitter()
 
-        def publish(text: str) -> None:
-            fragment = redactor.push(EVIDENCE_MARKER_RE.sub("", text))
+        def _publish_piece(channel: str, piece: str) -> None:
+            redactor = thought_redactor if channel == "thought" else answer_redactor
+            store = thought_store if channel == "thought" else answer_store
+            fragment = redactor.push(piece)
             if fragment and stream_id:
                 store.publish(stream_id, fragment)
 
+        def publish(text: str) -> None:
+            for channel, piece in splitter.feed(EVIDENCE_MARKER_RE.sub("", text)):
+                _publish_piece(channel, piece)
+
         result = self._generate(*args, on_token=publish, **kwargs)
-        remainder = redactor.finish()
-        if remainder and stream_id:
-            store.publish(stream_id, remainder)
+
+        # The splitter's own leftovers (a held-back `</think>` margin, or a
+        # short answer that never crossed the sniff threshold mid-stream).
+        for channel, piece in splitter.finish():
+            _publish_piece(channel, piece)
+
+        answer_remainder = answer_redactor.finish()
+        if answer_remainder and stream_id:
+            answer_store.publish(stream_id, answer_remainder)
+        thought_remainder = thought_redactor.finish()
+        if thought_remainder and stream_id:
+            thought_store.publish(stream_id, thought_remainder)
         return result
 
     @staticmethod

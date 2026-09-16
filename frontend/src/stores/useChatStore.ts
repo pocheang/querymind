@@ -24,6 +24,10 @@ export interface ChatState {
   agentClassHint: AgentClassHint;
   pdfTargetFile: string;
   useWebSearch: boolean;
+  /** Opt-in per question, same shape as `useWebSearch`: asks the model to
+   *  show its reasoning, streamed separately and rendered in ThinkingPanel.
+   *  Off by default -- costs meaningfully more time and tokens. */
+  showReasoning: boolean;
 
   // Document State
   documents: IndexedFileSummary[];
@@ -65,6 +69,7 @@ export interface ChatState {
   setAgentClassHint: (hint: Updater<AgentClassHint>) => void;
   setPdfTargetFile: (file: Updater<string>) => void;
   setUseWebSearch: (useWebSearch: Updater<boolean>) => void;
+  setShowReasoning: (showReasoning: Updater<boolean>) => void;
 
   setDocuments: (docs: Updater<IndexedFileSummary[]>) => void;
   setDocsLoading: (loading: Updater<boolean>) => void;
@@ -128,6 +133,7 @@ const INITIAL_STATE: ChatData = {
   agentClassHint: "",
   pdfTargetFile: "",
   useWebSearch: false,
+  showReasoning: false,
 
   // Document State
   documents: [],
@@ -173,6 +179,7 @@ export const useChatStore = create<ChatState>((set) => ({
   setAgentClassHint: (val) => set((s) => ({ agentClassHint: updateValue(val, s.agentClassHint) })),
   setPdfTargetFile: (val) => set((s) => ({ pdfTargetFile: updateValue(val, s.pdfTargetFile) })),
   setUseWebSearch: (val) => set((s) => ({ useWebSearch: updateValue(val, s.useWebSearch) })),
+  setShowReasoning: (val) => set((s) => ({ showReasoning: updateValue(val, s.showReasoning) })),
 
   setDocuments: (val) => set((s) => ({ documents: updateValue(val, s.documents) })),
   setDocsLoading: (val) => set((s) => ({ docsLoading: updateValue(val, s.docsLoading) })),

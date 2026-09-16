@@ -7,6 +7,7 @@ import { useSessionActions } from "./useSessionActions";
 import { useDocumentActions } from "./useDocumentActions";
 import { usePromptActions } from "./usePromptActions";
 import { useMessageOperations } from "./useMessageOperations";
+import { randomId } from "@/lib/randomId";
 
 type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 
@@ -86,7 +87,7 @@ export function useChatActions(params: UseChatActionsParams) {
   } = params;
 
   const notify = (text: string, kind: Toast["kind"] = "info", ttl = 2400) => {
-    const id = crypto.randomUUID();
+    const id = randomId();
     setToasts((prev) => [...prev, { id, text, kind }]);
     window.setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), ttl);
   };

@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { randomId } from "@/lib/randomId";
 
 /** Icon and tone per severity. Both are needed: colour alone does not carry
     meaning, and these sit on a warm ground where a tint is easy to miss. */
@@ -130,7 +131,7 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = useCallback((message: string, type: Toast["type"], duration?: number) => {
-    const id = `toast-${crypto.randomUUID()}`;
+    const id = `toast-${randomId()}`;
     const newToast: Toast = { id, message, type, duration };
 
     setToasts((prev) => [...prev, newToast]);

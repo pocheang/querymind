@@ -72,6 +72,10 @@ export type ChatMetadata = {
   web_used: boolean;
   latency_ms?: number;
   thoughts: string[];
+  /** The model's reasoning, only ever present when the request opted in
+   *  (`use_reasoning`). See SessionMessageMetadata.reasoning. */
+  reasoning?: string;
+  reasoning_duration_ms?: number;
   graph_entities: string[];
   graph_result?: GraphResult;
   citations: Citation[];

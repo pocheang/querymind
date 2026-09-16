@@ -26,10 +26,21 @@ export type AppShellProps = TopNavProps & {
  * the nav pills are `NavLink`s and browser history keeps working. The mapping
  * is one to one -- deck/`/app`, analytics, admin, architecture, landing.
  *
- * `overflow-hidden` on the frame with `min-h-0` on the content is what lets a
- * child scroll instead of the document. An unbounded box cannot scroll, which
- * is the box-model error that previously made the whole page scroll behind a
- * fixed sidebar.
+ * Clipping the frame, with `min-h-0` on the content, is what lets a child
+ * scroll instead of the document. An unbounded box cannot scroll, which is the
+ * box-model error that previously made the whole page scroll behind a fixed
+ * sidebar.
+ *
+ * `overflow-clip`, never `overflow-hidden`: `hidden` makes the frame a scroll
+ * CONTAINER that merely hides its scrollbar, so the browser can still scroll
+ * it -- on focus, on `scrollIntoView`, on scroll anchoring -- and with no
+ * scrollbar the reader has no way to scroll it back. Measured on the chat
+ * column: `scrollTop` sat at 344 with `scrollHeight` 2473 against a
+ * `clientHeight` of 862, which put the top of the conversation off-screen and
+ * left a 344px hole under the composer that nothing could recover. `clip`
+ * creates no scroll container at all, so the same assignment is a no-op
+ * (measured: 500 -> 500 under `hidden`, 999 -> 0 under `clip`), with layout
+ * byte-identical. See `frameClipping.test.ts`.
  */
 export function AppShell({ children, scroll = false, className, onNewSession, ...nav }: Readonly<AppShellProps>) {
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -50,9 +61,9 @@ export function AppShell({ children, scroll = false, className, onNewSession, ..
   });
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden text-ink">
+    <div className="flex h-screen flex-col overflow-clip text-ink">
       <TopNav {...nav} onOpenCommandPalette={openPalette} onOpenShortcuts={openShortcuts} />
-      <main className={cn("flex min-h-0 flex-1 flex-col", scroll ? "overflow-y-auto" : "overflow-hidden", className)}>
+      <main className={cn("flex min-h-0 flex-1 flex-col", scroll ? "overflow-y-auto" : "overflow-clip", className)}>
         {children}
       </main>
 

@@ -41,6 +41,19 @@ export function formatDuration(ms: number): string {
 }
 
 /**
+ * Format elapsed milliseconds as a running clock (0 -> "0:00", 67_000 ->
+ * "1:07"). For a live ticking timer, not a finished stage's duration --
+ * `formatDuration` is that one, and reads oddly once a wait passes 60s
+ * ("62.3s" where a clock face would carry into minutes).
+ */
+export function formatElapsedClock(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+/**
  * Parse metadata array into a key-value dictionary for easy lookups.
  */
 function metadataToDict(metadata?: readonly { key: string; value: string }[]): Record<string, string> {

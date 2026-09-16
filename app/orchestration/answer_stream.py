@@ -85,6 +85,14 @@ class AnswerStreamStore:
 
 
 _default_store = AnswerStreamStore()
+# A second, independent instance for the reasoning channel -- not a second
+# namespace inside the same store. `AnswerStreamStore` has no answer-specific
+# logic (it is already just "ordered fragments per execution id"), so reusing
+# the class verbatim, keyed by the same execution id, is safe; a shared
+# instance would require every offset (`since`, `is_complete`) to also carry a
+# channel, which is exactly the kind of two-purposes-in-one-key confusion this
+# avoids.
+_default_thought_store = AnswerStreamStore()
 
 
 def get_default_answer_stream_store() -> AnswerStreamStore:
@@ -92,8 +100,19 @@ def get_default_answer_stream_store() -> AnswerStreamStore:
     return _default_store
 
 
+def get_default_thought_stream_store() -> AnswerStreamStore:
+    """Return the process-wide store for the live reasoning channel.
+
+    Only ever written to when a request opted in to visible reasoning
+    (`use_reasoning=True`); otherwise nothing publishes to it and a poll of it
+    simply finds nothing, the same as it would for an execution with no draft.
+    """
+    return _default_thought_store
+
+
 __all__ = [
     "AnswerStreamStore",
     "current_answer_stream_id",
     "get_default_answer_stream_store",
+    "get_default_thought_stream_store",
 ]

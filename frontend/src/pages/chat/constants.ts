@@ -45,6 +45,18 @@ export const EMPTY_METADATA: ChatMetadata = {
   execution_steps: [],
 };
 
+/** The `runStatus` a live run holds while it is actually in flight.
+ *
+ * Written by `runQueryAndStream` and read by `ChatComposer`, which excludes
+ * exactly this one value from its own status line because
+ * `GenerationStatusLine` covers that state with a ticking clock and a phase
+ * phrase instead. Two string literals in two files agreeing by hand is how a
+ * later rename leaves the composer showing both, or neither, with nothing
+ * reporting it. Every other value ("Re-running", "Stopping...", "preparing")
+ * is transient and has no execution id behind it, so the composer keeps them.
+ */
+export const RUN_STATUS_PROCESSING = "Processing";
+
 export function isMobile() {
   return window.matchMedia("(max-width: 1080px)").matches;
 }

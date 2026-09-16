@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAnswerFragmentSse, parseExecutionEventSse } from "./sse";
+import { parseAnswerFragmentSse, parseExecutionEventSse, parseThoughtFragmentSse } from "./sse";
 import { initialExecutionTraceState, reduceExecutionTrace } from "./state";
 
 /**
@@ -39,6 +39,42 @@ describe("answer fragment frames", () => {
 
   it("keeps an empty fragment distinguishable from a missing one", () => {
     expect(parseAnswerFragmentSse(frame(""))).toBe("");
+  });
+});
+
+/**
+ * A third event name, only ever sent when the request opted in to visible
+ * reasoning (`use_reasoning`). Same wire shape and same reasons as
+ * `answer_fragment` above -- a distinct name so a client cannot mistake
+ * reasoning for the answer, or vice versa.
+ */
+describe("thought fragment frames", () => {
+  const frame = (text: string) => `event: thought_fragment\ndata: ${JSON.stringify({ text })}\n\n`;
+
+  it("parses a fragment", () => {
+    expect(parseThoughtFragmentSse(frame("Step 1: analyze"))).toBe("Step 1: analyze");
+  });
+
+  it("is not confused with an answer fragment or an execution event", () => {
+    const answerFrame = `event: answer_fragment\ndata: ${JSON.stringify({ text: "x" })}\n\n`;
+    const eventFrame = `event: execution_event\ndata: ${JSON.stringify({
+      version: "1",
+      stage: "synthesize",
+      status: "completed",
+      duration_ms: 1,
+      message: "",
+      metadata: [],
+      occurred_at: "2026-08-30T00:00:00Z",
+    })}\n\n`;
+
+    expect(parseThoughtFragmentSse(answerFrame)).toBeNull();
+    expect(parseThoughtFragmentSse(eventFrame)).toBeNull();
+    expect(parseAnswerFragmentSse(frame("x"))).toBeNull();
+  });
+
+  it("ignores a frame whose payload is not a fragment", () => {
+    expect(parseThoughtFragmentSse(`event: thought_fragment\ndata: {"nope":1}\n\n`)).toBeNull();
+    expect(parseThoughtFragmentSse(`event: thought_fragment\ndata: not json\n\n`)).toBeNull();
   });
 });
 

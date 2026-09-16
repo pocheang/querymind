@@ -51,3 +51,24 @@ describe("execution trace state", () => {
     expect(next).not.toHaveProperty("pendingApproval");
   });
 });
+
+describe("the reasoning draft", () => {
+  it("accumulates independently of the answer draft and events", () => {
+    let state = initialExecutionTraceState;
+    state = reduceExecutionTrace(state, { type: "thought_fragment", text: "Step 1: " });
+    state = reduceExecutionTrace(state, { type: "thought_fragment", text: "analyze the question." });
+    state = reduceExecutionTrace(state, { type: "answer_fragment", text: "The answer." });
+
+    expect(state.thinking).toBe("Step 1: analyze the question.");
+    expect(state.draft).toBe("The answer.");
+  });
+
+  it("clears on a new run so one run's reasoning never bleeds into the next", () => {
+    const withThinking = reduceExecutionTrace(initialExecutionTraceState, {
+      type: "thought_fragment",
+      text: "some reasoning",
+    });
+
+    expect(reduceExecutionTrace(withThinking, { type: "execution_started" }).thinking).toBe("");
+  });
+});

@@ -43,6 +43,17 @@ type AdvancedQueryInput = {
   /** Resume a run whose governed action was awaiting confirmation. The backend
    *  replays the approved call rather than re-selecting a tool. */
   approvalToken?: string;
+  /** This call answers only once the whole run has finished, so a caller that
+   *  wants to watch it live has to generate this id itself and open
+   *  GET /api/v1/orchestration/executions/{execution_id}/events before or as
+   *  it sends this request -- the response's own `executionId` becomes known
+   *  too late for that. Must be a UUID; see AdvancedRAGRequest.execution_id. */
+  executionId?: string;
+  /** Use the reasoning model, and ask it to show its work: the model writes
+   *  its reasoning first (streamed separately, see the `thought_fragment` SSE
+   *  event), then the answer. Off by default -- costs meaningfully more time
+   *  and tokens than the silent-reasoning prompt every other question uses. */
+  useReasoning?: boolean;
   signal?: AbortSignal;
 };
 
@@ -129,6 +140,8 @@ export const queryApi = {
           use_web_fallback: input.useWebFallback ?? false,
           timeout_ms: QUERY_DEADLINE_MS,
           ...(input.approvalToken ? { approval_token: input.approvalToken } : {}),
+          ...(input.executionId ? { execution_id: input.executionId } : {}),
+          ...(input.useReasoning ? { use_reasoning: input.useReasoning } : {}),
         }),
       },
       { timeoutMs: QUERY_ABORT_MS }
@@ -145,6 +158,10 @@ export const queryApi = {
       executionId: typeof metadata.execution_id === "string" ? metadata.execution_id : undefined,
       qualityReport: recordOrUndefined(payload.answer_quality),
       executionMetadata: metadata,
+      // None unless `useReasoning` was sent -- already DLP-redacted server-side.
+      reasoning: typeof metadata.reasoning === "string" ? metadata.reasoning : undefined,
+      reasoningDurationMs:
+        typeof metadata.reasoning_duration_ms === "number" ? metadata.reasoning_duration_ms : undefined,
     };
   },
 };

@@ -1,5 +1,7 @@
 import re
 
+from app.services.language.detector import detect_language
+
 # python:S6353 wants `\w` for `[A-Za-z0-9_]`; `\w` matches CJK too, which
 # would fold a whole run of Chinese characters into one token instead of one
 # per character -- this is the deterministic NLI fallback's own tokenizer,
@@ -30,6 +32,17 @@ _ABBREVIATIONS = {
     "pp.",
     "ed.",
 }
+# Observed live (2026-09-15): "Based on the provided information, I cannot
+# supply three unrelated random facts about deep sea creatures." scored below
+# threshold -- it shares almost no tokens with the evidence, being ABOUT the
+# model's own inability to answer rather than a claim from the evidence -- and
+# got hedged into "Based on the available evidence, Based on the provided
+# information, I cannot supply...". The sentence was already a hedge, just not
+# one spelled the five original ways. The three English additions below are
+# the common shapes a model writes its own "I don't have enough to answer"
+# in; still a fixed list, so a genuinely unsupported claim that happens to
+# contain one (as "likely" already risked) is the accepted trade, same as the
+# original five.
 _HEDGE_MARKERS = (
     "\u53ef\u80fd",
     "\u6216\u8bb8",
@@ -38,8 +51,38 @@ _HEDGE_MARKERS = (
     "\u76ee\u524d\u65e0\u6cd5\u786e\u8ba4",
     "insufficient evidence",
     "likely",
+    "i cannot",
+    "i could not",
+    "unable to",
+    "does not contain",
 )
-_LOW_SUPPORT_PREFIX = "\u57fa\u4e8e\u5f53\u524d\u53ef\u7528\u8bc1\u636e\uff0c"
+
+# The same defect as the English additions above, in the language this
+# application is mostly used in -- and it survived that fix, because only the
+# English phrasings were added. Observed live (2026-09-16) as
+# "基于当前可用证据，但需要说明的是，……当前未获取到新的联网数据。": the clause
+# saying it HAS no evidence, prefixed with a claim that it does.
+#
+# A pattern rather than more fixed strings, because Chinese writes this with a
+# negation and an evidence verb in many combinations ("未获取到" / "未能获取" /
+# "无法支撑" / "没有提到"), and enumerating them is how the English list came to
+# be missing three shapes. Requiring the negation is what keeps an ordinary
+# assertion that merely uses one of these verbs ("该文档包含完整推导") a claim.
+# Both quantifiers are bounded, so the scan stays linear.
+_SELF_DISCLAIMER_ZH_RE = re.compile(
+    r"(?:未|无法|没有|未能)[^，。；！？\n]{0,4}(?:获取|包含|提及|提到|找到|涵盖|检索到|查到|支撑)"
+)
+# Two prefixes, not one: `apply_sentence_grounding` used to splice this
+# Chinese qualifier in front of a low-support sentence regardless of what
+# language the sentence was actually written in -- observed live on an
+# English answer as "\u57fa\u4e8e\u5f53\u524d\u53ef\u7528\u8bc1\u636e\uff0cThe provided evidence does not contain
+# information about BM25's limitations.". `\u4e25\u7981\u5728\u56de\u7b54\u4e2d\u6df7\u5408\u4f7f\u7528\u4e2d\u82f1\u6587`
+# (ANSWER_PROMPT) is the rule this violated; the hedge is inserted after
+# generation, so the prompt has no say in it -- it has to match the answer's
+# own language instead.
+_LOW_SUPPORT_PREFIX_ZH = "\u57fa\u4e8e\u5f53\u524d\u53ef\u7528\u8bc1\u636e\uff0c"
+_LOW_SUPPORT_PREFIX_EN = "Based on the available evidence, "
+_LOW_SUPPORT_PREFIXES = (_LOW_SUPPORT_PREFIX_ZH, _LOW_SUPPORT_PREFIX_EN)
 
 
 _URL_RE = re.compile(r"(?:https?://|www\.)\S+")
@@ -150,8 +193,11 @@ def _support_score(sentence: str, evidence_tokens: set[str]) -> float:
 
 
 def _has_hedge(text: str) -> bool:
-    lower = str(text or "").lower()
-    return any(marker.lower() in lower for marker in _HEDGE_MARKERS)
+    raw = str(text or "")
+    lower = raw.lower()
+    if any(marker.lower() in lower for marker in _HEDGE_MARKERS):
+        return True
+    return _SELF_DISCLAIMER_ZH_RE.search(raw) is not None
 
 
 _HEADING_MAX_CHARS = 20
@@ -196,7 +242,7 @@ def _makes_a_claim(sentence: str) -> bool:
 _LEAD_IN_RE = re.compile(r"^(?:\s|[-*+>#]|\d+[.)]|\[[^\]]*\])+")
 
 
-def _rewrite_low_support_sentence(sentence: str) -> str:
+def _rewrite_low_support_sentence(sentence: str, prefix: str) -> str:
     """Hedge the claim, not whatever happens to precede it.
 
     A fragment can open with a citation marker carried over from the previous
@@ -204,18 +250,27 @@ def _rewrite_low_support_sentence(sentence: str) -> str:
     the qualifier in front of those -- "基于当前可用证据，[E1]" reads as doubt about
     the citation, and "基于当前可用证据，- item" is not a sentence at all.
     """
-    if sentence.startswith(_LOW_SUPPORT_PREFIX) or _has_hedge(sentence):
+    if sentence.startswith(_LOW_SUPPORT_PREFIXES) or _has_hedge(sentence):
         return sentence
     lead = _LEAD_IN_RE.match(sentence)
     cut = lead.end() if lead else 0
-    return f"{sentence[:cut]}{_LOW_SUPPORT_PREFIX}{sentence[cut:]}"
+    return f"{sentence[:cut]}{prefix}{sentence[cut:]}"
 
 
 def apply_sentence_grounding(
     answer: str,
     evidence_texts: list[str],
     threshold: float = 0.22,
+    language: str | None = None,
 ) -> tuple[str, dict]:
+    """Hedge low-support sentences, in the answer's own language.
+
+    ``language`` lets a caller that already knows it (e.g. the language a
+    generation prompt forced) skip re-detecting; left unset, it is detected
+    from ``answer`` itself, which is the more robust default -- a hedge has
+    to match the text it is spliced into, not what the caller intended to
+    write.
+    """
     spans = _sentence_spans(answer)
     evid_tokens = _tokenize("\n".join([x for x in evidence_texts if x]))
 
@@ -223,6 +278,8 @@ def apply_sentence_grounding(
         return answer, {"enabled": False, "reason": "no_sentences", "total_sentences": 0}
     if not evid_tokens:
         return answer, {"enabled": False, "reason": "no_evidence", "total_sentences": len(spans)}
+
+    prefix = _LOW_SUPPORT_PREFIX_EN if (language or detect_language(answer)) == "en" else _LOW_SUPPORT_PREFIX_ZH
 
     supported = 0
     rewritten = 0
@@ -241,7 +298,7 @@ def apply_sentence_grounding(
 
         rewritten += 1
         low_support_examples.append(sent[:120])
-        edits.append((start, end, _rewrite_low_support_sentence(sent)))
+        edits.append((start, end, _rewrite_low_support_sentence(sent, prefix)))
 
     # Rebuild by splicing, so untouched text keeps the exact whitespace it had.
     grounded_answer = answer

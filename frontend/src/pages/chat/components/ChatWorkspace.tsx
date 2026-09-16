@@ -20,6 +20,7 @@ interface ChatWorkspaceProps {
   onApproved: (token: string) => Promise<void>;
   onDismissApproval: () => void;
   onDraft: (text: string) => void;
+  onThinking: (text: string) => void;
   clarification: ClarificationResponse | null;
   onAnswerClarification: (fieldName: string, answer: string) => Promise<void>;
   onSkipClarification: () => Promise<void>;
@@ -52,6 +53,7 @@ export function ChatWorkspace({
   onApproved,
   onDismissApproval,
   onDraft,
+  onThinking,
   clarification,
   onAnswerClarification,
   onSkipClarification,
@@ -69,7 +71,7 @@ export function ChatWorkspace({
   onChatUploadChange,
 }: Readonly<ChatWorkspaceProps>) {
   return (
-    <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+    <main className="relative flex min-h-0 flex-1 flex-col overflow-clip">
       <ChatMessages
         messages={messages}
         containerRef={chatScrollRef}
@@ -84,10 +86,12 @@ export function ChatWorkspace({
       {!sectionsHidden && (
         <ChatRuntimePanels
           executionId={executionId}
+          isSending={isSending}
           pendingApproval={pendingApproval}
           onApproved={onApproved}
           onDismissApproval={onDismissApproval}
           onDraft={onDraft}
+          onThinking={onThinking}
         />
       )}
 

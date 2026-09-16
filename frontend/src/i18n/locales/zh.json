@@ -441,6 +441,15 @@
         "complete": "执行完成",
         "failed": "执行失败"
       },
+      "phase": {
+        "getting_started": "正在准备",
+        "routing": "正在判断问题类型",
+        "retrieving": "正在检索证据",
+        "writing": "正在生成答案",
+        "verifying": "正在核实答案",
+        "finalizing": "即将完成",
+        "almost_done": "马上就好"
+      },
       "views": {
         "structured": "结构化视图",
         "raw": "原始日志"
@@ -1091,7 +1100,9 @@
         "skipped": "未执行",
         "approval_required": "等待你确认"
       },
-      "thoughtFor": "思考了 {{seconds}} 秒"
+      "thoughtFor": "思考了 {{seconds}} 秒",
+      "thoughtComplete": "思考过程",
+      "thinkingInProgress": "思考中..."
     },
     "apiSettings": {
       "connectionSuccess": "连接成功（{{latency}}ms）{{preview}}",
@@ -1175,6 +1186,10 @@
       "webSearchDisabled": "开启联网检索",
       "webSearchEnabled": "联网检索已开启",
       "webSearchToggle": "切换联网检索",
+      "deepReasoning": "深度思考",
+      "deepReasoningDisabled": "在回答前展示模型的思考过程",
+      "deepReasoningEnabled": "已开启思考过程展示",
+      "deepReasoningToggle": "切换深度思考",
       "analyzing": "分析中...",
       "startAnalysis": "开始分析",
       "modeHint": {

@@ -447,6 +447,14 @@ class WorkflowNodeRuntime:
             cited_ids = frozenset(answer.evidence_ids)
             cited_items = tuple(item for item in evidence.items if item.item_id in cited_ids)
             dlp = self._services.privacy.filter_output(answer.answer, cited_items, scope)
+            # The reasoning panel is a second piece of model output reaching the
+            # reader, so it gets the same mandatory redaction pass the answer
+            # does -- not the lighter answer_safety-only one FinalizationService
+            # already ran. Empty citations tuple: reasoning carries no [E{k}]
+            # markers to mask, only text to redact.
+            reasoning_dlp = (
+                self._services.privacy.filter_output(answer.reasoning, (), scope) if answer.reasoning else None
+            )
             # Number the markers only here, after DLP: this is the first point
             # that knows which citations actually survive into the response, so a
             # dropped one takes its marker with it instead of leaving a [n] that
@@ -494,6 +502,7 @@ class WorkflowNodeRuntime:
             return answer.model_copy(
                 update={
                     "answer": final_text,
+                    "reasoning": reasoning_dlp.answer if reasoning_dlp else None,
                     "citations": labels,
                     "evidence": safe_evidence,
                     "cited_evidence": references,
@@ -502,7 +511,7 @@ class WorkflowNodeRuntime:
                     "safety": {
                         **dict(answer.safety),
                         "output_dlp": {
-                            "redactions": dlp.redaction_count,
+                            "redactions": dlp.redaction_count + (reasoning_dlp.redaction_count if reasoning_dlp else 0),
                             "dropped_citations": len(dlp.dropped_citation_ids),
                         },
                     },

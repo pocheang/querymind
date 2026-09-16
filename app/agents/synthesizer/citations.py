@@ -164,6 +164,162 @@ def strip_model_reference_list(text: str) -> str:
     return _MODEL_REFERENCE_BLOCK_RE.sub("", str(text or "")).rstrip()
 
 
+# The two step names most likely to survive verbatim if a model echoes
+# `COT_REASONING_PROMPT` (app/agents/synthesizer/templates.py) back into its
+# reply: they are copied from the prompt's own numbered list, where a
+# self-chosen heading like "Chain-of-Thought Analysis" is the model's own
+# wording and cannot be relied on to match.
+_COT_SIGNAL_PHRASES = ("Query Analysis", "Answer Structure")
+_COT_ANSWER_MARKERS = ("answer", "答案")
+
+
+def strip_chain_of_thought_preamble(text: str) -> str:
+    """Remove a chain-of-thought scaffold the MODEL wrote ahead of its answer.
+
+    `COT_REASONING_PROMPT` asks the model to "think through" four numbered
+    steps -- Query Analysis, Context Assessment, Citation Planning, Answer
+    Structure -- before answering, the way a real reasoning model keeps its
+    scratch work internal. Nothing in that prompt said the scratch work must
+    stay out of the reply, and a model that takes "think through" at face
+    value writes the whole thing out -- self-labelled "Chain-of-Thought
+    Analysis" in one observed answer -- with the real answer starting only
+    after a line that is just "Answer:". A reader then sees the machinery
+    that produced the answer instead of the answer, which is the same
+    failure this file already strips a model's own reference section for.
+
+    Conservative like `strip_model_reference_list` beside it: this only acts
+    once it has seen two of the prompt's own step names, and only cuts at an
+    explicit "Answer:" line of its own. A response that never reaches one is
+    left exactly as the model wrote it -- guessing a cut point would risk
+    taking the only content the model produced.
+    """
+
+    raw = str(text or "")
+    head = raw[:4000]
+    if not all(phrase in head for phrase in _COT_SIGNAL_PHRASES):
+        return raw
+
+    lines = raw.split("\n")
+    for index, line in enumerate(lines):
+        marker = line.strip().strip("*").strip().rstrip(":：").strip().lower()
+        if marker in _COT_ANSWER_MARKERS:
+            return "\n".join(lines[index + 1 :]).lstrip()
+    return raw
+
+
+# `ANSWER_PROMPT` used to embed its own Chinese four-step "think before
+# answering" block, a near-exact duplicate of `COT_REASONING_PROMPT`
+# (app/agents/synthesizer/templates.py) sent alongside it in the same
+# request -- one step of it, "what does the user really want to know", is
+# answering exactly the question this catches a model narrating out loud.
+# The duplicate is gone and both prompts now say the analysis must stay
+# internal, but this stays as the safety net for whichever prompt a model
+# still answers out of: a real, observed multi-turn follow-up (2026-09-15)
+# opened its reply with
+#
+#     Based on the conversation history, the user is asking about the
+#     limitations of BM25 in information retrieval.
+#
+#     Main Limitations of BM25:
+#     ...
+#
+# -- a sentence about the model's own reading of the exchange, not part of
+# the answer, and it survived because it names no fixed second marker like
+# COT_REASONING_PROMPT's "Answer:" line to cut at. Unlike that stripper,
+# this one only ever inspects the FIRST sentence and only removes exactly
+# that sentence -- guessing a paragraph boundary risks taking real answer
+# text that happens to follow without a blank line in between.
+_CONVERSATION_META_HISTORY_TERMS = (
+    "conversation history",
+    "chat history",
+    "previous conversation",
+    "prior conversation",
+    "对话历史",
+    "历史对话",
+    "之前的对话",
+    "聊天记录",
+)
+_CONVERSATION_META_ASKING_TERMS = (
+    "the user is asking",
+    "user is asking",
+    "user's question",
+    "用户在问",
+    "用户想问",
+    "用户问的是",
+    "用户的问题是",
+    "用户询问",
+)
+# Chinese sentence-final punctuation needs no trailing space to end a
+# sentence; ASCII punctuation does, so a decimal or an abbreviation inside
+# the leaked sentence itself cannot end the match early.
+_FIRST_SENTENCE_END_RE = re.compile(r"[。！？]|[.!?](?=\s|$)")
+
+
+def strip_conversation_meta_preamble(text: str) -> str:
+    """Remove a leading sentence where the MODEL narrates its own reading of
+    the conversation, instead of just answering. See the module comment
+    above for the observed case this pins.
+
+    Conservative like `strip_chain_of_thought_preamble` beside it: only the
+    text up to the first sentence terminator is inspected, and it is removed
+    only once it mentions both the conversation/history AND a restatement of
+    what the user is asking -- a real answer that happens to mention "the
+    conversation" in passing, with no second signal, is left untouched.
+    """
+
+    raw = str(text or "")
+    head = raw[:400]
+    match = _FIRST_SENTENCE_END_RE.search(head)
+    if not match:
+        return raw
+
+    first_sentence = head[: match.end()].lower()
+    has_history = any(term in first_sentence for term in _CONVERSATION_META_HISTORY_TERMS)
+    has_asking = any(term in first_sentence for term in _CONVERSATION_META_ASKING_TERMS)
+    if not (has_history and has_asking):
+        return raw
+    return raw[match.end() :].lstrip()
+
+
+# Anchored to the start and case-insensitive; non-greedy so a stray literal
+# "</think>" inside the answer itself (a model discussing the tag) cannot
+# extend the match past the first real close. `re.DOTALL` because reasoning
+# is prose spanning many lines.
+_THINK_BLOCK_RE = re.compile(r"^\s*<think>(.*?)</think>", re.IGNORECASE | re.DOTALL)
+
+
+def extract_reasoning_block(text: str) -> tuple[str | None, str]:
+    """Split a model's VISIBLE reasoning from its answer.
+
+    `COT_VISIBLE_REASONING_PROMPT` (app/agents/synthesizer/templates.py) asks
+    for reasoning wrapped in a leading ``<think>...</think>`` block, and only
+    when the caller opted in (``use_reasoning=True``). When the model
+    complied, the tag is the authoritative boundary -- far more reliable than
+    guessing from prose shape, which is what `strip_chain_of_thought_preamble`
+    has to do for the *silent* variant of the prompt, where there is no tag to
+    look for.
+
+    Anchored to the start of the text on purpose: a ``<think>`` appearing
+    mid-answer is not this system's own scaffold and is left alone as the
+    model's own prose, not a leak to extract.
+
+    Falls back to `strip_chain_of_thought_preamble`'s heuristic when no tag is
+    found -- covers both the ``use_reasoning=False`` case (no tag was ever
+    requested) and a ``<think>`` that never closes (truncated generation): a
+    model that leaks its reasoning as prose is still caught, just with no
+    ``reasoning`` text recovered, since scaffolding with no reliable closing
+    marker has no safe inner boundary to extract from.
+    """
+
+    raw = str(text or "")
+    match = _THINK_BLOCK_RE.match(raw)
+    if not match:
+        return None, strip_chain_of_thought_preamble(raw)
+    reasoning = match.group(1).strip()
+    remainder = raw[match.end() :].lstrip()
+    return (reasoning or None), remainder
+
+
 def render_reference_list(references: Sequence[EvidenceItem], language: str = "zh") -> str:
     """Render the numbered source list appended after a finished answer.
 
@@ -200,6 +356,9 @@ __all__ = [
     "normalize_answer_citations",
     "number_evidence_markers",
     "reference_label",
+    "extract_reasoning_block",
     "render_reference_list",
+    "strip_chain_of_thought_preamble",
+    "strip_conversation_meta_preamble",
     "strip_model_reference_list",
 ]

@@ -73,6 +73,13 @@ class CandidateAnswer(ImmutableWorkflowContract):
     text: str
     citations: tuple[EvidenceRef, ...] = Field(default_factory=tuple)
     unresolved_items: tuple[str, ...] = Field(default_factory=tuple)
+    # The model's own <think> block, only ever present when the caller opted
+    # in (`use_reasoning=True`) -- see extract_reasoning_block
+    # (app/agents/synthesizer/citations.py). Unredacted at this point:
+    # FinalizationService.finalize and the output_filter node are what apply
+    # DLP to it, the same boundary `.text` already goes through.
+    reasoning: str | None = None
+    reasoning_duration_ms: int | None = None
 
 
 class WorkflowError(ImmutableWorkflowContract):

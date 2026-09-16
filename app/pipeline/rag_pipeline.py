@@ -235,6 +235,8 @@ class RAGPipeline:
                 for result in answer.tool_results
             ),
             answer=answer.answer,
+            reasoning=answer.reasoning,
+            reasoning_duration_ms=answer.reasoning_duration_ms,
             citations=citations,
             route=PipelineRoute(
                 route=answer.route.route or answer.route.intent,

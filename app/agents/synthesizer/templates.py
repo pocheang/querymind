@@ -24,6 +24,7 @@ __all__ = [
     "get_answer_template",
     "infer_query_type",
     "COT_REASONING_PROMPT",
+    "COT_VISIBLE_REASONING_PROMPT",
     "get_cot_reasoning_prompt",
     "HEDGING_GUIDELINES",
     "get_hedging_guidelines",
@@ -253,7 +254,7 @@ def infer_query_type(question: str) -> QueryType:
 # ============================================================================
 
 COT_REASONING_PROMPT = """
-Before generating the answer, think through:
+Before writing your reply, think through the following privately:
 
 1. Query Analysis:
    - What is the user really asking?
@@ -275,18 +276,76 @@ Before generating the answer, think through:
    - Where do citations fit naturally?
    - What hedging language is needed for uncertain areas?
 
-Then generate the answer following the template for the query type.
+None of this analysis belongs in your reply. Respond with only the final
+answer, following the template for the query type -- no headings, no
+restating these steps, and no mention of "chain of thought" or "analysis".
+If you find yourself writing the steps above out anyway, put a line
+containing only "Answer:" immediately before the real answer, so a reader
+can tell the two apart.
+"""
+
+# The visible-reasoning sibling of `COT_REASONING_PROMPT` above: same four
+# steps, opposite closing instruction. Selected only when the caller asked to
+# see the reasoning (`use_reasoning=True` on the request, not the default) --
+# `COT_REASONING_PROMPT` stays the default for everyone else, unchanged.
+#
+# The tag is the whole mechanism `extract_reasoning_block`
+# (app/agents/synthesizer/citations.py) and the live stream splitter
+# (app/agents/synthesizer/thinking_stream.py) rely on to find the boundary:
+# both need a marker that cannot appear by accident, which is why the model is
+# told to use it exactly once and never inside the answer itself.
+COT_VISIBLE_REASONING_PROMPT = """
+Before writing your reply, think through the following. Unlike a private
+scratchpad, this reasoning IS meant to be shown to the reader -- write it out
+in full between <think> and </think> tags, then write the final answer
+immediately after the closing tag.
+
+1. Query Analysis:
+   - What is the user really asking?
+   - What type of query is this (concept/comparison/relationship/procedural)?
+   - What would be a complete answer?
+
+2. Context Assessment:
+   - What factual claims can I make from the provided context?
+   - What citations support each claim?
+   - What information is missing?
+
+3. Citation Planning:
+   - Which evidence marker ([E1], [E2], ...) supports each factual statement?
+   - Are there unsupported claims I should remove or hedge?
+   - Do I need to acknowledge information gaps?
+
+4. Answer Structure:
+   - How should I organize the answer (definition, comparison, steps, etc.)?
+   - Where do citations fit naturally?
+   - What hedging language is needed for uncertain areas?
+
+Required shape, exactly:
+<think>
+(your reasoning through the four steps above, as prose)
+</think>
+(the final answer, following the template for the query type -- no headings
+repeating the steps above, no mention of "chain of thought", and no second
+<think> block)
+
+The opening <think> must be the very first thing you write, and the tag must
+appear nowhere else in your reply -- not around the answer, not inside it.
 """
 
 
-def get_cot_reasoning_prompt() -> str:
+def get_cot_reasoning_prompt(visible: bool = False) -> str:
     """
     Get chain-of-thought reasoning prompt for synthesis.
+
+    Args:
+        visible: Use the `<think>`-tagged variant that asks the model to show
+            its reasoning, instead of the default variant that keeps it
+            private. Only set when the caller opted in to seeing it.
 
     Returns:
         Chain-of-thought reasoning prompt
     """
-    return COT_REASONING_PROMPT
+    return COT_VISIBLE_REASONING_PROMPT if visible else COT_REASONING_PROMPT
 
 
 # ============================================================================

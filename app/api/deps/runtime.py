@@ -13,7 +13,11 @@ from app.mcp.approvals import ApprovalStore
 from app.mcp.gateway import MCPGateway
 from app.mcp.registry import ToolRegistry
 from app.mcp.runtime import get_tool_stack
-from app.orchestration.answer_stream import AnswerStreamStore, get_default_answer_stream_store
+from app.orchestration.answer_stream import (
+    AnswerStreamStore,
+    get_default_answer_stream_store,
+    get_default_thought_stream_store,
+)
 from app.orchestration.execution_events import ExecutionEventStore, get_default_execution_event_store
 from app.orchestration.request import RequestActor
 from app.services.connectors.management import ConnectorManagementService
@@ -30,6 +34,7 @@ class AppServices:
     connectors: ConnectorManagementService
     execution_events: ExecutionEventStore
     answer_stream: AnswerStreamStore
+    thought_stream: AnswerStreamStore
     tool_agent: ToolAgent
 
 
@@ -53,6 +58,7 @@ def build_app_services() -> AppServices:
         # instance here would leave the SSE endpoint blind to pipeline events.
         execution_events=get_default_execution_event_store(),
         answer_stream=get_default_answer_stream_store(),
+        thought_stream=get_default_thought_stream_store(),
         tool_agent=create_tool_agent(stack.gateway, stack.registry),
     )
 
@@ -89,6 +95,13 @@ def get_answer_stream_store(
 ) -> AnswerStreamStore:
     """Inject the app-scoped redacted answer-draft stream."""
     return services.answer_stream
+
+
+def get_thought_stream_store(
+    services: AppServices = Depends(require_app_services),
+) -> AnswerStreamStore:
+    """Inject the app-scoped redacted reasoning-draft stream."""
+    return services.thought_stream
 
 
 def get_execution_event_store(

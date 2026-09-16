@@ -12,6 +12,7 @@ import { CollapsibleSection } from "@/pages/chat/components/CollapsibleSection";
 import { MetadataBadges } from "@/pages/chat/components/MetadataBadges";
 import { MessageGraphPanel } from "@/pages/chat/components/MessageGraphPanel";
 import { ThinkingIndicator } from "@/pages/chat/components/ThinkingIndicator";
+import { ThinkingPanel } from "@/pages/chat/components/ThinkingPanel";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
@@ -42,6 +43,7 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
   const isStreaming = message.message_id === "local-assistant-stream";
   const isThinking = isStreaming && !message.content;
   const isGenerating = isStreaming && !!message.content;
+  const hasReasoning = Boolean(metadata.reasoning);
   const hasExecutionSteps = (metadata.execution_steps || []).length > 0;
   const isPersisted = !!message.message_id && !message.message_id.startsWith("local-");
 
@@ -154,7 +156,22 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
           </div>
 
           <div className="glass-card space-y-3 rounded-panel rounded-tl-sm p-4">
-            {isThinking ? (
+            {hasReasoning && (
+              <ThinkingPanel
+                reasoning={metadata.reasoning || ""}
+                durationMs={metadata.reasoning_duration_ms}
+                // `isThinking` is exactly the question ThinkingPanel asks: the
+                // reasoning channel fills `metadata.reasoning` while `.content`
+                // is still empty, so "no answer content yet" IS "reasoning is
+                // still being written". It stops the moment the answer channel
+                // starts, which is what the panel means by streaming. This was
+                // a second const with an identical body; one condition with two
+                // names is how the two drift apart later.
+                isStreaming={isThinking}
+              />
+            )}
+
+            {isThinking && !hasReasoning ? (
               <ThinkingIndicator elapsedSeconds={getElapsedSeconds()} />
             ) : (
               <div className="markdown select-text text-xs text-ink sm:text-sm">

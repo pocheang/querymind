@@ -257,3 +257,8 @@ class PipelineResult(BaseModel):
     quality_report: dict[str, Any] = Field(default_factory=dict)
     execution_metadata: dict[str, Any] = Field(default_factory=dict)
     degradation_events: tuple[DegradationEvent, ...] = Field(default_factory=tuple)
+    # None unless the caller opted in to visible reasoning (`use_reasoning`)
+    # and the model produced a <think> block. Already DLP-redacted by the time
+    # it reaches here -- see FinalAnswer.reasoning.
+    reasoning: str | None = None
+    reasoning_duration_ms: int | None = None

@@ -88,6 +88,13 @@ SECRET_BASELINE = {
     # could not have caught it: `git ls-files` does not see an untracked file,
     # so a new file's secrets surface at commit time and only there.
     "tests/security/test_chinese_pii_redaction.py",
+    # And again, for the same reason and by the same route: a suite proving
+    # `output_filter` redacts `FinalAnswer.reasoning` has to hand it something
+    # that looks like a key. Same sequential-alphabet placeholder as
+    # `test_streaming_redaction.py`, and the hook refused the commit that
+    # introduced the file, which is the gate doing its job rather than a
+    # nuisance.
+    "tests/orchestration/test_output_filter_reasoning.py",
     "tests/services/test_answer_safety.py",
     "tests/security/test_sensitive_content_gate.py",
     "docs/development/daily-logs/2026-08-17/streaming-and-long-text-config.md",

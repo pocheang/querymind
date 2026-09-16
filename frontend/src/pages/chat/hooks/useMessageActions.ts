@@ -2,10 +2,11 @@ import { useEffect, useRef } from "react";
 import { appApi } from "@/lib/api";
 import { useChatStore } from "@/stores/useChatStore";
 import type { NormalizedQueryResult, PendingApproval, SessionMessage, SessionSummary } from "@/types/api";
-import { EMPTY_METADATA } from "@/pages/chat/constants";
+import { EMPTY_METADATA, RUN_STATUS_PROCESSING } from "@/pages/chat/constants";
 import { isAbortError, createInitialStreamMessages } from "./streamUtils";
 import { createStreamMessageUpdater } from "./streamMessageUpdater";
 import { createChatRunLifecycle } from "./chatStreamAdapter";
+import { randomId } from "@/lib/randomId";
 
 type RunLifecycle = ReturnType<typeof createChatRunLifecycle>;
 
@@ -34,7 +35,11 @@ function finishRun(
   if (refs.streamAbortRef.current === runAbort) refs.streamAbortRef.current = null;
 }
 
-function applyStreamResult(messages: SessionMessage[], result: NormalizedQueryResult): SessionMessage[] {
+/** Replace the streaming placeholder with the finished, persisted answer.
+ *  Exported for `streamDraft.test.ts`, which pins the one thing about it that
+ *  is not obvious from reading it: the metadata block is rebuilt from
+ *  EMPTY_METADATA, so every field the response does not carry is erased. */
+export function applyStreamResult(messages: SessionMessage[], result: NormalizedQueryResult): SessionMessage[] {
   return messages.map((message) =>
     message.message_id === "local-assistant-stream"
       ? {
@@ -46,8 +51,54 @@ function applyStreamResult(messages: SessionMessage[], result: NormalizedQueryRe
             citations: result.citations,
             tool_runs: result.toolRuns,
             quality_report: result.qualityReport,
+            // None unless `use_reasoning` was sent with this request. The
+            // response's copy wins when there is one -- it is the persisted,
+            // final-redaction-pass text, not the streamed draft. But this
+            // whole metadata block is rebuilt from EMPTY_METADATA, so a plain
+            // assignment ALSO erased an accumulated draft whenever the
+            // response carried no reasoning of its own, and the panel the
+            // reader had been watching vanished at the moment the answer
+            // landed. Falling back to what was already on the message keeps
+            // "the response did not report reasoning" from meaning "there was
+            // none".
+            reasoning: result.reasoning ?? message.metadata?.reasoning,
+            reasoning_duration_ms: result.reasoningDurationMs ?? message.metadata?.reasoning_duration_ms,
           },
         }
+      : message
+  );
+}
+
+/** Apply one incremental streaming update to the draft placeholder.
+ *
+ * Matches by id alone, the same way `applyStreamResult` above matches the
+ * final replacement. This used to also require the message's own content to
+ * be empty -- which is true only for the very first fragment.
+ * `useExecutionTrace`'s `draft` is the *cumulative* text (the reducer does
+ * `state.draft + action.text`), so every fragment after the first already
+ * has non-empty content and the update was silently dropped: the bubble
+ * showed one early snapshot, then sat frozen until `applyStreamResult`
+ * replaced it with the finished answer. That reads as "the answer appears
+ * all at once", even though the model underneath is genuinely streaming --
+ * `LocalEvidenceChatModel.stream()` paces its chunks with a real delay
+ * between them, and nothing about that pacing ever reached the screen. */
+export function applyStreamDraft(messages: SessionMessage[], text: string): SessionMessage[] {
+  return messages.map((message) =>
+    message.message_id === "local-assistant-stream" ? { ...message, content: text } : message
+  );
+}
+
+/** Apply one incremental reasoning update to the draft placeholder.
+ *
+ * Same shape as `applyStreamDraft` above, same reason -- `text` is the
+ * cumulative reasoning-so-far, matched by id alone. Held on
+ * `metadata.reasoning` rather than a new top-level message field so
+ * `ThinkingPanel` reads it the same way whether the message is still
+ * streaming or already persisted and reloaded. */
+export function applyThinkingDraft(messages: SessionMessage[], text: string): SessionMessage[] {
+  return messages.map((message) =>
+    message.message_id === "local-assistant-stream"
+      ? { ...message, metadata: { ...(message.metadata || EMPTY_METADATA), reasoning: text } }
       : message
   );
 }
@@ -148,7 +199,7 @@ async function resolveSessionOrAbandon({
   onExecutionId?.(null);
   setIsSending(true);
   setQuestion("");
-  setRunStatus("Processing");
+  setRunStatus(RUN_STATUS_PROCESSING);
   const sid = sessionId || (await ensureSessionForAsk(runAbort.signal));
   if (!sid || !isRunActive()) {
     finishRun(isRunActive(), run, runAbort, refs, setIsSending, setRunStatus);
@@ -191,18 +242,26 @@ async function runQueryAndStream({
   actions,
 }: RunQueryStreamParams): Promise<void> {
   try {
-    const useWebSearch = useChatStore.getState().useWebSearch;
+    const { useWebSearch, showReasoning } = useChatStore.getState();
+    // Generated here, not read from the response: `appApi.advanced` does not
+    // resolve until the whole run has finished, so an id taken from its
+    // result becomes known too late to watch the run live. Exposing our own
+    // id up front lets the trace panel's SSE subscription open while this
+    // request is still in flight.
+    const executionId = randomId();
+    onExecutionId?.(executionId);
     const result = await appApi.advanced({
       query: q,
       sessionId: sid,
       enableDecomposition: true,
       enableSelfRag: true,
       useWebFallback: useWebSearch,
+      useReasoning: showReasoning,
       ...(approvalToken ? { approvalToken } : {}),
+      executionId,
       signal: runAbort.signal,
     });
     if (!isRunActive()) return;
-    if (result.executionId) onExecutionId?.(result.executionId);
     // A resumed run either performed the action or reported why it could not;
     // either way the previous pending approval is spent.
     onPendingApproval?.(result.status === "pending_approval" ? result.pendingApproval : null, q);
