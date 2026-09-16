@@ -48,7 +48,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (1,991 backend pytest tests + 154 frontend vitest tests)
+└── tests/                      # Automated test suite (2,068 backend pytest tests + 214 frontend vitest tests)
 ```
 
 ## Table of Contents
@@ -105,7 +105,7 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-14, v0.7.0.1): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **1,991 backend tests** and **154 frontend tests** (**2,145 total tests**, 0 failures). Scripts hold ten focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
+Note (counts refreshed 2026-09-16): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,068 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,282 total tests**, 0 failures). Scripts hold eleven focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
@@ -3017,8 +3017,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-14 (v0.7.0.1) there are 1,991 backend pytest tests
-and 154 frontend Vitest tests (2,145 total tests, 0 failures), covering the chat round trip,
+back-filling effort. As of 2026-09-16 there are 2,068 backend pytest tests
+and 214 frontend Vitest tests (2,282 total tests, 0 failures), covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3097,7 +3097,68 @@ sizes would test the wrong thing.
 
 `pytest` is configured in `pyproject.toml` (`testpaths = ["tests"]`, strict asyncio mode).
 CI runs it on every push and pull request (`.github/workflows/ci.yml`), together with ruff
-and an OpenAPI endpoint census that fails if a refactor silently drops routers.
+and the repository's hygiene hooks. The endpoint census that fails if a refactor silently
+drops routers is `tests/api/test_endpoint_census.py` now, so it runs in `make test` too.
+
+#### What CI runs, and the four things it only appeared to run (2026-09-16)
+
+Three jobs. `backend` (sensitive gate -> ruff -> install from the lock -> hygiene hooks ->
+pytest with coverage -> the coverage ratchet), `frontend` (eslint, tsc, prettier, the design
+scale ratchet, vitest with coverage, build, dead classes -- in that order, the last two after
+the build because they need what the browser receives), and `analysis`, which needs both and
+is where the SonarCloud scanner lives.
+
+Each of the four fixes below was a check that read as present and was not, which is the
+failure this file spends most of its length on, applied to the thing that checks everything
+else.
+
+- **The frontend's lcov could never have reached the scanner.** The scan step lived in the
+  `backend` job under a comment saying it picked the frontend's report up "alongside the
+  Python report" -- two parallel jobs, two workspaces, and no step anywhere copying the file
+  across. Sonar does not fail on a report path it cannot read, it *warns*, so switching the
+  scanner on would have published real Python coverage beside a silent zero for TypeScript,
+  which is worse than publishing neither. The scan moved to a third job that downloads both
+  reports as artifacts, and `scripts/check_coverage.py reports` asserts they are there --
+  reading the paths back out of `sonar-project.properties` rather than repeating them, and
+  running whether or not the scan does, since with the scanner dormant it is the only thing
+  standing between today and a repeat. Verified in both directions: against the repository
+  with only `coverage.xml` present it names the missing lcov and exits 1.
+- **Five pre-commit hooks had no CI copy.** `check-yaml`, `check-json`, `end-of-file-fixer`,
+  `trailing-whitespace` and `mixed-line-ending` existed only as hooks -- skippable with
+  `--no-verify`, and absent entirely in a clone where nobody ran `pre-commit install`, which
+  is every fresh one. That is the argument the sensitive-content gate already makes for
+  itself, and these five did not have it. `pre-commit run --all-files` runs in the backend
+  job with `SKIP=ruff,ruff-format,check-sensitive`, the three CI already runs by itself.
+  Turning it on found 45 files' worth of accumulated drift (43 markdown, two JSON), fixed in
+  its own commit so the CI diff stays readable.
+- **The workflow declared no `permissions`.** The token every step runs with therefore
+  carried the repository default, on a workflow that already pins third-party actions to a
+  commit because those steps run with its secrets -- the code was pinned and the token was
+  not. It is `contents: read` now, with `persist-credentials: false` on all three checkouts,
+  and `test_ci_workflow_is_loadable.py` fails if either goes missing, for the reason the
+  SHA-pinning assertion is there: the rule that would otherwise catch it lives in SonarCloud
+  and only runs after a push.
+- **Nothing could turn a coverage drop red, and the endpoint floor was 17 below reality.**
+  Both are ratchets now (`scripts/check_coverage.py ratchet` against
+  `scripts/coverage-baseline.json`, at 59.5%; `EXPECTED_OPERATIONS` at 157). Both fail in
+  *both* directions -- a drop is a regression, and a rise means the baseline is stale and
+  says which one-line edit fixes it. A ratchet nobody tightens is a floor, and a floor is
+  what these replaced.
+
+Two smaller ones in the same pass. `pytest --timeout=120 --timeout-method=thread`: a hang
+otherwise costs the job's whole 20-minute ceiling and is reported as *cancelled*, with
+nothing naming the test, and a hang is this repository's recurring outage rather than a
+hypothetical one -- 120s against a slowest test of 3.6s, measured over the whole suite. And
+`cache-dependency-path: requirements/ci.txt` on `setup-python`, which was keying the pip
+cache on whatever its defaults matched rather than on the file the job installs from.
+
+**Still not done, and deliberately listed rather than quietly skipped**: no dependabot or
+renovate (so the SHA pins never move), no dependency vulnerability scanning, `runtime.txt`
+and both Dockerfiles are never exercised in CI although they are what the image installs,
+`deploy/scripts/config.py validate` never runs, the cognitive-complexity scorer is not a
+ratchet while the scanner is dormant, only Python 3.11 and Node 20 are tested against a
+`requires-python = ">=3.11"`, and `cancel-in-progress` still applies to pushes to main --
+which will punch holes in the new-code baseline the day the scanner is switched on.
 
 **The SonarCloud scanner in that workflow has never run** (checked 2026-09-05), and the
 green "SonarCloud Code Analysis" check on every commit is **Automatic Analysis**, not it.
@@ -3107,8 +3168,11 @@ it was written to land dormant -- but three things follow that are easy to misre
 - **Coverage is not in SonarCloud and cannot be.** `api/measures/component` returns an
   empty array for `coverage`. Automatic Analysis cannot read a report, so
   `sonar.python.coverage.reportPaths` in `sonar-project.properties` is inert, as is
-  everything else in that file. The `--cov-report=xml` step and the "Coverage total" line
-  are real and go nowhere.
+  everything else in that file. The `--cov-report=xml` step is real and, until 2026-09-16,
+  went nowhere: the "Coverage total" step printed a percentage that nothing compared against
+  anything. It is `scripts/check_coverage.py ratchet` now, so the number is enforced in CI
+  whether or not it ever reaches SonarCloud -- which is the point, since the quality gate
+  carries no coverage condition either.
 - **The New Code period is the whole repository**: `new_lines` is 89,411 against an
   `ncloc` of 82,875. Every gate condition is a new-code condition, so they are all
   effectively whole-project conditions. That is why one MAJOR bug in a fifteen-line script
@@ -3240,7 +3304,7 @@ Code should mean, since inheriting the whole repository as "new" is what makes t
 behave the way it does. Those are three decisions, not one switch.
 
 The frontend has vitest tests too: `src/**/*.test.ts` **and** `src/**/*.test.tsx`, run by
-the `frontend` CI job, which also runs eslint (`--max-warnings 25`, itself a ratchet), `tsc`,
+the `frontend` CI job, which also runs eslint (`--max-warnings 20`, itself a ratchet), `tsc`,
 `npm run lint:design`, and the build. The `.tsx` half of that glob was missing until
 2026-09-01, so every component suite was silently skipped — a component test cannot be
 written in a `.ts` file. The default `environment` stays `node`; the two component suites
@@ -3256,7 +3320,7 @@ confirming after a clarified query would have re-sent a stale question.
 any identity change: the stores outlive a logout, so a field added to a store but forgotten
 in its `INITIAL_STATE` would show the next person on a shared browser the previous user's
 data. The test discovers fields rather than listing them, so it catches that drift.
-That suite is 147 tests across 18 files — small, and deliberately aimed at the things a
+That suite is 214 tests across 31 files — small, and deliberately aimed at the things a
 screenshot cannot check. `AdminConfigEditor.test.tsx` is the newest: it pins that a value
 pinned in the process environment renders disabled, and that only edited fields are sent —
 posting the whole form would turn a page load into a write of every value, and a stale read
@@ -3266,9 +3330,14 @@ or every later query in the file finds two of everything.
 
 Note: do not use `len(app.routes)` to count endpoints. FastAPI 0.138+ stores an
 `_IncludedRouter` wrapper in `app.routes` instead of flattening child routes, so that number
-varies by version. Count OpenAPI operations instead; the current baseline is 157 (CI asserts a >= 140 floor).
-It read 153 until 2026-09-06 and had been 154 for some time before that — a number in this file that
-nothing recomputes goes stale the way the test count did.
+varies by version. Count OpenAPI operations instead. The baseline is 157, and since 2026-09-16 it
+is asserted **exactly**, by `tests/api/test_endpoint_census.py`. CI used to assert `n >= 140`
+inline, which is seventeen operations of headroom — a whole router could go missing with the
+step still green, which is this file's recurring failure (a check whose threshold sits far
+enough from reality that it cannot fire) applied to the check meant to catch missing routers.
+Adding endpoints fails the test too, on purpose: the number is stated in exactly one place and
+a count nothing recomputes goes stale, as this line did — it read 153 until 2026-09-06 and 154
+for some time before that, the same way the test count did.
 
 ### Sensitive content gate (added 2026-09-04)
 

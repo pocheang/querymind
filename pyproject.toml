@@ -101,6 +101,14 @@ dev = [
   "pytest-asyncio>=0.23.0",
   "pytest-cov>=4.1.0",
   "pytest-xdist>=3.5.0",
+  # A hang is this repository's recurring failure, not a rare one: concurrent
+  # DDGS construction parked every thread at zero CPU, and an async cache driven
+  # from asyncio.to_thread has deadlocked twice. In CI a hung test costs the
+  # job's whole 20-minute ceiling, and the run is reported as *cancelled* with
+  # no line saying which test never returned. --timeout-method=thread dumps
+  # every thread's stack and fails that one test instead, which is the same
+  # evidence `dump_traceback_later` was used to capture by hand.
+  "pytest-timeout>=2.3.0",
   "reportlab>=4.0.0",
   # Declared rather than borrowed from langchain's transitive tree: the
   # workflow-parses test is the one thing standing between a mistyped YAML and

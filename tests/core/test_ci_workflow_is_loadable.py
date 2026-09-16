@@ -111,3 +111,57 @@ def test_third_party_actions_are_pinned_to_a_commit(path: Path) -> None:
         f"{path.name} uses third-party actions by tag rather than by commit: {unpinned}. "
         "Pin the full 40-character SHA and put the version in a comment beside it."
     )
+
+
+# The token these workflows run with is the other half of the threat model the
+# SHA pin above is about: pinning the code but handing it a write-capable token
+# secures nothing. GitHub's default for a repository nobody has changed is write,
+# and the only thing that narrows it is a `permissions:` block in the file --
+# which, like the pin, is a rule that lives in SonarCloud and would otherwise
+# only be reported after a push.
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_the_workflow_declares_least_privilege(path: Path) -> None:
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    declared = document.get("permissions")
+    assert declared is not None, (
+        f"{path.name} declares no top-level `permissions:`, so its GITHUB_TOKEN carries the "
+        f"repository default. Add `permissions: {{contents: read}}` and let a job that needs "
+        f"more say so itself."
+    )
+    assert declared != "write-all", f"{path.name} grants write-all at the top level"
+    if isinstance(declared, dict):
+        assert declared.get("contents", "read") == "read", (
+            f"{path.name} grants `contents: {declared.get('contents')}` to every job. "
+            f"Narrow it to read and raise it on the one job that writes."
+        )
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_no_checkout_leaves_its_credential_behind(path: Path) -> None:
+    """`actions/checkout` stores a token in .git/config unless told not to.
+
+    Every step after the checkout -- installs, a scanner, anything that runs
+    code this repository did not write -- shares a filesystem with that token,
+    and nothing in these jobs pushes, comments or labels, so none of them needs
+    it to survive the step.
+    """
+
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    leaking = []
+    for job_name, job in document["jobs"].items():
+        for step in job.get("steps", []):
+            uses = step.get("uses", "")
+            if not isinstance(uses, str) or not uses.startswith("actions/checkout@"):
+                continue
+            # `or {}` rather than a default: a `with:` block holding only a
+            # comment parses as None, and this test reporting an AttributeError
+            # instead of its own message is how a guard stops being read.
+            if (step.get("with") or {}).get("persist-credentials") is not False:
+                leaking.append(job_name)
+
+    assert not leaking, (
+        f"{path.name}: checkout in {leaking} keeps its credential in .git/config for the rest "
+        f"of the job. Pass `persist-credentials: false` unless a later step pushes."
+    )
