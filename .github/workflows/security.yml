@@ -24,6 +24,7 @@ on:
       - requirements/**
       - uv.lock
       - pyproject.toml
+      - Dockerfile
       - frontend/package-lock.json
       - frontend/package.json
       - scripts/check_vulnerabilities.py
@@ -52,10 +53,10 @@ jobs:
         # fetched at run time, which is the whole point of a weekly schedule.
         run: 'pip install --only-binary :all: "pip-audit==2.9.0"'
 
-      - name: Audit the runtime lock
-        # requirements/runtime.txt only -- what the image installs, and therefore
-        # what a user of this system is exposed to. The script says why ci.txt is
-        # not audited here.
+      - name: Audit both requirement exports
+        # runtime.txt is what the image installs and ci.txt is what builds it;
+        # the script keeps them apart with a `scope` on each exemption rather
+        # than by auditing only one of them, which is what it used to do.
         run: python scripts/check_vulnerabilities.py
 
   npm:
@@ -90,3 +91,48 @@ jobs:
         # would land red, which is how a security job gets switched off in its
         # first week. They are still printed.
         run: npm audit --audit-level=high
+
+  image:
+    # Never on a pull request. An operating-system advisory against the base
+    # image is a property of `python:3.11-slim` and of the date, not of the diff
+    # under review -- gating a dependency bump on one would turn somebody else's
+    # CVE into that author's problem, which is the argument this whole workflow
+    # is built on. Weekly and on demand, where it is read as news.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build the backend image
+        run: docker build -f Dockerfile -t querymind-backend:scan .
+
+      - name: Scan the image for OS package vulnerabilities
+        # The half `pip-audit` cannot see: Debian packages in the base layer.
+        # The Python half is the job above, over the same lock the image installs.
+        #
+        # Trivy as a pinned container rather than its GitHub Action: the action
+        # would be third-party and would need a commit pin, and pinning that
+        # means reading a repository outside this project. A version tag on a
+        # published image is the same promise the ruff and pip-audit pins make,
+        # and the vulnerability database is still fetched fresh at run time.
+        #
+        # `docker save` and `--input` rather than mounting /var/run/docker.sock:
+        # handing a container the daemon socket is handing it the host, and
+        # there is no reason a scanner needs that to read one image.
+        #
+        # --ignore-unfixed, because a slim base image carries open CVEs that
+        # Debian has not shipped a fix for and no action here can clear them; a
+        # gate that cannot be satisfied is one that gets switched off. HIGH and
+        # CRITICAL only, for the same reason.
+        run: |
+          docker save querymind-backend:scan -o image.tar
+          docker run --rm -v "$PWD:/work" -w /work aquasec/trivy:0.74.0 image \
+            --input image.tar \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --no-progress

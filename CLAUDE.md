@@ -48,7 +48,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (2,085 backend pytest tests + 214 frontend vitest tests)
+└── tests/                      # Automated test suite (2,094 backend pytest tests + 214 frontend vitest tests)
 ```
 
 ## Table of Contents
@@ -105,7 +105,7 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-16): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,085 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,299 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
+Note (counts refreshed 2026-09-16): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,094 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,308 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
 `check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
@@ -3018,8 +3018,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-16 there are 2,085 backend pytest tests
-and 214 frontend Vitest tests (2,299 total tests, 0 failures), covering the chat round trip,
+back-filling effort. As of 2026-09-16 there are 2,094 backend pytest tests
+and 214 frontend Vitest tests (2,308 total tests, 0 failures), covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3108,9 +3108,11 @@ no project dependencies, so it reports in under a minute), `backend` (install fr
 hygiene hooks, pytest with coverage, the coverage ratchet; a 3.11/3.12 matrix), `frontend`
 (eslint, tsc, prettier, the design scale ratchet, vitest with coverage, build, dead classes --
 in that order, the last two after the build because they need what the browser receives),
-`images` (the configuration layers, then both Dockerfiles), and `analysis`, which needs
-backend and frontend and is where the SonarCloud scanner lives. A second workflow,
-`security.yml`, runs the vulnerability scans weekly.
+`images` (the configuration layers, then both Dockerfiles, each then run), and `analysis`,
+which needs backend and frontend and is where the SonarCloud scanner lives. `backend` is a
+3.11/3.12 matrix and `frontend` a Node 20/22 one, with the version-independent checks
+pinned to the canonical leg of each. Two more workflows: `security.yml` (dependency and
+image scanning, weekly) and `codeql.yml`.
 
 Each of the four fixes below was a check that read as present and was not, which is the
 failure this file spends most of its length on, applied to the thing that checks everything
@@ -3256,10 +3258,66 @@ toolchain at `high`; three moderate advisories against vitest are open and none 
 ships. Gating those at `moderate` would have landed red, which is how a security job gets
 switched off in its first week.
 
-**Still not done**: `requirements/ci.txt` is not audited (the dev toolchain's advisories
-move for reasons unrelated to what runs in production, and auditing it means a second
-exemption list with a different risk model), there is no CodeQL or equivalent SAST, the
-images are built but never run or scanned, and Node is still tested at 20 only.
+#### And the four that list said were still not done
+
+**`ci.txt` is audited too, and an exemption says which export it speaks for.** The reason
+for auditing only `runtime.txt` was that one exemption list over two risk models -- what
+users run, and what builds a release -- is a list that quietly waves a build-only advisory
+through for the image. A `scope` key (`runtime`, `ci`, or `both`) is what keeps them apart
+without a second file, and an advisory found in a scope its entry does not name is
+unreviewed *there*. Measured when it landed, both exports report exactly the same four
+chromadb advisories, so the separation costs nothing today and exists for the day a pytest
+plugin has one. `both` is the default, which means an entry claiming it must genuinely
+appear in both -- a dev-only package has to say `ci`, which is the separation enforcing
+itself rather than being remembered.
+
+**CodeQL runs** (`.github/workflows/codeql.yml`), on push, pull requests and Mondays, over
+`python` and `javascript-typescript`. It is not a second SonarCloud: Sonar's Automatic
+Analysis is what runs today and it reports one vulnerability class this project has ever
+tripped, where CodeQL does taint tracking -- a request value reaching a sink -- which
+nothing here asked before. **It cannot redden a pull request on its own**: `analyze`
+uploads its results and exits 0, alerts land under Security -> Code scanning, and making
+them block a merge is a branch-protection decision to take after somebody has read the
+first batch. The default query suite, not `security-extended`: a first adoption that opens
+with a page of maybes is one nobody reads twice. Free because this repository is public --
+on a private one it needs Advanced Security, which is worth checking before copying this
+file elsewhere.
+
+**Both images are now run, not only built.** The backend image imports the FastAPI app
+inside the container and asserts the OpenAPI document is non-empty -- the image installs
+`requirements/runtime.txt`, a different export from the `ci.txt` the test job proves, so
+"it builds" and "it can start" are different claims. The frontend image runs `nginx -t` as
+the unprivileged user it ends on. Deliberately not a `docker run` with a published port and
+a readiness poll: that needs runtime configuration this job has no business inventing, and
+a flaky wait teaches people to re-run a red build.
+
+**The image is scanned weekly, never on a pull request** (`security.yml`, `image` job).
+Trivy over `docker save`'d layers at HIGH/CRITICAL with `--ignore-unfixed` -- the half
+`pip-audit` cannot see, Debian packages in the base layer. Three decisions in it: an OS
+advisory belongs to the base image and the date rather than to the diff under review, so
+gating a dependency bump on one makes somebody else's CVE that author's problem; Trivy runs
+as a **pinned container** rather than its GitHub Action, because pinning a third-party
+action to a commit means reading a repository outside this project; and it reads a saved
+tarball rather than a mounted `/var/run/docker.sock`, because handing a container the
+daemon socket is handing it the host.
+
+**Node is a 20/22 matrix.** 20 is canonical -- `Dockerfile.frontend` builds the shipped
+bundle on `node:20-alpine`, so the linters, the coverage upload and the dead-class audit run
+only there -- and 22 is the current LTS. Measured on both before adding it: 214 tests, the
+build and the dead-class audit pass on each.
+
+**And the matrix immediately said something.** `npm ci` on 20 warns
+`EBADENGINE @testing-library/jest-dom@7.0.1 required: { node: '>=22' }`. It is advisory
+rather than a gate (npm does not enforce `engines` without `engine-strict`), the package is
+dev-only so nothing shipped is affected, and the suite passes on 20 anyway -- but the test
+toolchain has been asking for a Node newer than the only one CI ever ran, and nobody could
+have seen that from a single-version job. Not acted on here: raising the floor to 22 means
+`node:22-alpine` in the image too, which is a deployment change and not a CI one.
+
+**Still not done**: the images are scanned but still never *served* -- nothing starts the
+stack and makes a request against it; there is no end-to-end or browser test in CI
+(`npm run screenshots` stays a local before/after tool for the reason recorded above); and
+CodeQL's findings are advisory until branch protection says otherwise.
 
 **The SonarCloud scanner in that workflow has never run** (checked 2026-09-05), and the
 green "SonarCloud Code Analysis" check on every commit is **Automatic Analysis**, not it.

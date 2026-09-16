@@ -1,0 +1,73 @@
+# Static analysis for security, which this repository had none of.
+#
+# SonarCloud is not a substitute and the difference is worth stating: its
+# Automatic Analysis is the only thing running today (the scanner in ci.yml is
+# dormant until a token exists), it reports one vulnerability class this project
+# has ever tripped, and its findings live outside GitHub. CodeQL does taint
+# tracking -- a value from a request reaching a sink -- which is the question
+# nothing here asks.
+#
+# It cannot turn a pull request red on its own: `analyze` uploads results and
+# exits 0 whether or not it found anything. Alerts appear under Security ->
+# Code scanning, and making them block a merge is a branch-protection decision
+# taken separately, deliberately, once somebody has read the first batch.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Monday 07:00 UTC, an hour after the dependency scan. A query pack updates
+    # without this repository changing, so the same code is worth re-asking about.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # The one job in this repository that needs more than read: uploading the
+      # SARIF is the whole point, and it is granted here rather than at the top
+      # level so nothing else in the file carries it.
+      security-events: write
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # `javascript-typescript` is one language to CodeQL, not two. Python and
+        # TypeScript are the two this repository is written in; the shell in the
+        # workflows and the SQL in the table tool are not CodeQL languages.
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Initialize
+        # github/* keeps its major tag for the reason actions/* does -- nobody
+        # else can move a tag in that namespace -- which is the exemption
+        # test_ci_workflow_is_loadable.py already encodes.
+        #
+        # The default query suite, not `security-extended`. Extended trades
+        # precision for recall, and a first adoption that opens with a page of
+        # maybes is one nobody reads twice. Widening it is a decision to take
+        # after the default set has been looked at.
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      # No build step: CodeQL extracts Python and TypeScript from source. The
+      # frontend's `npm run build` is already proven by the CI workflow, and
+      # running it again here would only add a way for this job to fail for a
+      # reason that has nothing to do with analysis.
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

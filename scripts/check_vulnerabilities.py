@@ -21,12 +21,18 @@ The third is the ratchet rule this repository already applies to
 `SECRET_BASELINE` in `check_sensitive.py` and `KNOWN_OFFENDERS` in
 `tests/security/`: an exemption list may only shrink on its own.
 
-**`requirements/runtime.txt` only**, which is what the image installs and
-therefore what a user of this system is exposed to. `ci.txt` adds the dev
-toolchain, whose advisories move for reasons that have nothing to do with what
-runs in production; auditing it means a second exemption list with a different
-risk model, and that is a decision to take deliberately rather than by passing
-another path here.
+**Both exports are audited, and an exemption says which.** `runtime.txt` is what
+the image installs and therefore what a user of this system is exposed to;
+`ci.txt` adds the dev toolchain, which is a different risk -- a compromised test
+dependency reaches the machine that builds a release, not the people using it.
+The two were kept apart at first on the argument that mixing them means one
+exemption list papering over two risk models. The `scope` key is what keeps them
+apart without a second file: an entry exempts an advisory for `runtime`, for `ci`,
+or for `both`, and an advisory found in a scope its exemption does not name is
+unreviewed there. Measured when this landed, every finding is in both (the four
+chromadb advisories), so the distinction costs nothing today and exists for the
+day a pytest plugin has an advisory nobody should be waving through for the
+image.
 
     python scripts/check_vulnerabilities.py
 
@@ -43,20 +49,26 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIREMENTS = ROOT / "requirements" / "runtime.txt"
+# The scope name is what an exemption's `scope` key names, so these two strings
+# are the vocabulary; `both` is the third value an entry may carry.
+REQUIREMENTS = {
+    "runtime": ROOT / "requirements" / "runtime.txt",
+    "ci": ROOT / "requirements" / "ci.txt",
+}
 EXEMPTIONS = Path(__file__).resolve().parent / "vulnerability-exemptions.json"
 
 
-def audit(raw: str | None = None) -> list[tuple[str, str, str, tuple[str, ...]]]:
+def audit(requirements: Path | None = None, raw: str | None = None) -> list[tuple[str, str, str, tuple[str, ...]]]:
     """(package, version, advisory id, fix versions) for everything pip-audit reports.
 
-    `raw` is the JSON document, for tests; without it pip-audit is run. `--no-deps`
-    is correct here and not a shortcut: the file is a fully pinned export of
-    `uv.lock`, so resolving it again would only invite a different answer than the
-    one the image installs.
+    `raw` is the JSON document, for tests; without it pip-audit is run over
+    `requirements`. `--no-deps` is correct here and not a shortcut: the file is a
+    fully pinned export of `uv.lock`, so resolving it again would only invite a
+    different answer than the one the image installs.
     """
 
     if raw is None:
+        assert requirements is not None
         completed = subprocess.run(
             [
                 sys.executable,
@@ -66,7 +78,7 @@ def audit(raw: str | None = None) -> list[tuple[str, str, str, tuple[str, ...]]]
                 "json",
                 "--no-deps",
                 "--requirement",
-                str(REQUIREMENTS),
+                str(requirements),
             ],
             capture_output=True,
             text=True,
@@ -93,58 +105,95 @@ def audit(raw: str | None = None) -> list[tuple[str, str, str, tuple[str, ...]]]
     return sorted(findings)
 
 
-def evaluate(findings, exemptions) -> list[str]:
+SCOPES = tuple(REQUIREMENTS)
+
+
+def exempted_scopes(entry: dict) -> tuple[str, ...]:
+    """Which requirement files this entry speaks for.
+
+    `both` rather than a list, because a list invites `["runtime"]` written as
+    `"runtime"` and read as five separate one-character scopes.
+    """
+
+    scope = entry.get("scope", "both")
+    return SCOPES if scope == "both" else (scope,)
+
+
+def _finding_problems(scope, finding, exemptions) -> list[str]:
+    package, version, identifier, fixes = finding
+    exemption = exemptions.get(identifier)
+    if exemption is None:
+        fix = f", fixed in {', '.join(fixes)}" if fixes else ", no fix published"
+        return [f"unreviewed: [{scope}] {package} {version} {identifier}{fix}"]
+
+    problems = []
+    if scope not in exempted_scopes(exemption):
+        problems.append(
+            f"out of scope: {identifier} is exempted for "
+            f"{', '.join(exempted_scopes(exemption))} but was found in {scope}. Widen its "
+            f'"scope" to "both" only if the risk really is the same in both.'
+        )
+    if exemption.get("package") != package:
+        problems.append(
+            f"mismatched: {identifier} is exempted for {exemption.get('package')!r} "
+            f"but was reported against {package!r}"
+        )
+    if fixes and not exemption.get("fix_exists"):
+        problems.append(
+            f"fixable: {package} {version} {identifier} now has a fix "
+            f'({", ".join(fixes)}) -- upgrade with `make lock`, or set "fix_exists": true '
+            f"with a reason saying why the fix cannot be taken"
+        )
+    return problems
+
+
+def _stale_problems(seen: dict[str, set[str]], exemptions) -> list[str]:
+    problems = []
+    for identifier, entry in sorted(exemptions.items()):
+        for scope in exempted_scopes(entry):
+            if scope not in seen.get(identifier, set()):
+                problems.append(
+                    f"stale: {identifier} ({entry.get('package')}) is exempted for {scope} "
+                    f"but nothing there reports it any more -- narrow its scope or delete the entry"
+                )
+    return problems
+
+
+def evaluate(found: dict[str, list], exemptions) -> list[str]:
     """Every reason this should fail, so one run reports all of them."""
 
     problems = []
-    seen = set()
+    seen: dict[str, set[str]] = {}
+    for scope, findings in sorted(found.items()):
+        for finding in findings:
+            seen.setdefault(finding[2], set()).add(scope)
+            problems.extend(_finding_problems(scope, finding, exemptions))
+    return problems + _stale_problems(seen, exemptions)
 
-    for package, version, identifier, fixes in findings:
-        seen.add(identifier)
-        exemption = exemptions.get(identifier)
-        if exemption is None:
-            fix = f", fixed in {', '.join(fixes)}" if fixes else ", no fix published"
-            problems.append(f"unreviewed: {package} {version} {identifier}{fix}")
-            continue
-        if exemption.get("package") != package:
-            problems.append(
-                f"mismatched: {identifier} is exempted for {exemption.get('package')!r} "
-                f"but was reported against {package!r}"
-            )
-        if fixes and not exemption.get("fix_exists"):
-            problems.append(
-                f"fixable: {package} {version} {identifier} now has a fix "
-                f'({", ".join(fixes)}) -- upgrade with `make lock`, or set "fix_exists": true '
-                f"with a reason saying why the fix cannot be taken"
-            )
 
-    for identifier, exemption in sorted(exemptions.items()):
-        if identifier not in seen:
-            problems.append(
-                f"stale: {identifier} ({exemption.get('package')}) is exempted but nothing "
-                f"reports it any more -- delete the entry"
-            )
-    return problems
+def _report(found: dict[str, list], exemptions) -> None:
+    for scope, findings in sorted(found.items()):
+        print(f"{len(findings)} advisory/advisories across {REQUIREMENTS[scope].relative_to(ROOT)}:")
+        for package, version, identifier, fixes in findings:
+            mark = "exempt " if identifier in exemptions else "NEW    "
+            print(f"  {mark} {package} {version} {identifier} {'fix: ' + ', '.join(fixes) if fixes else ''}")
 
 
 def main() -> int:
     exemptions = json.loads(EXEMPTIONS.read_text(encoding="utf-8"))
     exemptions.pop("_comment", None)
-    findings = audit()
+    found = {scope: audit(path) for scope, path in REQUIREMENTS.items()}
 
-    print(f"{len(findings)} advisory/advisories across {REQUIREMENTS.relative_to(ROOT)}:")
-    for package, version, identifier, fixes in findings:
-        mark = "exempt " if identifier in exemptions else "NEW    "
-        print(f"  {mark} {package} {version} {identifier} {'fix: ' + ', '.join(fixes) if fixes else ''}")
-
-    problems = evaluate(findings, exemptions)
+    _report(found, exemptions)
+    problems = evaluate(found, exemptions)
     if problems:
         print("\nFAIL:", file=sys.stderr)
         for problem in problems:
             print(f"  {problem}", file=sys.stderr)
         return 1
 
-    print(f"\nall {len(findings)} accounted for by {EXEMPTIONS.name}")
+    total = sum(len(findings) for findings in found.values())
+    print(f"\nall {total} accounted for by {EXEMPTIONS.name}")
     return 0
 
 
