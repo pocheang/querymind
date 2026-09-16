@@ -386,7 +386,20 @@ jobs:
         # records a `listen` directive left at 80 failing to bind in that base
         # image in a way the build itself does not notice; this is the cheap,
         # deterministic half of catching that class of thing.
-        run: docker run --rm querymind-frontend:ci nginx -t
+        #
+        # --add-host is not a workaround, it is the missing half of the test.
+        # nginx.conf proxies to `http://backend:8000`, a literal hostname, and
+        # nginx resolves those when it parses the file rather than per request --
+        # so `nginx -t` on its own fails with "host not found in upstream" for a
+        # configuration that is perfectly correct on the compose network, where
+        # `backend` is a service name. Supplying the name is what makes the check
+        # test the configuration instead of testing whether Docker has DNS.
+        #
+        # It also pins something worth pinning: `backend` is the only name this
+        # configuration needs from outside the image. Add a second upstream and
+        # this step fails until it is named here, which is the dependency being
+        # written down rather than discovered at deploy time.
+        run: docker run --rm --add-host backend:127.0.0.1 querymind-frontend:ci nginx -t
 
   # A third job because the scanner needs both coverage reports in one workspace,
   # and the two that produce them run in parallel with separate workspaces. That
