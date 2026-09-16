@@ -440,6 +440,65 @@ def _run_fact_verification(final_answer: str, source_documents: Sequence[Mapping
         return None
 
 
+def _build_synthesis_prompts(
+    question: str,
+    skill_name: str,
+    detected_language: str,
+    memory_context: str,
+    vector_context: str,
+    graph_context: str,
+    web_context: str,
+    use_reasoning: bool,
+    nonce: str,
+    canary: str,
+    allowed_labels: Collection[str],
+) -> tuple[str, str]:
+    prompt = _build_prompt_with_language(
+        question=question,
+        detected_language=detected_language,
+        skill_name=skill_name,
+        memory_context=memory_context,
+        vector_context=vector_context,
+        graph_context=graph_context,
+        web_context=web_context,
+        include_evidence_guidance=bool(allowed_labels),
+        nonce=nonce,
+        visible_reasoning=use_reasoning,
+    )
+    if allowed_labels:
+        system_prompt = _evidence_generation_prompt(allowed_labels, nonce=nonce, canary=canary)
+    else:
+        system_prompt = NO_EVIDENCE_ANSWER_PROMPT
+        if nonce and canary:
+            system_prompt = (
+                f"{NO_EVIDENCE_ANSWER_PROMPT}\n\n{SandboxedPromptBuilder.build_security_invariants(nonce, canary)}"
+            )
+    return system_prompt, prompt
+
+
+def _post_validate_and_verify(
+    final_answer: str,
+    detected_language: str,
+    defense_enabled: bool,
+    canary: str,
+    enable_fact_verification: bool,
+    source_documents: Sequence[Mapping[str, Any]] | None,
+) -> tuple[str, Any | None]:
+    if defense_enabled and canary:
+        final_answer, val_report = OutputInjectionValidator.validate_output(final_answer, canary_token=canary)
+        if val_report.get("compromised"):
+            final_answer = synthesis_fallback("generation_failed", detected_language)
+
+    if not final_answer:
+        final_answer = synthesis_fallback("generation_failed", detected_language)
+
+    verification_result = None
+    if enable_fact_verification and not is_synthesis_fallback(final_answer):
+        verification_result = _run_fact_verification(final_answer, source_documents)
+
+    return final_answer, verification_result
+
+
 def synthesize_answer(
     question: str,
     skill_name: str,
@@ -493,26 +552,19 @@ def synthesize_answer(
     allowed_labels = citation_labels_from_contexts(vector_context, graph_context, web_context)
 
     # Build prompt with language hint and sandboxed boundaries
-    prompt = _build_prompt_with_language(
+    system_prompt, prompt = _build_synthesis_prompts(
         question=question,
-        detected_language=detected_language,
         skill_name=skill_name,
+        detected_language=detected_language,
         memory_context=memory_context,
         vector_context=vector_context,
         graph_context=graph_context,
         web_context=web_context,
-        include_evidence_guidance=bool(allowed_labels),
+        use_reasoning=use_reasoning,
         nonce=nonce,
-        visible_reasoning=use_reasoning,
+        canary=canary,
+        allowed_labels=allowed_labels,
     )
-    if allowed_labels:
-        system_prompt = _evidence_generation_prompt(allowed_labels, nonce=nonce, canary=canary)
-    else:
-        system_prompt = NO_EVIDENCE_ANSWER_PROMPT
-        if nonce and canary:
-            system_prompt = (
-                f"{NO_EVIDENCE_ANSWER_PROMPT}\n\n{SandboxedPromptBuilder.build_security_invariants(nonce, canary)}"
-            )
 
     try:
         generation_started = time.perf_counter()
@@ -554,19 +606,15 @@ def synthesize_answer(
             )
         final_answer = normalize_answer_citations(final_answer, allowed_labels)
 
-        # Output injection & canary token verification
-        if defense_enabled and canary:
-            final_answer, val_report = OutputInjectionValidator.validate_output(final_answer, canary_token=canary)
-            if val_report.get("compromised"):
-                final_answer = synthesis_fallback("generation_failed", detected_language)
-
-        if not final_answer:
-            final_answer = synthesis_fallback("generation_failed", detected_language)
-
-        # Task 14: Post-generation fact verification
-        verification_result = None
-        if enable_fact_verification and not is_synthesis_fallback(final_answer):
-            verification_result = _run_fact_verification(final_answer, source_documents)
+        # Output injection & canary token verification + fact verification
+        final_answer, verification_result = _post_validate_and_verify(
+            final_answer=final_answer,
+            detected_language=detected_language,
+            defense_enabled=defense_enabled,
+            canary=canary,
+            enable_fact_verification=enable_fact_verification,
+            source_documents=source_documents,
+        )
 
         result_dict = {
             "answer": final_answer,

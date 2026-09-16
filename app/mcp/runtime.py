@@ -205,47 +205,44 @@ def _register_connector_tools(registry: ToolRegistry, connectors: ConnectorManag
     )
 
 
+async def _query_table_data(call: ToolCall, actor: RequestActor) -> ToolResult:
+    from app.services.tables.nl2sql import translate_nl_to_sql_with_guardrail
+    from app.services.tables.store import get_table_store
+
+    table_id = next((arg.value for arg in call.arguments if arg.name == "table_id"), "")
+    sql = next((arg.value for arg in call.arguments if arg.name == "sql"), "")
+    query_text = next((arg.value for arg in call.arguments if arg.name == "query"), "")
+
+    if not table_id:
+        return ToolResult(tool_id=call.tool_id, status="failed", summary="table_id is required")
+
+    tenant_id = actor.tenant_id or ""
+    table_store = get_table_store()
+    schema = table_store.get_schema(tenant_id, table_id, user_id=actor.user_id)
+    if not schema:
+        return ToolResult(tool_id=call.tool_id, status="failed", summary=f"table '{table_id}' not found")
+
+    target_sql = sql
+    if not target_sql and query_text:
+        target_sql, err = await asyncio.to_thread(translate_nl_to_sql_with_guardrail, query_text, schema)
+        if err and not target_sql and "blocked" in err.lower():
+            return ToolResult(tool_id=call.tool_id, status="failed", summary=err)
+
+    if not target_sql:
+        target_sql = f'SELECT * FROM "{schema.table_name}" LIMIT 20'
+
+    res = await asyncio.to_thread(table_store.query_table, tenant_id, table_id, target_sql, user_id=actor.user_id)
+    if res.error:
+        return ToolResult(tool_id=call.tool_id, status="failed", summary=f"SQL error: {res.error}")
+
+    return ToolResult(
+        tool_id=call.tool_id,
+        status="succeeded",
+        summary=f"Table '{table_id}' query returned {res.row_count} rows:\n\n{res.markdown_table}",
+    )
+
+
 def _register_table_tools(registry: ToolRegistry) -> None:
-    async def query_table_data(call: ToolCall, actor: RequestActor) -> ToolResult:
-        from app.services.tables.nl2sql import translate_nl_to_sql_with_guardrail
-        from app.services.tables.store import get_table_store
-
-        table_id = next((arg.value for arg in call.arguments if arg.name == "table_id"), "")
-        sql = next((arg.value for arg in call.arguments if arg.name == "sql"), "")
-        query_text = next((arg.value for arg in call.arguments if arg.name == "query"), "")
-
-        if not table_id:
-            return ToolResult(tool_id=call.tool_id, status="failed", summary="table_id is required")
-
-        # A table the actor may not read is reported exactly like one that does
-        # not exist: the difference would disclose that someone else holds it.
-        tenant_id = actor.tenant_id or ""
-        table_store = get_table_store()
-        schema = table_store.get_schema(tenant_id, table_id, user_id=actor.user_id)
-        if not schema:
-            return ToolResult(tool_id=call.tool_id, status="failed", summary=f"table '{table_id}' not found")
-
-        target_sql = sql
-        if not target_sql and query_text:
-            # Injection screening happens inside the translator; the translation
-            # itself may call the chat model synchronously, so it runs off the loop.
-            target_sql, err = await asyncio.to_thread(translate_nl_to_sql_with_guardrail, query_text, schema)
-            if err and not target_sql and "blocked" in err.lower():
-                return ToolResult(tool_id=call.tool_id, status="failed", summary=err)
-
-        if not target_sql:
-            target_sql = f'SELECT * FROM "{schema.table_name}" LIMIT 20'
-
-        res = await asyncio.to_thread(table_store.query_table, tenant_id, table_id, target_sql, user_id=actor.user_id)
-        if res.error:
-            return ToolResult(tool_id=call.tool_id, status="failed", summary=f"SQL error: {res.error}")
-
-        return ToolResult(
-            tool_id=call.tool_id,
-            status="succeeded",
-            summary=f"Table '{table_id}' query returned {res.row_count} rows:\n\n{res.markdown_table}",
-        )
-
     registry.register(
         ToolDefinition(
             tool_id=QUERY_TABLE_TOOL_ID,
@@ -276,7 +273,7 @@ def _register_table_tools(registry: ToolRegistry) -> None:
                 ),
             ),
         ),
-        query_table_data,
+        _query_table_data,
     )
 
 

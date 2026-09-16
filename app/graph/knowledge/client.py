@@ -446,7 +446,7 @@ class Neo4jClient:
         self, keywords: list[str], limit: int = 10, allowed_sources: list[str] | None = None
     ) -> list[dict]:
         if allowed_sources is not None:
-            if not allowed_sources:  # NOSONAR (required by test_store_scoping entry point guard assertion)
+            if not allowed_sources:  # NOSONAR
                 return []
         if not keywords:
             return []

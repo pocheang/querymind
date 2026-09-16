@@ -86,37 +86,8 @@ class SynthesizerAgentService:
             ],
             enable_self_review=False,
         )
-        text = normalize_answer_citations(_answer_text(generated), allowed_labels)
-        if not text:
-            text = synthesis_fallback("generation_failed", detect_language(request.question))
-
-        if is_synthesis_fallback(text) and context.evidence:
-            text = _build_evidence_summary_fallback(context.evidence, detect_language(request.question))
-
-        conflict_notes = tuple(str(value) for value in context.diagnostics.get("context_conflicts", ()) or ())
-        if conflict_notes:
-            disclosure = _conflict_disclosure(request.question)
-            if disclosure not in text:
-                text = f"{text}\n\n{disclosure}"
-
-        references = _references_from_markers(text, context)
-        unresolved: list[str] = []
-        if context.evidence and not references:
-            unresolved.append("missing_citations")
-        # Asked structurally, not by comparing against one string: the message
-        # varies by cause and by language now, and a state inferred from
-        # user-facing text is fragile even when it happens to work.
-        if is_synthesis_fallback(text):
-            unresolved.append("generation_fallback")
-        reasoning = generated.get("reasoning") if isinstance(generated, Mapping) else None
-        reasoning_duration_ms = generated.get("reasoning_duration_ms") if isinstance(generated, Mapping) else None
-        return CandidateAnswer(
-            text=text,
-            citations=references,
-            unresolved_items=tuple(dict.fromkeys(unresolved)),
-            reasoning=str(reasoning) if reasoning else None,
-            reasoning_duration_ms=int(reasoning_duration_ms) if reasoning_duration_ms else None,
-        )
+        text = _postprocess_answer_text(generated, allowed_labels, request.question, context)
+        return _build_candidate_answer(text, generated, context)
 
     async def synthesize(
         self,
@@ -354,6 +325,51 @@ def _build_evidence_summary_fallback(
         else:
             blocks.append(f"- {marker} **Source**: {source_label}\n  {snippet}")
     return "\n\n".join(blocks)
+
+
+def _postprocess_answer_text(
+    generated: object,
+    allowed_labels: Sequence[str],
+    question: str,
+    context: ContextBundle,
+) -> str:
+    text = normalize_answer_citations(_answer_text(generated), allowed_labels)
+    lang = detect_language(question)
+    if not text:
+        text = synthesis_fallback("generation_failed", lang)
+
+    if is_synthesis_fallback(text) and context.evidence:
+        text = _build_evidence_summary_fallback(context.evidence, lang)
+
+    conflict_notes = tuple(str(value) for value in context.diagnostics.get("context_conflicts", ()) or ())
+    if conflict_notes:
+        disclosure = _conflict_disclosure(question)
+        if disclosure not in text:
+            text = f"{text}\n\n{disclosure}"
+    return text
+
+
+def _build_candidate_answer(
+    text: str,
+    generated: object,
+    context: ContextBundle,
+) -> CandidateAnswer:
+    references = _references_from_markers(text, context)
+    unresolved: list[str] = []
+    if context.evidence and not references:
+        unresolved.append("missing_citations")
+    if is_synthesis_fallback(text):
+        unresolved.append("generation_fallback")
+
+    reasoning = generated.get("reasoning") if isinstance(generated, Mapping) else None
+    reasoning_duration_ms = generated.get("reasoning_duration_ms") if isinstance(generated, Mapping) else None
+    return CandidateAnswer(
+        text=text,
+        citations=references,
+        unresolved_items=tuple(dict.fromkeys(unresolved)),
+        reasoning=str(reasoning) if reasoning else None,
+        reasoning_duration_ms=int(reasoning_duration_ms) if reasoning_duration_ms else None,
+    )
 
 
 __all__ = ["SynthesisGenerator", "SynthesizerAgentService"]

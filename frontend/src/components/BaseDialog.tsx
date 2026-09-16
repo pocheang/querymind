@@ -33,9 +33,9 @@ export function BaseDialog({ isOpen, title, className, onCancel, children }: Rea
     // dismissing on a click that landed on the backdrop itself replaces the
     // inner stopPropagation handler that used to exist only to undo this one.
     // Escape is wired above and is the keyboard route.
-    <div
+    <div // NOSONAR
       className="confirm-dialog-overlay fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm"
-      role="presentation" // NOSONAR
+      role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}

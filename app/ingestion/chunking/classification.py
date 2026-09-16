@@ -95,6 +95,21 @@ def classify_chunk_type(text: str, metadata: dict[str, Any]) -> ChunkType:
     return "paragraph"
 
 
+_HEADING_END_PUNCTUATION = (".", "。", "!", "！", "?", "？", ":", "：", ",", "，", ";", "；")
+_HEADING_INTERNAL_PUNCTUATION = (",", "，", ";", "；")
+
+
+def _is_short_standalone_heading(stripped: str, lines: list[str]) -> bool:
+    if len(lines) != 1 or len(stripped) >= 60:
+        return False
+    if stripped.rstrip().endswith(_HEADING_END_PUNCTUATION):
+        return False
+    if any(p in stripped for p in _HEADING_INTERNAL_PUNCTUATION):
+        return False
+    words = stripped.split()
+    return 1 <= len(words) <= 7 and (stripped.isupper() or all(w[0].isupper() for w in words if w))
+
+
 def _is_heading(text: str, metadata: dict[str, Any]) -> bool:
     """检查是否为标题"""
     if not text or not text.strip():
@@ -105,31 +120,35 @@ def _is_heading(text: str, metadata: dict[str, Any]) -> bool:
         return True
 
     stripped = text.strip()
+    lines = stripped.splitlines()
 
     # Markdown标题（仅对单行或简短的纯标题生效）
     if stripped.startswith("#"):
-        lines = stripped.splitlines()
-        if len(lines) == 1:
-            return True
-        if len(lines) <= 2 and len(stripped) < 120:
+        if len(lines) == 1 or (len(lines) <= 2 and len(stripped) < 120):
             return True
 
     # 显式章节结构标记（如“第一章 引言”、“Chapter 1: Overview”）
     if re.match(r"^(?:第[一二三四五六七八九十\d]+[章节部分篇条]|Chapter\s+\d+|Section\s+\d+)", stripped, re.IGNORECASE):
-        lines = stripped.splitlines()
         if len(lines) <= 2 and len(stripped) < 100:
             return True
 
     # 单行无终结标点的简短独立标题（排除含逗号、分号的多分句文本）
-    lines = stripped.splitlines()
-    if len(lines) == 1 and len(stripped) < 60:
-        if not stripped.rstrip().endswith((".", "。", "!", "！", "?", "？", ":", "：", ",", "，", ";", "；")):
-            if not any(p in stripped for p in (",", "，", ";", "；")):
-                words = stripped.split()
-                if 1 <= len(words) <= 7 and (stripped.isupper() or all(w[0].isupper() for w in words if w)):
-                    return True
+    return _is_short_standalone_heading(stripped, lines)
 
+
+def _has_pipe_table_structure(lines: list[str]) -> bool:
+    for i, line in enumerate(lines):
+        if line.startswith("|") and line.endswith("|") and line.count("|") >= 2:
+            if i + 1 < len(lines):
+                next_line = lines[i + 1]
+                if next_line.startswith("|") and re.match(r"^\|(?:\s*:?-[-:]*\s*\|)+$", next_line):
+                    return True
     return False
+
+
+def _has_kv_table_structure(lines: list[str]) -> bool:
+    kv_lines = [ln for ln in lines if ln.startswith("- **") and "**: " in ln]
+    return len(kv_lines) >= 2 and any("(Row " in ln or "Sheet:" in ln or "Table:" in ln for ln in lines[:3])
 
 
 def _is_table(text: str, metadata: dict[str, Any]) -> bool:
@@ -146,21 +165,8 @@ def _is_table(text: str, metadata: dict[str, Any]) -> bool:
     if "<table" in lowered or "<tr>" in lowered:
         return True
 
-    # Markdown Pipe 表格结构检测 (任意位置包含表头 + 分隔行)
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    for i, line in enumerate(lines):
-        if line.startswith("|") and line.endswith("|") and line.count("|") >= 2:
-            if i + 1 < len(lines):
-                next_line = lines[i + 1]
-                if next_line.startswith("|") and re.match(r"^\|(?:\s*:?-[-:]*\s*\|)+$", next_line):
-                    return True
-
-    # KV折叠表格结构检测
-    kv_lines = [ln for ln in lines if ln.startswith("- **") and "**: " in ln]
-    if len(kv_lines) >= 2 and any("(Row " in ln or "Sheet:" in ln or "Table:" in ln for ln in lines[:3]):
-        return True
-
-    return False
+    return _has_pipe_table_structure(lines) or _has_kv_table_structure(lines)
 
 
 def _is_code_block(text: str) -> bool:

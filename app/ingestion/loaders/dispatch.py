@@ -206,6 +206,40 @@ def _pdf_fallback_chain(parser: str) -> list[str]:
     return list(dict.fromkeys((f"requested:{requested}", parser)))
 
 
+def _extract_document_tables(documents: list[Document], document: EvidenceDocument) -> list[TableBlock]:
+    tables: list[TableBlock] = []
+    for doc in documents:
+        page_content = str(doc.page_content or "")
+        if "|" in page_content:
+            page_num = (doc.metadata or {}).get("page", 1)
+            try:
+                page_num = max(1, int(page_num))
+            except (TypeError, ValueError):
+                page_num = 1
+            extracted = extract_markdown_tables(
+                page_content,
+                document,
+                page=page_num,
+                start_index=len(tables) + 1,
+            )
+            tables.extend(extracted)
+    return tables
+
+
+def _build_canonical_metadata(document: EvidenceDocument, parser: str) -> dict[str, object]:
+    return {
+        "source": document.source,
+        "filename": document.filename,
+        "document_id": document.document_id,
+        "version": document.version,
+        "tenant_id": document.tenant_id,
+        "owner_user_id": document.owner_user_id,
+        "visibility": document.visibility,
+        "acl_tags": ",".join(document.acl_tags),
+        "parser": parser,
+    }
+
+
 def load_document_with_evidence(
     path: Path,
     metadata: dict[str, object] | None = None,
@@ -231,22 +265,7 @@ def load_document_with_evidence(
     documents = _load_single_path(path)
     pages, blocks, parser = _pages_and_blocks(documents, digest)
     fallback_chain = _pdf_fallback_chain(parser) if path.suffix.lower() == ".pdf" else [parser]
-    tables: list[TableBlock] = []
-    for doc in documents:
-        page_content = str(doc.page_content or "")
-        if "|" in page_content:
-            page_num = (doc.metadata or {}).get("page", 1)
-            try:
-                page_num = max(1, int(page_num))
-            except (TypeError, ValueError):
-                page_num = 1
-            extracted = extract_markdown_tables(
-                page_content,
-                document,
-                page=page_num,
-                start_index=len(tables) + 1,
-            )
-            tables.extend(extracted)
+    tables = _extract_document_tables(documents, document)
 
     parsed = ParsedDocument(
         document=document,
@@ -256,17 +275,7 @@ def load_document_with_evidence(
         parser=parser,
         fallback_chain=tuple(fallback_chain),
     )
-    canonical = {
-        "source": document.source,
-        "filename": document.filename,
-        "document_id": document.document_id,
-        "version": document.version,
-        "tenant_id": document.tenant_id,
-        "owner_user_id": document.owner_user_id,
-        "visibility": document.visibility,
-        "acl_tags": ",".join(document.acl_tags),
-        "parser": parser,
-    }
+    canonical = _build_canonical_metadata(document, parser)
     for loaded in documents:
         loaded.metadata = {**(loaded.metadata or {}), **canonical}
     return parsed, documents

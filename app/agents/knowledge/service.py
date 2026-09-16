@@ -90,6 +90,55 @@ class KnowledgeAgentService:
                 )
         return self._rule_strategy(request, route, retry_feedback, plan, scope)
 
+    def _select_graph_and_multimodal(
+        self,
+        lowered: str,
+        hints: set[str] | frozenset[str],
+        selected: list[KnowledgeSource],
+        reasons: list[str],
+    ) -> None:
+        is_graph_candidate = "graph" in hints or _matches(
+            lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|connected|graph"
+        )
+        is_table_candidate = _matches(lowered, _VISUAL_QUERY_PATTERN) or "multimodal" in hints
+
+        if is_graph_candidate and is_table_candidate:
+            if "graph" not in selected:
+                selected.append("graph")
+            if "multimodal" not in selected:
+                selected.append("multimodal")
+            reasons.append("graph and table hybrid retrieval required")
+        else:
+            if "graph" in hints:
+                selected.append("graph")
+                reasons.append("graph route")
+            elif _matches(lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|connected|graph"):
+                selected.append("graph")
+                reasons.append("relationship query")
+            if _matches(lowered, _VISUAL_QUERY_PATTERN):
+                selected.append("multimodal")
+                reasons.append("visual or tabular evidence required")
+
+    def _select_web_source(
+        self,
+        lowered: str,
+        hints: set[str] | frozenset[str],
+        request: OrchestrationRequest,
+        scope: AccessScope | None,
+        selected: list[KnowledgeSource],
+        reasons: list[str],
+    ) -> None:
+        wants_web = _matches(lowered, r"最新|实时|今天|当前价格|新闻|latest|current|today|news|price")
+        if "web" in hints:
+            selected.append("web")
+            reasons.append("web route")
+        elif request.use_web_fallback:
+            selected.append("web")
+            reasons.append("authorized freshness fallback" if wants_web else "user enabled web search")
+        elif self._web_on_empty_corpus and _has_no_documents(scope):
+            selected.append("web")
+            reasons.append("empty document corpus")
+
     def _selected_sources_and_reasons(
         self,
         lowered: str,
@@ -107,32 +156,8 @@ class KnowledgeAgentService:
         selected: list[KnowledgeSource] = ["vector", "bm25"]
         reasons = ["local semantic and lexical evidence"]
 
-        # Detect graph and table compound intent (e.g. cross-referencing metrics in tables with graph topologies)
-        is_graph_candidate = "graph" in hints or _matches(
-            lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|connected|graph"
-        )
-        is_table_candidate = _matches(lowered, _VISUAL_QUERY_PATTERN) or "multimodal" in hints
+        self._select_graph_and_multimodal(lowered, hints, selected, reasons)
 
-        if is_graph_candidate and is_table_candidate:
-            if "graph" not in selected:
-                selected.append("graph")
-            if "multimodal" not in selected:
-                selected.append("multimodal")
-            reasons.append("graph and table hybrid retrieval required")
-        else:
-            # The router's route is an instruction, not a suggestion: a `graph` or
-            # `hybrid` route must reach the graph even when the wording carries none
-            # of the relationship keywords below. Consulting only the keywords is
-            # what silently degraded the graph route to vector+BM25.
-            if "graph" in hints:
-                selected.append("graph")
-                reasons.append("graph route")
-            elif _matches(lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|connected|graph"):
-                selected.append("graph")
-                reasons.append("relationship query")
-            if _matches(lowered, _VISUAL_QUERY_PATTERN):
-                selected.append("multimodal")
-                reasons.append("visual or tabular evidence required")
         if _matches(lowered, r"我的偏好|我之前|上次|长期记忆|remember|my preference|last time"):
             selected.append("memory")
             reasons.append("governed long-term context")
@@ -142,22 +167,9 @@ class KnowledgeAgentService:
         if "tool" in hints:
             selected.append("tool")
             reasons.append("router tool hint")
-        # Two different authorizations, deliberately not the same one. The router
-        # choosing the `web` route *is* permission to search the web. The
-        # `use_web_fallback` request flag additionally allows a freshness-driven
-        # web search on routes that did not ask for it. Requiring the flag for
-        # both is what made `use_web_fallback=False` (the default on every chat
-        # request) silently remove web search from the web route itself.
-        wants_web = _matches(lowered, r"最新|实时|今天|当前价格|新闻|latest|current|today|news|price")
-        if "web" in hints:
-            selected.append("web")
-            reasons.append("web route")
-        elif request.use_web_fallback:
-            selected.append("web")
-            reasons.append("authorized freshness fallback" if wants_web else "user enabled web search")
-        elif self._web_on_empty_corpus and _has_no_documents(scope):
-            selected.append("web")
-            reasons.append("empty document corpus")
+
+        self._select_web_source(lowered, hints, request, scope, selected, reasons)
+
         if retry_feedback is not None:
             reasons.append("verifier-directed retry")
 

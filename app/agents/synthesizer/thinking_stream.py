@@ -46,6 +46,45 @@ class ReasoningStreamSplitter:
     _state: str = "before"
     _buffer: str = ""
 
+    def _feed_before(self) -> list[tuple[Channel, str]]:
+        out: list[tuple[Channel, str]] = []
+        idx = self._buffer.find(_OPEN_TAG)
+        if idx == -1:
+            if len(self._buffer) >= _SNIFF_LIMIT:
+                out.append(("answer", self._buffer))
+                self._buffer = ""
+                self._state = "after"
+            return out
+        leading = self._buffer[:idx]
+        if leading:
+            out.append(("answer", leading))
+        self._buffer = self._buffer[idx + len(_OPEN_TAG) :]
+        self._state = "thinking"
+        return out
+
+    def _feed_thinking(self) -> list[tuple[Channel, str]]:
+        out: list[tuple[Channel, str]] = []
+        idx = self._buffer.find(_CLOSE_TAG)
+        if idx == -1:
+            # Hold back enough characters that a `</think>` split across
+            # this chunk and the next can never be emitted as thought text.
+            margin = len(_CLOSE_TAG) - 1
+            if len(self._buffer) > margin:
+                releasable = self._buffer[: len(self._buffer) - margin]
+                if releasable:
+                    out.append(("thought", releasable))
+                self._buffer = self._buffer[len(self._buffer) - margin :]
+            return out
+        thought = self._buffer[:idx]
+        if thought:
+            out.append(("thought", thought))
+        trailing = self._buffer[idx + len(_CLOSE_TAG) :]
+        self._buffer = ""
+        self._state = "after"
+        if trailing:
+            out.append(("answer", trailing))
+        return out
+
     def feed(self, chunk: str) -> list[tuple[Channel, str]]:
         if not chunk:
             return []
@@ -56,39 +95,10 @@ class ReasoningStreamSplitter:
         out: list[tuple[Channel, str]] = []
 
         if self._state == "before":
-            idx = self._buffer.find(_OPEN_TAG)
-            if idx == -1:
-                if len(self._buffer) >= _SNIFF_LIMIT:
-                    out.append(("answer", self._buffer))
-                    self._buffer = ""
-                    self._state = "after"
-                return out
-            leading = self._buffer[:idx]
-            if leading:
-                out.append(("answer", leading))
-            self._buffer = self._buffer[idx + len(_OPEN_TAG) :]
-            self._state = "thinking"
+            out.extend(self._feed_before())
 
         if self._state == "thinking":
-            idx = self._buffer.find(_CLOSE_TAG)
-            if idx == -1:
-                # Hold back enough characters that a `</think>` split across
-                # this chunk and the next can never be emitted as thought text.
-                margin = len(_CLOSE_TAG) - 1
-                if len(self._buffer) > margin:
-                    releasable = self._buffer[: len(self._buffer) - margin]
-                    if releasable:
-                        out.append(("thought", releasable))
-                    self._buffer = self._buffer[len(self._buffer) - margin :]
-                return out
-            thought = self._buffer[:idx]
-            if thought:
-                out.append(("thought", thought))
-            trailing = self._buffer[idx + len(_CLOSE_TAG) :]
-            self._buffer = ""
-            self._state = "after"
-            if trailing:
-                out.append(("answer", trailing))
+            out.extend(self._feed_thinking())
 
         return out
 

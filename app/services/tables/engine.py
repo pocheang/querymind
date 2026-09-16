@@ -261,6 +261,37 @@ def _clean_and_parse_value(val: Any) -> tuple[Any, str]:
     return s, "TEXT"
 
 
+def _infer_column_type(votes: dict[str, int]) -> str:
+    non_null = votes["INTEGER"] + votes["REAL"] + votes["TEXT"]
+    if non_null == 0:
+        return "TEXT"
+    if votes["INTEGER"] / non_null >= 0.8:
+        return "INTEGER"
+    if (votes["INTEGER"] + votes["REAL"]) / non_null >= 0.8:
+        return "REAL"
+    return "TEXT"
+
+
+def _clean_rows_and_infer_types(
+    rows: list[list[Any]], sql_columns: list[str]
+) -> tuple[list[list[Any]], dict[str, str]]:
+    num_cols = len(sql_columns)
+    type_votes: list[dict[str, int]] = [{"INTEGER": 0, "REAL": 0, "TEXT": 0, "NULL": 0} for _ in range(num_cols)]
+    cleaned_rows: list[list[Any]] = []
+
+    for row in rows:
+        c_row: list[Any] = []
+        for col_i in range(num_cols):
+            raw_cell = row[col_i] if col_i < len(row) else None
+            c_val, val_type = _clean_and_parse_value(raw_cell)
+            c_row.append(c_val)
+            type_votes[col_i][val_type] += 1
+        cleaned_rows.append(c_row)
+
+    column_types = {col_name: _infer_column_type(type_votes[col_i]) for col_i, col_name in enumerate(sql_columns)}
+    return cleaned_rows, column_types
+
+
 class TableEngine:
     """In-memory analytical SQL engine supporting DuckDB with SQLite fallback."""
 
@@ -333,30 +364,7 @@ class TableEngine:
         num_cols = len(sql_columns)
 
         # 3. Clean rows and infer column types
-        type_votes: list[dict[str, int]] = [{"INTEGER": 0, "REAL": 0, "TEXT": 0, "NULL": 0} for _ in range(num_cols)]
-        cleaned_rows: list[list[Any]] = []
-
-        for row in rows:
-            c_row: list[Any] = []
-            for col_i in range(num_cols):
-                raw_cell = row[col_i] if col_i < len(row) else None
-                c_val, val_type = _clean_and_parse_value(raw_cell)
-                c_row.append(c_val)
-                type_votes[col_i][val_type] += 1
-            cleaned_rows.append(c_row)
-
-        column_types: dict[str, str] = {}
-        for col_i, col_name in enumerate(sql_columns):
-            votes = type_votes[col_i]
-            non_null = votes["INTEGER"] + votes["REAL"] + votes["TEXT"]
-            if non_null == 0:
-                column_types[col_name] = "TEXT"
-            elif votes["INTEGER"] / non_null >= 0.8:
-                column_types[col_name] = "INTEGER"
-            elif (votes["INTEGER"] + votes["REAL"]) / non_null >= 0.8:
-                column_types[col_name] = "REAL"
-            else:
-                column_types[col_name] = "TEXT"
+        cleaned_rows, column_types = _clean_rows_and_infer_types(rows, sql_columns)
 
         # 4. Create in-memory table
         col_defs = ", ".join(f'"{col}" {column_types[col]}' for col in sql_columns)

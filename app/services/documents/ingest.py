@@ -251,6 +251,31 @@ def _index_tables(
     return sum(1 for table in parsed.tables if _index_one_table(extractor, table, canonical))
 
 
+def _build_table_summary(page: int, sheet: str, headers: list[str], rows: list[list[str]]) -> str:
+    cols_preview = ", ".join(headers[:8]) if headers else ""
+    summary = f"Table on page {page}"
+    if sheet:
+        summary += f" (sheet: {sheet})"
+    if cols_preview:
+        summary += f" with columns: {cols_preview}"
+    return f"{summary} ({len(rows)} rows, {len(headers)} columns)"
+
+
+def _register_in_table_store(canonical: dict[str, Any], content: Any, table_id: str) -> None:
+    try:
+        from app.services.tables.store import get_table_store
+
+        get_table_store().save_table(
+            str(canonical.get("tenant_id", "") or ""),
+            content,
+            owner_user_id=str(canonical.get("owner_user_id", "") or ""),
+            visibility=str(canonical.get("visibility", "private") or "private"),
+            source=str(canonical.get("source", "") or ""),
+        )
+    except Exception as te:
+        logger.debug(f"TableStore registration skipped for {table_id}: {te}")
+
+
 def _index_one_table(extractor: Any, table: Any, canonical: dict[str, Any]) -> bool:
     """Index one table; False for an empty table or one the extractor rejects."""
     from app.services.multimodal.models import TableContent
@@ -259,13 +284,7 @@ def _index_one_table(extractor: Any, table: Any, canonical: dict[str, Any]) -> b
     if not headers and not rows:
         return False
     sheet = str(getattr(table, "sheet", "") or "")
-    cols_preview = ", ".join(headers[:8]) if headers else ""
-    summary = (
-        f"Table on page {table.page}"
-        + (f" (sheet: {sheet})" if sheet else "")
-        + (f" with columns: {cols_preview}" if cols_preview else "")
-        + f" ({len(rows)} rows, {len(headers)} columns)"
-    )
+    summary = _build_table_summary(table.page, sheet, headers, rows)
     try:
         content = TableContent(
             table_id=table.table_id,
@@ -289,23 +308,7 @@ def _index_one_table(extractor: Any, table: Any, canonical: dict[str, Any]) -> b
             },
         )
         extractor.index_table(content)
-
-        # Register in TableStore for exact SQL analytics, carrying the same
-        # ownership the vector index was just given -- the store refuses reads
-        # by anyone the document's visibility does not admit.
-        try:
-            from app.services.tables.store import get_table_store
-
-            get_table_store().save_table(
-                str(canonical.get("tenant_id", "") or ""),
-                content,
-                owner_user_id=str(canonical.get("owner_user_id", "") or ""),
-                visibility=str(canonical.get("visibility", "private") or "private"),
-                source=str(canonical.get("source", "") or ""),
-            )
-        except Exception as te:
-            logger.debug(f"TableStore registration skipped for {table.table_id}: {te}")
-
+        _register_in_table_store(canonical, content, table.table_id)
         return True
     except Exception as e:
         logger.warning(f"table_index_failed table_id={table.table_id} error={e}")

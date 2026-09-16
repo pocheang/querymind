@@ -10,11 +10,51 @@ import logging
 import re
 
 from app.services.security.injection_defense import detect_prompt_injection
-from app.services.tables.engine import TableQueryResult
+from app.services.tables.engine import TableQueryResult, TableSchema
 from app.services.tables.nl2sql import translate_nl_to_sql_with_guardrail
 from app.services.tables.store import TableStore, get_table_store
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_entity_filter(query: str, entity_filter: list[str] | None) -> tuple[str, list[str]]:
+    if not entity_filter:
+        return query, []
+    sanitized: list[str] = []
+    for ent in entity_filter:
+        cleaned = re.sub(r"['\";\\]", "", str(ent).strip())
+        if cleaned and len(cleaned) >= 2:
+            sanitized.append(cleaned)
+    augmented = f"{query} (筛选包含: {', '.join(sanitized[:5])})" if sanitized else query
+    return augmented, sanitized
+
+
+def _fallback_entity_query(
+    tbl_store: TableStore,
+    tenant_id: str,
+    table_id: str,
+    schema: TableSchema,
+    user_id: str | None,
+    max_rows: int,
+    sanitized_entities: list[str],
+    err: str | None,
+) -> TableQueryResult:
+    if sanitized_entities and schema.sql_columns:
+        text_cols = [c for c in schema.sql_columns if schema.column_types.get(c, "TEXT") in ("TEXT", "VARCHAR")]
+        in_clause = ", ".join(f"'{e}'" for e in sanitized_entities[:10])
+        predicate = " OR ".join(f'"{col}" IN ({in_clause})' for col in (text_cols or schema.sql_columns))
+        fallback_sql = f'SELECT * FROM "{schema.table_name}" WHERE {predicate} LIMIT {max_rows}'
+        return tbl_store.query_table(tenant_id, table_id, fallback_sql, user_id=user_id, max_rows=max_rows)
+
+    return TableQueryResult(
+        columns=[],
+        rows=[],
+        row_count=0,
+        execution_time_ms=0.0,
+        markdown_table="",
+        engine_used="nl2sql",
+        error=err or "Failed to generate valid SQL query",
+    )
 
 
 def query_table_with_graph_entities(
@@ -73,16 +113,7 @@ def query_table_with_graph_entities(
         )
 
     # 2. Enrich query with entity constraints if provided
-    augmented_query = query
-    sanitized_entities: list[str] = []
-    if entity_filter:
-        for ent in entity_filter:
-            cleaned = re.sub(r"['\";\\]", "", str(ent).strip())
-            if cleaned and len(cleaned) >= 2:
-                sanitized_entities.append(cleaned)
-
-        if sanitized_entities:
-            augmented_query = f"{query} (筛选包含: {', '.join(sanitized_entities[:5])})"
+    augmented_query, sanitized_entities = _sanitize_entity_filter(query, entity_filter)
 
     # 3. Generate safe SQL via guarded NL2SQL
     table_obj = tbl_store.get_table(tenant_id, table_id, user_id=user_id)
@@ -90,24 +121,8 @@ def query_table_with_graph_entities(
     sql, err = translate_nl_to_sql_with_guardrail(augmented_query, schema, sample_rows=sample_rows)
 
     if not sql or err:
-        # Fallback: simple deterministic select filtered by entities. An entity
-        # may sit in any text column; filtering on the first one alone -- usually
-        # an id -- matched nothing whenever the name lived in another column.
-        if sanitized_entities and schema.sql_columns:
-            text_cols = [c for c in schema.sql_columns if schema.column_types.get(c, "TEXT") in ("TEXT", "VARCHAR")]
-            in_clause = ", ".join(f"'{e}'" for e in sanitized_entities[:10])
-            predicate = " OR ".join(f'"{col}" IN ({in_clause})' for col in (text_cols or schema.sql_columns))
-            fallback_sql = f'SELECT * FROM "{schema.table_name}" WHERE {predicate} LIMIT {max_rows}'
-            return tbl_store.query_table(tenant_id, table_id, fallback_sql, user_id=user_id, max_rows=max_rows)
-
-        return TableQueryResult(
-            columns=[],
-            rows=[],
-            row_count=0,
-            execution_time_ms=0.0,
-            markdown_table="",
-            engine_used="nl2sql",
-            error=err or "Failed to generate valid SQL query",
+        return _fallback_entity_query(
+            tbl_store, tenant_id, table_id, schema, user_id, max_rows, sanitized_entities, err
         )
 
     # 4. Execute validated SQL

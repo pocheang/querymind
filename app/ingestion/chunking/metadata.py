@@ -22,21 +22,18 @@ _PIPE_TABLE_SEP = re.compile(r"^\|?(:?-+:?\|)+:?-+:?\|?$")
 _KV_ROW_PATTERN = re.compile(r"^-\s+\*\*([^*]+)\*\*:")
 
 
-def extract_table_columns(text: str) -> list[str]:
-    """Extract table column names from markdown pipe tables or KV-folded entity blocks."""
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-
-    # 1. Pipe table: look for header row followed by separator row
+def _extract_pipe_table_columns(lines: list[str]) -> list[str] | None:
     for idx, line in enumerate(lines):
         if idx + 1 < len(lines) and "|" in line:
             sep = lines[idx + 1].strip().replace(" ", "")
             if bool(sep) and bool(_PIPE_TABLE_SEP.match(sep)):
                 raw_cells = [c.strip().replace(r"\|", "|") for c in re.split(r"(?<!\\)\|", line.strip("|"))]
-                # Filter out synthetic column_0, column_1 placeholders if meaningful names exist
                 meaningful = [c for c in raw_cells if c and not re.match(r"^(?:column|col)_\d+$", c, re.IGNORECASE)]
                 return meaningful if meaningful else [c for c in raw_cells if c]
+    return None
 
-    # 2. KV-folded entity blocks (- **Key**: Value)
+
+def _extract_kv_columns(lines: list[str]) -> list[str]:
     kv_cols: list[str] = []
     for line in lines:
         m = _KV_ROW_PATTERN.match(line)
@@ -45,6 +42,52 @@ def extract_table_columns(text: str) -> list[str]:
             if k and k not in kv_cols:
                 kv_cols.append(k)
     return kv_cols
+
+
+def extract_table_columns(text: str) -> list[str]:
+    """Extract table column names from markdown pipe tables or KV-folded entity blocks."""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    pipe_cols = _extract_pipe_table_columns(lines)
+    if pipe_cols is not None:
+        return pipe_cols
+    return _extract_kv_columns(lines)
+
+
+def _enrich_table_metadata(metadata: dict[str, Any], chunk_type: str, chunk_text: str) -> None:
+    if (chunk_type == "table" or metadata.get("modality") == "table") and not metadata.get("table_columns"):
+        cols = extract_table_columns(chunk_text)
+        if cols:
+            metadata["table_columns"] = ", ".join(cols)
+
+
+def _populate_semantic_and_context_features(
+    metadata: dict[str, Any],
+    chunk_text: str,
+    chunk_index: int,
+    total_chunks: int,
+    prev_chunk_text: str | None,
+    next_chunk_text: str | None,
+) -> None:
+    metadata["has_question"] = "?" in chunk_text or "？" in chunk_text
+    metadata["has_code"] = any(marker in chunk_text for marker in ["```", "def ", "class ", "function"])
+    metadata["has_url"] = bool(_URL.search(chunk_text))
+    metadata["has_email"] = "@" in chunk_text and "." in chunk_text
+
+    if prev_chunk_text:
+        metadata["prev_chunk_preview"] = (
+            prev_chunk_text[:100] + "..." if len(prev_chunk_text) > 100 else prev_chunk_text
+        )
+    if next_chunk_text:
+        metadata["next_chunk_preview"] = (
+            next_chunk_text[:100] + "..." if len(next_chunk_text) > 100 else next_chunk_text
+        )
+
+    if chunk_index == 0:
+        metadata["position"] = "start"
+    elif chunk_index == total_chunks - 1:
+        metadata["position"] = "end"
+    else:
+        metadata["position"] = "middle"
 
 
 def enhance_chunk_metadata(
@@ -94,36 +137,12 @@ def enhance_chunk_metadata(
         metadata["entities"] = entities
 
     # 结构化表格元数据提取
-    if chunk_type == "table" or metadata.get("modality") == "table":
-        if not metadata.get("table_columns"):
-            cols = extract_table_columns(chunk_text)
-            if cols:
-                metadata["table_columns"] = ", ".join(cols)
+    _enrich_table_metadata(metadata, chunk_type, chunk_text)
 
-    # 语义特征
-    metadata["has_question"] = "?" in chunk_text or "？" in chunk_text
-    metadata["has_code"] = any(marker in chunk_text for marker in ["```", "def ", "class ", "function"])
-    metadata["has_url"] = bool(_URL.search(chunk_text))
-    metadata["has_email"] = "@" in chunk_text and "." in chunk_text
-
-    # 上下文信息
-    if prev_chunk_text:
-        metadata["prev_chunk_preview"] = (
-            prev_chunk_text[:100] + "..." if len(prev_chunk_text) > 100 else prev_chunk_text
-        )
-
-    if next_chunk_text:
-        metadata["next_chunk_preview"] = (
-            next_chunk_text[:100] + "..." if len(next_chunk_text) > 100 else next_chunk_text
-        )
-
-    # 位置信息
-    if chunk_index == 0:
-        metadata["position"] = "start"
-    elif chunk_index == total_chunks - 1:
-        metadata["position"] = "end"
-    else:
-        metadata["position"] = "middle"
+    # 语义与上下文位置特征
+    _populate_semantic_and_context_features(
+        metadata, chunk_text, chunk_index, total_chunks, prev_chunk_text, next_chunk_text
+    )
 
     # 重要性评分（简单启发式）
     metadata["importance_score"] = calculate_importance_score(chunk_text, chunk_type, metadata)

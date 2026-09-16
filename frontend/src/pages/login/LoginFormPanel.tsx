@@ -35,6 +35,69 @@ function getPasswordScoreColor(score: number): string {
   return "bg-emerald-500";
 }
 
+interface PasswordStrengthMeterProps {
+  score: number;
+}
+
+function PasswordStrengthMeter({ score }: Readonly<PasswordStrengthMeterProps>) {
+  return (
+    <div className="flex items-center gap-1.5 pt-0.5">
+      {[1, 2, 3, 4, 5].map((step) => (
+        <div
+          key={step}
+          className={cn(
+            "h-1.5 flex-1 rounded-full transition-all duration-300",
+            score >= step ? getPasswordScoreColor(score) : "bg-stone-200"
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+interface ConfirmPasswordSectionProps {
+  password: string;
+  confirmPassword: string;
+  setConfirmPassword: (val: string) => void;
+  onSubmit: () => void;
+}
+
+function ConfirmPasswordSection({
+  password,
+  confirmPassword,
+  setConfirmPassword,
+  onSubmit,
+}: Readonly<ConfirmPasswordSectionProps>) {
+  const { t } = useTranslation();
+  const isMatch = password === confirmPassword;
+
+  return (
+    <div className="space-y-1">
+      <Label htmlFor="confirmPassword" className="text-xs sm:text-sm font-bold text-stone-800">
+        {t("auth.confirmPassword")}
+      </Label>
+      <AuthInput
+        id="confirmPassword"
+        type="password"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        placeholder={t("auth.confirmPassword")}
+        autoComplete="new-password"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onSubmit();
+        }}
+        icon="lock"
+        isValid={confirmPassword.length > 0 ? isMatch : null}
+      />
+      {confirmPassword.length > 0 && (
+        <p className={cn("text-xs font-bold", isMatch ? "text-emerald-700" : "text-rose-600")}>
+          {isMatch ? t("pages.changePassword.confirmMatch") : t("pages.changePassword.confirmMismatch")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function LoginFormPanel({
   mode,
   setMode,
@@ -171,19 +234,7 @@ export function LoginFormPanel({
               icon="lock"
               isValid={passwordFieldValid}
             />
-            {mode === "register" && password.length > 0 && (
-              <div className="flex items-center gap-1.5 pt-0.5">
-                {[1, 2, 3, 4, 5].map((step) => (
-                  <div
-                    key={step}
-                    className={cn(
-                      "h-1.5 flex-1 rounded-full transition-all duration-300",
-                      passwordScore >= step ? getPasswordScoreColor(passwordScore) : "bg-stone-200"
-                    )}
-                  />
-                ))}
-              </div>
-            )}
+            {mode === "register" && password.length > 0 && <PasswordStrengthMeter score={passwordScore} />}
             {password.length > 0 && mode === "register" && !isPasswordValid ? (
               <p className="text-xs font-bold text-rose-600">{t("pages.login.weakPassword")}</p>
             ) : (
@@ -193,36 +244,12 @@ export function LoginFormPanel({
 
           {/* Confirm Password (Register mode only) */}
           {mode === "register" && (
-            <div className="space-y-1">
-              <Label htmlFor="confirmPassword" className="text-xs sm:text-sm font-bold text-stone-800">
-                {t("auth.confirmPassword")}
-              </Label>
-              <AuthInput
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder={t("auth.confirmPassword")}
-                autoComplete="new-password"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onSubmit();
-                }}
-                icon="lock"
-                isValid={confirmPassword.length > 0 ? password === confirmPassword : null}
-              />
-              {confirmPassword.length > 0 && (
-                <p
-                  className={cn(
-                    "text-xs font-bold",
-                    password === confirmPassword ? "text-emerald-700" : "text-rose-600"
-                  )}
-                >
-                  {password === confirmPassword
-                    ? t("pages.changePassword.confirmMatch")
-                    : t("pages.changePassword.confirmMismatch")}
-                </p>
-              )}
-            </div>
+            <ConfirmPasswordSection
+              password={password}
+              confirmPassword={confirmPassword}
+              setConfirmPassword={setConfirmPassword}
+              onSubmit={onSubmit}
+            />
           )}
 
           {/* Remember Me Checkbox (Login mode only) */}

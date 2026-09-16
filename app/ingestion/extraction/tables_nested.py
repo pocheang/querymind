@@ -45,6 +45,27 @@ def detect_nested_table(text: str) -> bool:
     return False
 
 
+def _process_nested_table_line(line: str) -> str:
+    """Process a single markdown table line to clean escaped pipes and HTML tags."""
+    stripped = line.strip()
+    if not (stripped.startswith("|") and stripped.endswith("|")):
+        return line
+
+    inner_content = stripped[1:-1]
+    raw_cells = re.split(r"(?<!\\)\|", inner_content)
+    processed_cells: list[str] = []
+
+    for cell in raw_cells:
+        c = cell.strip()
+        if "\\|" in c:
+            c = "; ".join(part.strip() for part in c.split("\\|"))
+        if "<" in c and ">" in c:
+            c = _HTML_TAG_RE.sub("", c).strip()
+        processed_cells.append(c)
+
+    return "| " + " | ".join(processed_cells) + " |"
+
+
 def flatten_nested_table(text: str) -> str:
     """Flatten nested tables into single-level structure.
 
@@ -60,60 +81,21 @@ def flatten_nested_table(text: str) -> str:
     # First, replace any inline HTML table tags with flattened text
     def _clean_html_cell(match: re.Match) -> str:
         inner = match.group(0)
-        # Extract cell contents separated by semicolons
         cell_contents = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", inner, re.IGNORECASE | re.DOTALL)
         if cell_contents:
-            cleaned = "; ".join(_HTML_TAG_RE.sub("", c).strip() for c in cell_contents if c.strip())
-            return cleaned
+            return "; ".join(_HTML_TAG_RE.sub("", c).strip() for c in cell_contents if c.strip())
         return _HTML_TAG_RE.sub(" ", inner).strip()
 
     processed = _HTML_TABLE_RE.sub(_clean_html_cell, text)
 
     # Flatten bracketed sub-tables [| a | b |] -> [a; b] before splitting by pipes
-    # The same shape `detect_nested_table` gates on. `\[\|\s*(.+?)\s*\|\]` put
-    # three quantifiers over the same whitespace -- 8.4 s on one line of 2,000
-    # spaces (python:S8786) -- and the parts are stripped below anyway. The only
-    # inputs it treats differently are degenerate: a whitespace-only body such as
-    # `[| |]|]`, where the old pattern ran on into the next `|]`.
     processed = re.sub(
         r"\[\|(.+?)\|\]",
         lambda m: "[" + "; ".join(part.strip() for part in m.group(1).split("|") if part.strip()) + "]",
         processed,
     )
 
-    lines = processed.splitlines()
-    flattened_lines: list[str] = []
-
-    for line in lines:
-        stripped = line.strip()
-        if not (stripped.startswith("|") and stripped.endswith("|")):
-            flattened_lines.append(line)
-            continue
-
-        # Process cell contents for escaped pipes or HTML remnants
-        # Strip outer pipes
-        inner_content = stripped[1:-1]
-        raw_cells = re.split(r"(?<!\\)\|", inner_content)
-        processed_cells: list[str] = []
-
-        for cell in raw_cells:
-            c = cell.strip()
-            # Replace escaped pipes with semicolons cleanly
-            if "\\|" in c:
-                # A split, not `re.sub(r"\s*\\\|\s*", "; ", c)`: the leading `\s*`
-                # restarted at every offset of a long space run (python:S8786).
-                # `c` is already stripped, so stripping every part removes exactly
-                # the whitespace next to each separator -- identical output.
-                c = "; ".join(part.strip() for part in c.split("\\|"))
-            # Remove any residual HTML tags
-            if "<" in c and ">" in c:
-                c = _HTML_TAG_RE.sub("", c).strip()
-            processed_cells.append(c)
-
-        flattened_line = "| " + " | ".join(processed_cells) + " |"
-        flattened_lines.append(flattened_line)
-
-    return "\n".join(flattened_lines)
+    return "\n".join(_process_nested_table_line(line) for line in processed.splitlines())
 
 
 def simplify_complex_table(text: str) -> str:

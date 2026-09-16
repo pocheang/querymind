@@ -188,6 +188,27 @@ def _column_number(letters: bytes) -> int:
     return number
 
 
+def _scan_sheet_merge_refs(handle: Any, scanned: int, total: int) -> tuple[int, int, bool]:
+    """Scan one worksheet XML stream for merged ranges. Returns (scanned, total, is_over_limit)."""
+    tail = b""
+    while chunk := handle.read(1 << 20):
+        scanned += len(chunk)
+        if scanned > _MAX_SHEET_XML_SCAN_BYTES:
+            return scanned, _MAX_MERGED_CELLS + 1, True
+        buffer = tail + chunk
+        last_end = 0
+        for match in _MERGE_REF_RE.finditer(buffer):
+            c1, r1, c2, r2 = match.groups()
+            rows = abs(int(r2) - int(r1)) + 1
+            cols = abs(_column_number(c2) - _column_number(c1)) + 1
+            total += rows * cols
+            if total > _MAX_MERGED_CELLS:
+                return scanned, total, True
+            last_end = match.end()
+        tail = buffer[max(last_end, len(buffer) - 256) :]
+    return scanned, total, False
+
+
 def _declared_merged_area(path: Path) -> int:
     """Cells covered by merged ranges across every sheet, read from the raw XML.
 
@@ -204,24 +225,9 @@ def _declared_merged_area(path: Path) -> int:
                 if not (name.startswith("xl/worksheets/") and name.endswith(".xml")):
                     continue
                 with archive.open(name) as handle:
-                    tail = b""
-                    while chunk := handle.read(1 << 20):
-                        scanned += len(chunk)
-                        if scanned > _MAX_SHEET_XML_SCAN_BYTES:
-                            return over_limit
-                        buffer = tail + chunk
-                        last_end = 0
-                        for match in _MERGE_REF_RE.finditer(buffer):
-                            c1, r1, c2, r2 = match.groups()
-                            rows = abs(int(r2) - int(r1)) + 1
-                            cols = abs(_column_number(c2) - _column_number(c1)) + 1
-                            total += rows * cols
-                            if total > _MAX_MERGED_CELLS:
-                                return total
-                            last_end = match.end()
-                        # Keep enough of the end to complete a tag split across
-                        # chunks, but nothing already counted.
-                        tail = buffer[max(last_end, len(buffer) - 256) :]
+                    scanned, total, is_over = _scan_sheet_merge_refs(handle, scanned, total)
+                    if is_over:
+                        return total
     except (zipfile.BadZipFile, OSError, KeyError):
         return over_limit
     return total
@@ -479,6 +485,27 @@ def _rows_to_markdown(rows: list[list[object]], sheet_name: str | None = None) -
     return table_text
 
 
+def _flush_table_block(
+    current_table: list[str],
+    tables: list[TableBlock],
+    start_index: int,
+    document: EvidenceDocument,
+    page: int,
+    sheet: str | None,
+) -> None:
+    if len(current_table) >= 2 and any(_TABLE_SEPARATOR_PATTERN.match(row) for row in current_table):
+        tbl_md = "\n".join(current_table)
+        table_idx = start_index + len(tables)
+        tables.append(
+            TableBlock(
+                table_id=_id(document, "table", table_idx),
+                page=page,
+                sheet=sheet,
+                markdown=tbl_md,
+            )
+        )
+
+
 def _extract_markdown_tables(
     markdown: str,
     document: EvidenceDocument,
@@ -505,31 +532,10 @@ def _extract_markdown_tables(
         if stripped.startswith("|") and stripped.endswith("|"):
             current_table.append(stripped)
         else:
-            if len(current_table) >= 2 and any(_TABLE_SEPARATOR_PATTERN.match(row) for row in current_table):
-                tbl_md = "\n".join(current_table)
-                table_idx = start_index + len(tables)
-                tables.append(
-                    TableBlock(
-                        table_id=_id(document, "table", table_idx),
-                        page=page,
-                        sheet=current_sheet or last_title,
-                        markdown=tbl_md,
-                    )
-                )
+            _flush_table_block(current_table, tables, start_index, document, page, current_sheet or last_title)
             current_table = []
 
-    if len(current_table) >= 2 and any(_TABLE_SEPARATOR_PATTERN.match(row) for row in current_table):
-        tbl_md = "\n".join(current_table)
-        table_idx = start_index + len(tables)
-        tables.append(
-            TableBlock(
-                table_id=_id(document, "table", table_idx),
-                page=page,
-                sheet=current_sheet or last_title,
-                markdown=tbl_md,
-            )
-        )
-
+    _flush_table_block(current_table, tables, start_index, document, page, current_sheet or last_title)
     return tuple(tables)
 
 

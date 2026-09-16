@@ -127,6 +127,28 @@ def detect_entity_communities(
     return communities
 
 
+def _score_community(comm: dict[str, Any], query_tokens: list[str]) -> float:
+    text = f"{comm.get('title', '')} {comm.get('summary', '')} {' '.join(comm.get('findings', []))}".lower()
+    score = sum(1.0 for token in query_tokens if token in text)
+    return min(1.0, score / max(1, len(query_tokens))) if query_tokens else 0.5
+
+
+def _format_community_context(top_communities: list[dict[str, Any]]) -> str:
+    context_lines = ["### 知识图谱宏观社区概览 (Global Community Insights)"]
+    for c in top_communities:
+        title = c.get("title", "未命名社群")
+        summary = c.get("summary", "")
+        entities = c.get("entities", [])
+        context_lines.append(f"- **{title}**")
+        if summary:
+            context_lines.append(f"  - 概要: {summary}")
+        if entities:
+            context_lines.append(f"  - 关键实体: {', '.join(entities[:10])}")
+        for finding in c.get("findings", [])[:2]:
+            context_lines.append(f"  - 发现: {finding}")
+    return "\n".join(context_lines)
+
+
 def global_graph_search(
     question: str,
     limit: int = 4,
@@ -159,42 +181,15 @@ def global_graph_search(
             "global_signal_score": 0.0,
         }
 
-    # Score communities against query keywords
     query_tokens = [w.lower() for w in re.findall(r"\w+|[\u4e00-\u9fff]{2,}", question)]
-    scored_communities: list[tuple[float, dict[str, Any]]] = []
-
-    for comm in raw_communities:
-        text = f"{comm.get('title', '')} {comm.get('summary', '')} {' '.join(comm.get('findings', []))}".lower()
-        score = 0.0
-        for token in query_tokens:
-            if token in text:
-                score += 1.0
-        # Normalize by query length
-        norm_score = min(1.0, score / max(1, len(query_tokens))) if query_tokens else 0.5
-        scored_communities.append((norm_score, comm))
-
+    scored_communities = [(_score_community(comm, query_tokens), comm) for comm in raw_communities]
     scored_communities.sort(key=lambda x: x[0], reverse=True)
     top_communities = [c for _, c in scored_communities[:limit]]
 
-    # Format into structured Markdown report context
-    context_lines = ["### 知识图谱宏观社区概览 (Global Community Insights)"]
-    for c in top_communities:
-        title = c.get("title", "未命名社群")
-        summary = c.get("summary", "")
-        entities = c.get("entities", [])
-        context_lines.append(f"- **{title}**")
-        if summary:
-            context_lines.append(f"  - 概要: {summary}")
-        if entities:
-            context_lines.append(f"  - 关键实体: {', '.join(entities[:10])}")
-        for finding in c.get("findings", [])[:2]:
-            context_lines.append(f"  - 发现: {finding}")
-
-    max_score = scored_communities[0][0] if scored_communities else 0.0
     return {
         "communities": top_communities,
-        "context": "\n".join(context_lines),
-        "global_signal_score": max_score,
+        "context": _format_community_context(top_communities),
+        "global_signal_score": scored_communities[0][0] if scored_communities else 0.0,
     }
 
 

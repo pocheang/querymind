@@ -53,6 +53,15 @@ _SYNONYMS: dict[str, tuple[str, ...]] = {
 }
 
 
+def _matches_synonym(q_low: str, c_low: str, o_low: str) -> bool:
+    for zh_kw, en_syns in _SYNONYMS.items():
+        if zh_kw in q_low and any(syn in c_low or syn in o_low for syn in en_syns):
+            return True
+        if any(syn in q_low for syn in en_syns) and (zh_kw in o_low or zh_kw in c_low):
+            return True
+    return False
+
+
 def _matches_col(query_text: str, sql_col: str, orig_col: str) -> bool:
     q_low = query_text.lower()
     c_low = sql_col.lower()
@@ -61,15 +70,46 @@ def _matches_col(query_text: str, sql_col: str, orig_col: str) -> bool:
     if (len(o_low) >= 2 and o_low in q_low) or (len(c_low) >= 3 and c_low in q_low):
         return True
 
-    for zh_kw, en_syns in _SYNONYMS.items():
-        if zh_kw in q_low:
-            if any(syn in c_low or syn in o_low for syn in en_syns):
-                return True
-        if any(syn in q_low for syn in en_syns):
-            if zh_kw in o_low or zh_kw in c_low:
-                return True
+    return _matches_synonym(q_low, c_low, o_low)
 
-    return False
+
+def _detect_agg_func(q: str) -> str | None:
+    if any(k in q for k in ("总和", "总额", "合计", "求和", "汇总", "sum", "total")):
+        return "SUM"
+    if any(k in q for k in ("平均", "均值", "avg", "average", "mean")):
+        return "AVG"
+    if any(k in q for k in ("最大", "最高", "最多", "max", "highest", "maximum")):
+        return "MAX"
+    if any(k in q for k in ("最小", "最低", "最少", "min", "lowest", "minimum")):
+        return "MIN"
+    return None
+
+
+def _find_target_col(q: str, schema: TableSchema, agg_func: str) -> str | None:
+    for sql_col in schema.sql_columns:
+        orig = schema.reverse_mapping.get(sql_col, sql_col)
+        if _matches_col(q, sql_col, orig):
+            # Only numeric columns for SUM / AVG
+            if agg_func in ("SUM", "AVG") and schema.column_types.get(sql_col) not in ("INTEGER", "REAL"):
+                continue
+            return sql_col
+
+    # If no specific column matched, try the first numeric column for SUM / AVG
+    if agg_func in ("SUM", "AVG"):
+        for sql_col in schema.sql_columns:
+            if schema.column_types.get(sql_col) in ("INTEGER", "REAL"):
+                return sql_col
+    return None
+
+
+def _find_group_col(q: str, schema: TableSchema, target_col: str) -> str | None:
+    for sql_col in schema.sql_columns:
+        if sql_col == target_col:
+            continue
+        orig = schema.reverse_mapping.get(sql_col, sql_col)
+        if _matches_col(q, sql_col, orig):
+            return sql_col
+    return None
 
 
 def match_template_aggregation(query: str, schema: TableSchema) -> str | None:
@@ -89,51 +129,15 @@ def match_template_aggregation(query: str, schema: TableSchema) -> str | None:
         if not any(k in q for k in ("按", "group by", "各个", "每个")):
             return f'SELECT COUNT(*) AS total_count FROM "{schema.table_name}"'
 
-    # Detect aggregate function
-    agg_func = None
-    if any(k in q for k in ("总和", "总额", "合计", "求和", "汇总", "sum", "total")):
-        agg_func = "SUM"
-    elif any(k in q for k in ("平均", "均值", "avg", "average", "mean")):
-        agg_func = "AVG"
-    elif any(k in q for k in ("最大", "最高", "最多", "max", "highest", "maximum")):
-        agg_func = "MAX"
-    elif any(k in q for k in ("最小", "最低", "最少", "min", "lowest", "minimum")):
-        agg_func = "MIN"
-
+    agg_func = _detect_agg_func(q)
     if not agg_func:
         return None
 
-    # Find which column is being asked about
-    target_col = None
-    for sql_col in schema.sql_columns:
-        orig = schema.reverse_mapping.get(sql_col, sql_col)
-        if _matches_col(q, sql_col, orig):
-            # Only numeric columns for SUM / AVG
-            if agg_func in ("SUM", "AVG") and schema.column_types.get(sql_col) not in ("INTEGER", "REAL"):
-                continue
-            target_col = sql_col
-            break
-
-    # If no specific column matched, try the first numeric column for SUM / AVG
-    if not target_col and agg_func in ("SUM", "AVG"):
-        for sql_col in schema.sql_columns:
-            if schema.column_types.get(sql_col) in ("INTEGER", "REAL"):
-                target_col = sql_col
-                break
-
+    target_col = _find_target_col(q, schema, agg_func)
     if not target_col:
         return None
 
-    # Check for Group By (e.g. "按部门统计总薪资" / "各个部门的平均工资")
-    group_col = None
-    for sql_col in schema.sql_columns:
-        if sql_col == target_col:
-            continue
-        orig = schema.reverse_mapping.get(sql_col, sql_col)
-        if _matches_col(q, sql_col, orig):
-            group_col = sql_col
-            break
-
+    group_col = _find_group_col(q, schema, target_col)
     if group_col:
         return (
             f'SELECT "{group_col}", {agg_func}("{target_col}") AS "{agg_func.lower()}_{target_col}" '

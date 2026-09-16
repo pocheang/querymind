@@ -390,31 +390,38 @@ def _graph_lookup_error_result(question: str, exc: Exception) -> dict:
     }
 
 
+def _format_single_entity_header(name: str, ent_type: str, desc: str) -> str:
+    if ent_type and desc:
+        return f"Entity: {name} [{ent_type}] - {desc}"
+    if ent_type and ent_type != "CONCEPT":
+        return f"Entity: {name} [{ent_type}]"
+    if desc:
+        return f"Entity: {name} - {desc}"
+    return f"Entity: {name}"
+
+
+def _format_relation_item(rel: dict) -> str | None:
+    if not rel.get("other"):
+        return None
+    weight = rel.get("weight", 0)
+    rel_desc = rel.get("rel_desc", "")
+    if rel_desc:
+        return f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')} ({rel_desc})"
+    return f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}"
+
+
 def _format_entity_lines(entities: list[dict]) -> list[str]:
     lines = []
     for item in entities:
         name = item.get("entity", "")
         if not name:
             continue
-        ent_type = item.get("type", "")
-        desc = item.get("description", "")
-        if ent_type and desc:
-            lines.append(f"Entity: {name} [{ent_type}] - {desc}")
-        elif ent_type and ent_type != "CONCEPT":
-            lines.append(f"Entity: {name} [{ent_type}]")
-        elif desc:
-            lines.append(f"Entity: {name} - {desc}")
-        else:
-            lines.append(f"Entity: {name}")
+        lines.append(_format_single_entity_header(name, item.get("type", ""), item.get("description", "")))
 
         for rel in item.get("relations", []):
-            if rel.get("other"):
-                weight = rel.get("weight", 0)
-                rel_desc = rel.get("rel_desc", "")
-                if rel_desc:
-                    lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')} ({rel_desc})")
-                else:
-                    lines.append(f"  - {rel.get('relation')} ({weight:.2f}) -> {rel.get('other')}")
+            rel_line = _format_relation_item(rel)
+            if rel_line:
+                lines.append(rel_line)
     return lines
 
 
