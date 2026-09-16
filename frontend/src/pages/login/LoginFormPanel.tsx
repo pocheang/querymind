@@ -5,9 +5,11 @@ import { AuthInput } from "@/components/AuthInput";
 import { cn } from "@/lib/utils";
 import { LoginSocialButtons } from "./LoginSocialButtons";
 
+type AuthMode = "login" | "register";
+
 interface LoginFormPanelProps {
-  mode: "login" | "register";
-  setMode: (mode: "login" | "register") => void;
+  mode: AuthMode;
+  setMode: (mode: AuthMode) => void;
   username: string;
   setUsername: (value: string) => void;
   password: string;
@@ -98,6 +100,113 @@ function ConfirmPasswordSection({
   );
 }
 
+interface UsernameSectionProps {
+  username: string;
+  setUsername: (val: string) => void;
+  isUsernameValid: boolean;
+  mode: AuthMode;
+}
+
+function UsernameSection({ username, setUsername, isUsernameValid, mode }: Readonly<UsernameSectionProps>) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <Label htmlFor="username" className="text-xs sm:text-sm font-bold text-stone-800">
+          {t("auth.username")}
+        </Label>
+        {username.length > 0 && (
+          <span className="text-xs font-mono font-bold text-stone-400">{username.length}/32</span>
+        )}
+      </div>
+      <AuthInput
+        id="username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        onClear={() => setUsername("")}
+        placeholder={t("auth.username")}
+        autoComplete="username"
+        icon="user"
+        isValid={username.length > 0 ? isUsernameValid : null}
+      />
+      <div className="flex items-center justify-between pt-0.5 text-xs">
+        {username.length > 0 && !isUsernameValid ? (
+          <p className="font-bold text-rose-600">{t("pages.login.invalidFormat")}</p>
+        ) : (
+          <p className="text-stone-500 font-normal">{t("pages.login.usernameHint")}</p>
+        )}
+        {mode === "login" && !username && (
+          <button
+            type="button"
+            onClick={() => setUsername("admin")}
+            className="font-bold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer"
+          >
+            {t("pages.login.fillAdmin")}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface PasswordSectionProps {
+  password: string;
+  setPassword: (val: string) => void;
+  isPasswordValid: boolean;
+  passwordScore: number;
+  mode: AuthMode;
+  onSubmit: () => void;
+}
+
+function PasswordSection({
+  password,
+  setPassword,
+  isPasswordValid,
+  passwordScore,
+  mode,
+  onSubmit,
+}: Readonly<PasswordSectionProps>) {
+  const { t } = useTranslation();
+  const passwordValidity = mode === "register" ? isPasswordValid : true;
+  const passwordFieldValid = password.length > 0 ? passwordValidity : null;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <Label htmlFor="password" className="text-xs sm:text-sm font-bold text-stone-800">
+          {t("auth.password")}
+        </Label>
+        {mode === "register" && password.length > 0 && (
+          <span className={cn("text-xs font-bold", isPasswordValid ? "text-emerald-700" : "text-amber-700")}>
+            {isPasswordValid ? t("pages.login.passwordValid") : t("pages.login.weakPassword")}
+          </span>
+        )}
+      </div>
+      <AuthInput
+        id="password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder={t("auth.password")}
+        autoComplete={mode === "register" ? "new-password" : "current-password"}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            onSubmit();
+          }
+        }}
+        icon="lock"
+        isValid={passwordFieldValid}
+      />
+      {mode === "register" && password.length > 0 && <PasswordStrengthMeter score={passwordScore} />}
+      {password.length > 0 && mode === "register" && !isPasswordValid ? (
+        <p className="text-xs font-bold text-rose-600">{t("pages.login.weakPassword")}</p>
+      ) : (
+        <p className="text-xs text-stone-500 font-normal">{t("pages.login.passwordHint")}</p>
+      )}
+    </div>
+  );
+}
+
 export function LoginFormPanel({
   mode,
   setMode,
@@ -123,8 +232,7 @@ export function LoginFormPanel({
 }: Readonly<LoginFormPanelProps>) {
   const { t } = useTranslation();
   const submitLabel = mode === "login" ? t("auth.loginButton") : t("auth.registerButton");
-  const passwordValidity = mode === "register" ? isPasswordValid : true;
-  const passwordFieldValid = password.length > 0 ? passwordValidity : null;
+  const isSubmitDisabled = mode === "login" ? !loginValid || loading : !registerValid || loading;
 
   return (
     <section className="md:col-span-6 bg-white p-6 lg:p-7 xl:p-8 flex flex-col justify-between space-y-3">
@@ -169,78 +277,21 @@ export function LoginFormPanel({
 
         {/* Form Inputs Container */}
         <div className="space-y-2.5 sm:space-y-3">
-          {/* Username Input */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="username" className="text-xs sm:text-sm font-bold text-stone-800">
-                {t("auth.username")}
-              </Label>
-              {username.length > 0 && (
-                <span className="text-xs font-mono font-bold text-stone-400">{username.length}/32</span>
-              )}
-            </div>
-            <AuthInput
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onClear={() => setUsername("")}
-              placeholder={t("auth.username")}
-              autoComplete="username"
-              icon="user"
-              isValid={username.length > 0 ? isUsernameValid : null}
-            />
-            <div className="flex items-center justify-between pt-0.5 text-xs">
-              {username.length > 0 && !isUsernameValid ? (
-                <p className="font-bold text-rose-600">{t("pages.login.invalidFormat")}</p>
-              ) : (
-                <p className="text-stone-500 font-normal">{t("pages.login.usernameHint")}</p>
-              )}
-              {mode === "login" && !username && (
-                <button
-                  type="button"
-                  onClick={() => setUsername("admin")}
-                  className="font-bold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer"
-                >
-                  {t("pages.login.fillAdmin")}
-                </button>
-              )}
-            </div>
-          </div>
+          <UsernameSection
+            username={username}
+            setUsername={setUsername}
+            isUsernameValid={isUsernameValid}
+            mode={mode}
+          />
 
-          {/* Password Input */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-xs sm:text-sm font-bold text-stone-800">
-                {t("auth.password")}
-              </Label>
-              {mode === "register" && password.length > 0 && (
-                <span className={cn("text-xs font-bold", isPasswordValid ? "text-emerald-700" : "text-amber-700")}>
-                  {isPasswordValid ? t("pages.login.passwordValid") : t("pages.login.weakPassword")}
-                </span>
-              )}
-            </div>
-            <AuthInput
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t("auth.password")}
-              autoComplete={mode === "register" ? "new-password" : "current-password"}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  onSubmit();
-                }
-              }}
-              icon="lock"
-              isValid={passwordFieldValid}
-            />
-            {mode === "register" && password.length > 0 && <PasswordStrengthMeter score={passwordScore} />}
-            {password.length > 0 && mode === "register" && !isPasswordValid ? (
-              <p className="text-xs font-bold text-rose-600">{t("pages.login.weakPassword")}</p>
-            ) : (
-              <p className="text-xs text-stone-500 font-normal">{t("pages.login.passwordHint")}</p>
-            )}
-          </div>
+          <PasswordSection
+            password={password}
+            setPassword={setPassword}
+            isPasswordValid={isPasswordValid}
+            passwordScore={passwordScore}
+            mode={mode}
+            onSubmit={onSubmit}
+          />
 
           {/* Confirm Password (Register mode only) */}
           {mode === "register" && (
@@ -271,7 +322,7 @@ export function LoginFormPanel({
           {/* Primary Golden Amber Action Button */}
           <button
             type="submit"
-            disabled={mode === "login" ? !loginValid || loading : !registerValid || loading}
+            disabled={isSubmitDisabled}
             onClick={onSubmit}
             className={cn(
               "w-full h-11 rounded-xl text-base font-bold transition-all duration-150 flex items-center justify-center gap-2",

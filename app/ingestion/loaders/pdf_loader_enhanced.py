@@ -79,44 +79,45 @@ def load_pdf_enhanced(
         return []
 
 
+def _extract_from_page_items(items: Any) -> list[str]:
+    content: list[str] = []
+    for p in items:
+        if hasattr(p, "export_to_markdown"):
+            md = p.export_to_markdown()
+            if md and md.strip():
+                content.append(md.strip())
+    return content
+
+
+def _extract_from_full_markdown(document: Any) -> list[str]:
+    if not hasattr(document, "export_to_markdown"):
+        return []
+    page_break = "<!-- page break -->"
+    try:
+        full_md = document.export_to_markdown(page_break_placeholder=page_break)
+    except Exception:
+        full_md = document.export_to_markdown()
+
+    if not full_md or not full_md.strip():
+        return []
+    if page_break in full_md:
+        return [part.strip() for part in full_md.split(page_break) if part and part.strip()]
+    return [full_md.strip()]
+
+
 def _extract_pages_content(document: Any) -> list[str]:
     """Read each Docling page's markdown, dropping pages with no content."""
-    pages_content: list[str] = []
-
     raw_pages = getattr(document, "pages", None)
     if isinstance(raw_pages, (list, tuple)):  # noqa: UP038
-        for p in raw_pages:
-            if hasattr(p, "export_to_markdown"):
-                md = p.export_to_markdown()
-                if md and md.strip():
-                    pages_content.append(md.strip())
+        pages_content = _extract_from_page_items(raw_pages)
         if pages_content:
             return pages_content
     elif isinstance(raw_pages, dict):
-        for p in raw_pages.values():
-            if hasattr(p, "export_to_markdown"):
-                md = p.export_to_markdown()
-                if md and md.strip():
-                    pages_content.append(md.strip())
+        pages_content = _extract_from_page_items(raw_pages.values())
         if pages_content:
             return pages_content
 
-    if hasattr(document, "export_to_markdown"):
-        PAGE_BREAK = "<!-- page break -->"
-        try:
-            full_md = document.export_to_markdown(page_break_placeholder=PAGE_BREAK)
-        except Exception:
-            full_md = document.export_to_markdown()
-
-        if full_md and full_md.strip():
-            if PAGE_BREAK in full_md:
-                for part in full_md.split(PAGE_BREAK):
-                    if part and part.strip():
-                        pages_content.append(part.strip())
-            else:
-                pages_content.append(full_md.strip())
-
-    return pages_content
+    return _extract_from_full_markdown(document)
 
 
 def _apply_pdf_processing(

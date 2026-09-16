@@ -1,5 +1,119 @@
 import type { SessionMessage } from "@/types/api";
 
+function getAgentPrompts(agentClass: string, isZh: boolean): string[] {
+  if (agentClass === "cybersecurity") {
+    return isZh
+      ? ["深入分析这个安全问题的攻击面和防护措施", "给出具体的安全加固建议和实施步骤", "分析相关的安全合规要求"]
+      : [
+          "Analyze attack surfaces and mitigation strategies for this security issue",
+          "Provide concrete security hardening recommendations and action steps",
+          "Assess relevant regulatory and compliance requirements",
+        ];
+  }
+  if (agentClass === "artificial_intelligence") {
+    return isZh
+      ? ["详细解释这个AI概念的技术原理", "给出实际应用场景和代码示例", "对比不同的AI方法和优缺点"]
+      : [
+          "Explain the underlying technical principles of this AI concept",
+          "Provide production use cases and implementation code examples",
+          "Compare alternative AI methodologies, pros, and trade-offs",
+        ];
+  }
+  if (agentClass === "pdf_text") {
+    return isZh
+      ? ["提取文档中的关键数据和证据", "总结文档的核心要点和结论", "分析文档中的风险点和建议"]
+      : [
+          "Extract key empirical figures and evidence citations from the document",
+          "Summarize core findings and conclusions from this document",
+          "Analyze potential vulnerabilities, risk points, and recommendations",
+        ];
+  }
+  return [];
+}
+
+function getQuestionTypePrompts(userQuestion: string, isZh: boolean): string[] {
+  if (
+    userQuestion.includes("什么") ||
+    userQuestion.includes("介绍") ||
+    userQuestion.includes("what") ||
+    userQuestion.includes("intro")
+  ) {
+    return isZh
+      ? ["详细展开说明，包含具体案例", "给出实际应用场景和最佳实践"]
+      : [
+          "Elaborate with concrete examples and real-world scenarios",
+          "Provide practical deployment patterns and best practices",
+        ];
+  }
+  if (userQuestion.includes("如何") || userQuestion.includes("怎么") || userQuestion.includes("how")) {
+    return isZh
+      ? ["给出详细的实施步骤和注意事项", "提供具体的配置示例和代码"]
+      : [
+          "Provide a step-by-step rollout plan and cautionary notes",
+          "Show specific configuration files and executable snippets",
+        ];
+  }
+  if (
+    userQuestion.includes("对比") ||
+    userQuestion.includes("区别") ||
+    userQuestion.includes("compare") ||
+    userQuestion.includes("difference")
+  ) {
+    return isZh
+      ? ["制作详细的对比表格", "分析各自的优缺点和适用场景"]
+      : [
+          "Structure a comprehensive comparison matrix table",
+          "Evaluate advantages, pitfalls, and target scenarios for each option",
+        ];
+  }
+  return [];
+}
+
+function getAnswerContentPrompts(assistantAnswer: string, isZh: boolean): string[] {
+  const prompts: string[] = [];
+  if (assistantAnswer.includes("架构") || assistantAnswer.includes("architecture")) {
+    prompts.push(
+      isZh ? "详细说明各个组件的职责和交互" : "Detail responsibilities and interaction protocols across components",
+      isZh ? "分析架构的优缺点和改进方向" : "Critique architectural trade-offs and future evolutionary roadmaps"
+    );
+  }
+  if (
+    assistantAnswer.includes("风险") ||
+    assistantAnswer.includes("threat") ||
+    assistantAnswer.includes("vulnerability") ||
+    assistantAnswer.includes("risk")
+  ) {
+    prompts.push(
+      isZh ? "给出具体的风险评估和处置建议" : "Deliver a granular risk assessment and remediation priority list",
+      isZh ? "制定应急响应预案" : "Draft an incident response runbook"
+    );
+  }
+  if (assistantAnswer.includes("模型") || assistantAnswer.includes("model") || assistantAnswer.includes("algorithm")) {
+    prompts.push(
+      isZh ? "解释模型的数学原理和实现细节" : "Explain mathematical foundations and implementation nuances",
+      isZh ? "给出模型调优和性能优化建议" : "Recommend hyperparameter tuning and latency optimization tips"
+    );
+  }
+  return prompts;
+}
+
+function getMetadataPrompts(metadata: SessionMessage["metadata"], isZh: boolean): string[] {
+  const prompts: string[] = [];
+  if (metadata?.citations && metadata.citations.length > 0) {
+    prompts.push(
+      isZh ? "展开引用的文档内容，提供更多细节" : "Expand cited source excerpts with full contextual paragraphs",
+      isZh ? "对比不同文档中的相关信息" : "Cross-verify cited findings across multiple ingested documents"
+    );
+  }
+  if ((metadata?.graph_result?.neighbors?.length ?? 0) > 0 || (metadata?.graph_result?.paths?.length ?? 0) > 0) {
+    prompts.push(
+      isZh ? "深入分析相关实体之间的关系" : "Trace deeper topological graph relations across connected entities",
+      isZh ? "探索更多相关的知识点" : "Explore adjacent knowledge nodes in the Neo4j graph"
+    );
+  }
+  return prompts;
+}
+
 /**
  * 根据对话历史智能生成快速提示 (支持中英双语)
  */
@@ -25,7 +139,7 @@ export function generateSmartPrompts(messages: SessionMessage[], isZh = true): s
   }
 
   // 获取最近的对话（最多3轮）
-  const recentMessages = messages.slice(-6); // 最近3轮对话（用户+助手）
+  const recentMessages = messages.slice(-6);
   const lastUserMessage = recentMessages.findLast((m) => m.role === "user");
   const lastAssistantMessage = recentMessages.findLast((m) => m.role === "assistant");
 
@@ -37,112 +151,19 @@ export function generateSmartPrompts(messages: SessionMessage[], isZh = true): s
   const assistantAnswer = lastAssistantMessage.content.toLowerCase();
   const metadata = lastAssistantMessage.metadata;
 
-  const prompts: string[] = [];
-
-  // 1. 根据使用的 agent 类型推荐相关提示
-  const agentClass = metadata?.agent_class || "";
-
-  if (agentClass === "cybersecurity") {
-    prompts.push(
-      isZh
-        ? "深入分析这个安全问题的攻击面和防护措施"
-        : "Analyze attack surfaces and mitigation strategies for this security issue",
-      isZh
-        ? "给出具体的安全加固建议和实施步骤"
-        : "Provide concrete security hardening recommendations and action steps",
-      isZh ? "分析相关的安全合规要求" : "Assess relevant regulatory and compliance requirements"
-    );
-  } else if (agentClass === "artificial_intelligence") {
-    prompts.push(
-      isZh ? "详细解释这个AI概念的技术原理" : "Explain the underlying technical principles of this AI concept",
-      isZh ? "给出实际应用场景和代码示例" : "Provide production use cases and implementation code examples",
-      isZh ? "对比不同的AI方法和优缺点" : "Compare alternative AI methodologies, pros, and trade-offs"
-    );
-  } else if (agentClass === "pdf_text") {
-    prompts.push(
-      isZh ? "提取文档中的关键数据和证据" : "Extract key empirical figures and evidence citations from the document",
-      isZh ? "总结文档的核心要点和结论" : "Summarize core findings and conclusions from this document",
-      isZh ? "分析文档中的风险点和建议" : "Analyze potential vulnerabilities, risk points, and recommendations"
-    );
-  }
-
-  // 2. 根据问题类型推荐深入提示
-  if (
-    userQuestion.includes("什么") ||
-    userQuestion.includes("介绍") ||
-    userQuestion.includes("what") ||
-    userQuestion.includes("intro")
-  ) {
-    prompts.push(
-      isZh ? "详细展开说明，包含具体案例" : "Elaborate with concrete examples and real-world scenarios",
-      isZh ? "给出实际应用场景和最佳实践" : "Provide practical deployment patterns and best practices"
-    );
-  } else if (userQuestion.includes("如何") || userQuestion.includes("怎么") || userQuestion.includes("how")) {
-    prompts.push(
-      isZh ? "给出详细的实施步骤和注意事项" : "Provide a step-by-step rollout plan and cautionary notes",
-      isZh ? "提供具体的配置示例和代码" : "Show specific configuration files and executable snippets"
-    );
-  } else if (
-    userQuestion.includes("对比") ||
-    userQuestion.includes("区别") ||
-    userQuestion.includes("compare") ||
-    userQuestion.includes("difference")
-  ) {
-    prompts.push(
-      isZh ? "制作详细的对比表格" : "Structure a comprehensive comparison matrix table",
-      isZh ? "分析各自的优缺点和适用场景" : "Evaluate advantages, pitfalls, and target scenarios for each option"
-    );
-  }
-
-  // 3. 根据回答内容推荐后续提示
-  if (assistantAnswer.includes("架构") || assistantAnswer.includes("architecture")) {
-    prompts.push(
-      isZh ? "详细说明各个组件的职责和交互" : "Detail responsibilities and interaction protocols across components",
-      isZh ? "分析架构的优缺点和改进方向" : "Critique architectural trade-offs and future evolutionary roadmaps"
-    );
-  }
-
-  if (
-    assistantAnswer.includes("风险") ||
-    assistantAnswer.includes("threat") ||
-    assistantAnswer.includes("vulnerability") ||
-    assistantAnswer.includes("risk")
-  ) {
-    prompts.push(
-      isZh ? "给出具体的风险评估和处置建议" : "Deliver a granular risk assessment and remediation priority list",
-      isZh ? "制定应急响应预案" : "Draft an incident response runbook"
-    );
-  }
-
-  if (assistantAnswer.includes("模型") || assistantAnswer.includes("model") || assistantAnswer.includes("algorithm")) {
-    prompts.push(
-      isZh ? "解释模型的数学原理和实现细节" : "Explain mathematical foundations and implementation nuances",
-      isZh ? "给出模型调优和性能优化建议" : "Recommend hyperparameter tuning and latency optimization tips"
-    );
-  }
-
-  // 4. 根据引用证据推荐
-  if (metadata?.citations && metadata.citations.length > 0) {
-    prompts.push(
-      isZh ? "展开引用的文档内容，提供更多细节" : "Expand cited source excerpts with full contextual paragraphs",
-      isZh ? "对比不同文档中的相关信息" : "Cross-verify cited findings across multiple ingested documents"
-    );
-  }
-
-  // 5. 根据图谱关系推荐
-  if ((metadata?.graph_result?.neighbors?.length ?? 0) > 0 || (metadata?.graph_result?.paths?.length ?? 0) > 0) {
-    prompts.push(
-      isZh ? "深入分析相关实体之间的关系" : "Trace deeper topological graph relations across connected entities",
-      isZh ? "探索更多相关的知识点" : "Explore adjacent knowledge nodes in the Neo4j graph"
-    );
-  }
-
-  // 6. 通用后续提示
-  prompts.push(
-    isZh ? "用表格形式总结关键信息" : "Tabulate the essential takeaways into a clean markdown table",
-    isZh ? "给出实际案例和应用建议" : "Provide practical industry benchmarks and implementation tips",
-    isZh ? "切换到其他模式重新分析这个问题" : "Re-evaluate this question using a different specialized agent mode"
-  );
+  const prompts: string[] = [
+    ...getAgentPrompts(metadata?.agent_class || "", isZh),
+    ...getQuestionTypePrompts(userQuestion, isZh),
+    ...getAnswerContentPrompts(assistantAnswer, isZh),
+    ...getMetadataPrompts(metadata, isZh),
+    ...(isZh
+      ? ["用表格形式总结关键信息", "给出实际案例和应用建议", "切换到其他模式重新分析这个问题"]
+      : [
+          "Tabulate the essential takeaways into a clean markdown table",
+          "Provide practical industry benchmarks and implementation tips",
+          "Re-evaluate this question using a different specialized agent mode",
+        ]),
+  ];
 
   // 去重并返回前4个
   const uniquePrompts = Array.from(new Set(prompts));

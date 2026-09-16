@@ -127,6 +127,49 @@ def _is_valid_entity_candidate(text: str) -> bool:
     return True
 
 
+def _add_entity_candidate(val: str, seen: set[str], candidates: list[str]) -> None:
+    cleaned = _clean_cell(val)
+    if _is_valid_entity_candidate(cleaned):
+        norm = normalize_string(cleaned, lowercase=True)
+        if norm and norm not in seen:
+            seen.add(norm)
+            candidates.append(cleaned)
+
+
+def _extract_pipe_and_column_entities(
+    content: str,
+    max_limit: int,
+    seen: set[str],
+    candidates: list[str],
+) -> None:
+    for line in content.splitlines():
+        line_s = line.strip()
+        if not line_s.startswith("|"):
+            if line_s.lower().startswith("columns") and ":" in line_s:
+                parts = line_s.split(":", 1)[1].split("|")
+                for p in parts:
+                    _add_entity_candidate(p, seen, candidates)
+            continue
+
+        cells = [c.strip() for c in line_s.split("|")[1:-1]]
+        for cell in cells:
+            _add_entity_candidate(cell, seen, candidates)
+            if len(candidates) >= max_limit:
+                return
+
+
+def _extract_delimiter_entities(
+    content: str,
+    seen: set[str],
+    candidates: list[str],
+) -> None:
+    for line in content.splitlines()[:10]:
+        for delim in ("\t", ",", " | "):
+            if delim in line:
+                for part in line.split(delim):
+                    _add_entity_candidate(part, seen, candidates)
+
+
 def extract_table_entities(content: str, max_entities: int = 15) -> list[str]:
     """Extract candidate business entities from structured table text/markdown.
 
@@ -140,41 +183,9 @@ def extract_table_entities(content: str, max_entities: int = 15) -> list[str]:
     candidates: list[str] = []
     seen: set[str] = set()
 
-    def add_candidate(val: str) -> None:
-        cleaned = _clean_cell(val)
-        if _is_valid_entity_candidate(cleaned):
-            norm = normalize_string(cleaned, lowercase=True)
-            if norm and norm not in seen:
-                seen.add(norm)
-                candidates.append(cleaned)
-
-    # 1. Parse pipe-delimited markdown tables
-    for line in content.splitlines():
-        line_s = line.strip()
-        if not line_s.startswith("|"):
-            # Also check text-based format like "Columns (3): A | B | C"
-            if line_s.lower().startswith("columns") and ":" in line_s:
-                parts = line_s.split(":", 1)[1].split("|")
-                for p in parts:
-                    add_candidate(p)
-            continue
-
-        # Pipe table row
-        cells = [c.strip() for c in line_s.split("|")[1:-1]]
-        for cell in cells:
-            add_candidate(cell)
-            if len(candidates) >= max_entities * 2:
-                break
-        if len(candidates) >= max_entities * 2:
-            break
-
-    # If no pipe rows were found, try splitting lines with common delimiters
+    _extract_pipe_and_column_entities(content, max_entities * 2, seen, candidates)
     if not candidates:
-        for line in content.splitlines()[:10]:
-            for delim in ("\t", ",", " | "):
-                if delim in line:
-                    for part in line.split(delim):
-                        add_candidate(part)
+        _extract_delimiter_entities(content, seen, candidates)
 
     return candidates[:max_entities]
 

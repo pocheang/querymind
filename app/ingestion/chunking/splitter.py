@@ -300,6 +300,61 @@ def _extract_markdown_cells(line: str) -> list[str]:
     return [p.replace(r"\|", "|").strip() for p in parts]
 
 
+def _is_table_title_candidate(cand: str) -> bool:
+    return (
+        cand.startswith("#")
+        or (cand.startswith("**") and cand.endswith("**") and len(cand) < 120)
+        or cand.lower().startswith("**sheet:")
+        or cand.lower().startswith("**table")
+        or cand.startswith("**表")
+        or bool(re.match(r"^(?:table|sheet|表|附表|图表)\s*[\d.:\-_\s]", cand, re.IGNORECASE))
+    )
+
+
+def _pop_table_titles_from_acc(text_acc: list[str]) -> tuple[list[str], list[str]]:
+    if not text_acc:
+        return text_acc, []
+    idx = len(text_acc) - 1
+    while idx >= 0 and not text_acc[idx].strip():
+        idx -= 1
+    table_titles: list[str] = []
+    while idx >= 0:
+        cand = text_acc[idx].strip()
+        if _is_table_title_candidate(cand):
+            table_titles.append(cand)
+            idx -= 1
+            while idx >= 0 and not text_acc[idx].strip():
+                idx -= 1
+        else:
+            break
+    if table_titles:
+        remaining_acc = text_acc[: idx + 1]
+        table_titles.reverse()
+        return remaining_acc, table_titles
+    return text_acc, []
+
+
+def _collect_table_lines(lines: list[str], start_idx: int) -> tuple[list[str], int]:
+    n = len(lines)
+    header_line = lines[start_idx]
+    sep_line = lines[start_idx + 1]
+    table_lines = [header_line, sep_line]
+    k = start_idx + 2
+    while k < n and _is_table_row(lines[k]):
+        if k + 1 < n and _is_table_separator(lines[k + 1]):
+            break
+        table_lines.append(lines[k])
+        k += 1
+    return table_lines, k
+
+
+def _append_text_block_if_any(blocks: list[tuple[str, str]], text_acc: list[str]) -> None:
+    if text_acc:
+        t = "\n".join(text_acc).strip()
+        if t:
+            blocks.append(("text", t))
+
+
 def _extract_document_blocks(text: str) -> list[tuple[str, str]]:
     """Partition text into an ordered sequence of ('text', content) and ('table', content) blocks.
 
@@ -314,49 +369,11 @@ def _extract_document_blocks(text: str) -> list[tuple[str, str]]:
 
     while i < n:
         if _is_table_row(lines[i]) and i + 1 < n and _is_table_separator(lines[i + 1]):
-            table_titles: list[str] = []
-            if text_acc:
-                idx = len(text_acc) - 1
-                while idx >= 0 and not text_acc[idx].strip():
-                    idx -= 1
-                while idx >= 0:
-                    cand = text_acc[idx].strip()
-                    is_title_cand = (
-                        cand.startswith("#")
-                        or (cand.startswith("**") and cand.endswith("**") and len(cand) < 120)
-                        or cand.lower().startswith("**sheet:")
-                        or cand.lower().startswith("**table")
-                        or cand.startswith("**表")
-                        or bool(re.match(r"^(?:table|sheet|表|附表|图表)\s*[\d.:\-_\s]", cand, re.IGNORECASE))
-                    )
-                    if is_title_cand:
-                        table_titles.append(cand)
-                        idx -= 1
-                        while idx >= 0 and not text_acc[idx].strip():
-                            idx -= 1
-                    else:
-                        break
+            text_acc, table_titles = _pop_table_titles_from_acc(text_acc)
+            _append_text_block_if_any(blocks, text_acc)
+            text_acc = []
 
-                if table_titles:
-                    text_acc = text_acc[: idx + 1]
-                    table_titles.reverse()
-
-            if text_acc:
-                t = "\n".join(text_acc).strip()
-                if t:
-                    blocks.append(("text", t))
-                text_acc = []
-
-            header_line = lines[i]
-            sep_line = lines[i + 1]
-            table_lines = [header_line, sep_line]
-            k = i + 2
-            while k < n and _is_table_row(lines[k]):
-                if k + 1 < n and _is_table_separator(lines[k + 1]):
-                    break
-                table_lines.append(lines[k])
-                k += 1
-
+            table_lines, k = _collect_table_lines(lines, i)
             if table_titles:
                 table_block = "\n\n".join(table_titles) + "\n\n" + "\n".join(table_lines)
             else:
@@ -367,11 +384,7 @@ def _extract_document_blocks(text: str) -> list[tuple[str, str]]:
             text_acc.append(lines[i])
             i += 1
 
-    if text_acc:
-        t = "\n".join(text_acc).strip()
-        if t:
-            blocks.append(("text", t))
-
+    _append_text_block_if_any(blocks, text_acc)
     return blocks
 
 
@@ -387,6 +400,27 @@ def _is_kv_table_content(text: str) -> bool:
         for ln in lines[:3]
     )
     return has_table_marker
+
+
+def _format_kv_chunk(prefix: str, part_idx: int, lines: list[str]) -> str:
+    part_header = f"{prefix} (Part {part_idx})" if (prefix and part_idx > 1) else prefix
+    return f"{part_header}\n" + "\n".join(lines) if part_header else "\n".join(lines)
+
+
+def _slice_oversized_kv_line(eline: str, prefix: str, budget: int, start_part_idx: int) -> tuple[list[str], int]:
+    slices: list[str] = []
+    prefix_tag = eline.split(": ", 1)[0] + ": " if ": " in eline else "- "
+    val_text = eline[len(prefix_tag) :]
+    avail = max(40, budget - len(prefix_tag) - 10)
+    part_idx = start_part_idx
+    for offset in range(0, len(val_text), avail):
+        val_slice = val_text[offset : offset + avail]
+        slice_line = f"{prefix_tag}{val_slice}" if offset == 0 else f"{prefix_tag}(cont.) {val_slice}"
+        part_header = f"{prefix} (Part {part_idx})" if prefix else ""
+        part_str = f"{part_header}\n{slice_line}" if part_header else slice_line
+        slices.append(part_str.strip())
+        part_idx += 1
+    return slices, part_idx
 
 
 def _split_kv_table_text(text: str, max_chunk_size: int) -> list[str]:
@@ -411,29 +445,17 @@ def _split_kv_table_text(text: str, max_chunk_size: int) -> list[str]:
         # Single line exceeds budget: slice value text across bounded parts
         if len(eline) > budget:
             if sub_lines:
-                part_header = f"{prefix} (Part {part_idx})" if prefix else ""
-                part_str = f"{part_header}\n" + "\n".join(sub_lines) if part_header else "\n".join(sub_lines)
-                chunks.append(part_str.strip())
+                chunks.append(_format_kv_chunk(prefix, part_idx, sub_lines).strip())
                 sub_lines = []
                 sub_len = 0
                 part_idx += 1
 
-            prefix_tag = eline.split(": ", 1)[0] + ": " if ": " in eline else "- "
-            val_text = eline[len(prefix_tag) :]
-            avail = max(40, budget - len(prefix_tag) - 10)
-            for offset in range(0, len(val_text), avail):
-                val_slice = val_text[offset : offset + avail]
-                slice_line = f"{prefix_tag}{val_slice}" if offset == 0 else f"{prefix_tag}(cont.) {val_slice}"
-                part_header = f"{prefix} (Part {part_idx})" if prefix else ""
-                part_str = f"{part_header}\n{slice_line}" if part_header else slice_line
-                chunks.append(part_str.strip())
-                part_idx += 1
+            line_chunks, part_idx = _slice_oversized_kv_line(eline, prefix, budget, part_idx)
+            chunks.extend(line_chunks)
             continue
 
         if sub_len + len(eline) + 1 > budget and sub_lines:
-            part_header = f"{prefix} (Part {part_idx})" if prefix else ""
-            part_str = f"{part_header}\n" + "\n".join(sub_lines) if part_header else "\n".join(sub_lines)
-            chunks.append(part_str.strip())
+            chunks.append(_format_kv_chunk(prefix, part_idx, sub_lines).strip())
             sub_lines = [eline]
             sub_len = len(eline)
             part_idx += 1
@@ -442,9 +464,7 @@ def _split_kv_table_text(text: str, max_chunk_size: int) -> list[str]:
             sub_len += len(eline) + 1
 
     if sub_lines:
-        part_header = f"{prefix} (Part {part_idx})" if (prefix and part_idx > 1) else prefix
-        part_str = f"{part_header}\n" + "\n".join(sub_lines) if part_header else "\n".join(sub_lines)
-        chunks.append(part_str.strip())
+        chunks.append(_format_kv_chunk(prefix, part_idx, sub_lines).strip())
 
     return chunks if chunks else [text]
 
@@ -460,19 +480,11 @@ def _is_markdown_table_content(text: str) -> bool:
     return False
 
 
-def _split_single_table_block(
+def _parse_table_components(
     table_text: str,
-    max_chunk_size: int,
-    row_overlap: int = 1,
-    global_row_offset: int = 0,
-    global_total_rows: int | None = None,
-) -> list[str]:
-    """Split a single table block preserving headers, sheet metadata, and row overlap.
-
-    Implements:
-    1. Table-RAG (SIGIR 2024): Sliding row window with row_overlap to preserve cross-row context.
-    2. TableLlama (NAACL 2024): Adaptive Key-Value folding for ultra-wide rows exceeding chunk thresholds.
-    """
+    global_row_offset: int,
+    global_total_rows: int | None,
+) -> tuple[str, str, str, list[str], int, int] | None:
     lines = [line.strip() for line in table_text.splitlines() if line.strip()]
     header_idx = -1
     for idx, ln in enumerate(lines):
@@ -481,7 +493,7 @@ def _split_single_table_block(
             break
 
     if header_idx == -1:
-        return [table_text]
+        return None
 
     prefix_lines = lines[:header_idx]
     if global_total_rows is None:
@@ -497,82 +509,110 @@ def _split_single_table_block(
     header_line = lines[header_idx]
     sep_line = lines[header_idx + 1]
     data_rows = lines[header_idx + 2 :]
-    total_data_rows = len(data_rows)
-    display_total_rows = global_total_rows if global_total_rows is not None else total_data_rows
+    display_total_rows = global_total_rows if global_total_rows is not None else len(data_rows)
+    return prefix_str, header_line, sep_line, data_rows, global_row_offset, display_total_rows
 
-    if total_data_rows == 0:
-        return [table_text]
 
-    if len(table_text) <= max_chunk_size and (global_total_rows is None or global_total_rows == total_data_rows):
-        return [table_text]
+def _build_kv_entity_records(
+    data_rows: list[str],
+    header_line: str,
+    prefix_str: str,
+    global_row_offset: int,
+    display_total_rows: int,
+) -> list[str]:
+    cols = _extract_markdown_cells(header_line)
+    entity_records: list[str] = []
+    for r_i, r in enumerate(data_rows, start=1):
+        vals = _extract_markdown_cells(r)
+        vals += [""] * max(0, len(cols) - len(vals))
+        entity_lines = [f"- **{col}**: {val}" for col, val in zip(cols, vals, strict=False) if val and col.strip()]
+        primary_label = f" - {cols[0]}: {vals[0]}" if cols and vals and vals[0] and cols[0].strip() else ""
+        actual_row = global_row_offset + r_i
+        row_coord = f"(Row {actual_row} of {display_total_rows}{primary_label})"
+        header_prefix = _format_table_title(prefix_str, row_coord)
+        full_entity_str = f"{header_prefix}\n" + "\n".join(entity_lines)
+        entity_records.append(full_entity_str)
+    return entity_records
 
-    # Ultra-wide table check: adaptive KV-folding (TableLlama / StructLM NAACL/EMNLP 2024)
-    # Check max row length across all rows instead of only checking row 0
-    max_row_len = max((len(r) for r in data_rows), default=0)
-    if (max_row_len + len(header_line)) > max_chunk_size * 0.75:
-        cols = _extract_markdown_cells(header_line)
-        entity_records: list[str] = []
 
-        for r_i, r in enumerate(data_rows, start=1):
-            vals = _extract_markdown_cells(r)
-            vals += [""] * max(0, len(cols) - len(vals))
-            entity_lines = [f"- **{col}**: {val}" for col, val in zip(cols, vals, strict=False) if val and col.strip()]
-            primary_label = f" - {cols[0]}: {vals[0]}" if cols and vals and vals[0] and cols[0].strip() else ""
-            actual_row = global_row_offset + r_i
-            row_coord = f"(Row {actual_row} of {display_total_rows}{primary_label})"
-            header_prefix = _format_table_title(prefix_str, row_coord)
-            full_entity_str = f"{header_prefix}\n" + "\n".join(entity_lines)
-            entity_records.append(full_entity_str)
+def _chunk_kv_entity_records(
+    entity_records: list[str],
+    max_chunk_size: int,
+    row_overlap: int,
+) -> list[str]:
+    kv_chunks: list[str] = []
+    cur_entities: list[str] = []
+    cur_len = 0
+    overlap = max(0, min(row_overlap, 2))
+    e_idx = 0
 
-        kv_chunks: list[str] = []
-        cur_entities: list[str] = []
-        cur_len = 0
-        overlap = max(0, min(row_overlap, 2))
-        e_idx = 0
+    while e_idx < len(entity_records):
+        entity_str = entity_records[e_idx]
+        if len(entity_str) > max_chunk_size:
+            if cur_entities:
+                kv_chunks.append("\n\n".join(cur_entities))
+                cur_entities = []
+                cur_len = 0
+            sub_parts = _split_kv_table_text(entity_str, max_chunk_size)
+            kv_chunks.extend(sub_parts)
+            e_idx += 1
+            continue
 
-        while e_idx < len(entity_records):
-            entity_str = entity_records[e_idx]
-
-            # Oversize guard: if a single entity exceeds max_chunk_size, split it with _split_kv_table_text
-            if len(entity_str) > max_chunk_size:
-                if cur_entities:
-                    kv_chunks.append("\n\n".join(cur_entities))
+        cost = len(entity_str) + (2 if cur_entities else 0)
+        if cur_len + cost <= max_chunk_size:
+            cur_entities.append(entity_str)
+            cur_len += cost
+            e_idx += 1
+        else:
+            if cur_entities:
+                kv_chunks.append("\n\n".join(cur_entities))
+                keep_count = min(len(cur_entities) - 1, overlap)
+                if keep_count > 0:
+                    cur_entities = cur_entities[-keep_count:]
+                    cur_len = sum(len(e) for e in cur_entities) + 2 * (len(cur_entities) - 1)
+                else:
                     cur_entities = []
                     cur_len = 0
-                sub_parts = _split_kv_table_text(entity_str, max_chunk_size)
-                kv_chunks.extend(sub_parts)
-                e_idx += 1
-                continue
-
-            cost = len(entity_str) + (2 if cur_entities else 0)
-            if cur_len + cost <= max_chunk_size:
-                cur_entities.append(entity_str)
-                cur_len += cost
-                e_idx += 1
             else:
-                if cur_entities:
-                    kv_chunks.append("\n\n".join(cur_entities))
-                    keep_count = min(len(cur_entities) - 1, overlap)
-                    if keep_count > 0:
-                        cur_entities = cur_entities[-keep_count:]
-                        cur_len = sum(len(e) for e in cur_entities) + 2 * (len(cur_entities) - 1)
-                    else:
-                        cur_entities = []
-                        cur_len = 0
-                else:
-                    cur_entities.append(entity_str)
-                    cur_len = len(entity_str)
-                    e_idx += 1
+                cur_entities.append(entity_str)
+                cur_len = len(entity_str)
+                e_idx += 1
 
-        if cur_entities:
-            kv_chunks.append("\n\n".join(cur_entities))
+    if cur_entities:
+        kv_chunks.append("\n\n".join(cur_entities))
+    return kv_chunks
 
-        return kv_chunks if kv_chunks else [table_text]
 
-    # Standard sliding window with row overlap (Table-RAG SIGIR 2024)
-    header_block = f"{header_line}\n{sep_line}"
+def _format_window_chunk(
+    prefix_str: str,
+    header_block: str,
+    rows: list[str],
+    global_s: int,
+    global_e: int,
+    display_total_rows: int,
+) -> str:
+    if global_s == global_e:
+        label = f"(Row {global_s} of {display_total_rows})" if display_total_rows > 1 else ""
+    else:
+        label = f"(Rows {global_s}-{global_e} of {display_total_rows})" if display_total_rows > 1 else ""
+    pfx = _format_table_title(prefix_str, label)
+    if pfx:
+        return f"{pfx}\n\n{header_block}\n" + "\n".join(rows)
+    return f"{header_block}\n" + "\n".join(rows)
+
+
+def _split_table_with_sliding_window(
+    data_rows: list[str],
+    header_block: str,
+    prefix_str: str,
+    global_row_offset: int,
+    display_total_rows: int,
+    max_chunk_size: int,
+    row_overlap: int,
+) -> list[str]:
     chunks: list[str] = []
     start_idx = 1
+    total_data_rows = len(data_rows)
     overlap = max(0, min(row_overlap, 3))
 
     while start_idx <= total_data_rows:
@@ -580,42 +620,92 @@ def _split_single_table_block(
         end_idx = start_idx - 1
         for r_idx in range(start_idx, total_data_rows + 1):
             cand_rows = current_rows + [data_rows[r_idx - 1]]
-            global_s = global_row_offset + start_idx
-            global_e = global_row_offset + r_idx
-            if global_s == global_e:
-                label = f"(Row {global_s} of {display_total_rows})" if display_total_rows > 1 else ""
-            else:
-                label = f"(Rows {global_s}-{global_e} of {display_total_rows})" if display_total_rows > 1 else ""
-            pfx = _format_table_title(prefix_str, label)
-            candidate_chunk = (
-                f"{pfx}\n\n{header_block}\n" + "\n".join(cand_rows)
-                if pfx
-                else f"{header_block}\n" + "\n".join(cand_rows)
+            candidate_chunk = _format_window_chunk(
+                prefix_str,
+                header_block,
+                cand_rows,
+                global_row_offset + start_idx,
+                global_row_offset + r_idx,
+                display_total_rows,
             )
             if len(candidate_chunk) > max_chunk_size and current_rows:
                 break
             current_rows = cand_rows
             end_idx = r_idx
 
-        global_s = global_row_offset + start_idx
-        global_e = global_row_offset + end_idx
-        if global_s == global_e:
-            label = f"(Row {global_s} of {display_total_rows})" if display_total_rows > 1 else ""
-        else:
-            label = f"(Rows {global_s}-{global_e} of {display_total_rows})" if display_total_rows > 1 else ""
-        pfx = _format_table_title(prefix_str, label)
-        chunk_content = (
-            f"{pfx}\n\n{header_block}\n" + "\n".join(current_rows)
-            if pfx
-            else f"{header_block}\n" + "\n".join(current_rows)
+        chunk_content = _format_window_chunk(
+            prefix_str,
+            header_block,
+            current_rows,
+            global_row_offset + start_idx,
+            global_row_offset + end_idx,
+            display_total_rows,
         )
         chunks.append(chunk_content.strip())
         if end_idx >= total_data_rows:
             break
-        next_start_idx = max(start_idx + 1, end_idx - overlap + 1)
-        start_idx = next_start_idx
+        start_idx = max(start_idx + 1, end_idx - overlap + 1)
 
+    return chunks
+
+
+def _split_single_table_block(
+    table_text: str,
+    max_chunk_size: int,
+    row_overlap: int = 1,
+    global_row_offset: int = 0,
+    global_total_rows: int | None = None,
+) -> list[str]:
+    """Split a single table block preserving headers, sheet metadata, and row overlap.
+
+    Implements:
+    1. Table-RAG (SIGIR 2024): Sliding row window with row_overlap to preserve cross-row context.
+    2. TableLlama (NAACL 2024): Adaptive Key-Value folding for ultra-wide rows exceeding chunk thresholds.
+    """
+    parsed = _parse_table_components(table_text, global_row_offset, global_total_rows)
+    if parsed is None:
+        return [table_text]
+    prefix_str, header_line, sep_line, data_rows, global_row_offset, display_total_rows = parsed
+    total_data_rows = len(data_rows)
+    if total_data_rows == 0:
+        return [table_text]
+
+    if len(table_text) <= max_chunk_size and (global_total_rows is None or global_total_rows == total_data_rows):
+        return [table_text]
+
+    # Ultra-wide table check: adaptive KV-folding (TableLlama / StructLM NAACL/EMNLP 2024)
+    max_row_len = max((len(r) for r in data_rows), default=0)
+    if (max_row_len + len(header_line)) > max_chunk_size * 0.75:
+        entity_records = _build_kv_entity_records(
+            data_rows, header_line, prefix_str, global_row_offset, display_total_rows
+        )
+        kv_chunks = _chunk_kv_entity_records(entity_records, max_chunk_size, row_overlap)
+        return kv_chunks if kv_chunks else [table_text]
+
+    # Standard sliding window with row overlap (Table-RAG SIGIR 2024)
+    header_block = f"{header_line}\n{sep_line}"
+    chunks = _split_table_with_sliding_window(
+        data_rows,
+        header_block,
+        prefix_str,
+        global_row_offset,
+        display_total_rows,
+        max_chunk_size,
+        row_overlap,
+    )
     return chunks if chunks else [table_text]
+
+
+def _process_text_block_chunk(b_content: str, max_chunk_size: int) -> list[str]:
+    if len(b_content) <= max_chunk_size:
+        return [b_content]
+    sub_splitter = _build_splitter(
+        chunk_size=max_chunk_size,
+        chunk_overlap=max(0, min(max_chunk_size // 5, 100)),
+        separators=get_smart_separators("markdown"),
+    )
+    sub_chunks = sub_splitter.split_text(b_content)
+    return [c.strip() for c in sub_chunks if c.strip()]
 
 
 def _split_markdown_table_text(
@@ -655,11 +745,10 @@ def _split_markdown_table_text(
         if b_type == "table":
             use_offset = 0
             use_total = None
-            if global_total_rows is not None:
-                if table_block_count == 1 or not first_table_consumed:
-                    use_offset = global_row_offset
-                    use_total = global_total_rows
-                    first_table_consumed = True
+            if global_total_rows is not None and (table_block_count == 1 or not first_table_consumed):
+                use_offset = global_row_offset
+                use_total = global_total_rows
+                first_table_consumed = True
 
             tbl_chunks = _split_single_table_block(
                 b_content,
@@ -670,33 +759,67 @@ def _split_markdown_table_text(
             )
             chunks.extend(c for c in tbl_chunks if c.strip())
         else:
-            if len(b_content) <= max_chunk_size:
-                chunks.append(b_content)
-            else:
-                sub_splitter = _build_splitter(
-                    chunk_size=max_chunk_size,
-                    chunk_overlap=max(0, min(max_chunk_size // 5, 100)),
-                    separators=get_smart_separators("markdown"),
-                )
-                sub_chunks = sub_splitter.split_text(b_content)
-                chunks.extend(c.strip() for c in sub_chunks if c.strip())
+            chunks.extend(_process_text_block_chunk(b_content, max_chunk_size))
 
     return chunks if chunks else [text]
 
 
-def _split_parent(
-    doc: Any,
+def _infer_fallback_table_range(metadata: dict[str, Any], base_metadata: dict[str, Any], text: str) -> None:
+    t_lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    sep_i = -1
+    for idx_l, ln in enumerate(t_lines):
+        if _is_table_separator(ln) and idx_l > 0 and _is_table_row(t_lines[idx_l - 1]):
+            sep_i = idx_l
+            break
+    if sep_i != -1:
+        d_count = sum(1 for ln in t_lines[sep_i + 1 :] if _is_table_row(ln))
+        if d_count > 0:
+            metadata["table_row_range"] = f"1-{d_count}" if d_count > 1 else "1"
+            metadata["total_table_rows"] = d_count
+    elif base_metadata.get("table_row_range"):
+        metadata["table_row_range"] = base_metadata["table_row_range"]
+        if base_metadata.get("total_table_rows"):
+            metadata["total_table_rows"] = base_metadata["total_table_rows"]
+
+
+def _enrich_table_metadata(
+    metadata: dict[str, Any],
+    base_metadata: dict[str, Any],
+    text: str,
+    fallback_id: str,
+) -> None:
+    if "table_id" not in metadata:
+        metadata["table_id"] = base_metadata.get("table_id") or f"tbl-{fallback_id}"
+    if "table_columns" not in metadata:
+        cols = extract_table_columns(text)
+        if cols:
+            metadata["table_columns"] = ", ".join(cols)
+        elif base_metadata.get("table_columns"):
+            metadata["table_columns"] = base_metadata["table_columns"]
+    m_row = _ROW_LABEL_MATCH.search(text)
+    if m_row:
+        s_row = int(m_row.group(1))
+        e_row = int(m_row.group(2)) if m_row.group(2) else s_row
+        metadata["table_row_range"] = f"{s_row}-{e_row}" if s_row != e_row else str(s_row)
+        metadata["total_table_rows"] = int(m_row.group(3))
+    elif "table_row_range" not in metadata:
+        _infer_fallback_table_range(metadata, base_metadata, text)
+
+
+def _determine_modality(text: str, base_metadata: dict[str, Any]) -> str | None:
+    if _is_markdown_table_content(text):
+        return "table"
+    if base_metadata.get("modality") == "table":
+        return "text"
+    return None
+
+
+def _resolve_child_texts(
     parent_text: str,
     splitter: Any,
-    *,
     base_metadata: dict[str, Any],
-    parent_id: str,
-    parent_idx: int,
-    enhance: bool,
-    heading: str | None,
-    settings: Any | None = None,
-) -> list[Any]:
-    """The child chunks of one parent, each carrying its parent linkage."""
+    settings: Any | None,
+) -> list[str]:
     is_table = base_metadata.get("modality") == "table" or _is_markdown_table_content(parent_text)
     chunk_size = int(getattr(splitter, "chunk_size", getattr(splitter, "_chunk_size", 400)))
     row_overlap = getattr(settings, "table_row_overlap", 1) if settings else 1
@@ -719,8 +842,57 @@ def _split_parent(
         if is_table
         else None
     )
-    child_texts = table_children if table_children is not None else (splitter.split_text(parent_text) or [parent_text])
+    return table_children if table_children is not None else (splitter.split_text(parent_text) or [parent_text])
 
+
+def _build_child_document(
+    doc: Any,
+    child_text: str,
+    child_idx: int,
+    total_children: int,
+    child_texts: list[str],
+    base_metadata: dict[str, Any],
+    parent_id: str,
+    parent_idx: int,
+    scope: str | None,
+    enhance: bool,
+) -> Any:
+    metadata = dict(base_metadata)
+    metadata["parent_id"] = parent_id
+    metadata["parent_index"] = parent_idx
+    metadata["child_index"] = child_idx
+    if scope:
+        metadata["heading"] = scope
+
+    modality = _determine_modality(child_text, base_metadata)
+    if modality:
+        metadata["modality"] = modality
+
+    if metadata.get("modality") == "table":
+        _enrich_table_metadata(metadata, base_metadata, child_text, parent_id)
+
+    if enhance:
+        metadata = enhance_chunk_metadata(
+            child_text, metadata, child_idx, total_children, *_neighbours(child_texts, child_idx)
+        )
+
+    return _clone_document(doc, text=child_text, metadata=metadata)
+
+
+def _split_parent(
+    doc: Any,
+    parent_text: str,
+    splitter: Any,
+    *,
+    base_metadata: dict[str, Any],
+    parent_id: str,
+    parent_idx: int,
+    enhance: bool,
+    heading: str | None,
+    settings: Any | None = None,
+) -> list[Any]:
+    """The child chunks of one parent, each carrying its parent linkage."""
+    child_texts = _resolve_child_texts(parent_text, splitter, base_metadata, settings)
     total_children = len(child_texts)
     children: list[Any] = []
     carried = heading
@@ -731,56 +903,19 @@ def _split_parent(
             continue
 
         scope, carried = _heading_scope(child_text, carried)
-        metadata = dict(base_metadata)
-        metadata["parent_id"] = parent_id
-        metadata["parent_index"] = parent_idx
-        metadata["child_index"] = child_idx
-        if scope:
-            metadata["heading"] = scope
-
-        if _is_markdown_table_content(child_text):
-            metadata["modality"] = "table"
-        elif base_metadata.get("modality") == "table" and not _is_markdown_table_content(child_text):
-            metadata["modality"] = "text"
-
-        if metadata.get("modality") == "table":
-            if "table_id" not in metadata:
-                metadata["table_id"] = base_metadata.get("table_id") or f"tbl-{parent_id}"
-            if "table_columns" not in metadata:
-                cols = extract_table_columns(child_text)
-                if cols:
-                    metadata["table_columns"] = ", ".join(cols)
-                elif base_metadata.get("table_columns"):
-                    metadata["table_columns"] = base_metadata["table_columns"]
-            m_row = _ROW_LABEL_MATCH.search(child_text)
-            if m_row:
-                s_row = int(m_row.group(1))
-                e_row = int(m_row.group(2)) if m_row.group(2) else s_row
-                metadata["table_row_range"] = f"{s_row}-{e_row}" if s_row != e_row else str(s_row)
-                metadata["total_table_rows"] = int(m_row.group(3))
-            elif "table_row_range" not in metadata:
-                t_lines = [ln.strip() for ln in child_text.splitlines() if ln.strip()]
-                sep_i = -1
-                for idx_l, ln in enumerate(t_lines):
-                    if _is_table_separator(ln) and idx_l > 0 and _is_table_row(t_lines[idx_l - 1]):
-                        sep_i = idx_l
-                        break
-                if sep_i != -1:
-                    d_count = sum(1 for ln in t_lines[sep_i + 1 :] if _is_table_row(ln))
-                    if d_count > 0:
-                        metadata["table_row_range"] = f"1-{d_count}" if d_count > 1 else "1"
-                        metadata["total_table_rows"] = d_count
-                elif base_metadata.get("table_row_range"):
-                    metadata["table_row_range"] = base_metadata["table_row_range"]
-                    if base_metadata.get("total_table_rows"):
-                        metadata["total_table_rows"] = base_metadata["total_table_rows"]
-
-        if enhance:
-            metadata = enhance_chunk_metadata(
-                child_text, metadata, child_idx, total_children, *_neighbours(child_texts, child_idx)
-            )
-
-        children.append(_clone_document(doc, text=child_text, metadata=metadata))
+        child_doc = _build_child_document(
+            doc,
+            child_text,
+            child_idx,
+            total_children,
+            child_texts,
+            base_metadata,
+            parent_id,
+            parent_idx,
+            scope,
+            enhance,
+        )
+        children.append(child_doc)
 
     return children
 
@@ -817,6 +952,35 @@ def _document_identity(base_metadata: dict[str, Any]) -> str:
     if document_id and version:
         return f"{document_id}|v{version}"
     return str(base_metadata.get("source", "") or "")
+
+
+def _build_parent_record(
+    parent_text: str,
+    parent_idx: int,
+    total_parents: int,
+    parent_texts: list[str],
+    base_metadata: dict[str, Any],
+    parent_id: str,
+    scope: str | None,
+    enhance: bool,
+) -> dict[str, Any]:
+    parent_meta = dict(base_metadata)
+    parent_meta.update({"parent_id": parent_id, "parent_index": parent_idx})
+    if scope:
+        parent_meta["heading"] = scope
+
+    modality = _determine_modality(parent_text, base_metadata)
+    if modality:
+        parent_meta["modality"] = modality
+
+    if parent_meta.get("modality") == "table":
+        _enrich_table_metadata(parent_meta, base_metadata, parent_text, parent_id)
+
+    if enhance:
+        parent_meta = enhance_chunk_metadata(
+            parent_text, parent_meta, parent_idx, total_parents, *_neighbours(parent_texts, parent_idx)
+        )
+    return {"id": parent_id, "text": parent_text, "metadata": parent_meta}
 
 
 def _split_document(
@@ -860,59 +1024,23 @@ def _split_document(
 
         scope, carried_heading = _heading_scope(parent_text, carried_heading)
         parent_id = _parent_id(identity, doc_idx, parent_idx, parent_text)
-        parent_meta = dict(base_metadata)
-        parent_meta.update({"parent_id": parent_id, "parent_index": parent_idx})
-        if scope:
-            parent_meta["heading"] = scope
-        if _is_markdown_table_content(parent_text):
-            parent_meta["modality"] = "table"
-        elif base_metadata.get("modality") == "table" and not _is_markdown_table_content(parent_text):
-            parent_meta["modality"] = "text"
-
-        if parent_meta.get("modality") == "table":
-            if "table_id" not in parent_meta:
-                parent_meta["table_id"] = base_metadata.get("table_id") or f"tbl-{parent_id}"
-            if "table_columns" not in parent_meta:
-                cols = extract_table_columns(parent_text)
-                if cols:
-                    parent_meta["table_columns"] = ", ".join(cols)
-                elif base_metadata.get("table_columns"):
-                    parent_meta["table_columns"] = base_metadata["table_columns"]
-            m_row = _ROW_LABEL_MATCH.search(parent_text)
-            if m_row:
-                s_row = int(m_row.group(1))
-                e_row = int(m_row.group(2)) if m_row.group(2) else s_row
-                parent_meta["table_row_range"] = f"{s_row}-{e_row}" if s_row != e_row else str(s_row)
-                parent_meta["total_table_rows"] = int(m_row.group(3))
-            elif "table_row_range" not in parent_meta:
-                t_lines = [ln.strip() for ln in parent_text.splitlines() if ln.strip()]
-                sep_i = -1
-                for idx_l, ln in enumerate(t_lines):
-                    if _is_table_separator(ln) and idx_l > 0 and _is_table_row(t_lines[idx_l - 1]):
-                        sep_i = idx_l
-                        break
-                if sep_i != -1:
-                    d_count = sum(1 for ln in t_lines[sep_i + 1 :] if _is_table_row(ln))
-                    if d_count > 0:
-                        parent_meta["table_row_range"] = f"1-{d_count}" if d_count > 1 else "1"
-                        parent_meta["total_table_rows"] = d_count
-                elif base_metadata.get("table_row_range"):
-                    parent_meta["table_row_range"] = base_metadata["table_row_range"]
-                    if base_metadata.get("total_table_rows"):
-                        parent_meta["total_table_rows"] = base_metadata["total_table_rows"]
-
-        if enhance:
-            parent_meta = enhance_chunk_metadata(
-                parent_text, parent_meta, parent_idx, total_parents, *_neighbours(parent_texts, parent_idx)
-            )
-
-        records.append({"id": parent_id, "text": parent_text, "metadata": parent_meta})
+        record = _build_parent_record(
+            parent_text,
+            parent_idx,
+            total_parents,
+            parent_texts,
+            base_metadata,
+            parent_id,
+            scope,
+            enhance,
+        )
+        records.append(record)
         children.extend(
             _split_parent(
                 doc,
                 parent_text,
                 child_splitter,
-                base_metadata=parent_meta,
+                base_metadata=record["metadata"],
                 parent_id=parent_id,
                 parent_idx=parent_idx,
                 enhance=enhance,

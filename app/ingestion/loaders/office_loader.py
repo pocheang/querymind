@@ -267,21 +267,38 @@ def _csv_rows(path: Path) -> list[tuple[str, list[list[object]]]]:
     return [(sheet_name, rows)]
 
 
-def _extract_sheet_rows_with_merged_cells(sheet: Any, max_rows: int = MAX_TABLE_ROWS) -> list[list[object]]:
-    """Extract rows from an openpyxl sheet while forward-filling merged cell values."""
+def _build_merged_cells_map(sheet: Any) -> dict[tuple[int, int], object]:
     merged_map: dict[tuple[int, int], object] = {}
     merged_ranges = getattr(getattr(sheet, "merged_cells", None), "ranges", ())
-    if merged_ranges:
-        for rng in merged_ranges:
-            try:
-                top_left = sheet.cell(rng.min_row, rng.min_col).value
-                if top_left is not None:
-                    for r in range(rng.min_row, rng.max_row + 1):
-                        for c in range(rng.min_col, rng.max_col + 1):
-                            merged_map[(r, c)] = top_left
-            except Exception:
+    if not merged_ranges:
+        return merged_map
+    for rng in merged_ranges:
+        try:
+            top_left = sheet.cell(rng.min_row, rng.min_col).value
+            if top_left is None:
                 continue
+            for r in range(rng.min_row, rng.max_row + 1):
+                for c in range(rng.min_col, rng.max_col + 1):
+                    merged_map[(r, c)] = top_left
+        except Exception:
+            continue
+    return merged_map
 
+
+def _extract_row_cells(row: Any, r_idx: int, merged_map: dict[tuple[int, int], object]) -> tuple[list[object], bool]:
+    row_vals: list[object] = []
+    has_val = False
+    for c_idx, cell in enumerate(row, start=1):
+        val = merged_map.get((r_idx, c_idx), getattr(cell, "value", cell))
+        if val is not None and str(val).strip():
+            has_val = True
+        row_vals.append(val)
+    return row_vals, has_val
+
+
+def _extract_sheet_rows_with_merged_cells(sheet: Any, max_rows: int = MAX_TABLE_ROWS) -> list[list[object]]:
+    """Extract rows from an openpyxl sheet while forward-filling merged cell values."""
+    merged_map = _build_merged_cells_map(sheet)
     rows: list[list[object]] = []
     total_rows = getattr(sheet, "max_row", 0) or 0
     row_iter = sheet.iter_rows(values_only=False) if hasattr(sheet, "iter_rows") else ()
@@ -292,13 +309,7 @@ def _extract_sheet_rows_with_merged_cells(sheet: Any, max_rows: int = MAX_TABLE_
             # `max_row` counts blank rows too, so only an actual cut says so.
             truncated = True
             break
-        row_vals: list[object] = []
-        has_val = False
-        for c_idx, cell in enumerate(row, start=1):
-            val = merged_map.get((r_idx, c_idx), getattr(cell, "value", cell))
-            if val is not None and str(val).strip():
-                has_val = True
-            row_vals.append(val)
+        row_vals, has_val = _extract_row_cells(row, r_idx, merged_map)
         if has_val:
             rows.append(row_vals)
 
@@ -417,7 +428,9 @@ def _ppt_image_pages(archive: zipfile.ZipFile) -> dict[str, int]:
 _TABLE_SEPARATOR_PATTERN = re.compile(r"^\|(?:\s*:?-[-:]*\s*\|)+$")
 
 
-def _rows_to_markdown(rows: list[list[object]], sheet_name: str | None = None) -> str:
+def _prepare_markdown_grid(
+    rows: list[list[object]],
+) -> tuple[list[list[str]], str | None, int]:
     truncation_note = None
     clean_rows = []
     for row in rows:
@@ -429,44 +442,63 @@ def _rows_to_markdown(rows: list[list[object]], sheet_name: str | None = None) -
     normalized = [[_cell(value) for value in row] for row in clean_rows]
     normalized = [row for row in normalized if any(row)]
     if not normalized:
-        return ""
+        return [], truncation_note, 0
     width = max(len(row) for row in normalized)
     padded = [row + [""] * (width - len(row)) for row in normalized]
+    return padded, truncation_note, width
 
-    header_idx = 0
+
+def _evaluate_header_candidate_row(row: list[str], width: int) -> int:
+    non_empty = [c for c in row if c.strip()]
+    num_non_empty = len(non_empty)
+    distinct_vals = len(set(non_empty))
+
+    # If row has only 1 non-empty cell while width >= 3, it's a title banner
+    if num_non_empty == 1 and width >= 3:
+        return -1
+
+    # If row only contains 1 unique value across all cells (e.g. forward-filled merged banner), it's a title banner
+    if distinct_vals <= 1 and width >= 2:
+        return -1
+
+    # If row is mostly numeric, it is data, NOT column headers
+    numeric_cells = sum(1 for c in non_empty if re.match(r"^[\$￥€£]?\s*-?\d+(?:[.,]\d+)?%?$", c.strip()))
+    if num_non_empty > 0 and (numeric_cells / num_non_empty) >= 0.5:
+        return -1
+
+    return num_non_empty + distinct_vals
+
+
+def _find_best_header_row_index(padded: list[list[str]], width: int) -> int:
+    if len(padded) <= 1 or width < 2:
+        return 0
+    best_score = -1
+    best_idx = 0
+    for idx in range(min(5, len(padded) - 1)):
+        score = _evaluate_header_candidate_row(padded[idx], width)
+        if score > best_score:
+            best_score = score
+            best_idx = idx
+    return best_idx
+
+
+def _collect_table_titles(padded: list[list[str]], header_idx: int) -> list[str]:
     title_lines: list[str] = []
-    if len(padded) > 1 and width >= 2:
-        # Check first up to 5 rows to locate best header row
-        best_score = -1
-        for idx in range(min(5, len(padded) - 1)):
-            row = padded[idx]
-            non_empty = [c for c in row if c.strip()]
-            num_non_empty = len(non_empty)
-            distinct_vals = len(set(non_empty))
+    for idx in range(header_idx):
+        non_empty = [c for c in padded[idx] if c.strip()]
+        if non_empty:
+            unique_vals = list(dict.fromkeys(non_empty))
+            title_lines.append(" ".join(unique_vals))
+    return title_lines
 
-            # If row has only 1 non-empty cell while width >= 3, it's a title banner
-            if num_non_empty == 1 and width >= 3:
-                continue
 
-            # If row only contains 1 unique value across all cells (e.g. forward-filled merged banner), it's a title banner
-            if distinct_vals <= 1 and width >= 2:
-                continue
+def _rows_to_markdown(rows: list[list[object]], sheet_name: str | None = None) -> str:
+    padded, truncation_note, width = _prepare_markdown_grid(rows)
+    if not padded:
+        return ""
 
-            # If row is mostly numeric, it is data, NOT column headers
-            numeric_cells = sum(1 for c in non_empty if re.match(r"^[\$￥€£]?\s*-?\d+(?:[.,]\d+)?%?$", c.strip()))
-            if num_non_empty > 0 and (numeric_cells / num_non_empty) >= 0.5:
-                continue
-
-            score = num_non_empty + distinct_vals
-            if score > best_score:
-                best_score = score
-                header_idx = idx
-
-        for idx in range(header_idx):
-            non_empty = [c for c in padded[idx] if c.strip()]
-            if non_empty:
-                unique_vals = list(dict.fromkeys(non_empty))
-                title_lines.append(" ".join(unique_vals))
+    header_idx = _find_best_header_row_index(padded, width)
+    title_lines = _collect_table_titles(padded, header_idx)
 
     raw_header = padded[header_idx]
     header = [col if col.strip() else f"Column_{c_i}" for c_i, col in enumerate(raw_header, start=1)]

@@ -33,6 +33,83 @@ def is_macro_thematic_query(query: str) -> bool:
     return bool(_MACRO_THEMATIC_PATTERNS.search(query.strip()))
 
 
+def _build_entity_adjacency(
+    entities: list[dict[str, Any]],
+    relations: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, set[str]]]:
+    entity_map = {str(e.get("entity", "")).strip(): e for e in entities if e.get("entity")}
+    adj: dict[str, set[str]] = {name: set() for name in entity_map}
+
+    for rel in relations:
+        src = str(rel.get("entity") or rel.get("source") or "").strip()
+        tgt = str(rel.get("other") or rel.get("target") or "").strip()
+        if src in adj and tgt in adj:
+            adj[src].add(tgt)
+            adj[tgt].add(src)
+
+    for name, e in entity_map.items():
+        for r in e.get("relations", []) or []:
+            other = str(r.get("other", "")).strip()
+            if other in adj:
+                adj[name].add(other)
+                adj[other].add(name)
+
+    return entity_map, adj
+
+
+def _traverse_clusters(adj: dict[str, set[str]], max_community_size: int) -> list[list[str]]:
+    visited: set[str] = set()
+    raw_clusters: list[list[str]] = []
+
+    for node in sorted(adj.keys(), key=lambda k: len(adj[k]), reverse=True):
+        if node in visited:
+            continue
+        cluster: list[str] = []
+        queue = [node]
+        visited.add(node)
+        while queue and len(cluster) < max_community_size:
+            curr = queue.pop(0)
+            cluster.append(curr)
+            for neighbor in sorted(adj[curr], key=lambda n: len(adj[n]), reverse=True):
+                if neighbor not in visited and len(cluster) + len(queue) < max_community_size:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+        if cluster:
+            raw_clusters.append(cluster)
+    return raw_clusters
+
+
+def _build_community_dict(idx: int, cluster: list[str], entity_map: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    primary = cluster[0]
+    primary_info = entity_map.get(primary, {})
+    primary_type = primary_info.get("type", "CONCEPT")
+    title = f"{primary} 及相关 {primary_type} 核心群落 (Community #{idx})"
+
+    descriptions = []
+    for name in cluster[:5]:
+        info = entity_map.get(name, {})
+        desc = info.get("description", "")
+        ent_type = info.get("type", "CONCEPT")
+        if desc:
+            descriptions.append(f"{name} ({ent_type}): {desc}")
+        else:
+            descriptions.append(f"{name} ({ent_type})")
+
+    summary = f"涵盖 {', '.join(cluster[:6])} 等关键实体的领域社群。核心组成包括：{'；'.join(descriptions)}。"
+    findings = [
+        f"群落核心枢纽为 {primary}，关联实体数: {len(cluster)}",
+        f"包含主要成员: {', '.join(cluster[:8])}",
+    ]
+    return {
+        "id": f"comm_{idx}_{primary.lower().replace(' ', '_')[:20]}",
+        "title": title,
+        "level": 0,
+        "summary": summary,
+        "findings": findings,
+        "entity_names": cluster,
+    }
+
+
 def detect_entity_communities(
     entities: list[dict[str, Any]],
     relations: list[dict[str, Any]],
@@ -46,83 +123,13 @@ def detect_entity_communities(
     if not entities:
         return []
 
-    # Map entity name to its properties
-    entity_map = {str(e.get("entity", "")).strip(): e for e in entities if e.get("entity")}
-    adj: dict[str, set[str]] = {name: set() for name in entity_map}
+    entity_map, adj = _build_entity_adjacency(entities, relations)
+    raw_clusters = _traverse_clusters(adj, max_community_size)
 
-    # Populate adjacency from relations
-    for rel in relations:
-        src = str(rel.get("entity") or rel.get("source") or "").strip()
-        tgt = str(rel.get("other") or rel.get("target") or "").strip()
-        if src in adj and tgt in adj:
-            adj[src].add(tgt)
-            adj[tgt].add(src)
-
-    # Also check relations embedded within entity dicts
-    for name, e in entity_map.items():
-        for r in e.get("relations", []) or []:
-            other = str(r.get("other", "")).strip()
-            if other in adj:
-                adj[name].add(other)
-                adj[other].add(name)
-
-    # Connected component traversal
-    visited: set[str] = set()
-    raw_clusters: list[list[str]] = []
-
-    for node in sorted(adj.keys(), key=lambda k: len(adj[k]), reverse=True):
-        if node in visited:
-            continue
-        cluster = []
-        queue = [node]
-        visited.add(node)
-        while queue and len(cluster) < max_community_size:
-            curr = queue.pop(0)
-            cluster.append(curr)
-            for neighbor in sorted(adj[curr], key=lambda n: len(adj[n]), reverse=True):
-                if neighbor not in visited and len(cluster) + len(queue) < max_community_size:
-                    visited.add(neighbor)
-                    queue.append(neighbor)
-        if cluster:
-            raw_clusters.append(cluster)
-
-    # Convert clusters to community structures
     communities: list[dict[str, Any]] = []
     for idx, cluster in enumerate(raw_clusters, start=1):
-        if not cluster:
-            continue
-        primary = cluster[0]
-        primary_info = entity_map.get(primary, {})
-        primary_type = primary_info.get("type", "CONCEPT")
-        title = f"{primary} 及相关 {primary_type} 核心群落 (Community #{idx})"
-
-        # Generate summary description from constituent entities
-        descriptions = []
-        for name in cluster[:5]:
-            info = entity_map.get(name, {})
-            desc = info.get("description", "")
-            ent_type = info.get("type", "CONCEPT")
-            if desc:
-                descriptions.append(f"{name} ({ent_type}): {desc}")
-            else:
-                descriptions.append(f"{name} ({ent_type})")
-
-        summary = f"涵盖 {', '.join(cluster[:6])} 等关键实体的领域社群。核心组成包括：{'；'.join(descriptions)}。"
-        findings = [
-            f"群落核心枢纽为 {primary}，关联实体数: {len(cluster)}",
-            f"包含主要成员: {', '.join(cluster[:8])}",
-        ]
-
-        communities.append(
-            {
-                "id": f"comm_{idx}_{primary.lower().replace(' ', '_')[:20]}",
-                "title": title,
-                "level": 0,
-                "summary": summary,
-                "findings": findings,
-                "entity_names": cluster,
-            }
-        )
+        if cluster:
+            communities.append(_build_community_dict(idx, cluster, entity_map))
 
     return communities
 

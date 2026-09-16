@@ -357,6 +357,23 @@ class InjectionDetector:
             else float(getattr(settings, "prompt_injection_risk_threshold", 0.7))
         )
 
+    def _scan_base64_payloads(
+        self,
+        raw_text: str,
+        is_retrieved_evidence: bool,
+        matched_rules: list[str],
+        threat_type: InjectionThreatType | None,
+        risk_score: float,
+    ) -> tuple[InjectionThreatType | None, float]:
+        base64_payloads = TextDeobfuscator.extract_and_decode_base64(raw_text)
+        for payload in base64_payloads:
+            sub_assess = self.assess(payload, is_retrieved_evidence=is_retrieved_evidence)
+            if sub_assess.risk_score >= self.risk_threshold:
+                matched_rules.append(f"base64_hidden:{sub_assess.threat_type}")
+                threat_type = threat_type or InjectionThreatType.OBFUSCATED_PAYLOAD
+                risk_score = max(risk_score, sub_assess.risk_score)
+        return threat_type, risk_score
+
     def assess(self, text: str, *, is_retrieved_evidence: bool = False) -> InjectionAssessment:
         """Assess input text or retrieved document chunk for prompt injection threats."""
         raw_text = str(text or "")
@@ -367,67 +384,18 @@ class InjectionDetector:
             return InjectionAssessment(is_blocked=False, risk_score=0.0, sanitized_text="")
 
         # Educational / research query fast-path (avoid false positives on benign questions)
-        if not is_retrieved_evidence and _BENIGN_SECURITY_QUERY_RE.search(normalized):
-            # Check if it actually contains imperative attack commands
-            has_imperative = any(
-                pattern.search(normalized) for pattern, _ in _INSTRUCTION_OVERRIDE_PATTERNS + _JAILBREAK_PATTERNS
+        if _is_benign_security_query(normalized, is_retrieved_evidence):
+            return InjectionAssessment(
+                is_blocked=False,
+                risk_score=0.1,
+                sanitized_text=sanitized,
+                details={"benign_educational": True},
             )
-            if not has_imperative:
-                return InjectionAssessment(
-                    is_blocked=False,
-                    risk_score=0.1,
-                    sanitized_text=sanitized,
-                    details={"benign_educational": True},
-                )
 
-        matched_rules: list[str] = []
-        threat_type: InjectionThreatType | None = None
-        risk_score = 0.0
-
-        # 1. Delimiter collision check (high severity)
-        for pattern, rule_name in _DELIMITER_HIJACK_PATTERNS:
-            if pattern.search(normalized):
-                matched_rules.append(rule_name)
-                threat_type = InjectionThreatType.DELIMITER_COLLISION
-                risk_score = max(risk_score, 0.95)
-
-        # 2. Instruction overrides (critical severity)
-        for pattern, rule_name in _INSTRUCTION_OVERRIDE_PATTERNS:
-            if pattern.search(normalized):
-                matched_rules.append(rule_name)
-                threat_type = threat_type or InjectionThreatType.DIRECT_INSTRUCTION_OVERRIDE
-                risk_score = max(risk_score, 0.95)
-
-        # 3. Jailbreak & adversarial persona (critical severity)
-        for pattern, rule_name in _JAILBREAK_PATTERNS:
-            if pattern.search(normalized):
-                matched_rules.append(rule_name)
-                threat_type = threat_type or InjectionThreatType.JAILBREAK_ROLEPLAY
-                risk_score = max(risk_score, 0.90)
-
-        # 4. System prompt probing (high severity)
-        for pattern, rule_name in _SYSTEM_PROMPT_PROBE_PATTERNS:
-            if pattern.search(normalized):
-                matched_rules.append(rule_name)
-                threat_type = threat_type or InjectionThreatType.SYSTEM_PROMPT_PROBE
-                risk_score = max(risk_score, 0.85)
-
-        # 5. Dangerous commands, only when asked to execute them
-        requests_execution = bool(_EXECUTION_REQUEST_RE.search(normalized))
-        for pattern, rule_name in _DANGEROUS_COMMAND_PATTERNS:
-            if requests_execution and pattern.search(normalized):
-                matched_rules.append(rule_name)
-                threat_type = threat_type or InjectionThreatType.DANGEROUS_COMMAND
-                risk_score = max(risk_score, 0.90)
-
-        # 6. Check hidden base64 payloads
-        base64_payloads = TextDeobfuscator.extract_and_decode_base64(raw_text)
-        for payload in base64_payloads:
-            sub_assess = self.assess(payload, is_retrieved_evidence=is_retrieved_evidence)
-            if sub_assess.risk_score >= self.risk_threshold:
-                matched_rules.append(f"base64_hidden:{sub_assess.threat_type}")
-                threat_type = threat_type or InjectionThreatType.OBFUSCATED_PAYLOAD
-                risk_score = max(risk_score, sub_assess.risk_score)
+        matched_rules, threat_type, risk_score = _scan_threat_patterns(normalized)
+        threat_type, risk_score = self._scan_base64_payloads(
+            raw_text, is_retrieved_evidence, matched_rules, threat_type, risk_score
+        )
 
         if is_retrieved_evidence and threat_type:
             threat_type = InjectionThreatType.INDIRECT_EVIDENCE_INJECTION
@@ -445,6 +413,61 @@ class InjectionDetector:
                 "is_retrieved_evidence": is_retrieved_evidence,
             },
         )
+
+
+def _is_benign_security_query(normalized: str, is_retrieved_evidence: bool) -> bool:
+    if not is_retrieved_evidence and _BENIGN_SECURITY_QUERY_RE.search(normalized):
+        has_imperative = any(
+            pattern.search(normalized) for pattern, _ in _INSTRUCTION_OVERRIDE_PATTERNS + _JAILBREAK_PATTERNS
+        )
+        return not has_imperative
+    return False
+
+
+def _scan_threat_patterns(
+    normalized: str,
+) -> tuple[list[str], InjectionThreatType | None, float]:
+    matched_rules: list[str] = []
+    threat_type: InjectionThreatType | None = None
+    risk_score = 0.0
+
+    # 1. Delimiter collision check (high severity)
+    for pattern, rule_name in _DELIMITER_HIJACK_PATTERNS:
+        if pattern.search(normalized):
+            matched_rules.append(rule_name)
+            threat_type = InjectionThreatType.DELIMITER_COLLISION
+            risk_score = max(risk_score, 0.95)
+
+    # 2. Instruction overrides (critical severity)
+    for pattern, rule_name in _INSTRUCTION_OVERRIDE_PATTERNS:
+        if pattern.search(normalized):
+            matched_rules.append(rule_name)
+            threat_type = threat_type or InjectionThreatType.DIRECT_INSTRUCTION_OVERRIDE
+            risk_score = max(risk_score, 0.95)
+
+    # 3. Jailbreak & adversarial persona (critical severity)
+    for pattern, rule_name in _JAILBREAK_PATTERNS:
+        if pattern.search(normalized):
+            matched_rules.append(rule_name)
+            threat_type = threat_type or InjectionThreatType.JAILBREAK_ROLEPLAY
+            risk_score = max(risk_score, 0.90)
+
+    # 4. System prompt probing (high severity)
+    for pattern, rule_name in _SYSTEM_PROMPT_PROBE_PATTERNS:
+        if pattern.search(normalized):
+            matched_rules.append(rule_name)
+            threat_type = threat_type or InjectionThreatType.SYSTEM_PROMPT_PROBE
+            risk_score = max(risk_score, 0.85)
+
+    # 5. Dangerous commands, only when asked to execute them
+    if _EXECUTION_REQUEST_RE.search(normalized):
+        for pattern, rule_name in _DANGEROUS_COMMAND_PATTERNS:
+            if pattern.search(normalized):
+                matched_rules.append(rule_name)
+                threat_type = threat_type or InjectionThreatType.DANGEROUS_COMMAND
+                risk_score = max(risk_score, 0.90)
+
+    return matched_rules, threat_type, risk_score
 
 
 # Singleton detector instance
