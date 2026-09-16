@@ -55,7 +55,7 @@ import {
 ### 异步操作（自动状态管理）
 
 ```tsx
-<AnimatedButton 
+<AnimatedButton
   onClick={async () => {
     await fetch('/api/submit');
     // 自动显示 loading → success/error
@@ -272,13 +272,13 @@ function SubmitForm() {
 
   return (
     <div>
-      <AnimatedButton 
+      <AnimatedButton
         onClick={handleSubmit}
         disabled={loading}
       >
         {loading ? <Spinner size="small" color="white" /> : '提交'}
       </AnimatedButton>
-      
+
       <ToastContainer toasts={toast.toasts} onClose={toast.removeToast} />
     </div>
   );

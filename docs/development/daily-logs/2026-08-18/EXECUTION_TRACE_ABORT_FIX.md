@@ -61,7 +61,7 @@ export function useExecutionTrace(executionId: string | null) {
     void streamExecutionEvents(executionId, controller.signal, (event) => dispatch({ type: "event_received", event }));
     return () => controller.abort();
   }, [executionId]);
-  
+
   return {
     ...state,
     resolveApproval: () => dispatch({ type: "approval_resolved" }),

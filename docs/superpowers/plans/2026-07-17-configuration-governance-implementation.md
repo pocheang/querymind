@@ -667,4 +667,3 @@ git status --short
 ```
 
 Confirm that `.runtime/`, real secrets, local logs, data, and unrelated user changes are not staged or modified by the implementation.
-

@@ -48,36 +48,36 @@ yield {"type": "status", "stage": item.stage, "status": item.status, "message": 
 ```python
 class UserFriendlyProgressTracker:
     """用户友好的进度追踪器"""
-    
+
     STAGE_TRANSLATIONS = {
         "route": {"zh": "🎯 理解您的问题", "en": "Understanding your question"},
         "rag": {"zh": "📚 搜索相关文档", "en": "Searching documents"},
         "synthesize": {"zh": "✍️ 生成答案", "en": "Generating answer"},
         "finalize": {"zh": "✅ 质量检查", "en": "Quality check"},
     }
-    
+
     async def publish_progress(self, event: ExecutionEvent):
         """发布用户友好的进度信息"""
         stage_info = self.STAGE_TRANSLATIONS.get(event.stage, {})
         user_message = stage_info.get("zh", event.stage)
-        
+
         # 添加具体信息
         if event.stage == "rag":
             # 从事件中提取检索信息
             if "retrieved" in event.message:
                 count = self._extract_count(event.message)
                 user_message = f"📚 已找到 {count} 份相关文档"
-        
+
         elif event.stage == "synthesize":
             # 显示答案生成进度
             if hasattr(event, "progress"):
                 user_message = f"✍️ 正在生成答案 ({event.progress}%)"
-        
+
         # 估算剩余时间
         estimated_time = self._estimate_remaining_time(event)
         if estimated_time:
             user_message += f" · 预计还需 {estimated_time}秒"
-        
+
         return {
             "type": "progress",
             "stage": event.stage,
@@ -92,11 +92,11 @@ class UserFriendlyProgressTracker:
 ```
 ✅ 改进后：
 用户: "分析一下公司的财务状况"
-系统: 
+系统:
   🎯 理解您的问题 (1秒)
-  📚 搜索相关文档... 
+  📚 搜索相关文档...
       - 正在搜索向量数据库 (2秒)
-      - 已找到 15 份相关文档 
+      - 已找到 15 份相关文档
       - 正在重新排序... (1秒)
   ✍️ 正在生成答案 (40% · 预计还需 3秒)
   ✅ 质量检查 (1秒)
@@ -362,16 +362,16 @@ def convert_to_user_friendly_error(exception: Exception) -> UserFriendlyError:
 ```
 ✅ 改进后：
 用户: "分析最新的市场趋势"
-系统: 
+系统:
   ❌ 暂时无法搜索文档
-  
+
   抱歉，我们的文档搜索服务暂时遇到了问题。这可能是由于网络波动或系统正在维护。
-  
+
   您可以尝试：
   ✓ 请稍等 1-2 分钟后重试
   ✓ 尝试简化您的问题后再问
   ✓ 如果问题持续，请联系技术支持
-  
+
   [显示技术细节 ▼]
 ```
 
@@ -474,20 +474,20 @@ class RouterAgentService:
 ```
 ✅ 改进后：
 用户: "公司情况"
-系统: 
+系统:
   💡 您的问题可以更具体一些
-  
+
   我注意到您的问题可能过于宽泛。为了给您更准确的答案，建议：
-  
+
   ✓ 明确时间范围（例如：2023年、最近一个季度）
   ✓ 指定具体方面（例如：财务、业务、团队）
   ✓ 说明关注重点（例如：增长、风险、机会）
-  
+
   您可以尝试这样提问：
   • "公司2023年的营收情况如何？"
   • "公司最近一个季度的增长趋势是什么？"
   • "与去年同期相比，公司的利润率有什么变化？"
-  
+
   [仍然使用原问题继续 →]
 ```
 
@@ -623,42 +623,42 @@ async def synthesize(self, ...) -> FinalAnswer:
 ```python
 class StreamingSynthesizer:
     """支持流式返回的答案生成器"""
-    
+
     async def synthesize_stream(
         self,
         request: OrchestrationRequest,
         evidence: EvidenceBundle,
     ) -> AsyncIterator[AnswerChunk]:
         """流式生成答案，边生成边返回"""
-        
+
         # 1. 先返回快速摘要
         yield AnswerChunk(
             type="summary",
             content=await self._generate_quick_summary(evidence),
             confidence=0.7,
         )
-        
+
         # 2. 边生成边流式返回详细答案
         async for chunk in self._stream_detailed_answer(request, evidence):
             yield chunk
-        
+
         # 3. 最后返回引用和质量信息
         yield AnswerChunk(
             type="citations",
             content=self._format_citations(evidence),
         )
-        
+
         yield AnswerChunk(
             type="quality_card",
             content=self._generate_quality_card(),
         )
-    
+
     async def _generate_quick_summary(self, evidence: EvidenceBundle) -> str:
         """快速生成摘要（1-2秒内返回）"""
         # 使用更快的模型或预设模板
         if len(evidence.items) == 0:
             return "未找到相关信息"
-        
+
         # 提取关键信息快速组装
         key_points = [item.content[:100] for item in evidence.items[:3]]
         return f"根据 {len(evidence.items)} 份文档，主要发现：\n" + "\n".join(f"• {p}..." for p in key_points)
@@ -668,16 +668,16 @@ class StreamingSynthesizer:
 ```
 ✅ 改进后：
 用户: "详细分析公司的财务状况"
-系统: 
+系统:
   [1秒后] 根据 8 份文档，主要发现：
   • 2023年营收500万元...
   • 净利润率提升至15%...
   • 现金流状况良好...
-  
+
   [边生成边显示详细内容]
   根据财务报表[doc1:p3]，公司2023年实现营收...
   净利润方面[doc2:p5]，相比2022年增长...
-  
+
   [最后显示]
   📎 引用来源: [doc1:p3] [doc2:p5] [doc3:p8]
   🟢 答案可信度: 87/100
@@ -713,7 +713,7 @@ text = "公司2023年营收为500万元[doc1:p3]，净利润75万元[doc2:p5]。
 @dataclass
 class RichCitation:
     """富文本引用"""
-    
+
     document_id: str
     document_title: str  # 文档标题
     page: int | None
@@ -721,11 +721,11 @@ class RichCitation:
     context: str  # 上下文（前后各50字）
     source_url: str | None  # 原文链接
     relevance_score: float  # 相关性分数
-    
+
     def to_inline_marker(self) -> str:
         """行内标记（悬停显示详情）"""
         return f"[{self.document_title}:p{self.page}]"
-    
+
     def to_hover_card(self) -> dict:
         """悬停卡片内容"""
         return {
@@ -739,7 +739,7 @@ class RichCitation:
                 "url": self.source_url,
             } if self.source_url else None,
         }
-    
+
     def to_footnote(self, index: int) -> str:
         """脚注格式"""
         return (
@@ -751,14 +751,14 @@ class RichCitation:
 
 class CitationEnhancer:
     """引用增强器"""
-    
+
     def enhance_answer_citations(
         self,
         answer: str,
         evidence: EvidenceBundle,
     ) -> EnhancedAnswer:
         """将简单的 citation 标记转换为富文本引用"""
-        
+
         rich_citations = []
         for item in evidence.items:
             rich_citations.append(RichCitation(
@@ -770,7 +770,7 @@ class CitationEnhancer:
                 source_url=self._get_source_url(item.document_id),
                 relevance_score=item.score or 0.8,
             ))
-        
+
         return EnhancedAnswer(
             text=answer,
             citations=rich_citations,
@@ -1068,16 +1068,16 @@ app/agents/shared/config.py (大量硬编码常量)
 ```python
 class UnifiedConfig:
     """统一配置管理"""
-    
+
     @classmethod
     def from_yaml(cls, path: str):
         """从 YAML 加载配置"""
         pass
-    
+
     def get(self, key: str, default=None):
         """支持点号路径: config.get("router.confidence_threshold")"""
         pass
-    
+
     def hot_reload(self):
         """热重载配置，无需重启"""
         pass
@@ -1105,7 +1105,7 @@ async def execute(self, request):
 ### M3. 测试覆盖率不足
 **当前状态**: 部分关键路径缺少测试
 
-**改进**: 
+**改进**:
 - 添加边界条件测试
 - 添加性能回归测试
 - 添加用户场景端到端测试
@@ -1134,11 +1134,11 @@ class FeedbackCollector:
     def collect_thumbs(self, answer_id: str, is_helpful: bool):
         """收集点赞/点踩"""
         pass
-    
+
     def collect_detailed(self, answer_id: str, feedback: dict):
         """收集详细反馈"""
         pass
-    
+
     def analyze_patterns(self) -> FeedbackInsights:
         """分析反馈模式"""
         pass

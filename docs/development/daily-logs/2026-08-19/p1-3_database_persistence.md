@@ -201,7 +201,7 @@ def _get_db_path(self) -> Path:
     """Get database path from settings."""
     settings = get_settings()
     db_url = getattr(settings, "database_url", "sqlite:///./data/querymind.db")
-    
+
     if db_url.startswith("sqlite:///"):
         path_str = db_url[10:]  # Remove "sqlite:///"
         return Path(path_str).resolve()
@@ -228,7 +228,7 @@ def _get_db_path(self) -> Path:
 
 ### 内存使用
 
-**L1缓存**: 
+**L1缓存**:
 - 默认容量: 1000 sessions
 - 单个SessionMetadata: ~500 bytes
 - 总内存: 1000 × 500 bytes ≈ 0.5 MB
@@ -320,7 +320,7 @@ from app.services.sessions.metadata_db import (
    def get_metadata_service():
        settings = get_settings()
        backend = getattr(settings, "session_metadata_backend", "memory")
-       
+
        if backend == "database":
            return get_metadata_db()
        else:
@@ -367,13 +367,13 @@ def test_write_through_consistency(db_service):
     """Cache and DB stay in sync on writes."""
     metadata = SessionMetadata(session_id="test-1", tags=["old"])
     db_service.create(metadata)
-    
+
     # Update
     db_service.update("test-1", MetadataUpdate(tags=["new"]))
-    
+
     # Cache has new value
     assert db_service._cache["test-1"].tags == ["new"]
-    
+
     # DB has new value (simulate restart)
     db_service._cache.clear()
     retrieved = db_service.get("test-1")

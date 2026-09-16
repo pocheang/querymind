@@ -214,7 +214,7 @@ function QualityCard({ card }: { card: QualityCard }) {
         <span className="quality-score">{card.score}</span>
       </div>
       <p className="quality-desc">{card.description}</p>
-      
+
       <div className="quality-details">
         <h4>📊 质量详情</h4>
         {Object.entries(card.details).map(([key, value]) => (
@@ -223,7 +223,7 @@ function QualityCard({ card }: { card: QualityCard }) {
           </div>
         ))}
       </div>
-      
+
       {card.limitations.length > 0 && (
         <div className="quality-limitations">
           <h4>⚠️ 注意事项</h4>
@@ -234,7 +234,7 @@ function QualityCard({ card }: { card: QualityCard }) {
           </ul>
         </div>
       )}
-      
+
       {card.suggestions.length > 0 && (
         <div className="quality-suggestions">
           <h4>💬 建议</h4>

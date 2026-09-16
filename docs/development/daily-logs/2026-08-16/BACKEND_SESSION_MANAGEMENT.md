@@ -384,7 +384,7 @@ PATCH / sessions / invalid @ id
 ALTER TABLE sessions ADD COLUMN pinned INTEGER DEFAULT 0;
 
 -- 创建索引以优化置顶会话查询
-CREATE INDEX IF NOT EXISTS idx_sessions_pinned 
+CREATE INDEX IF NOT EXISTS idx_sessions_pinned
 ON sessions(namespace, pinned DESC, updated_at DESC);
 ```
 

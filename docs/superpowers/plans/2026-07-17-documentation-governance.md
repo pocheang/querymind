@@ -153,4 +153,3 @@
 - [ ] Run `pytest -q` only if the documentation change exposes a project-level command/config mismatch; otherwise report it as not required for Markdown-only changes.
 - [ ] Run `git status --short` and confirm no unrelated files were modified by this implementation.
 - [ ] Record any environment-blocked checks with exact rerun commands instead of classifying them as failures.
-

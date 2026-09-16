@@ -178,7 +178,7 @@ A: "快速（1-3秒）"
 
 第10轮:
 Q: "最后一个问题..."
-A: "..." 
+A: "..."
 → 已达到max_rounds=10，强制CONTINUE（使用已收集的信息）
 ```
 
@@ -291,7 +291,7 @@ CREATE TABLE clarification_intents (
 
 ```python
 # 统计各意图的平均轮次
-SELECT 
+SELECT
     intent,
     AVG(clarification_round) as avg_rounds,
     MAX(max_rounds) as max_allowed,
@@ -313,10 +313,10 @@ async def test_dynamic_rounds_simple_query():
     """简单查询应该设置max_rounds=2"""
     service = EnhancedRouterService()
     request = OrchestrationRequest(question="价格是多少？", ...)
-    
+
     context = ClarificationContext()
     decision = await service.route(request, context)
-    
+
     assert decision.context.intent == "simple_query"
     assert decision.context.max_rounds == 2
 
@@ -326,10 +326,10 @@ async def test_dynamic_rounds_complex_query():
     """复杂查询应该设置max_rounds=7"""
     service = EnhancedRouterService()
     request = OrchestrationRequest(question="帮我设计RAG系统", ...)
-    
+
     context = ClarificationContext()
     decision = await service.route(request, context)
-    
+
     assert decision.context.intent == "rag_design"
     assert decision.context.max_rounds == 7
 
@@ -338,13 +338,13 @@ async def test_dynamic_rounds_complex_query():
 async def test_intent_change_resets_max_rounds():
     """意图改变应该重置max_rounds"""
     service = EnhancedRouterService()
-    
+
     # 第一个问题：简单查询
     request1 = OrchestrationRequest(question="价格？", ...)
     context = ClarificationContext()
     decision1 = await service.route(request1, context)
     assert decision1.context.max_rounds == 2
-    
+
     # 第二个问题：复杂设计（意图改变）
     request2 = OrchestrationRequest(question="设计RAG", ...)
     context.clarification_round = 1  # 已经问了1轮

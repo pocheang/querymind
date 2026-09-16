@@ -82,7 +82,7 @@ git mv tests/agents/router/test_refactored_routing.py \
        tests/agents/router/test_pipeline.py
 
 # 3. 更新 adapter.py
-# 修改导入: 
+# 修改导入:
 # from app.agents.router.refactored_routing import RoutingPipeline
 # 改为:
 # from app.agents.router.pipeline import RoutingPipeline

@@ -13,9 +13,9 @@
 **实际签名**:
 ```python
 def bm25_search(
-    query: str, 
-    k: int = 6, 
-    allowed_sources: list[str] | None = None, 
+    query: str,
+    k: int = 6,
+    allowed_sources: list[str] | None = None,
     use_chinese_tokenizer: bool = True
 ) -> list[dict]:
 ```
@@ -43,9 +43,9 @@ await loop.run_in_executor(
 **实际签名**:
 ```python
 def similarity_search(
-    query: str, 
-    k: int | None = None, 
-    allowed_sources: list[str] | None = None, 
+    query: str,
+    k: int | None = None,
+    allowed_sources: list[str] | None = None,
     require_source_filter: bool = True
 ):
 ```
@@ -78,11 +78,11 @@ if require_source_filter and allowed_sources is None:
     raise ValueError("allowed_sources is required for user data isolation...")
 ```
 
-**语义**: 
+**语义**:
 - `require_source_filter=True`: 强制要求 `allowed_sources`（安全）
 - `require_source_filter=False`: 允许 `allowed_sources=None`（系统操作）
 
-**当前调用的意图**: 
+**当前调用的意图**:
 - 我们传递了 `_get_allowed_sources(request)`（可能是 list 或 None）
 - 使用 `require_source_filter=False` 意味着"如果用户没有sources，不要报错"
 
@@ -113,7 +113,7 @@ bm25_search(
 )
 ```
 
-**结果**: 
+**结果**:
 - 如果 `_get_allowed_sources()` 返回 list，会导致类型错误
 - 但可能被某处捕获了，导致没有立即失败
 
@@ -210,7 +210,7 @@ async def _vector_retrieve(...) -> EvidenceBundle:
 
 ### 可能的原因
 
-1. **Python的动态类型**: 
+1. **Python的动态类型**:
    - 不会在定义时检查类型
    - 只在运行时失败
 
