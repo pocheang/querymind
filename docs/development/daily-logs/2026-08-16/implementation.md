@@ -45,7 +45,7 @@ def update_session(
             raise bad_request("Title cannot be empty")
         if len(title) > 200:
             raise bad_request("Title too long (max 200 characters)")
-        
+
         updated = store.update_session_title(session_id, title)
         _audit(request, action="session.rename", ...)
 
@@ -101,7 +101,7 @@ class SessionSummary(BaseModel):
 
 **问题1**: 如何保证向后兼容性
 - **原因**: 现有会话文件没有 pinned 字段
-- **解决方案**: 
+- **解决方案**:
   - 在 Schema 中设置默认值 `pinned: bool = False`
   - list_sessions() 方法使用 `data.get("pinned", False)`
   - 旧会话文件自动支持新字段
@@ -149,9 +149,9 @@ const handleTogglePin = async (sessionId: string, pinned: boolean) => {
   try {
     await chatApi.updateSession(sessionId, { pinned: !pinned });
     await refreshSessions();
-    addToast({ 
-      type: 'success', 
-      message: !pinned ? t('session.pinSuccess') : t('session.unpinSuccess') 
+    addToast({
+      type: 'success',
+      message: !pinned ? t('session.pinSuccess') : t('session.unpinSuccess')
     });
   } catch (error) {
     addToast({ type: 'error', message: t('session.pinFailed') });
@@ -183,7 +183,7 @@ interface ConfirmDialogProps {
 // ToastStack.tsx - 新组件
 export const ToastStack: React.FC = () => {
   const { toasts, removeToast } = useChatStore();
-  
+
   return (
     <div className="toast-stack">
       {toasts.map(toast => (
@@ -202,7 +202,7 @@ export const ToastStack: React.FC = () => {
 // chat.ts
 export const chatApi = {
   updateSession: async (
-    sessionId: string, 
+    sessionId: string,
     updates: { title?: string; pinned?: boolean }
   ): Promise<SessionDetail> => {
     const response = await fetch(`/api/sessions/${sessionId}`, {

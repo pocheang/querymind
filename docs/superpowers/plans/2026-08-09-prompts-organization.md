@@ -214,4 +214,3 @@ git diff --check
 ~~~
 
 Expected: exit code 0. Do not commit the changes.
-

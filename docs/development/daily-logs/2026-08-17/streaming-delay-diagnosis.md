@@ -49,7 +49,7 @@ for chunk in model.stream([("system", ANSWER_PROMPT), ("human", prompt)]):
 def _build_chat_model_cached(...):
     if backend == "openai":
         from langchain_openai import ChatOpenAI
-        
+
         kwargs = {
             "model": openai_model,
             "temperature": temperature,
@@ -62,10 +62,10 @@ def _build_chat_model_cached(...):
         if max_tokens > 0:
             kwargs["max_tokens"] = max_tokens
         return _wrap_chat_model_for_provider(ChatOpenAI(**kwargs), provider=provider)
-    
+
     if backend == "anthropic":
         from langchain_anthropic import ChatAnthropic
-        
+
         kwargs = {
             "model": anthropic_model,
             "temperature": temperature,
@@ -76,10 +76,10 @@ def _build_chat_model_cached(...):
         if max_tokens > 0:
             kwargs["max_tokens"] = max_tokens
         return _wrap_chat_model_for_provider(ChatAnthropic(**kwargs), provider=provider)
-    
+
     if backend == "ollama":
         from langchain_ollama import ChatOllama
-        
+
         kwargs = {
             "model": ollama_model,
             "base_url": ollama_base_url,
@@ -98,7 +98,7 @@ def _build_chat_model_cached(...):
 ```python
 def _sse_response(events, append_terminal_event: bool = False) -> StreamingResponse:
     # ... existing code ...
-    
+
     return StreamingResponse(
         content=events_with_terminal if append_terminal_event else events,
         media_type="text/event-stream",
@@ -117,7 +117,7 @@ def _sse_response(events, append_terminal_event: bool = False) -> StreamingRespo
 ```python
 def stream_synthesize_answer(...):
     # ... existing code ...
-    
+
     try:
         with bulkhead("llm"):
             model = _build_generation_model(use_reasoning=use_reasoning, question=question)
@@ -125,7 +125,7 @@ def stream_synthesize_answer(...):
             stream_failed = False
             chunk_count = 0
             start_time = time.time()
-            
+
             try:
                 for chunk in model.stream([("system", ANSWER_PROMPT), ("human", prompt)]):
                     content = getattr(chunk, "content", None)
@@ -134,13 +134,13 @@ def stream_synthesize_answer(...):
                         parts.append(text)
                         chunk_count += 1
                         elapsed = time.time() - start_time
-                        
+
                         # 诊断日志
                         logger.debug(
                             f"Stream chunk #{chunk_count} at {elapsed:.2f}s: "
                             f"{len(text)} chars, total {len(''.join(parts))} chars"
                         )
-                        
+
                         yield text
             except Exception as stream_error:
                 logger.warning(f"Stream failed after {chunk_count} chunks: {type(stream_error).__name__}")
@@ -251,7 +251,7 @@ patchStreamMessage: (content: string, meta: StreamMetadata) => {
   // 如果内容突然增加很多，说明是批量到达，需要模拟打字机
   const currentContent = getCurrentContent(); // 获取当前内容
   const newChars = content.length - currentContent.length;
-  
+
   if (newChars > 50) {
     // 批量到达，使用打字机效果
     typewriterEffect(currentContent, content, setMessages, meta);

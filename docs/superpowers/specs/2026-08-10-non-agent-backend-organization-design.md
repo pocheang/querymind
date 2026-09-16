@@ -325,4 +325,3 @@ The organization work is complete when:
 - Pipeline and orchestration have no second execution owner.
 - All retained compatibility modules have evidence and retirement conditions.
 - Static and authorized runtime verification passes without contract changes.
-

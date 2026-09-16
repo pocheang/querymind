@@ -289,7 +289,7 @@ rg "import.*$(Split-Path $cssFile -Leaf)" src --files-with-matches
 Get-ChildItem src/styles -Recurse -Filter *.css | ForEach-Object {
     $cssFile = $_.Name
     $usageCount = (rg "import.*$cssFile" src --files-with-matches | Measure-Object).Count
-    
+
     [PSCustomObject]@{
         File = $cssFile
         Path = $_.FullName

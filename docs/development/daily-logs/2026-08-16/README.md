@@ -45,7 +45,7 @@ function App() {
 ### 异步操作（自动状态管理）
 
 ```tsx
-<AnimatedButton 
+<AnimatedButton
   onClick={async () => {
     await fetch('/api/submit');
     // 自动显示loading → success/error
@@ -77,7 +77,7 @@ function App() {
 ```tsx
 const [state, setState] = useState<'idle' | 'loading'>('idle');
 
-<AnimatedButton 
+<AnimatedButton
   state={state}
   onClick={() => {
     setState('loading');

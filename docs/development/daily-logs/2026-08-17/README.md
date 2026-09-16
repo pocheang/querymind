@@ -241,7 +241,7 @@ if decision.clarification:
 
 ```sql
 -- 各意图的平均轮次
-SELECT 
+SELECT
     intent,
     AVG(clarification_round) as avg_rounds,
     MAX(max_rounds) as max_allowed,
@@ -251,7 +251,7 @@ GROUP BY intent
 ORDER BY avg_rounds DESC;
 
 -- 轮次达到率
-SELECT 
+SELECT
     COUNT(CASE WHEN clarification_round >= max_rounds THEN 1 END) * 100.0 / COUNT(*) as reached_max_pct
 FROM clarification_logs;
 ```
@@ -301,7 +301,7 @@ INTENT_REQUIRED_INFO["rag_design"]["max_rounds"] = 8
 
 ### 问题2: 意图改变后轮次未更新
 **原因**: 代码逻辑问题  
-**检查**: 
+**检查**:
 ```python
 if not clarification_context.intent or clarification_context.intent != intent:
     clarification_context.max_rounds = self._get_max_rounds_for_intent(intent)

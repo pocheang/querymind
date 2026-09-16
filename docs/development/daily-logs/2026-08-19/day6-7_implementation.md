@@ -151,24 +151,24 @@ if embedding is None:
 ```python
 async def execute_rag_pipeline(query: str):
     monitor = get_monitor()
-    
+
     # 总时间监控
     async with monitor.measure_async("rag_pipeline_total"):
         # 路由
         async with monitor.measure_async("routing"):
             route = await router.route(query)
-        
+
         # 检索
         async with monitor.measure_async("retrieval"):
             results = await retriever.retrieve(query)
-        
+
         # 合成
         async with monitor.measure_async("synthesis"):
             answer = await synthesizer.synthesize(query, results)
-    
+
     # 记录请求
     monitor.increment_counter("pipeline_requests")
-    
+
     return answer
 ```
 
@@ -205,7 +205,7 @@ class Settings(BaseSettings):
     cache_l2_enabled: bool = Field(default=False, alias="CACHE_L2_ENABLED")
     cache_l2_redis_url: str = Field(default="redis://localhost:6379/0")
     cache_l2_ttl: int = Field(default=3600, alias="CACHE_L2_TTL")
-    
+
     # 语义缓存
     semantic_cache_threshold: float = Field(default=0.95)
     semantic_cache_max_candidates: int = Field(default=50)

@@ -58,7 +58,7 @@ Body: { "title": "...", "pinned": true }
 
 **选择方案**: B - 统一 PATCH 端点
 
-**决策理由**: 
+**决策理由**:
 1. **可扩展性**：未来添加新属性（如标签、颜色、分组）时无需新增端点
 2. **原子性**：可以在一次请求中同时更新多个属性，保证数据一致性
 3. **标准化**：PATCH 是 HTTP 标准的部分更新方法，符合 RESTful 最佳实践
@@ -76,7 +76,7 @@ Body: { "title": "...", "pinned": true }
 
 ### 影响范围
 - **影响的模块**: API 路由、数据存储层、前端 API 服务
-- **需要修改的文件**: 
+- **需要修改的文件**:
   - `app/api/routes/public/sessions.py`
   - `app/services/sessions/history.py`
   - `frontend/src/services/api/chat.ts`
@@ -97,7 +97,7 @@ Body: { "title": "...", "pinned": true }
 ---
 
 #### 方案B：置顶会话按更新时间排序（选择）
-**优点**: 
+**优点**:
 - 最近活跃的会话在最上面
 - 符合用户使用习惯
 - 与非置顶会话排序逻辑一致
@@ -188,11 +188,11 @@ CREATE INDEX idx_sessions_pinned ON sessions(namespace, pinned DESC, updated_at 
 ### 考虑的方案
 
 #### 方案A：Ant Design Message 组件
-**优点**: 
+**优点**:
 - 已有依赖，无需额外安装
 - 样式统一
 
-**缺点**: 
+**缺点**:
 - 自动消失时间不可定制
 - 不支持动作按钮（撤销等）
 

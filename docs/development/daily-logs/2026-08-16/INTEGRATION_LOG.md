@@ -26,7 +26,7 @@
 - ✅ 替换主发送按钮（200-210行）
   - 从: `<button className="composer-primary-btn">`
   - 到: `<AnimatedButton variant="primary" size="large" state={isSending ? 'loading' : 'idle'}>`
-  
+
 **效果**:
 - 自动loading动画（替换手动spinner）
 - Hover效果（scale 1.02）

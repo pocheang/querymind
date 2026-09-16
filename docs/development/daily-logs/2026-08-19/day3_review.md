@@ -82,7 +82,7 @@ if request_data.enable_context_tracking:
 ### 问题1: PipelineRequest创建了两次 ⚠️
 **位置**: enhanced_query.py line 190-206 和 line 222-238
 
-**问题**: 
+**问题**:
 ```python
 # 第一次创建 (line 190-206)
 pipeline_request = PipelineRequest(
@@ -101,7 +101,7 @@ pipeline_request = PipelineRequest(
 )
 ```
 
-**影响**: 
+**影响**:
 - 代码重复
 - 第一次创建的对象被浪费
 - 可读性降低

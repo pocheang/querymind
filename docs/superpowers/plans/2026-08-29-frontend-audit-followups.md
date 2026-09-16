@@ -1370,7 +1370,7 @@ Also update the params destructure at the top of the function:
 +      isDanger: true,
 +    });
 +    if (!confirmed) return;
- 
+
      try {
 ```
 

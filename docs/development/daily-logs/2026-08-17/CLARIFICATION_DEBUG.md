@@ -100,16 +100,16 @@ const handleSendWithClarification = async (questionText: string) => {
 
     // 信息充足，执行查询
     await messageActions.ask({...});
-    
+
   } catch (error) {
     console.error("Clarification check failed:", error);
-    
+
     // ❌ 移除降级逻辑
     // 显示错误给用户
     actions.notify("error", t("chat.clarificationCheckFailed") || "Failed to check clarification");
     setIsSending(false);
     setRunStatus(null);
-    
+
     // 不再自动降级到直接查询
     // 让用户看到错误并重试
   }
@@ -131,7 +131,7 @@ const handleSendWithClarification = async (questionText: string) => {
 ```tsx
 catch (error) {
   console.error("Clarification check failed:", error);
-  
+
   // 只有在特定错误时才降级
   if (error.status === 403 || error.status === 401) {
     // 认证问题：显示错误，不降级
@@ -160,9 +160,9 @@ catch (error) {
   console.error("Clarification check failed:", error);
   setIsSending(false);
   setRunStatus(null);
-  
+
   // 显示错误 toast 并提供重试选项
-  actions.notify("warn", 
+  actions.notify("warn",
     "Clarification service unavailable. Continue with direct query?",
     {
       actions: [

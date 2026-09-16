@@ -126,7 +126,7 @@ if not bundles and jobs:
 return fuse_evidence(bundles)
 ```
 
-**关键点**: 
+**关键点**:
 - 如果所有检索器失败 → 抛出错误
 - 如果检索器成功但返回空结果 → 返回空 `EvidenceBundle`
 
@@ -170,7 +170,7 @@ if citations and not any(f"[{citation}]" in text for citation in citations):
     raise ValueError(...)
 ```
 
-**评估**: 
+**评估**:
 - ✅ 从抛出错误改为警告是合理的
 - ⚠️ 添加 `and text` 可能掩盖了空答案的问题
 - 建议: 应该保持原始条件，只改变行为（警告 vs 错误）
@@ -194,7 +194,7 @@ grep -r "_bundle_from_legacy_payload" app/  # 无结果
 - ✅ 测试文件确实引用了它
 - ⚠️ 但删除测试意味着**失去了测试覆盖**
 
-**更好的做法**: 
+**更好的做法**:
 - 如果功能已移除 → 删除测试是正确的 ✅
 - 如果功能被重构 → 应该更新测试而非删除 ⚠️
 
@@ -235,12 +235,12 @@ updated_metadata = {**current_metadata, "profile": policy.profile.value, ...}
 ExecutionEvent(stage="rag", status="completed", message="DEGRADED: ...")
 ```
 
-**问题**: 
+**问题**:
 - 使用 `status="completed"` 但消息中有 "DEGRADED"
 - 这在语义上不一致
 - `EventStatus = Literal["completed", "failed", "skipped"]` - 没有 "degraded" 状态
 
-**实际情况**: 
+**实际情况**:
 - 我最初尝试使用 `status="degraded"` 但失败了
 - 然后妥协使用 `status="completed"` + "DEGRADED" 消息前缀
 
@@ -268,7 +268,7 @@ ExecutionEvent(stage="rag", status="completed", message="DEGRADED: ...")
 ]
 ```
 
-**问题**: 
+**问题**:
 - ⚠️ 我改变了测试期望值以匹配新的行为
 - ⚠️ 但我没有验证新行为是否是**预期**的
 - ⚠️ 测试现在通过了，但可能只是因为我改了期望值

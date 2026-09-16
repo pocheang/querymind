@@ -190,7 +190,7 @@ def process_query(query: str, top_k: int = 10) -> list[Document]:
     """
     if not query:
         raise ValueError("Query cannot be empty")
-    
+
     # Implementation...
     return documents
 ```

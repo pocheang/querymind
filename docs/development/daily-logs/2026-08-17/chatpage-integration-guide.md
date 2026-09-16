@@ -109,10 +109,10 @@ const handleClarificationSkip = async () => {
   try {
     // 重置澄清上下文
     await clarificationApi.resetClarification(currentSessionId);
-    
+
     // 清除澄清状态
     setClarification(null);
-    
+
     // 执行查询（使用已收集的信息）
     await executeQuery(question);
   } catch (error) {
@@ -179,7 +179,7 @@ import { clarificationApi } from "@/services/api/chat";
 
 export function ChatPage(props: Props) {
   // ... 现有状态 ...
-  
+
   // 新增澄清状态
   const [clarification, setClarification] = useState<ClarificationResponse | null>(null);
   const [isClarifying, setIsClarifying] = useState(false);
@@ -258,10 +258,10 @@ export function ChatPage(props: Props) {
   return (
     <div className="chat-page">
       {/* ... 现有 UI ... */}
-      
+
       <div className="chat-main">
         <ChatMessages messages={messages} />
-        
+
         {/* 澄清提示 */}
         {clarification && clarification.action === "NEED_CLARIFICATION" && (
           <ClarificationPrompt
@@ -272,7 +272,7 @@ export function ChatPage(props: Props) {
             isSubmitting={isClarifying}
           />
         )}
-        
+
         <ChatComposer
           value={question}
           onChange={setQuestion}

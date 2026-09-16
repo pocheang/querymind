@@ -19,7 +19,7 @@
 **问题描述**:
 虽然代码在 `get()` 和 `set()` 方法中添加了 `user_id` 验证，但存在以下漏洞：
 
-1. **验证逻辑可被绕过**: 
+1. **验证逻辑可被绕过**:
    - `get()` 方法中，`user_id` 是可选参数，如果调用时不传递，验证会被跳过
    - 攻击者可以通过不传递 `user_id` 参数来访问其他用户的缓存数据
 
@@ -55,10 +55,10 @@ def get(self, key: str, session_id: str | None = None, user_id: str | None = Non
     if not user_id:
         logger.warning("Cache get without user_id is not allowed")
         return None
-    
+
     # 2. 将 user_id 包含在 Redis key 中
     redis_key = f"qcache:{user_id}:{key}"
-    
+
     # 3. 所有缓存路径都验证用户归属
     ...
 ```
@@ -101,17 +101,17 @@ return True
 def mark_inflight(self, key: str) -> bool:
     now = time.time()
     backend = self._effective_backend()
-    
+
     with self._lock:  # 将整个检查-使用过程放在锁内
         # gc old inflight marks
         stale = [k for k, ts in self._inflight.items() if (now - ts) > self._ttl_seconds]
         for s in stale:
             self._inflight.pop(s, None)
             self._inflight_tokens.pop(s, None)
-        
+
         if key in self._inflight:
             return False
-        
+
         if backend == "redis":
             client = _get_redis_client()
             if client is not None:
@@ -123,7 +123,7 @@ def mark_inflight(self, key: str) -> bool:
                 if not locked:
                     return False
                 self._inflight_tokens[key] = token
-        
+
         self._inflight[key] = now
         return True
 ```
@@ -132,7 +132,7 @@ def mark_inflight(self, key: str) -> bool:
 
 ### 3. **Redis 连接池耗尽** - `query_result_cache.py` & `caching.py`
 
-**位置**: 
+**位置**:
 - [app/services/runtime/query_result_cache.py:38-50](app/services/runtime/query_result_cache.py#L38-L50)
 - [app/retrievers/hybrid/caching.py:32-50](app/retrievers/hybrid/caching.py#L32-L50)
 
@@ -286,7 +286,7 @@ async def set_with_embedding(self, query: str, query_embedding: np.ndarray, ...)
     # ...
     async with self._lock:
         self._embeddings_cache[query] = query_embedding
-        
+
         # 仅使用 FIFO 清理
         if len(self._embeddings_cache) > self.max_candidates:
             oldest_query = next(iter(self._embeddings_cache))
@@ -313,29 +313,29 @@ class SemanticCache:
         # 改用 OrderedDict 实现 LRU
         self._embeddings_cache: OrderedDict[str, tuple[np.ndarray, float]] = OrderedDict()
         self._lock = asyncio.Lock()
-    
+
     async def set_with_embedding(self, query: str, query_embedding: np.ndarray, ...):
         await self.cache_manager.set(prefix, result, l1_ttl=ttl, query=query)
-        
+
         async with self._lock:
             # 存储 embedding 和时间戳
             self._embeddings_cache[query] = (query_embedding, time.time())
             self._embeddings_cache.move_to_end(query)
-            
+
             # LRU 清理：移除最旧的
             while len(self._embeddings_cache) > self.max_candidates:
                 self._embeddings_cache.popitem(last=False)
-    
+
     async def get_similar(self, query: str, query_embedding: np.ndarray, prefix: str = "query") -> Optional[Any]:
         # ...
         async with self._lock:
             # 清理过期的 embeddings（与 cache_manager TTL 同步）
             now = time.time()
-            expired = [q for q, (_, ts) in self._embeddings_cache.items() 
+            expired = [q for q, (_, ts) in self._embeddings_cache.items()
                       if now - ts > self.cache_manager.l1_cache.default_ttl]
             for q in expired:
                 del self._embeddings_cache[q]
-            
+
             # 语义搜索...
 ```
 
@@ -350,12 +350,12 @@ class SemanticCache:
 def _evict(self) -> None:
     now = time.time()
     self._last_eviction = now
-    
+
     # O(n) 扫描所有键
     stale_keys = [k for k, (exp, _v) in self._store.items() if exp <= now]
     for k in stale_keys:
         self._store.pop(k, None)
-    
+
     # O(n) 限制大小
     while len(self._store) > self.max_items:
         self._store.popitem(last=False)
@@ -383,27 +383,27 @@ class TTLCache:
         # 批量清理阈值
         self._eviction_batch_size = 100
         self._eviction_interval = max(1.0, float(ttl_seconds) / 10.0)
-    
+
     def _evict(self) -> None:
         """增量清理，限制每次处理的数量"""
         now = time.time()
         self._last_eviction = now
-        
+
         # 限制扫描数量，避免长时间持锁
         scanned = 0
         stale_keys = []
-        
+
         for k, (exp, _v) in self._store.items():
             if scanned >= self._eviction_batch_size:
                 break
             scanned += 1
             if exp <= now:
                 stale_keys.append(k)
-        
+
         # 批量删除
         for k in stale_keys:
             self._store.pop(k, None)
-        
+
         # 限制大小（也限制批量）
         removed = 0
         while len(self._store) > self.max_items and removed < self._eviction_batch_size:
@@ -428,11 +428,11 @@ def _make_cache_key(*args, **kwargs) -> str:
             key_parts.append(str(sorted(arg))[:100])
         else:
             key_parts.append(str(arg)[:50])
-    
+
     for k, v in sorted(kwargs.items()):
         if v is not None:
             key_parts.append(f"{k}={str(v)[:50]}")
-    
+
     key_string = "|".join(key_parts)
     return hashlib.md5(key_string.encode("utf-8")).hexdigest()
 ```
@@ -447,7 +447,7 @@ def _make_cache_key(*args, **kwargs) -> str:
 def _make_cache_key(*args, **kwargs) -> str:
     """创建缓存键，限制总长度并使用安全哈希"""
     key_parts = []
-    
+
     for arg in args:
         if isinstance(arg, str):
             key_parts.append(arg[:200])  # 增加截断长度
@@ -457,17 +457,17 @@ def _make_cache_key(*args, **kwargs) -> str:
             key_parts.append(",".join(sorted_arg)[:200])
         else:
             key_parts.append(str(arg)[:100])
-    
+
     for k, v in sorted(kwargs.items()):
         if v is not None:
             key_parts.append(f"{k}={str(v)[:100]}")
-    
+
     key_string = "|".join(key_parts)
-    
+
     # 限制总长度，避免过大的键
     if len(key_string) > 1000:
         key_string = key_string[:1000] + f"_truncated_{len(key_string)}"
-    
+
     # 使用 SHA-256 代替 MD5
     return hashlib.sha256(key_string.encode("utf-8")).hexdigest()
 ```
@@ -506,7 +506,7 @@ async def get(self, key: str) -> Optional[Any]:
     client = await self._get_client()
     if client is None:
         return None
-    
+
     try:
         raw = await client.get(key)
         if raw is None:

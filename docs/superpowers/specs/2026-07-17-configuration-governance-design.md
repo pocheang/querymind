@@ -190,4 +190,3 @@ n8n 同样保持显式 Compose profile，不在默认生产启动中启用。
 6. backend `/health`、frontend 根路径和 API 文档均可访问。
 7. 旧配置路径不再被 Compose、脚本或文档作为主入口引用。
 8. Python 单元测试、配置生成器测试、部署脚本静态检查和前端构建均通过。
-

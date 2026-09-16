@@ -170,4 +170,3 @@ Evidence 优先级固定为：授权的原始 Evidence > 同一 Evidence 派生�
 7. Verifier 最多一次回检，不存在无限环。
 8. Recall@K、MRR、NDCG、reranker delta、faithfulness、answer relevance、router accuracy、token、latency、retry/failure reason 可按 execution_id 查询。
 9. 现有前端构建、HTTP/SSE contract、MCP contract 和回归测试通过。
-

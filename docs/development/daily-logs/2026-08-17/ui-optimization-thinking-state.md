@@ -207,7 +207,7 @@ RAG 系统可以按照以下方式设计……
 
 1. **状态判断**: 使用 `message.message_id === "local-assistant-stream" && !message.content` 判断思考状态
 2. **无缝切换**: 思考指示器和答案内容在同一个 `<div>` 内条件渲染，避免页面跳动
-3. **过滤机制**: 
+3. **过滤机制**:
    - 前端组件层：MessageCard 过滤显示
    - 数据层：streamEventHandlers 过滤存储
 4. **性能优化**: 使用 CSS 动画而非 JavaScript 定时器

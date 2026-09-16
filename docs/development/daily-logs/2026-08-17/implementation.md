@@ -615,7 +615,7 @@ export type ClarificationCheckResponse = {
 // 在queryApi中添加
 export const queryApi = {
   // ... 现有方法
-  
+
   async checkClarification(
     request: ClarificationCheckRequest
   ): Promise<ClarificationCheckResponse> {
@@ -716,7 +716,7 @@ export function ClarificationPrompt({
               {t("components.chat.useCustomInput")}
             </button>
           )}
-          
+
           {(useCustom || clarification.options.length === 0) && (
             <div className="custom-input-wrapper">
               <textarea
@@ -766,7 +766,7 @@ export function ClarificationPrompt({
 // 添加新的action
 const actions = {
   // ... 现有actions
-  
+
   async checkClarification(
     question: string,
     sessionId: string,
@@ -810,16 +810,16 @@ const [clarificationState, setClarificationState] = useState<{
 ```typescript
 const handleAsk = async () => {
   if (!question.trim() || !currentSessionId) return;
-  
+
   setIsSending(true);
-  
+
   try {
     // 1. 先检查是否需要澄清
     const checkResult = await actions.checkClarification(
       question,
       currentSessionId
     );
-    
+
     if (checkResult.action === "NEED_CLARIFICATION") {
       // 需要澄清，显示澄清界面
       setClarificationState({
@@ -830,7 +830,7 @@ const handleAsk = async () => {
       setIsSending(false);
       return;
     }
-    
+
     // 2. 信息充足，继续执行查询
     await messageActions.ask({
       question,
@@ -841,7 +841,7 @@ const handleAsk = async () => {
       retrievalStrategy,
       pipelineProfile,
     });
-    
+
   } catch (error) {
     console.error("Ask failed:", error);
     setError(String(error));
@@ -852,7 +852,7 @@ const handleAsk = async () => {
 
 const handleClarificationAnswer = async (fieldName: string, answer: string) => {
   if (!currentSessionId) return;
-  
+
   try {
     // 提交答案并重新检查
     const checkResult = await actions.checkClarification(
@@ -861,7 +861,7 @@ const handleClarificationAnswer = async (fieldName: string, answer: string) => {
       fieldName,
       answer
     );
-    
+
     if (checkResult.action === "NEED_CLARIFICATION") {
       // 还需要继续澄清
       setClarificationState({
@@ -876,7 +876,7 @@ const handleClarificationAnswer = async (fieldName: string, answer: string) => {
         clarification: null,
         context: null,
       });
-      
+
       await messageActions.ask({
         question,
         isSending,

@@ -118,10 +118,10 @@ interface ClarificationPromptProps {
 export const clarificationApi = {
   // 检查是否需要澄清
   checkClarification(request: ClarificationCheckRequest): Promise<ClarificationResponse>
-  
+
   // 重置澄清上下文
   resetClarification(sessionId: string): Promise<{status: string; message: string}>
-  
+
   // 获取澄清上下文
   getClarificationContext(sessionId: string): Promise<ClarificationContext>
 };
@@ -206,7 +206,7 @@ function ChatPage() {
         field_name: fieldName,
         answer: answer,
       });
-      
+
       if (response.action === 'CONTINUE') {
         // 执行实际查询
         await executeQuery();

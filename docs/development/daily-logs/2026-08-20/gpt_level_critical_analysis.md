@@ -553,7 +553,7 @@ route = RouteDecision(
 ```python
 def _enabled_retrievers(self, route: RouteDecision) -> tuple[tuple[str, TypedRetriever], ...]:
     retrievers: list[tuple[str, TypedRetriever]] = []
-    
+
     # 基于 capabilities 而不是无条件添加
     if "rag" in route.allowed_capabilities or "vector" in route.allowed_capabilities:
         retrievers.append(("vector", self._vector))
@@ -563,7 +563,7 @@ def _enabled_retrievers(self, route: RouteDecision) -> tuple[tuple[str, TypedRet
         retrievers.append(("graph", self._graph))
     if "web" in route.allowed_capabilities:
         retrievers.append(("web", self._web))
-    
+
     return tuple(retrievers)
 ```
 
