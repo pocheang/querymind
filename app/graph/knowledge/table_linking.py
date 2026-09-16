@@ -136,6 +136,22 @@ def _add_entity_candidate(val: str, seen: set[str], candidates: list[str]) -> No
             candidates.append(cleaned)
 
 
+def _extract_from_column_header_line(line_s: str, seen: set[str], candidates: list[str]) -> None:
+    if line_s.lower().startswith("columns") and ":" in line_s:
+        parts = line_s.split(":", 1)[1].split("|")
+        for p in parts:
+            _add_entity_candidate(p, seen, candidates)
+
+
+def _extract_from_pipe_line(line_s: str, seen: set[str], candidates: list[str], max_limit: int) -> bool:
+    cells = [c.strip() for c in line_s.split("|")[1:-1]]
+    for cell in cells:
+        _add_entity_candidate(cell, seen, candidates)
+        if len(candidates) >= max_limit:
+            return True
+    return False
+
+
 def _extract_pipe_and_column_entities(
     content: str,
     max_limit: int,
@@ -145,17 +161,9 @@ def _extract_pipe_and_column_entities(
     for line in content.splitlines():
         line_s = line.strip()
         if not line_s.startswith("|"):
-            if line_s.lower().startswith("columns") and ":" in line_s:
-                parts = line_s.split(":", 1)[1].split("|")
-                for p in parts:
-                    _add_entity_candidate(p, seen, candidates)
-            continue
-
-        cells = [c.strip() for c in line_s.split("|")[1:-1]]
-        for cell in cells:
-            _add_entity_candidate(cell, seen, candidates)
-            if len(candidates) >= max_limit:
-                return
+            _extract_from_column_header_line(line_s, seen, candidates)
+        elif _extract_from_pipe_line(line_s, seen, candidates, max_limit):
+            return
 
 
 def _extract_delimiter_entities(

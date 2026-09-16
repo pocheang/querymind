@@ -423,6 +423,43 @@ def _slice_oversized_kv_line(eline: str, prefix: str, budget: int, start_part_id
     return slices, part_idx
 
 
+def _flush_sub_lines_if_needed(
+    sub_lines: list[str],
+    prefix: str,
+    part_idx: int,
+    chunks: list[str],
+) -> tuple[list[str], int, int]:
+    if sub_lines:
+        chunks.append(_format_kv_chunk(prefix, part_idx, sub_lines).strip())
+        return [], 0, part_idx + 1
+    return sub_lines, 0, part_idx
+
+
+def _append_kv_line(
+    eline: str,
+    prefix: str,
+    budget: int,
+    part_idx: int,
+    sub_lines: list[str],
+    sub_len: int,
+    chunks: list[str],
+) -> tuple[list[str], int, int]:
+    if len(eline) > budget:
+        sub_lines, sub_len, part_idx = _flush_sub_lines_if_needed(sub_lines, prefix, part_idx, chunks)
+        line_chunks, part_idx = _slice_oversized_kv_line(eline, prefix, budget, part_idx)
+        chunks.extend(line_chunks)
+        return sub_lines, sub_len, part_idx
+
+    if sub_len + len(eline) + 1 > budget and sub_lines:
+        sub_lines, sub_len, part_idx = _flush_sub_lines_if_needed(sub_lines, prefix, part_idx, chunks)
+        sub_lines = [eline]
+        sub_len = len(eline)
+    else:
+        sub_lines.append(eline)
+        sub_len += len(eline) + 1
+    return sub_lines, sub_len, part_idx
+
+
 def _split_kv_table_text(text: str, max_chunk_size: int) -> list[str]:
     """Split a Key-Value folded table entity across chunks, propagating header and row ID."""
     if len(text) <= max_chunk_size:
@@ -441,27 +478,7 @@ def _split_kv_table_text(text: str, max_chunk_size: int) -> list[str]:
     for eline in kv_lines:
         overhead = len(prefix) + 25 if prefix else 0
         budget = max_chunk_size - overhead
-
-        # Single line exceeds budget: slice value text across bounded parts
-        if len(eline) > budget:
-            if sub_lines:
-                chunks.append(_format_kv_chunk(prefix, part_idx, sub_lines).strip())
-                sub_lines = []
-                sub_len = 0
-                part_idx += 1
-
-            line_chunks, part_idx = _slice_oversized_kv_line(eline, prefix, budget, part_idx)
-            chunks.extend(line_chunks)
-            continue
-
-        if sub_len + len(eline) + 1 > budget and sub_lines:
-            chunks.append(_format_kv_chunk(prefix, part_idx, sub_lines).strip())
-            sub_lines = [eline]
-            sub_len = len(eline)
-            part_idx += 1
-        else:
-            sub_lines.append(eline)
-            sub_len += len(eline) + 1
+        sub_lines, sub_len, part_idx = _append_kv_line(eline, prefix, budget, part_idx, sub_lines, sub_len, chunks)
 
     if sub_lines:
         chunks.append(_format_kv_chunk(prefix, part_idx, sub_lines).strip())
@@ -535,6 +552,33 @@ def _build_kv_entity_records(
     return entity_records
 
 
+def _handle_kv_chunk_overflow(
+    cur_entities: list[str],
+    overlap: int,
+    kv_chunks: list[str],
+) -> tuple[list[str], int]:
+    kv_chunks.append("\n\n".join(cur_entities))
+    keep_count = min(len(cur_entities) - 1, overlap)
+    if keep_count > 0:
+        kept = cur_entities[-keep_count:]
+        kept_len = sum(len(e) for e in kept) + 2 * (len(kept) - 1)
+        return kept, kept_len
+    return [], 0
+
+
+def _handle_oversized_entity(
+    entity_str: str,
+    max_chunk_size: int,
+    cur_entities: list[str],
+    kv_chunks: list[str],
+) -> tuple[list[str], int]:
+    if cur_entities:
+        kv_chunks.append("\n\n".join(cur_entities))
+    sub_parts = _split_kv_table_text(entity_str, max_chunk_size)
+    kv_chunks.extend(sub_parts)
+    return [], 0
+
+
 def _chunk_kv_entity_records(
     entity_records: list[str],
     max_chunk_size: int,
@@ -549,12 +593,7 @@ def _chunk_kv_entity_records(
     while e_idx < len(entity_records):
         entity_str = entity_records[e_idx]
         if len(entity_str) > max_chunk_size:
-            if cur_entities:
-                kv_chunks.append("\n\n".join(cur_entities))
-                cur_entities = []
-                cur_len = 0
-            sub_parts = _split_kv_table_text(entity_str, max_chunk_size)
-            kv_chunks.extend(sub_parts)
+            cur_entities, cur_len = _handle_oversized_entity(entity_str, max_chunk_size, cur_entities, kv_chunks)
             e_idx += 1
             continue
 
@@ -563,20 +602,12 @@ def _chunk_kv_entity_records(
             cur_entities.append(entity_str)
             cur_len += cost
             e_idx += 1
+        elif cur_entities:
+            cur_entities, cur_len = _handle_kv_chunk_overflow(cur_entities, overlap, kv_chunks)
         else:
-            if cur_entities:
-                kv_chunks.append("\n\n".join(cur_entities))
-                keep_count = min(len(cur_entities) - 1, overlap)
-                if keep_count > 0:
-                    cur_entities = cur_entities[-keep_count:]
-                    cur_len = sum(len(e) for e in cur_entities) + 2 * (len(cur_entities) - 1)
-                else:
-                    cur_entities = []
-                    cur_len = 0
-            else:
-                cur_entities.append(entity_str)
-                cur_len = len(entity_str)
-                e_idx += 1
+            cur_entities.append(entity_str)
+            cur_len = len(entity_str)
+            e_idx += 1
 
     if cur_entities:
         kv_chunks.append("\n\n".join(cur_entities))
@@ -708,6 +739,52 @@ def _process_text_block_chunk(b_content: str, max_chunk_size: int) -> list[str]:
     return [c.strip() for c in sub_chunks if c.strip()]
 
 
+def _quick_check_markdown_table(
+    text: str,
+    max_chunk_size: int,
+    global_total_rows: int | None,
+) -> tuple[bool, list[str] | None, list[tuple[str, str]]]:
+    if not text or not text.strip():
+        return True, None, []
+    if _is_kv_table_content(text):
+        return True, _split_kv_table_text(text, max_chunk_size), []
+
+    blocks = _extract_document_blocks(text)
+    if not any(b_type == "table" for b_type, _ in blocks):
+        return True, None, []
+
+    if len(text) <= max_chunk_size and len(blocks) == 1 and blocks[0][0] == "table" and global_total_rows is None:
+        return True, [text], []
+
+    return False, None, blocks
+
+
+def _process_table_block_chunk(
+    b_content: str,
+    max_chunk_size: int,
+    row_overlap: int,
+    global_row_offset: int,
+    global_total_rows: int | None,
+    table_block_count: int,
+    first_table_consumed: bool,
+) -> tuple[list[str], bool]:
+    use_offset = 0
+    use_total = None
+    if global_total_rows is not None and (table_block_count == 1 or not first_table_consumed):
+        use_offset = global_row_offset
+        use_total = global_total_rows
+        first_table_consumed = True
+
+    tbl_chunks = _split_single_table_block(
+        b_content,
+        max_chunk_size=max_chunk_size,
+        row_overlap=row_overlap,
+        global_row_offset=use_offset,
+        global_total_rows=use_total,
+    )
+    return [c for c in tbl_chunks if c.strip()], first_table_consumed
+
+
 def _split_markdown_table_text(
     text: str,
     max_chunk_size: int,
@@ -719,19 +796,9 @@ def _split_markdown_table_text(
 
     Returns None if text is not a valid markdown table or does not contain table blocks.
     """
-    if not text or not text.strip():
-        return None
-
-    if _is_kv_table_content(text):
-        return _split_kv_table_text(text, max_chunk_size)
-
-    blocks = _extract_document_blocks(text)
-    has_table = any(b_type == "table" for b_type, _ in blocks)
-    if not has_table:
-        return None
-
-    if len(text) <= max_chunk_size and len(blocks) == 1 and blocks[0][0] == "table" and global_total_rows is None:
-        return [text]
+    handled, quick_result, blocks = _quick_check_markdown_table(text, max_chunk_size, global_total_rows)
+    if handled:
+        return quick_result
 
     chunks: list[str] = []
     table_block_count = sum(1 for b_type, _ in blocks if b_type == "table")
@@ -743,21 +810,16 @@ def _split_markdown_table_text(
             continue
 
         if b_type == "table":
-            use_offset = 0
-            use_total = None
-            if global_total_rows is not None and (table_block_count == 1 or not first_table_consumed):
-                use_offset = global_row_offset
-                use_total = global_total_rows
-                first_table_consumed = True
-
-            tbl_chunks = _split_single_table_block(
+            tbl_chunks, first_table_consumed = _process_table_block_chunk(
                 b_content,
-                max_chunk_size=max_chunk_size,
-                row_overlap=row_overlap,
-                global_row_offset=use_offset,
-                global_total_rows=use_total,
+                max_chunk_size,
+                row_overlap,
+                global_row_offset,
+                global_total_rows,
+                table_block_count,
+                first_table_consumed,
             )
-            chunks.extend(c for c in tbl_chunks if c.strip())
+            chunks.extend(tbl_chunks)
         else:
             chunks.extend(_process_text_block_chunk(b_content, max_chunk_size))
 

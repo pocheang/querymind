@@ -424,6 +424,24 @@ def _is_benign_security_query(normalized: str, is_retrieved_evidence: bool) -> b
     return False
 
 
+def _scan_pattern_group(
+    normalized: str,
+    patterns: list[tuple[re.Pattern[str], str]],
+    group_type: InjectionThreatType,
+    group_score: float,
+    current_type: InjectionThreatType | None,
+    current_score: float,
+    matched_rules: list[str],
+) -> tuple[InjectionThreatType | None, float]:
+    for pattern, rule_name in patterns:
+        if pattern.search(normalized):
+            matched_rules.append(rule_name)
+            if current_type is None:
+                current_type = group_type
+            current_score = max(current_score, group_score)
+    return current_type, current_score
+
+
 def _scan_threat_patterns(
     normalized: str,
 ) -> tuple[list[str], InjectionThreatType | None, float]:
@@ -431,41 +449,53 @@ def _scan_threat_patterns(
     threat_type: InjectionThreatType | None = None
     risk_score = 0.0
 
-    # 1. Delimiter collision check (high severity)
-    for pattern, rule_name in _DELIMITER_HIJACK_PATTERNS:
-        if pattern.search(normalized):
-            matched_rules.append(rule_name)
-            threat_type = InjectionThreatType.DELIMITER_COLLISION
-            risk_score = max(risk_score, 0.95)
+    threat_type, risk_score = _scan_pattern_group(
+        normalized,
+        _DELIMITER_HIJACK_PATTERNS,
+        InjectionThreatType.DELIMITER_COLLISION,
+        0.95,
+        threat_type,
+        risk_score,
+        matched_rules,
+    )
+    threat_type, risk_score = _scan_pattern_group(
+        normalized,
+        _INSTRUCTION_OVERRIDE_PATTERNS,
+        InjectionThreatType.DIRECT_INSTRUCTION_OVERRIDE,
+        0.95,
+        threat_type,
+        risk_score,
+        matched_rules,
+    )
+    threat_type, risk_score = _scan_pattern_group(
+        normalized,
+        _JAILBREAK_PATTERNS,
+        InjectionThreatType.JAILBREAK_ROLEPLAY,
+        0.90,
+        threat_type,
+        risk_score,
+        matched_rules,
+    )
+    threat_type, risk_score = _scan_pattern_group(
+        normalized,
+        _SYSTEM_PROMPT_PROBE_PATTERNS,
+        InjectionThreatType.SYSTEM_PROMPT_PROBE,
+        0.85,
+        threat_type,
+        risk_score,
+        matched_rules,
+    )
 
-    # 2. Instruction overrides (critical severity)
-    for pattern, rule_name in _INSTRUCTION_OVERRIDE_PATTERNS:
-        if pattern.search(normalized):
-            matched_rules.append(rule_name)
-            threat_type = threat_type or InjectionThreatType.DIRECT_INSTRUCTION_OVERRIDE
-            risk_score = max(risk_score, 0.95)
-
-    # 3. Jailbreak & adversarial persona (critical severity)
-    for pattern, rule_name in _JAILBREAK_PATTERNS:
-        if pattern.search(normalized):
-            matched_rules.append(rule_name)
-            threat_type = threat_type or InjectionThreatType.JAILBREAK_ROLEPLAY
-            risk_score = max(risk_score, 0.90)
-
-    # 4. System prompt probing (high severity)
-    for pattern, rule_name in _SYSTEM_PROMPT_PROBE_PATTERNS:
-        if pattern.search(normalized):
-            matched_rules.append(rule_name)
-            threat_type = threat_type or InjectionThreatType.SYSTEM_PROMPT_PROBE
-            risk_score = max(risk_score, 0.85)
-
-    # 5. Dangerous commands, only when asked to execute them
     if _EXECUTION_REQUEST_RE.search(normalized):
-        for pattern, rule_name in _DANGEROUS_COMMAND_PATTERNS:
-            if pattern.search(normalized):
-                matched_rules.append(rule_name)
-                threat_type = threat_type or InjectionThreatType.DANGEROUS_COMMAND
-                risk_score = max(risk_score, 0.90)
+        threat_type, risk_score = _scan_pattern_group(
+            normalized,
+            _DANGEROUS_COMMAND_PATTERNS,
+            InjectionThreatType.DANGEROUS_COMMAND,
+            0.90,
+            threat_type,
+            risk_score,
+            matched_rules,
+        )
 
     return matched_rules, threat_type, risk_score
 

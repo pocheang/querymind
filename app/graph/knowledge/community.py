@@ -57,6 +57,25 @@ def _build_entity_adjacency(
     return entity_map, adj
 
 
+def _expand_cluster_from_node(
+    start_node: str,
+    adj: dict[str, set[str]],
+    visited: set[str],
+    max_community_size: int,
+) -> list[str]:
+    cluster: list[str] = []
+    queue = [start_node]
+    visited.add(start_node)
+    while queue and len(cluster) < max_community_size:
+        curr = queue.pop(0)
+        cluster.append(curr)
+        for neighbor in sorted(adj[curr], key=lambda n: len(adj[n]), reverse=True):
+            if neighbor not in visited and len(cluster) + len(queue) < max_community_size:
+                visited.add(neighbor)
+                queue.append(neighbor)
+    return cluster
+
+
 def _traverse_clusters(adj: dict[str, set[str]], max_community_size: int) -> list[list[str]]:
     visited: set[str] = set()
     raw_clusters: list[list[str]] = []
@@ -64,16 +83,7 @@ def _traverse_clusters(adj: dict[str, set[str]], max_community_size: int) -> lis
     for node in sorted(adj.keys(), key=lambda k: len(adj[k]), reverse=True):
         if node in visited:
             continue
-        cluster: list[str] = []
-        queue = [node]
-        visited.add(node)
-        while queue and len(cluster) < max_community_size:
-            curr = queue.pop(0)
-            cluster.append(curr)
-            for neighbor in sorted(adj[curr], key=lambda n: len(adj[n]), reverse=True):
-                if neighbor not in visited and len(cluster) + len(queue) < max_community_size:
-                    visited.add(neighbor)
-                    queue.append(neighbor)
+        cluster = _expand_cluster_from_node(node, adj, visited, max_community_size)
         if cluster:
             raw_clusters.append(cluster)
     return raw_clusters
