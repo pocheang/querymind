@@ -24,8 +24,12 @@ export function randomId(): string {
   if (typeof webCrypto?.randomUUID === "function") return webCrypto.randomUUID();
 
   const bytes = new Uint8Array(16);
-  if (typeof webCrypto?.getRandomValues === "function") webCrypto.getRandomValues(bytes);
-  else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  if (typeof webCrypto?.getRandomValues === "function") {
+    webCrypto.getRandomValues(bytes);
+  } else {
+    // Non-cryptographic fallback only for environments lacking Web Crypto (e.g. test mocks); these IDs name local traces/toasts, not secrets.
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256); // NOSONAR
+  }
 
   // RFC 4122 4.4: version 4 in the high nibble of byte 6, variant 10 in the
   // top two bits of byte 8. The server validates this shape --

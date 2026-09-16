@@ -273,6 +273,9 @@ class AgentExecutionTracker:
     ) -> str:
         if execution_id is None:
             execution_id = str(uuid.uuid4())
+        else:
+            # Strip carriage returns and newlines to prevent log injection (CWE-117 / pythonsecurity:S5145)
+            execution_id = str(execution_id).replace("\r", "").replace("\n", "")
 
         trace = ExecutionTrace(
             execution_id=execution_id,
@@ -293,7 +296,11 @@ class AgentExecutionTracker:
         with self._traces_lock:
             self._traces[execution_id] = trace
 
-        logger.info("execution_trace_started execution=%s user=%s", execution_id, key_ref(user_id))
+        logger.info(  # NOSONAR
+            "execution_trace_started execution=%s user=%s",
+            execution_id,
+            key_ref(user_id),
+        )
         return execution_id
 
     def record_agent_step(
@@ -375,7 +382,8 @@ class AgentExecutionTracker:
     def complete_execution(self, execution_id: str, final_result: dict[str, Any] | None = None) -> None:
         with self._traces_lock:
             if execution_id not in self._traces:
-                logger.warning(f"Execution {execution_id} not found")
+                safe_id = str(execution_id).replace("\r", "").replace("\n", "")
+                logger.warning("Execution %s not found", safe_id)  # NOSONAR
                 return
 
             trace = self._traces[execution_id]
@@ -384,12 +392,13 @@ class AgentExecutionTracker:
             trace.status = "completed"
             if final_result is not None:
                 trace.metadata["result"] = final_result
-            logger.info(f"Completed execution trace: {execution_id}")
+            logger.info("Completed execution trace: %s", trace.execution_id)
 
     def fail_execution(self, execution_id: str, error: str) -> None:
         with self._traces_lock:
             if execution_id not in self._traces:
-                logger.warning(f"Execution {execution_id} not found")
+                safe_id = str(execution_id).replace("\r", "").replace("\n", "")
+                logger.warning("Execution %s not found", safe_id)  # NOSONAR
                 return
 
             trace = self._traces[execution_id]
@@ -397,7 +406,7 @@ class AgentExecutionTracker:
             trace.total_duration_ms = (trace.end_time - trace.start_time).total_seconds() * 1000
             trace.status = "failed"
             trace.metadata["error"] = error
-            logger.info(f"Failed execution trace: {execution_id}")
+            logger.info("Failed execution trace: %s", trace.execution_id)
 
     def get_execution_trace(self, execution_id: str) -> ExecutionTrace | None:
         with self._traces_lock:

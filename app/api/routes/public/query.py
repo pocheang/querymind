@@ -5,6 +5,7 @@ API routes for advanced RAG functionality.
 import asyncio
 import logging
 import time
+import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
@@ -565,6 +566,12 @@ async def _process_advanced_rag_query_impl(
     # it does not already name a live trace: a client cannot claim (or
     # collide into) an id someone else's in-flight request is using.
     requested_execution_id = request_data.execution_id
+    if requested_execution_id is not None:
+        try:
+            requested_execution_id = str(uuid.UUID(str(requested_execution_id).strip()))
+        except (ValueError, AttributeError):
+            requested_execution_id = None
+
     if requested_execution_id is not None and tracker.get_execution_trace(requested_execution_id) is not None:
         requested_execution_id = None
     execution_id = tracker.start_execution(
