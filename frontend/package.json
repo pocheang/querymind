@@ -13,6 +13,7 @@
     "lint:design": "node scripts/check-design-scale.mjs",
     "lint:classes": "node scripts/check-dead-classes.mjs",
     "screenshots": "node scripts/screenshots.mjs",
+    "smoke": "node scripts/smoke-browser.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "type-check": "tsc -b --noEmit"
