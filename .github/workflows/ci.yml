@@ -401,6 +401,86 @@ jobs:
         # written down rather than discovered at deploy time.
         run: docker run --rm --add-host backend:127.0.0.1 querymind-frontend:ci nginx -t
 
+      - name: Serve both images, and make real requests against them
+        # The gap the two steps above leave: they prove each image can start a
+        # process, not that the pair answers a request. A deployment that serves
+        # a white screen passes everything else in this workflow -- the unit
+        # tests use jsdom, `npm run build` only compiles, and `nginx -t` parses
+        # the configuration without a request ever crossing it.
+        #
+        # `--network-alias backend` is the load-bearing flag. nginx.conf proxies
+        # to `http://backend:8000`, which is the compose service name, so the
+        # alias is what makes the proxy resolve -- and therefore what makes the
+        # browser check's first assertion mean anything.
+        #
+        # API_SETTINGS_ENCRYPTION_KEY is the one variable the application needs
+        # to start (measured: it answers /health with nothing else set). It is a
+        # throwaway string for a container that lives ninety seconds, not a
+        # credential. ADMIN_PASSWORD is deliberately absent: the bootstrap
+        # generates one per installation and prints it, which is what should
+        # happen here.
+        run: |
+          docker network create querymind-smoke
+          docker run -d --name qm-backend --network querymind-smoke \
+            --network-alias backend \
+            -e API_SETTINGS_ENCRYPTION_KEY=ci-smoke-not-a-credential \
+            querymind-backend:ci
+          for _ in $(seq 1 60); do
+            if docker exec qm-backend curl -fsS http://127.0.0.1:8000/health > /dev/null 2>&1; then
+              ready=yes
+              break
+            fi
+            sleep 2
+          done
+          if [ "${ready:-no}" != yes ]; then
+            echo "the backend container never answered /health within 120s"
+            exit 1
+          fi
+          docker run -d --name qm-frontend --network querymind-smoke \
+            -p 8080:8080 querymind-frontend:ci
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/ > /dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "the frontend container never served / within 60s"
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install the browser
+        working-directory: frontend
+        # playwright is already a devDependency (scripts/screenshots.mjs drives
+        # it); only the browser binary has to be fetched. --with-deps installs
+        # the shared libraries headless Chromium needs on a bare runner.
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+
+      - name: The application serves and boots in a browser
+        working-directory: frontend
+        run: SMOKE_BASE_URL=http://127.0.0.1:8080 node scripts/smoke-browser.mjs
+
+      - name: Container logs
+        # The reason a bounded wait is acceptable here at all. Without this a
+        # timeout says only "never became healthy", which is the kind of red run
+        # people re-run rather than read.
+        if: failure()
+        run: |
+          echo "::group::backend"
+          docker logs qm-backend 2>&1 | tail -80 || true
+          echo "::endgroup::"
+          echo "::group::frontend"
+          docker logs qm-frontend 2>&1 | tail -40 || true
+          echo "::endgroup::"
+
+      - name: Stop the containers
+        if: always()
+        run: docker rm -f qm-backend qm-frontend || true
+
   # A third job because the scanner needs both coverage reports in one workspace,
   # and the two that produce them run in parallel with separate workspaces. That
   # was the defect: this step lived in the backend job, under a comment claiming

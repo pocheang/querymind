@@ -171,9 +171,11 @@ npm run lint:classes                # dead classes audit against built CSS
 npm run format:check                # prettier format check
 npm test -- --run                   # vitest (.test.ts and .test.tsx, 154 tests)
 npm run screenshots                 # both servers up; PNGs of 8 app states
+npm run smoke                       # drive a served build in a browser (SMOKE_BASE_URL)
 ```
 
 CI runs everything above except `screenshots`, which is a local before/after tool
+(`smoke` runs in the `images` job, against the containers rather than a dev server)
 by design — see [Frontend styling](#frontend-styling-rewritten-2026-09-07) for when to
 reach for which.
 
@@ -3324,10 +3326,59 @@ toolchain has been asking for a Node newer than the only one CI ever ran, and no
 have seen that from a single-version job. Not acted on here: raising the floor to 22 means
 `node:22-alpine` in the image too, which is a deployment change and not a CI one.
 
-**Still not done**: the images are scanned but still never *served* -- nothing starts the
-stack and makes a request against it; there is no end-to-end or browser test in CI
-(`npm run screenshots` stays a local before/after tool for the reason recorded above); and
-CodeQL's findings are advisory until branch protection says otherwise.
+#### The stack is served, and a browser looks at it
+
+The two remaining CI gaps were one gap. Everything else asks a narrower question: the unit
+tests render components under jsdom, `npm run build` proves the bundle compiles, the image
+jobs prove each container starts a process, and `nginx -t` parses a configuration without a
+request ever crossing it. **All of that passes on a deployment that serves a white screen.**
+
+The `images` job now starts both containers on a network and makes real requests against
+them. `--network-alias backend` is the load-bearing flag: `nginx.conf` proxies to
+`http://backend:8000`, the compose service name, so the alias is what makes the proxy
+resolve -- and therefore what makes the first assertion below mean anything.
+
+`frontend/scripts/smoke-browser.mjs` drives headless Chromium through Playwright, which was
+already a devDependency (`npm run screenshots` uses it), and asserts five things, each a
+distinct failure:
+
+1. **`/api/advanced-rag/health` answers JSON.** A reverse proxy that is not reaching the
+   backend falls through to the SPA and answers *every* path with `index.html`, which looks
+   like a 200 to anything that does not read the body. This is the assertion the container
+   steps cannot make.
+2. The page loads.
+3. **Nothing threw.** An uncaught exception during boot is unambiguous, unlike a console
+   warning.
+4. **No `/assets/` request 404s** -- the missing-bundle case, scoped to the hashed files so
+   a missing favicon reports without failing a working deployment.
+5. **`#root` has children.** React mounted; the page is not a blank document that
+   technically returned 200.
+
+Console *errors* are collected and printed but never fail the run: a third-party warning is
+not a broken deployment, and a check that goes red for one gets switched off.
+
+**Verified able to fail, in both directions that matter.** With the backend stopped, the
+page still loads and `#root` still fills -- it is a single-page application, so it boots
+perfectly well against a dead API -- and only assertion 1 catches it (`answered 500
+text/plain -- expected JSON`). With the main bundle hidden, assertions 4 and 5 catch it
+(`404 .../assets/index-*.js`, `#root has 0 children`). Both exit 1. That first case is the
+whole argument for the API assertion: four of the five checks are happy with a broken
+backend.
+
+**It contradicts an argument recorded one section above**, which said a readiness poll needs
+runtime configuration the job has no business inventing and that a flaky wait teaches people
+to re-run a red build. Both halves are answered rather than ignored: the configuration turned
+out to be one variable (`API_SETTINGS_ENCRYPTION_KEY`, measured -- the application answers
+`/health` with nothing else set, and `ADMIN_PASSWORD` is deliberately left out so the
+bootstrap generates one as it should), and the wait is bounded with `docker logs` dumped on
+failure, so a timeout names what the container said rather than only that it never answered.
+
+**Still not done**: CodeQL's findings are advisory until branch protection requires the check
+-- that is a repository setting on github.com, not a file in here, so it cannot be done from
+this repository (Settings -> Rules -> Rulesets, or Branches -> protection rule, requiring the
+`CodeQL` checks on `main`). The smoke test is unauthenticated: it never signs in, so the
+authenticated surface is still only covered by `npm run screenshots` as a local
+before/after tool. And the login-shaped flows have no end-to-end coverage at all.
 
 **The SonarCloud scanner in that workflow has never run** (checked 2026-09-05), and the
 green "SonarCloud Code Analysis" check on every commit is **Automatic Analysis**, not it.
