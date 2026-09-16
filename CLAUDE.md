@@ -3291,6 +3291,16 @@ the unprivileged user it ends on. Deliberately not a `docker run` with a publish
 a readiness poll: that needs runtime configuration this job has no business inventing, and
 a flaky wait teaches people to re-run a red build.
 
+**That check failed on its first run, and the check was the thing that was wrong.**
+`nginx.conf` proxies to `http://backend:8000` -- a literal hostname, which nginx resolves
+when it *parses* the file rather than per request -- so `nginx -t` on a standalone container
+reports `host not found in upstream "backend"` for a configuration that is correct on the
+compose network, where `backend` is a service name. `--add-host backend:127.0.0.1` supplies
+what the deployment supplies, and the step then tests the configuration instead of testing
+whether Docker has DNS. It also pins something worth pinning: `backend` is the only name
+that file needs from outside the image, so a second upstream fails this step until it is
+named here.
+
 **The image is scanned weekly, never on a pull request** (`security.yml`, `image` job).
 Trivy over `docker save`'d layers at HIGH/CRITICAL with `--ignore-unfixed` -- the half
 `pip-audit` cannot see, Debian packages in the base layer. Three decisions in it: an OS
