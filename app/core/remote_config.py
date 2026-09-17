@@ -39,7 +39,9 @@ import logging
 import os
 import re
 import threading
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -308,6 +310,37 @@ class RemoteDocuments:
         return bool(client.publish(self._config.group, data_id, body))
 
 
+_SUPPRESSED: ContextVar[bool] = ContextVar("remote_config_suppressed", default=False)
+
+
+@contextmanager
+def without_remote_config() -> Iterator[None]:
+    """Build `Settings` without asking the configuration centre for anything.
+
+    For one case only, and it is a narrow one: validating a **fully specified**
+    candidate. `config_schema.validate_values` merges the proposed change onto
+    every current value and hands the result to `Settings` as init arguments, and
+    init outranks every source below it -- so nothing the centre could return can
+    change the outcome. Without this the type-check made one network round trip
+    per data id, which is a strange thing for a type-check to do and was paid on
+    the same request that then went on to read and write those documents for real.
+
+    A `ContextVar` rather than a module global, so a concurrent request building
+    `Settings` normally is unaffected, and `finally` rather than trust, so an
+    exception during validation cannot leave the centre switched off for the
+    process.
+
+    Deliberately not used anywhere on the path that produces a running
+    configuration: suppressing the centre there would silently drop a layer.
+    """
+
+    token = _SUPPRESSED.set(True)
+    try:
+        yield
+    finally:
+        _SUPPRESSED.reset(token)
+
+
 class RemoteSettingsSource(PydanticBaseSettingsSource):
     """Values from the configuration centre, degrading to a snapshot, then to nothing."""
 
@@ -327,7 +360,7 @@ class RemoteSettingsSource(PydanticBaseSettingsSource):
 
     def __call__(self) -> dict[str, Any]:
         config = self._documents.config
-        if not config.enabled:
+        if not config.enabled or _SUPPRESSED.get():
             return {}
         values: dict[str, Any] = {}
         # Later data ids win, so the declared order in NACOS_DATA_IDS is the

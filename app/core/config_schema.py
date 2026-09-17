@@ -34,7 +34,12 @@ from typing import Any
 from pydantic_settings.sources import EnvSettingsSource
 
 from app.core.config import Settings, resolve_runtime_env_file
-from app.core.remote_config import RemoteDocuments, parse_properties, remote_config_enabled
+from app.core.remote_config import (
+    RemoteDocuments,
+    parse_properties,
+    remote_config_enabled,
+    without_remote_config,
+)
 
 
 class ConfigLayer(StrEnum):
@@ -179,7 +184,7 @@ EDITABLE: tuple[EditableField, ...] = (
 EDITABLE_BY_ALIAS: dict[str, EditableField] = {field.alias: field for field in EDITABLE}
 
 
-def _environment_aliases() -> set[str]:
+def environment_aliases() -> set[str]:
     """The aliases the process environment supplies, as `Settings` resolves them.
 
     Asked of pydantic rather than reimplemented, because the two disagreed. This
@@ -249,7 +254,7 @@ def describe(settings: Settings | None = None, documents: RemoteDocuments | None
     active = settings if settings is not None else Settings()
     remote = _config_centre_values(documents)
     from_file = _runtime_file_values()
-    from_environment = _environment_aliases()
+    from_environment = environment_aliases()
     fields = Settings.model_fields
 
     described: list[dict[str, Any]] = []
@@ -321,7 +326,11 @@ def validate_values(values: dict[str, str], current: Settings | None = None) -> 
     active = current if current is not None else Settings()
     candidate = {**current_values_by_alias(active), **values}
     try:
-        Settings(**candidate)
+        # Every field is supplied, and init outranks every source below it, so the
+        # configuration centre cannot change this outcome -- only cost a network
+        # round trip per data id to say so.
+        with without_remote_config():
+            Settings(**candidate)
     except Exception as exc:  # pydantic's own message names the field and the reason
         raise ValueError(str(exc)) from exc
     return dict(values)
@@ -334,5 +343,6 @@ __all__ = [
     "EditableField",
     "current_values_by_alias",
     "describe",
+    "environment_aliases",
     "validate_values",
 ]
