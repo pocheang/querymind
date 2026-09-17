@@ -46,7 +46,7 @@ jobs:
         # workflows and the SQL in the table tool are not CodeQL languages.
         language: [python, javascript-typescript]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -59,7 +59,7 @@ jobs:
         # precision for recall, and a first adoption that opens with a page of
         # maybes is one nobody reads twice. Widening it is a decision to take
         # after the default set has been looked at.
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
 
@@ -68,6 +68,6 @@ jobs:
       # running it again here would only add a way for this job to fail for a
       # reason that has nothing to do with analysis.
       - name: Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
