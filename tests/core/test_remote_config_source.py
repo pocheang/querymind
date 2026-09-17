@@ -29,6 +29,7 @@ from pathlib import Path
 import pytest
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
+from app.core import config as config_module
 from app.core import remote_config
 from app.core.config import Settings
 from app.core.remote_config import (
@@ -276,6 +277,13 @@ def test_settings_declares_the_source_order():
     """The precedence in the docstring is the precedence in the code.
 
     init > process environment > configuration centre > .runtime/*.env > defaults
+
+    The dotenv slot holds a source built here rather than the one handed in: the
+    one handed in carries the `env_file` path `model_config` resolved when the
+    class body ran, and `.runtime/` starts empty, so a process that started before
+    `make config-render` kept its defaults for life. What is asserted is therefore
+    the slot's *kind* and that it resolves the path per construction, which is the
+    property the identity check was standing in for.
     """
 
     init, env, dotenv, secrets = (_Marker(Settings) for _ in range(4))
@@ -284,7 +292,32 @@ def test_settings_declares_the_source_order():
     assert order[0] is init
     assert order[1] is env
     assert type(order[2]).__name__ == "RemoteSettingsSource"
-    assert order[3] is dotenv
+    assert type(order[3]).__name__ == "DotEnvSettingsSource"
+    assert order[3] is not dotenv
+    assert len(order) == 5
+
+
+def test_the_dotenv_slot_resolves_its_path_per_construction(monkeypatch, tmp_path):
+    """Not once, at import. See `tests/core/test_config_layer_is_honest.py`.
+
+    Driven through `resolve_runtime_env_file` itself rather than through
+    `RUNTIME_ENV_FILE`, because that variable is honoured whether or not the file
+    exists -- it is the `APP_ENV`-derived path that appears later, and asserting
+    on it would mean writing into the repository's own `.runtime/`.
+    """
+
+    def _slot():
+        init, env, dotenv, secrets = (_Marker(Settings) for _ in range(4))
+        return Settings.settings_customise_sources(Settings, init, env, dotenv, secrets)[3]
+
+    monkeypatch.setattr(config_module, "resolve_runtime_env_file", lambda: None)
+    assert _slot().env_file is None
+
+    later = tmp_path / "rendered-later.env"
+    later.write_text("TOP_K=7\n", encoding="utf-8")
+    monkeypatch.setattr(config_module, "resolve_runtime_env_file", lambda: str(later))
+
+    assert str(_slot().env_file) == str(later)
 
 
 def test_the_remote_source_is_inert_for_a_default_checkout(monkeypatch):

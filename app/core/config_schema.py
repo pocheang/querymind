@@ -26,11 +26,12 @@ legacy constant block from growing. Nothing in that block is exposed here.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+from pydantic_settings.sources import EnvSettingsSource
 
 from app.core.config import Settings, resolve_runtime_env_file
 from app.core.remote_config import RemoteDocuments, parse_properties, remote_config_enabled
@@ -178,6 +179,30 @@ EDITABLE: tuple[EditableField, ...] = (
 EDITABLE_BY_ALIAS: dict[str, EditableField] = {field.alias: field for field in EDITABLE}
 
 
+def _environment_aliases() -> set[str]:
+    """The aliases the process environment supplies, as `Settings` resolves them.
+
+    Asked of pydantic rather than reimplemented, because the two disagreed. This
+    was `alias in os.environ`, and `EnvSettingsSource` is case-**in**sensitive by
+    default: with `top_k=99` exported, `Settings().top_k` was 99 while `"TOP_K" in
+    os.environ` was False. So the page reported the value as coming from the
+    configuration centre and offered to change it, `write_config_values` let the
+    write through, the console reported success -- and the environment went on
+    winning. That is precisely the failure the layer column exists to prevent,
+    reached through the check that implements it.
+
+    Any future change to `case_sensitive`, `env_prefix` or the alias scheme moves
+    both at once, because there is only one answer now.
+    """
+
+    # The source keys its result the way `Settings` validates -- by alias -- which
+    # is also how every configuration layer and the console name a value. Filtered
+    # against the known aliases so a stray environment variable that resembles one
+    # cannot invent a row.
+    known = {(field.alias or name) for name, field in Settings.model_fields.items()}
+    return {key for key in EnvSettingsSource(Settings)() if key in known}
+
+
 def _runtime_file_values() -> dict[str, str]:
     """What `.runtime/{APP_ENV}.env` holds, or nothing if there is no such file."""
 
@@ -224,6 +249,7 @@ def describe(settings: Settings | None = None, documents: RemoteDocuments | None
     active = settings if settings is not None else Settings()
     remote = _config_centre_values(documents)
     from_file = _runtime_file_values()
+    from_environment = _environment_aliases()
     fields = Settings.model_fields
 
     described: list[dict[str, Any]] = []
@@ -231,7 +257,7 @@ def describe(settings: Settings | None = None, documents: RemoteDocuments | None
         name = next((n for n, f in fields.items() if (f.alias or n) == editable.alias), None)
         if name is None:  # pragma: no cover - the schema test forbids this
             continue
-        if editable.alias in os.environ:
+        if editable.alias in from_environment:
             layer = ConfigLayer.ENVIRONMENT
         elif editable.alias in remote:
             layer = ConfigLayer.CONFIG_CENTRE
