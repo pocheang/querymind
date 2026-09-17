@@ -146,6 +146,23 @@ export function AdminConfigEditor() {
                             setEdits((prev) => ({ ...prev, [field.alias]: String(event.target.checked) }))
                           }
                         />
+                      ) : field.choices.length > 0 ? (
+                        // A field with a fixed set now refuses anything else, so
+                        // offering the values beats a text box that reports a
+                        // rejection after Save.
+                        <select
+                          aria-label={field.alias}
+                          className="rounded-control"
+                          disabled={!editable}
+                          value={current}
+                          onChange={(event) => setEdits((prev) => ({ ...prev, [field.alias]: event.target.value }))}
+                        >
+                          {field.choices.map((choice) => (
+                            <option key={choice} value={choice}>
+                              {choice}
+                            </option>
+                          ))}
+                        </select>
                       ) : (
                         <input
                           type="text"

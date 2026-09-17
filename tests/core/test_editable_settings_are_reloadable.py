@@ -31,21 +31,27 @@ import ast
 import re
 from pathlib import Path
 
+from app.core.config import Settings
+
 REPO = Path(__file__).resolve().parents[2]
 CONFIG = REPO / "app" / "core" / "config.py"
 SCHEMA = REPO / "app" / "core" / "config_schema.py"
 
 
 def _editable_fields() -> dict[str, str]:
-    """Admin-editable aliases mapped to their Settings attribute names."""
+    """Admin-editable aliases mapped to their Settings attribute names.
+
+    Read from the model rather than by grepping `config.py` for
+    `name: ... alias="X"` on one line. That regex silently stopped matching a
+    field the moment its declaration wrapped across two lines -- which is an
+    ordinary formatting outcome for a field with a long annotation, and it made
+    the alias look absent from `Settings` rather than making this check fail for
+    what it is. `model_fields` cannot disagree with what `Settings` declares.
+    """
 
     aliases = set(re.findall(r'EditableField\(\s*"([A-Z0-9_]+)"', SCHEMA.read_text(encoding="utf-8")))
-    declared = re.findall(
-        r'^\s*(\w+)\s*:.*alias="([A-Z0-9_]+)"',
-        CONFIG.read_text(encoding="utf-8"),
-        re.MULTILINE,
-    )
-    return {field: alias for field, alias in declared if alias in aliases}
+    declared = {name: (field.alias or name) for name, field in Settings.model_fields.items()}
+    return {name: alias for name, alias in declared.items() if alias in aliases}
 
 
 def _modules_that_freeze_settings() -> list[Path]:

@@ -16,7 +16,9 @@ import type { ConfigField } from "@/types/api";
  *    change that silently does nothing;
  * 2. only the fields actually edited are sent, because the server merges them
  *    into the document it already holds. Sending everything would turn a page
- *    load into a write of every value, and stale reads into overwrites.
+ *    load into a write of every value, and stale reads into overwrites;
+ * 3. a field whose value set is fixed offers that set. The server refuses
+ *    anything else now, so a text box here would mean finding out at Save.
  */
 
 vi.mock("react-i18next", () => ({
@@ -40,6 +42,7 @@ function field(overrides: Partial<ConfigField> = {}): ConfigField {
     group: "retrieval",
     summary: "Results per source before reranking.",
     type: "int",
+    choices: [],
     value: 4,
     default: 4,
     layer: "default",
@@ -97,6 +100,49 @@ describe("AdminConfigEditor", () => {
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
     expect(save).toHaveBeenCalledWith({ TOP_K: "9" }, undefined);
+  });
+
+  it("offers the allowed values for a field whose set is fixed", async () => {
+    schema.mockResolvedValue({
+      config_centre_enabled: true,
+      fields: [
+        field({
+          alias: "WEB_SEARCH_PROVIDER",
+          type: "str",
+          choices: ["duckduckgo", "tavily", "bing", "searxng"],
+          value: "duckduckgo",
+          default: "duckduckgo",
+        }),
+      ],
+    });
+    save.mockResolvedValue({ ok: true, data_id: "querymind", changed: ["WEB_SEARCH_PROVIDER"], fields: [] });
+
+    render(<AdminConfigEditor />);
+
+    const select = await screen.findByRole("combobox", { name: "WEB_SEARCH_PROVIDER" });
+    expect(select).toBeEnabled();
+    expect(screen.queryByRole("textbox", { name: "WEB_SEARCH_PROVIDER" })).not.toBeInTheDocument();
+    expect(Array.from(select.querySelectorAll("option")).map((option) => (option as HTMLOptionElement).value)).toEqual([
+      "duckduckgo",
+      "tavily",
+      "bing",
+      "searxng",
+    ]);
+
+    await userEvent.selectOptions(select, "tavily");
+    await userEvent.click(screen.getByText(/admin\.config\.save/));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ WEB_SEARCH_PROVIDER: "tavily" }, undefined));
+  });
+
+  it("still renders a text box for a field with no fixed set", async () => {
+    // Otherwise "every field became a select" would pass the test above.
+    schema.mockResolvedValue({ config_centre_enabled: true, fields: [field({ choices: [] })] });
+
+    render(<AdminConfigEditor />);
+
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "TOP_K" })).toBeEnabled());
+    expect(screen.queryByRole("combobox", { name: "TOP_K" })).not.toBeInTheDocument();
   });
 
   it("surfaces a refusal from the server instead of reporting a save", async () => {

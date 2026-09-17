@@ -533,6 +533,9 @@ export type ConfigField = {
   group: string;
   summary: string;
   type: string;
+  /** The values this field may hold, read out of the Settings annotation. Empty
+   *  for a field with no fixed set. */
+  choices: string[];
   value: string | number | boolean;
   default: string | number | boolean;
   layer: "environment" | "config-centre" | "runtime-file" | "default";

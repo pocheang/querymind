@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.tools.web.base import BaseSearchProvider
@@ -49,10 +50,29 @@ def test_factory_returns_searxng():
     assert provider.name == "searxng"
 
 
-def test_factory_unknown_provider_falls_back_to_duckduckgo():
-    settings = Settings(WEB_SEARCH_PROVIDER="unknown_engine")
-    provider = get_search_provider(settings)
-    assert isinstance(provider, DuckDuckGoSearchProvider)
+def test_an_unknown_provider_cannot_be_configured():
+    """`WEB_SEARCH_PROVIDER` used to accept any string and fall back silently.
+
+    A typo searched DuckDuckGo while the admin page reported `tavly`, so the
+    deployment's chosen provider was quietly not the one in use. The set is on the
+    field now, so this is a refused write and a loud startup instead.
+    """
+
+    with pytest.raises(ValidationError, match="WEB_SEARCH_PROVIDER"):
+        Settings(WEB_SEARCH_PROVIDER="unknown_engine")
+
+
+def test_the_factory_still_falls_back_if_it_is_handed_one_anyway():
+    """Defence in depth, and the reason the branch is kept rather than deleted.
+
+    `get_search_provider` takes any object with the attribute -- a `model_construct`
+    skips validation, and so would a future provider named in configuration before
+    its class exists. Answering with DuckDuckGo beats raising inside retrieval.
+    """
+
+    settings = Settings.model_construct(web_search_provider="unknown_engine", web_proxy_url=None)
+
+    assert isinstance(get_search_provider(settings), DuckDuckGoSearchProvider)
 
 
 def test_tavily_provider_search_success():

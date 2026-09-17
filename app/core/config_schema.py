@@ -29,7 +29,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, get_args, get_origin
 
 from pydantic_settings.sources import EnvSettingsSource
 
@@ -240,6 +240,23 @@ def _config_centre_values(documents: RemoteDocuments | None = None) -> dict[str,
     return values
 
 
+def _type_and_choices(annotation: Any) -> tuple[str, list[str]]:
+    """The name a page should show, and the values it may offer.
+
+    A constrained field is annotated `Literal[...]`, which has no `__name__` -- so
+    reporting `getattr(annotation, "__name__", str(annotation))` would have turned
+    `WEB_SEARCH_PROVIDER`'s type from `str` into `typing.Literal['duckduckgo',
+    'tavily', 'bing', 'searxng']` the moment the field was constrained, in a field
+    the console branches on. The allowed set is returned as `choices` instead, read
+    back out of the annotation so there is one definition of it and it lives where
+    the field does.
+    """
+
+    if get_origin(annotation) is Literal:
+        return "str", [str(value) for value in get_args(annotation)]
+    return getattr(annotation, "__name__", str(annotation)), []
+
+
 def describe(settings: Settings | None = None, documents: RemoteDocuments | None = None) -> list[dict[str, Any]]:
     """The editable fields, with their current value and the layer that supplied it.
 
@@ -270,13 +287,14 @@ def describe(settings: Settings | None = None, documents: RemoteDocuments | None
             layer = ConfigLayer.RUNTIME_FILE
         else:
             layer = ConfigLayer.DEFAULT
-        annotation = fields[name].annotation
+        type_name, choices = _type_and_choices(fields[name].annotation)
         described.append(
             {
                 "alias": editable.alias,
                 "group": editable.group,
                 "summary": editable.summary,
-                "type": getattr(annotation, "__name__", str(annotation)),
+                "type": type_name,
+                "choices": choices,
                 "value": getattr(active, name),
                 "default": fields[name].default,
                 "layer": str(layer),
