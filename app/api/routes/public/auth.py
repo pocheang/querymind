@@ -53,6 +53,28 @@ if oauth is not None and settings.google_client_id and settings.google_client_se
 oauth_state_store = OAuthStateStore(settings.redis_url)
 
 
+def _google_client():
+    """The registered Google client, or None when this deployment has none.
+
+    `oauth.google` is not a plain attribute: authlib resolves it through
+    `__getattr__` and raises `AttributeError: No such client: google` when the
+    name was never registered. So `if not oauth.google` -- the guard both OAuth
+    routes opened with -- could never evaluate to True: either the client exists
+    and is truthy, or reading it raises and the 501 below is never reached. A
+    checkout with no `GOOGLE_CLIENT_ID` (the default) answered both routes with
+    500, which says "this server is broken" where the truthful answer is "this
+    deployment has not configured Google sign-in".
+
+    One `getattr` covers the other case too: `oauth` is None when authlib is not
+    installed, and `getattr(None, "google", None)` is None rather than a raise.
+    An explicit `if oauth is None` arm ahead of it was written first and then
+    removed -- it reddened no test when deleted, because it could not change the
+    answer.
+    """
+
+    return getattr(oauth, "google", None)
+
+
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
@@ -286,16 +308,18 @@ def change_password(
 @router.get("/google/login")
 async def google_login(request: Request) -> RedirectResponse:
     """Initiate Google OAuth login flow."""
-    if not oauth.google:
+    google = _google_client()
+    if google is None:
         raise not_implemented("Google OAuth 未配置")
     state = oauth_state_store.create({"ip": _client_ip(request)}, ttl_seconds=300)
-    return await oauth.google.authorize_redirect(request, settings.google_redirect_uri, state=state)
+    return await google.authorize_redirect(request, settings.google_redirect_uri, state=state)
 
 
 @router.get("/google/callback")
 async def google_callback(request: Request) -> RedirectResponse:
     """Handle Google OAuth callback."""
-    if not oauth.google:
+    google = _google_client()
+    if google is None:
         raise not_implemented("Google OAuth 未配置")
 
     state = request.query_params.get("state")
@@ -323,7 +347,7 @@ async def google_callback(request: Request) -> RedirectResponse:
         )
 
     try:
-        token = await oauth.google.authorize_access_token(request)
+        token = await google.authorize_access_token(request)
         user_info = token.get("userinfo")
         if not user_info or not user_info.get("email"):
             _audit(

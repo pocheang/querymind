@@ -31,7 +31,12 @@ def check_self_modification(
     """
     actor_user_id = str(actor_user.get("user_id", ""))
 
-    if user_id == actor_user_id:
+    # Both sides are stringified. The actor's id comes out of a dict and the
+    # target's out of a path parameter, so today they are both str and a
+    # one-sided `str()` happens to work -- but a guard whose refusal depends on
+    # its callers' types is one silent change away from letting an admin
+    # through against their own account.
+    if str(user_id) == actor_user_id:
         # Log audit trail
         if audit_callback and request:
             audit_callback(
@@ -73,8 +78,12 @@ def validate_ticket_id(ticket_id: str) -> None:
     """
     import re
 
-    # Ticket format: PROJECT-NUMBER (e.g., JIRA-123, TICKET-456)
-    TICKET_PATTERN = re.compile(r"^[A-Z]+-\d+$")
+    # Ticket format: PROJECT-NUMBER (e.g., JIRA-123, TICKET-456).
+    # `\Z`, not `$`: `$` also matches just before a trailing newline, so
+    # "JIRA-123\n" validates. The three call sites strip first, which is the
+    # only reason that has never mattered -- and an accepted ticket id goes
+    # straight into an audit detail, where a newline is a forged row.
+    TICKET_PATTERN = re.compile(r"^[A-Z]+-\d+\Z")
 
     if not ticket_id or len(ticket_id) < 3:
         raise HTTPException(status_code=400, detail="ticket_id is required (minimum 3 characters)")

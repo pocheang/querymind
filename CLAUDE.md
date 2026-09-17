@@ -48,7 +48,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (2,122 backend pytest tests + 214 frontend vitest tests)
+└── tests/                      # Automated test suite (2,196 backend pytest tests + 214 frontend vitest tests)
 ```
 
 ## Table of Contents
@@ -105,12 +105,12 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-17): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,122 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,336 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
+Note (counts refreshed 2026-09-17): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,196 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **214 frontend tests** (**2,410 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
 `check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
-make test                           # pytest -q (2,122 tests)
+make test                           # pytest -q (2,196 tests)
 make test-ci                        # the same suite, with CI's optional packages hidden
 make lint                           # ruff check . && ruff format --check .
 ```
@@ -3020,8 +3020,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-17 there are 2,122 backend pytest tests
-and 214 frontend Vitest tests (2,336 total tests, 0 failures), covering the chat round trip,
+back-filling effort. As of 2026-09-17 there are 2,196 backend pytest tests
+and 214 frontend Vitest tests (2,410 total tests, 0 failures), covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3074,7 +3074,9 @@ covered the day it is added, where one test looping inside a single assertion re
 first offender and stops — but it does mean this total is not comparable across the change
 that introduced them.
 
-`tests/security/` (746 of those, 367 being the per-module audit-action scan) pins the
+`tests/security/` (903 of those, 388 being the per-module audit-action scan -- this read
+746/367 until 2026-09-17, stale in the way that whole paragraph describes, since the scan
+grows with `app/`) pins the
 user-data isolation invariants — see
 `docs/superpowers/plans/2026-08-29-user-data-isolation.md`. That plan is complete
 (phases 0-4) and all 8 of its `xfail(strict=True)` markers are cleared; keep using the same
@@ -3150,6 +3152,88 @@ equality, a blank filter ceasing to mean "no filter", the naive-timestamp rule, 
 parser drifting, the raise moving ahead of the audit row, and the 500 response starting
 to carry the exception message.
 
+**The other three gates from that list, and the three defects covering them found**
+(2026-09-17). The same pass named `routes/public/auth.py` (25.7%), `admin_security.py`
+(50%) and `quota.py` (44.4%) as left for a following change. This is that change, and the
+three came out very differently -- which is the point of measuring before writing rather
+than raising a number.
+
+`tests/security/test_admin_operation_guards.py` (46) takes `admin_security.py` to 97%.
+Five guards stand between an administrator and the user routes -- self-modification, admin
+role promotion, ticket id, reason, approval-token length -- and only the sixth
+(`validate_and_check_approval_token`) had a test. **Two of the five were correct only
+because of what their callers happen to do**, and both were changed rather than asserted as
+they stood, since a test that pins accidental correctness makes the accident look like a
+decision:
+
+- `check_self_modification` stringified the actor's id and not the target's, so `"1" == 1`
+  was False and an administrator whose id were an integer could act on their own account.
+  Unreachable today because every `user_id` on those routes is annotated `str` and FastAPI
+  coerces it.
+- `validate_ticket_id` anchored with `$`, and **`$` also matches just before a trailing
+  newline**, so `"JIRA-123\n"` validated. Unreachable today because all three call sites
+  `.strip()` first. An accepted ticket id is written into an audit `detail`, where a
+  newline is a row an operator reads as two. It is `\Z` now.
+
+Which half of that pattern does the anchoring is worth knowing, because the obvious reading
+is wrong: the leading `^` is **redundant with `re.match`** and deleting it reddens nothing.
+`.match` and `\Z` are what carry it, measured by unanchoring both ends and watching six
+tests go red.
+
+`tests/api/test_auth_route_rules.py` (24) takes the auth routes from 26% to 56%, and none
+of it is the happy path -- it is the rules the route adds around `auth_service.login`: that
+the failure counter is keyed on `login::{ip}::{username}` (drop the address and anyone can
+lock any account out from anywhere; drop the username and one person's typos lock out
+everyone behind the same NAT), that a success `reset`s it, that the client is told only
+`invalid credentials` while the audit row keeps the service's own message, that the cookie
+carries the token and the body does not unless `AUTH_EXPOSE_TOKEN_IN_RESPONSE` says so,
+and that a password change whose token rotation failed **clears** the cookie rather than
+leaving a live session authenticated by a credential its owner just replaced. Driven
+through a bare app carrying only that router, so these assert the route rather than the
+middleware limiter already pinned next door.
+
+**Writing it found a refusal that could never run.** Both Google OAuth routes opened with
+`if not oauth.google:` and a 501. `oauth.google` is not a plain attribute -- authlib
+resolves it through `__getattr__` and **raises** `AttributeError: No such client: google`
+for a name that was never registered, and registration is conditional on
+`GOOGLE_CLIENT_ID`, which a default checkout does not set. So the guard had no true branch,
+and a fresh checkout answered `/auth/google/login` and `/auth/google/callback` with **500**.
+That is the 500-versus-503 distinction this file already draws on the retrieval path,
+one code along: 500 sends an operator to look at this service, where the true and
+actionable answer is that Google sign-in was never configured here. `_google_client()` is
+one `getattr` with a default -- which covers an install with no authlib too, since
+`getattr(None, ...)` does not raise. An explicit `if oauth is None` arm was written first
+and **removed when deleting it reddened nothing**: a guard that cannot change an answer
+reads like one that can.
+
+**`quota.py` got no tests at all, deliberately** --
+`tests/security/test_quota_guard_is_not_wired.py` records why. Its uncovered lines are
+`_scope_key`, `enforce_query_quota` and `enforce_web_quota`, so the coverage gap *is* the
+unreachability: `QuotaGuard` is constructed into every `QueryRuntime` beside a
+`QueryLoadGuard` whose `acquire` runs on every query, and **neither enforcement method has
+a caller anywhere in `app/`**. Four `Settings` fields gate nothing, and none of them
+appears in any layer under `config/`. They survive `test_settings_have_readers` through its
+documented blind spot -- assigning a field to an attribute nobody reads counts as a reader
+-- and `reachability.py` resolves the methods as reachable because the class is
+constructed, the same limit already recorded for `test_every_modality_has_a_producer`.
+Covering it would have manufactured the failure this file keeps recording, a control that
+is written, tested and unreachable. It is two `xfail(strict=True)` instead, the idiom this
+repository already uses for a real gap: wire the enforcement and they XPASS strictly and
+the suite stays red until somebody writes real tests for a live control; decide quotas are
+not wanted and the class, the four settings and that file go together. Verified able to
+fail by planting both call sites.
+
+Twenty mutations, twenty distinct rednesses, across the two suites: each end of the ticket
+anchor, the length check moving behind the pattern check, both length floors off by one, a
+hardcoded number in a message the caller can parametrize, the role normalization, both
+halves of the self-modification comparison, the audit moving behind its raise, each of the
+three components of the login key, the reset and the record, the service message reaching
+the client, a lockout audited as a credential failure, the cookie being set from the
+blanked payload, the token exposed unconditionally, the register key gaining a username,
+the cookie surviving a failed rotation, and one result string for both password-change
+outcomes. A twenty-first was a **no-op rather than a miss** -- `.match` to `.search` with
+`^` still in the pattern -- which is what exposed the redundant `^` above.
+
 `pytest` is configured in `pyproject.toml` (`testpaths = ["tests"]`, strict asyncio mode).
 CI runs it on every push and pull request (`.github/workflows/ci.yml`), together with ruff
 and the repository's hygiene hooks. The endpoint census that fails if a refactor silently
@@ -3200,7 +3284,7 @@ else.
   and only runs after a push.
 - **Nothing could turn a coverage drop red, and the endpoint floor was 17 below reality.**
   Both are ratchets now (`scripts/check_coverage.py ratchet` against
-  `scripts/coverage-baseline.json`, at 59.5%; `EXPECTED_OPERATIONS` at 157). Both fail in
+  `scripts/coverage-baseline.json`, at 60.0%; `EXPECTED_OPERATIONS` at 157). Both fail in
   *both* directions -- a drop is a regression, and a rise means the baseline is stale and
   says which one-line edit fixes it. A ratchet nobody tightens is a floor, and a floor is
   what these replaced.
