@@ -105,12 +105,12 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-16): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,122 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,336 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
+Note (counts refreshed 2026-09-17): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,122 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,336 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
 `check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
-make test                           # pytest -q (1,991 tests)
+make test                           # pytest -q (2,122 tests)
 make test-ci                        # the same suite, with CI's optional packages hidden
 make lint                           # ruff check . && ruff format --check .
 ```
@@ -169,7 +169,7 @@ npm run type-check                  # tsc -b --noEmit (clean with ES2022.Object,
 npm run lint:design                 # shape/depth scale ratchet (see Frontend styling)
 npm run lint:classes                # dead classes audit against built CSS
 npm run format:check                # prettier format check
-npm test -- --run                   # vitest (.test.ts and .test.tsx, 154 tests)
+npm test -- --run                   # vitest (.test.ts and .test.tsx, 214 tests)
 npm run screenshots                 # both servers up; PNGs of 8 app states
 npm run smoke                       # drive a served build in a browser (SMOKE_BASE_URL)
 ```
