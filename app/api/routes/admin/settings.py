@@ -166,10 +166,30 @@ def admin_test_model_settings(
     return ModelSettingsTestResponse(**result)
 
 
+# What the reload reports back, by `Settings` field name. Hand-written lists of
+# attribute names are how this endpoint broke: it read `new_settings.retrieval_profile`,
+# a field `Settings` has never had, so every reload raised `AttributeError` *after*
+# the reload had already happened and after the audit row said it succeeded -- a
+# 500 for an action that worked. Naming them here lets
+# `test_the_reload_snapshot_only_names_real_settings_fields` fail at test time
+# instead, which is the only difference that matters.
+RELOAD_SNAPSHOT_FIELDS: tuple[str, ...] = (
+    "top_k",
+    "max_context_chunks",
+    "retrieval_cache_enabled",
+    "dynamic_retrieval_enabled",
+    "query_rewrite_enabled",
+    "query_decompose_enabled",
+    "rank_feature_enabled",
+)
+
+
 @router.post("/admin/config/reload")
 def admin_reload_config(request: Request, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, Permission.ADMIN_OPS_MANAGE, request, "admin")
     new_settings = apply_config_reload()
+    snapshot: dict[str, Any] = {name: getattr(new_settings, name) for name in RELOAD_SNAPSHOT_FIELDS}
+    snapshot["global_model_settings"] = public_global_model_settings(get_global_model_settings())
     _audit(
         request,
         action=AuditAction.ADMIN_CONFIG_RELOAD,
@@ -181,17 +201,7 @@ def admin_reload_config(request: Request, user: dict[str, Any] = Depends(_requir
     return {
         "ok": True,
         "reloaded_at": datetime.now(UTC).isoformat(),
-        "snapshot": {
-            "retrieval_profile": new_settings.retrieval_profile,
-            "top_k": new_settings.top_k,
-            "max_context_chunks": new_settings.max_context_chunks,
-            "retrieval_cache_enabled": new_settings.retrieval_cache_enabled,
-            "dynamic_retrieval_enabled": new_settings.dynamic_retrieval_enabled,
-            "query_rewrite_enabled": new_settings.query_rewrite_enabled,
-            "query_decompose_enabled": new_settings.query_decompose_enabled,
-            "rank_feature_enabled": new_settings.rank_feature_enabled,
-            "global_model_settings": public_global_model_settings(get_global_model_settings()),
-        },
+        "snapshot": snapshot,
     }
 
 
