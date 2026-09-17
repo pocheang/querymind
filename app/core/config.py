@@ -3,8 +3,9 @@ import os
 import threading
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated, Any, Literal
 
-from pydantic import Field, model_validator
+from pydantic import BeforeValidator, Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from pydantic_settings.sources import DotEnvSettingsSource
 
@@ -20,6 +21,38 @@ def resolve_runtime_env_file() -> str | None:
     environment = {"dev": "development"}.get(environment, environment)
     candidate = Path(__file__).resolve().parents[2] / ".runtime" / f"{environment}.env"
     return str(candidate) if candidate.is_file() else None
+
+
+def _normalised_choice(value: Any) -> Any:
+    """Trim and lower-case a choice before it is matched against the allowed set.
+
+    Every consumer of these fields already did this -- `str(...).strip().lower()`
+    appears at each of them -- so normalising here keeps `MODEL_BACKEND=OpenAI`
+    working while letting the field itself state what the allowed values are. It
+    also makes the stored value canonical, so the `.lower()` at the call sites
+    stops being load-bearing.
+    """
+
+    return value.strip().lower() if isinstance(value, str) else value
+
+
+def _choice(*allowed: str) -> Any:
+    """A string field that may only hold one of `allowed`.
+
+    These sets were written in a trailing comment -- `# auto|memory|redis` -- and
+    enforced nowhere, so a typo did not fail: every consumer silently fell back to
+    a default. `HISTORY_BACKEND=sqlight` served files, `WEB_SEARCH_PROVIDER=tavly`
+    searched DuckDuckGo, and `AUTH_COOKIE_SAMESITE=strct` quietly downgraded the
+    cookie policy to `lax` -- a security setting weakened by a spelling mistake,
+    with nothing anywhere reporting it.
+
+    Stating the set on the field turns each of those into a refused write from the
+    console and a loud failure at startup, and `config_schema.describe` reads the
+    same set back out, so the page can offer the choices rather than a free-text
+    box. One definition, in the place the value is defined.
+    """
+
+    return Annotated[Literal[allowed], BeforeValidator(_normalised_choice)]  # type: ignore[valid-type]
 
 
 class Settings(BaseSettings):
@@ -81,7 +114,12 @@ class Settings(BaseSettings):
         )
 
     app_env: str = Field(default="dev", alias="APP_ENV")
-    model_backend: str = Field(default="local", alias="MODEL_BACKEND")
+    # The six backends every comparison in app/ is written against, and the same
+    # set `deploy/scripts/config.py::VALID_BACKENDS` validates at render time --
+    # pinned against it by tests/core/test_config_choices.py.
+    model_backend: _choice("openai", "anthropic", "ollama", "local", "custom", "deepseek") = Field(
+        default="local", alias="MODEL_BACKEND"
+    )
     reasoning_model_backend: str = Field(default="", alias="REASONING_MODEL_BACKEND")
 
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
@@ -183,11 +221,18 @@ class Settings(BaseSettings):
     circuit_breaker_enabled: bool = Field(default=True, alias="CIRCUIT_BREAKER_ENABLED")
     circuit_breaker_fail_threshold: int = Field(default=5, alias="CIRCUIT_BREAKER_FAIL_THRESHOLD")
     circuit_breaker_cooldown_seconds: int = Field(default=60, alias="CIRCUIT_BREAKER_COOLDOWN_SECONDS")
-    retrieval_cache_backend: str = Field(default="auto", alias="RETRIEVAL_CACHE_BACKEND")  # auto|memory|redis|off
+    # `off`, `none` and `disabled` are three spellings of the same thing in
+    # `retrievers/hybrid/caching.py::cache_backend`; the comment here used to
+    # name only the first, so two working values read as typos.
+    retrieval_cache_backend: _choice("auto", "memory", "redis", "off", "none", "disabled") = Field(
+        default="auto", alias="RETRIEVAL_CACHE_BACKEND"
+    )
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
     # Session metadata storage backend
-    session_metadata_backend: str = Field(default="database", alias="SESSION_METADATA_BACKEND")  # memory|database
+    session_metadata_backend: _choice("database", "memory") = Field(
+        default="database", alias="SESSION_METADATA_BACKEND"
+    )
     long_term_memory_enabled: bool = Field(default=True, alias="LONG_TERM_MEMORY_ENABLED")
     long_term_memory_max_items: int = Field(default=100, ge=1, le=10_000, alias="LONG_TERM_MEMORY_MAX_ITEMS")
     memory_task_ttl_days: int = Field(default=30, ge=1, le=3650, alias="MEMORY_TASK_TTL_DAYS")
@@ -195,7 +240,7 @@ class Settings(BaseSettings):
 
     # Multi-modal Processing
     ocr_engine: str = Field(default="tesseract", alias="OCR_ENGINE")  # tesseract|paddleocr
-    multimodal_fusion_method: str = Field(default="rrf", alias="MULTIMODAL_FUSION_METHOD")  # rrf|weighted
+    multimodal_fusion_method: _choice("rrf", "weighted") = Field(default="rrf", alias="MULTIMODAL_FUSION_METHOD")
     image_weight: float = Field(default=0.3, alias="IMAGE_WEIGHT")
     table_weight: float = Field(default=0.3, alias="TABLE_WEIGHT")
     text_weight: float = Field(default=0.4, alias="TEXT_WEIGHT")
@@ -248,7 +293,9 @@ class Settings(BaseSettings):
         alias="WEB_DOMAIN_ALLOWLIST",
     )
     web_min_source_score: float = Field(default=0.2, ge=0.0, le=1.0, alias="WEB_MIN_SOURCE_SCORE")
-    web_search_provider: str = Field(default="duckduckgo", alias="WEB_SEARCH_PROVIDER")
+    web_search_provider: _choice("duckduckgo", "tavily", "bing", "searxng") = Field(
+        default="duckduckgo", alias="WEB_SEARCH_PROVIDER"
+    )
     web_proxy_url: str | None = Field(default=None, alias="WEB_PROXY_URL")
     web_search_timeout_seconds: int = Field(default=15, ge=1, le=120, alias="WEB_SEARCH_TIMEOUT_SECONDS")
     web_search_max_retries: int = Field(default=2, ge=0, le=10, alias="WEB_SEARCH_MAX_RETRIES")
@@ -284,9 +331,9 @@ class Settings(BaseSettings):
     graph_entity_extraction_robust: bool = Field(default=True, alias="GRAPH_ENTITY_EXTRACTION_ROBUST")
     graph_entity_extraction_use_llm: bool = Field(default=False, alias="GRAPH_ENTITY_EXTRACTION_USE_LLM")
 
-    pdf_loader_mode: str = Field(
+    pdf_loader_mode: _choice("pypdf", "docling", "docling_enhanced", "docling_advanced", "hybrid") = Field(
         default="pypdf", alias="PDF_LOADER_MODE"
-    )  # pypdf|docling|docling_enhanced|docling_advanced|hybrid
+    )
     pdf_enable_cleaning: bool = Field(default=True, alias="PDF_ENABLE_CLEANING")  # Remove headers/footers
     pdf_enable_table_merging: bool = Field(default=True, alias="PDF_ENABLE_TABLE_MERGING")  # Merge cross-page tables
     pdf_enable_chart_extraction: bool = Field(
@@ -312,7 +359,7 @@ class Settings(BaseSettings):
     auth_expose_token_in_response: bool = Field(default=False, alias="AUTH_EXPOSE_TOKEN_IN_RESPONSE")
     auth_cookie_name: str = Field(default="auth_token", alias="AUTH_COOKIE_NAME")
     auth_cookie_secure: bool = Field(default=True, alias="AUTH_COOKIE_SECURE")
-    auth_cookie_samesite: str = Field(default="strict", alias="AUTH_COOKIE_SAMESITE")  # strict|lax|none
+    auth_cookie_samesite: _choice("strict", "lax", "none") = Field(default="strict", alias="AUTH_COOKIE_SAMESITE")
     app_db_path_str: str = Field(default="./data/app.db", alias="APP_DB_PATH")
 
     auth_login_max_failures: int = Field(default=8, alias="AUTH_LOGIN_MAX_FAILURES")
@@ -330,7 +377,7 @@ class Settings(BaseSettings):
     query_rate_limit_max_attempts: int = Field(default=30, alias="QUERY_RATE_LIMIT_MAX_ATTEMPTS")
     query_rate_limit_window_seconds: int = Field(default=60, alias="QUERY_RATE_LIMIT_WINDOW_SECONDS")
     # Role-based rate limiting (v0.4.5+)
-    query_guard_backend: str = Field(default="auto", alias="QUERY_GUARD_BACKEND")  # auto|memory|redis
+    query_guard_backend: _choice("auto", "memory", "redis") = Field(default="auto", alias="QUERY_GUARD_BACKEND")
     query_max_concurrent: int = Field(default=24, alias="QUERY_MAX_CONCURRENT")
     query_max_waiting: int = Field(default=120, alias="QUERY_MAX_WAITING")
     query_acquire_timeout_ms: int = Field(default=3000, alias="QUERY_ACQUIRE_TIMEOUT_MS")
@@ -338,7 +385,7 @@ class Settings(BaseSettings):
     shadow_queue_maxsize: int = Field(default=200, alias="SHADOW_QUEUE_MAXSIZE")
     synthesis_refine_max_rounds: int = Field(default=5, alias="SYNTHESIS_REFINE_MAX_ROUNDS")
     synthesis_refine_overload_rounds: int = Field(default=1, alias="SYNTHESIS_REFINE_OVERLOAD_ROUNDS")
-    history_backend: str = Field(default="file", alias="HISTORY_BACKEND")  # file|sqlite
+    history_backend: _choice("file", "sqlite") = Field(default="file", alias="HISTORY_BACKEND")
     history_sqlite_path_str: str = Field(default="./data/history.db", alias="HISTORY_SQLITE_PATH")
     history_cold_dir: str = Field(default="./data/sessions_cold", alias="HISTORY_COLD_DIR")
     history_hot_tier_days: int = Field(default=14, alias="HISTORY_HOT_TIER_DAYS")
@@ -376,7 +423,7 @@ class Settings(BaseSettings):
     quota_enabled: bool = Field(default=False, alias="QUOTA_ENABLED")
     quota_query_max_per_minute: int = Field(default=120, alias="QUOTA_QUERY_MAX_PER_MINUTE")
     quota_web_max_per_minute: int = Field(default=30, alias="QUOTA_WEB_MAX_PER_MINUTE")
-    quota_mode: str = Field(default="user", alias="QUOTA_MODE")  # user|business_unit
+    quota_mode: _choice("user", "business_unit") = Field(default="user", alias="QUOTA_MODE")
     feature_flags: str = Field(default="", alias="FEATURE_FLAGS")  # name=on|off|pct:10
     feature_flag_seed: str = Field(default="feature", alias="FEATURE_FLAG_SEED")
     verifier_max_retries: int = Field(default=1, ge=0, le=1, alias="VERIFIER_MAX_RETRIES")
@@ -447,7 +494,7 @@ class Settings(BaseSettings):
     ocr_upscale_min_side: int = Field(default=1200, alias="OCR_UPSCALE_MIN_SIDE")
     ocr_psm_modes: str = Field(default="6,11,3", alias="OCR_PSM_MODES")
     image_caption_enabled: bool = Field(default=False, alias="IMAGE_CAPTION_ENABLED")
-    image_caption_backend: str = Field(default="auto", alias="IMAGE_CAPTION_BACKEND")
+    image_caption_backend: _choice("auto", "openai", "ollama") = Field(default="auto", alias="IMAGE_CAPTION_BACKEND")
     openai_vision_model: str = Field(default="gpt-4o", alias="OPENAI_VISION_MODEL")
     ollama_vision_model: str = Field(default="llama4-scout:8b", alias="OLLAMA_VISION_MODEL")
     cors_enabled: bool = Field(default=True, alias="CORS_ENABLED")
