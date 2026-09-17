@@ -39,14 +39,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Nothing in this job talks back to GitHub, so leaving a credential in
           # .git/config for the rest of the run buys nothing -- and every step
           # after this one executes third-party code that can read it.
           persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -90,11 +90,11 @@ jobs:
         # the conda environment and the coverage baseline are.
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -136,7 +136,7 @@ jobs:
 
       - name: Cache pre-commit hook environments
         if: matrix.python-version == '3.11'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -204,7 +204,7 @@ jobs:
         run: python scripts/check_coverage.py ratchet
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         # Not `always()` any more: the 3.12 leg would race the 3.11 one for the
         # same artifact name, and v4 refuses the second upload rather than
         # merging it.
@@ -230,11 +230,11 @@ jobs:
         # before adding it, the suite and the build both pass there.
         node-version: ["20", "22"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -284,7 +284,7 @@ jobs:
         run: npm test -- --run --coverage
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         # One report, from the canonical version, for the reason the backend
         # uploads only from 3.11: two legs racing for one artifact name is an
         # error in v4, and two numbers would not both be "the project's".
@@ -321,11 +321,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -451,7 +451,7 @@ jobs:
           echo "the frontend container never served / within 60s"
           exit 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
@@ -514,7 +514,7 @@ jobs:
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Sonar reads SCM blame to decide what counts as new code, and every
           # condition on this project's quality gate is a new-code condition. A
@@ -522,18 +522,18 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
       - name: Download backend coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: backend-coverage
           path: .
 
       - name: Download frontend coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: frontend-coverage
           path: frontend/coverage
