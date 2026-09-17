@@ -144,7 +144,7 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 | **端点数量** | **157** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
 | **后端行覆盖率** | **59.5%** | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。 |
 | **认知复杂度** | **0 个函数 > 15** | `tests/core/test_cognitive_complexity_is_bounded.py`，覆盖 `app/` 与 `scripts/` 的硬门禁。`scripts/audit/cognitive_complexity.py` 本地实现了 Sonar 的评分规则，`--validate` 能逐条复现项目全部 75 条历史 S3776 发现。 |
-| **测试数量** | **2,094 后端 / 214 前端** | `pytest -q`（2,091 passed, 3 skipped）与 `vitest`（31 文件）。 |
+| **测试数量** | **2,122 后端 / 214 前端** | `pytest -q`（2,119 passed, 3 skipped）与 `vitest`（31 文件）。 |
 | **入口包体积** | **151.5 KB gzip** | `npm run build` 实测：入口 chunk 441 KB 原始 / 151.5 KB gzip，主样式 142 KB / 38.6 KB gzip，其余按路由拆成 40 个懒加载 chunk。 |
 | **Router 意图准确率** | **没有测量** | 项目里**不存在**标注过的路由测试集。此处曾写 99.1%，那个数字没有任何东西在测。 |
 | **引用完整性** | **没有聚合测量** | 每个回答由校验级联的引用阶段**逐条强制执行**，但从未在一个查询集上打过总分。 |
@@ -263,7 +263,7 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (Linter & Formatter), Pre-commit (CI 内同样执行)
-    ├── Testing: Pytest (后端 2,094 用例), Vitest (前端 214 用例), Prettier
+    ├── Testing: Pytest (后端 2,122 用例), Vitest (前端 214 用例), Prettier
     ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 20+22 / images / analysis)
     ├── Security: CodeQL (python + js-ts), pip-audit + npm audit 门禁, Trivy 镜像扫描（每周）
     ├── Static Analysis: SonarCloud Quality Gate, 认知复杂度本地门禁 (S3776, 0 超标)
@@ -311,7 +311,7 @@ multi_agent_rag_local_v4/
 ## 🧪 Testing & CI (工程质量与持续集成)
 
 ```bash
-# 后端：2,094 项用例（2,091 passed / 3 skipped，缺可选的 openpyxl 时跳过）
+# 后端：2,122 项用例（2,119 passed / 3 skipped，缺可选的 openpyxl 时跳过）
 pytest -q
 
 # 推送前用这个：把 CI 不安装的可选包（pytesseract / pdfplumber / sentence-transformers）屏蔽掉跑一遍

@@ -48,7 +48,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (2,094 backend pytest tests + 214 frontend vitest tests)
+└── tests/                      # Automated test suite (2,122 backend pytest tests + 214 frontend vitest tests)
 ```
 
 ## Table of Contents
@@ -105,7 +105,7 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-16): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,094 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,308 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
+Note (counts refreshed 2026-09-16): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,122 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally) and **214 frontend tests** (**2,336 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
 `check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
@@ -3020,8 +3020,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-16 there are 2,094 backend pytest tests
-and 214 frontend Vitest tests (2,308 total tests, 0 failures), covering the chat round trip,
+back-filling effort. As of 2026-09-17 there are 2,122 backend pytest tests
+and 214 frontend Vitest tests (2,336 total tests, 0 failures), covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3097,6 +3097,58 @@ it asserts the streamed output equals the final redaction at *every* split offse
 what was already emitted is always a prefix of the final redaction. A chunk boundary is the
 only thing that distinguishes streaming DLP from the batch kind, so a fixed set of chunk
 sizes would test the wrong thing.
+
+**The rules are tested; the gates that apply them were not** (2026-09-17). A coverage
+pass over the security-relevant modules found the invariant definitions well covered --
+`privacy/dlp.py` 100%, `rbac.py` 97.4%, `injection_defense.py` 96.7%, `access_scope.py`
+94.6% -- against the plumbing that enforces them: `api/deps/admin.py` 18.3%,
+`routes/public/auth.py` 25.7%, `security/admin_security.py` 50%, `security/quota.py`
+44.4%. Reachability was checked first (`scripts/audit/reachability.py`: 3 unreachable
+definitions in all of `app/`, 0 modules not imported), because writing tests for code
+nothing can call is this file's most expensive recurring failure.
+
+`tests/api/test_admin_audit_filtering.py` (28) closes the first of those.
+`_filter_audit_rows` is what all three audit views in `admin/ops.py` narrow their rows
+with, and it is **the second half of a failure already recorded above**: the console
+offered sixteen action filters and four could only ever return nothing.
+`test_audit_action_vocabulary.py` closed the naming half; what was unpinned is the
+*matching* half -- the actor filter is an exact match and the action filter a
+case-insensitive substring, two different rules on one function, neither asserted.
+Also pinned: `handle_service_exception` writes its audit row **before** it raises (it
+runs from six `except` blocks, so moving the raise ahead of the callback would stop
+auditing administrative failures and nothing would report that), a `ValueError` becomes
+400 with its message and anything else becomes 500 **without** it, while the audit row
+keeps what the response drops.
+
+**Two findings came out of mutating the source rather than from reading the tests**, and
+both are the vacuity failure this file keeps describing:
+
+- **A test that could not fail on this machine.** `_parse_audit_ts` reads a naive
+  timestamp as UTC; swapping `replace(tzinfo=UTC)` for `astimezone(UTC)` reddened
+  **nothing**, because the two agree exactly when the process runs in UTC -- which CI and
+  the dev container do. The parametrized case pinned the value without pinning the rule.
+  It sets `TZ` through a fixture now and asserts across three zones. The rule is
+  load-bearing: these timestamps bucket the console's charts, so read as local time the
+  same row lands in a different hour depending on where the server sits.
+- **A teardown that was unfalsifiable because of parameter order.** That fixture must call
+  `time.tzset()` again after `monkeypatch.undo()` -- restoring `os.environ` does not
+  re-read the zone, so the C library keeps whichever the last case set and every later
+  test inherits it. With `"UTC"` **last** in the parametrize list, deleting the teardown
+  changed nothing: the final `tzset()` restored UTC by coincidence. `"UTC"` is first now,
+  and sabotaging the teardown leaks `('EST', 'EDT')` into a sentinel test placed after the
+  file.
+
+`_parse_audit_ts` and `_parse_request_ts` are **the same function twice**, identical
+apart from the docstring (confirmed by AST, comparing bodies with the docstring stripped),
+reading `created_at` and `ts` at their call sites. The suite asserts they agree on every
+input, which is the guard `test_table_separator_regex.py` already applies to a pattern
+copied four times; one definition is the better end state and was not made here.
+
+Seven mutations, seven distinct rednesses: the actor filter becoming a substring (a
+disclosure bug -- `alice` would surface `alice2`'s rows), the action filter becoming
+equality, a blank filter ceasing to mean "no filter", the naive-timestamp rule, one twin
+parser drifting, the raise moving ahead of the audit row, and the 500 response starting
+to carry the exception message.
 
 `pytest` is configured in `pyproject.toml` (`testpaths = ["tests"]`, strict asyncio mode).
 CI runs it on every push and pull request (`.github/workflows/ci.yml`), together with ruff
