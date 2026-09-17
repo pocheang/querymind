@@ -19,7 +19,7 @@ from app.agents.shared.cache import clear_router_decision_cache
 from app.agents.verifier.validation.public import clear_validation_caches
 from app.api import dependencies as api_dependencies
 from app.core.config import Settings, get_settings, reload_settings
-from app.core.config_schema import describe, validate_values
+from app.core.config_schema import environment_aliases, validate_values
 from app.core.remote_config import RemoteDocuments, parse_properties, remote_config_enabled, render_properties
 from app.graph.knowledge.client import Neo4jClient
 from app.retrievers.hybrid.caching import clear_retrieval_cache
@@ -152,8 +152,12 @@ def write_config_values(values: dict[str, str], data_id: str | None = None) -> l
     except ValueError as exc:
         raise ConfigWriteRefused(str(exc)) from exc
 
-    described = {row["alias"]: row for row in describe(active)}
-    pinned = sorted(alias for alias in accepted if not described.get(alias, {}).get("editable_here", True))
+    # Only the environment layer can refuse a write, so this asks for exactly
+    # that. It used to call `describe(...)`, which fetches every configuration
+    # centre document in order to fill in a column nothing here reads -- a
+    # network round trip per data id, on the way to reading those same documents
+    # again a few lines below.
+    pinned = sorted(set(accepted) & environment_aliases())
     if pinned:
         raise ConfigWriteRefused(
             f"pinned in the process environment, so the console cannot change them: {', '.join(pinned)}"

@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from functools import lru_cache
 from pathlib import Path
 
@@ -610,9 +611,17 @@ def validate_security_settings(settings: Settings) -> None:
     logger.warning("%s; responses and audit events will be unsigned", message)
 
 
+# Handed from `reload_settings` to `get_settings`, so a reload constructs
+# `Settings` once. See `reload_settings` for why that is worth a module global.
+_RELOAD_LOCK = threading.Lock()
+_PENDING: Settings | None = None
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    settings = Settings()
+    global _PENDING
+    settings = _PENDING if _PENDING is not None else Settings()
+    _PENDING = None
     settings.chroma_path.mkdir(parents=True, exist_ok=True)
     settings.docs_path.mkdir(parents=True, exist_ok=True)
     settings.corpus_path.parent.mkdir(parents=True, exist_ok=True)
@@ -626,7 +635,30 @@ def get_settings() -> Settings:
 
 
 def reload_settings() -> Settings:
-    candidate = Settings()
-    validate_security_settings(candidate)
-    get_settings.cache_clear()
-    return get_settings()
+    """Re-read the configuration, validate it, and install exactly what was validated.
+
+    Two things were wrong with the obvious four lines this replaces. It built
+    `Settings` **twice** -- once to validate and once inside `get_settings()` --
+    and every construction consults the configuration centre, so a reload cost two
+    network round trips per data id where it needed one; with the default 3s
+    timeout and several data ids that is seconds of blocking inside a request
+    handler. And the object returned was not the object that had been checked: the
+    documents can change between the two constructions, so the process could end
+    up running settings `validate_security_settings` had never seen.
+
+    The candidate is therefore handed to `get_settings()` rather than rebuilt.
+    Validation still happens before the cache is touched, so a configuration that
+    fails leaves the previous one in place -- which is the property worth keeping,
+    since this is reachable from an HTTP request.
+    """
+
+    global _PENDING
+    with _RELOAD_LOCK:
+        candidate = Settings()
+        validate_security_settings(candidate)
+        _PENDING = candidate
+        get_settings.cache_clear()
+        try:
+            return get_settings()
+        finally:
+            _PENDING = None

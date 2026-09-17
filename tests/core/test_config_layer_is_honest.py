@@ -35,7 +35,7 @@ from __future__ import annotations
 import pytest
 
 from app.core.config import Settings
-from app.core.config_schema import _environment_aliases, describe
+from app.core.config_schema import describe, environment_aliases
 
 
 def _row(alias: str, settings: Settings | None = None) -> dict:
@@ -109,7 +109,7 @@ def test_the_detector_is_asked_of_pydantic_not_of_os_environ(monkeypatch):
     monkeypatch.setenv("top_k", "11")
     monkeypatch.setenv("NOT_A_SETTING_AT_ALL", "x")
 
-    aliases = _environment_aliases()
+    aliases = environment_aliases()
 
     assert "TOP_K" in aliases
     assert "NOT_A_SETTING_AT_ALL" not in aliases
