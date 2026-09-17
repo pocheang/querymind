@@ -20,7 +20,7 @@ from app.agents.verifier.validation.public import clear_validation_caches
 from app.api import dependencies as api_dependencies
 from app.core.config import Settings, get_settings, reload_settings
 from app.core.config_schema import describe, validate_values
-from app.core.remote_config import RemoteDocuments, parse_properties, remote_config_enabled
+from app.core.remote_config import RemoteDocuments, parse_properties, remote_config_enabled, render_properties
 from app.graph.knowledge.client import Neo4jClient
 from app.retrievers.hybrid.caching import clear_retrieval_cache
 from app.retrievers.reranker import clear_reranker_cache
@@ -162,9 +162,26 @@ def _route_values_to_documents(
 def _publish_routed_documents(
     documents: RemoteDocuments, routed: dict[str, dict[str, str]], current: dict[str, dict[str, str]]
 ) -> list[str]:
+    """Render every document before publishing any of them.
+
+    Rendering is what refuses a value that would carry a configuration key of its
+    own -- see `remote_config.render_properties`. Doing it up front rather than
+    inside the publish loop is what keeps that refusal from landing halfway: a
+    two-document change whose second document holds the injected value used to
+    write the first one and only then refuse.
+    """
+
+    merged_documents: dict[str, dict[str, str]] = {
+        name: {**current.get(name, {}), **changes} for name, changes in routed.items()
+    }
+    for merged in merged_documents.values():
+        try:
+            render_properties(merged)
+        except ValueError as exc:
+            raise ConfigWriteRefused(str(exc)) from exc
+
     written: list[str] = []
-    for name, changes in routed.items():
-        merged = {**current.get(name, {}), **changes}
+    for name, merged in merged_documents.items():
         try:
             published = documents.publish(name, merged)
         except Exception as exc:

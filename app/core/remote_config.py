@@ -37,6 +37,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 import threading
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -49,6 +50,18 @@ from pydantic_settings import PydanticBaseSettingsSource
 logger = logging.getLogger(__name__)
 
 SNAPSHOT_ROOT = Path(".runtime") / "remote-config"
+
+# What may be a configuration key. Deliberately identical to
+# `deploy/scripts/config.py::KEY_RE`, which the render step has always applied to
+# `config/env/*`: one document format travels from the repository through the
+# render step to the console, so one rule has to decide what a key is at every
+# point on that path. It did not -- the render step validated and this module
+# did not -- and the gap is what let a value carry a key. The two are pinned
+# against each other by `tests/security/test_config_key_injection.py`.
+#
+# `\w` is not wanted here for the reason that file gives: it matches any Unicode
+# word character, and these names are destined for a process environment.
+CONFIG_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")  # NOSONAR
 
 
 class RemoteConfigClient(Protocol):
@@ -115,6 +128,12 @@ def parse_properties(text: str) -> dict[str, str]:
     travels from `config/env/*` through the render step to the console. A
     malformed line is skipped rather than raising: a typo in a remote document
     must not take the process down, and the lower sources still have the value.
+
+    It claimed to mirror that function and did not, in the one direction that
+    mattered: `parse_env_file` validates each key against `KEY_RE` and this
+    accepted anything left of the first `=`. A key is checked here now, and
+    skipped rather than rejected, because raising is what the paragraph above
+    forbids.
     """
 
     values: dict[str, str] = {}
@@ -129,8 +148,55 @@ def parse_properties(text: str) -> dict[str, str]:
         key = key.strip()
         if not key:
             continue
+        if not CONFIG_KEY_RE.fullmatch(key):
+            # Logged without the key: a document that reaches here may be
+            # carrying somebody's attempt at one, and the log is read by more
+            # people than the configuration centre is.
+            logger.warning("remote config: skipping a line whose key is not a configuration key")
+            continue
         values[key] = value.strip().strip('"').strip("'")
     return values
+
+
+def render_properties(values: dict[str, str]) -> str:
+    """Render `values` in the same form `parse_properties` reads, or refuse.
+
+    **A configuration value must not be able to carry a configuration key.** This
+    rendering used to be one inline `f"{key}={value}\n"` inside `publish`, and
+    since a value is written verbatim and read back line by line, a newline in one
+    made the rest of it a second assignment. That defeated the whole point of
+    `config_schema.EDITABLE`: six of the editable fields are plain strings, and any
+    one of them could write `API_SETTINGS_ENCRYPTION_KEY`, `CORS_ALLOW_ORIGINS` or
+    `AUTH_COOKIE_SECURE` into the document -- keys the allowlist exists to keep out
+    of reach of console access, excluded from it by a shape rule
+    (`tests/core/test_config_schema.py`) that this path walked straight around.
+
+    So the refusal is here, at the rendering, rather than at any one caller: the
+    admin endpoint and the replay autotuner both reach the centre through
+    `publish`, and a check on one of them is a check on half of the writers.
+
+    Raises `ValueError` naming the offending key. The final assertion is the one
+    that matters: whatever is rendered must parse back to exactly what was asked
+    for, which is a property rather than a list of characters somebody thought of.
+    """
+
+    for key, value in sorted(values.items()):
+        if not CONFIG_KEY_RE.fullmatch(key):
+            raise ValueError(f"not a configuration key: {key!r}")
+        text = str(value)
+        if any(char in text for char in "\r\n"):
+            raise ValueError(f"the value of {key} contains a line break, which would write a second key")
+        if "\x00" in text:
+            raise ValueError(f"the value of {key} contains a null byte")
+    body = "".join(f"{key}={values[key]}\n" for key in sorted(values))
+    intended = {key: str(value) for key, value in values.items()}
+    lost = sorted(key for key, value in intended.items() if parse_properties(body).get(key) != value)
+    if lost or parse_properties(body) != intended:
+        # Reached by surrounding whitespace and by wrapping quotes, both of which
+        # `parse_properties` strips on the way back in. The format genuinely
+        # cannot hold those, so saying so beats storing something else.
+        raise ValueError(f"this format cannot store the value of {', '.join(lost) or 'the change'} unchanged")
+    return body
 
 
 class RemoteDocuments:
@@ -236,7 +302,9 @@ class RemoteDocuments:
         client = self._resolve_client()
         if client is None:
             raise RuntimeError("no configuration centre client available")
-        body = "".join(f"{key}={values[key]}\n" for key in sorted(values))
+        # Rendered before the client is asked for anything, so a value that
+        # cannot round-trip is refused rather than half-written.
+        body = render_properties(values)
         return bool(client.publish(self._config.group, data_id, body))
 
 
