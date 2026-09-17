@@ -18,9 +18,13 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from app.api.application.config_reload import ConfigWriteRefused, write_config_values
+from app.api.application.config_reload import (
+    ConfigWritePartiallyApplied,
+    ConfigWriteRefused,
+    write_config_values,
+)
 from app.api.dependencies import _audit, _require_permission, _require_user
-from app.api.transport.errors import bad_request
+from app.api.transport.errors import bad_request, service_unavailable
 from app.core.config import get_settings
 from app.core.config_schema import describe
 from app.core.remote_config import RemoteDocuments, remote_config_enabled
@@ -73,6 +77,27 @@ def admin_save_config(payload: ConfigValues, request: Request, user: Annotated[d
 
     try:
         written = write_config_values(payload.values, payload.data_id)
+    except ConfigWritePartiallyApplied as exc:
+        # Not "refused", and not a 400. Part of this change is in the
+        # configuration centre and the process has been reloaded onto it, so the
+        # audit row has to say which documents landed -- reporting the whole save
+        # as rejected would describe a state that does not exist, and the reader
+        # would have no way to know what to re-apply. 503 rather than 500 for the
+        # reason the retrieval path draws that line: the failing system is the one
+        # this service depends on, not this service.
+        _audit(
+            request,
+            action=AuditAction.ADMIN_CONFIG_SAVE,
+            resource_type="admin",
+            result="failure",
+            resource_id=",".join(exc.written),
+            user=user,
+            detail=(
+                f"partially applied: wrote {', '.join(exc.written)}; "
+                f"{exc.failed} not written; changed: {', '.join(sorted(payload.values))}"
+            ),
+        )
+        raise service_unavailable(str(exc)) from exc
     except ConfigWriteRefused as exc:
         _audit(
             request,
