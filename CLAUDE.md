@@ -48,7 +48,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (2,196 backend pytest tests + 214 frontend vitest tests)
+└── tests/                      # Automated test suite (2,244 backend pytest tests + 214 frontend vitest tests)
 ```
 
 ## Table of Contents
@@ -105,12 +105,12 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-17): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,196 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **214 frontend tests** (**2,410 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
+Note (counts refreshed 2026-09-17): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,244 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **214 frontend tests** (**2,458 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
 `check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
-make test                           # pytest -q (2,196 tests)
+make test                           # pytest -q (2,244 tests)
 make test-ci                        # the same suite, with CI's optional packages hidden
 make lint                           # ruff check . && ruff format --check .
 ```
@@ -3020,8 +3020,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-17 there are 2,196 backend pytest tests
-and 214 frontend Vitest tests (2,410 total tests, 0 failures), covering the chat round trip,
+back-filling effort. As of 2026-09-17 there are 2,244 backend pytest tests
+and 214 frontend Vitest tests (2,458 total tests, 0 failures), covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3074,7 +3074,7 @@ covered the day it is added, where one test looping inside a single assertion re
 first offender and stops — but it does mean this total is not comparable across the change
 that introduced them.
 
-`tests/security/` (903 of those, 388 being the per-module audit-action scan -- this read
+`tests/security/` (951 of those, 388 being the per-module audit-action scan -- this read
 746/367 until 2026-09-17, stale in the way that whole paragraph describes, since the scan
 grows with `app/`) pins the
 user-data isolation invariants — see
@@ -3234,6 +3234,81 @@ the cookie surviving a failed rotation, and one result string for both password-
 outcomes. A twenty-first was a **no-op rather than a miss** -- `.match` to `.search` with
 `^` still in the pattern -- which is what exposed the redundant `^` above.
 
+**The counters the guards sit on** (2026-09-17). The pass above pinned which *key* the
+login route builds and which *guards* the admin routes compose; this is the layer under
+both -- `SlidingWindowLimiter` (51%) and `AdminTokenTracker` (46%), the things that decide
+whether anybody is actually stopped. `tests/security/test_sliding_window_limiter.py` (25)
+and `tests/security/test_admin_approval_token_lifecycle.py` (22) take them to 97% and 98%.
+
+**Four of the limiter's properties are not what its method names imply**, and each is
+load-bearing somewhere: `record` does not refuse (it appends past `max_attempts`, so
+`attempts_used` can exceed the maximum and only `attempts_remaining` clamps);
+`is_limited` + `record` is **not** atomic while `try_acquire` is, so the login route's pair
+can be raced past its ceiling where the register route's cannot; an empty key is unlimited
+in every method, which is why the login route substitutes `"unknown"`; and a
+non-positive `max_attempts` becomes **one**, not zero and not unlimited.
+
+**Asking the limiter a question used to allocate.** `_events` is a `defaultdict` and both
+read-only methods reached it as `self._events[key]`, so *reading* whether a key was limited
+inserted that key. The login route asks it with a key carrying the username the caller
+typed, **before `auth_service` is touched at all**, so an unauthenticated stranger varying
+the name grew the dict by one permanent entry per name: measured, 1000 read-only
+`is_limited` calls left 1000 entries, and nothing sweeps them -- `reset` runs only on a
+*successful* login and there is no equivalent of the token tracker's `cleanup_expired`.
+Both readers use `.get` now and drop a key whose window has emptied. What that does not
+reach, and the suite says so rather than implying otherwise: a key created by `record` or
+`try_acquire` still outlives its window until something asks about it again -- bounded by
+attempts actually made rather than by names actually typed, which is a different order of
+magnitude and is not zero.
+
+**"Single-use" on an admin approval token means single-use for `expiry_hours`.**
+`is_token_used` returns True only while the used-record is younger than the expiry; past it
+the record is deleted and the same token validates again. Measured: `(True, "hash")`, then
+`(False, "already_used")`, then after aging the record 25 hours, `(True, "hash")`. That is
+defensible as a rate limit on a long-lived configured secret -- there is one
+`ADMIN_CREATE_APPROVAL_TOKEN_HASH`, so strict single-use would make
+`POST /admin/users/create-admin` work exactly once per rotation -- but the class docstring
+calls it "single-use and expiration mechanisms" as though those were two features rather
+than one undoing the other. **Pinned rather than changed**: which of the two it should be is
+a product decision, not a defect to settle inside a test commit, and the test is written so
+that changing it fails loudly.
+
+Two more caller-dependent guards were normalized, the shape recorded for `admin_security`
+one section up. `validate_admin_approval_token` now lower-cases and strips
+`configured_hash` itself -- the digest is lowercase hex and the one live call site
+lowercases before calling, so an operator's upper-case hash returned `(False, "hash")`,
+indistinguishable from a wrong token on the endpoint whose refusal an operator most needs to
+understand. And `token_tracker = get_token_tracker()` at module scope was deleted: nothing
+imported it, and it built the global at import, so the `if _global_tracker is None` beside
+it had never once been the branch that created the tracker.
+
+`cleanup_expired` and `get_usage_stats` have **no caller in `app/`** and are deliberately
+left uncovered, for the reason `test_quota_guard_is_not_wired.py` gives -- with one
+exception. `cleanup_expired` and `is_token_used` independently decide the same thing with
+complementary comparisons (`>=` against `<`) in different methods, so one test pins that
+they agree: a future sweep disagreeing by a boundary would hand a spent token back early,
+silently, on the endpoint that creates administrators.
+
+**Twenty-seven mutations, twenty-seven distinct rednesses** -- and three of them only after
+the first attempt at each was found to be a **bad mutation rather than a missed test**,
+which is the more useful half:
+
+- `.match` to `.search` on the read path restored the allocating read *and* left the
+  compensating `del`, so the key was inserted and immediately removed. Net zero. The real
+  mutation is the shipped three-line form, and it reddens two tests.
+- Marking a wrong guess's *own* digest as used cannot burn the real token, because the
+  digests differ. The realistic bug is marking `configured_hash`, and that reddens two.
+- **`retry_after` was genuinely untested**, and that one was my test's fault: it aged the
+  whole queue uniformly, so every event carried the same timestamp and `queue[0]` equalled
+  `queue[-1]` -- reading the newest event instead of the oldest passed it. The spread is now
+  asserted as its own test rather than left as a setup detail somebody tidies away.
+
+One boundary is asserted against `_trim` with an explicit `now` rather than through the
+public API, and the reason generalises: the clock advances between aging an entry and asking
+about it, so "exactly `window` seconds old" is already `window + 0.0001` by the time `cutoff`
+is computed. A boundary the public API cannot observe has to be tested on the thing that
+decides it.
+
 `pytest` is configured in `pyproject.toml` (`testpaths = ["tests"]`, strict asyncio mode).
 CI runs it on every push and pull request (`.github/workflows/ci.yml`), together with ruff
 and the repository's hygiene hooks. The endpoint census that fails if a refactor silently
@@ -3284,7 +3359,7 @@ else.
   and only runs after a push.
 - **Nothing could turn a coverage drop red, and the endpoint floor was 17 below reality.**
   Both are ratchets now (`scripts/check_coverage.py ratchet` against
-  `scripts/coverage-baseline.json`, at 60.0%; `EXPECTED_OPERATIONS` at 157). Both fail in
+  `scripts/coverage-baseline.json`, at 60.2%; `EXPECTED_OPERATIONS` at 157). Both fail in
   *both* directions -- a drop is a regression, and a rise means the baseline is stale and
   says which one-line edit fixes it. A ratchet nobody tightens is a floor, and a floor is
   what these replaced.

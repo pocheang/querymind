@@ -127,6 +127,14 @@ def validate_admin_approval_token(
         - mode: Validation mode ("hash", "missing", "empty", "already_used")
     """
     candidate = str(token or "").strip()
+    # Normalized here rather than trusted from the caller. The one live call
+    # site in `admin_security` already does `.strip().lower()`, so this changes
+    # nothing today -- but the digest below is lowercase hex, and a second
+    # caller passing `Settings.admin_create_approval_token_hash` straight
+    # through would silently reject every token if the operator had written the
+    # hash in upper case. A comparison that depends on its caller having
+    # normalized first is one edit from failing closed for no stated reason.
+    configured_hash = str(configured_hash or "").strip().lower()
 
     # Check configuration
     if not configured_hash:
@@ -174,7 +182,3 @@ def get_token_tracker() -> AdminTokenTracker:
     if _global_tracker is None:
         _global_tracker = AdminTokenTracker(expiry_hours=24)
     return _global_tracker
-
-
-# Export global instance for convenience
-token_tracker = get_token_tracker()

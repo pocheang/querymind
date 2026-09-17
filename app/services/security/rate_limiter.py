@@ -21,11 +21,22 @@ class SlidingWindowLimiter:
             return False
         now = _utcnow()
         with self._lock:
-            queue = self._events[key]
+            # `.get`, not `self._events[key]`: this is a question, and on a
+            # defaultdict asking it inserts. The login route asks it with a
+            # key carrying the username the caller typed, before the auth
+            # service is touched at all, so an unauthenticated caller varying
+            # that name grew this dict by one entry per name, permanently --
+            # nothing sweeps it and `reset` only runs on a successful login.
+            queue = self._events.get(key)
+            if queue is None:
+                return False
             self._trim(queue, now)
-            if len(queue) >= self.max_attempts:
-                return True
-            return False
+            if not queue:
+                # Nothing left in the window: the key carries no information,
+                # so do not keep paying for it.
+                del self._events[key]
+                return False
+            return len(queue) >= self.max_attempts
 
     def get_limit_info(self, key: str) -> dict[str, int]:
         """
@@ -50,14 +61,19 @@ class SlidingWindowLimiter:
 
         now = _utcnow()
         with self._lock:
-            queue = self._events[key]
-            self._trim(queue, now)
-            used = len(queue)
+            # Read-only, so it must not allocate either -- see `is_limited`.
+            queue = self._events.get(key)
+            if queue is not None:
+                self._trim(queue, now)
+                if not queue:
+                    del self._events[key]
+                    queue = None
+            used = len(queue) if queue else 0
             remaining = max(0, self.max_attempts - used)
 
             # 计算retry_after：如果被限流，需要等待最老的事件过期
             retry_after = 0
-            if used >= self.max_attempts and queue:
+            if queue and used >= self.max_attempts:
                 oldest = queue[0]
                 expires_at = oldest + self.window
                 retry_after = max(0, int((expires_at - now).total_seconds()))
