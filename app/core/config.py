@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from pydantic_settings.sources import DotEnvSettingsSource
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,14 @@ def resolve_runtime_env_file() -> str | None:
 
 
 class Settings(BaseSettings):
+    # `env_file` is deliberately NOT set here. `model_config` is evaluated once,
+    # when this class body runs, so a path resolved into it is frozen for the life
+    # of the process -- and `.runtime/` starts empty, so the ordinary sequence
+    # (start something, then `make config-render`) left the process reading
+    # defaults from a file it could see but had never loaded. `reload_settings()`
+    # could not recover it either. The dotenv source is built per construction in
+    # `settings_customise_sources` instead.
     model_config = SettingsConfigDict(
-        env_file=resolve_runtime_env_file(),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -48,15 +55,27 @@ class Settings(BaseSettings):
         `RemoteSettingsSource` returns `{}` unless `NACOS_ENABLED` is true, so
         this costs an installation without a configuration centre one function
         call and no import of the SDK.
+
+        The dotenv source is rebuilt here rather than taken from `dotenv_settings`,
+        because the one handed in carries the path `model_config` froze at import.
+        Resolving it per construction is what lets a reload pick up a runtime file
+        that was rendered after the process started, and what stops
+        `config_schema.describe` -- which resolves the path fresh -- from naming a
+        file as the source of a value `Settings` never read.
         """
 
         from app.core.remote_config import RemoteSettingsSource
 
+        del dotenv_settings
         return (
             init_settings,
             env_settings,
             RemoteSettingsSource(settings_cls),
-            dotenv_settings,
+            DotEnvSettingsSource(
+                settings_cls,
+                env_file=resolve_runtime_env_file(),
+                env_file_encoding="utf-8",
+            ),
             file_secret_settings,
         )
 
