@@ -462,9 +462,18 @@ jobs:
         # playwright is already a devDependency (scripts/screenshots.mjs drives
         # it); only the browser binary has to be fetched. --with-deps installs
         # the shared libraries headless Chromium needs on a bare runner.
+        #
+        # The local binary rather than `npx`, which resolves the same file here
+        # but reads as "fetch whatever the registry currently calls playwright
+        # and run its lifecycle scripts" to a scanner -- and reads that way to a
+        # person too, in a step whose whole job is to run third-party code. npm
+        # links `node_modules/.bin` during install rather than from a lifecycle
+        # script, so `--ignore-scripts` still leaves this path executable
+        # (measured on playwright 1.62.1: the symlink is created and
+        # `playwright --version` answers without the postinstall having run).
         run: |
           npm ci --ignore-scripts
-          npx playwright install --with-deps chromium
+          ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: The application serves and boots in a browser
         working-directory: frontend
