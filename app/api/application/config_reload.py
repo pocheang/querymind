@@ -84,7 +84,41 @@ def reload_from_remote_config() -> None:
 
 
 class ConfigWriteRefused(Exception):
-    """The change was not written, and why."""
+    """The change was not written, and why. Nothing reached the centre."""
+
+
+class ConfigWritePartiallyApplied(Exception):
+    """Some documents were written and one was not, and which.
+
+    A change that spans two documents is two `publish` calls against an external
+    system, and they are not one transaction. The previous code raised
+    `ConfigWriteRefused` for that, so the endpoint audited `result="failure"` and
+    answered "refused" for a change that had partly landed -- and skipped
+    `apply_config_reload()`, leaving the process on its old values while the
+    centre already held new ones. The change then took effect anyway, silently,
+    when the poller noticed up to `NACOS_POLL_INTERVAL_MS` later.
+
+    **Rolling the written documents back is not the answer.** The rollback is one
+    more publish against the system that just failed, so it can fail too and leave
+    a third state nobody has described; and the centre owns version history and
+    rollback, which is precisely why this layer does not merge. So the residue is
+    named instead: the documents that were written stay written, the process is
+    reloaded so it agrees with what the centre now holds, and the caller is told
+    exactly which half landed.
+
+    Shaped after `ConnectorMetadataRepository`'s deletion order, where which
+    residue an interrupted operation leaves is the whole design.
+    """
+
+    def __init__(self, written: list[str], failed: str, reason: str) -> None:
+        self.written = list(written)
+        self.failed = failed
+        self.reason = reason
+        super().__init__(
+            f"wrote {', '.join(self.written)} and then could not write {failed}: {reason}. "
+            f"The configuration centre now holds part of this change and the process has been "
+            f"reloaded to match it; re-apply the rest."
+        )
 
 
 def write_config_values(values: dict[str, str], data_id: str | None = None) -> list[str]:
@@ -134,7 +168,14 @@ def write_config_values(values: dict[str, str], data_id: str | None = None) -> l
     fallback = data_id or known[-1]
 
     routed = _route_values_to_documents(accepted, data_id, known, current, fallback)
-    written = _publish_routed_documents(documents, routed, current)
+    try:
+        written = _publish_routed_documents(documents, routed, current)
+    except ConfigWritePartiallyApplied:
+        # The centre holds part of the change, so the process has to as well --
+        # otherwise the page shows one configuration and the running process uses
+        # another until the poller happens to notice.
+        apply_config_reload()
+        raise
 
     apply_config_reload()
     return sorted(written)
@@ -185,19 +226,33 @@ def _publish_routed_documents(
             raise ConfigWriteRefused(str(exc)) from exc
 
     written: list[str] = []
-    for name, merged in merged_documents.items():
-        try:
-            published = documents.publish(name, merged)
-        except Exception as exc:
-            logger.exception("config write: publish failed for %s", name)
-            raise ConfigWriteRefused(f"the configuration centre rejected the write: {exc}") from exc
-        if not published:
-            raise ConfigWriteRefused(f"the configuration centre did not accept the write to {name}")
-        written.append(name)
+    # Sorted so the order documents are written in -- and therefore which half
+    # survives an interrupted change -- is a property of the change rather than of
+    # dictionary insertion order.
+    for name in sorted(merged_documents):
+        reason = _publish_one(documents, name, merged_documents[name])
+        if reason is None:
+            written.append(name)
+            continue
+        if written:
+            raise ConfigWritePartiallyApplied(written, name, reason)
+        raise ConfigWriteRefused(reason)
     return written
 
 
+def _publish_one(documents: RemoteDocuments, name: str, merged: dict[str, str]) -> str | None:
+    """Publish one document; return why it did not land, or None if it did."""
+
+    try:
+        published = documents.publish(name, merged)
+    except Exception as exc:
+        logger.exception("config write: publish failed for %s", name)
+        return f"the configuration centre rejected the write: {exc}"
+    return None if published else f"the configuration centre did not accept the write to {name}"
+
+
 __all__ = [
+    "ConfigWritePartiallyApplied",
     "ConfigWriteRefused",
     "apply_config_reload",
     "reload_from_remote_config",

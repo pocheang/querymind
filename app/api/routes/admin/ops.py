@@ -13,7 +13,11 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 
 from app.api import dependencies as api_dependencies
-from app.api.application.config_reload import ConfigWriteRefused, write_config_values
+from app.api.application.config_reload import (
+    ConfigWritePartiallyApplied,
+    ConfigWriteRefused,
+    write_config_values,
+)
 from app.api.dependencies import (
     _audit,
     _check_chroma_ready,
@@ -397,13 +401,20 @@ def admin_ops_autotune(payload: dict[str, Any], request: Request, user: dict[str
     # response said "applied_patch" either way.
     written: list[str] = []
     refusal: str | None = None
+    partial = False
     if patch:
         try:
             written = write_config_values({key: str(value) for key, value in patch.items()})
+        except ConfigWritePartiallyApplied as exc:
+            # Part of the recommendation is live. Reporting it as a plain refusal
+            # would send an operator to re-apply a patch that is already half in
+            # place, so the documents that landed are named -- while `applied`
+            # stays False, because the patch as a whole was not.
+            written, refusal, partial = exc.written, str(exc), True
         except ConfigWriteRefused as exc:
             refusal = str(exc)
 
-    applied = bool(written)
+    applied = bool(written) and not partial
     _audit(
         request,
         action=AuditAction.ADMIN_OPS_AUTOTUNE,
