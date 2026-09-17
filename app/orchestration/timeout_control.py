@@ -46,10 +46,17 @@ class TimeoutConfig:
     """Query decomposition timeout.
     WHY: Planning is optional, and its LLM decomposer only runs on opt-in."""
 
-    retrieval_timeout_ms: int = 15_000
+    retrieval_timeout_ms: int = 30_000
     """Retrieval stage timeout (all retrievers combined).
     WHY: Embedding, vector, BM25, optional graph and web, then reranking. Must
-    stay above Settings.knowledge_source_timeout_ms, which bounds one source."""
+    stay above Settings.knowledge_source_timeout_ms, which bounds one source.
+
+    This read 15_000 against a Settings default of 30_000, under a docstring
+    saying the two mirror each other. Latent, because `from_settings` always
+    supplies the value -- but it is the one number here a reader would take from
+    the class rather than from the field, and a stated correspondence that is
+    false is worse than none. `test_timeout_defaults_mirror_settings` now checks
+    every one of them."""
 
     tool_timeout_ms: int = 10_000
     """Tool execution timeout.
