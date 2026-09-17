@@ -3373,22 +3373,42 @@ out to be one variable (`API_SETTINGS_ENCRYPTION_KEY`, measured -- the applicati
 bootstrap generates one as it should), and the wait is bounded with `docker logs` dumped on
 failure, so a timeout names what the container said rather than only that it never answered.
 
-**That key is generated per run, and the first version was not.** It was written as a
-literal, `ci-smoke-not-a-credential`, with a comment explaining that it is a throwaway for a
-container that lives ninety seconds. SonarCloud failed the quality gate on it -- C security
-rating on new code -- and it was right to: a literal assigned to a name ending in `KEY` is a
-hard-coded credential to every scanner that looks, **including this repository's own
-`config_schema.py` shape rule**, which rejects exactly that set of names on exactly that
-reasoning. A comment asserting "this one is not really a secret" does not make a regex
-agree, and reviewers read the shape too. `"$(openssl rand -hex 24)"` removes the question
-rather than answering it.
+**The browser step installs from `node_modules/.bin`, not through `npx`**, and that is what
+failed the quality gate -- twice, identically. SonarCloud raised two findings on
+`npx playwright install --with-deps chromium`: *"npx can install packages on-demand and run
+their lifecycle scripts"* and *"define exact package version to avoid installing unverified
+releases"*. `npx` resolves the local binary here, since `npm ci` ran on the line above -- but
+neither a scanner nor a reader can see that from the line, and in a step whose entire job is
+to run third-party code, "fetch whatever the registry currently calls playwright and run its
+lifecycle scripts" is the wrong thing to have written. `./node_modules/.bin/playwright` says
+what actually happens. **`--ignore-scripts` does not take the binary with it**: npm links
+`node_modules/.bin` during install rather than from a lifecycle script -- measured on
+playwright 1.62.1, the symlink is created and `playwright --version` answers with the
+postinstall never having run.
 
-Worth noting how it was diagnosed, because the usual route was shut: SonarCloud is not
-reachable from the agent environment (the egress policy refuses `sonarcloud.io`), the check
-run carried a gate summary with no annotations, and no inline review comment was posted. So
-the finding was located by reading the diff for what the gate condition *could* mean -- one
-MAJOR vulnerability among four changed files, of which exactly one line was
-credential-shaped.
+**The first diagnosis was confident, published, and wrong, and how it went wrong is the
+part worth keeping.** SonarCloud is unreachable from the agent environment (the egress
+policy refuses `sonarcloud.io`) and the check run's `output.text` is empty, so the finding
+was *deduced* from the gate condition: one MAJOR security issue among four changed files, of
+which exactly one line was credential-shaped -- `API_SETTINGS_ENCRYPTION_KEY=ci-smoke-not-a-credential`.
+That reasoning is sound and the conclusion was false. The gate failed again on the next
+commit, unchanged, which is the only reason it was caught.
+
+**The annotations were readable the whole time**, at
+`GET /repos/{owner}/{repo}/check-runs/{id}/annotations` -- the plain GitHub API, with the
+token the session already had. What hid them was the tool in between: the MCP wrapper
+returns `output.summary` and `output.title` and no annotation list, so "the check run
+carries no annotations" was a statement about the wrapper being read as a statement about
+the check run. Ask the API directly before concluding a finding cannot be read; and when a
+deduced diagnosis is pushed, say in the commit that it was deduced, because the next commit
+is where it gets falsified.
+
+Replacing the literal key with `"$(openssl rand -hex 24)"` was kept regardless, on its own
+merits: a literal assigned to a name ending in `KEY` is a hard-coded credential to every
+scanner that looks -- **including this repository's own `config_schema.py` shape rule**,
+which rejects exactly that set of names on exactly that reasoning -- and a comment asserting
+"this one is not really a secret" does not make a regex agree. It simply was not what the
+gate was reporting.
 
 **Still not done**: CodeQL's findings are advisory until branch protection requires the check
 -- that is a repository setting on github.com, not a file in here, so it cannot be done from

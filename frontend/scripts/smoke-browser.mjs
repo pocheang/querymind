@@ -115,7 +115,8 @@ try {
   console.log(`  page           ${response?.status()}, #root children: ${rootChildren}`);
   console.log(`  title          ${title}`);
   console.log(`  page errors    ${pageErrors.length}`);
-  console.log(`  console errors ${consoleErrors.length}${consoleErrors.length ? ` (not fatal): ${consoleErrors.join(" | ")}` : ""}`);
+  const consoleDetail = consoleErrors.length ? ` (not fatal): ${consoleErrors.join(" | ")}` : "";
+  console.log(`  console errors ${consoleErrors.length}${consoleDetail}`);
   if (notes.length) console.log(`  other 4xx/5xx  ${notes.join(", ")}`);
 } finally {
   await browser.close();
