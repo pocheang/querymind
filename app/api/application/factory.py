@@ -9,6 +9,7 @@ from app.api.application.router_registry import register_routers
 from app.api.application.static_files import StaticFilePaths, configure_static_files
 from app.api.middleware.rate_limit import RateLimitMiddleware
 from app.api.transport.middleware import request_timing_middleware
+from app.core.config import normalise_environment_name
 
 _APP_BASE_API_SEGMENTS = {
     "admin",
@@ -58,10 +59,9 @@ def _configure_cors(app_obj: FastAPI, settings_obj) -> None:
 
     cors_origins = settings_obj.cors_origins or []
     allow_all = "*" in cors_origins
-    is_production = str(getattr(settings_obj, "app_env", "dev") or "").strip().lower() in {
-        "prod",
-        "production",
-    }
+    # `Settings.app_env` normalises `prod` to `production`, so one comparison is
+    # enough -- and `getattr` keeps working for a stand-in object that has not.
+    is_production = normalise_environment_name(getattr(settings_obj, "app_env", None)) == "production"
     if allow_all and is_production:
         raise RuntimeError(
             "Refusing to start: CORS_ALLOW_ORIGINS=='*' is not allowed when APP_ENV is "

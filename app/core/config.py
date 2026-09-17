@@ -12,13 +12,45 @@ from pydantic_settings.sources import DotEnvSettingsSource
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_ENVIRONMENT = "development"
+
+# The short forms in circulation, and what each one means. `deploy/scripts/config.py`
+# renders exactly `development`, `test` and `production`, so these are the names a
+# `.runtime/*.env` file can actually have.
+_ENVIRONMENT_ALIASES = {"dev": "development", "prod": "production"}
+
+
+def normalise_environment_name(raw: object) -> str:
+    """One answer to "what environment is this", for every reader of APP_ENV.
+
+    There were three spellings and no agreement between them. `Settings.app_env`
+    defaulted to `"dev"` while `resolve_runtime_env_file` defaulted to
+    `"development"`; that function mapped `dev` to `development` and knew nothing
+    about `prod`; and two consumers tested membership of `{"prod", "production"}`
+    while the render step only accepts the long forms.
+
+    `APP_ENV=prod` was the expensive combination. `resolve_runtime_env_file` looked
+    for `.runtime/prod.env`, which the render step never writes, found nothing, and
+    left `Settings` on its hardcoded defaults -- while `factory.py` and
+    `validate_security_settings` both read the value as production. A deployment
+    that named itself the short way ran the whole application on defaults, in
+    production, with nothing saying so.
+
+    Normalising here means the value `Settings` carries is already the long form,
+    so a consumer can compare against one string and the file lookup and the field
+    cannot disagree about which environment this is.
+    """
+
+    value = str(raw or "").strip().lower() or DEFAULT_ENVIRONMENT
+    return _ENVIRONMENT_ALIASES.get(value, value)
+
+
 def resolve_runtime_env_file() -> str | None:
     """Resolve the generated runtime environment without relying on root .env."""
     explicit = os.getenv("RUNTIME_ENV_FILE", "").strip()
     if explicit:
         return explicit
-    environment = os.getenv("APP_ENV", "development").strip().lower()
-    environment = {"dev": "development"}.get(environment, environment)
+    environment = normalise_environment_name(os.getenv("APP_ENV", DEFAULT_ENVIRONMENT))
     candidate = Path(__file__).resolve().parents[2] / ".runtime" / f"{environment}.env"
     return str(candidate) if candidate.is_file() else None
 
@@ -113,7 +145,13 @@ class Settings(BaseSettings):
             file_secret_settings,
         )
 
-    app_env: str = Field(default="dev", alias="APP_ENV")
+    # Not a `_choice(...)`: `resolve_runtime_env_file` will load any
+    # `.runtime/<name>.env` a deployment renders by hand, so a fixed set here would
+    # forbid a `staging` that works today. What is fixed is the *spelling* -- see
+    # `normalise_environment_name`.
+    app_env: Annotated[str, BeforeValidator(normalise_environment_name)] = Field(
+        default=DEFAULT_ENVIRONMENT, alias="APP_ENV"
+    )
     # The six backends every comparison in app/ is written against, and the same
     # set `deploy/scripts/config.py::VALID_BACKENDS` validates at render time --
     # pinned against it by tests/core/test_config_choices.py.
@@ -653,7 +691,8 @@ def validate_security_settings(settings: Settings) -> None:
     if kid and secret:
         return
     message = "response signing is enabled but no active signing key is configured"
-    if str(settings.app_env or "").strip().lower() in {"production", "prod"}:
+    # One spelling reaches this, because the field normalises it.
+    if settings.app_env == "production":
         raise RuntimeError(message)
     logger.warning("%s; responses and audit events will be unsigned", message)
 
