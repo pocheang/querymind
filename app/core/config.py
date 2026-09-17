@@ -3,7 +3,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -103,10 +103,10 @@ class Settings(BaseSettings):
     child_chunk_overlap: int = Field(default=120, alias="CHILD_CHUNK_OVERLAP")
     table_row_overlap: int = Field(default=1, alias="TABLE_ROW_OVERLAP")
 
-    top_k: int = Field(default=4, alias="TOP_K")
-    max_context_chunks: int = Field(default=6, alias="MAX_CONTEXT_CHUNKS")
-    bm25_top_k: int = Field(default=6, alias="BM25_TOP_K")
-    vector_top_k: int = Field(default=6, alias="VECTOR_TOP_K")
+    top_k: int = Field(default=4, ge=1, le=50, alias="TOP_K")
+    max_context_chunks: int = Field(default=6, ge=1, le=100, alias="MAX_CONTEXT_CHUNKS")
+    bm25_top_k: int = Field(default=6, ge=1, le=100, alias="BM25_TOP_K")
+    vector_top_k: int = Field(default=6, ge=1, le=100, alias="VECTOR_TOP_K")
     hybrid_rrf_k: int = Field(default=60, alias="HYBRID_RRF_K")
     hybrid_vector_weight: float = Field(default=0.95, alias="HYBRID_VECTOR_WEIGHT")
     hybrid_bm25_weight: float = Field(default=0.05, alias="HYBRID_BM25_WEIGHT")
@@ -136,8 +136,8 @@ class Settings(BaseSettings):
     # Anything a config centre is meant to manage has to be a field here first.
     enable_calibration: bool = Field(default=False, alias="ENABLE_CALIBRATION")
     enable_web_route_downgrade: bool = Field(default=False, alias="ENABLE_WEB_ROUTE_DOWNGRADE")
-    self_rag_relevance_threshold: float = Field(default=0.6, alias="SELF_RAG_RELEVANCE_THRESHOLD")
-    self_rag_quality_threshold: float = Field(default=0.7, alias="SELF_RAG_QUALITY_THRESHOLD")
+    self_rag_relevance_threshold: float = Field(default=0.6, ge=0.0, le=1.0, alias="SELF_RAG_RELEVANCE_THRESHOLD")
+    self_rag_quality_threshold: float = Field(default=0.7, ge=0.0, le=1.0, alias="SELF_RAG_QUALITY_THRESHOLD")
     request_metrics_maxlen: int = Field(default=1000, alias="REQUEST_METRICS_MAXLEN")
     strict_csp: bool = Field(default=False, alias="STRICT_CSP")
 
@@ -150,15 +150,15 @@ class Settings(BaseSettings):
     answer_flag_threshold: float = Field(default=0.60, alias="ANSWER_FLAG_THRESHOLD")
     hallucination_high_risk_threshold: float = Field(default=0.30, alias="HALLUCINATION_HIGH_RISK_THRESHOLD")
     nli_model_name: str = Field(default="cross-encoder/nli-MiniLM2-L6-H768", alias="NLI_MODEL_NAME")
-    nli_max_sentences: int = Field(default=5, alias="NLI_MAX_SENTENCES")
+    nli_max_sentences: int = Field(default=5, ge=1, le=100, alias="NLI_MAX_SENTENCES")
     cascade_enable_rules: bool = Field(default=True, alias="CASCADE_ENABLE_RULES")
     cascade_enable_nli: bool = Field(default=True, alias="CASCADE_ENABLE_NLI")
     cascade_enable_citations: bool = Field(default=True, alias="CASCADE_ENABLE_CITATIONS")
     cascade_enable_deep: bool = Field(default=True, alias="CASCADE_ENABLE_DEEP")
-    cascade_nli_timeout_ms: int = Field(default=1200, alias="CASCADE_NLI_TIMEOUT_MS")
-    cascade_deep_timeout_ms: int = Field(default=3000, alias="CASCADE_DEEP_TIMEOUT_MS")
+    cascade_nli_timeout_ms: int = Field(default=1200, ge=100, le=60_000, alias="CASCADE_NLI_TIMEOUT_MS")
+    cascade_deep_timeout_ms: int = Field(default=3000, ge=100, le=60_000, alias="CASCADE_DEEP_TIMEOUT_MS")
     retrieval_cache_enabled: bool = Field(default=True, alias="RETRIEVAL_CACHE_ENABLED")
-    retrieval_cache_ttl_seconds: int = Field(default=45, alias="RETRIEVAL_CACHE_TTL_SECONDS")
+    retrieval_cache_ttl_seconds: int = Field(default=45, ge=1, le=86_400, alias="RETRIEVAL_CACHE_TTL_SECONDS")
     retrieval_cache_max_items: int = Field(default=256, alias="RETRIEVAL_CACHE_MAX_ITEMS")
     circuit_breaker_enabled: bool = Field(default=True, alias="CIRCUIT_BREAKER_ENABLED")
     circuit_breaker_fail_threshold: int = Field(default=5, alias="CIRCUIT_BREAKER_FAIL_THRESHOLD")
@@ -227,11 +227,11 @@ class Settings(BaseSettings):
         default="gov.cn,gov,edu,org,nist.gov,cisa.gov,mitre.org,wikipedia.org,owasp.org,microsoft.com,openai.com,python.org,github.com,realpython.com,stackoverflow.com,pypi.org",
         alias="WEB_DOMAIN_ALLOWLIST",
     )
-    web_min_source_score: float = Field(default=0.2, alias="WEB_MIN_SOURCE_SCORE")
+    web_min_source_score: float = Field(default=0.2, ge=0.0, le=1.0, alias="WEB_MIN_SOURCE_SCORE")
     web_search_provider: str = Field(default="duckduckgo", alias="WEB_SEARCH_PROVIDER")
     web_proxy_url: str | None = Field(default=None, alias="WEB_PROXY_URL")
-    web_search_timeout_seconds: int = Field(default=15, alias="WEB_SEARCH_TIMEOUT_SECONDS")
-    web_search_max_retries: int = Field(default=2, alias="WEB_SEARCH_MAX_RETRIES")
+    web_search_timeout_seconds: int = Field(default=15, ge=1, le=120, alias="WEB_SEARCH_TIMEOUT_SECONDS")
+    web_search_max_retries: int = Field(default=2, ge=0, le=10, alias="WEB_SEARCH_MAX_RETRIES")
     web_strict_allowlist: bool = Field(default=True, alias="WEB_STRICT_ALLOWLIST")
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
     bing_search_api_key: str | None = Field(default=None, alias="BING_SEARCH_API_KEY")
@@ -252,7 +252,7 @@ class Settings(BaseSettings):
     # models (hash is 384, bge-m3 is 1024) and a Chroma collection is
     # dimension-locked, so an existing store must be rebuilt.
     local_embed_model: str = Field(default="BAAI/bge-m3", alias="LOCAL_EMBED_MODEL")
-    reranker_top_n: int = Field(default=5, alias="RERANKER_TOP_N")
+    reranker_top_n: int = Field(default=5, ge=1, le=50, alias="RERANKER_TOP_N")
 
     # LLM-powered features
     query_rewrite_max_variants: int = Field(default=3, alias="QUERY_REWRITE_MAX_VARIANTS")
@@ -439,6 +439,58 @@ class Settings(BaseSettings):
     cors_allow_headers: str = Field(default="*", alias="CORS_ALLOW_HEADERS")
     cors_allow_credentials: bool = Field(default=True, alias="CORS_ALLOW_CREDENTIALS")
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+
+    @model_validator(mode="after")
+    def _stage_ceilings_fit_the_total(self) -> "Settings":
+        """One pass of every stage has to fit inside the whole-request budget.
+
+        `TimeoutConfig.validate()` has always enforced this, and it runs from
+        `TimeoutConfig.from_settings`, which `get_timeout_config` calls **per
+        request**. So the rule was checked in the one place where breaking it is
+        an outage rather than a refusal: each stage ceiling carries its own
+        `ge/le`, seven of them are editable, and each is satisfiable while their
+        sum is not. An administrator raising `STAGE_TIMEOUT_SYNTHESIS_MS` from
+        30s to 60s -- inside its own bounds -- took the sum to 123s against a
+        120s total, the save was accepted, the reload succeeded, and every
+        subsequent query raised out of the engine.
+
+        Enforcing it on `Settings` moves that from a per-request failure to a
+        refused write, and covers startup too: a rendered runtime file or a
+        configuration-centre document with the same shape now fails loudly at
+        construction instead of answering questions until the first query.
+
+        The arithmetic is duplicated rather than imported -- `app/core` must not
+        depend on `app/orchestration` -- so
+        `tests/core/test_stage_budget_is_consistent.py` asserts the two agree on
+        generated inputs rather than describing that they should.
+        """
+
+        stage_sum = (
+            self.stage_timeout_route_ms
+            + self.stage_timeout_plan_ms
+            + self.stage_timeout_retrieval_ms
+            + self.stage_timeout_tool_ms
+            + self.stage_timeout_synthesis_ms
+            + self.stage_timeout_finalization_ms
+            + self.stage_timeout_overhead_ms
+        )
+        if stage_sum > self.stage_timeout_total_ms:
+            raise ValueError(
+                f"the stage ceilings add up to {stage_sum}ms, which does not fit inside "
+                f"STAGE_TIMEOUT_TOTAL_MS ({self.stage_timeout_total_ms}ms); raise the total "
+                f"or lower a stage"
+            )
+        # The per-source bound has to stay under the stage that contains it, or it
+        # can never fire -- which is the state this repository already fixed once,
+        # when it was a hardcoded 30s under a 10s ceiling. Both are editable, so
+        # the pairing is reachable from the console.
+        if self.knowledge_source_timeout_ms > self.stage_timeout_retrieval_ms:
+            raise ValueError(
+                f"KNOWLEDGE_SOURCE_TIMEOUT_MS ({self.knowledge_source_timeout_ms}ms) bounds one "
+                f"retrieval source and must stay under STAGE_TIMEOUT_RETRIEVAL_MS "
+                f"({self.stage_timeout_retrieval_ms}ms), or it can never fire"
+            )
+        return self
 
     @property
     def chroma_path(self) -> Path:

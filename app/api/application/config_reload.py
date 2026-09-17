@@ -109,12 +109,16 @@ def write_config_values(values: dict[str, str], data_id: str | None = None) -> l
     if not remote_config_enabled():
         raise ConfigWriteRefused("no configuration centre is configured; set NACOS_ENABLED and restart")
 
+    # One snapshot for both checks below. `validate_values` merges the edit onto
+    # it rather than onto the field defaults, so what is type-checked is the
+    # configuration this change would actually produce.
+    active = get_settings()
     try:
-        accepted = validate_values(values)
+        accepted = validate_values(values, current=active)
     except ValueError as exc:
         raise ConfigWriteRefused(str(exc)) from exc
 
-    described = {row["alias"]: row for row in describe(get_settings())}
+    described = {row["alias"]: row for row in describe(active)}
     pinned = sorted(alias for alias in accepted if not described.get(alias, {}).get("editable_here", True))
     if pinned:
         raise ConfigWriteRefused(

@@ -256,19 +256,46 @@ def describe(settings: Settings | None = None, documents: RemoteDocuments | None
     return described
 
 
-def validate_values(values: dict[str, str]) -> dict[str, str]:
-    """Type-check a proposed change by building a `Settings` from it.
+def current_values_by_alias(settings: Settings) -> dict[str, Any]:
+    """Every field of `settings`, keyed the way a settings source keys them.
+
+    By alias, because that is what `Settings` validates by and what every
+    configuration layer already uses -- `{"enable_calibration": True}` is dropped
+    in silence (`extra="ignore"`), which is the trap `RemoteSettingsSource`'s
+    docstring exists to warn about, met here from the other direction.
+    """
+
+    return {(field.alias or name): getattr(settings, name) for name, field in Settings.model_fields.items()}
+
+
+def validate_values(values: dict[str, str], current: Settings | None = None) -> dict[str, str]:
+    """Check a proposed change by building the configuration it would produce.
 
     Returns the accepted values. Raises `ValueError` naming every rejected key,
     because a console that accepts `TOP_K=fifteen` and fails at the next request
     has moved the error somewhere nobody is looking.
+
+    **The change is validated against the running configuration, not against the
+    defaults.** It used to be `Settings(**values)`, which supplies only the edited
+    keys and lets every other field fall back to its default -- so a rule relating
+    two fields was checked against a configuration nobody was running. Measured on
+    the shipped code: `Settings(STAGE_TIMEOUT_RETRIEVAL_MS="90000").stage_timeout_total_ms`
+    reported 120000 even where the centre held 20000. Any cross-field rule added to
+    that form would have been checked against the wrong operand, which is worse
+    than having no rule -- it reports a pass it did not earn.
+
+    Merging onto the current values also makes the *existing* per-field checks
+    mean what they say: a rejection now says this deployment cannot take this
+    value, rather than a fresh checkout could not.
     """
 
     unknown = sorted(set(values) - set(EDITABLE_BY_ALIAS))
     if unknown:
         raise ValueError(f"not editable: {', '.join(unknown)}")
+    active = current if current is not None else Settings()
+    candidate = {**current_values_by_alias(active), **values}
     try:
-        Settings(**values)
+        Settings(**candidate)
     except Exception as exc:  # pydantic's own message names the field and the reason
         raise ValueError(str(exc)) from exc
     return dict(values)
@@ -279,6 +306,7 @@ __all__ = [
     "EDITABLE_BY_ALIAS",
     "ConfigLayer",
     "EditableField",
+    "current_values_by_alias",
     "describe",
     "validate_values",
 ]
