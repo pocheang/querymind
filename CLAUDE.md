@@ -14,6 +14,11 @@ conda activate rag-local
 ## Project Information
 
 - **Name**: QueryMind（智询）
+- **Description**: 面向企业私有知识库与合规审核场景的 Agentic RAG 系统：LangGraph 状态机编排，混合检索（向量 + BM25 + 知识图谱 + Web，RRF 融合），带引用的生成与多层答案校验。FastAPI + React 18 + TypeScript，中英双语。
+  This is the repository's one description. The GitHub About box, the README
+  tagline and this line are kept identical on purpose -- a project that describes
+  itself three different ways is the same failure this file records everywhere
+  else, applied to its own front door.
 - **Version**: 0.7.0.1 (Released 2026-09-14)
 - **Language Support**: Bilingual (Chinese/English) via i18next
 - **License**: MIT

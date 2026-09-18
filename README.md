@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <b>Enterprise-Grade Agentic RAG Platform with Stateful LangGraph Multi-Agent Orchestration</b><br>
-  <i>企业级多智能体协同 RAG 知识引擎 · 本地优先 · 混合多跳检索 · 严谨引用验证与数据脱敏</i>
+  <b>Enterprise-Grade Agentic RAG on a Canonical LangGraph State Machine</b><br>
+  <i>面向企业私有知识库与合规审核场景 · 混合检索（向量 + BM25 + 知识图谱 + Web，RRF 融合） · 带引用的生成与多层答案校验 · 本地优先 · 中英双语</i>
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@
 
 ## 🌟 Executive Overview (项目概述)
 
-**QueryMind（智询）** 是一个面向企业私有知识库与多源数据分析的**生产级多智能体协同 RAG（Retrieval-Augmented Generation）系统**。针对传统 RAG 普遍存在的「幻觉严重」、「检索上下文割裂」、「缺乏租户隔离与数据泄露防护」以及「复杂问题无法多跳推理」等工业界痛点，QueryMind 实现了从**确定性权限预检**、**动态意图路由**、**混合向量与知识图谱融合检索**、**受控 ReAct 工具环**到**句子级反事实验证与流式敏感数据脱敏（DLP）**的端到端可信赖链路。
+**QueryMind（智询）** 是一个面向企业私有知识库与多源数据分析的**生产级 Agentic RAG（Retrieval-Augmented Generation）系统**。针对传统 RAG 普遍存在的「幻觉严重」、「检索上下文割裂」、「缺乏租户隔离与数据泄露防护」以及「复杂问题无法多跳推理」等工业界痛点，QueryMind 实现了从**确定性权限预检**、**动态意图路由**、**混合向量与知识图谱融合检索**、**受控 ReAct 工具环**到**句子级反事实验证与流式敏感数据脱敏（DLP）**的端到端可信赖链路。
 
 系统采用 **前后端分离与本地优先（Local-First）** 架构，原生支持脱离外部云端依赖的纯本地轻量运行模式，同时具备企业级高并发、微服务拆分和分布式配置治理能力。
 
