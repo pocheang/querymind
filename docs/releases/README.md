@@ -4,17 +4,18 @@ Official release notes for QueryMind（智询）.
 
 ## Latest Release
 
-**[v0.7.0.2](v0.7.0.2-release-notes.md)** - 2026-09-16
-- Full SonarQube / SonarCloud Quality Gate mastery: 0 Vulnerabilities, 0 Bugs, 0 Code Smells
-- Complete elimination of code duplication (Duplicated Lines down from 571 to 0, 0 blocks, 0.0% density)
-- Frontend ReactFlow topology refactoring with declarative generator and externalized `dataFlowTranslations.json`
-- Admin dashboard error and skeleton status consolidation with reusable `AdminDashboardStatus` primitive
-- Knowledge Graph and PDF processing module deduplication and reuse across backend layers
+**[v0.7.0.3](v0.7.0.3-release-notes.md)** - 2026-09-18
+- Dynamic Dual-Track Clarification Agent: Deterministic fast-path completeness rules + real LLM intelligent questioning
+- Structured interaction standards aligned with Codex / Claude Code (Recommended option first, direct action phrasing, detailed rationale)
+- Custom user write-in option fallback across frontend and backend
+- SonarQube / SonarCloud Quality Gate 100% Passed (0 Bugs, 0 Vulnerabilities, 0 Code Smells)
+- Full-suite regression tests: 69 new clarification agent tests, 6 frontend component tests
 
 ## Recent Releases
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| [v0.7.0.3](v0.7.0.3-release-notes.md) | 2026-09-18 | Feature / Quality & Standards | Dynamic dual-track clarification agent, Codex-style prompt specifications, SonarCloud quality gate mastery |
 | [v0.7.0.2](v0.7.0.2-release-notes.md) | 2026-09-16 | Patch / Quality & Security | Full SonarQube quality gate remediation (0 bugs/vulns/smells), 100% duplication elimination (0 lines / 0.0%), topology & admin state decoupling |
 | [v0.7.0.1](v0.7.0.1-release-notes.md) | 2026-09-14 | Patch / Feature / Security | Table & Excel pipeline, CSV support, header retention chunking, owner-scoped table SQL, injection screening |
 | [v0.7.0](v0.7.0-release-notes.md) | 2026-09-11 | Major | Architecture visualization, execution trace, UI observability |

@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.0.2-brightgreen.svg?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.0.3-brightgreen.svg?style=flat-square" alt="Release"></a>
   <a href="https://sonarcloud.io/summary/new_code?id=pocheang_querymind"><img src="https://sonarcloud.io/api/project_badges/measure?project=pocheang_querymind&metric=alert_status" alt="Quality Gate Status"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.138+-009688.svg?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
@@ -357,7 +357,8 @@ make eval-retrieval
 ## 📜 Documentation Index (文档索引)
 
 - 📗 **[CLAUDE.md](CLAUDE.md)**：系统底层实现细节、设计决策演进与工程规范
-- 📝 **[v0.7.0.2 发布说明](docs/releases/v0.7.0.2-release-notes.md)**：最新版本——SonarQube 质量门禁全量通过（安全漏洞/缺陷/代码异味 100% 清零）、重复代码彻底归零（0 块 / 0.0% 重复率）、前端可视化拓扑与管理状态解耦重构
+- 📝 **[v0.7.0.3 发布说明](docs/releases/v0.7.0.3-release-notes.md)**：最新版本——动态双轨制澄清 Agent（静态规则快速通道 + LLM 真实智能反问）、交互提问规范对标 Codex/Claude Code、SonarQube 质量门禁 100% 满分通过
+- 📝 **[v0.7.0.2 发布说明](docs/releases/v0.7.0.2-release-notes.md)**：SonarQube 质量门禁全量通过（安全漏洞/缺陷/代码异味 100% 清零）、重复代码彻底归零（0 块 / 0.0% 重复率）、前端可视化拓扑与管理状态解耦重构
 - 📝 **[v0.7.0.1 发布说明](docs/releases/v0.7.0.1-release-notes.md)**：表格与 Excel/CSV、表格 SQL 分析、图谱社区、多搜索源、提示词注入防护及升级说明
 - 📝 **[v0.7.0 发布说明](docs/releases/v0.7.0-release-notes.md)**：v0.7.0 LangGraph 重构与可观测性详细清单
 - 📚 **[版本发布总览](docs/releases/README.md)**：历史版本演进历程与发布说明

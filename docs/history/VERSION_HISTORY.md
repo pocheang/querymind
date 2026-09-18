@@ -15,6 +15,7 @@ For current release notes, also see [../../CHANGELOG.md](../../CHANGELOG.md).
 
 | Version | Date | Type | Public Summary |
 | --- | --- | --- | --- |
+| v0.7.0.3 | 2026-09-18 | Feature / Quality & Standards | Dynamic dual-track clarification agent (fast-path deterministic rules + intelligent LLM questioning), Codex/Claude Code structured interaction standards (recommended options, user write-in fallback), SonarCloud 100% quality gate mastery (0 bugs/vulns/smells) |
 | v0.7.0.2 | 2026-09-16 | Patch / Quality & Security | Full SonarQube quality gate remediation (0 vulnerabilities, 0 bugs, 0 code smells), 100% duplication elimination (0 lines / 0 blocks, 0.0% density), frontend topology & admin state decoupling |
 | v0.7.0.1 | 2026-09-14 | Patch / Feature / Security | Table & Excel pipeline fixes, CSV/TSV ingestion, header-preserving table chunking, owner-scoped table SQL, rich graph with per-source communities, web-search providers, prompt-injection screening |
 | v0.7.0 | 2026-09-11 | Major | Canonical LangGraph multi-agent architecture, Tailwind CSS v4, observability & execution trace |

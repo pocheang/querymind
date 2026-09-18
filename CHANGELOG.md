@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0.3] - 2026-09-18
+
+### 🤖 Dynamic Dual-Track Clarification Agent & Codex/Claude Code Interaction Standards
+
+- **Dynamic Dual-Track Clarification Architecture**:
+  - **Deterministic Fast-Path**: Zero-LLM instant analysis and completeness verification for well-defined queries across 6 core technical domains (`app/agents/clarification/rules.py`).
+  - **Dynamic LLM Intelligent Clarification**: Deep model-based questioning when queries are ambiguous, preventing blind guessing (`app/agents/clarification/service.py`).
+  - **Unified Model Runtime Integration**: Connected with `app.services.models.runtime.get_chat_model()` supporting cloud providers (DeepSeek, OpenAI, Anthropic) and Ollama.
+- **Codex / Claude Code Standardized Interaction**:
+  - **Recommended Option First**: Standardized first options with `(推荐)` / `(Recommended)` prefixes including explicit rationale.
+  - **Action-Oriented Declarative Statements**: Replaced bare numbers and vague labels with descriptive, informative choice phrasing.
+  - **Custom User Write-In Fallback**: Added `"其他（自定义输入 / 补充说明）"` / `"Other (Custom input / specify details)"` as universal options, backed by frontend freeform input.
+- **SonarQube / SonarCloud 100% Quality Gate Mastery**:
+  - Cleared all 15 findings (1 Bug, 14 Code Smells), driving open issues to zero (Quality Gate **OK**).
+  - Eliminated potential collection `IndexError` (`pythonbugs:S6466`).
+  - Removed ReDoS exponential backtracking in JSON extraction and regex rules (`python:S8786`, `python:S5869`).
+  - Eliminated string literal duplication (`python:S1192`) and simplified assertions (`python:S9073`).
+- **Comprehensive Regression Test Suite**:
+  - Added 69 new backend tests across `test_clarification_dynamic.py`, `test_clarification_rules_refactor.py`, `test_clarification_routes.py`, and updated `test_clarification_bilingual.py`.
+  - Added frontend component tests in `ClarificationPrompt.test.tsx` (6 tests passing).
+
 ## [0.7.0.2] - 2026-09-16
 
 ### 🛡️ SonarQube / SonarCloud Full Quality Gate Mastery & Zero Duplication

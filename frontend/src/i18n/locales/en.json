@@ -813,7 +813,7 @@
       "rememberMe": "Remember me",
       "socialDivider": "or use social login",
       "githubUnavailable": "GitHub OAuth will be enabled after configuration",
-      "localReady": "v0.7.0.2 Local Ready",
+      "localReady": "v0.7.0.3 Local Ready",
       "missionDesc": "Built on a unified vector semantic space and topological knowledge graph to deliver highly reliable, strictly isolated, and fully auditable intelligent Q&A and decision orchestration.",
       "multiAgentDesc": "LangGraph state machine orchestration with dynamic reasoning and tool dispatch",
       "hybridSearchDesc": "BGE-M3 dense vector + BM25 sparse search + Neo4j knowledge graph multi-hop inference",

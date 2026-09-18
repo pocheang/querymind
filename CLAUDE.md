@@ -31,7 +31,7 @@ conda activate rag-local
   tagline and this line are kept identical on purpose -- a project that describes
   itself three different ways is the same failure this file records everywhere
   else, applied to its own front door.
-- **Version**: 0.7.0.2 (Released 2026-09-16)
+- **Version**: 0.7.0.3 (Released 2026-09-18)
 - **Language Support**: Bilingual (Chinese/English) via i18next
 - **License**: MIT
 
@@ -122,7 +122,7 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-17, v0.7.0.2): The v0.7.0 Canonical LangGraph architecture consolidation and v0.7.0.2 SonarQube quality remediation are complete. The test suite stands at **2,244 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **214 frontend tests** (**2,458 total tests**, 0 failures). SonarCloud Quality Gate is **OK** with **0 Code Smells, 0 Bugs, 0 Vulnerabilities, 0 Security Hotspots**, and **Duplicated Lines reduced to 0.0% (0 lines / 0 blocks)**. Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`, `check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
+Note (counts refreshed 2026-09-18, v0.7.0.3): The v0.7.0 Canonical LangGraph architecture consolidation, v0.7.0.2 SonarQube quality remediation, and v0.7.0.3 Dynamic Dual-Track Clarification Agent are complete. The test suite stands at **2,313 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **220 frontend tests** (**2,533 total tests**, 0 failures). SonarCloud Quality Gate is **OK** with **0 Code Smells, 0 Bugs, 0 Vulnerabilities, 0 Security Hotspots**, and **Duplicated Lines reduced to 0.0% (0 lines / 0 blocks)**. Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`, `check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
