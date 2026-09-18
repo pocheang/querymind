@@ -42,6 +42,7 @@ from math import log2
 import pytest
 
 from app.evaluation.metrics import (
+    _dcg,
     calculate_all_metrics,
     ndcg_at_k,
     precision_at_k,
@@ -196,3 +197,18 @@ def test_a_query_with_no_judgements_at_all_scores_zero_rather_than_raising():
     assert query.graded_relevance() == {}
     assert ndcg_at_k(FIVE, query.graded_relevance()) == 0.0
     assert recall_at_k(FIVE, query.graded_relevance()) == 0.0
+
+
+def test_a_grade_too_small_to_survive_the_gain_function_scores_zero_rather_than_dividing_by_it():
+    """`ndcg_at_k`'s zero-denominator guard is reachable, which is why it is a
+    `<= 0.0` test and not dead code that could be deleted.
+
+    `_grades` keeps only grades above zero, so the obvious reading is that the
+    ideal DCG is always positive. It is not: the gain is `2 ** grade - 1`, and a
+    grade small enough that `2 ** grade` rounds to 1.0 makes every term exactly
+    0.0. Measured, 1e-20 is such a grade. Without the guard this is a
+    ZeroDivisionError on what is, in the corpus, a typo in an annotation.
+    """
+
+    assert _dcg([1e-20]) == 0.0  # the precondition the guard exists for
+    assert ndcg_at_k(["a"], {"a": 1e-20}) == 0.0

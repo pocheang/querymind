@@ -191,7 +191,12 @@ def ndcg_at_k(retrieved: list[str], relevant: Relevance, k: int = 5) -> float:
     ideal = sorted(grades.values(), reverse=True)[:k]
 
     ideal_dcg = _dcg(ideal)
-    if ideal_dcg == 0.0:
+    # `<=` rather than `== 0.0`: testing a float for equality is `python:S1244`,
+    # and the branch is a genuine ZeroDivisionError guard rather than dead code.
+    # `_grades` keeps only grades above zero, but a grade small enough that
+    # `2.0 ** grade` rounds to 1.0 makes every term exactly 0.0 -- measured,
+    # a grade of 1e-20 survives `_grades` and gives `_dcg([1e-20]) == 0.0`.
+    if ideal_dcg <= 0.0:
         return 0.0
     return _dcg(actual) / ideal_dcg
 
