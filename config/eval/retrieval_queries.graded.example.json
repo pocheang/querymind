@@ -1,0 +1,118 @@
+{
+  "_readme": [
+    "A worked example of graded relevance judgements, over the documents that",
+    "already ship in config/eval/retrieval_corpus.jsonl. Copy it to",
+    "data/eval/retrieval_queries.json (which wins over the tracked default) and",
+    "replace the queries with your own -- the format needs no other change.",
+    "",
+    "WHY THIS EXISTS. The shipped query set names exactly one relevant document",
+    "per query, which caps Precision@5 at 1/5 = 0.2 however good retrieval is.",
+    "P@5 there is not a retrieval result, it is a fact about the annotations, and",
+    "0.2 reads as a failure to anybody comparing it with a target quoted for a",
+    "multi-gold corpus. Supplying more judgements is what raises the ceiling;",
+    "improving the retriever cannot.",
+    "",
+    "THE GRADES. 'relevance' maps a source identifier to a grade. Use the same",
+    "scale throughout a query set or nDCG compares two different things:",
+    "  3  answers the question directly",
+    "  2  answers part of it; a reader needs another document to be done",
+    "  1  useful context, but cannot answer the question on its own",
+    "  0  JUDGED AND NOT RELEVANT -- see below",
+    "",
+    "GRADE 0 IS NOT THE SAME AS LEAVING A DOCUMENT OUT, to a human. To every",
+    "metric here the two are identical (_grades drops anything at or below zero,",
+    "so a 0 never counts toward recall and never enters the ideal ranking). What",
+    "it records is that somebody looked at that document and decided. That is",
+    "worth writing down for a document a retriever keeps returning: the next",
+    "person to read the file can tell 'we judged this and it does not answer the",
+    "question' from 'nobody has looked at this one yet'.",
+    "",
+    "'expected_docs' STILL WORKS and can be used alongside. Anything in it that",
+    "'relevance' does not mention is graded 1. q-ex-04 below is written in the",
+    "old form on purpose, to show that a query set does not have to be migrated",
+    "all at once.",
+    "",
+    "HOW MANY JUDGEMENTS. The ceiling for a query is min(relevant, 5) / 5, so",
+    "five relevant documents are needed before P@5 can reach 1.0. Do not pad to",
+    "get there. A judgement written to move a number is the one way this file can",
+    "make the measurement worse rather than better: mark a document relevant",
+    "because it answers the question, and let the ceiling be whatever falls out.",
+    "",
+    "AND ANNOTATE THE NEAR MISSES. A corpus whose only documents are the answers",
+    "has nothing for precision to discriminate -- see the rows marked",
+    "'role': 'distractor' in the corpus, which exist only to be wrong."
+  ],
+  "queries": [
+    {
+      "id": "q-ex-01",
+      "query": "年假的规定是什么",
+      "category": "zh_policy_broad",
+      "difficulty": "medium",
+      "relevance": {
+        "eval://corpus/nianjia.md": 3,
+        "eval://corpus/nianjia_shenqing.md": 3,
+        "eval://corpus/nianjia_zhesuan.md": 2,
+        "eval://corpus/chanjia.md": 0
+      },
+      "_note": [
+        "A broad question with three real answers: the entitlement, how to apply,",
+        "and what happens to unused days on departure. Ceiling 3/5 = 0.6.",
+        "The first two are graded 3 because either one answers a reader asking",
+        "this; the third is 2 because it answers a case, not the question.",
+        "chanjia.md is graded 0 rather than omitted: it is the document a lexical",
+        "retriever is most likely to return here (it shares 假), and writing the",
+        "judgement down means the next reader knows it was considered."
+      ]
+    },
+    {
+      "id": "q-ex-02",
+      "query": "年假有多少天",
+      "category": "zh_policy_narrow",
+      "difficulty": "easy",
+      "relevance": {
+        "eval://corpus/nianjia.md": 3,
+        "eval://corpus/nianjia_shenqing.md": 0,
+        "eval://corpus/nianjia_zhesuan.md": 0
+      },
+      "_note": [
+        "The narrow form of q-ex-01, and the pair is the point: the same three",
+        "documents, judged differently because the question changed. Ceiling is",
+        "back to 0.2 -- a narrow question has one answer, and no annotation",
+        "scheme can change that. This is what it looks like when a low P@5 is",
+        "correct."
+      ]
+    },
+    {
+      "id": "q-ex-03",
+      "query": "what do I need to know before claiming a meal expense",
+      "category": "en_policy_broad",
+      "difficulty": "medium",
+      "relevance": {
+        "eval://corpus/expense_meals.md": 3,
+        "eval://corpus/expense_approval.md": 2,
+        "eval://corpus/chailv_zhusu.md": 1
+      },
+      "_note": [
+        "Ceiling 3/5 = 0.6. The daily limit answers it; the approval threshold is",
+        "a 2 because a reader claiming a large expense needs it and a reader",
+        "claiming lunch does not; the accommodation standard is a 1 -- adjacent",
+        "policy, useful orientation, answers nothing on its own.",
+        "Note it is a Chinese document graded against an English query. That is",
+        "deliberate and it is a real case in a bilingual corpus: relevance is",
+        "about the content, not the script."
+      ]
+    },
+    {
+      "id": "q-ex-04",
+      "query": "how quickly is the on-call engineer paged",
+      "category": "en_ops",
+      "difficulty": "easy",
+      "expected_docs": ["eval://corpus/incident_severity.md"],
+      "_note": [
+        "The original ungraded form, unchanged. It is graded 1 automatically, so a",
+        "query set can be migrated a query at a time -- or never, if single-gold",
+        "is the truth for it."
+      ]
+    }
+  ]
+}

@@ -23,11 +23,11 @@ from __future__ import annotations
 
 import json
 import subprocess
+from math import log2
 from pathlib import Path
 
 import pytest
 
-from app.core.config import get_settings
 from app.evaluation.retrieval_eval import (
     CORPUS_PATHS,
     QUERY_PATHS,
@@ -38,30 +38,10 @@ from app.evaluation.retrieval_eval import (
     measure,
     resolve,
 )
+from app.retrievers.bm25_retriever import tokenize_chinese_aware
 
 TRACKED_CORPUS = Path("config/eval/retrieval_corpus.jsonl")
 TRACKED_QUERIES = Path("config/eval/retrieval_queries.json")
-
-
-@pytest.fixture
-def eval_corpus(monkeypatch):
-    """Point BM25 at the tracked corpus and clear its cache.
-
-    `_load_bm25` is `lru_cache(maxsize=1)`, so without the reset this would
-    silently measure whatever corpus the developer's own `data/chunks` holds --
-    a green number about the wrong documents.
-    """
-
-    from app.retrievers.bm25_retriever import reset_bm25_cache
-
-    monkeypatch.setenv("CORPUS_STORE_PATH", str(TRACKED_CORPUS))
-    get_settings.cache_clear()
-    reset_bm25_cache()
-    try:
-        yield
-    finally:
-        get_settings.cache_clear()
-        reset_bm25_cache()
 
 
 # --- the set ships and is internally consistent -----------------------------
@@ -191,12 +171,28 @@ async def test_a_word_jieba_does_not_know_is_still_retrievable(eval_corpus: None
     jieba splits "年假" into two single characters, and the tokenizer dropped
     every single-character token -- so the word vanished from the query and from
     the document alike and could never match. Not ranked badly: absent.
+
+    **This asserted `rank == 1` until the corpus gained distractors**, and that
+    conflated two claims the distractors then separated: that "年假" tokenizes at
+    all, and that BM25 puts the document answering it first. The second is false
+    today and is recorded as `q-13` in `KNOWN_LEXICAL_LIMITS`; the first is what
+    this test is for, and it is still true. Asserting a rank here would make a
+    test named for the tokenizer fail for a reason that has nothing to do with
+    it -- and, worse, would have been "fixed" by relaxing it to whatever the
+    ranking happens to be.
+
+    So it asserts retrievability, and it asserts the tokenizer directly on the
+    function the index is built with, which no corpus change can dilute.
     """
+
+    assert "年假" in tokenize_chinese_aware("年假有多少天"), "the bigram that makes the word matchable at all"
 
     queries = [query for query in load_queries(TRACKED_QUERIES) if query.id == "q-13"]
     score = await measure(queries, eval_scope(load_corpus_sources(TRACKED_CORPUS)))
 
-    assert score.ranks["q-13"] == 1
+    # Retrieved, not absent -- 0 is what the broken tokenizer produced.
+    assert score.ranks["q-13"] != 0
+    assert score.recall_at_5 == pytest.approx(1.0)
 
 
 @pytest.mark.asyncio
@@ -234,3 +230,101 @@ async def test_precision_at_five_is_capped_by_one_gold_document_per_query(eval_c
     score = await measure(queries, eval_scope(load_corpus_sources(TRACKED_CORPUS)))
 
     assert score.precision_at_5 == pytest.approx(0.2)
+    # And the ceiling the judgements allow is that same 0.2, so the score is
+    # perfect rather than poor. Computed from the corpus rather than written
+    # down: if somebody adds a second relevant document to a query, this rises
+    # and the paragraph above stops being true in the same commit.
+    assert score.precision_ceiling_at_5 == pytest.approx(0.2)
+    assert score.precision_at_5 == pytest.approx(score.precision_ceiling_at_5)
+
+
+@pytest.mark.asyncio
+async def test_the_metrics_with_range_are_what_the_corpus_is_judged_on(eval_corpus: None):
+    """recall@5, MRR and nDCG@5 -- the three the report leads with.
+
+    Pinned exactly, not as floors: BM25 over a fixed JSONL is deterministic, so
+    an improvement has to fail here as loudly as a regression, the rule
+    `expected_ranks` already follows.
+
+    The closed forms are written out because they are what makes a failure
+    readable: 14 queries at rank 1, `q-13` and `q-15` at rank 3 (see
+    `KNOWN_LEXICAL_LIMITS`). A number alone would say the aggregate moved; these
+    say which ranks would have to have moved to produce it.
+
+    **These were 0.9688 and 0.9769 until the corpus gained distractors**, and the
+    drop is the distractors working rather than retrieval regressing -- recall@5
+    is still 1.0000, so nothing became unfindable; two golds lost the top slot to
+    documents that share their vocabulary and do not answer the question. A
+    corpus with nothing to be wrong about cannot report an ordering defect, which
+    is what the previous numbers were measuring.
+    """
+
+    queries = load_queries(TRACKED_QUERIES)
+    score = await measure(queries, eval_scope(load_corpus_sources(TRACKED_CORPUS)))
+
+    assert score.recall_at_5 == pytest.approx(1.0), "every query should find its document in the top five"
+    assert score.mrr == pytest.approx((14 + 2 / 3) / 16)
+    assert score.mrr == pytest.approx(0.9167, abs=1e-4)
+    # Gain 1 at rank 3 is 1/log2(4) = 0.5 against an ideal DCG of 1.
+    assert score.ndcg_at_5 == pytest.approx((14 + 2 / log2(4)) / 16)
+    assert score.ndcg_at_5 == pytest.approx(0.9375, abs=1e-4)
+
+
+@pytest.mark.asyncio
+async def test_precision_at_five_is_recall_over_five_on_this_corpus(eval_corpus: None):
+    """Which is why the report does not lead with it.
+
+    The identity holds only while every query has one relevant document, so this
+    also fails the day the corpus gains multi-gold judgements -- at which point
+    P@5 starts carrying information and the reporting order is worth revisiting.
+    """
+
+    queries = load_queries(TRACKED_QUERIES)
+    score = await measure(queries, eval_scope(load_corpus_sources(TRACKED_CORPUS)))
+
+    assert score.precision_at_5 == pytest.approx(score.recall_at_5 / 5)
+
+
+def _corpus_rows() -> list[dict]:
+    return [json.loads(line) for line in TRACKED_CORPUS.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def test_the_corpus_keeps_a_second_document_on_every_topic():
+    """Precision measures how many chances to be wrong were not taken, so a
+    corpus with nothing to be wrong about measures nothing.
+
+    Before these rows landed, every query's gold document was the only one in the
+    corpus that shared its vocabulary, and 15 of 16 queries ranked it first -- a
+    result about the corpus, not about the retriever. Deleting them would send
+    MRR and nDCG back up, and the honest-looking repair is to update the
+    aggregate assertions to match. This is what makes that a red test instead:
+    the numbers are allowed to move, the reason for them is not.
+
+    **They are marked `secondary`, not `distractor`, and the rename is the
+    finding.** They were added to be wrong for the narrow questions in the main
+    set, and they turned out to be the gold documents for
+    `retrieval_queries_crossdoc.json` -- a second document on a topic is noise
+    when the question is "how many days of annual leave" and essential when it is
+    "what happens to my unused leave when I resign". Relevance is a property of
+    the query-document pair and never of the document, so a global label saying
+    a document exists only to be wrong was false the moment the cross-document
+    set existed. `distracts` stays, because it names the query they distract
+    *from*, which is still true.
+    """
+
+    rows = _corpus_rows()
+    secondary = {row["metadata"]["source"] for row in rows if row["metadata"].get("role") == "secondary"}
+    gold = {source for query in load_queries(TRACKED_QUERIES) for source in query.expected_docs}
+
+    assert len(secondary) >= 10, f"only {len(secondary)} competing documents -- precision has little to discriminate"
+    # Scoped to the main set on purpose: these same documents ARE gold in the
+    # cross-document set, which is the point of the paragraph above.
+    assert secondary & gold == set(), "a competing document is also a gold document of the set it competes in"
+    assert all(row["metadata"].get("distracts") for row in rows if row["metadata"].get("role") == "secondary"), (
+        "every secondary row should name the query it competes with"
+    )
+    # Bilingual for the reason the query set is: a Chinese one exercises the CJK
+    # bigrams, and that is where this corpus's known limits live.
+    secondary_rows = [row for row in rows if row["metadata"].get("role") == "secondary"]
+    assert any(any("\u4e00" <= ch <= "\u9fff" for ch in row["text"]) for row in secondary_rows)
+    assert any(row["text"].isascii() for row in secondary_rows)

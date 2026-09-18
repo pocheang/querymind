@@ -1,0 +1,206 @@
+{
+  "_readme": [
+    "Cross-document queries: questions no single document in the corpus answers.",
+    "Run with `make eval-crossdoc`, or",
+    "`python scripts/eval_retrieval.py --queries config/eval/retrieval_queries_crossdoc.json`.",
+    "",
+    "WHY THEY ARE A SEPARATE SET. They measure a different thing, and mixing them",
+    "into the main set would average the two into a number describing neither.",
+    "The main set asks 'is the answer ranked first' and MRR is its metric; this",
+    "set asks 'is the answer ASSEMBLABLE from the top five' and complete@5 is",
+    "its metric. Recall is the lenient reading of the same question: one of two",
+    "required documents is recall 0.5, and an answer that is half-evidenced is",
+    "not half right -- it is confidently wrong, which is worse than missing.",
+    "",
+    "COMPLETE@5 COUNTS EVERY DOCUMENT GRADED ABOVE ZERO. It is exactly",
+    "'recall@5 reached 1.0', with no hidden threshold deciding which grades are",
+    "required. The consequence is the rule for writing a query here: a document",
+    "that is NOT needed for a complete answer is graded 0, which records that it",
+    "was considered and rejected. Grades 1 and 2 are not 'optional' -- they say",
+    "how much a document contributes to nDCG, and they still have to be found.",
+    "",
+    "WHAT MAKES A QUERY BELONG HERE. Remove any graded document and the question",
+    "should be answerable only worse or not at all. That is stricter than",
+    "'relevant', and it is what stops this file becoming a way to raise the",
+    "ceiling by listing everything on a topic.",
+    "",
+    "THE DOCUMENTS ARE THE ONES ADDED AS DISTRACTORS, and that is the finding",
+    "rather than a shortcut. A second document on a topic is noise when the",
+    "question is narrow ('how many days of annual leave') and essential when it",
+    "is broad ('what happens to my unused leave when I resign'). Relevance is a",
+    "property of the query-document pair, never of the document -- which is why",
+    "the corpus marks them 'role': 'secondary' rather than 'distractor', and why",
+    "'distracts' names the query they distract FROM.",
+    "",
+    "THE CEILING RISES HONESTLY HERE. These queries have two or three relevant",
+    "documents because the corpus really does split the answer that way, not",
+    "because somebody wanted P@5 above 0.2.",
+    "",
+    "EVERY QUERY IS ANSWERED BY DOCUMENTS IN ITS OWN LANGUAGE, and that is a",
+    "constraint rather than an accident. BM25 shares no token between 中文 and",
+    "English, so a Chinese query with English gold documents scores exactly zero",
+    "however good cross-document assembly is -- it measures cross-lingual",
+    "matching instead, which is a different question and a different metric.",
+    "x-07 was written that way at first and returned nothing at all; see its",
+    "note. Cross-lingual retrieval needs a multilingual embedding, so it belongs",
+    "in a set `eval_full_pipeline.py` runs."
+  ],
+  "queries": [
+    {
+      "id": "x-01",
+      "query": "我和配偶两个人加起来一共可以休多少天产假",
+      "category": "zh_crossdoc_sum",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/chanjia.md": 3,
+        "eval://corpus/peichanjia.md": 3
+      },
+      "_note": [
+        "158 days and 15 days live in different documents and the question asks",
+        "for the total. Neither document is sufficient and both are necessary,",
+        "which is the cleanest possible case of the category.",
+        "Also the adversarial one: these two documents are the pair BM25 already",
+        "cannot separate (q-15's recorded limit), so a retriever that confuses",
+        "them scores well HERE for the wrong reason. That is worth having --",
+        "a metric nobody can accidentally pass is not the same as one nobody can",
+        "accidentally fail."
+      ]
+    },
+    {
+      "id": "x-02",
+      "query": "do service accounts and user accounts follow the same password rules",
+      "category": "en_crossdoc_compare",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/password_rotation.md": 3,
+        "eval://corpus/password_user_policy.md": 3
+      },
+      "_note": [
+        "A comparison, so both sides are necessary by construction: one document",
+        "says service accounts rotate every ninety days, the other says user",
+        "passwords are not rotated on a schedule. Either one alone answers 'yes'",
+        "or 'no' wrongly.",
+        "This is the shape `_comparison_plan` and the `compare_entities` skill",
+        "exist for, and nothing in the evaluation set exercised it until now."
+      ]
+    },
+    {
+      "id": "x-03",
+      "query": "I spent 250 dollars on a team dinner, what do I need to claim it back",
+      "category": "en_crossdoc_threshold",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/expense_meals.md": 3,
+        "eval://corpus/expense_approval.md": 3
+      },
+      "_note": [
+        "The meal rule gives forty dollars a day without an itemised receipt; the",
+        "approval rule catches anything above two hundred. A reader given only the",
+        "first would conclude the receipt is optional, which is wrong at this",
+        "amount -- so the second is necessary, not merely useful."
+      ]
+    },
+    {
+      "id": "x-04",
+      "query": "what happens from the moment a severity one incident is detected until it is closed",
+      "category": "en_crossdoc_process",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/incident_severity.md": 3,
+        "eval://corpus/incident_postmortem.md": 3
+      },
+      "_note": [
+        "Paging within five minutes is the start, the postmortem within five",
+        "working days is the end, and the question asks for both ends.",
+        "Note both documents contain 'severity one' and 'five', which is the",
+        "lexical trap: a retriever can get both for the wrong reason. complete@5",
+        "does not distinguish those, and does not claim to -- it says the evidence",
+        "was there, not that it was found for a good reason."
+      ]
+    },
+    {
+      "id": "x-05",
+      "query": "离职要走哪些流程",
+      "category": "zh_crossdoc_process",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/lizhi_liucheng.md": 3,
+        "eval://corpus/lizhi_jiaojie.md": 3,
+        "eval://corpus/nianjia_zhesuan.md": 2
+      },
+      "_note": [
+        "Notice and handover are both necessary steps. The annual-leave payout is",
+        "graded 2 rather than 3 because it is a consequence of resigning rather",
+        "than a step in the process -- but it still counts toward complete@5, per",
+        "the rule above, because a resignation answer that omits what happens to",
+        "unused leave is incomplete. Ceiling 3/5 = 0.6."
+      ]
+    },
+    {
+      "id": "x-06",
+      "query": "how do we know a backup from last month can actually be restored",
+      "category": "en_crossdoc_inference",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/backup_policy.md": 3,
+        "eval://corpus/backup_restore_drill.md": 3
+      },
+      "_note": [
+        "Thirty-day retention is one half and quarterly restore drills are the",
+        "other, and the answer is the interaction between them -- a month-old",
+        "backup is still there, and drills are the reason to believe it works.",
+        "Neither document says anything about the other."
+      ]
+    },
+    {
+      "id": "x-07",
+      "query": "公司有哪些培训，分别什么时候考核",
+      "category": "zh_crossdoc_compare",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/anquan_peixun.md": 3,
+        "eval://corpus/peixun_niankao.md": 3
+      },
+      "_note": [
+        "New-joiner security training is assessed within three months of",
+        "joining; the annual compliance training is assessed every December.",
+        "Two kinds, two deadlines, two documents, and the question asks for",
+        "both -- neither document mentions the other's training.",
+        "",
+        "**This query replaced one that could only ever score zero, and the",
+        "replacement is the point.** The first version asked 新员工入职第一周",
+        "需要完成什么 and its gold documents were onboarding_laptop.md and",
+        "onboarding_accounts.md, which are in ENGLISH. BM25 shares no token",
+        "across the two scripts, so it returned nothing at all -- measured,",
+        "rank '-'. That is a real limit of this corpus (its Chinese and",
+        "English halves are lexically disjoint) but it is a limit on",
+        "CROSS-LINGUAL matching, not on cross-document assembly, and this set",
+        "exists to measure the second. Leaving it in would have dragged every",
+        "aggregate down for a reason the set does not name -- the same",
+        "argument this file makes for not merging itself into the main set.",
+        "Cross-lingual retrieval is what a multilingual embedding is for, so",
+        "it belongs in a set the full-pipeline harness runs, not here."
+      ]
+    },
+    {
+      "id": "x-08",
+      "query": "年假没休完又要离职，怎么处理",
+      "category": "zh_crossdoc_interaction",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/nianjia.md": 3,
+        "eval://corpus/nianjia_zhesuan.md": 3,
+        "eval://corpus/nianjia_shenqing.md": 1
+      },
+      "_note": [
+        "Carry-over to the end of March and the three-times payout on departure",
+        "are different documents and the question sits exactly between them.",
+        "The application procedure is graded 1: somebody deciding whether to take",
+        "the leave before resigning needs to know it takes five working days'",
+        "notice. A 1 rather than a 2 because it shapes the decision rather than",
+        "answering it -- and it counts toward complete@5 either way, which is the",
+        "rule this file states once rather than per query. Ceiling 3/5 = 0.6."
+      ]
+    }
+  ]
+}
