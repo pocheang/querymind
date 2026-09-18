@@ -29,6 +29,10 @@ class CompletenessAssessment:
     extracted_info: dict[str, str] = field(default_factory=dict)
 
 
+_OTHER_OPTION_ZH = "其他（自定义输入 / 补充说明）"
+_OTHER_OPTION_EN = "Other (Custom input / specify details)"
+
+
 _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
     "rag_design": {
         "scenario": ClarificationQuestion(
@@ -38,7 +42,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "智能客服与技术支持问答：面向外部客户，要求高并发支持与低延迟流式响应",
                 "研发代码与工程知识库：集成代码仓库、架构文档与 API 说明，辅助工程开发",
                 "数据分析与决策辅助：融合结构化报表与业务指标分析，提供战略与运营洞察",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="scenario",
@@ -50,7 +54,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "企业关系型数据库与数据仓库（PostgreSQL, MySQL, ClickHouse 等）",
                 "RESTful / GraphQL 接口与第三方云服务实时数据源",
                 "公网网页、在线知识站点与技术文档定向爬取内容",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="data_source",
@@ -62,7 +66,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "轻量微型（<1GB，快速启动与原型验证，单机内存即可高效支撑）",
                 "大型规模（10-100GB，需建立分布式分块、独立向量索引与高并发缓存）",
                 "超大规模（>100GB，百亿级 Token，需多节点集群分片与混合存储架构）",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="scale",
@@ -74,7 +78,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "实时极速（<1秒，适用于即时交互与高频打字机实时体验）",
                 "深度分析（3-5秒，适用于长篇深度推理与多步骤检索任务）",
                 "无严格要求（以回答完整性、深度与多源证据引用丰富度优先）",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="performance_requirement",
@@ -94,7 +98,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "架构性能与并发指标：吞吐量、响应延迟、资源消耗与扩展能力",
                 "落地成本与运维开销：授权模式、硬件要求、部署门槛与维护成本",
                 "版本演进与演进差异：接口兼容性、变更记录与技术演进轨迹",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="comparison_aspect",
@@ -105,7 +109,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "(推荐) 结构化对比表格：多维度横向对照，直观展示差异与优劣势",
                 "深度分析报告：包含背景概述、逐项深入剖析、架构建议与总结",
                 "执行摘要简报：提炼核心差异要点与一句话选型决策建议",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="output_format",
@@ -121,7 +125,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "向量检索数据库：Milvus / Chroma 向量数据库集群或本地服务",
                 "知识图谱服务：Neo4j 图数据库及多跳实体关系抽取组件",
                 "本地大模型运行时：Ollama / 本地离线量化大模型部署",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="target_component",
@@ -136,7 +140,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "前端控制台渲染或 API 跨域报错：500 内部服务错误、网络超时或 CORS 拦截",
                 "文档入库与向量化构建报错：PDF 解析失败、分块截断或 Embedding 写入异常",
                 "混合检索结果为空或召回异常：向量库未命中、关键词过滤过度或 RRF 权重偏差",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="error_details",
@@ -151,7 +155,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "知识图谱与多跳关联探索：实体关系图谱可视化与图增强检索应用",
                 "模型引擎配置与服务切换：在线 API（DeepSeek/OpenAI）与本地 Ollama 切换",
                 "RESTful API 集成开发：系统鉴权、会话管理与流式接口调用规范",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="usage_target",
@@ -165,7 +169,7 @@ _QUESTIONS_ZH: dict[str, dict[str, ClarificationQuestion]] = {
                 "端到端响应延迟与并发加速：降低首 Token 延迟、流式并发与缓存优化",
                 "Token 消耗与推理资源优化：压缩系统上下文、精简 Prompt 与降低推理成本",
                 "文档切片质量与图谱抽取精度：优化语义分块边界与知识三元组提取准确性",
-                "其他（自定义输入 / 补充说明）",
+                _OTHER_OPTION_ZH,
             ],
             allow_custom_input=True,
             field_name="optimization_target",
@@ -182,7 +186,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "Customer Support Assistant: Public-facing, high-concurrency Q&A with low-latency streaming answers",
                 "Developer & Code Knowledge Base: Codebase navigation, architecture specs, and API documentation analysis",
                 "Data Analysis & Decision Support: Structured report summaries, business metrics, and strategic insights",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="scenario",
@@ -194,7 +198,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "Relational databases and data warehouses (PostgreSQL, MySQL, ClickHouse)",
                 "RESTful / GraphQL APIs and external cloud services with real-time sync",
                 "Web pages, online documentation sites, and crawled technical blogs",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="data_source",
@@ -206,7 +210,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "Lightweight prototype (<1GB, rapid local test and single-server memory indexing)",
                 "Large scale (10-100GB, dedicated vector indexing, distributed chunking, and caching)",
                 "Very large scale (>100GB, multi-node clustering and hybrid multi-tier storage)",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="scale",
@@ -218,7 +222,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "Real-time streaming (<1s, ultra-low latency for interactive chat and typewriter UX)",
                 "Deep analysis (3-5s, suitable for complex multi-hop retrieval and reasoning)",
                 "No strict constraint (prioritizing evidence depth, accuracy, and thoroughness)",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="performance_requirement",
@@ -238,7 +242,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "Performance & benchmarks: throughput, latency, resource usage, and scalability",
                 "Cost & maintenance: licensing, hardware requirements, and operational overhead",
                 "Version & evolution differences: API compatibility, changelog, and migration path",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="comparison_aspect",
@@ -249,7 +253,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "(Recommended) Structured comparison table: clear matrix highlighting pros and cons",
                 "In-depth analytical report: contextual analysis, architectural trade-offs, and verdict",
                 "Executive summary: key takeaway points and direct actionable recommendations",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="output_format",
@@ -265,7 +269,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "Vector database: Milvus / Chroma vector store clusters or local instances",
                 "Knowledge graph: Neo4j database and multi-hop graph extraction service",
                 "Local LLM runtime: Ollama or local quantized model inference server",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="target_component",
@@ -280,7 +284,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "Frontend console or API CORS error: 500 server error, network timeout, or CORS block",
                 "Document ingestion & chunking failure: PDF parsing error or embedding insertion crash",
                 "Empty or abnormal retrieval results: vector miss, over-filtering, or RRF weighting skew",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="error_details",
@@ -295,7 +299,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "Knowledge graph & multi-hop reasoning: entity visualization and graph-augmented search",
                 "Model engine configuration: switching between Cloud APIs (DeepSeek/OpenAI) and Ollama",
                 "RESTful API integration: authentication, session state, and streaming endpoints",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="usage_target",
@@ -309,7 +313,7 @@ _QUESTIONS_EN: dict[str, dict[str, ClarificationQuestion]] = {
                 "End-to-end latency & throughput: reducing first-token latency and streaming cache",
                 "Token usage & compute efficiency: prompt context compression and cost reduction",
                 "Chunking quality & graph extraction: refining semantic boundaries and triple extraction",
-                "Other (Custom input / specify details)",
+                _OTHER_OPTION_EN,
             ],
             allow_custom_input=True,
             field_name="optimization_target",
@@ -339,8 +343,6 @@ _SUPPORTED_FIELDS: frozenset[str] = frozenset(
 # complexity limit (<= 20) is never exceeded.
 # ---------------------------------------------------------------------------
 
-_TRAILING_PUNCTUATION_RE = re.compile(r"[?？!！.。；;，, \t]+$")
-
 # Bounded and confined to one line: prevents catastrophic backtracking (python:S8786)
 _STRUCTURED_FIELD_RE = re.compile(
     r"^[ \t]{0,8}-[ \t]{0,8}([a-z_]+)[ \t]{0,8}:[ \t]{0,8}(.+?)[ \t]{0,8}$",
@@ -348,8 +350,8 @@ _STRUCTURED_FIELD_RE = re.compile(
 )
 
 _RAG_INTENT_KEYWORD_RE = re.compile(
-    r"(?<![a-zA-Z0-9_])rag(?![a-zA-Z0-9_])|检索增强|知识库(?:系统)?|knowledge\s*base",
-    re.IGNORECASE,
+    r"\brag\b|检索增强|知识库(?:系统)?|knowledge\s*base",
+    re.IGNORECASE | re.ASCII,
 )
 _RAG_INTENT_DESIGN_RE = re.compile(r"设计|搭建|构建|实现|架构|how\s+to\s+(?:build|design|implement)|architecture")
 
@@ -368,8 +370,8 @@ _RAG_SOURCE_PATTERNS = (
 )
 
 _RAG_SCALE_RE = re.compile(
-    r"(?<![a-zA-Z0-9])\d+(?:\.\d+)?\s*(?:kb|mb|gb|tb|万条|千条|条)(?![a-zA-Z0-9])",
-    re.IGNORECASE,
+    r"(?<!\w)\d{1,8}(?:\.\d{1,4})?\s*(?:kb|mb|gb|tb|万条|千条|条)(?!\w)",
+    re.IGNORECASE | re.ASCII,
 )
 _RAG_PERFORMANCE_KEYWORD_RE = re.compile(r"(?:响应|延迟|latency)[^，。;\n]{0,20}")
 _RAG_PERFORMANCE_THRESHOLD_RE = re.compile(r"[<≤]\s*\d+(?:\.\d+)?\s*(?:ms|毫秒|s|秒)")
@@ -493,7 +495,7 @@ _OPTIMIZATION_RULE = _VagueIntentRule(
     field_name="optimization_target",
     vague_patterns=(
         re.compile(r"^(?:请问)?(?:这个|系统|平台)?(?:如何|怎么|怎样)?(?:优化|调优|加速)(?:呢|方法|建议)?$"),
-        re.compile(r"^(?:how\s+to\s+optimize)$"),
+        re.compile(r"^how\s+to\s+optimize$"),
     ),
     keyword_patterns=(
         # Recall, precision, and chunking (<= 12 branches)
@@ -519,7 +521,7 @@ def assess_completeness(question: str) -> CompletenessAssessment:
 
     text = str(question or "").strip()
     lowered = text.lower()
-    cleaned = _TRAILING_PUNCTUATION_RE.sub("", lowered)
+    cleaned = lowered.rstrip("?？!！.。；;，, \t")
     structured = _structured_fields(text)
 
     # 1. RAG Design intent

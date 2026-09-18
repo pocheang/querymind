@@ -62,8 +62,10 @@ def test_claude_code_style_question_options_and_recommended_prefix():
         for field_name in fields:
             zh = question_for(intent, field_name)
             en = question_for(intent, field_name, language="en")
-            assert zh is not None and zh.options, f"{intent}.{field_name} zh"
-            assert en is not None and en.options, f"{intent}.{field_name} en"
+            assert zh is not None, f"{intent}.{field_name} zh is None"
+            assert zh.options, f"{intent}.{field_name} zh options is empty"
+            assert en is not None, f"{intent}.{field_name} en is None"
+            assert en.options, f"{intent}.{field_name} en options is empty"
 
             # Check Claude Code / Codex recommended prefix convention
             assert zh.options[0].startswith("(推荐)"), (

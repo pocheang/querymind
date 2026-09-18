@@ -331,21 +331,22 @@ def _normalize_options(raw_options: list[Any], language: str) -> list[str]:
     cleaned = [str(opt).strip() for opt in raw_options if str(opt).strip() and str(opt).strip() != other_label]
 
     if not cleaned:
-        if is_zh:
-            cleaned = [
+        cleaned = (
+            [
                 f"{rec_tag} 优先采用轻量模块化方案：便于快速迭代与渐进式演进",
                 "企业级标准化架构：兼顾多团队协作与高可用规范",
             ]
-        else:
-            cleaned = [
+            if is_zh
+            else [
                 f"{rec_tag} Lightweight modular approach: Best for rapid evolution and maintenance",
                 "Enterprise standard architecture: Prioritizing high availability and scale",
             ]
+        )
 
     # Ensure first option has (推荐) / (Recommended)
-    if not cleaned[0].startswith(rec_tag):
-        # Remove any misplaced tag from other options if needed, or add to first
-        cleaned[0] = f"{rec_tag} {cleaned[0]}".strip()
+    first_opt = cleaned[0]
+    if not first_opt.startswith(rec_tag):
+        cleaned[0] = f"{rec_tag} {first_opt}".strip()
 
     # Cap to at most 4 predefined choices so that with 'other' it has at most 5
     result = cleaned[:4]
@@ -361,10 +362,12 @@ def _extract_json(content: str) -> dict[str, Any] | None:
     text = re.sub(r"\s*```$", "", text)
     text = text.strip()
 
-    json_match = re.search(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", text, re.DOTALL)
-    if not json_match:
+    first_brace = text.find("{")
+    last_brace = text.rfind("}")
+    if first_brace == -1 or last_brace <= first_brace:
         return None
-    candidate = json_match.group(0)
+
+    candidate = text[first_brace : last_brace + 1]
     # Fix common unicode quote issues
     candidate = candidate.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
     try:
