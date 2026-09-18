@@ -25,7 +25,11 @@ MODULE_PATH = ROOT / "scripts" / "eval_retrieval.py"
 # it: `scripts/` is not a package, and the alternative is a transcription of the
 # function, which is the defect this repository records for the regex suite.
 _spec = importlib.util.spec_from_file_location("eval_retrieval_cli", MODULE_PATH)
-assert _spec and _spec.loader
+# Split rather than `assert _spec and _spec.loader` (`python:S5906`): these fail
+# for different reasons -- a missing file against a loader importlib declined to
+# supply -- and a composite assertion says only that one of them happened.
+assert _spec is not None, f"no import spec for {MODULE_PATH}"
+assert _spec.loader is not None, f"no loader for {MODULE_PATH}"
 _module = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_module)
 
@@ -78,9 +82,17 @@ def test_a_symlink_out_of_the_tree_is_refused(tmp_path: Path, monkeypatch: pytes
     link = ROOT / "config" / "eval" / "_symlink_probe.json"
     link.symlink_to(outside)
     try:
-        assert ".." not in str(link.relative_to(ROOT)), "the string-level check this defeats"
+        # Resolved OUTSIDE the raises block (`python:S5778`), and that is not a
+        # style point: `relative_to` can itself raise, and a `pytest.raises`
+        # block containing two things that can throw passes when the wrong one
+        # does. This repository already records that shape -- a block that also
+        # builds its fixture can pass because the constructor raised.
+        relative = str(link.relative_to(ROOT))
+        assert ".." not in relative, "the string-level check this defeats"
+
         with pytest.raises(SystemExit) as refusal:
-            query_set_path(str(link.relative_to(ROOT)))
+            query_set_path(relative)
+
         assert "refusing to read" in str(refusal.value)
     finally:
         link.unlink()
