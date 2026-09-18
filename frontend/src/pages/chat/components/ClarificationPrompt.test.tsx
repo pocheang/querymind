@@ -31,33 +31,17 @@ const mockContext: ClarificationContext = {
 
 describe("ClarificationPrompt Component", () => {
   it("renders question text, options and round indicator", () => {
-    render(
-      <ClarificationPrompt
-        question={mockQuestion}
-        context={mockContext}
-        onAnswer={vi.fn()}
-        onSkip={vi.fn()}
-      />
-    );
+    render(<ClarificationPrompt question={mockQuestion} context={mockContext} onAnswer={vi.fn()} onSkip={vi.fn()} />);
 
     expect(screen.getByText("请问您期望采用哪种后端技术架构？")).toBeInTheDocument();
-    expect(
-      screen.getByText(/FastAPI \+ 异步架构/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("其他（自定义输入 / 补充说明）")
-    ).toBeInTheDocument();
+    expect(screen.getByText(/FastAPI \+ 异步架构/i)).toBeInTheDocument();
+    expect(screen.getByText("其他（自定义输入 / 补充说明）")).toBeInTheDocument();
   });
 
   it("selects recommended option and calls onAnswer on submit", () => {
     const handleAnswer = vi.fn();
     render(
-      <ClarificationPrompt
-        question={mockQuestion}
-        context={mockContext}
-        onAnswer={handleAnswer}
-        onSkip={vi.fn()}
-      />
+      <ClarificationPrompt question={mockQuestion} context={mockContext} onAnswer={handleAnswer} onSkip={vi.fn()} />
     );
 
     // Submit button should be disabled initially when nothing is selected
@@ -75,21 +59,13 @@ describe("ClarificationPrompt Component", () => {
     fireEvent.click(submitBtn);
 
     expect(handleAnswer).toHaveBeenCalledTimes(1);
-    expect(handleAnswer).toHaveBeenCalledWith(
-      "target_framework",
-      mockQuestion.options[0]
-    );
+    expect(handleAnswer).toHaveBeenCalledWith("target_framework", mockQuestion.options[0]);
   });
 
   it("expands custom input when '其他' option is clicked and submits custom text", () => {
     const handleAnswer = vi.fn();
     render(
-      <ClarificationPrompt
-        question={mockQuestion}
-        context={mockContext}
-        onAnswer={handleAnswer}
-        onSkip={vi.fn()}
-      />
+      <ClarificationPrompt question={mockQuestion} context={mockContext} onAnswer={handleAnswer} onSkip={vi.fn()} />
     );
 
     // Click '其他' option
@@ -113,21 +89,13 @@ describe("ClarificationPrompt Component", () => {
     // Submit
     fireEvent.click(submitBtn);
     expect(handleAnswer).toHaveBeenCalledTimes(1);
-    expect(handleAnswer).toHaveBeenCalledWith(
-      "target_framework",
-      "自研 Rust 微服务引擎"
-    );
+    expect(handleAnswer).toHaveBeenCalledWith("target_framework", "自研 Rust 微服务引擎");
   });
 
   it("calls onSkip when skip button is clicked", () => {
     const handleSkip = vi.fn();
     render(
-      <ClarificationPrompt
-        question={mockQuestion}
-        context={mockContext}
-        onAnswer={vi.fn()}
-        onSkip={handleSkip}
-      />
+      <ClarificationPrompt question={mockQuestion} context={mockContext} onAnswer={vi.fn()} onSkip={handleSkip} />
     );
 
     const skipBtn = screen.getByRole("button", {
@@ -164,12 +132,7 @@ describe("ClarificationPrompt Component", () => {
     };
 
     render(
-      <ClarificationPrompt
-        question={mockQuestion}
-        context={contextWithInfo}
-        onAnswer={vi.fn()}
-        onSkip={vi.fn()}
-      />
+      <ClarificationPrompt question={mockQuestion} context={contextWithInfo} onAnswer={vi.fn()} onSkip={vi.fn()} />
     );
 
     // CollapsibleSection renders confirmed constraints

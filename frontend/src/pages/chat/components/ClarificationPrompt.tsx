@@ -91,7 +91,8 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
         <div className="space-y-1.5">
           {question.options.map((option) => {
             const isOther = isOtherOption(option);
-            const selected = (selectedOption === option && !useCustom) || (isOther && useCustom && selectedOption === option);
+            const selected =
+              (selectedOption === option && !useCustom) || (isOther && useCustom && selectedOption === option);
             return (
               <div key={option} className="space-y-1.5">
                 <button
