@@ -93,6 +93,39 @@ def recall_at_k(retrieved: list[str], relevant: Relevance, k: int = 5) -> float:
     return relevant_retrieved / len(grades)
 
 
+def complete_at_k(retrieved: list[str], relevant: Relevance, k: int = 5) -> float:
+    """1.0 when **every** relevant document is in the top k, 0.0 otherwise.
+
+    Recall averaged over queries is the lenient reading of the same question, and
+    on a cross-document query the leniency hides the only outcome that matters.
+    A question whose answer needs two documents and got one of them scores
+    recall 0.5 -- but the answer is not half right, it is unanswerable, and a
+    synthesizer handed half the evidence does not produce half an answer. It
+    produces a confident wrong one, which is the failure this repository keeps
+    recording in other places.
+
+    **On a single-gold corpus this is exactly `recall_at_k`**, which is why
+    nothing needed it before: one relevant document is either in the window or it
+    is not, and "all of them" and "the fraction of them" are the same number.
+    They diverge only when a query has several relevant documents, so adding this
+    metric to the existing set changes no existing number --
+    `test_complete_and_recall_agree_on_a_single_gold_corpus` pins that.
+
+    Args:
+        retrieved: List of retrieved document IDs (ordered by relevance)
+        relevant: Relevant document IDs, as a set or a source -> grade map
+        k: Number of top results to consider
+
+    Returns:
+        1.0 if every relevant document is within the top k, else 0.0
+    """
+
+    grades = _grades(relevant)
+    if not grades:
+        return 0.0
+    return 1.0 if grades.keys() <= set(retrieved[:k]) else 0.0
+
+
 def f1_at_k(retrieved: list[str], relevant: set[str], k: int = 5) -> float:
     """Calculate F1@K.
 
@@ -218,6 +251,9 @@ def calculate_all_metrics(retrieved: list[str], relevant: Relevance, k: int = 5)
         "f1": f1_at_k(retrieved, relevant, k),
         "reciprocal_rank": reciprocal_rank(retrieved, relevant),
         "ndcg": ndcg_at_k(retrieved, relevant, k),
+        # Whether the answer was *answerable* from the top k, as opposed to how
+        # much of it was there. Identical to recall on a single-gold query.
+        "complete": complete_at_k(retrieved, relevant, k),
         # What P@k could have reached on these annotations. Without it a
         # single-gold corpus reports 0.2 and reads as a failure.
         "precision_ceiling": precision_ceiling_at_k(relevant, k),

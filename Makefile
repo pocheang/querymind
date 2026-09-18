@@ -1,4 +1,4 @@
-.PHONY: install up down api test lint eval-retrieval eval-full-pipeline lock fe-install fe-dev fe-build config-check config-render deploy deploy-dev deploy-monitoring
+.PHONY: install up down api test lint eval-retrieval eval-crossdoc eval-full-pipeline lock fe-install fe-dev fe-build config-check config-render deploy deploy-dev deploy-monitoring
 
 install:
 	conda run -n rag-local pip install -e ".[dev]"
@@ -37,6 +37,11 @@ api:
 # the vector path -- see the docstring in scripts/eval_retrieval.py.
 eval-retrieval:
 	conda run --no-capture-output -n rag-local python scripts/eval_retrieval.py
+
+# Questions no single document answers. complete@5 is its metric: every required
+# document in the top five, or the question cannot be answered at all.
+eval-crossdoc:
+	conda run --no-capture-output -n rag-local python scripts/eval_retrieval.py --queries config/eval/retrieval_queries_crossdoc.json
 
 # Vector + BM25 + cross-encoder rerank. Refuses (exit 2) unless the embedding
 # model and the reranker are really on this machine and the corpus is in the

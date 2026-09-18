@@ -2471,6 +2471,81 @@ required here"; and five mutations each redden a distinct test -- adding `ocr` t
 required set, accepting `degraded`, treating only `unavailable` as a refusal, ignoring an
 empty store, and dropping the branch that catches drift between the two component lists.
 
+### Cross-document questions, and the metric they needed
+
+The evaluation set had no question requiring more than one document, in a system
+whose planner decomposes queries and whose `_comparison_plan` and
+`compare_entities` skill exist for exactly that shape. `config/eval/retrieval_queries_crossdoc.json`
+(8 queries, `make eval-crossdoc`) is that set, and it is **separate on purpose**:
+the main set asks whether the answer is ranked first and MRR is its metric, this
+one asks whether the answer is *assemblable* from the top five. Merging them
+averages two questions into a number describing neither.
+
+`complete_at_k` is the metric: 1.0 when every relevant document is in the window,
+0.0 otherwise. Recall is the lenient reading of the same question, and on a
+cross-document query the leniency hides the only outcome that matters -- one of
+two required documents is recall 0.5, and **an answer with half the evidence is
+not half right, it is confidently wrong**. On a single-gold corpus the two are
+identical, which is why nothing needed it before and why adding it changed no
+existing number.
+
+**Every metric has range on this set, and P@5 is below its ceiling for the first
+time** -- which is the difference between measuring retrieval and measuring the
+annotations:
+
+```
+            main set        cross-document set
+recall@5    1.0000 (pinned) 0.8958
+MRR         0.9167          0.9375
+nDCG@5      0.9375          0.8459
+complete@5  1.0000          0.7500   <- two of eight unanswerable
+P@5         0.2000 = ceiling 0.4000 < ceiling 0.4500
+```
+
+**The two failures are the defect `KNOWN_LEXICAL_LIMITS` already records, met
+where it costs an answer.** `x-08` loses `nianjia.md` -- the long document
+carrying the entitlement and the carry-over rule -- to the three short 年假
+documents that mention the word without answering anything. That is `q-13`
+exactly, one rank worse, and one rank worse is the difference between a thin
+answer and no answer. `x-06` loses `backup_policy.md` to a document carrying both
+"backup" and "restore" where the gold carries only the first, and the remaining
+four slots go to documents sharing nothing but common words -- the gold is not
+merely outranked, it is below noise. `KNOWN_INCOMPLETE_CROSSDOC` records both by
+**which document is missing**, since a count of failures is a number nobody can
+act on, and `RetrievalScore.missing` carries the same per query.
+
+**The corpus rows added as distractors are this set's gold documents**, and that
+is the finding rather than a shortcut: a second document on a topic is noise when
+the question is "how many days of annual leave" and essential when it is "what
+happens to my unused leave when I resign". Relevance is a property of the
+query-document pair and never of the document, so the corpus marks them
+`role: "secondary"` -- `distractor` was a global claim that became false the day
+this set existed, and `distracts` stays because it names the query they distract
+*from*.
+
+**Every query is answered by documents in its own language, and that constraint
+was found by measuring.** The first `x-07` was a Chinese question with English
+gold documents; BM25 shares no token across the two scripts, so it returned
+nothing at all. That is a real limit of this corpus, but it is a limit on
+*cross-lingual matching*, and it would have dragged every aggregate down for a
+reason this set does not name -- the same argument the set makes for not merging
+itself into the main one. Cross-lingual retrieval needs a multilingual embedding,
+so it belongs to `eval_full_pipeline.py`.
+`test_every_query_is_answered_in_its_own_language` keeps a guaranteed zero out of
+a metric that is asserted exactly.
+
+**Two of the tests here were written wrong first, and both are the vacuity
+failure this file keeps describing.** One built its set of failing queries by
+calling `complete_at_k([], ...)`, which is 0.0 for every query, and intersected
+it with the very map it was checking -- it could only ever have passed. And a
+mutation giving `missing` its own `grade >= 3` threshold reddened **nothing**,
+because both documents absent on the shipped set happen to be graded 3, so the
+two rules agreed on this data and would have drifted apart invisibly; the failure
+that causes is the worst shape available, an aggregate reporting a query
+incomplete beside a diagnosis naming nothing. A synthetic query whose only
+relevant document is graded 1 and unretrievable now drives the real harness and
+closes it.
+
 ### A worked example of graded judgements
 
 `config/eval/retrieval_queries.graded.example.json` is the format to copy, over documents

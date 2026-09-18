@@ -39,13 +39,78 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 
-async def _run(use_vector: bool) -> int:
+def _report_metrics(score) -> None:
+    """Recall, MRR, nDCG and complete@5 lead because they have range.
+
+    P@5 is last and never alone: the shipped set has one relevant document per
+    query, so it cannot exceed 0.2 however good retrieval is, and printing 0.2 by
+    itself invites reading a perfect score as a failing one.
+    """
+
+    print(f"recall@5 : {score.recall_at_5:.4f}")
+    print(f"MRR      : {score.mrr:.4f}")
+    print(f"nDCG@5   : {score.ndcg_at_5:.4f}")
+    # Every relevant document in the window, not a fraction of them. Equal to
+    # recall on a single-gold set, which is why it is printed beside it rather
+    # than instead of it -- the two agreeing is the evidence the set is
+    # single-gold, and the two parting is the point of a cross-document one.
+    print(f"complete@5: {score.complete_at_5:.4f}")
+    ceiling = score.precision_ceiling_at_5
+    reached = " (at the ceiling)" if abs(score.precision_at_5 - ceiling) < 1e-9 else ""
+    print(f"P@5      : {score.precision_at_5:.4f}  ceiling {ceiling:.4f}{reached}")
+    if ceiling < 1.0:
+        print()
+        print(f"P@5 cannot exceed {ceiling:.4f} on these judgements -- this corpus averages")
+        print(f"{ceiling * 5:.2f} relevant documents per query. Compare recall@5 and nDCG@5 instead;")
+        print("a P@5 target quoted for a multi-gold corpus is not comparable to this number.")
+
+    # Naming the absent document is the diagnosis; the aggregate above only says
+    # that something was. Empty on a single-gold set that retrieves everything.
+    if score.missing:
+        print()
+        print("required documents outside the top five:")
+        for qid, absent in sorted(score.missing.items()):
+            print(f"  {qid}: {', '.join(source.rsplit('/', 1)[-1] for source in absent)}")
+
+
+def _report_unexpected_ranks(score, queries) -> bool:
+    """Compare against `expected_ranks` and say whether anything differed.
+
+    Two defects used to live in the single line this replaced, and the second was
+    the worse one.
+
+    `score.mrr == 1.0` is a float equality (`python:S1244`). It happened to be
+    exact -- a mean of n ones is exact in IEEE 754 -- but it expressed the intent
+    badly and stops being safe the moment a query has two gold documents. What is
+    required is that each query ranks its gold document where it is expected to,
+    which is a comparison between integers.
+
+    And it had been returning 1 since the CJK tokenizer landed, because MRR was
+    not 1.0. A command that reports failure on a state the suite asserts is
+    correct teaches people to ignore it. `expected_ranks` is the one definition of
+    what this corpus should do, shared with the test module -- so an improvement
+    is reported here too, rather than passing silently.
+    """
+
+    from app.evaluation.retrieval_eval import expected_ranks
+
+    expected = expected_ranks([query.id for query in queries])
+    unexpected = {qid: score.ranks.get(qid, 0) for qid, want in expected.items() if score.ranks.get(qid, 0) != want}
+    if not unexpected:
+        return False
+    print()
+    for qid, got in sorted(unexpected.items()):
+        print(f"{qid}: expected rank {expected[qid]}, got {got or 'not retrieved'}")
+    print("An improvement counts too -- update KNOWN_LEXICAL_LIMITS if a limit is gone.")
+    return True
+
+
+async def _run(use_vector: bool, queries_override: str | None) -> int:
     from app.core.config import get_settings
     from app.evaluation.retrieval_eval import (
         CORPUS_PATHS,
         QUERY_PATHS,
         eval_scope,
-        expected_ranks,
         load_corpus_sources,
         load_queries,
         measure,
@@ -54,7 +119,15 @@ async def _run(use_vector: bool) -> int:
     from app.retrievers.bm25_retriever import reset_bm25_cache
 
     corpus = resolve(CORPUS_PATHS)
-    queries_path = resolve(QUERY_PATHS)
+    # A named set measures something the tracked default does not, so the rank
+    # comparison is skipped for it: `expected_ranks` records what BM25 does on the
+    # MAIN set, and asserting it against another one reports a failure for every
+    # query it has never seen.
+    tracked = queries_override is None
+    queries_path = resolve(QUERY_PATHS) if tracked else Path(queries_override)
+    if not queries_path.exists():
+        print(f"no such query set: {queries_path}")
+        return 1
 
     os.environ["CORPUS_STORE_PATH"] = str(corpus)
     get_settings.cache_clear()
@@ -72,59 +145,35 @@ async def _run(use_vector: bool) -> int:
         rank = score.ranks.get(query.id, 0)
         print(f"{query.id:<8} {rank if rank else '-':>4}  {query.query}")
     print()
-    # Recall, MRR and nDCG lead because they have range on this corpus. P@5 is
-    # reported last with the ceiling its annotations allow: the shipped set has
-    # one relevant document per query, so P@5 cannot exceed 0.2 however good
-    # retrieval is, and printing 0.2 on its own invites reading a perfect score
-    # as a failing one.
-    print(f"recall@5 : {score.recall_at_5:.4f}")
-    print(f"MRR      : {score.mrr:.4f}")
-    print(f"nDCG@5   : {score.ndcg_at_5:.4f}")
-    ceiling = score.precision_ceiling_at_5
-    reached = " (at the ceiling)" if abs(score.precision_at_5 - ceiling) < 1e-9 else ""
-    print(f"P@5      : {score.precision_at_5:.4f}  ceiling {ceiling:.4f}{reached}")
-    if ceiling < 1.0:
-        print()
-        print(f"P@5 cannot exceed {ceiling:.4f} on these judgements -- this corpus averages")
-        print(f"{ceiling * 5:.2f} relevant documents per query. Compare recall@5 and nDCG@5 instead;")
-        print("a P@5 target quoted for a multi-gold corpus is not comparable to this number.")
+    _report_metrics(score)
 
     if use_vector:
         print()
         print("--vector is not implemented here yet: it needs a populated Chroma")
         print("directory and a downloaded BGE-M3, neither of which this script builds.")
-        print("Ingest a corpus first, then use POST /api/evaluation/run.")
+        print("Use `scripts/eval_full_pipeline.py`, which measures that stack and")
+        print("refuses to run rather than measure a degraded one.")
 
-    # Two defects in one line, and the second was the worse one.
-    #
-    # `score.mrr == 1.0` is a float equality (`python:S1244`). It happened to be
-    # exact -- a mean of n ones is exact in IEEE 754 -- but it expressed the
-    # intent badly and stops being safe the moment a query has two gold
-    # documents. What is required is that each query ranks its gold document
-    # where it is expected to, which is a comparison between integers.
-    #
-    # And it had been returning 1 since the CJK tokenizer landed, because MRR is
-    # 0.9688, not 1.0: `q-15` ranks second by a documented limit of lexical
-    # retrieval. A command that reports failure on a state the suite asserts is
-    # correct teaches people to ignore it. `expected_ranks` is the one definition
-    # of what this corpus should do, shared with
-    # `tests/evaluation/test_retrieval_metric.py` -- so an improvement is
-    # reported here too, rather than passing silently.
-    expected = expected_ranks([query.id for query in queries])
-    unexpected = {qid: score.ranks.get(qid, 0) for qid, want in expected.items() if score.ranks.get(qid, 0) != want}
-    if unexpected:
+    if not tracked:
         print()
-        for qid, got in sorted(unexpected.items()):
-            print(f"{qid}: expected rank {expected[qid]}, got {got or 'not retrieved'}")
-        print("An improvement counts too -- update KNOWN_LEXICAL_LIMITS if a limit is gone.")
-    return 1 if unexpected else 0
+        print("Ranks are not asserted for a named query set -- `expected_ranks` records")
+        print("what BM25 does on the tracked default, and this is a different question.")
+        return 0
+
+    return 1 if _report_unexpected_ranks(score, queries) else 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--vector", action="store_true", help="also report the vector/hybrid baselines")
+    parser.add_argument(
+        "--queries",
+        default=None,
+        metavar="PATH",
+        help="measure a named query set instead of the tracked default (ranks are not asserted for it)",
+    )
     args = parser.parse_args()
-    return asyncio.run(_run(args.vector))
+    return asyncio.run(_run(args.vector, args.queries))
 
 
 if __name__ == "__main__":

@@ -29,11 +29,11 @@ worse than no metric.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.domain.knowledge import AccessScope, KnowledgeSourcePlan, KnowledgeStrategy
-from app.evaluation.metrics import ndcg_at_k, precision_ceiling_at_k, recall_at_k
+from app.evaluation.metrics import complete_at_k, ndcg_at_k, precision_ceiling_at_k, recall_at_k
 from app.evaluation.models import TestQuery
 from app.knowledge.orchestrator import KnowledgeOrchestrator, discard_trace
 from app.services.security.access_scope import DEFAULT_CONTEXT_FIELDS
@@ -96,6 +96,38 @@ KNOWN_LEXICAL_LIMITS: dict[str, int] = {
     # *is* fixed by them, because "陪产" then discriminates) and by a document
     # about who pays wages during 产假.
     "q-15": 3,
+}
+
+
+CROSSDOC_QUERY_PATH = Path("config/eval/retrieval_queries_crossdoc.json")
+
+# Cross-document queries BM25 alone cannot assemble: at least one required
+# document is outside the top five, so the question is not answerable at all
+# rather than answered badly. Same shape and same rule as KNOWN_LEXICAL_LIMITS --
+# each entry is a limit that has been reasoned about, compared exactly, so an
+# improvement fails as loudly as a regression.
+#
+# **Both are the defect KNOWN_LEXICAL_LIMITS already records, measured where it
+# costs an answer.** On the main set, BM25 length normalisation pushed the long
+# gold document to rank 3 and recall@5 stayed 1.0000 -- it looked like an
+# ordering blemish. Here the same documents fall out of the window entirely:
+#
+#   x-08 (年假没休完又要离职) loses nianjia.md, the long one carrying the
+#        entitlement and the carry-over rule, to the three short 年假 documents
+#        that mention the word without answering anything. This is q-13 exactly,
+#        one rank worse, and one rank worse happens to be the difference between
+#        a thin answer and no answer.
+#   x-06 loses backup_policy.md to backup_restore_drill.md, which carries both
+#        "backup" and "restore" where the gold carries only the first -- and the
+#        remaining four slots go to documents sharing nothing but common words,
+#        so the gold is not merely outranked, it is below noise.
+#
+# The remedy is the same one and it is not lexical: vector fusion puts a
+# paraphrase next to the document that answers it. `scripts/eval_full_pipeline.py`
+# is what would measure whether it does.
+KNOWN_INCOMPLETE_CROSSDOC: dict[str, tuple[str, ...]] = {
+    "x-06": ("eval://corpus/backup_policy.md",),
+    "x-08": ("eval://corpus/nianjia.md",),
 }
 
 
@@ -178,6 +210,16 @@ class RetrievalScore:
     recall_at_5: float = 0.0
     ndcg_at_5: float = 0.0
     precision_ceiling_at_5: float = 0.0
+    # The fraction of queries whose every relevant document made the top five.
+    # Equal to `recall_at_5` on a single-gold set and the metric that matters on
+    # a cross-document one, where half the evidence produces a confident wrong
+    # answer rather than half an answer.
+    complete_at_5: float = 0.0
+    # query id -> the required documents that were NOT in the top k, for the
+    # queries that have any. A count of incomplete queries is a number nobody can
+    # act on; the missing document is the whole diagnosis, and both entries on
+    # the shipped cross-document set turned out to name the same defect.
+    missing: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
     @property
     def reciprocal_ranks(self) -> dict[str, float]:
@@ -220,6 +262,8 @@ async def measure(
     recall_total = 0.0
     ndcg_total = 0.0
     ceiling_total = 0.0
+    complete_total = 0.0
+    missing: dict[str, tuple[str, ...]] = {}
     for query in queries:
         strategy = KnowledgeStrategy(
             sources=tuple(
@@ -249,6 +293,10 @@ async def measure(
         recall_total += recall_at_k(retrieved, graded, top_k)
         ndcg_total += ndcg_at_k(retrieved, graded, top_k)
         ceiling_total += precision_ceiling_at_k(graded, top_k)
+        complete_total += complete_at_k(retrieved, graded, top_k)
+        absent = tuple(sorted(source for source in gold if source not in retrieved))
+        if absent:
+            missing[query.id] = absent
 
     total = max(1, len(queries))
     return RetrievalScore(
@@ -258,15 +306,19 @@ async def measure(
         recall_at_5=recall_total / total,
         ndcg_at_5=ndcg_total / total,
         precision_ceiling_at_5=ceiling_total / total,
+        complete_at_5=complete_total / total,
+        missing=missing,
     )
 
 
 __all__ = [
     "BM25_ONLY_SOURCES",
     "CORPUS_PATHS",
+    "CROSSDOC_QUERY_PATH",
     "EVAL_TENANT",
     "EVAL_USER",
     "FULL_PIPELINE_SOURCES",
+    "KNOWN_INCOMPLETE_CROSSDOC",
     "KNOWN_LEXICAL_LIMITS",
     "QUERY_PATHS",
     "RetrievalScore",

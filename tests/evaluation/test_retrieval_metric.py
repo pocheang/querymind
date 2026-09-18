@@ -289,31 +289,42 @@ def _corpus_rows() -> list[dict]:
     return [json.loads(line) for line in TRACKED_CORPUS.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def test_the_corpus_keeps_documents_that_exist_only_to_be_wrong():
+def test_the_corpus_keeps_a_second_document_on_every_topic():
     """Precision measures how many chances to be wrong were not taken, so a
     corpus with nothing to be wrong about measures nothing.
 
-    Before the distractors landed, every query's gold document was the only one
-    in the corpus that shared its vocabulary, and 15 of 16 queries ranked it
-    first -- a result about the corpus, not about the retriever. Deleting the
-    distractors would send MRR and nDCG back up, and the honest-looking repair is
-    to update the aggregate assertions to match. This is what makes that a red
-    test instead: the numbers are allowed to move, the reason for them is not.
+    Before these rows landed, every query's gold document was the only one in the
+    corpus that shared its vocabulary, and 15 of 16 queries ranked it first -- a
+    result about the corpus, not about the retriever. Deleting them would send
+    MRR and nDCG back up, and the honest-looking repair is to update the
+    aggregate assertions to match. This is what makes that a red test instead:
+    the numbers are allowed to move, the reason for them is not.
 
-    Both halves matter. A distractor that is secretly somebody's gold document
-    silently removes a judgement, which is the one way this file could corrupt
-    the measurement rather than harden it.
+    **They are marked `secondary`, not `distractor`, and the rename is the
+    finding.** They were added to be wrong for the narrow questions in the main
+    set, and they turned out to be the gold documents for
+    `retrieval_queries_crossdoc.json` -- a second document on a topic is noise
+    when the question is "how many days of annual leave" and essential when it is
+    "what happens to my unused leave when I resign". Relevance is a property of
+    the query-document pair and never of the document, so a global label saying
+    a document exists only to be wrong was false the moment the cross-document
+    set existed. `distracts` stays, because it names the query they distract
+    *from*, which is still true.
     """
 
     rows = _corpus_rows()
-    distractors = {row["metadata"]["source"] for row in rows if row["metadata"].get("role") == "distractor"}
+    secondary = {row["metadata"]["source"] for row in rows if row["metadata"].get("role") == "secondary"}
     gold = {source for query in load_queries(TRACKED_QUERIES) for source in query.expected_docs}
 
-    assert len(distractors) >= 10, f"only {len(distractors)} distractors -- precision has little to discriminate"
-    assert distractors & gold == set(), "a distractor is also a gold document, which deletes a judgement"
-    # Bilingual for the reason the query set is: a Chinese distractor exercises
-    # the CJK bigrams, and those are where this corpus's known limits live.
-    assert any(
-        any("一" <= ch <= "鿿" for ch in row["text"]) for row in rows if row["metadata"].get("role") == "distractor"
+    assert len(secondary) >= 10, f"only {len(secondary)} competing documents -- precision has little to discriminate"
+    # Scoped to the main set on purpose: these same documents ARE gold in the
+    # cross-document set, which is the point of the paragraph above.
+    assert secondary & gold == set(), "a competing document is also a gold document of the set it competes in"
+    assert all(row["metadata"].get("distracts") for row in rows if row["metadata"].get("role") == "secondary"), (
+        "every secondary row should name the query it competes with"
     )
-    assert any(row["text"].isascii() for row in rows if row["metadata"].get("role") == "distractor")
+    # Bilingual for the reason the query set is: a Chinese one exercises the CJK
+    # bigrams, and that is where this corpus's known limits live.
+    secondary_rows = [row for row in rows if row["metadata"].get("role") == "secondary"]
+    assert any(any("\u4e00" <= ch <= "\u9fff" for ch in row["text"]) for row in secondary_rows)
+    assert any(row["text"].isascii() for row in secondary_rows)
