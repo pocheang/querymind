@@ -110,8 +110,9 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-17): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,244 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **214 frontend tests** (**2,458 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
-`check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
+Note (counts refreshed 2026-09-17): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,244 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **214 frontend tests** (**2,458 total tests**, 0 failures). Scripts hold thirteen focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
+`check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_full_pipeline.py`,
+`eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
@@ -2362,7 +2363,7 @@ principle as the `advanced-rag/config` fix).
 |---|---|
 | **Router accuracy** >95% | **nothing.** No labelled routing set exists. |
 | **Citation completeness** >90% | **nothing** as an aggregate. It is *enforced* per answer by the cascade's citation stage, but never scored across a query set. |
-| **P@5** >0.85 | **not comparable**, and no longer the headline — see below. `make eval-retrieval` leads with recall@5, MRR and nDCG@5, which have range on the tracked corpus; P@5 is printed beside the ceiling its own judgements impose. |
+| **P@5** >0.85 | **not comparable**, and no longer the headline — see below. `make eval-retrieval` leads with recall@5, MRR and nDCG@5; P@5 is printed beside the ceiling its own judgements impose, which is 0.2 because the corpus is single-gold. `make eval-full-pipeline` measures the half that decides precision, and **refuses to run** rather than measure a degraded stack. |
 | **Latency P95** <5s | `build_ops_alerts`, from the `request_rows` ring the middleware writes. Process-local, so a restart empties it. |
 
 **The retrieval numbers come from `make eval-retrieval`** (`scripts/eval_retrieval.py`,
@@ -2380,10 +2381,121 @@ Reading it against a 0.85 target quoted for a multi-gold corpus is a category er
 `tests/evaluation/test_retrieval_metric.py` pins it precisely so nobody makes it from a
 metrics table. **MRR is the metric with headroom here, and what is pinned is the per-query
 rank map, not the aggregate** — BM25 over a fixed JSONL is deterministic, so it is asserted
-rather than ratcheted, per query, so a failure names the query. Every query ranks its gold
-document first except `q-15`, which ranks second by the lexical limit described above, so
-MRR is **0.9688**. This paragraph claimed 1.0 until 2026-09-05: it was written before the
-CJK tokenizer commit added that limit and was not corrected with it.
+rather than ratcheted, per query, so a failure names the query.
+
+**The numbers here have moved twice, and both times the paragraph was the thing that was
+wrong.** It claimed MRR 1.0 until 2026-09-05, written before the CJK tokenizer commit added
+`q-15`'s limit and not corrected with it; it then read 0.9688 until the corpus gained
+distractors on 2026-09-18. It is **MRR 0.9167, nDCG@5 0.9375, recall@5 1.0000** now, with
+fourteen queries at rank 1 and `q-13` and `q-15` at rank 3.
+
+### A corpus with nothing to be wrong about cannot measure precision
+
+**Fifteen distractors landed on 2026-09-18** -- documents that share a query's vocabulary
+and do not answer it. No gold annotation changed, and P@5 did not move, which is the point:
+the ceiling is a fact about the judgements and a distractor is not a judgement. What moved
+is the two metrics that order things.
+
+Before them, every query's gold document was the only one in the corpus carrying its
+vocabulary, so fifteen of sixteen ranked first -- **a result about the corpus, not about the
+retriever**. Precision is how many chances to be wrong were not taken, and there were none.
+
+They exposed a real defect immediately. `q-13` (「年假有多少天」) fell from rank 1 to 3, and
+`q-15` from 2 to 3. Measured, the candidates come back adjacent -- RRF 1/61, 1/62, 1/63 --
+so it is an ordering failure by a hair rather than a retrieval failure; recall@5 is still
+1.0000 and nothing became unfindable.
+
+**The mechanism is BM25 length normalisation, and `q-07` is the control that proves it.**
+The gold document is the long one, because answering a question takes more words than
+mentioning its subject, and a short document sharing the query term is charged less for its
+length. The query's other tokens do not rescue it: 「天」 is in most of the 假 family, so its
+IDF is near nothing. `q-07` is `q-13` plus 「可以结转吗」, and 「结转」 is in exactly one
+document -- high IDF, and the gold jumps straight back to rank 1. One discriminating rare
+term beats the length penalty; 「年假」 alone does not.
+
+Two tests carry this and both are the kind that would otherwise be "fixed" the wrong way.
+`test_the_corpus_keeps_documents_that_exist_only_to_be_wrong` fails if the distractors are
+deleted -- without it, deleting them sends MRR and nDCG back up and the honest-looking
+repair is to update the aggregate assertions to match. And it asserts no distractor is also
+somebody's gold document, which is the one way that file could delete a judgement rather
+than harden the measurement.
+
+`test_a_word_jieba_does_not_know_is_still_retrievable` asserted `rank == 1` and had to
+change, and *how* is the lesson. That test is named for the tokenizer, and it was
+conflating two claims the distractors then separated: that 「年假」 tokenizes at all, and
+that BM25 puts the answering document first. The second is now false and recorded as a
+known limit; the first is what the test exists for. It asserts retrievability, plus
+`tokenize_chinese_aware` **directly on the function the index is built with** -- measured,
+the plain tokenizer yields `['年','假','有','多','少','天']` and no 「年假」, so the assertion
+discriminates and no corpus change can dilute it.
+
+### The full-pipeline measurement refuses rather than degrades
+
+`scripts/eval_full_pipeline.py` and `make eval-full-pipeline` (added 2026-09-18) measure
+vector + BM25 + cross-encoder rerank -- the parts that decide precision, and the parts
+`eval-retrieval` deliberately leaves out. Everything about it follows from one fact: **both
+models fail silently.** The reranker and the local embedding model open with
+`local_files_only=True`, so a machine without them gets `lexical_rerank` and
+`LocalHashEmbeddings`, answers every query, and prints a number describing the fallback.
+An empty Chroma directory does the same thing through the data rather than a loader: it is
+an ordinary state on the request path, and here it means the vector half contributed
+nothing and the result is BM25 under another name.
+
+So `app/evaluation/preflight.py` refuses, with exit code 2 and **no numbers at all**.
+Four decisions in it:
+
+- **It asks `effective_model_configuration()` rather than deciding for itself.** That is
+  already the one place that knows "configured" from "present on this machine", and it is
+  what the admin console reports; a second implementation would be a second answer that
+  disagrees on the day it matters.
+- **Only `embedding` and `reranker` are required.** `chat`, `validation_nli`, `ocr` and
+  `vision` are excluded on purpose -- a refusal naming Tesseract, on a run measuring
+  retrieval, reads as the guard being broken and is answered by switching the guard off.
+  `test_a_component_this_measurement_does_not_use_never_refuses` is the assertion that keeps
+  the check usable, and `test_the_required_set_is_only_what_changes_a_retrieval_number`
+  makes adding a component a deliberate act.
+- **`disabled` refuses as loudly as `degraded`.** Turning the reranker off is a legitimate
+  configuration; it is just not the thing the report names, and a number measuring unranked
+  fusion is not comparable with one that is not.
+- **The store is probed with a real `similarity_search` through the run's own scope**, not a
+  collection count: a store holding another tenant's chunks is empty *for this run*, and a
+  count cannot tell those apart.
+
+It is **not in CI**, and not because it is slow: a runner has neither model, so it would
+refuse on every commit, and a check that always refuses gets deleted. Same standing as
+`npm run screenshots`.
+
+Verified in both directions, which is the whole risk with a guard like this. On this
+machine it refuses and names both degraded components while marking OCR, chat and NLI "not
+required here"; and five mutations each redden a distinct test -- adding `ocr` to the
+required set, accepting `degraded`, treating only `unavailable` as a refusal, ignoring an
+empty store, and dropping the branch that catches drift between the two component lists.
+
+### A worked example of graded judgements
+
+`config/eval/retrieval_queries.graded.example.json` is the format to copy, over documents
+that already ship. It carries its explanation in a `_readme` key because JSON has no
+comments, and the pydantic model ignores keys it does not know.
+
+The pair `q-ex-01` / `q-ex-02` is the substance: the **same three documents** under a broad
+and a narrow question, judged differently, giving ceilings of 0.6 and 0.2. A narrow question
+having a low ceiling is correct, not a problem to annotate away -- which is the sentence
+that has to be in front of anyone tempted to raise P@5 by marking things relevant.
+
+**Grade 0 is recorded and does not count, and those are different layers.**
+`graded_relevance()` keeps it, because it is the record that somebody looked at that
+document and decided; `_grades()` inside the metrics drops anything at or below zero, so no
+metric ever counts it. The first version of that test asserted `graded_relevance()` dropped
+it and failed -- the test was wrong, not the code -- and it is now two assertions, because
+collapsing the layers is a tidying change that would silently turn every judged-irrelevant
+document into an unjudged one.
+
+`tests/evaluation/test_graded_annotation_example.py` (7) loads it through the same
+`load_queries` a real run uses and checks every source it names against the corpus: an
+example file is documentation that rots silently, and a mistyped source identifier scores
+0.0 forever and reads as a broken retriever. Its aggregates are asserted as **bounds**, not
+values -- these queries are illustrative and pinning their ranks would invite tuning
+retrieval to them.
 
 **Reporting P@5 as the headline was itself the defect, and it is fixed** (2026-09-18).
 A number that cannot move is not a measurement: on a single-gold corpus P@5 is
@@ -2451,8 +2563,11 @@ so a corpus whose ownership metadata does not match the scope drops every item a
 0.00 for reasons unrelated to retrieval — indistinguishable from a broken retriever.
 Proving the metric can fail is the precondition for believing it when it passes.
 
-Two limits that remain: the corpus is 15 synthetic rows over 16 queries, so it exercises tokenisation,
-fusion and scoping rather than real-world ranking; and `data/eval/retrieval_corpus.jsonl`
+Two limits that remain: the corpus is 30 synthetic rows (15 gold, 15 distractors) over 16
+queries, so it exercises tokenisation, fusion, ordering and scoping rather than real-world
+ranking -- and the distractors are synthetic too, which is defensible for documents whose
+only job is to be wrong in a way that is hard, and would not be for gold; and
+`data/eval/retrieval_corpus.jsonl`
 plus `data/eval/retrieval_queries.json` override the tracked defaults (first existing path
 wins, the same shape as `_BENCHMARK_QUERY_PATHS`) for a deployment that wants to measure
 its own corpus.
