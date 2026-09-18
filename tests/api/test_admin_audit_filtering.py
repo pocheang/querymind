@@ -163,6 +163,8 @@ def server_timezone(monkeypatch):
     it leaves every later test running in whichever zone this one picked. The
     teardown is the point of the fixture.
     """
+    if not hasattr(time, "tzset"):
+        pytest.skip("time.tzset() is only available on Unix/Linux systems")
 
     def _set(name: str) -> None:
         monkeypatch.setenv("TZ", name)

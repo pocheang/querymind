@@ -304,19 +304,24 @@ class LocalEvidenceChatModel:
         return found
 
     @staticmethod
-    def _lead_sentence(text: str, limit: int = 300) -> str:
-        """One sentence where the excerpt offers one, otherwise a clean cut.
-
-        Cutting mid-word reads as corruption rather than as a quotation, so the
-        fallback backs up to the last space.
-        """
-        for match in re.finditer(r"[.。!！?？](?:\s|$)", text):
+    def _detailed_excerpt(text: str, limit: int = 1200) -> str:
+        """Extract detailed, informative long text from an excerpt without truncating after the first sentence."""
+        clean = re.sub(r"\s+", " ", text).strip()
+        if len(clean) <= limit:
+            return clean
+        # Find the last sentence boundary before limit
+        cut_pos = -1
+        for match in re.finditer(r"[.。!！?？](?:\s|$)", clean[:limit]):
             if match.end() >= 40:
-                return text[: match.end()].strip()
-        if len(text) <= limit:
-            return text
-        cut = text.rfind(" ", 0, limit)
-        return text[: cut if cut > 40 else limit].rstrip() + "…"
+                cut_pos = match.end()
+        if cut_pos > 0:
+            return clean[:cut_pos].strip()
+        cut = clean.rfind(" ", 0, limit)
+        return clean[: cut if cut > 40 else limit].rstrip() + "…"
+
+    @staticmethod
+    def _lead_sentence(text: str, limit: int = 1200) -> str:
+        return LocalEvidenceChatModel._detailed_excerpt(text, limit)
 
     def _answer(self, payload: str) -> str:
         """Compose an extractive answer that reads like an answer.
@@ -349,16 +354,16 @@ class LocalEvidenceChatModel:
                 "当前没有检索到可以支撑回答的证据。可以先上传 PDF、图片、Markdown 或 TXT 文档，或开启联网检索后再提问。"
             )
 
-        # Paragraphs, each carrying the marker for the excerpt it came from --
-        # the shape `output_filter` renumbers and the shape a reader expects.
-        # No lead-in, no trailer: a note about which backend produced this
-        # belongs in the trace, not in every answer.
+        # Retain detailed long-form paragraphs, each carrying the marker for the excerpt
+        # it came from -- preserving comprehensive context for reader.
         del question
-        paragraphs = [f"{self._lead_sentence(body)} [{marker}]" for marker, body in excerpts[:4]]
+        paragraphs = [f"{self._detailed_excerpt(body)} [{marker}]" for marker, body in excerpts[:6]]
         return "\n\n".join(paragraphs)
 
     def invoke(self, messages):
         system_text, human_text = self._message_text(messages)
+        if "澄清评估" in system_text or "clarification agent" in system_text.lower():
+            return SimpleNamespace(content=self._clarification_json(system_text + " " + human_text))
         if "route planner" in system_text.lower() or "output json only" in system_text.lower():
             return SimpleNamespace(content=self._route_json(human_text))
         if "知识图谱抽取器" in system_text:
@@ -370,6 +375,43 @@ class LocalEvidenceChatModel:
         if "query decomposition expert" in human_text.lower():
             return SimpleNamespace(content=self._decomposition_echo(human_text))
         return SimpleNamespace(content=self._answer(human_text))
+
+    def _clarification_json(self, text: str) -> str:
+        t = text.lower()
+        if any(w in t for w in ["设计", "选型", "方案", "架构", "迁移", "优化", "design", "architecture", "recommend"]):
+            is_en = "clarification agent" in t and "chinese" not in t and "zh" not in t
+            if is_en:
+                return json.dumps(
+                    {
+                        "needs_clarification": True,
+                        "field_name": "target_architecture",
+                        "question": "What architecture pattern or framework do you prefer for this project?",
+                        "options": [
+                            "(Recommended) Modular Monolith / Microservices: Clean domain boundary, easily testable and evolvable",
+                            "Serverless Event-Driven: Minimal operational overhead, cost-efficient scaling",
+                            "Embedded Light Scripting: Single-process local execution without external dependencies",
+                            "Other (Custom input / specify details)",
+                        ],
+                        "reason": "Missing target architecture and tech stack preference",
+                    },
+                    ensure_ascii=False,
+                )
+            return json.dumps(
+                {
+                    "needs_clarification": True,
+                    "field_name": "target_architecture",
+                    "question": "请问您计划采用哪种技术架构与实现模式？",
+                    "options": [
+                        "(推荐) FastAPI + 异步架构：轻量高性能，与现代 AI Agent 原生集成最佳",
+                        "Django REST framework：内置完善的 ORM、身份认证与后台管理系统，适合中大型项目",
+                        "Spring Boot / Go 微服务：高并发企业级服务体系，适合已有团队技术栈对接",
+                        "其他（自定义输入 / 补充说明）",
+                    ],
+                    "reason": "缺少目标架构与技术栈偏好约束",
+                },
+                ensure_ascii=False,
+            )
+        return json.dumps({"needs_clarification": False, "reason": "Query is clear and specific"}, ensure_ascii=False)
 
     def _decomposition_echo(self, prompt_text: str) -> str:
         """This offline backend can't actually decompose a query; echo it back as a
@@ -830,7 +872,7 @@ def _anthropic_chat_model(
                 api_key=anthropic_api_key,
                 base_url=anthropic_base_url,
                 temperature=temperature,
-                max_tokens=max_tokens if max_tokens > 0 else 2048,
+                max_tokens=max_tokens if max_tokens > 0 else 4096,
                 # No `streaming` flag: this adapter streams by having a
                 # `stream()` method, not by being told to. Passing one was a
                 # `TypeError` at construction, so this branch -- the only

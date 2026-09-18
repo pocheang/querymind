@@ -145,7 +145,7 @@ class _PathRootedAt:
         self._root = root
 
     def __call__(self, value):
-        if str(value).endswith("app/core/config.py"):
+        if str(value).replace("\\", "/").endswith("app/core/config.py"):
             return _FakeConfigPath(self._root)
         return Path(value)
 
