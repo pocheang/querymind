@@ -2546,6 +2546,32 @@ incomplete beside a diagnosis naming nothing. A synthetic query whose only
 relevant document is graded 1 and unretrievable now drives the real harness and
 closes it.
 
+**`--queries` is a command-line value that gets opened, so it is bounded**
+(`pythonsecurity:S8707`, raised against `load_queries` the day the flag landed).
+The rule frames the risk as an agent running the tool with an argument it did not
+choose, which is exactly how this repository is operated, so it is honoured
+rather than waved away as a developer's own CLI --
+`scripts/audit/cognitive_complexity.py` already carries the same shape for the
+same rule, and this is a third site rather than a shared helper because `app/`
+must not depend on `scripts/` and the roots and accepted suffix differ.
+
+`query_set_path` **resolves first and then contains**: a `".." not in raw` check
+is defeated by a symlink inside the repository pointing out of it, and by
+`a/../b` normalising to something the substring test never saw -- both are pinned,
+and the symlink case is the only test that can tell the two implementations
+apart. It sits in `main()` rather than inside `load_queries`, because the sink is
+application code that tests legitimately call with paths of their own, and
+because the boundary the untrusted value crosses is the only place it is
+untrusted. "Not allowed" and "not there" stay different messages, so a typo does
+not send somebody to check permissions.
+
+**A mutation removing the call from `main()` reddened nothing**, and that is the
+finding worth keeping: all seven tests drove `query_set_path` directly, so the
+containment could have been correct and unwired -- a control that is written,
+tested and unreachable, which this file records as its most expensive recurring
+failure. `test_the_command_line_actually_uses_it` drives `main()` with a refused
+path, which exits before any retrieval runs and so costs nothing.
+
 ### A worked example of graded judgements
 
 `config/eval/retrieval_queries.graded.example.json` is the format to copy, over documents

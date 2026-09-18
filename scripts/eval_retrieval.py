@@ -39,6 +39,42 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def query_set_path(raw: str) -> Path:
+    """Resolve `--queries`, refusing anything outside the working tree.
+
+    `pythonsecurity:S8707`, raised the day `--queries` landed: a value from the
+    command line reaches `load_queries`, which opens it. The rule frames the risk
+    as an agent running the tool with an argument it did not choose, and that is
+    exactly how this repository is operated -- so it is honoured rather than
+    waved away as "a developer's own CLI". `scripts/audit/cognitive_complexity.py`
+    carries the same shape for the same rule; this is a third site rather than a
+    shared helper because `app/` must not depend on `scripts/`, and the roots and
+    the accepted suffix differ.
+
+    **Resolve first, then contain.** Testing the string for `..` before resolving
+    is defeated by a symlink, and by `a/../../b` normalising to something the
+    substring test never saw.
+
+    It sits in `main()` rather than inside `load_queries`, for two reasons. The
+    sink is application code that tests legitimately call with paths of their own,
+    so a hard containment there would be a rule about the CLI enforced somewhere
+    the CLI is not. And this is the boundary the untrusted value crosses, which is
+    the only place it is untrusted.
+    """
+
+    candidate = Path(raw).resolve()
+    roots = (Path.cwd().resolve(), REPO_ROOT)
+    inside = any(candidate == root or root in candidate.parents for root in roots)
+    if candidate.suffix != ".json" or not inside:
+        raise SystemExit(f"refusing to read {raw!r}: expected a .json query set under the working tree")
+    if not candidate.is_file():
+        raise SystemExit(f"no such query set: {raw!r}")
+    return candidate
+
+
 def _report_metrics(score) -> None:
     """Recall, MRR, nDCG and complete@5 lead because they have range.
 
@@ -105,7 +141,7 @@ def _report_unexpected_ranks(score, queries) -> bool:
     return True
 
 
-async def _run(use_vector: bool, queries_override: str | None) -> int:
+async def _run(use_vector: bool, queries_override: Path | None) -> int:
     from app.core.config import get_settings
     from app.evaluation.retrieval_eval import (
         CORPUS_PATHS,
@@ -124,10 +160,7 @@ async def _run(use_vector: bool, queries_override: str | None) -> int:
     # MAIN set, and asserting it against another one reports a failure for every
     # query it has never seen.
     tracked = queries_override is None
-    queries_path = resolve(QUERY_PATHS) if tracked else Path(queries_override)
-    if not queries_path.exists():
-        print(f"no such query set: {queries_path}")
-        return 1
+    queries_path = resolve(QUERY_PATHS) if tracked else queries_override
 
     os.environ["CORPUS_STORE_PATH"] = str(corpus)
     get_settings.cache_clear()
@@ -173,7 +206,9 @@ def main() -> int:
         help="measure a named query set instead of the tracked default (ranks are not asserted for it)",
     )
     args = parser.parse_args()
-    return asyncio.run(_run(args.vector, args.queries))
+    # Contained here, at the boundary the value crosses, before anything opens it.
+    queries = query_set_path(args.queries) if args.queries else None
+    return asyncio.run(_run(args.vector, queries))
 
 
 if __name__ == "__main__":
