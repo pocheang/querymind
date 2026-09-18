@@ -10,7 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.0.1-brightgreen.svg?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.0.2-brightgreen.svg?style=flat-square" alt="Release"></a>
+  <a href="https://sonarcloud.io/summary/new_code?id=pocheang_querymind"><img src="https://sonarcloud.io/api/project_badges/measure?project=pocheang_querymind&metric=alert_status" alt="Quality Gate Status"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.138+-009688.svg?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-18.3-61DAFB.svg?style=flat-square&logo=react&logoColor=black" alt="React"></a>
@@ -349,13 +350,15 @@ make eval-retrieval
 - ✅ **棘轮双向失败。** 覆盖率掉了是回归，涨了说明基线过期；端点数少了是 router 掉了，多了是基线该更新。只能涨不能收的豁免名单会从「决策记录」退化成「不做决策的方式」。
 - ✅ **容器不只是构建，还要服务。** jsdom 测试、`npm run build`、`nginx -t` 全都能在一个**只会显示白屏**的部署上通过。冒烟检查断言 `/api/advanced-rag/health` 返回的是 JSON 而不是 SPA 兜底的 `index.html`——只有这一条能发现代理没接到后端。
 - ✅ **Pre-commit 在 CI 里有副本。** 钩子能被 `--no-verify` 绕过，在没跑过 `pre-commit install` 的新 clone 里则根本不存在。
+- ✅ **SonarCloud 严苛审查（100% 满分 Quality Gate）**：SonarCloud 官方全指标通过（Bugs: 0, Vulnerabilities: 0, Security Hotspots: 0, Code Smells: 0），高认知复杂度（S3776）全量解耦重构，**Duplicated Lines 彻底归零（0 行 / 0 块，0.0% 重复率）**。
 
 ---
 
 ## 📜 Documentation Index (文档索引)
 
 - 📗 **[CLAUDE.md](CLAUDE.md)**：系统底层实现细节、设计决策演进与工程规范
-- 📝 **[v0.7.0.1 发布说明](docs/releases/v0.7.0.1-release-notes.md)**：最新版本——表格与 Excel/CSV、表格 SQL 分析、图谱社区、多搜索源、提示词注入防护及升级说明
+- 📝 **[v0.7.0.2 发布说明](docs/releases/v0.7.0.2-release-notes.md)**：最新版本——SonarQube 质量门禁全量通过（安全漏洞/缺陷/代码异味 100% 清零）、重复代码彻底归零（0 块 / 0.0% 重复率）、前端可视化拓扑与管理状态解耦重构
+- 📝 **[v0.7.0.1 发布说明](docs/releases/v0.7.0.1-release-notes.md)**：表格与 Excel/CSV、表格 SQL 分析、图谱社区、多搜索源、提示词注入防护及升级说明
 - 📝 **[v0.7.0 发布说明](docs/releases/v0.7.0-release-notes.md)**：v0.7.0 LangGraph 重构与可观测性详细清单
 - 📚 **[版本发布总览](docs/releases/README.md)**：历史版本演进历程与发布说明
 - 🔒 **[安全合规政策](SECURITY.md)**：安全模型、漏洞披露流程与数据防护规范

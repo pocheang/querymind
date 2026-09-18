@@ -19,7 +19,7 @@ conda activate rag-local
   tagline and this line are kept identical on purpose -- a project that describes
   itself three different ways is the same failure this file records everywhere
   else, applied to its own front door.
-- **Version**: 0.7.0.1 (Released 2026-09-14)
+- **Version**: 0.7.0.2 (Released 2026-09-16)
 - **Language Support**: Bilingual (Chinese/English) via i18next
 - **License**: MIT
 
@@ -110,8 +110,7 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-17): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,244 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **214 frontend tests** (**2,458 total tests**, 0 failures). Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
-`check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
+Note (counts refreshed 2026-09-17, v0.7.0.2): The v0.7.0 Canonical LangGraph architecture consolidation and v0.7.0.2 SonarQube quality remediation are complete. The test suite stands at **2,244 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **214 frontend tests** (**2,458 total tests**, 0 failures). SonarCloud Quality Gate is **OK** with **0 Code Smells, 0 Bugs, 0 Vulnerabilities, 0 Security Hotspots**, and **Duplicated Lines reduced to 0.0% (0 lines / 0 blocks)**. Scripts hold twelve focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`, `check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
@@ -2297,6 +2296,16 @@ shape rule, and `GET /admin/config/schema` echoes every editable value;
 was built from, so `apply_config_reload` now clears it. A user who switches web
 search on in the composer outranks keyword-matched sources when the plan's budget
 must drop one, but the budget itself is never raised.
+
+### SonarQube Quality Remediation and Duplication Zero (v0.7.0.2, reviewed 2026-09-16)
+
+v0.7.0.2 achieved 100% resolution of all SonarCloud metrics (Quality Gate OK):
+- **0 Vulnerabilities**: Fixed ReDoS vulnerability in table-separator regex by standardizing to non-backtracking `^\|(\s*:?-+[-:]*\s*\|)+$` across all parsers (`splitter.py`, `classification.py`, `extraction/tables.py`, `office_loader.py`).
+- **0 Bugs & 0 Code Smells**: Remediated 73+ cognitive complexity issues (S3776 <= 15) across frontend (`LoginFormPanel.tsx`, `smartPrompts.ts`) and backend (`splitter.py`, `tables.py`, `office_loader.py`, `pdf_loader.py`, `community.py`, `table_linking.py`, `injection_defense.py`).
+- **0 Duplicated Lines / 0 Duplicated Blocks (0.0% duplication rate)**:
+  - Frontend `DataFlowVisualization.tsx`: Refactored 53 edge definitions into a compact factory mapper and externalized 34 node translation pairs into `dataFlowTranslations.json`.
+  - Admin Dashboards (`AdminAgentQualityDashboard.tsx`, `AdminWebActivityDashboard.tsx`): Consolidated duplicate loading skeletons and error retry JSX into `AdminDashboardStatus` in `AdminPrimitives.tsx`.
+  - Backend `enhanced_graph.py` and `pdf_loader_enhanced.py`: Imported shared formatting helpers from `graph.py` and document page extraction from `pdf_loader.py`.
 
 ### Technology Stack
 

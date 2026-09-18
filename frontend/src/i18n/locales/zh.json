@@ -813,7 +813,7 @@
       "rememberMe": "记住我",
       "socialDivider": "或使用第三方登录",
       "githubUnavailable": "GitHub OAuth 待配置后启用",
-      "localReady": "v0.7.0.1 本地就绪",
+      "localReady": "v0.7.0.2 本地就绪",
       "missionDesc": "基于统一向量语义空间与拓扑知识图谱，为企业构建高可靠、强隔离、支持全链路审计的智能问答与协同决策中枢。",
       "multiAgentDesc": "LangGraph 规范状态机全链路编排，支持自动化动态推理与工具调度",
       "hybridSearchDesc": "BGE-M3 密集向量 + BM25 稀疏检索 + Neo4j 知识拓扑多路协同推理",

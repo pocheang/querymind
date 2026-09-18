@@ -1,3 +1,3 @@
 """Version information for QueryMind package."""
 
-__version__ = "0.7.0.1"
+__version__ = "0.7.0.2"
