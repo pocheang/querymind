@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from math import log2
 from pathlib import Path
 
 import pytest
@@ -234,3 +235,43 @@ async def test_precision_at_five_is_capped_by_one_gold_document_per_query(eval_c
     score = await measure(queries, eval_scope(load_corpus_sources(TRACKED_CORPUS)))
 
     assert score.precision_at_5 == pytest.approx(0.2)
+    # And the ceiling the judgements allow is that same 0.2, so the score is
+    # perfect rather than poor. Computed from the corpus rather than written
+    # down: if somebody adds a second relevant document to a query, this rises
+    # and the paragraph above stops being true in the same commit.
+    assert score.precision_ceiling_at_5 == pytest.approx(0.2)
+    assert score.precision_at_5 == pytest.approx(score.precision_ceiling_at_5)
+
+
+@pytest.mark.asyncio
+async def test_the_metrics_with_range_are_what_the_corpus_is_judged_on(eval_corpus: None):
+    """recall@5, MRR and nDCG@5 -- the three the report leads with.
+
+    Pinned exactly, not as floors: BM25 over a fixed JSONL is deterministic, so
+    an improvement has to fail here as loudly as a regression, the rule
+    `expected_ranks` already follows. nDCG is 15 queries at rank 1 plus `q-15` at
+    rank 2, which is `(15 + 1/log2(3)) / 16`.
+    """
+
+    queries = load_queries(TRACKED_QUERIES)
+    score = await measure(queries, eval_scope(load_corpus_sources(TRACKED_CORPUS)))
+
+    assert score.recall_at_5 == pytest.approx(1.0), "every query should find its document in the top five"
+    assert score.mrr == pytest.approx(0.9688, abs=1e-4)
+    assert score.ndcg_at_5 == pytest.approx((15 + 1 / log2(3)) / 16)
+    assert score.ndcg_at_5 == pytest.approx(0.9769, abs=1e-4)
+
+
+@pytest.mark.asyncio
+async def test_precision_at_five_is_recall_over_five_on_this_corpus(eval_corpus: None):
+    """Which is why the report does not lead with it.
+
+    The identity holds only while every query has one relevant document, so this
+    also fails the day the corpus gains multi-gold judgements -- at which point
+    P@5 starts carrying information and the reporting order is worth revisiting.
+    """
+
+    queries = load_queries(TRACKED_QUERIES)
+    score = await measure(queries, eval_scope(load_corpus_sources(TRACKED_CORPUS)))
+
+    assert score.precision_at_5 == pytest.approx(score.recall_at_5 / 5)

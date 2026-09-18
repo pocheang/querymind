@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.domain.knowledge import AccessScope, KnowledgeSourcePlan, KnowledgeStrategy
+from app.evaluation.metrics import ndcg_at_k, precision_ceiling_at_k, recall_at_k
 from app.evaluation.models import TestQuery
 from app.knowledge.orchestrator import KnowledgeOrchestrator, discard_trace
 from app.services.security.access_scope import DEFAULT_CONTEXT_FIELDS
@@ -132,18 +133,28 @@ def eval_scope(sources: tuple[str, ...]) -> AccessScope:
 class RetrievalScore:
     """Per-query outcome plus the aggregates, so a failure can name the query.
 
-    **`precision_at_5` here is capped at 0.2 and that is not a bad score.** Every
-    query in the shipped set has exactly one relevant document, so at most one of
-    five retrieved items can be relevant. It is reported because it is cheap, but
-    `mrr` is the metric with headroom on this corpus, and neither number is
-    comparable to a P@5 target quoted for a corpus with several relevant
-    documents per query. Comparing them is the mistake this docstring exists to
-    prevent.
+    **`precision_at_5` is bounded by the annotations, and `precision_ceiling_at_5`
+    says by how much.** Every query in the shipped set has exactly one relevant
+    document, so at most one of five retrieved items can be relevant and P@5
+    cannot exceed 0.2 however good retrieval is -- 0.2 there is a *perfect*
+    score, not a poor one. The ceiling is computed from the judgements rather
+    than written down, so the two can never be compared by mistake.
+
+    On a single-gold corpus P@5 is `recall_at_5 / 5` exactly and carries no
+    information the recall does not, which is why `recall_at_5`, `mrr` and
+    `ndcg_at_5` are what the report leads with.
+
+    The three new fields carry defaults so that a caller constructing a score by
+    hand -- the tests do -- is not forced to supply an aggregate it does not
+    measure.
     """
 
-    ranks: dict[str, int]  # query id -> 1-based rank of the gold source, 0 if absent
+    ranks: dict[str, int]  # query id -> 1-based rank of the best relevant source, 0 if absent
     precision_at_5: float
     mrr: float
+    recall_at_5: float = 0.0
+    ndcg_at_5: float = 0.0
+    precision_ceiling_at_5: float = 0.0
 
     @property
     def reciprocal_ranks(self) -> dict[str, float]:
@@ -161,6 +172,9 @@ async def measure(
     orchestrator = KnowledgeOrchestrator()
     ranks: dict[str, int] = {}
     hits_at_5 = 0.0
+    recall_total = 0.0
+    ndcg_total = 0.0
+    ceiling_total = 0.0
     for query in queries:
         strategy = KnowledgeStrategy(
             sources=(
@@ -180,15 +194,24 @@ async def measure(
         )
         context = await orchestrator.retrieve(strategy, scope, discard_trace)
         retrieved = [item.source for item in context.evidence][:top_k]
-        gold = set(query.expected_docs)
+        graded = query.graded_relevance()
+        # A grade of 0 is "judged and not relevant", so it must not count as gold
+        # here any more than it counts toward recall inside the metrics.
+        gold = {source for source, grade in graded.items() if grade > 0}
         ranks[query.id] = next((index for index, source in enumerate(retrieved, start=1) if source in gold), 0)
         hits_at_5 += len([source for source in retrieved if source in gold]) / top_k
+        recall_total += recall_at_k(retrieved, graded, top_k)
+        ndcg_total += ndcg_at_k(retrieved, graded, top_k)
+        ceiling_total += precision_ceiling_at_k(graded, top_k)
 
     total = max(1, len(queries))
     return RetrievalScore(
         ranks=ranks,
         precision_at_5=hits_at_5 / total,
         mrr=sum(1.0 / rank for rank in ranks.values() if rank) / total,
+        recall_at_5=recall_total / total,
+        ndcg_at_5=ndcg_total / total,
+        precision_ceiling_at_5=ceiling_total / total,
     )
 
 

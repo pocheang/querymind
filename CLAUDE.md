@@ -2362,7 +2362,7 @@ principle as the `advanced-rag/config` fix).
 |---|---|
 | **Router accuracy** >95% | **nothing.** No labelled routing set exists. |
 | **Citation completeness** >90% | **nothing** as an aggregate. It is *enforced* per answer by the cascade's citation stage, but never scored across a query set. |
-| **P@5** >0.85 | **not comparable** — see below. `make eval-retrieval` reports P@5 and MRR over a tracked corpus, but that corpus has one relevant document per query. |
+| **P@5** >0.85 | **not comparable**, and no longer the headline — see below. `make eval-retrieval` leads with recall@5, MRR and nDCG@5, which have range on the tracked corpus; P@5 is printed beside the ceiling its own judgements impose. |
 | **Latency P95** <5s | `build_ops_alerts`, from the `request_rows` ring the middleware writes. Process-local, so a restart empties it. |
 
 **The retrieval numbers come from `make eval-retrieval`** (`scripts/eval_retrieval.py`,
@@ -2384,6 +2384,52 @@ rather than ratcheted, per query, so a failure names the query. Every query rank
 document first except `q-15`, which ranks second by the lexical limit described above, so
 MRR is **0.9688**. This paragraph claimed 1.0 until 2026-09-05: it was written before the
 CJK tokenizer commit added that limit and was not corrected with it.
+
+**Reporting P@5 as the headline was itself the defect, and it is fixed** (2026-09-18).
+A number that cannot move is not a measurement: on a single-gold corpus P@5 is
+`recall_at_5 / 5` exactly, so it carries nothing the recall does not and reads as a
+failure to anyone who compares it with the 0.85 in the table above. The report now leads
+with **recall@5 1.0000, MRR 0.9688, nDCG@5 0.9769** and prints P@5 beside
+`precision_ceiling_at_5`, which is **computed from the judgements** rather than written
+down -- so "0.2000 ceiling 0.2000 (at the ceiling)" says what 0.2 means, and the ceiling
+rises on its own the day the corpus gains a second relevant document per query. Below a
+ceiling of 1.0 the report adds a paragraph saying so in words, because the one-line form
+is what gets pasted into a status update.
+
+**`ndcg_at_k` had been wrong in two independent ways since it was written**, measured
+before anything was changed:
+
+```
+3 relevant, 1 retrieved at rank 1  ->  reported 1.0,    correct 0.4693
+1 relevant, retrieved at rank 2    ->  reported 0.4871, correct 0.6309
+1 relevant, retrieved at rank 1    ->  reported 1.0,    correct 1.0
+```
+
+The ideal ranking was built from the **retrieved** labels, so a relevant document that was
+missed entirely never entered the denominator -- retrieving one of three scored a perfect
+1.0. And `ndcg_score(y_true, y_score)` was handed a sorted copy of the labels as `y_true`
+and the labels themselves as `y_score`. Only the third row was right, and it is the shape
+the shipped 16-query corpus is almost entirely made of, which is why nothing caught it:
+the metric was live on `POST /api/evaluation/run` through `calculate_all_metrics`. It is
+the direct formula now (exponential gain, `(2^g - 1) / log2(i + 1)`), four lines, and
+sklearn was the only import it needed -- **nothing in `app/` or `scripts/` imports sklearn
+any more**, though it is still declared in `pyproject.toml`, which is a lockfile decision
+rather than part of this change.
+
+**Relevance may now be graded, and the shipped corpus does not have to change to benefit.**
+Every metric takes `relevant` as a set (grade 1 each, the original form) or a
+`source -> grade` map, reconciled in one place, `_grades`; a grade of 0 means *judged and
+unhelpful*, which is deliberately the same thing as unannotated to every metric, so a
+corpus can record a near-miss without it counting toward recall. `TestQuery.relevance` is
+the optional map beside the existing `expected_docs` list, and `graded_relevance()` merges
+them -- a grade wins per key, the list fills the gaps at 1.0 -- so every query written
+today keeps working untouched and a multi-gold or graded query needs no new file format.
+**That is the half that makes P@5 meaningful again**: the ceiling is 0.2 because of the
+annotations, not because of retrieval, so supplying more judgements is what raises it.
+
+`tests/evaluation/test_graded_relevance_metrics.py` (17) pins all of it against
+hand-computed nDCG values rather than against the implementation, so a rewrite that
+reintroduces either defect fails rather than agreeing with itself.
 
 `KNOWN_LEXICAL_LIMITS` and `expected_ranks` live in `app/evaluation/retrieval_eval.py`
 because `scripts/eval_retrieval.py` needs the same answer. It did not have it: its exit

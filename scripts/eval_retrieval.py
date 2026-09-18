@@ -72,8 +72,22 @@ async def _run(use_vector: bool) -> int:
         rank = score.ranks.get(query.id, 0)
         print(f"{query.id:<8} {rank if rank else '-':>4}  {query.query}")
     print()
-    print(f"MRR  : {score.mrr:.4f}")
-    print(f"P@5  : {score.precision_at_5:.4f}")
+    # Recall, MRR and nDCG lead because they have range on this corpus. P@5 is
+    # reported last with the ceiling its annotations allow: the shipped set has
+    # one relevant document per query, so P@5 cannot exceed 0.2 however good
+    # retrieval is, and printing 0.2 on its own invites reading a perfect score
+    # as a failing one.
+    print(f"recall@5 : {score.recall_at_5:.4f}")
+    print(f"MRR      : {score.mrr:.4f}")
+    print(f"nDCG@5   : {score.ndcg_at_5:.4f}")
+    ceiling = score.precision_ceiling_at_5
+    reached = " (at the ceiling)" if abs(score.precision_at_5 - ceiling) < 1e-9 else ""
+    print(f"P@5      : {score.precision_at_5:.4f}  ceiling {ceiling:.4f}{reached}")
+    if ceiling < 1.0:
+        print()
+        print(f"P@5 cannot exceed {ceiling:.4f} on these judgements -- this corpus averages")
+        print(f"{ceiling * 5:.2f} relevant documents per query. Compare recall@5 and nDCG@5 instead;")
+        print("a P@5 target quoted for a multi-gold corpus is not comparable to this number.")
 
     if use_vector:
         print()
