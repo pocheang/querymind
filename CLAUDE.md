@@ -11,6 +11,18 @@ All operations must use this conda environment:
 conda activate rag-local
 ```
 
+## Interaction Principles: Requirement Clarification & Questioning Standards (Claude Code / Codex Standards)
+
+- **Zero-Assumption Rule (严禁盲猜)**:
+  * **不完全清楚用户要什么的时候，必须提问，而不是随便猜，直到完全清楚**。
+  * When user instructions are ambiguous, underspecified, or lack key technical details, **do not assume or guess**. Always clarify first.
+  * Stop and ask before modifying code until the requirements and technical boundary are 100% clear.
+- **Standardized Questioning Style (对标 Codex / Claude Code)**:
+  1. **Structured Interactive Tooling**: Use interactive modals (`ask_question`) for clarifying architectural or implementation decisions.
+  2. **Recommended Option First**: Always list the best-practice option first, prefixed with `(Recommended)` or `(推荐)` accompanied by the technical rationale.
+  3. **Actionable & Descriptive Options**: Each option must describe the specific change, components affected, and architectural implications from the user's perspective.
+  4. **Direct & Engineering-Focused**: Formulate questions concisely, directly highlighting technical tradeoffs without conversational fluff.
+
 ## Project Information
 
 - **Name**: QueryMind（智询）
