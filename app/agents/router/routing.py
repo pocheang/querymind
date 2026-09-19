@@ -97,12 +97,12 @@ def _extract_json(text: str) -> dict:
     match = re.search(r"\{.*\}", text, flags=re.DOTALL)
     if not match:
         logger.warning("No JSON found in router response, using fallback")
-        return {"route": ROUTE_VECTOR, "reason": "fallback", "skill": SKILL_DEFAULT}
+        return {"route": ROUTE_VECTOR, "reason": "fallback"}
     try:
         return json.loads(match.group(0))
     except json.JSONDecodeError as e:
         logger.warning(f"JSON decode error in router response: {e}")
-        return {"route": ROUTE_VECTOR, "reason": "fallback_json_error", "skill": SKILL_DEFAULT}
+        return {"route": ROUTE_VECTOR, "reason": "fallback_json_error"}
 
 
 def _normalize_agent_class_hint(agent_class_hint: str | None) -> str | None:
@@ -367,13 +367,23 @@ def _validated_route(route_data: dict) -> tuple[str, str]:
     return route, reason
 
 
+def _is_valid_skill(skill_name: str, fallback_skill: str) -> bool:
+    if skill_name in VALID_SKILLS or skill_name == fallback_skill:
+        return True
+    try:
+        from app.agents.registry import get_domain_agent_registry
+
+        return skill_name in get_domain_agent_registry().list_skills()
+    except Exception:
+        return False
+
+
 def _validated_skill(route_data: dict, skill: str, reason: str) -> tuple[str, str]:
     """An unrecognised skill keeps the one already chosen rather than overriding it."""
-
     llm_skill = normalize_string(route_data.get("skill", skill), lowercase=True)
     if not llm_skill or llm_skill == "...":
         return skill, reason
-    if llm_skill in VALID_SKILLS:
+    if _is_valid_skill(llm_skill, skill):
         return llm_skill, reason
     return skill, _append_reason(reason, f"invalid_skill={llm_skill}")
 
