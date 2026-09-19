@@ -59,6 +59,7 @@ class ToolDefinition(ImmutableContract):
     connector_id: str | None = Field(default=None, min_length=1, max_length=64)
     operation: ToolOperation
     risk: ToolRisk = "read_only"
+    category: str = Field(default="general", max_length=64)
     required_scopes: frozenset[str] = Field(default_factory=frozenset)
     timeout_seconds: int = Field(default=20, ge=1, le=120)
     description: str = Field(default="", max_length=400)

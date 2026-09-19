@@ -112,6 +112,7 @@ def _build_tool_stack() -> ToolStack:
     )
     _register_connector_tools(registry, connectors)
     _register_table_tools(registry)
+    _register_domain_specialist_tools(registry)
     return ToolStack(
         approvals=approvals,
         registry=registry,
@@ -277,7 +278,20 @@ def _register_table_tools(registry: ToolRegistry) -> None:
     )
 
 
+def _register_domain_specialist_tools(registry: ToolRegistry) -> None:
+    from app.tools.registry import get_domain_tool_registry
+
+    get_domain_tool_registry().register_all_into(registry)
+
+
+CYBER_CVE_TOOL_ID = "querymind_cyber_cve_lookup"
+CYBER_ATTACK_TOOL_ID = "querymind_cyber_mitre_attack"
+AI_MATH_TOOL_ID = "querymind_ai_math_eval"
+
 __all__ = [
+    "AI_MATH_TOOL_ID",
+    "CYBER_ATTACK_TOOL_ID",
+    "CYBER_CVE_TOOL_ID",
     "DISABLE_CONNECTOR_TOOL_ID",
     "LIST_CONNECTORS_TOOL_ID",
     "QUERY_TABLE_TOOL_ID",

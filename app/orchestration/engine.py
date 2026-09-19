@@ -98,7 +98,7 @@ class OrchestrationServices:
         privacy: PrivacyService | None = None,
         access_scope_resolver: AccessScopeResolver | None = None,
         context: object | None = None,
-        event_reporter_binder: Callable[[Callable[[ExecutionEvent], None]], None] | None = None,
+        **extra_services: Any,
     ) -> None:
         self.router = router
         self.planner = planner
@@ -111,8 +111,32 @@ class OrchestrationServices:
         self.knowledge_agent = knowledge_agent or _default_knowledge_agent
         self.privacy = privacy or PrivacyService()
         self.access_scope_resolver = access_scope_resolver or AccessScopeResolver()
+        domain_agent_registry = extra_services.get("domain_agent_registry")
+        if domain_agent_registry is not None:
+            self.domain_agent_registry = domain_agent_registry
+        else:
+            from app.agents.registry import get_domain_agent_registry
+
+            self.domain_agent_registry = get_domain_agent_registry()
+
+        self.cybersecurity_agent = extra_services.get("cybersecurity_agent") or self.domain_agent_registry.get_agent(
+            "cybersecurity"
+        )
+        self.ai_agent = extra_services.get("ai_agent") or self.domain_agent_registry.get_agent(
+            "artificial_intelligence"
+        )
+        security_guardrail = extra_services.get("security_guardrail")
+        if security_guardrail is not None:
+            self.security_guardrail = security_guardrail
+        else:
+            from app.services.security.security_guardrail import SecurityGuardrailService
+
+            self.security_guardrail = SecurityGuardrailService(
+                privacy_service=self.privacy,
+                access_scope_resolver=self.access_scope_resolver,
+            )
         self.context = context
-        self._event_reporter_binder = event_reporter_binder
+        self._event_reporter_binder = extra_services.get("event_reporter_binder")
 
     def bind_event_reporter(self, reporter: Callable[[ExecutionEvent], None]) -> None:
         """Install this request's reporter for the current async task only."""

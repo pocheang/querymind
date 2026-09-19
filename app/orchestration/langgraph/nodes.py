@@ -97,6 +97,9 @@ class WorkflowServices(Protocol):
     ]
     privacy: PrivacyService
     access_scope_resolver: AccessScopeResolver
+    security_guardrail: Any | None = None
+    cybersecurity_agent: Any | None = None
+    ai_agent: Any | None = None
 
     def report_event(self, event: ExecutionEvent) -> None: ...
 
@@ -123,12 +126,25 @@ class WorkflowNodeRuntime:
         request = _required(state, "request", OrchestrationRequest)
 
         async def operation() -> tuple[PrivacyResult, Any, OrchestrationRequest]:  # NOSONAR
-            privacy = self._services.privacy.inspect_input(request.question)
-            if privacy.blocked:
-                raise PermissionError("input privacy inspection blocked the request")
-            scope = self._services.access_scope_resolver.resolve(request.actor, request.source_scope)
+            guardrail = getattr(self._services, "security_guardrail", None)
+            if guardrail is not None:
+                guard_result = guardrail.inspect_and_authorize(
+                    request.question,
+                    request.actor,
+                    request.source_scope,
+                )
+                privacy = guard_result.privacy
+                scope = guard_result.permission_scope
+                sanitized_text = guard_result.sanitized_question
+            else:
+                privacy = self._services.privacy.inspect_input(request.question)
+                if privacy.blocked:
+                    raise PermissionError("input privacy inspection blocked the request")
+                scope = self._services.access_scope_resolver.resolve(request.actor, request.source_scope)
+                sanitized_text = privacy.text
+
             sanitized = request.model_copy(
-                update={"question": privacy.text, "source_scope": _scope_to_request_scope(scope, request)}
+                update={"question": sanitized_text, "source_scope": _scope_to_request_scope(scope, request)}
             )
             return privacy, scope, sanitized
 
@@ -295,6 +311,29 @@ class WorkflowNodeRuntime:
             # skipped routing, and the default skill is the right answer there.
             routed = state.get("route")
             skill = getattr(routed, "skill", "") or SKILL_DEFAULT
+            agent_class = getattr(routed, "agent_class", "")
+
+            specialist = None
+            agent_registry = getattr(self._services, "domain_agent_registry", None)
+            if agent_registry is not None and agent_class:
+                specialist = agent_registry.get_agent(agent_class)
+            if specialist is None and agent_class:
+                if agent_class == "cybersecurity":
+                    specialist = getattr(self._services, "cybersecurity_agent", None)
+                elif agent_class == "artificial_intelligence":
+                    specialist = getattr(self._services, "ai_agent", None)
+
+            if specialist is not None and hasattr(specialist, "synthesize_candidate"):
+                candidate_answer, event = await self._run_stage(
+                    state,
+                    event_stage="synthesize",
+                    timeout_stage="synthesize",
+                    operation=lambda: specialist.synthesize_candidate(request, context, tool_results, skill),
+                    expected_type=CandidateAnswer,
+                    on_timeout=_timed_out_candidate,
+                )
+                return {"candidate_answer": candidate_answer, "trace": (event,)}
+
             candidate_answer, event = await self._run_stage(
                 state,
                 event_stage="synthesize",

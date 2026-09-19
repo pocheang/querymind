@@ -5,10 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.agents.ai.service import AIAgentService
+from app.agents.cybersecurity.service import CybersecurityAgentService
 from app.agents.finalizer.service import FinalizationService
 from app.agents.knowledge.service import KnowledgeAgentService
 from app.agents.planner.service import PlannerAgentService, default_llm_decompose
 from app.agents.rag.service import RAGAgentService
+from app.agents.registry import DomainAgentRegistry, get_domain_agent_registry
 from app.agents.router.service import RouterAgentService
 from app.agents.synthesizer.service import SynthesizerAgentService
 from app.agents.tool.service import ToolAgentService
@@ -30,6 +33,9 @@ class CoreCapabilities:
     typed_rag: RAGAgentService = field(default_factory=RAGAgentService)
     typed_tools: ToolAgentService = field(default_factory=ToolAgentService)
     typed_synthesizer: SynthesizerAgentService = field(default_factory=SynthesizerAgentService)
+    typed_cybersecurity: CybersecurityAgentService = field(default_factory=CybersecurityAgentService)
+    typed_ai: AIAgentService = field(default_factory=AIAgentService)
+    domain_agent_registry: DomainAgentRegistry = field(default_factory=get_domain_agent_registry)
     typed_verifier: VerifierAgentService = field(default_factory=VerifierAgentService)
     typed_finalizer: FinalizationService = field(default_factory=FinalizationService)
     privacy: PrivacyService = field(default_factory=PrivacyService)
@@ -49,6 +55,9 @@ class CoreCapabilities:
             tool_runner=self.typed_tools.run,
             synthesizer=self.typed_synthesizer.synthesize,
             candidate_synthesizer=self.typed_synthesizer.synthesize_candidate,
+            cybersecurity_agent=self.typed_cybersecurity,
+            ai_agent=self.typed_ai,
+            domain_agent_registry=self.domain_agent_registry,
             finalizer=self.typed_finalizer.finalize,
             verifier=self.typed_verifier.verify,
             knowledge_agent=self.typed_knowledge.decide,

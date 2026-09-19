@@ -6,6 +6,16 @@ def classify_agent_class(question: str) -> str:
     if not text:
         return "general"
 
+    # 1. Prioritize dynamic matching from DomainAgentRegistry
+    try:
+        from app.agents.registry import get_domain_agent_registry
+
+        matched = get_domain_agent_registry().match_agent_class(text)
+        if matched:
+            return matched
+    except Exception:
+        pass
+
     pdf_patterns = [
         r"\bpdf\b",
         r"pdf提取",

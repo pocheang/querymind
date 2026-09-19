@@ -51,6 +51,8 @@ class RouteDecision(ImmutableContract):
     requires_plan: bool
     allowed_capabilities: frozenset[Capability] = Field(default_factory=frozenset)
     reason: str = Field(min_length=1)
+    agent_class: str = "general"
+    skill: str = "answer_with_citations"
 
     @property
     def effective_route(self) -> str:

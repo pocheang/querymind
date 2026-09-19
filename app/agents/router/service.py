@@ -66,6 +66,8 @@ class RouterAgentService:
             confidence = float(legacy.confidence) if legacy.confidence is not None else 0.5
             raw_confidence = float(getattr(legacy, "raw_confidence", confidence) or confidence)
             reason = str(legacy.reason) if legacy.reason is not None else "legacy_router"
+            agent_class = str(getattr(legacy, "agent_class", "general") or "general")
+            skill = str(getattr(legacy, "skill", "answer_with_citations") or "answer_with_citations")
         except (AttributeError, ValueError, TypeError) as exc:
             # Provide clear error message about what went wrong
             raise ValueError(
@@ -73,7 +75,14 @@ class RouterAgentService:
                 f"Expected object with 'route', 'confidence', and 'reason' attributes."
             ) from exc
 
-        decision = _to_domain_route(route, confidence, reason, raw_confidence)
+        decision = _to_domain_route(
+            route,
+            confidence,
+            reason,
+            raw_confidence,
+            agent_class=agent_class,
+            skill=skill,
+        )
         if not missing:
             return decision
         return decision.model_copy(
@@ -97,6 +106,8 @@ def _to_domain_route(
     confidence: float,
     reason: str,
     raw_confidence: float | None = None,
+    agent_class: str = "general",
+    skill: str = "answer_with_citations",
 ) -> RouteDecision:
     # Warn if confidence is out of valid range before normalization
     if confidence < 0.0 or confidence > 1.0:
@@ -116,6 +127,8 @@ def _to_domain_route(
             requires_plan=True,
             allowed_capabilities=frozenset({"rag", "tool"}),
             reason=reason,
+            agent_class=agent_class,
+            skill=skill,
         )
     if route == "hybrid":
         return RouteDecision(
@@ -126,6 +139,8 @@ def _to_domain_route(
             requires_plan=True,
             allowed_capabilities=frozenset({"rag"}),
             reason=reason,
+            agent_class=agent_class,
+            skill=skill,
         )
     if route == "web":
         return RouteDecision(
@@ -136,6 +151,8 @@ def _to_domain_route(
             requires_plan=False,
             allowed_capabilities=frozenset({"rag", "web"}),
             reason=reason,
+            agent_class=agent_class,
+            skill=skill,
         )
     if route not in {"vector", "graph"}:
         raise ValueError(
@@ -149,4 +166,6 @@ def _to_domain_route(
         requires_plan=False,
         allowed_capabilities=frozenset({"rag"}),
         reason=reason,
+        agent_class=agent_class,
+        skill=skill,
     )
