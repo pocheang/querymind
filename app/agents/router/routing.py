@@ -114,6 +114,14 @@ def _normalize_agent_class_hint(agent_class_hint: str | None) -> str | None:
     if hint in VALID_AGENT_CLASSES:
         return hint
 
+    try:
+        from app.agents.registry import get_domain_agent_registry
+
+        if hint in get_domain_agent_registry().list_agent_classes():
+            return hint
+    except Exception:
+        pass
+
     logger.debug(f"Invalid agent class hint: {agent_class_hint}")
     return None
 
@@ -260,6 +268,17 @@ def _classify(question: str, forced: str | None, use_llm_intent: bool) -> tuple[
 
     if forced:
         return forced, 1.0, "forced"
+
+    # Prioritize registered domain agents if intent matches
+    try:
+        from app.agents.registry import get_domain_agent_registry
+
+        matched = get_domain_agent_registry().match_agent_class(question)
+        if matched and matched != "general":
+            return matched, 0.95, "domain_registry_match"
+    except Exception:
+        pass
+
     if not use_llm_intent:
         return classify_agent_class(question), 0.5, "rule_based"
     try:
@@ -279,6 +298,14 @@ def _skill_for(agent_class: str, question: str) -> str:
     A proposal, not a decision: the model is shown this and may replace it with
     any skill in VALID_SKILLS.
     """
+    try:
+        from app.agents.registry import get_domain_agent_registry
+
+        specialist_skill = get_domain_agent_registry().pick_skill_for_agent(agent_class, question)
+        if specialist_skill:
+            return specialist_skill
+    except Exception:
+        pass
 
     if agent_class == "cybersecurity":
         return pick_cyber_skill(question)

@@ -71,6 +71,13 @@ def classify_intent_with_llm(question: str) -> dict:
                 return _fallback_classification(question)
 
             valid_classes = {"cybersecurity", "artificial_intelligence", "pdf_text", "general"}
+            try:
+                from app.agents.registry import get_domain_agent_registry
+
+                valid_classes.update(get_domain_agent_registry().list_agent_classes())
+            except Exception:
+                pass
+
             agent_class = result.get("agent_class", "general")
             if agent_class not in valid_classes:
                 logger.warning(f"Invalid agent_class '{agent_class}', fallback to 'general'")
@@ -96,6 +103,20 @@ def classify_intent_with_llm(question: str) -> dict:
 
 def _fallback_classification(question: str) -> dict:
     """Classify by the established keyword fallback when the LLM path fails."""
+    try:
+        from app.agents.registry import get_domain_agent_registry
+
+        matched = get_domain_agent_registry().match_agent_class(question)
+        if matched and matched != "general":
+            return {
+                "agent_class": matched,
+                "confidence": 0.85,
+                "reason": f"Matched domain registry agent '{matched}'",
+                "method": "domain_registry_fallback",
+            }
+    except Exception:
+        pass
+
     q_lower = question.lower()
     security_keywords = [
         "安全",
