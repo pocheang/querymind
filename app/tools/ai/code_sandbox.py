@@ -10,6 +10,7 @@ Enables rigorous estimation of:
 from __future__ import annotations
 
 import ast
+import asyncio
 import logging
 import math
 import operator
@@ -194,6 +195,7 @@ _get_call_arg = extract_call_argument
 
 async def execute_ai_math_eval(call: ToolCall, actor: RequestActor) -> ToolResult:
     """Execute mathematical computation safely."""
+    await asyncio.sleep(0)
     del actor
     expr = _get_call_arg(call, "expression", "code", "math", "query").strip()
     try:

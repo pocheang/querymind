@@ -31,7 +31,7 @@ Guidelines:
 4. Clearly contrast trade-offs (e.g. latency vs. throughput, dense vs. MoE, FP16 vs. INT4 quantization).
 """
 
-_PARAM_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*([BbMm])(?:\s*params?|\s*parameters?)?\b", re.IGNORECASE)
+_PARAM_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*([bm])(?:\s*param(?:eter)?s?)?\b", re.IGNORECASE)
 _PRECISION_RE = re.compile(r"\b(FP16|FP32|FP8|BF16|INT8|INT4|NF4)\b", re.IGNORECASE)
 _CONTEXT_RE = re.compile(r"\b(\d+)\s*k\s*(?:tokens?|context|window)?\b", re.IGNORECASE)
 _ARCH_RE = re.compile(
@@ -44,7 +44,7 @@ def extract_ai_specifications(text: str) -> dict[str, list[str]]:
     params = [f"{m[0]}{m[1].upper()}" for m in _PARAM_RE.findall(text)]
     precisions = sorted({m.upper() for m in _PRECISION_RE.findall(text)})
     contexts = sorted({f"{m}k" for m in _CONTEXT_RE.findall(text)})
-    archs = sorted({m for m in _ARCH_RE.findall(text)})
+    archs = sorted(set(_ARCH_RE.findall(text)))
     return {
         "parameters": params,
         "precisions": precisions,

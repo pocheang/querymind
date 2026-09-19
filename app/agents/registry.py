@@ -105,7 +105,7 @@ class DomainAgentRegistry:
         with self._lock:
             return {
                 "total_agents": len(self._agents),
-                "agent_classes": list(sorted(self._agents.keys())),
+                "agent_classes": sorted(self._agents.keys()),
                 "agents": {k: a.describe() for k, a in self._agents.items()},
             }
 

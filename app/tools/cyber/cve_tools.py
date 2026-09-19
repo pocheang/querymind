@@ -7,6 +7,7 @@ Provides:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -309,6 +310,7 @@ _get_call_arg = extract_call_argument
 
 async def execute_cve_lookup(call: ToolCall, actor: RequestActor) -> ToolResult:
     """Execute CVE lookup against curated and structured intelligence database."""
+    await asyncio.sleep(0)
     del actor
     cve_id_raw = _get_call_arg(call, "cve_id", "cve", "query", "name", "id", "vulnerability").strip().lower()
 
@@ -347,6 +349,7 @@ async def execute_cve_lookup(call: ToolCall, actor: RequestActor) -> ToolResult:
 
 async def execute_mitre_attack_lookup(call: ToolCall, actor: RequestActor) -> ToolResult:
     """Execute MITRE ATT&CK lookup against taxonomy."""
+    await asyncio.sleep(0)
     del actor
     tech_raw = _get_call_arg(call, "technique_id", "technique", "id", "query", "tactic", "name").strip().lower()
 
