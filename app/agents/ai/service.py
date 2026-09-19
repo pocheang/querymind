@@ -172,38 +172,55 @@ class AIAgentService(BaseSpecialistAgent):
             except Exception as e:
                 logger.warning("AIAgent model synthesis failed, using deterministic fallback: %s", e)
 
-        # 2. Deterministic structured fallback
-        sections = []
-        if tool_snippets:
-            sections.append("### 算法计算与沙箱核验\n" + "\n".join(f"- {s}" for s in tool_snippets))
-
-        if any(ai_specs.values()):
-            spec_lines = []
-            if ai_specs["parameters"]:
-                spec_lines.append(f"- 模型规模/参数量: {', '.join(ai_specs['parameters'])}")
-            if ai_specs["precisions"]:
-                spec_lines.append(f"- 精度规格: {', '.join(ai_specs['precisions'])}")
-            if ai_specs["contexts"]:
-                spec_lines.append(f"- 上下文窗口: {', '.join(ai_specs['contexts'])}")
-            if ai_specs["architectures"]:
-                spec_lines.append(f"- 涉及架构机制: {', '.join(ai_specs['architectures'])}")
-            if spec_lines:
-                sections.append("### 提取算法与架构参数 (AI Specifications)\n" + "\n".join(spec_lines))
-
-        if context.evidence:
-            sections.append(
-                f"### AI 架构与算法分析（基于材料证据 [E1]）\n"
-                f"关于 '{request.question}'，核心技术点如下：\n"
-                f"- 模型机制与原理：依据已有技术资料，该架构聚焦于提升注意力计算效率与表征能力 [E1]。\n"
-                f"- 工程与落地考量：在训练与推理部署时，建议综合权衡显存带宽占用（Memory Bandwidth）与并行加速比 [E1]。"
-            )
-        else:
-            sections.append(
-                f"关于 AI 技术问题 '{request.question}'，本地知识库未检索到专属文档，建议参考标准学术论文或开源官方技术规范。"
-            )
-
-        final_text = "\n\n".join(sections)
+        final_text = _build_ai_fallback_text(
+            question=request.question,
+            tool_snippets=tool_snippets,
+            ai_specs=ai_specs,
+            has_evidence=bool(context.evidence),
+        )
         return CandidateAnswer(text=final_text, citations=references)
+
+
+def _format_ai_spec_lines(ai_specs: dict[str, list[str]]) -> list[str]:
+    spec_lines: list[str] = []
+    if ai_specs.get("parameters"):
+        spec_lines.append(f"- 模型规模/参数量: {', '.join(ai_specs['parameters'])}")
+    if ai_specs.get("precisions"):
+        spec_lines.append(f"- 精度规格: {', '.join(ai_specs['precisions'])}")
+    if ai_specs.get("contexts"):
+        spec_lines.append(f"- 上下文窗口: {', '.join(ai_specs['contexts'])}")
+    if ai_specs.get("architectures"):
+        spec_lines.append(f"- 涉及架构机制: {', '.join(ai_specs['architectures'])}")
+    return spec_lines
+
+
+def _build_ai_fallback_text(
+    question: str,
+    tool_snippets: list[str],
+    ai_specs: dict[str, list[str]],
+    has_evidence: bool,
+) -> str:
+    sections: list[str] = []
+    if tool_snippets:
+        sections.append("### 算法计算与沙箱核验\n" + "\n".join(f"- {s}" for s in tool_snippets))
+
+    spec_lines = _format_ai_spec_lines(ai_specs)
+    if spec_lines:
+        sections.append("### 提取算法与架构参数 (AI Specifications)\n" + "\n".join(spec_lines))
+
+    if has_evidence:
+        sections.append(
+            f"### AI 架构与算法分析（基于材料证据 [E1]）\n"
+            f"关于 '{question}'，核心技术点如下：\n"
+            f"- 模型机制与原理：依据已有技术资料，该架构聚焦于提升注意力计算效率与表征能力 [E1]。\n"
+            f"- 工程与落地考量：在训练与推理部署时，建议综合权衡显存带宽占用（Memory Bandwidth）与并行加速比 [E1]。"
+        )
+    else:
+        sections.append(
+            f"关于 AI 技术问题 '{question}'，本地知识库未检索到专属文档，建议参考标准学术论文或开源官方技术规范。"
+        )
+
+    return "\n\n".join(sections)
 
 
 __all__ = ["AIAgentService", "AI_SPECIALIST_SYSTEM_PROMPT", "extract_ai_specifications"]

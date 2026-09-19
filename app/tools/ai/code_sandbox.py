@@ -16,8 +16,9 @@ import operator
 from typing import Any
 
 from app.domain.contracts import ToolResult
-from app.mcp.contracts import ToolArgument, ToolCall, ToolDefinition, ToolParameter
+from app.mcp.contracts import ToolCall, ToolDefinition, ToolParameter
 from app.orchestration.request import RequestActor
+from app.tools.base import extract_call_argument
 
 logger = logging.getLogger(__name__)
 
@@ -102,39 +103,57 @@ _SAFE_CONSTANTS = {
 }
 
 
+def _eval_constant(node: ast.Constant) -> Any:
+    if isinstance(node.value, int | float | bool):
+        return node.value
+    raise ValueError(f"Unsupported constant type: {type(node.value)}")
+
+
+def _eval_name(node: ast.Name) -> Any:
+    if node.id in _SAFE_CONSTANTS:
+        return _SAFE_CONSTANTS[node.id]
+    raise ValueError(f"Undefined variable or constant: {node.id}")
+
+
+def _eval_unary_op(node: ast.UnaryOp) -> Any:
+    op_func = _SAFE_OPERATORS.get(type(node.op))
+    if op_func is None:
+        raise ValueError(f"Unsupported unary operator: {type(node.op)}")
+    return op_func(_safe_eval_node(node.operand))
+
+
+def _eval_bin_op(node: ast.BinOp) -> Any:
+    op_func = _SAFE_OPERATORS.get(type(node.op))
+    if op_func is None:
+        raise ValueError(f"Unsupported binary operator: {type(node.op)}")
+    left = _safe_eval_node(node.left)
+    right = _safe_eval_node(node.right)
+    if isinstance(node.op, ast.Pow) and (abs(right) > 100 or abs(left) > 1e15):
+        raise ValueError("Power operation values exceed safety bounds")
+    return op_func(left, right)
+
+
+def _eval_call(node: ast.Call) -> Any:
+    if isinstance(node.func, ast.Name) and node.func.id in _SAFE_MATH_FUNCS:
+        func = _SAFE_MATH_FUNCS[node.func.id]
+        args = [_safe_eval_node(arg) for arg in node.args]
+        return func(*args)
+    raise ValueError(f"Unsupported function call: {ast.dump(node)}")
+
+
 def _safe_eval_node(node: ast.AST) -> Any:
     if isinstance(node, ast.Expression):
         return _safe_eval_node(node.body)
     if isinstance(node, ast.Constant):
-        if isinstance(node.value, int | float | bool):
-            return node.value
-        raise ValueError(f"Unsupported constant type: {type(node.value)}")
+        return _eval_constant(node)
     if isinstance(node, ast.Name):
-        if node.id in _SAFE_CONSTANTS:
-            return _SAFE_CONSTANTS[node.id]
-        raise ValueError(f"Undefined variable or constant: {node.id}")
+        return _eval_name(node)
     if isinstance(node, ast.UnaryOp):
-        op_func = _SAFE_OPERATORS.get(type(node.op))
-        if op_func is None:
-            raise ValueError(f"Unsupported unary operator: {type(node.op)}")
-        operand = _safe_eval_node(node.operand)
-        return op_func(operand)
+        return _eval_unary_op(node)
     if isinstance(node, ast.BinOp):
-        op_func = _SAFE_OPERATORS.get(type(node.op))
-        if op_func is None:
-            raise ValueError(f"Unsupported binary operator: {type(node.op)}")
-        left = _safe_eval_node(node.left)
-        right = _safe_eval_node(node.right)
-        if isinstance(node.op, ast.Pow) and (abs(right) > 100 or abs(left) > 1e15):
-            raise ValueError("Power operation values exceed safety bounds")
-        return op_func(left, right)
+        return _eval_bin_op(node)
     if isinstance(node, ast.Call):
-        if isinstance(node.func, ast.Name) and node.func.id in _SAFE_MATH_FUNCS:
-            func = _SAFE_MATH_FUNCS[node.func.id]
-            args = [_safe_eval_node(arg) for arg in node.args]
-            return func(*args)
-        raise ValueError(f"Unsupported function call: {ast.dump(node)}")
-
+        return _eval_call(node)
     raise ValueError(f"Unsupported syntax expression: {type(node).__name__}")
 
 
@@ -170,22 +189,7 @@ AI_MATH_TOOL_DEFINITION = ToolDefinition(
 )
 
 
-def _get_call_arg(call: ToolCall, *names: str) -> str:
-    """Extract argument matching any candidate parameter name."""
-    if hasattr(call, "arguments"):
-        if isinstance(call.arguments, tuple | list):
-            for name in names:
-                for arg in call.arguments:
-                    if isinstance(arg, ToolArgument) and arg.name == name:
-                        return str(arg.value)
-                    if hasattr(arg, "name") and arg.name == name:
-                        return str(getattr(arg, "value", ""))
-        elif isinstance(call.arguments, dict):
-            for name in names:
-                val = call.arguments.get(name)
-                if val is not None and str(val).strip():
-                    return str(val)
-    return ""
+_get_call_arg = extract_call_argument
 
 
 async def execute_ai_math_eval(call: ToolCall, actor: RequestActor) -> ToolResult:

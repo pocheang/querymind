@@ -53,4 +53,28 @@ class BaseToolProvider(ABC):
         }
 
 
-__all__ = ["BaseToolProvider"]
+def _arguments_to_dict(arguments: Any) -> dict[str, str]:
+    if isinstance(arguments, dict):
+        return {str(k): str(v) for k, v in arguments.items() if v is not None}
+    if isinstance(arguments, tuple | list):
+        result: dict[str, str] = {}
+        for arg in arguments:
+            name = getattr(arg, "name", None)
+            val = getattr(arg, "value", None)
+            if name is not None and val is not None:
+                result[str(name)] = str(val)
+        return result
+    return {}
+
+
+def extract_call_argument(call: Any, *names: str) -> str:
+    """Extract argument value matching any of candidate parameter names."""
+    arg_dict = _arguments_to_dict(getattr(call, "arguments", None))
+    for name in names:
+        val = arg_dict.get(name)
+        if val and val.strip():
+            return val.strip()
+    return ""
+
+
+__all__ = ["BaseToolProvider", "extract_call_argument"]

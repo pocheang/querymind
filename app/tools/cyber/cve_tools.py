@@ -12,8 +12,9 @@ import re
 from typing import Any
 
 from app.domain.contracts import ToolResult
-from app.mcp.contracts import ToolArgument, ToolCall, ToolDefinition, ToolParameter
+from app.mcp.contracts import ToolCall, ToolDefinition, ToolParameter
 from app.orchestration.request import RequestActor
+from app.tools.base import extract_call_argument
 
 logger = logging.getLogger(__name__)
 
@@ -303,22 +304,7 @@ ATTACK_TOOL_DEFINITION = ToolDefinition(
 )
 
 
-def _get_call_arg(call: ToolCall, *names: str) -> str:
-    """Extract argument value matching any of the candidate parameter names."""
-    if hasattr(call, "arguments"):
-        if isinstance(call.arguments, tuple | list):
-            for name in names:
-                for arg in call.arguments:
-                    if isinstance(arg, ToolArgument) and arg.name == name:
-                        return str(arg.value)
-                    if hasattr(arg, "name") and arg.name == name:
-                        return str(getattr(arg, "value", ""))
-        elif isinstance(call.arguments, dict):
-            for name in names:
-                val = call.arguments.get(name)
-                if val is not None and str(val).strip():
-                    return str(val)
-    return ""
+_get_call_arg = extract_call_argument
 
 
 async def execute_cve_lookup(call: ToolCall, actor: RequestActor) -> ToolResult:

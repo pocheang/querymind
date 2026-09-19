@@ -178,36 +178,54 @@ class CybersecurityAgentService(BaseSpecialistAgent):
             except Exception as e:
                 logger.warning("CybersecurityAgent model synthesis failed, falling back: %s", e)
 
-        # 2. Deterministic structured fallback
-        sections: list[str] = []
-        if tool_snippets:
-            sections.append("### 安全工具与漏洞研判发现\n" + "\n".join(f"- {s}" for s in tool_snippets))
-
-        if iocs["cves"] or iocs["ips"] or iocs["hashes"]:
-            ioc_lines = []
-            if iocs["cves"]:
-                ioc_lines.append(f"- 涉及漏洞/CVE: {', '.join(iocs['cves'])}")
-            if iocs["ips"]:
-                ioc_lines.append(f"- 相关网络实体/IP: {', '.join(iocs['ips'])}")
-            if iocs["hashes"]:
-                ioc_lines.append(f"- 相关样本哈希: {', '.join(iocs['hashes'])}")
-            sections.append("### 提取安全威胁实体 (Threat Entities)\n" + "\n".join(ioc_lines))
-
-        if context.evidence:
-            evidence_citations = "".join(f" [E{i}]" for i, _ in enumerate(context.evidence, start=1))
-            sections.append(
-                f"### 安全态势与威胁分析（基于证据材料{evidence_citations}）\n"
-                f"针对 '{request.question}'，经安全情报与材料比对，主要研判结论如下：\n"
-                f"- **威胁研判**：依据材料分析，潜在威胁向量已被标注并完成定性分析{evidence_citations}。\n"
-                f"- **防御加固**：严格遵循网络边界隔离与权限最小化原则，及时修补组件补丁并启用日志审计监测 [E1]。"
-            )
-        else:
-            sections.append(
-                f"针对安全查询 '{request.question}'，本地知识库未检索到直接匹配的安全策略或漏洞情报，建议查阅官方安全公告与补丁说明。"
-            )
-
-        final_text = "\n\n".join(sections)
+        final_text = _build_cyber_fallback_text(
+            question=request.question,
+            tool_snippets=tool_snippets,
+            iocs=iocs,
+            evidence=context.evidence,
+        )
         return CandidateAnswer(text=final_text, citations=references)
+
+
+def _format_ioc_lines(iocs: dict[str, list[str]]) -> list[str]:
+    ioc_lines: list[str] = []
+    if iocs.get("cves"):
+        ioc_lines.append(f"- 涉及漏洞/CVE: {', '.join(iocs['cves'])}")
+    if iocs.get("ips"):
+        ioc_lines.append(f"- 相关网络实体/IP: {', '.join(iocs['ips'])}")
+    if iocs.get("hashes"):
+        ioc_lines.append(f"- 相关样本哈希: {', '.join(iocs['hashes'])}")
+    return ioc_lines
+
+
+def _build_cyber_fallback_text(
+    question: str,
+    tool_snippets: list[str],
+    iocs: dict[str, list[str]],
+    evidence: tuple[Any, ...],
+) -> str:
+    sections: list[str] = []
+    if tool_snippets:
+        sections.append("### 安全工具与漏洞研判发现\n" + "\n".join(f"- {s}" for s in tool_snippets))
+
+    ioc_lines = _format_ioc_lines(iocs)
+    if ioc_lines:
+        sections.append("### 提取安全威胁实体 (Threat Entities)\n" + "\n".join(ioc_lines))
+
+    if evidence:
+        evidence_citations = "".join(f" [E{i}]" for i, _ in enumerate(evidence, start=1))
+        sections.append(
+            f"### 安全态势与威胁分析（基于证据材料{evidence_citations}）\n"
+            f"针对 '{question}'，经安全情报与材料比对，主要研判结论如下：\n"
+            f"- **威胁研判**：依据材料分析，潜在威胁向量已被标注并完成定性分析{evidence_citations}。\n"
+            f"- **防御加固**：严格遵循网络边界隔离与权限最小化原则，及时修补组件补丁并启用日志审计监测 [E1]。"
+        )
+    else:
+        sections.append(
+            f"针对安全查询 '{question}'，本地知识库未检索到直接匹配的安全策略或漏洞情报，建议查阅官方安全公告与补丁说明。"
+        )
+
+    return "\n\n".join(sections)
 
 
 __all__ = ["CYBERSECURITY_SYSTEM_PROMPT", "CybersecurityAgentService", "extract_security_indicators"]
