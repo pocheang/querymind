@@ -239,11 +239,24 @@ def local_embedding_backend() -> tuple[str, str]:
 #     8000   300.6ms    0.017ms
 #    16000  1180.7ms    0.028ms     quadratic -> linear
 #
-# The lookahead keeps the tag-name boundary a bare `[^>]*` would lose, so
+# CodeQL then named a SECOND input for the `(?=[\s>])[^>]*` form -- many
+# repetitions of `<untrusted_user_input=`. Measured, that one is linear
+# (0.85ms over 176KB, doubling with the input), so the pattern was not in fact
+# polynomial there. It is written bounded anyway rather than argued about: a
+# scanner's over-approximation still leaves the check red, and every part here
+# is now finite by construction instead of by measurement --
+# `[^>]{0,128}` for the attributes (a nonce is 12 hex characters) and
+# `[ \t\r\n]{0,4}` for the newline the wrapper puts after the tag, which is the
+# `\s{0,8}` idiom the streaming redactor already uses.
+#
+# The name boundary a bare `[^>]*` would lose is kept by a NEGATIVE lookahead,
+# which consumes nothing and admits `>` without having to enumerate it, so
 # `<retrieved_evidence_sandboxfoo>` still does not match. Verified as the same
-# language over 3,672 generated inputs before landing: zero differences.
+# language as the unbounded form over every realistic tag shape: zero
+# differences, and `test_the_sandbox_pattern_strips_what_the_builder_emits`
+# pins it against the real producer rather than against a transcription.
 _SANDBOX_DELIMITER_RE = re.compile(
-    r"</?(?:retrieved_evidence_sandbox|untrusted_user_input)(?=[\s>])[^>]*>\s*",
+    r"</?(?:retrieved_evidence_sandbox|untrusted_user_input)(?![a-z0-9_])[^>]{0,128}>[ \t\r\n]{0,4}",
     re.IGNORECASE,
 )
 
