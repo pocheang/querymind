@@ -1,16 +1,58 @@
-"""Integration tests for dynamic specialist agent dispatching within LangGraph runtime."""
+"""The synthesizer node dispatches to the specialist the route named.
+
+These assert DISPATCH, and deliberately not the answer's prose. They used to
+check for the words a hardcoded template emitted ("安全工具与漏洞研判发现"), which
+was the only path the specialist ever took because nothing supplied it a model.
+Generation is delegated to the real synthesizer now, so the text is the
+configured model's -- and under `MODEL_BACKEND=local`, which is what this suite
+runs, that is the offline stand-in. Asserting its wording would be asserting the
+stand-in, and it would go red the day a real model is configured.
+
+So the specialists here are given a recording synthesizer: what the node
+guarantees is which agent was called, with which mapped skill, and that the
+specialist's own contribution -- the extracted indicators, as a tool finding --
+reached the generator.
+"""
 
 import pytest
 
 from app.agents.ai.service import AIAgentService
 from app.agents.cybersecurity.service import CybersecurityAgentService
 from app.domain.contracts import EvidenceItem, RouteDecision, ToolResult
+from app.domain.knowledge import EvidenceRef
 from app.domain.workflow import CandidateAnswer, ContextBundle
 from app.orchestration.langgraph.nodes import WorkflowNodeRuntime
 from app.orchestration.policies import ExecutionPolicy
 from app.orchestration.request import OrchestrationRequest, RequestActor, RequestScope
 from app.orchestration.timeout_control import ExecutionBudget, TimeoutConfig
 from app.pipeline.profiles import PipelineProfile
+
+
+class _RecordingSynthesizer:
+    """Stands in for `SynthesizerAgentService` and keeps what it was handed."""
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+        self.seen: dict[str, object] = {}
+
+    async def synthesize_candidate(self, request, context, tool_results, skill):
+        self.seen.update(request=request, context=context, tool_results=tool_results, skill=skill)
+        return CandidateAnswer(
+            text=f"{self.label} answered [E1][E2]",
+            # Mirrors what `SynthesizerAgentService` returns, so assertions about
+            # citations downstream stay meaningful rather than passing on a stub
+            # that simply never carries any.
+            citations=tuple(
+                EvidenceRef(
+                    document_id=item.document_id,
+                    version=item.version,
+                    page=item.page,
+                    chunk_id=item.chunk_id,
+                    image_id=item.image_id,
+                )
+                for item in context.evidence
+            ),
+        )
 
 
 class _MockDispatchServices:
@@ -29,9 +71,14 @@ class _MockDispatchServices:
 
 
 @pytest.fixture
-def runtime() -> WorkflowNodeRuntime:
-    cyber_agent = CybersecurityAgentService()
-    ai_agent = AIAgentService()
+def recorders() -> dict[str, _RecordingSynthesizer]:
+    return {"cyber": _RecordingSynthesizer("cyber"), "ai": _RecordingSynthesizer("ai")}
+
+
+@pytest.fixture
+def runtime(recorders: dict[str, _RecordingSynthesizer]) -> WorkflowNodeRuntime:
+    cyber_agent = CybersecurityAgentService(synthesizer=recorders["cyber"])
+    ai_agent = AIAgentService(synthesizer=recorders["ai"])
     services = _MockDispatchServices(cyber_agent, ai_agent)
     return WorkflowNodeRuntime(
         services=services,  # type: ignore[arg-type]
@@ -42,7 +89,9 @@ def runtime() -> WorkflowNodeRuntime:
 
 
 @pytest.mark.asyncio
-async def test_dispatch_to_cybersecurity_agent(runtime: WorkflowNodeRuntime) -> None:
+async def test_dispatch_to_cybersecurity_agent(
+    runtime: WorkflowNodeRuntime, recorders: dict[str, _RecordingSynthesizer]
+) -> None:
     req = OrchestrationRequest(
         question="Analysis for CVE-2021-44228",
         actor=RequestActor(user_id="u1", tenant_id="t1", role="user"),
@@ -76,13 +125,19 @@ async def test_dispatch_to_cybersecurity_agent(runtime: WorkflowNodeRuntime) -> 
 
     output = await runtime.synthesizer(state)
     ans = output["candidate_answer"]
-    assert "CVE-2021-44228" in ans.text
-    assert "安全工具与漏洞研判发现" in ans.text
-    assert "[E1]" in ans.text
+    assert ans.text == "cyber answered [E1][E2]", "the cybersecurity specialist was not the agent that ran"
+    assert not recorders["ai"].seen, "the wrong specialist was consulted as well"
+    seen = recorders["cyber"].seen
+    # `cyber_attack_analysis` is already a pipeline skill, so it maps to itself.
+    assert seen["skill"] == "cyber_attack_analysis"
+    # The lookup result AND the indicators the specialist itself extracted.
+    summaries = " ".join(r.summary for r in seen["tool_results"])
+    assert "CVE-2021-44228 Log4Shell CVSS 10.0" in summaries
+    assert "querymind_cyber_indicator_extract" in {r.tool_id for r in seen["tool_results"]}
 
 
 @pytest.mark.asyncio
-async def test_dispatch_to_ai_agent(runtime: WorkflowNodeRuntime) -> None:
+async def test_dispatch_to_ai_agent(runtime: WorkflowNodeRuntime, recorders: dict[str, _RecordingSynthesizer]) -> None:
     req = OrchestrationRequest(
         question="Calculate FLOPs for 7B model",
         actor=RequestActor(user_id="u1", tenant_id="t1", role="user"),
@@ -118,9 +173,9 @@ async def test_dispatch_to_ai_agent(runtime: WorkflowNodeRuntime) -> None:
 
     output = await runtime.synthesizer(state)
     ans = output["candidate_answer"]
-    assert "8.400000e+22" in ans.text
-    assert "算法计算与沙箱核验" in ans.text
-    assert "[E1]" in ans.text
+    assert ans.text == "ai answered [E1][E2]", "the AI specialist was not the agent that ran"
+    assert not recorders["cyber"].seen
+    assert recorders["ai"].seen["skill"] in {"ai_knowledge_assistant"}
 
 
 @pytest.mark.asyncio

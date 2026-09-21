@@ -77,10 +77,21 @@ def _leaked_names(node: ast.Call) -> set[str]:
                 return
         if isinstance(expression, ast.Name) and expression.id in USER_TEXT_NAMES:
             found.add(expression.id)
+        # `request.question` is an Attribute, not a Name, and matching only the
+        # bare form was a hole wide enough to drive the actual leak through:
+        # two specialist services interpolated `request.question` into a
+        # `logger.info` and this guard -- which exists for exactly that -- passed
+        # them. The attribute form is how a question is most often held, because
+        # it usually arrives inside a request object.
+        if isinstance(expression, ast.Attribute) and expression.attr in USER_TEXT_NAMES:
+            found.add(expression.attr)
         # `question[:50]` reproduces the substance just as well.
-        if isinstance(expression, ast.Subscript) and isinstance(expression.value, ast.Name):
-            if expression.value.id in USER_TEXT_NAMES:
-                found.add(expression.value.id)
+        if isinstance(expression, ast.Subscript):
+            target = expression.value
+            if isinstance(target, ast.Name) and target.id in USER_TEXT_NAMES:
+                found.add(target.id)
+            if isinstance(target, ast.Attribute) and target.attr in USER_TEXT_NAMES:
+                found.add(target.attr)
         for child in ast.iter_child_nodes(expression):
             walk(child)
 
@@ -176,3 +187,40 @@ def test_empty_input_is_handled(value):
 def test_length_is_reported():
     """Useful for spotting empty or runaway input; reveals nothing on its own."""
     assert "len=17" in question_ref("what is my salary")
+
+
+def test_the_guard_can_see_an_attribute_form_leak():
+    """Prove the scanner fails before believing it passes.
+
+    This guard reported a clean tree while `logger.info("...", request.question)`
+    sat in two modules, because it matched a bare `question` and `request.question`
+    is an `ast.Attribute`. A scanner whose checks quietly match nothing reports
+    PASS just as readily as one that looked, which is the failure this whole
+    directory is written against.
+
+    Both forms are driven here, so neither can regress silently.
+    """
+
+    module = ast.parse(
+        "import logging\n"
+        "logger = logging.getLogger(__name__)\n"
+        "def leak_attribute(request):\n"
+        "    logger.info('q=%s', request.question)\n"
+        "def leak_bare(question):\n"
+        "    logger.warning('q=%s', question)\n"
+        "def leak_sliced(request):\n"
+        "    logger.info('q=%s', request.question[:50])\n"
+        "def safe(request):\n"
+        "    logger.info('q=%s', question_ref(request.question))\n"
+    )
+    leaks = {
+        owner: _leaked_names(node)
+        for node in ast.walk(module)
+        if isinstance(node, ast.Call) and _is_logger_call(node)
+        for owner in [_enclosing_functions(module)[id(node)]]
+    }
+
+    assert leaks["leak_attribute"] == {"question"}
+    assert leaks["leak_bare"] == {"question"}
+    assert leaks["leak_sliced"] == {"question"}
+    assert leaks["safe"] == set(), "question_ref() must stay the documented way to log a question"

@@ -1,14 +1,22 @@
-"""Unit tests for AIAgentService."""
+"""What the AI specialist contributes, and what it delegates.
+
+Rewritten for the same reason as the cybersecurity suite next door: the
+previous assertions pinned a hardcoded fallback template that was the only path
+production ever ran, because the one construction site passed no
+`model_invoker`.
+"""
 
 import pytest
 
 from app.agents.ai.service import (
-    AI_SPECIALIST_SYSTEM_PROMPT,
+    PIPELINE_SKILLS,
+    SPECIFICATIONS_TOOL_ID,
     AIAgentService,
     extract_ai_specifications,
+    specification_tool_result,
 )
-from app.domain.contracts import EvidenceItem, ToolResult
-from app.domain.workflow import ContextBundle
+from app.agents.shared.config import VALID_SKILLS
+from app.domain.workflow import CandidateAnswer, ContextBundle
 from app.orchestration.request import OrchestrationRequest, RequestActor
 
 
@@ -26,73 +34,52 @@ def test_extract_ai_specifications() -> None:
     assert any("LoRA" in a for a in specs["architectures"])
 
 
-@pytest.mark.asyncio
-async def test_ai_agent_deterministic_synthesis() -> None:
-    agent = AIAgentService()
-    req = OrchestrationRequest(
-        question="What is the compute required for a 7B model on 2T tokens?",
-        actor=RequestActor(user_id="researcher", tenant_id="t1", role="user"),
-    )
-    context = ContextBundle(
-        evidence=(
-            EvidenceItem(
-                item_id="ev_ai_1",
-                document_id="doc_chinchilla",
-                source="chinchilla_paper.pdf",
-                content="Optimal compute allocation is 6 * P * D FLOPs.",
-            ),
-        )
-    )
-    tool_results = (
-        ToolResult(
-            tool_id="querymind_ai_math_eval",
-            status="succeeded",
-            summary="Evaluated '6 * 7e9 * 2e12' = 8.400000e+22",
-        ),
-    )
+class _Recording:
+    """Stands in for `SynthesizerAgentService` and records what it was handed."""
 
-    candidate = await agent.synthesize_candidate(
-        request=req,
-        context=context,
-        tool_results=tool_results,
-        skill="ai_knowledge_assistant",
-    )
+    def __init__(self) -> None:
+        self.seen: dict[str, object] = {}
 
-    assert len(candidate.citations) == 1
-    assert candidate.citations[0].document_id == "doc_chinchilla"
-    assert "8.400000e+22" in candidate.text
-    assert "[E1]" in candidate.text
-    assert "算法计算与沙箱核验" in candidate.text
-    assert "提取算法与架构参数" in candidate.text
+    async def synthesize_candidate(self, request, context, tool_results, skill):  # noqa: ANN001
+        self.seen.update(request=request, context=context, tool_results=tool_results, skill=skill)
+        return CandidateAnswer(text="generated [E1]")
 
 
 @pytest.mark.asyncio
-async def test_ai_agent_empty_evidence() -> None:
-    agent = AIAgentService()
+async def test_it_delegates_generation_rather_than_writing_the_answer_itself() -> None:
+    recorder = _Recording()
+    agent = AIAgentService(synthesizer=recorder)
     req = OrchestrationRequest(
-        question="How does MQA differ from GQA?",
-        actor=RequestActor(user_id="user", tenant_id="t1", role="user"),
+        question="训练一个 7B 模型需要多少 FLOPs?",
+        actor=RequestActor(user_id="u", tenant_id="t", role="user"),
     )
     context = ContextBundle(evidence=())
-    candidate = await agent.synthesize_candidate(req, context)
-    assert len(candidate.citations) == 0
-    assert "本地知识库未检索到专属文档" in candidate.text
+
+    candidate = await agent.synthesize_candidate(req, context, (), "compute_estimation")
+
+    assert candidate.text == "generated [E1]"
+    assert recorder.seen["request"] is req
+
+
+@pytest.mark.parametrize(("domain_skill", "pipeline_skill"), sorted(PIPELINE_SKILLS.items()))
+def test_every_domain_skill_maps_onto_a_skill_the_pipeline_knows(domain_skill: str, pipeline_skill: str) -> None:
+    assert pipeline_skill in VALID_SKILLS
 
 
 @pytest.mark.asyncio
-async def test_ai_agent_custom_invoker() -> None:
-    async def mock_invoker(prompt: str) -> str:
-        assert AI_SPECIALIST_SYSTEM_PROMPT in prompt
-        assert "FlashAttention" in prompt
-        return "Specialist Model: IO-aware attention reduces memory access [E1]."
-
-    agent = AIAgentService(model_invoker=mock_invoker)
+async def test_extracted_specifications_arrive_as_a_tool_finding() -> None:
+    recorder = _Recording()
+    agent = AIAgentService(synthesizer=recorder)
     req = OrchestrationRequest(
-        question="How does FlashAttention work?",
-        actor=RequestActor(user_id="user", tenant_id="t1", role="user"),
+        question="7B 模型 fp16 精度下 32k 上下文的显存占用",
+        actor=RequestActor(user_id="u", tenant_id="t", role="user"),
     )
-    context = ContextBundle(
-        evidence=(EvidenceItem(item_id="e1", document_id="d1", source="s1", content="FlashAttention paper"),)
-    )
-    candidate = await agent.synthesize_candidate(req, context)
-    assert "Specialist Model: IO-aware attention reduces memory access [E1]." in candidate.text
+
+    await agent.synthesize_candidate(req, ContextBundle(evidence=()), ())
+
+    results = recorder.seen["tool_results"]
+    assert any(r.tool_id == SPECIFICATIONS_TOOL_ID for r in results)
+
+
+def test_no_specification_result_is_produced_when_nothing_was_extracted() -> None:
+    assert specification_tool_result({"parameters": [], "precisions": []}) == ()

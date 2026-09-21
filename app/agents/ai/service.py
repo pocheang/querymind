@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
 
 from app.agents.base import BaseSpecialistAgent
+from app.agents.synthesizer.service import SynthesizerAgentService
 from app.domain.contracts import ToolResult
-from app.domain.knowledge import EvidenceRef
 from app.domain.workflow import CandidateAnswer, ContextBundle
 from app.orchestration.request import OrchestrationRequest
+from app.services.observability.log_safety import question_ref
 from app.tools.category import ToolCategory
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,41 @@ def extract_ai_specifications(text: str) -> dict[str, list[str]]:
         "contexts": contexts,
         "architectures": archs,
     }
+
+
+# None of this agent's skills names a shape `skills.py` describes, so they all
+# map onto the general-purpose skill and the question stays the best signal --
+# which is exactly what that module says to do for a skill that states no shape.
+# An AI-specific answer template is a separate, authorable change; inventing one
+# here would put a second answer shape in front of the model.
+PIPELINE_SKILLS: dict[str, str] = {
+    "compute_estimation": "ai_knowledge_assistant",
+    "model_scaling_analysis": "ai_knowledge_assistant",
+    "llm_architecture_reasoning": "ai_knowledge_assistant",
+    "ai_deep_dive": "ai_knowledge_assistant",
+}
+
+SPECIFICATIONS_TOOL_ID = "querymind_ai_specification_extract"
+
+
+def specification_tool_result(specs: dict[str, list[str]]) -> tuple[ToolResult, ...]:
+    """Extracted model specifications, carried as a tool finding.
+
+    Same reasoning as the cybersecurity agent's indicators: derived by regex from
+    material the model can already read, so it must not arrive looking like a
+    citable source.
+    """
+
+    lines = [f"{kind}: {', '.join(values)}" for kind, values in sorted(specs.items()) if values]
+    if not lines:
+        return ()
+    return (
+        ToolResult(
+            tool_id=SPECIFICATIONS_TOOL_ID,
+            status="succeeded",
+            summary="Specifications extracted from the question and retrieved material -- " + "; ".join(lines),
+        ),
+    )
 
 
 class AIAgentService(BaseSpecialistAgent):
@@ -114,113 +149,40 @@ class AIAgentService(BaseSpecialistAgent):
             return "model_scaling_analysis"
         return "ai_deep_dive"
 
-    def __init__(self, model_invoker: Any | None = None) -> None:
-        self._model_invoker = model_invoker
+    def __init__(self, synthesizer: SynthesizerAgentService | None = None) -> None:
+        """Generation is delegated -- see `CybersecurityAgentService.__init__`.
+
+        The same defect applied here: an optional `model_invoker` nothing ever
+        supplied, so every AI-routed question was answered by a hardcoded
+        template rather than by the configured chat model.
+        """
+
+        self._synthesizer = synthesizer or SynthesizerAgentService()
 
     async def synthesize_candidate(
         self,
         request: OrchestrationRequest,
         context: ContextBundle,
         tool_results: tuple[ToolResult, ...] = (),
-        skill: str = "ai_knowledge_assistant",
+        skill: str = "ai_deep_dive",
     ) -> CandidateAnswer:
-        """Synthesize a domain-specialized AI algorithm candidate answer."""
+        """Domain-shaped synthesis through the ordinary generation path."""
+
         logger.info(
-            "AIAgent synthesizing candidate for query='%s' skill='%s' tools=%d",
-            request.question,
+            "AIAgent synthesizing candidate for query=%s skill=%s tools=%d",
+            question_ref(request.question),
             skill,
             len(tool_results),
         )
 
-        references = tuple(
-            EvidenceRef(
-                document_id=item.document_id,
-                version=item.version,
-                page=item.page,
-                chunk_id=item.chunk_id,
-                image_id=item.image_id,
-            )
-            for item in context.evidence
-        )
-
-        tool_snippets = []
-        for tr in tool_results:
-            if tr.status == "succeeded" and tr.summary:
-                tool_snippets.append(f"[计算沙箱核验 ({tr.tool_id})]: {tr.summary}")
-
-        tools_context = "\n".join(tool_snippets)
-
-        # Extract AI / ML specifications from question, context, and evidence chunks
         evidence_text = "\n".join(item.content for item in context.evidence)
-        combined_text = f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tools_context}"
-        ai_specs = extract_ai_specifications(combined_text)
-
-        # 1. Try invoking model if custom invoker is provided
-        if self._model_invoker is not None:
-            try:
-                prompt = (
-                    f"{AI_SPECIALIST_SYSTEM_PROMPT}\n\n"
-                    f"Specialist Skill: {skill}\n"
-                    f"User AI Query: {request.question}\n\n"
-                    f"Retrieved Technical Evidence:\n{context.rendered_context or evidence_text}\n\n"
-                    f"Calculation / Sandbox Findings:\n{tools_context}\n\n"
-                    f"Provide rigorous AI architecture/algorithm analysis citing [E1], [E2] markers:"
-                )
-                raw_response = await self._model_invoker(prompt)
-                text = raw_response if isinstance(raw_response, str) else str(raw_response)
-                return CandidateAnswer(text=text, citations=references)
-            except Exception as e:
-                logger.warning("AIAgent model synthesis failed, using deterministic fallback: %s", e)
-
-        final_text = _build_ai_fallback_text(
-            question=request.question,
-            tool_snippets=tool_snippets,
-            ai_specs=ai_specs,
-            has_evidence=bool(context.evidence),
+        tool_text = "\n".join(result.summary for result in tool_results if result.summary)
+        specs = extract_ai_specifications(
+            f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tool_text}"
         )
-        return CandidateAnswer(text=final_text, citations=references)
-
-
-def _format_ai_spec_lines(ai_specs: dict[str, list[str]]) -> list[str]:
-    spec_lines: list[str] = []
-    if ai_specs.get("parameters"):
-        spec_lines.append(f"- 模型规模/参数量: {', '.join(ai_specs['parameters'])}")
-    if ai_specs.get("precisions"):
-        spec_lines.append(f"- 精度规格: {', '.join(ai_specs['precisions'])}")
-    if ai_specs.get("contexts"):
-        spec_lines.append(f"- 上下文窗口: {', '.join(ai_specs['contexts'])}")
-    if ai_specs.get("architectures"):
-        spec_lines.append(f"- 涉及架构机制: {', '.join(ai_specs['architectures'])}")
-    return spec_lines
-
-
-def _build_ai_fallback_text(
-    question: str,
-    tool_snippets: list[str],
-    ai_specs: dict[str, list[str]],
-    has_evidence: bool,
-) -> str:
-    sections: list[str] = []
-    if tool_snippets:
-        sections.append("### 算法计算与沙箱核验\n" + "\n".join(f"- {s}" for s in tool_snippets))
-
-    spec_lines = _format_ai_spec_lines(ai_specs)
-    if spec_lines:
-        sections.append("### 提取算法与架构参数 (AI Specifications)\n" + "\n".join(spec_lines))
-
-    if has_evidence:
-        sections.append(
-            f"### AI 架构与算法分析（基于材料证据 [E1]）\n"
-            f"关于 '{question}'，核心技术点如下：\n"
-            f"- 模型机制与原理：依据已有技术资料，该架构聚焦于提升注意力计算效率与表征能力 [E1]。\n"
-            f"- 工程与落地考量：在训练与推理部署时，建议综合权衡显存带宽占用（Memory Bandwidth）与并行加速比 [E1]。"
-        )
-    else:
-        sections.append(
-            f"关于 AI 技术问题 '{question}'，本地知识库未检索到专属文档，建议参考标准学术论文或开源官方技术规范。"
-        )
-
-    return "\n\n".join(sections)
+        enriched = (*tool_results, *specification_tool_result(specs))
+        pipeline_skill = PIPELINE_SKILLS.get(skill, "ai_knowledge_assistant")
+        return await self._synthesizer.synthesize_candidate(request, context, enriched, pipeline_skill)
 
 
 __all__ = ["AIAgentService", "AI_SPECIALIST_SYSTEM_PROMPT", "extract_ai_specifications"]

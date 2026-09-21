@@ -11,13 +11,13 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
 
 from app.agents.base import BaseSpecialistAgent
+from app.agents.synthesizer.service import SynthesizerAgentService
 from app.domain.contracts import ToolResult
-from app.domain.knowledge import EvidenceRef
 from app.domain.workflow import CandidateAnswer, ContextBundle
 from app.orchestration.request import OrchestrationRequest
+from app.services.observability.log_safety import question_ref
 from app.tools.category import ToolCategory
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,41 @@ def extract_security_indicators(text: str) -> dict[str, list[str]]:
         "ips": ips,
         "hashes": hashes,
     }
+
+
+# A specialist skill names a shape `app/agents/synthesizer/skills.py` already
+# describes. Mapping onto it rather than authoring a parallel set of templates is
+# the rule that module states for itself: two competing answer shapes in one
+# prompt is worse than either. Every value here is in `VALID_SKILLS`.
+PIPELINE_SKILLS: dict[str, str] = {
+    "cybersecurity_incident_response": "incident_response_playbook",
+    "cve_vulnerability_assessment": "cyber_defense_hardening",
+    "threat_intelligence_correlation": "cyber_attack_analysis",
+    "cyber_attack_analysis": "cyber_attack_analysis",
+}
+
+INDICATORS_TOOL_ID = "querymind_cyber_indicator_extract"
+
+
+def indicator_tool_result(iocs: dict[str, list[str]]) -> tuple[ToolResult, ...]:
+    """The extracted IoCs, carried to the model as a TOOL finding.
+
+    Deliberately not folded into the evidence or the rendered context: these are
+    derived by a regex over material the model can already see, so presenting
+    them as evidence would invite a citation pointing at a derivation rather
+    than at a source. A tool observation is what they are.
+    """
+
+    lines = [f"{kind}: {', '.join(values)}" for kind, values in sorted(iocs.items()) if values]
+    if not lines:
+        return ()
+    return (
+        ToolResult(
+            tool_id=INDICATORS_TOOL_ID,
+            status="succeeded",
+            summary="Indicators extracted from the question and retrieved material -- " + "; ".join(lines),
+        ),
+    )
 
 
 class CybersecurityAgentService(BaseSpecialistAgent):
@@ -119,113 +154,65 @@ class CybersecurityAgentService(BaseSpecialistAgent):
             return "cybersecurity_incident_response"
         return "cve_vulnerability_assessment"
 
-    def __init__(self, model_invoker: Any | None = None) -> None:
-        self._model_invoker = model_invoker
+    def __init__(self, synthesizer: SynthesizerAgentService | None = None) -> None:
+        """Generation is delegated, never reimplemented.
+
+        This agent used to hold its own optional `model_invoker` and fall back to
+        a hardcoded Chinese template when it was absent -- and the one
+        construction site, `app/agents/registry.py`, passed nothing, so the
+        fallback was the ONLY path that ever ran in production. Measured, "我们被
+        Log4Shell 打了吗？应该怎么处置？" came back as boilerplate answering
+        neither question, with `[E1] [E2]` stapled to content-free sentences.
+        That is the "Knowledge Agent is not an agent" shape reached where it
+        costs the answer text rather than a source list.
+
+        `SynthesizerAgentService` is the one thing that knows how to generate an
+        answer here, and delegating inherits all of it: the real configured chat
+        model, `asyncio.to_thread` so the forward pass is off the event loop,
+        streaming into `AnswerStreamStore` (the specialist path emitted no
+        `answer_fragment` events at all, so the draft bubble stayed empty),
+        `[E{k}]` allow-listing, the documented no-evidence answer, and language
+        forcing.
+
+        What the specialist still contributes is what is genuinely its own: the
+        domain skill it picks, and the indicators it extracts.
+        """
+
+        self._synthesizer = synthesizer or SynthesizerAgentService()
 
     async def synthesize_candidate(
         self,
         request: OrchestrationRequest,
         context: ContextBundle,
         tool_results: tuple[ToolResult, ...] = (),
-        skill: str = "cyber_attack_analysis",
+        skill: str = "cybersecurity_incident_response",
     ) -> CandidateAnswer:
-        """Synthesize a domain-specialized cybersecurity candidate answer."""
+        """Domain-shaped synthesis through the ordinary generation path."""
+
         logger.info(
-            "CybersecurityAgent synthesizing candidate for query='%s' skill='%s' tools=%d",
-            request.question,
+            "CybersecurityAgent synthesizing candidate for query=%s skill=%s tools=%d",
+            # Never the question itself. A stable digest is what this repository
+            # requires of every log line, and both specialists interpolated
+            # `request.question` directly.
+            question_ref(request.question),
             skill,
             len(tool_results),
         )
 
-        references = tuple(
-            EvidenceRef(
-                document_id=item.document_id,
-                version=item.version,
-                page=item.page,
-                chunk_id=item.chunk_id,
-                image_id=item.image_id,
-            )
-            for item in context.evidence
-        )
-
-        # Build tool summary snippets if tools were executed
-        tool_snippets: list[str] = []
-        for tr in tool_results:
-            if tr.status == "succeeded" and tr.summary:
-                tool_snippets.append(f"[工具研判结果 ({tr.tool_id})]: {tr.summary}")
-
-        tools_context = "\n".join(tool_snippets)
-
-        # Extract indicators of compromise from question, context, and evidence chunks
         evidence_text = "\n".join(item.content for item in context.evidence)
-        combined_text = f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tools_context}"
-        iocs = extract_security_indicators(combined_text)
-
-        # 1. Try invoking model if custom invoker is provided
-        if self._model_invoker is not None:
-            try:
-                prompt = (
-                    f"{CYBERSECURITY_SYSTEM_PROMPT}\n\n"
-                    f"Specialist Skill: {skill}\n"
-                    f"User Inquiry: {request.question}\n\n"
-                    f"Retrieved Evidence:\n{context.rendered_context or evidence_text}\n\n"
-                    f"Tool Findings:\n{tools_context}\n\n"
-                    f"Provide structured security analysis citing [E1], [E2] markers:"
-                )
-                raw_response = await self._model_invoker(prompt)
-                text = raw_response if isinstance(raw_response, str) else str(raw_response)
-                return CandidateAnswer(text=text, citations=references)
-            except Exception as e:
-                logger.warning("CybersecurityAgent model synthesis failed, falling back: %s", e)
-
-        final_text = _build_cyber_fallback_text(
-            question=request.question,
-            tool_snippets=tool_snippets,
-            iocs=iocs,
-            evidence=context.evidence,
+        tool_text = "\n".join(result.summary for result in tool_results if result.summary)
+        iocs = extract_security_indicators(
+            f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tool_text}"
         )
-        return CandidateAnswer(text=final_text, citations=references)
+        enriched = (*tool_results, *indicator_tool_result(iocs))
+        pipeline_skill = PIPELINE_SKILLS.get(skill, "cyber_attack_analysis")
+        return await self._synthesizer.synthesize_candidate(request, context, enriched, pipeline_skill)
 
 
-def _format_ioc_lines(iocs: dict[str, list[str]]) -> list[str]:
-    ioc_lines: list[str] = []
-    if iocs.get("cves"):
-        ioc_lines.append(f"- 涉及漏洞/CVE: {', '.join(iocs['cves'])}")
-    if iocs.get("ips"):
-        ioc_lines.append(f"- 相关网络实体/IP: {', '.join(iocs['ips'])}")
-    if iocs.get("hashes"):
-        ioc_lines.append(f"- 相关样本哈希: {', '.join(iocs['hashes'])}")
-    return ioc_lines
-
-
-def _build_cyber_fallback_text(
-    question: str,
-    tool_snippets: list[str],
-    iocs: dict[str, list[str]],
-    evidence: tuple[Any, ...],
-) -> str:
-    sections: list[str] = []
-    if tool_snippets:
-        sections.append("### 安全工具与漏洞研判发现\n" + "\n".join(f"- {s}" for s in tool_snippets))
-
-    ioc_lines = _format_ioc_lines(iocs)
-    if ioc_lines:
-        sections.append("### 提取安全威胁实体 (Threat Entities)\n" + "\n".join(ioc_lines))
-
-    if evidence:
-        evidence_citations = "".join(f" [E{i}]" for i, _ in enumerate(evidence, start=1))
-        sections.append(
-            f"### 安全态势与威胁分析（基于证据材料{evidence_citations}）\n"
-            f"针对 '{question}'，经安全情报与材料比对，主要研判结论如下：\n"
-            f"- **威胁研判**：依据材料分析，潜在威胁向量已被标注并完成定性分析{evidence_citations}。\n"
-            f"- **防御加固**：严格遵循网络边界隔离与权限最小化原则，及时修补组件补丁并启用日志审计监测 [E1]。"
-        )
-    else:
-        sections.append(
-            f"针对安全查询 '{question}'，本地知识库未检索到直接匹配的安全策略或漏洞情报，建议查阅官方安全公告与补丁说明。"
-        )
-
-    return "\n\n".join(sections)
-
-
-__all__ = ["CYBERSECURITY_SYSTEM_PROMPT", "CybersecurityAgentService", "extract_security_indicators"]
+__all__ = [
+    "CYBERSECURITY_SYSTEM_PROMPT",
+    "CybersecurityAgentService",
+    "PIPELINE_SKILLS",
+    "extract_security_indicators",
+    "indicator_tool_result",
+]
