@@ -9,7 +9,7 @@ from app.domain.contracts import EvidenceItem
 from app.domain.knowledge import AccessScope
 from app.domain.workflow import ContextBundle
 from app.privacy.dlp import mask_evidence
-from app.services.security.injection_defense import escape_sandbox_tags
+from app.services.security.injection_defense import escape_sandbox_tags, screen_evidence_items
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,13 @@ class ContextBuilder:
         authorized = tuple(masked for item in raw if (masked := mask_evidence(item, scope)) is not None)
         resolved, conflict_notes = _resolve_conflicts(authorized)
         bounded, truncated = _truncate(resolved, self._token_budget)
-        rendered = "\n\n".join(_render_item(index, item) for index, item in enumerate(bounded, start=1))
+        # Indirect prompt injection is screened HERE, between truncation and
+        # rendering, so the evidence tuple and the rendered prompt are sanitized
+        # by one pass. Screening the tuple afterwards would leave the poisoned
+        # text in `rendered_context`, which is what the synthesizer shows the
+        # model -- the "half-delete" shape recorded for long-term memory.
+        screened = screen_evidence_items(bounded)
+        rendered = "\n\n".join(_render_item(index, item) for index, item in enumerate(screened, start=1))
         scope_dropped = len(raw) - len(authorized)
         if scope_dropped:
             # Deliberately logged rather than returned. Retrieval that reaches
@@ -68,7 +74,7 @@ class ContextBuilder:
             }
         )
         return ContextBundle(
-            evidence=bounded,
+            evidence=screened,
             rendered_context=rendered,
             diagnostics=merged_diagnostics,
         )

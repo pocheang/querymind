@@ -159,13 +159,14 @@ def _plan_queries(queries: Sequence[str], route: RouteDecision) -> TaskPlan:
         )
         for index, query in enumerate(normalized, start=1)
     )
+    tool_required = route.intent == "tool_call" or "tool" in route.allowed_capabilities
     synthesis = PlannedTask(
         task_id="combine-results",
         prompt="Combine the retrieved subtask evidence to answer the original request.",
         depends_on=tuple(task.task_id for task in retrieval_tasks),
         knowledge_required=False,
-        tool_required=route.intent == "tool_call",
-        budget=TaskBudget(max_retrievals=0, max_tool_calls=1 if route.intent == "tool_call" else 0),
+        tool_required=tool_required,
+        budget=TaskBudget(max_retrievals=0, max_tool_calls=1 if tool_required else 0),
     )
     return TaskPlan(tasks=(*retrieval_tasks, synthesis))
 
@@ -176,7 +177,7 @@ def _direct_plan(
     *,
     fallback_reason: str | None = None,
 ) -> TaskPlan:
-    tool_required = route.intent == "tool_call"
+    tool_required = route.intent == "tool_call" or "tool" in route.allowed_capabilities
     return TaskPlan(
         tasks=(
             PlannedTask(

@@ -12,6 +12,8 @@ QueryMind 现已正式发布 **v0.7** 版本，包含交互式系统全景架构
 ## 核心文档入口
 
 - [项目 README](../README.md) — 项目核心特性与快速启动指南
+- [领域智能体与插件化工具架构设计](superpowers/specs/domain-specialist-and-plugin-tools-architecture.md) — 领域专家 Agent 与插件化受控工具分层解耦体系
+- [垂直领域扩展与插件开发实战指南](development/domain-extension-quickstart.md) — 5 分钟构建垂直领域 Agent 与工具包标准范式
 - [v0.7.0.3 发布说明](releases/v0.7.0.3-release-notes.md) — 最新补丁：动态双轨澄清 Agent、Codex 交互提问规范与 Sonar 门禁全通
 - [v0.7.0.2 发布说明](releases/v0.7.0.2-release-notes.md) — SonarQube 质量门禁 100% 清零、重复代码归零与模块化解耦
 - [v0.7.0.1 发布说明](releases/v0.7.0.1-release-notes.md) — 表格与 SQL 分析、图谱社区、多搜索源、注入防护及升级说明

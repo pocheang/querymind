@@ -74,6 +74,29 @@ _current_event_reporter: ContextVar[Callable[[ExecutionEvent], None] | None] = C
 )
 
 
+class DomainAgentRegistryLike(Protocol):
+    """What the orchestrator needs of a domain agent registry.
+
+    A Protocol rather than the concrete class, so `engine` does not import
+    `app.agents.registry` at module scope -- but a typed one rather than
+    `Any`, because the whole point of naming these parameters again is that a
+    caller cannot pass something shaped wrong and find out at request time.
+    """
+
+    def get_agent(self, agent_class: str) -> Any | None: ...
+
+
+class SecurityGuardrailLike(Protocol):
+    """What the privacy_permission node needs of the guardrail."""
+
+    @property
+    def access_scope_resolver(self) -> AccessScopeResolver: ...
+
+    def inspect_and_authorize(self, question: str, actor: Any, source_scope: Any = None) -> Any: ...
+
+    def inspect_evidence(self, items: Any) -> tuple[Any, ...]: ...
+
+
 class CompatibilityStreamExecutor(Protocol):
     """Deprecated protocol retained only for import compatibility."""
 
@@ -96,8 +119,8 @@ class OrchestrationServices:
         verifier: Verifier | None = None,
         knowledge_agent: KnowledgeAgent | None = None,
         privacy: PrivacyService | None = None,
-        access_scope_resolver: AccessScopeResolver | None = None,
-        context: object | None = None,
+        domain_agent_registry: DomainAgentRegistryLike | None = None,
+        security_guardrail: SecurityGuardrailLike | None = None,
         event_reporter_binder: Callable[[Callable[[ExecutionEvent], None]], None] | None = None,
     ) -> None:
         self.router = router
@@ -110,8 +133,32 @@ class OrchestrationServices:
         self.verifier = verifier
         self.knowledge_agent = knowledge_agent or _default_knowledge_agent
         self.privacy = privacy or PrivacyService()
-        self.access_scope_resolver = access_scope_resolver or AccessScopeResolver()
-        self.context = context
+
+        if domain_agent_registry is None:
+            from app.agents.registry import get_domain_agent_registry
+
+            domain_agent_registry = get_domain_agent_registry()
+        # The registry is the ONE source of specialists. There used to be named
+        # `cybersecurity_agent` / `ai_agent` parameters beside it, filled from
+        # separate `CoreCapabilities` fields, so a deployment held two instances
+        # of each specialist and which one answered depended on whether the
+        # registry lookup happened to hit -- the "two definitions" shape this
+        # repository keeps recording. Registering an agent is how one becomes
+        # reachable.
+        self.domain_agent_registry = domain_agent_registry
+
+        # Never optional, and never resolved with getattr downstream: the
+        # guardrail is where prompt-injection screening happens, and a services
+        # object that merely *happens* to carry it would give two security
+        # postures for one pipeline.
+        if security_guardrail is None:
+            from app.services.security.security_guardrail import SecurityGuardrailService
+
+            security_guardrail = SecurityGuardrailService(privacy_service=self.privacy)
+        self.security_guardrail = security_guardrail
+        # Scope resolution belongs to the guardrail, which owns it and exposes
+        # it; a second parameter for the same resolver invited the two to differ.
+        self.access_scope_resolver = security_guardrail.access_scope_resolver
         self._event_reporter_binder = event_reporter_binder
 
     def bind_event_reporter(self, reporter: Callable[[ExecutionEvent], None]) -> None:

@@ -97,6 +97,10 @@ class WorkflowServices(Protocol):
     ]
     privacy: PrivacyService
     access_scope_resolver: AccessScopeResolver
+    # Required, not `Any | None`. Prompt-injection screening happens here, and a
+    # services object that merely happens to carry the attribute would give one
+    # pipeline two security postures -- see privacy_permission below.
+    security_guardrail: Any
 
     def report_event(self, event: ExecutionEvent) -> None: ...
 
@@ -123,12 +127,20 @@ class WorkflowNodeRuntime:
         request = _required(state, "request", OrchestrationRequest)
 
         async def operation() -> tuple[PrivacyResult, Any, OrchestrationRequest]:  # NOSONAR
-            privacy = self._services.privacy.inspect_input(request.question)
-            if privacy.blocked:
-                raise PermissionError("input privacy inspection blocked the request")
-            scope = self._services.access_scope_resolver.resolve(request.actor, request.source_scope)
+            # Attribute access, never getattr-with-a-default: a services object
+            # without a guardrail must fail loudly here rather than silently
+            # taking a path that does no injection screening at all.
+            guard_result = self._services.security_guardrail.inspect_and_authorize(
+                request.question,
+                request.actor,
+                request.source_scope,
+            )
+            privacy = guard_result.privacy
+            scope = guard_result.permission_scope
+            sanitized_text = guard_result.sanitized_question
+
             sanitized = request.model_copy(
-                update={"question": privacy.text, "source_scope": _scope_to_request_scope(scope, request)}
+                update={"question": sanitized_text, "source_scope": _scope_to_request_scope(scope, request)}
             )
             return privacy, scope, sanitized
 
@@ -295,6 +307,28 @@ class WorkflowNodeRuntime:
             # skipped routing, and the default skill is the right answer there.
             routed = state.get("route")
             skill = getattr(routed, "skill", "") or SKILL_DEFAULT
+            agent_class = getattr(routed, "agent_class", "")
+
+            # One lookup. The named-attribute fallback that used to sit here
+            # reached a SECOND instance of each specialist, built separately in
+            # CoreCapabilities, so which one answered depended on whether the
+            # registry hit. Registering an agent is how it becomes reachable.
+            specialist = None
+            agent_registry = getattr(self._services, "domain_agent_registry", None)
+            if agent_registry is not None and agent_class:
+                specialist = agent_registry.get_agent(agent_class)
+
+            if specialist is not None and hasattr(specialist, "synthesize_candidate"):
+                candidate_answer, event = await self._run_stage(
+                    state,
+                    event_stage="synthesize",
+                    timeout_stage="synthesize",
+                    operation=lambda: specialist.synthesize_candidate(request, context, tool_results, skill),
+                    expected_type=CandidateAnswer,
+                    on_timeout=_timed_out_candidate,
+                )
+                return {"candidate_answer": candidate_answer, "trace": (event,)}
+
             candidate_answer, event = await self._run_stage(
                 state,
                 event_stage="synthesize",
