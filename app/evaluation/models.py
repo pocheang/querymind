@@ -15,7 +15,34 @@ class TestQuery(BaseModel):
     # matches nothing -- and scores 0.0 forever, which looks exactly like a
     # retrieval failure.
     expected_docs: list[str] = Field(default_factory=list, description="Expected source identifiers")
+    # Optional graded judgements, source -> grade. 0 means judged and not
+    # relevant, which is not the same as unjudged: it lets a corpus record a
+    # near-miss without it counting toward recall. `expected_docs` stays the
+    # simple form and every existing query set keeps working -- see
+    # `graded_relevance`, which is the one place the two are reconciled.
+    #
+    # Worth having because the shipped corpus is single-gold, which caps
+    # Precision@5 at 0.2 and leaves it unable to say anything about *ordering*.
+    # nDCG over grades is the metric with range once judgements exist.
+    relevance: dict[str, float] = Field(
+        default_factory=dict,
+        description="Optional source -> relevance grade (0 = not relevant, higher = more relevant)",
+    )
     difficulty: str = Field(default="medium", description="Query difficulty: easy, medium, hard")
+
+    def graded_relevance(self) -> dict[str, float]:
+        """The judgements for this query, whichever form they were written in.
+
+        `expected_docs` contributes grade 1 for anything `relevance` does not
+        already mention, so a query may carry both: the list for the documents
+        that are simply relevant, the map for the ones worth grading. An explicit
+        0 in the map wins, which is how a document is marked judged-irrelevant.
+        """
+
+        graded = {source: float(grade) for source, grade in self.relevance.items()}
+        for source in self.expected_docs:
+            graded.setdefault(source, 1.0)
+        return graded
 
 
 class RetrievalResult(BaseModel):

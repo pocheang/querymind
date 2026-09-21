@@ -140,12 +140,15 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 
 | 指标 (Metric) | 实测 (Observed) | 由什么测量 (Measured by) |
 | :--- | :--- | :--- |
-| **检索 MRR** | **0.9688** | `make eval-retrieval`：15 条双语语料 × 16 个查询，跑**真实的 `KnowledgeOrchestrator`**（BM25 单路，故无需模型即可复现）。钉死的是**每个查询的名次**而非聚合值，所以失败会指名是哪个查询；改善和回归一样让测试变红。 |
-| **检索 P@5** | **0.2（理论上限）** | 同上。语料每个查询只有 1 篇相关文档，五取一就是天花板——拿它对标多标注语料常引的 0.85 是类别错误，`tests/evaluation/` 专门钉住这点以免有人从指标表里读出错误结论。 |
+| **检索 recall@5 / MRR / nDCG@5**<br>（主集合） | **1.0000 / 0.9167 / 0.9375** | `make eval-retrieval`：30 篇双语语料 × 16 个查询，跑**真实的 `KnowledgeOrchestrator`**（BM25 单路，故无需模型即可复现）。钉死的是**每个查询的名次**而非聚合值，所以失败会指名是哪个查询；改善和回归一样让测试变红。MRR 曾是 0.9688，语料加入干扰文档后下降——**这是干扰项在起作用，不是检索退化**（recall 仍为 1.0000，没有东西变得找不到）。 |
+| **检索 P@5**<br>（主集合） | **0.2000 = 上限** | 同上。语料每个查询只有 1 篇相关文档，五取一就是天花板——**0.2 在这里是满分**，拿它对标多标注语料常引的 0.85 是类别错误。上限由标注算出（`precision_ceiling_at_k`）而非写死，所以语料一旦多标注就自己上升。 |
+| **跨文档 complete@5** | **0.7500** | `make eval-crossdoc`：8 个「单篇文档答不了」的问题。complete@5 问的是**所有必需文档是否都进了前五**——半份证据不是半个答案，是一个自信的错答。八题里两题组装不起来，`KNOWN_INCOMPLETE_CROSSDOC` 记录的是**缺了哪一篇**。 |
+| **跨文档 P@5** | **0.4000（上限 0.4500）** | 同上，也是全项目**唯一一个 P@5 低于自身上限**的地方——即它终于在测检索，而不是在测标注。 |
+| **全链路检索质量** | **未测量（会拒绝）** | `make eval-full-pipeline` 测向量 + BM25 + 交叉编码器重排，但在本机**退出码 2、一个数字都不输出**：两个模型都以 `local_files_only=True` 加载，缺失时静默降级成词面回退和哈希嵌入。一个测错东西的绿色数字比没有数字更糟。 |
 | **端点数量** | **157** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
-| **后端行覆盖率** | **59.5%** | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。 |
+| **后端行覆盖率** | **60.6%**（基线 60.2%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。 |
 | **认知复杂度** | **0 个函数 > 15** | `tests/core/test_cognitive_complexity_is_bounded.py`，覆盖 `app/` 与 `scripts/` 的硬门禁。`scripts/audit/cognitive_complexity.py` 本地实现了 Sonar 的评分规则，`--validate` 能逐条复现项目全部 75 条历史 S3776 发现。 |
-| **测试数量** | **2,122 后端 / 214 前端** | `pytest -q`（2,119 passed, 3 skipped）与 `vitest`（31 文件）。 |
+| **测试数量** | **2,535 后端 / 222 前端** | `pytest -q` 报告 2,535 passed / 3 skipped / 2 xfailed，`vitest` 报告 222 passed（32 文件）。写运行时真正打印的数字，而不是单一总数：`--collect-only` 与运行结果按不同口径计数，差值来自 import 阶段就跳过的模块，不是丢了用例。 |
 | **入口包体积** | **151.5 KB gzip** | `npm run build` 实测：入口 chunk 441 KB 原始 / 151.5 KB gzip，主样式 142 KB / 38.6 KB gzip，其余按路由拆成 40 个懒加载 chunk。 |
 | **Router 意图准确率** | **没有测量** | 项目里**不存在**标注过的路由测试集。此处曾写 99.1%，那个数字没有任何东西在测。 |
 | **引用完整性** | **没有聚合测量** | 每个回答由校验级联的引用阶段**逐条强制执行**，但从未在一个查询集上打过总分。 |
@@ -264,7 +267,7 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (Linter & Formatter), Pre-commit (CI 内同样执行)
-    ├── Testing: Pytest (后端 2,122 用例), Vitest (前端 214 用例), Prettier
+    ├── Testing: Pytest (后端 2,535 用例), Vitest (前端 222 用例), Prettier
     ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 20+22 / images / analysis)
     ├── Security: CodeQL (python + js-ts), pip-audit + npm audit 门禁, Trivy 镜像扫描（每周）
     ├── Static Analysis: SonarCloud Quality Gate, 认知复杂度本地门禁 (S3776, 0 超标)
@@ -312,13 +315,13 @@ multi_agent_rag_local_v4/
 ## 🧪 Testing & CI (工程质量与持续集成)
 
 ```bash
-# 后端：2,122 项用例（2,119 passed / 3 skipped，缺可选的 openpyxl 时跳过）
+# 后端：2,535 passed / 3 skipped / 2 xfailed（跳过的是缺可选的 openpyxl）
 pytest -q
 
 # 推送前用这个：把 CI 不安装的可选包（pytesseract / pdfplumber / sentence-transformers）屏蔽掉跑一遍
 make test-ci
 
-# 前端：214 项用例，31 个文件
+# 前端：222 项用例，32 个文件
 cd frontend && npm test -- --run
 
 # 静态检查
@@ -327,7 +330,12 @@ cd frontend && npm run lint && npm run type-check && npm run lint:design
 npm run build && npm run lint:classes   # 这两项必须在 build 之后：它们问的是浏览器实际收到了什么
 
 # 离线检索质量评估（无需模型、无需 Chroma / Neo4j / LLM，全新 checkout 即可跑）
-make eval-retrieval
+make eval-retrieval        # 主集合：单篇文档能答的问题，MRR / nDCG 是它的指标
+make eval-crossdoc         # 跨文档：单篇答不了的问题，complete@5 是它的指标
+
+# 全链路（向量 + BM25 + 重排）。缺模型时**拒绝运行并退出 2**，而不是降级后报一个
+# 描述回退路径的数字——那种绿色数字比没有数字更糟。
+make eval-full-pipeline
 ```
 
 ### CI 跑什么
