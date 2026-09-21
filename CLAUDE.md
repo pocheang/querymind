@@ -53,7 +53,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (2,244 backend pytest tests + 214 frontend vitest tests)
+└── tests/                      # Automated test suite (2,470 backend pytest + 216 frontend vitest)
 ```
 
 ## Table of Contents
@@ -110,13 +110,23 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-17): The v0.7.0 Canonical LangGraph architecture consolidation is complete. The test suite stands at **2,244 backend tests** (3 of them skipped without the optional `openpyxl`, in CI as well as locally, and 2 `xfail(strict=True)` recording a control that is built and never called) and **214 frontend tests** (**2,458 total tests**, 0 failures). Scripts hold thirteen focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
+Note (counts refreshed 2026-09-18): The v0.7.0 Canonical LangGraph architecture consolidation is
+complete. `pytest -q` reports **2,470 passed, 3 skipped, 2 xfailed** -- the skips are the optional
+`openpyxl`, absent in CI as well as locally, and the xfails record a control that is built and never
+called. `vitest` reports **216 passing across 31 files**, so **2,686 passing** in total.
+
+**Three numbers rather than one, on purpose.** A single total has to pick a convention and this
+repository has two that disagree: `--collect-only` reports 2,474 items where the run reports 2,475
+outcomes, because a module skipped at import contributes a skip without contributing items, and one
+parametrized id carries a timestamp that differs between the two passes. Neither number is wrong and
+the gap is not a lost test; publishing the line the run actually prints is what a reader can
+reproduce, and is what CI shows. Scripts hold thirteen focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
 `check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_full_pipeline.py`,
 `eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
-make test                           # pytest -q (2,244 tests)
+make test                           # pytest -q (2,470 passed, 3 skipped, 2 xfailed)
 make test-ci                        # the same suite, with CI's optional packages hidden
 make lint                           # ruff check . && ruff format --check .
 ```
@@ -149,6 +159,8 @@ CI installs, and cannot shrink to nothing and keep reporting success.
 make up                             # start Neo4j for local dev (Browser on :7474)
 make down                           # stop it
 make eval-retrieval                 # BM25 retrieval quality over config/eval/ (no model needed)
+make eval-crossdoc                  # questions no single document answers; complete@5 is its metric
+make eval-full-pipeline             # vector + BM25 + rerank; REFUSES (exit 2) on a degraded stack
 ```
 
 ### Frontend
@@ -175,7 +187,7 @@ npm run type-check                  # tsc -b --noEmit (clean with ES2022.Object,
 npm run lint:design                 # shape/depth scale ratchet (see Frontend styling)
 npm run lint:classes                # dead classes audit against built CSS
 npm run format:check                # prettier format check
-npm test -- --run                   # vitest (.test.ts and .test.tsx, 214 tests)
+npm test -- --run                   # vitest (.test.ts and .test.tsx, 216 tests)
 npm run screenshots                 # both servers up; PNGs of 8 app states
 npm run smoke                       # drive a served build in a browser (SMOKE_BASE_URL)
 ```
@@ -2602,7 +2614,9 @@ retrieval to them.
 A number that cannot move is not a measurement: on a single-gold corpus P@5 is
 `recall_at_5 / 5` exactly, so it carries nothing the recall does not and reads as a
 failure to anyone who compares it with the 0.85 in the table above. The report now leads
-with **recall@5 1.0000, MRR 0.9688, nDCG@5 0.9769** and prints P@5 beside
+with recall@5, MRR and nDCG@5 -- **1.0000, 0.9167, 0.9375** as of the
+distractors; this paragraph quoted the pre-distractor 0.9688/0.9769 until
+2026-09-18, which is the staleness the section above it is about -- and prints P@5 beside
 `precision_ceiling_at_5`, which is **computed from the judgements** rather than written
 down -- so "0.2000 ceiling 0.2000 (at the ceiling)" says what 0.2 means, and the ceiling
 rises on its own the day the corpus gains a second relevant document per query. Below a
@@ -3287,8 +3301,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-17 there are 2,244 backend pytest tests
-and 214 frontend Vitest tests (2,458 total tests, 0 failures), covering the chat round trip,
+back-filling effort. As of 2026-09-18 `pytest -q` reports 2,470 passed, 3
+skipped and 2 xfailed, and `vitest` 216 across 31 files, covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -3341,9 +3355,10 @@ covered the day it is added, where one test looping inside a single assertion re
 first offender and stops — but it does mean this total is not comparable across the change
 that introduced them.
 
-`tests/security/` (951 of those, 388 being the per-module audit-action scan -- this read
-746/367 until 2026-09-17, stale in the way that whole paragraph describes, since the scan
-grows with `app/`) pins the
+`tests/security/` (966 of those, 389 being the per-module audit-action scan -- it read 746/367
+until 2026-09-17 and 951/388 until 2026-09-18, stale in the way that whole paragraph
+describes, since the scan grows with `app/`: adding `app/evaluation/preflight.py` moved it by
+one) pins the
 user-data isolation invariants — see
 `docs/superpowers/plans/2026-08-29-user-data-isolation.md`. That plan is complete
 (phases 0-4) and all 8 of its `xfail(strict=True)` markers are cleared; keep using the same
@@ -4063,7 +4078,7 @@ confirming after a clarified query would have re-sent a stale question.
 any identity change: the stores outlive a logout, so a field added to a store but forgotten
 in its `INITIAL_STATE` would show the next person on a shared browser the previous user's
 data. The test discovers fields rather than listing them, so it catches that drift.
-That suite is 214 tests across 31 files — small, and deliberately aimed at the things a
+That suite is 216 tests across 31 files — small, and deliberately aimed at the things a
 screenshot cannot check. `AdminConfigEditor.test.tsx` is the newest: it pins that a value
 pinned in the process environment renders disabled, and that only edited fields are sent —
 posting the whole form would turn a page load into a write of every value, and a stale read
