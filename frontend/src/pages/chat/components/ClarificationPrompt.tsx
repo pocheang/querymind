@@ -17,6 +17,16 @@ interface ClarificationPromptProps {
   isSubmitting?: boolean;
 }
 
+const isOtherOption = (option: string): boolean => {
+  const trimmed = option.trim().toLowerCase();
+  return (
+    trimmed.startsWith("其他") ||
+    trimmed.startsWith("其它") ||
+    trimmed.startsWith("other") ||
+    trimmed.startsWith("(other)")
+  );
+};
+
 export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
   question,
   context,
@@ -29,11 +39,13 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
   const [customInput, setCustomInput] = useState<string>("");
   const [useCustom, setUseCustom] = useState<boolean>(false);
 
+  const hasOtherInOptions = question.options.some(isOtherOption);
+
   useEffect(() => {
     setSelectedOption("");
     setCustomInput("");
-    setUseCustom(false);
-  }, [question.field_name]);
+    setUseCustom(question.options.length === 0 && question.allow_custom_input);
+  }, [question.field_name, question.options.length, question.allow_custom_input]);
 
   const handleSubmit = () => {
     const answer = useCustom ? customInput.trim() : selectedOption;
@@ -42,8 +54,13 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
   };
 
   const handleOptionSelect = (option: string) => {
-    setSelectedOption(option);
-    setUseCustom(false);
+    if (isOtherOption(option)) {
+      setUseCustom(true);
+      setSelectedOption(option);
+    } else {
+      setSelectedOption(option);
+      setUseCustom(false);
+    }
   };
 
   const handleCustomToggle = () => {
@@ -73,37 +90,52 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
 
         <div className="space-y-1.5">
           {question.options.map((option) => {
-            const selected = selectedOption === option && !useCustom;
+            const isOther = isOtherOption(option);
+            const selected =
+              (selectedOption === option && !useCustom) || (isOther && useCustom && selectedOption === option);
             return (
-              <button
-                key={option}
-                type="button"
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-control border p-2 text-left text-xs sm:text-sm font-medium transition-all",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
-                  selected
-                    ? "border-brand-border-strong bg-brand-surface text-brand-text-strong"
-                    : "border-line bg-surface text-ink hover:border-brand-border hover:bg-brand-surface/60"
-                )}
-                aria-pressed={selected}
-                onClick={() => handleOptionSelect(option)}
-                disabled={isSubmitting}
-              >
-                <span
+              <div key={option} className="space-y-1.5">
+                <button
+                  type="button"
                   className={cn(
-                    "flex size-3.5 shrink-0 items-center justify-center rounded-pill border",
-                    selected ? "border-brand bg-brand" : "border-line-strong bg-surface"
+                    "flex w-full items-center gap-2 rounded-control border p-2 text-left text-xs sm:text-sm font-medium transition-all",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]",
+                    selected
+                      ? "border-brand-border-strong bg-brand-surface text-brand-text-strong"
+                      : "border-line bg-surface text-ink hover:border-brand-border hover:bg-brand-surface/60"
                   )}
-                  aria-hidden="true"
+                  aria-pressed={selected}
+                  onClick={() => handleOptionSelect(option)}
+                  disabled={isSubmitting}
                 >
-                  {selected && <span className="size-1.5 rounded-pill bg-white" />}
-                </span>
-                <span className="min-w-0 flex-1">{option}</span>
-              </button>
+                  <span
+                    className={cn(
+                      "flex size-3.5 shrink-0 items-center justify-center rounded-pill border",
+                      selected ? "border-brand bg-brand" : "border-line-strong bg-surface"
+                    )}
+                    aria-hidden="true"
+                  >
+                    {selected && <span className="size-1.5 rounded-pill bg-white" />}
+                  </span>
+                  <span className="min-w-0 flex-1">{option}</span>
+                </button>
+                {isOther && useCustom && selectedOption === option && (
+                  <div className="pl-6 pt-1">
+                    <Input
+                      type="text"
+                      placeholder={t("clarification.customInputPlaceholder", { defaultValue: "请输入自定义内容..." })}
+                      value={customInput}
+                      onChange={(e) => setCustomInput(e.target.value)}
+                      disabled={isSubmitting}
+                      autoFocus
+                    />
+                  </div>
+                )}
+              </div>
             );
           })}
 
-          {question.allow_custom_input && (
+          {question.allow_custom_input && !hasOtherInOptions && (
             <div className="space-y-1.5">
               <button
                 type="button"
@@ -130,14 +162,16 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
                 <span className="min-w-0 flex-1">{t("clarification.customInput")}</span>
               </button>
               {useCustom && (
-                <Input
-                  type="text"
-                  placeholder={t("clarification.customInputPlaceholder")}
-                  value={customInput}
-                  onChange={(e) => setCustomInput(e.target.value)}
-                  disabled={isSubmitting}
-                  autoFocus
-                />
+                <div className="pl-6 pt-1">
+                  <Input
+                    type="text"
+                    placeholder={t("clarification.customInputPlaceholder", { defaultValue: "请输入自定义内容..." })}
+                    value={customInput}
+                    onChange={(e) => setCustomInput(e.target.value)}
+                    disabled={isSubmitting}
+                    autoFocus
+                  />
+                </div>
               )}
             </div>
           )}

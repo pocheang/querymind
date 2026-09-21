@@ -11,6 +11,18 @@ All operations must use this conda environment:
 conda activate rag-local
 ```
 
+## Interaction Principles: Requirement Clarification & Questioning Standards (Claude Code / Codex Standards)
+
+- **Zero-Assumption Rule (严禁盲猜)**:
+  * **不完全清楚用户要什么的时候，必须提问，而不是随便猜，直到完全清楚**。
+  * When user instructions are ambiguous, underspecified, or lack key technical details, **do not assume or guess**. Always clarify first.
+  * Stop and ask before modifying code until the requirements and technical boundary are 100% clear.
+- **Standardized Questioning Style (对标 Codex / Claude Code)**:
+  1. **Structured Interactive Tooling**: Use interactive modals (`ask_question`) for clarifying architectural or implementation decisions.
+  2. **Recommended Option First**: Always list the best-practice option first, prefixed with `(Recommended)` or `(推荐)` accompanied by the technical rationale.
+  3. **Actionable & Descriptive Options**: Each option must describe the specific change, components affected, and architectural implications from the user's perspective.
+  4. **Direct & Engineering-Focused**: Formulate questions concisely, directly highlighting technical tradeoffs without conversational fluff.
+
 ## Project Information
 
 - **Name**: QueryMind（智询）
@@ -19,7 +31,7 @@ conda activate rag-local
   tagline and this line are kept identical on purpose -- a project that describes
   itself three different ways is the same failure this file records everywhere
   else, applied to its own front door.
-- **Version**: 0.7.0.1 (Released 2026-09-14)
+- **Version**: 0.7.0.3 (Released 2026-09-18)
 - **Language Support**: Bilingual (Chinese/English) via i18next
 - **License**: MIT
 
@@ -53,7 +65,7 @@ multi_agent_rag_local_v4/
 │   ├── compose/                # Docker Compose manifests (base, production, dev, monitoring)
 │   └── scripts/                # Deployment and environment validation scripts (deploy.sh, deploy.ps1)
 ├── scripts/                    # Developer tooling, audit gates, sensitive scanner, retrieval eval
-└── tests/                      # Automated test suite (2,470 backend pytest + 216 frontend vitest)
+└── tests/                      # Automated test suite (2,535 backend pytest + 222 frontend vitest)
 ```
 
 ## Table of Contents
@@ -110,23 +122,27 @@ ruff check .                        # Lint check
 ruff format .                       # Format code
 ```
 
-Note (counts refreshed 2026-09-18): The v0.7.0 Canonical LangGraph architecture consolidation is
-complete. `pytest -q` reports **2,470 passed, 3 skipped, 2 xfailed** -- the skips are the optional
+Note (counts refreshed 2026-09-21, v0.7.0.3): The v0.7.0 Canonical LangGraph architecture
+consolidation, the v0.7.0.2 SonarQube quality remediation, and the v0.7.0.3 Dynamic Dual-Track
+Clarification Agent are complete. `pytest -q` reports **2,535 passed, 3 skipped, 2 xfailed** -- the skips are the optional
 `openpyxl`, absent in CI as well as locally, and the xfails record a control that is built and never
-called. `vitest` reports **216 passing across 31 files**, so **2,686 passing** in total.
+called. `vitest` reports **222 passing across 32 files**, so **2,757 passing** in total. SonarCloud's quality
+gate is **OK** with 0 bugs, 0 vulnerabilities, 0 security hotspots and duplicated lines at 0.0%.
 
 **Three numbers rather than one, on purpose.** A single total has to pick a convention and this
-repository has two that disagree: `--collect-only` reports 2,474 items where the run reports 2,475
+repository has two that disagree: `--collect-only` reports one fewer item than the run reports
 outcomes, because a module skipped at import contributes a skip without contributing items, and one
 parametrized id carries a timestamp that differs between the two passes. Neither number is wrong and
 the gap is not a lost test; publishing the line the run actually prints is what a reader can
-reproduce, and is what CI shows. Scripts hold thirteen focused tools (`audit/frontend_audit.py`, `audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`, `check_lock_wheels.py`, `check_sensitive.py`,
-`check_vulnerabilities.py`, `ci_import_environment.py`, `create_admin.py`, `eval_full_pipeline.py`,
-`eval_retrieval.py`, `verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
+reproduce, and is what CI shows. Scripts hold thirteen focused tools (`audit/frontend_audit.py`,
+`audit/cognitive_complexity.py`, `audit/reachability.py`, `check_coverage.py`,
+`check_lock_wheels.py`, `check_sensitive.py`, `check_vulnerabilities.py`,
+`ci_import_environment.py`, `create_admin.py`, `eval_full_pipeline.py`, `eval_retrieval.py`,
+`verify_config_centre.py`, `verify_real_user_flow.py`) and zero orphan fixtures.
 
 **Tests and lint**
 ```bash
-make test                           # pytest -q (2,470 passed, 3 skipped, 2 xfailed)
+make test                           # pytest -q (2,535 passed, 3 skipped, 2 xfailed)
 make test-ci                        # the same suite, with CI's optional packages hidden
 make lint                           # ruff check . && ruff format --check .
 ```
@@ -187,7 +203,7 @@ npm run type-check                  # tsc -b --noEmit (clean with ES2022.Object,
 npm run lint:design                 # shape/depth scale ratchet (see Frontend styling)
 npm run lint:classes                # dead classes audit against built CSS
 npm run format:check                # prettier format check
-npm test -- --run                   # vitest (.test.ts and .test.tsx, 216 tests)
+npm test -- --run                   # vitest (.test.ts and .test.tsx, 222 tests)
 npm run screenshots                 # both servers up; PNGs of 8 app states
 npm run smoke                       # drive a served build in a browser (SMOKE_BASE_URL)
 ```
@@ -2311,6 +2327,16 @@ was built from, so `apply_config_reload` now clears it. A user who switches web
 search on in the composer outranks keyword-matched sources when the plan's budget
 must drop one, but the budget itself is never raised.
 
+### SonarQube Quality Remediation and Duplication Zero (v0.7.0.2, reviewed 2026-09-16)
+
+v0.7.0.2 achieved 100% resolution of all SonarCloud metrics (Quality Gate OK):
+- **0 Vulnerabilities**: Fixed ReDoS vulnerability in table-separator regex by standardizing to non-backtracking `^\|(\s*:?-+[-:]*\s*\|)+$` across all parsers (`splitter.py`, `classification.py`, `extraction/tables.py`, `office_loader.py`).
+- **0 Bugs & 0 Code Smells**: Remediated 73+ cognitive complexity issues (S3776 <= 15) across frontend (`LoginFormPanel.tsx`, `smartPrompts.ts`) and backend (`splitter.py`, `tables.py`, `office_loader.py`, `pdf_loader.py`, `community.py`, `table_linking.py`, `injection_defense.py`).
+- **0 Duplicated Lines / 0 Duplicated Blocks (0.0% duplication rate)**:
+  - Frontend `DataFlowVisualization.tsx`: Refactored 53 edge definitions into a compact factory mapper and externalized 34 node translation pairs into `dataFlowTranslations.json`.
+  - Admin Dashboards (`AdminAgentQualityDashboard.tsx`, `AdminWebActivityDashboard.tsx`): Consolidated duplicate loading skeletons and error retry JSX into `AdminDashboardStatus` in `AdminPrimitives.tsx`.
+  - Backend `enhanced_graph.py` and `pdf_loader_enhanced.py`: Imported shared formatting helpers from `graph.py` and document page extraction from `pdf_loader.py`.
+
 ### Technology Stack
 
 **Backend**: FastAPI + LangChain
@@ -3301,8 +3327,8 @@ verified (60 inputs and 336 pins respectively, zero differences).
 
 `tests/` was cleared ahead of the v0.7 rewrite and is being rebuilt incrementally: each bug
 fix lands with the regression test that would have caught it, rather than as a separate
-back-filling effort. As of 2026-09-18 `pytest -q` reports 2,470 passed, 3
-skipped and 2 xfailed, and `vitest` 216 across 31 files, covering the chat round trip,
+back-filling effort. As of 2026-09-21 `pytest -q` reports 2,535 passed, 3
+skipped and 2 xfailed, and `vitest` 222 across 32 files, covering the chat round trip,
 conversation context, graph routing, clarification, the async load guard, engine reuse,
 answer safety, reader-facing citation numbering, stage-timeout degradation, the governed
 tool stack with its multi-step loop and approve-then-resume cycle, retrieval
@@ -4078,7 +4104,7 @@ confirming after a clarified query would have re-sent a stale question.
 any identity change: the stores outlive a logout, so a field added to a store but forgotten
 in its `INITIAL_STATE` would show the next person on a shared browser the previous user's
 data. The test discovers fields rather than listing them, so it catches that drift.
-That suite is 216 tests across 31 files — small, and deliberately aimed at the things a
+That suite is 222 tests across 32 files — small, and deliberately aimed at the things a
 screenshot cannot check. `AdminConfigEditor.test.tsx` is the newest: it pins that a value
 pinned in the process environment renders disabled, and that only edited fields are sent —
 posting the whole form would turn a page load into a write of every value, and a stale read

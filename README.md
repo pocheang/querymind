@@ -10,7 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.0.1-brightgreen.svg?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.0.3-brightgreen.svg?style=flat-square" alt="Release"></a>
+  <a href="https://sonarcloud.io/summary/new_code?id=pocheang_querymind"><img src="https://sonarcloud.io/api/project_badges/measure?project=pocheang_querymind&metric=alert_status" alt="Quality Gate Status"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.138+-009688.svg?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-18.3-61DAFB.svg?style=flat-square&logo=react&logoColor=black" alt="React"></a>
@@ -147,7 +148,7 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 | **端点数量** | **157** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
 | **后端行覆盖率** | **60.6%**（基线 60.2%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。 |
 | **认知复杂度** | **0 个函数 > 15** | `tests/core/test_cognitive_complexity_is_bounded.py`，覆盖 `app/` 与 `scripts/` 的硬门禁。`scripts/audit/cognitive_complexity.py` 本地实现了 Sonar 的评分规则，`--validate` 能逐条复现项目全部 75 条历史 S3776 发现。 |
-| **测试数量** | **2,470 后端 / 216 前端** | `pytest -q` 报告 2,470 passed / 3 skipped / 2 xfailed，`vitest` 报告 216 passed（31 文件）。写运行时真正打印的数字，而不是单一总数：`--collect-only` 与运行结果按不同口径计数，差值来自 import 阶段就跳过的模块，不是丢了用例。 |
+| **测试数量** | **2,535 后端 / 222 前端** | `pytest -q` 报告 2,535 passed / 3 skipped / 2 xfailed，`vitest` 报告 222 passed（32 文件）。写运行时真正打印的数字，而不是单一总数：`--collect-only` 与运行结果按不同口径计数，差值来自 import 阶段就跳过的模块，不是丢了用例。 |
 | **入口包体积** | **151.5 KB gzip** | `npm run build` 实测：入口 chunk 441 KB 原始 / 151.5 KB gzip，主样式 142 KB / 38.6 KB gzip，其余按路由拆成 40 个懒加载 chunk。 |
 | **Router 意图准确率** | **没有测量** | 项目里**不存在**标注过的路由测试集。此处曾写 99.1%，那个数字没有任何东西在测。 |
 | **引用完整性** | **没有聚合测量** | 每个回答由校验级联的引用阶段**逐条强制执行**，但从未在一个查询集上打过总分。 |
@@ -266,7 +267,7 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (Linter & Formatter), Pre-commit (CI 内同样执行)
-    ├── Testing: Pytest (后端 2,470 用例), Vitest (前端 216 用例), Prettier
+    ├── Testing: Pytest (后端 2,535 用例), Vitest (前端 222 用例), Prettier
     ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 20+22 / images / analysis)
     ├── Security: CodeQL (python + js-ts), pip-audit + npm audit 门禁, Trivy 镜像扫描（每周）
     ├── Static Analysis: SonarCloud Quality Gate, 认知复杂度本地门禁 (S3776, 0 超标)
@@ -314,13 +315,13 @@ multi_agent_rag_local_v4/
 ## 🧪 Testing & CI (工程质量与持续集成)
 
 ```bash
-# 后端：2,470 passed / 3 skipped / 2 xfailed（跳过的是缺可选的 openpyxl）
+# 后端：2,535 passed / 3 skipped / 2 xfailed（跳过的是缺可选的 openpyxl）
 pytest -q
 
 # 推送前用这个：把 CI 不安装的可选包（pytesseract / pdfplumber / sentence-transformers）屏蔽掉跑一遍
 make test-ci
 
-# 前端：216 项用例，31 个文件
+# 前端：222 项用例，32 个文件
 cd frontend && npm test -- --run
 
 # 静态检查
@@ -357,13 +358,16 @@ make eval-full-pipeline
 - ✅ **棘轮双向失败。** 覆盖率掉了是回归，涨了说明基线过期；端点数少了是 router 掉了，多了是基线该更新。只能涨不能收的豁免名单会从「决策记录」退化成「不做决策的方式」。
 - ✅ **容器不只是构建，还要服务。** jsdom 测试、`npm run build`、`nginx -t` 全都能在一个**只会显示白屏**的部署上通过。冒烟检查断言 `/api/advanced-rag/health` 返回的是 JSON 而不是 SPA 兜底的 `index.html`——只有这一条能发现代理没接到后端。
 - ✅ **Pre-commit 在 CI 里有副本。** 钩子能被 `--no-verify` 绕过，在没跑过 `pre-commit install` 的新 clone 里则根本不存在。
+- ✅ **SonarCloud 严苛审查（100% 满分 Quality Gate）**：SonarCloud 官方全指标通过（Bugs: 0, Vulnerabilities: 0, Security Hotspots: 0, Code Smells: 0），高认知复杂度（S3776）全量解耦重构，**Duplicated Lines 彻底归零（0 行 / 0 块，0.0% 重复率）**。
 
 ---
 
 ## 📜 Documentation Index (文档索引)
 
 - 📗 **[CLAUDE.md](CLAUDE.md)**：系统底层实现细节、设计决策演进与工程规范
-- 📝 **[v0.7.0.1 发布说明](docs/releases/v0.7.0.1-release-notes.md)**：最新版本——表格与 Excel/CSV、表格 SQL 分析、图谱社区、多搜索源、提示词注入防护及升级说明
+- 📝 **[v0.7.0.3 发布说明](docs/releases/v0.7.0.3-release-notes.md)**：最新版本——动态双轨制澄清 Agent（静态规则快速通道 + LLM 真实智能反问）、交互提问规范对标 Codex/Claude Code、SonarQube 质量门禁 100% 满分通过
+- 📝 **[v0.7.0.2 发布说明](docs/releases/v0.7.0.2-release-notes.md)**：SonarQube 质量门禁全量通过（安全漏洞/缺陷/代码异味 100% 清零）、重复代码彻底归零（0 块 / 0.0% 重复率）、前端可视化拓扑与管理状态解耦重构
+- 📝 **[v0.7.0.1 发布说明](docs/releases/v0.7.0.1-release-notes.md)**：表格与 Excel/CSV、表格 SQL 分析、图谱社区、多搜索源、提示词注入防护及升级说明
 - 📝 **[v0.7.0 发布说明](docs/releases/v0.7.0-release-notes.md)**：v0.7.0 LangGraph 重构与可观测性详细清单
 - 📚 **[版本发布总览](docs/releases/README.md)**：历史版本演进历程与发布说明
 - 🔒 **[安全合规政策](SECURITY.md)**：安全模型、漏洞披露流程与数据防护规范

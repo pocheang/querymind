@@ -1,6 +1,6 @@
 # QueryMind Frontend Security Architecture & Policy
 
-> **Version**: 0.7.0.1  
+> **Version**: 0.7.0.3  
 > **Status**: Active / Production Ready  
 > **Scope**: QueryMind Multi-Agent RAG Frontend Architecture (`/frontend`)
 

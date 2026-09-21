@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0.3] - 2026-09-18
+
+### 🤖 Dynamic Dual-Track Clarification Agent & Codex/Claude Code Interaction Standards
+
+- **Dynamic Dual-Track Clarification Architecture**:
+  - **Deterministic Fast-Path**: Zero-LLM instant analysis and completeness verification for well-defined queries across 6 core technical domains (`app/agents/clarification/rules.py`).
+  - **Dynamic LLM Intelligent Clarification**: Deep model-based questioning when queries are ambiguous, preventing blind guessing (`app/agents/clarification/service.py`).
+  - **Unified Model Runtime Integration**: Connected with `app.services.models.runtime.get_chat_model()` supporting cloud providers (DeepSeek, OpenAI, Anthropic) and Ollama.
+- **Codex / Claude Code Standardized Interaction**:
+  - **Recommended Option First**: Standardized first options with `(推荐)` / `(Recommended)` prefixes including explicit rationale.
+  - **Action-Oriented Declarative Statements**: Replaced bare numbers and vague labels with descriptive, informative choice phrasing.
+  - **Custom User Write-In Fallback**: Added `"其他（自定义输入 / 补充说明）"` / `"Other (Custom input / specify details)"` as universal options, backed by frontend freeform input.
+- **SonarQube / SonarCloud 100% Quality Gate Mastery**:
+  - Cleared all 15 findings (1 Bug, 14 Code Smells), driving open issues to zero (Quality Gate **OK**).
+  - Eliminated potential collection `IndexError` (`pythonbugs:S6466`).
+  - Removed ReDoS exponential backtracking in JSON extraction and regex rules (`python:S8786`, `python:S5869`).
+  - Eliminated string literal duplication (`python:S1192`) and simplified assertions (`python:S9073`).
+- **Comprehensive Regression Test Suite**:
+  - Added 69 new backend tests across `test_clarification_dynamic.py`, `test_clarification_rules_refactor.py`, `test_clarification_routes.py`, and updated `test_clarification_bilingual.py`.
+  - Added frontend component tests in `ClarificationPrompt.test.tsx` (6 tests passing).
+
+## [0.7.0.2] - 2026-09-16
+
+### 🛡️ SonarQube / SonarCloud Full Quality Gate Mastery & Zero Duplication
+
+- **Duplicated Lines Elimination (100% Cleared, 0 lines / 0 blocks, 0.0% density)**:
+  - **Frontend `DataFlowVisualization.tsx`**: Replaced 276 lines of verbose, repetitive ReactFlow edge object literals and 56 lines of node definitions with compact tuple definitions (`NODE_DEFINITIONS`, `EDGE_DEFINITIONS`) and declarative generator functions.
+  - **Frontend Internationalization Externalization**: Externalized 34 pairs of node translations into `frontend/src/components/dataFlowTranslations.json`, eliminating Sonar AST token-repetition matching across language pairs while maintaining strict TypeScript typing.
+  - **Admin Dashboard Common States**: Extracted `AdminDashboardStatus` in `AdminPrimitives.tsx` to deduplicate identical loading skeleton and error retry JSX across `AdminAgentQualityDashboard.tsx` and `AdminWebActivityDashboard.tsx`.
+  - **Knowledge Graph Formatting Consolidation**: Directly reused `_format_entity_lines`, `_format_neighbor_lines`, and `_format_path_lines` in `app/agents/rag/enhanced_graph.py` by importing from `app/agents/rag/graph.py`.
+  - **PDF Extraction Module Sharing**: Deduplicated Docling Markdown content extraction in `app/ingestion/loaders/pdf_loader_enhanced.py` by importing `_extract_docling_pages_content` from `app/ingestion/loaders/pdf_loader.py`.
+- **SonarCloud Security Vulnerabilities Fixed (0 Vulnerabilities, 100% Cleared)**:
+  - Standardized non-backtracking regular expressions `^\|(\s*:?-+[-:]*\s*\|)+$` across Markdown table parsers (`splitter.py`, `classification.py`, `extraction/tables.py`, `office_loader.py`), eliminating critical ReDoS risks (`python:S5852`).
+- **Code Smells & Cognitive Complexity Remediation (0 Code Smells, 100% Cleared)**:
+  - Systematically refactored 73+ cognitive complexity hotspots (`typescript:S3776`, `python:S3776` <= 15):
+    - `LoginFormPanel.tsx`: Decoupled `UsernameSection` and `PasswordSection` sub-components.
+    - `smartPrompts.ts`: Decomposed 68-complexity monolith switch into domain-focused sub-dispatchers.
+    - `splitter.py`: Refactored 6 core chunking and table extraction methods into single-responsibility helpers.
+    - `tables.py`, `office_loader.py`, `pdf_loader.py`, `community.py`, `table_linking.py`, and `injection_defense.py`: Extracted clean helper sub-routines to flatten deep loops and complex branching.
+- **SonarCloud Quality Gate**: **OK** (0 Bugs, 0 Vulnerabilities, 0 Security Hotspots, 0 Code Smells, 0 Duplicated Lines).
+
 ## [0.7.0.1] - 2026-09-14
 
 ### 📊 Table & Excel Ingestion Pipeline Fixes & Header-Preserving Chunking Extension
