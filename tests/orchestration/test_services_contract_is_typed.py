@@ -56,7 +56,7 @@ def test_the_signature_declares_no_var_keyword():
     kinds = {name: p.kind for name, p in params.items()}
 
     assert inspect.Parameter.VAR_KEYWORD not in kinds.values()
-    for name in ("domain_agent_registry", "security_guardrail", "cybersecurity_agent", "ai_agent"):
+    for name in ("domain_agent_registry", "security_guardrail"):
         assert kinds[name] is inspect.Parameter.KEYWORD_ONLY, f"{name} must be a named keyword-only parameter"
 
 
@@ -77,8 +77,37 @@ def test_a_guardrail_is_always_present():
 
 
 def test_an_injected_guardrail_is_the_one_used():
-    sentinel = object()
-    assert _services(security_guardrail=sentinel).security_guardrail is sentinel
+    """And the resolver comes from it.
+
+    `access_scope_resolver` is no longer a parameter of its own: the guardrail
+    owns scope resolution and exposes it, and two ways to supply the same
+    resolver is how the two come to differ.
+    """
+
+    class _Guardrail:
+        access_scope_resolver = object()
+
+    guardrail = _Guardrail()
+    services = _services(security_guardrail=guardrail)
+
+    assert services.security_guardrail is guardrail
+    assert services.access_scope_resolver is _Guardrail.access_scope_resolver
+
+
+def test_the_named_specialist_parameters_are_gone():
+    """The registry is the one source of specialists.
+
+    `cybersecurity_agent` and `ai_agent` sat beside `domain_agent_registry`,
+    filled from separate `CoreCapabilities` fields, so a deployment held two
+    instances of each and which one answered depended on whether the registry
+    lookup hit. Asserted as an absence so they cannot come back one at a time.
+    """
+
+    params = inspect.signature(OrchestrationServices.__init__).parameters
+
+    assert "cybersecurity_agent" not in params
+    assert "ai_agent" not in params
+    assert "domain_agent_registry" in params
 
 
 @pytest.mark.asyncio

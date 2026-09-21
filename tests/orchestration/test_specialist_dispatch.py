@@ -55,10 +55,25 @@ class _RecordingSynthesizer:
         )
 
 
+class _StubRegistry:
+    """The registry the node consults, holding just these two specialists.
+
+    The tests used to set `cybersecurity_agent` / `ai_agent` attributes, which
+    the node read as a fallback when the registry missed. That fallback is gone
+    -- it reached a second instance of each specialist -- so registering is how
+    an agent becomes reachable here too, exactly as in production.
+    """
+
+    def __init__(self, **agents) -> None:
+        self._agents = agents
+
+    def get_agent(self, agent_class: str):
+        return self._agents.get(agent_class)
+
+
 class _MockDispatchServices:
     def __init__(self, cyber_agent: CybersecurityAgentService, ai_agent: AIAgentService) -> None:
-        self.cybersecurity_agent = cyber_agent
-        self.ai_agent = ai_agent
+        self.domain_agent_registry = _StubRegistry(cybersecurity=cyber_agent, artificial_intelligence=ai_agent)
 
         async def _general_candidate(request, context, tool_results, skill):
             del request, context, tool_results, skill
@@ -286,3 +301,74 @@ async def test_dispatch_to_dynamically_registered_custom_specialist_agent() -> N
     ans = output["candidate_answer"]
     assert "Custom Audit Report for Audit SQL injection vulnerability in user_dao.py" in ans.text
     assert "1 findings" in ans.text
+
+
+@pytest.mark.asyncio
+async def test_a_named_attribute_is_never_consulted_when_the_registry_misses() -> None:
+    """The consumption side of "the registry is the one source of specialists".
+
+    Asserting the constructor no longer takes `cybersecurity_agent` says nothing
+    about the node that looks one up. Measured: restoring the named-attribute
+    fallback in `synthesizer` reddened **none** of the tests above, because the
+    stub registry always hits, so the dead branch was never exercised — the
+    control could have come back at its only consumption site with everything
+    green.
+
+    Here the registry deliberately misses while a named attribute sits beside
+    it, holding a different specialist. If the fallback returns, that specialist
+    answers and this fails.
+    """
+
+    class _EmptyRegistry:
+        def get_agent(self, agent_class: str):
+            del agent_class
+            return None
+
+    class _Services:
+        def __init__(self) -> None:
+            self.domain_agent_registry = _EmptyRegistry()
+            # The shape the fallback used to read. Registering is the only way
+            # in now, so this must be inert.
+            self.cybersecurity_agent = CybersecurityAgentService(synthesizer=_RecordingSynthesizer("shadow-instance"))
+
+            async def _general(request, context, tool_results, skill):
+                del request, context, tool_results, skill
+                return CandidateAnswer(text="General candidate fallback response")
+
+            self.candidate_synthesizer = _general
+
+        def report_event(self, event) -> None:
+            del event
+
+    runtime = WorkflowNodeRuntime(
+        services=_Services(),  # type: ignore[arg-type]
+        policy=ExecutionPolicy.for_profile(PipelineProfile.ADVANCED),
+        max_verifier_retries=1,
+        context_token_budget=4000,
+    )
+    state = {
+        "request": OrchestrationRequest(
+            question="Analysis for CVE-2021-44228",
+            actor=RequestActor(user_id="u1", tenant_id="t1", role="user"),
+            source_scope=RequestScope(),
+        ),
+        "context": ContextBundle(evidence=()),
+        "route": RouteDecision(
+            route="vector",
+            intent="knowledge_retrieval",
+            agent_class="cybersecurity",
+            skill="cyber_attack_analysis",
+            confidence=0.95,
+            requires_plan=False,
+            reason="cyber topic",
+        ),
+        "tool_results": (),
+        "budget": ExecutionBudget(TimeoutConfig()),
+        "reporter": lambda e: None,
+    }
+
+    output = await runtime.synthesizer(state)
+
+    assert output["candidate_answer"].text == "General candidate fallback response", (
+        "the node reached a specialist the registry does not hold"
+    )

@@ -207,5 +207,6 @@ def test_the_description_the_model_reads_says_the_source_is_a_curated_offline_se
 
     text = definition.description.lower()
 
-    assert "curated" in text and "offline" in text
+    assert "curated" in text
+    assert "offline" in text
     assert "authoritative" not in text

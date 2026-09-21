@@ -67,7 +67,7 @@ PIPELINE_SKILLS: dict[str, str] = {
 INDICATORS_TOOL_ID = "querymind_cyber_indicator_extract"
 
 
-def indicator_tool_result(iocs: dict[str, list[str]]) -> tuple[ToolResult, ...]:
+def indicator_tool_result(iocs: dict[str, list[str]]) -> ToolResult | None:
     """The extracted IoCs, carried to the model as a TOOL finding.
 
     Deliberately not folded into the evidence or the rendered context: these are
@@ -78,13 +78,13 @@ def indicator_tool_result(iocs: dict[str, list[str]]) -> tuple[ToolResult, ...]:
 
     lines = [f"{kind}: {', '.join(values)}" for kind, values in sorted(iocs.items()) if values]
     if not lines:
-        return ()
-    return (
-        ToolResult(
-            tool_id=INDICATORS_TOOL_ID,
-            status="succeeded",
-            summary="Indicators extracted from the question and retrieved material -- " + "; ".join(lines),
-        ),
+        # `ToolResult | None` rather than a 0-or-1 tuple (`python:S3800`):
+        # "the finding, or nothing" is what this means, and the caller splices.
+        return None
+    return ToolResult(
+        tool_id=INDICATORS_TOOL_ID,
+        status="succeeded",
+        summary="Indicators extracted from the question and retrieved material -- " + "; ".join(lines),
     )
 
 
@@ -204,7 +204,8 @@ class CybersecurityAgentService(BaseSpecialistAgent):
         iocs = extract_security_indicators(
             f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tool_text}"
         )
-        enriched = (*tool_results, *indicator_tool_result(iocs))
+        extra = indicator_tool_result(iocs)
+        enriched = (*tool_results, extra) if extra is not None else tuple(tool_results)
         pipeline_skill = PIPELINE_SKILLS.get(skill, "cyber_attack_analysis")
         return await self._synthesizer.synthesize_candidate(request, context, enriched, pipeline_skill)
 

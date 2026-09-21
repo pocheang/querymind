@@ -48,6 +48,22 @@ class _RecordingSynthesizer:
         )
 
 
+class _StubRegistry:
+    """The registry the node consults, holding just these two specialists.
+
+    The tests used to set `cybersecurity_agent` / `ai_agent` attributes, which
+    the node read as a fallback when the registry missed. That fallback is gone
+    -- it reached a second instance of each specialist -- so registering is how
+    an agent becomes reachable here too, exactly as in production.
+    """
+
+    def __init__(self, **agents) -> None:
+        self._agents = agents
+
+    def get_agent(self, agent_class: str):
+        return self._agents.get(agent_class)
+
+
 class _ClosedLoopWorkflowServices:
     def __init__(self) -> None:
         self.privacy = PrivacyService()
@@ -65,8 +81,10 @@ class _ClosedLoopWorkflowServices:
         # model is set. What each stage handed the next is the loop.
         self.cyber_synth = _RecordingSynthesizer("cyber")
         self.ai_synth = _RecordingSynthesizer("ai")
-        self.cybersecurity_agent = CybersecurityAgentService(synthesizer=self.cyber_synth)
-        self.ai_agent = AIAgentService(synthesizer=self.ai_synth)
+        self.domain_agent_registry = _StubRegistry(
+            cybersecurity=CybersecurityAgentService(synthesizer=self.cyber_synth),
+            artificial_intelligence=AIAgentService(synthesizer=self.ai_synth),
+        )
 
         async def _general_synth(request, context, tool_results, skill):
             del request, context, tool_results, skill

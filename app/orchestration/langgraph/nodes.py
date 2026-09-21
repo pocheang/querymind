@@ -101,8 +101,6 @@ class WorkflowServices(Protocol):
     # services object that merely happens to carry the attribute would give one
     # pipeline two security postures -- see privacy_permission below.
     security_guardrail: Any
-    cybersecurity_agent: Any | None = None
-    ai_agent: Any | None = None
 
     def report_event(self, event: ExecutionEvent) -> None: ...
 
@@ -311,15 +309,14 @@ class WorkflowNodeRuntime:
             skill = getattr(routed, "skill", "") or SKILL_DEFAULT
             agent_class = getattr(routed, "agent_class", "")
 
+            # One lookup. The named-attribute fallback that used to sit here
+            # reached a SECOND instance of each specialist, built separately in
+            # CoreCapabilities, so which one answered depended on whether the
+            # registry hit. Registering an agent is how it becomes reachable.
             specialist = None
             agent_registry = getattr(self._services, "domain_agent_registry", None)
             if agent_registry is not None and agent_class:
                 specialist = agent_registry.get_agent(agent_class)
-            if specialist is None and agent_class:
-                if agent_class == "cybersecurity":
-                    specialist = getattr(self._services, "cybersecurity_agent", None)
-                elif agent_class == "artificial_intelligence":
-                    specialist = getattr(self._services, "ai_agent", None)
 
             if specialist is not None and hasattr(specialist, "synthesize_candidate"):
                 candidate_answer, event = await self._run_stage(

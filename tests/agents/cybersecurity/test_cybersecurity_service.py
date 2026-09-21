@@ -138,7 +138,10 @@ async def test_extracted_indicators_arrive_as_a_tool_finding_not_as_evidence() -
     results = seen["tool_results"]
     assert any(r.tool_id == INDICATORS_TOOL_ID for r in results)
     summary = next(r.summary for r in results if r.tool_id == INDICATORS_TOOL_ID)
-    assert "CVE-2021-44228" in summary and "10.0.0.1" in summary
+    # Split (`python:S5906`): these fail for different reasons -- the CVE was
+    # not extracted, or the address was -- and a composite says only that one did.
+    assert "CVE-2021-44228" in summary
+    assert "10.0.0.1" in summary
     # The context handed on is unchanged: nothing was injected into the evidence.
     assert seen["context"] is context
 
@@ -147,4 +150,4 @@ def test_no_indicator_result_is_produced_when_there_are_no_indicators() -> None:
     """The direction that keeps the test above meaningful: it must not pass
     because a tool result is appended unconditionally."""
 
-    assert indicator_tool_result({"cves": [], "ips": [], "hashes": []}) == ()
+    assert indicator_tool_result({"cves": [], "ips": [], "hashes": []}) is None

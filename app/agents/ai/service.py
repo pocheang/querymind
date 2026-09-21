@@ -68,7 +68,7 @@ PIPELINE_SKILLS: dict[str, str] = {
 SPECIFICATIONS_TOOL_ID = "querymind_ai_specification_extract"
 
 
-def specification_tool_result(specs: dict[str, list[str]]) -> tuple[ToolResult, ...]:
+def specification_tool_result(specs: dict[str, list[str]]) -> ToolResult | None:
     """Extracted model specifications, carried as a tool finding.
 
     Same reasoning as the cybersecurity agent's indicators: derived by regex from
@@ -78,13 +78,13 @@ def specification_tool_result(specs: dict[str, list[str]]) -> tuple[ToolResult, 
 
     lines = [f"{kind}: {', '.join(values)}" for kind, values in sorted(specs.items()) if values]
     if not lines:
-        return ()
-    return (
-        ToolResult(
-            tool_id=SPECIFICATIONS_TOOL_ID,
-            status="succeeded",
-            summary="Specifications extracted from the question and retrieved material -- " + "; ".join(lines),
-        ),
+        # `ToolResult | None` rather than a 0-or-1 tuple (`python:S3800`):
+        # "the finding, or nothing" is what this means, and the caller splices.
+        return None
+    return ToolResult(
+        tool_id=SPECIFICATIONS_TOOL_ID,
+        status="succeeded",
+        summary="Specifications extracted from the question and retrieved material -- " + "; ".join(lines),
     )
 
 
@@ -180,7 +180,8 @@ class AIAgentService(BaseSpecialistAgent):
         specs = extract_ai_specifications(
             f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tool_text}"
         )
-        enriched = (*tool_results, *specification_tool_result(specs))
+        extra = specification_tool_result(specs)
+        enriched = (*tool_results, extra) if extra is not None else tuple(tool_results)
         pipeline_skill = PIPELINE_SKILLS.get(skill, "ai_knowledge_assistant")
         return await self._synthesizer.synthesize_candidate(request, context, enriched, pipeline_skill)
 

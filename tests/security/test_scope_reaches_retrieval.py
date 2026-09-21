@@ -227,7 +227,11 @@ class _RecordingCapabilities:
             retriever=retriever,
             tool_runner=tool_runner,
             synthesizer=synthesizer,
-            access_scope_resolver=_Services().access_scope_resolver,
+            # The guardrail carries the resolver. `access_scope_resolver` is no
+            # longer a parameter of its own: supplying the same resolver two ways
+            # is how the two come to differ, and scope resolution belongs to the
+            # thing that also screens the question.
+            security_guardrail=_Services().security_guardrail,
         )
 
 

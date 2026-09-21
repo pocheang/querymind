@@ -82,4 +82,4 @@ async def test_extracted_specifications_arrive_as_a_tool_finding() -> None:
 
 
 def test_no_specification_result_is_produced_when_nothing_was_extracted() -> None:
-    assert specification_tool_result({"parameters": [], "precisions": []}) == ()
+    assert specification_tool_result({"parameters": [], "precisions": []}) is None
