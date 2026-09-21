@@ -277,7 +277,12 @@ CVE_TOOL_DEFINITION = ToolDefinition(
     operation="read",
     risk="read_only",
     category="cybersecurity",
-    description="Query authoritative CVE vulnerability intelligence, CVSS scores, affected software versions, and mitigation procedures.",
+    description=(
+        "Look up a CVE in QueryMind's CURATED OFFLINE vulnerability set "
+        "(a small hand-maintained table, not a live NVD feed). Returns CVSS score, affected "
+        "versions and mitigation for the entries it holds, and reports 'not in the set' for "
+        "everything else -- absence here is NOT evidence that a CVE is unknown or harmless."
+    ),
     parameters=(
         ToolParameter(
             name="cve_id",
@@ -293,7 +298,11 @@ ATTACK_TOOL_DEFINITION = ToolDefinition(
     operation="read",
     risk="read_only",
     category="cybersecurity",
-    description="Map MITRE ATT&CK technique IDs (e.g. 'T1190', 'T1059') to tactic phases, detection logic, and defensive mitigations.",
+    description=(
+        "Map a MITRE ATT&CK technique ID to tactic phase, detection logic and mitigations, from "
+        "QueryMind's CURATED OFFLINE subset of the matrix (not the full published taxonomy). "
+        "Reports 'not in the subset' for techniques it does not hold."
+    ),
     parameters=(
         ToolParameter(
             name="technique_id",
@@ -340,10 +349,20 @@ async def execute_cve_lookup(call: ToolCall, actor: RequestActor) -> ToolResult:
             summary=summary_text,
         )
 
+    # A miss is a miss. This used to answer `succeeded` with "recorded in index"
+    # for ANY well-formed identifier, so CVE-9999-9999 came back confirmed and
+    # nothing downstream could tell a real hit from a fabricated one -- in a tool
+    # whose own description promised authoritative intelligence. Reporting a
+    # vulnerability that does not exist is worse than having no tool at all.
     return ToolResult(
         tool_id=call.tool_id,
-        status="succeeded",
-        summary=f"CVE {norm_id.upper()} recorded in index. Severity and mitigation subject to vendor advisory.",
+        status="failed",
+        summary=(
+            f"{norm_id.upper()} is not in QueryMind's curated offline CVE set "
+            f"({len(_CURATED_CVE_DB)} entries). No severity, affected-version or mitigation data is "
+            "available here, and this says nothing about whether the CVE exists or how severe it is -- "
+            "consult NVD or the vendor advisory."
+        ),
     )
 
 
@@ -389,10 +408,16 @@ async def execute_mitre_attack_lookup(call: ToolCall, actor: RequestActor) -> To
             summary=summary_text,
         )
 
+    # Same rule as the CVE lookup above: an unknown technique id was being
+    # confirmed as "recognized in taxonomy" with generic advice attached.
     return ToolResult(
         tool_id=call.tool_id,
-        status="succeeded",
-        summary=f"MITRE ATT&CK technique {norm_id.upper()} recognized in taxonomy. Implement endpoint detection and logging.",
+        status="failed",
+        summary=(
+            f"{norm_id.upper()} is not in QueryMind's curated offline ATT&CK subset "
+            f"({len(_CURATED_ATTACK_DB)} techniques). No tactic, detection or mitigation data is "
+            "available here -- consult attack.mitre.org."
+        ),
     )
 
 

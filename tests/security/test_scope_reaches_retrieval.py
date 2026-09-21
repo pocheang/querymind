@@ -30,6 +30,7 @@ from app.orchestration.timeout_control import ExecutionBudget, TimeoutConfig
 from app.pipeline.profiles import PipelineProfile
 from app.privacy.service import PrivacyService
 from app.services.security.access_scope import AccessScopeError, AccessScopeResolver
+from app.services.security.security_guardrail import SecurityGuardrailService
 
 ALICE_DOC = "/uploads/alice/notes.pdf"
 BOB_DOC = "/uploads/bob/salary.pdf"
@@ -41,12 +42,23 @@ _ROWS = [
 
 
 class _Services:
-    """Only the two attributes privacy_permission touches."""
+    """Only the attributes privacy_permission touches.
+
+    The guardrail is built from the same privacy service and resolver rather
+    than stubbed out: `privacy_permission` reaches it by plain attribute access
+    with no fallback, deliberately, so that a services object without one fails
+    loudly instead of quietly taking a path that runs no injection screening.
+    A stub here would test a path production does not have.
+    """
 
     def __init__(self) -> None:
         self.privacy = PrivacyService()
         self.access_scope_resolver = AccessScopeResolver(
             document_provider=lambda actor: [row for row in _ROWS if row["owner_user_id"] == actor.get("user_id")]
+        )
+        self.security_guardrail = SecurityGuardrailService(
+            privacy_service=self.privacy,
+            access_scope_resolver=self.access_scope_resolver,
         )
 
     def report_event(self, event: ExecutionEvent) -> None:

@@ -97,7 +97,10 @@ class WorkflowServices(Protocol):
     ]
     privacy: PrivacyService
     access_scope_resolver: AccessScopeResolver
-    security_guardrail: Any | None = None
+    # Required, not `Any | None`. Prompt-injection screening happens here, and a
+    # services object that merely happens to carry the attribute would give one
+    # pipeline two security postures -- see privacy_permission below.
+    security_guardrail: Any
     cybersecurity_agent: Any | None = None
     ai_agent: Any | None = None
 
@@ -126,22 +129,17 @@ class WorkflowNodeRuntime:
         request = _required(state, "request", OrchestrationRequest)
 
         async def operation() -> tuple[PrivacyResult, Any, OrchestrationRequest]:  # NOSONAR
-            guardrail = getattr(self._services, "security_guardrail", None)
-            if guardrail is not None:
-                guard_result = guardrail.inspect_and_authorize(
-                    request.question,
-                    request.actor,
-                    request.source_scope,
-                )
-                privacy = guard_result.privacy
-                scope = guard_result.permission_scope
-                sanitized_text = guard_result.sanitized_question
-            else:
-                privacy = self._services.privacy.inspect_input(request.question)
-                if privacy.blocked:
-                    raise PermissionError("input privacy inspection blocked the request")
-                scope = self._services.access_scope_resolver.resolve(request.actor, request.source_scope)
-                sanitized_text = privacy.text
+            # Attribute access, never getattr-with-a-default: a services object
+            # without a guardrail must fail loudly here rather than silently
+            # taking a path that does no injection screening at all.
+            guard_result = self._services.security_guardrail.inspect_and_authorize(
+                request.question,
+                request.actor,
+                request.source_scope,
+            )
+            privacy = guard_result.privacy
+            scope = guard_result.permission_scope
+            sanitized_text = guard_result.sanitized_question
 
             sanitized = request.model_copy(
                 update={"question": sanitized_text, "source_scope": _scope_to_request_scope(scope, request)}

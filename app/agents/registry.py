@@ -99,6 +99,19 @@ class DomainAgentRegistry:
         with self._lock:
             return tuple(sorted(self._agents.keys()))
 
+    def list_skills(self) -> tuple[str, ...]:
+        """Every skill any registered specialist declares.
+
+        Added because `routing._is_valid_skill` already called it: the call sat
+        inside `except Exception: return False`, so the AttributeError was
+        swallowed and an extension-declared skill could never validate -- the
+        branch read as working and rejected everything.
+        """
+
+        self._ensure_defaults()
+        with self._lock:
+            return tuple(sorted(self._skill_map.keys()))
+
     def describe(self) -> dict[str, Any]:
         """Provide diagnostic metadata of all registered specialist agents."""
         self._ensure_defaults()

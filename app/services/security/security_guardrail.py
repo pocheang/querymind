@@ -25,6 +25,7 @@ from app.services.security.injection_defense import (
     InjectionAssessment,
     TextDeobfuscator,
     detect_prompt_injection,
+    screen_evidence_items,
 )
 
 logger = logging.getLogger(__name__)
@@ -120,29 +121,14 @@ class SecurityGuardrailService:
     def inspect_evidence(self, items: Sequence[EvidenceItem]) -> tuple[EvidenceItem, ...]:
         """Inspect retrieved evidence chunks for Indirect Prompt Injections (IPI).
 
-        Sanitizes poisoned evidence payloads before they can mislead or exploit downstream models.
+        Delegates to `screen_evidence_items`, which is also what
+        `ContextBuilder.build` calls. Two implementations of "what counts as a
+        poisoned chunk" is how the two drift, and the live path is the builder:
+        this method is the service-level entry point for callers that already
+        hold a guardrail.
         """
-        defense_enabled = bool(getattr(self._settings, "prompt_injection_defense_enabled", True))
-        if not defense_enabled or not items:
-            return tuple(items)
 
-        sanitized_items: list[EvidenceItem] = []
-        for item in items:
-            assessment = detect_prompt_injection(item.content, is_retrieved_evidence=True)
-            if assessment.is_blocked:
-                threat = assessment.threat_type.value if assessment.threat_type else "indirect_injection"
-                logger.warning(
-                    "Indirect prompt injection detected in document %s (item %s): threat=%s risk=%.2f",
-                    item.document_id,
-                    item.item_id,
-                    threat,
-                    assessment.risk_score,
-                )
-                clean_content = "[REDACTED: Suspicious indirect prompt injection instructions detected in source]"
-                sanitized_items.append(item.model_copy(update={"content": clean_content}))
-            else:
-                sanitized_items.append(item)
-        return tuple(sanitized_items)
+        return screen_evidence_items(items)
 
 
 __all__ = ["SecurityGuardrailResult", "SecurityGuardrailService"]

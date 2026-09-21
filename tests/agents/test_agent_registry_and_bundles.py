@@ -159,3 +159,44 @@ def test_domain_extension_bundle_registers_both_agent_and_tools():
     assert desc["domain_id"] == "data_analysis_suite"
     assert desc["agent"]["agent_class"] == "data_analysis"
     assert desc["tool_provider"]["tools_count"] == 1
+
+
+def test_the_registry_lists_the_skills_the_router_validates_against():
+    """`routing._is_valid_skill` called `registry.list_skills()`, and the method
+    did not exist.
+
+    The call sat inside `except Exception: return False`, so the AttributeError
+    was swallowed on every request and an extension-declared skill could never
+    validate -- the branch read as working and rejected everything it was
+    written to accept. It was found by replacing the bare except with a logged
+    resolver, which is the argument against bare excepts stated as a measurement
+    rather than as a style preference.
+    """
+
+    from app.agents.registry import get_domain_agent_registry
+
+    registry = get_domain_agent_registry()
+    skills = registry.list_skills()
+
+    assert skills, "a registry with default agents must declare skills"
+    for agent in registry.list_agents():
+        for skill in agent.supported_skills:
+            assert skill.strip().lower() in skills, f"{skill} is declared by {agent.agent_class} but not listed"
+
+
+def test_a_skill_from_a_registered_specialist_survives_router_validation():
+    """The property the broken branch was for, asserted end to end rather than
+    on the helper: a skill the built-in `VALID_SKILLS` does not know, but a
+    registered agent declares, must be accepted rather than discarded."""
+
+    from app.agents.registry import get_domain_agent_registry
+    from app.agents.router.routing import _is_valid_skill
+    from app.agents.shared.config import VALID_SKILLS
+
+    extension_skills = [s for s in get_domain_agent_registry().list_skills() if s not in VALID_SKILLS]
+
+    assert extension_skills, "no extension-only skill to discriminate on; this test would pass vacuously"
+    for skill in extension_skills:
+        assert _is_valid_skill(skill, "answer_with_citations")
+
+    assert not _is_valid_skill("astrology", "answer_with_citations")

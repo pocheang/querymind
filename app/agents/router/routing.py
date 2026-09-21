@@ -13,6 +13,7 @@ import logging
 import re
 import threading
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from app.agents.router.calibration import ConfidenceCalibrator
 from app.agents.router.examples import get_mixed_examples
@@ -34,6 +35,9 @@ from app.services.agent_classifier import classify_agent_class, pick_cyber_skill
 from app.services.llm_intent_classifier import classify_intent_with_llm
 from app.services.models.runtime import get_chat_model, get_reasoning_model
 from app.services.query.intent import is_smalltalk_query
+
+if TYPE_CHECKING:  # pragma: no cover - import only for the annotation below
+    from app.agents.registry import DomainAgentRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +109,26 @@ def _extract_json(text: str) -> dict:
         return {"route": ROUTE_VECTOR, "reason": "fallback_json_error"}
 
 
+def _domain_registry() -> "DomainAgentRegistry | None":
+    """The domain agent registry, or None if it cannot be built.
+
+    One place rather than four `try/except Exception: pass` blocks. Swallowing
+    the exception is deliberate -- a broken extension registry must not take
+    routing down with it -- but swallowing it *silently* is not: a registry that
+    stops loading would otherwise look exactly like one with nothing registered,
+    and every domain route would quietly become `general` with no line anywhere
+    saying so.
+    """
+
+    try:
+        from app.agents.registry import get_domain_agent_registry
+
+        return get_domain_agent_registry()
+    except Exception:  # pragma: no cover - defensive, an extension may raise anything
+        logger.warning("domain agent registry unavailable; routing falls back to built-in classes", exc_info=True)
+        return None
+
+
 def _normalize_agent_class_hint(agent_class_hint: str | None) -> str | None:
     """Normalize and validate agent class hint."""
     if not agent_class_hint:
@@ -114,13 +138,9 @@ def _normalize_agent_class_hint(agent_class_hint: str | None) -> str | None:
     if hint in VALID_AGENT_CLASSES:
         return hint
 
-    try:
-        from app.agents.registry import get_domain_agent_registry
-
-        if hint in get_domain_agent_registry().list_agent_classes():
-            return hint
-    except Exception:
-        pass
+    registry = _domain_registry()
+    if registry is not None and hint in registry.list_agent_classes():
+        return hint
 
     logger.debug(f"Invalid agent class hint: {agent_class_hint}")
     return None
@@ -270,14 +290,11 @@ def _classify(question: str, forced: str | None, use_llm_intent: bool) -> tuple[
         return forced, 1.0, "forced"
 
     # Prioritize registered domain agents if intent matches
-    try:
-        from app.agents.registry import get_domain_agent_registry
-
-        matched = get_domain_agent_registry().match_agent_class(question)
+    registry = _domain_registry()
+    if registry is not None:
+        matched = registry.match_agent_class(question)
         if matched and matched != "general":
             return matched, 0.95, "domain_registry_match"
-    except Exception:
-        pass
 
     if not use_llm_intent:
         return classify_agent_class(question), 0.5, "rule_based"
@@ -298,14 +315,11 @@ def _skill_for(agent_class: str, question: str) -> str:
     A proposal, not a decision: the model is shown this and may replace it with
     any skill in VALID_SKILLS.
     """
-    try:
-        from app.agents.registry import get_domain_agent_registry
-
-        specialist_skill = get_domain_agent_registry().pick_skill_for_agent(agent_class, question)
+    registry = _domain_registry()
+    if registry is not None:
+        specialist_skill = registry.pick_skill_for_agent(agent_class, question)
         if specialist_skill:
             return specialist_skill
-    except Exception:
-        pass
 
     if agent_class == "cybersecurity":
         return pick_cyber_skill(question)
@@ -370,12 +384,8 @@ def _validated_route(route_data: dict) -> tuple[str, str]:
 def _is_valid_skill(skill_name: str, fallback_skill: str) -> bool:
     if skill_name in VALID_SKILLS or skill_name == fallback_skill:
         return True
-    try:
-        from app.agents.registry import get_domain_agent_registry
-
-        return skill_name in get_domain_agent_registry().list_skills()
-    except Exception:
-        return False
+    registry = _domain_registry()
+    return registry is not None and skill_name in registry.list_skills()
 
 
 def _validated_skill(route_data: dict, skill: str, reason: str) -> tuple[str, str]:

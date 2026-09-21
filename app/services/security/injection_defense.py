@@ -17,8 +17,9 @@ import logging
 import re
 import secrets
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypeVar
 from urllib.parse import urlsplit
 
 from app.core.config import get_settings
@@ -646,6 +647,57 @@ class OutputInjectionValidator:
         }
 
 
+# The sanitized text a poisoned chunk is replaced with. Declared once, because
+# both callers below assert on it and a second spelling would make one of those
+# assertions vacuous.
+REDACTED_EVIDENCE_NOTICE = "[REDACTED: Suspicious indirect prompt injection instructions detected in source]"
+
+_EvidenceT = TypeVar("_EvidenceT")
+
+
+def screen_evidence_items(items: Sequence[_EvidenceT]) -> tuple[_EvidenceT, ...]:
+    """Replace the content of retrieved chunks that carry injected instructions.
+
+    This is the indirect-prompt-injection (IPI) half of the defense, and it is
+    deliberately the ONE definition of it: `ContextBuilder.build` calls it so
+    that the evidence list and the rendered prompt are sanitized from the same
+    pass, and `SecurityGuardrailService.inspect_evidence` delegates here rather
+    than carrying a second copy.
+
+    Screening before rendering is not a detail. Sanitizing the evidence tuple
+    alone would leave the poisoned text in `rendered_context`, which is what the
+    synthesizer actually shows the model -- a half-fix of exactly the shape this
+    repository records for the long-term memory "half-delete".
+
+    Lives in this module rather than beside the guardrail service because
+    `app/knowledge/` must not import an orchestration-layer service, and this
+    file already has no imports beyond stdlib and `app.core.config`.
+    """
+
+    if not items:
+        return tuple(items)
+    if not bool(getattr(get_settings(), "prompt_injection_defense_enabled", True)):
+        return tuple(items)
+
+    screened: list[_EvidenceT] = []
+    for item in items:
+        content = getattr(item, "content", "")
+        assessment = detect_prompt_injection(content, is_retrieved_evidence=True)
+        if not assessment.is_blocked:
+            screened.append(item)
+            continue
+        threat = assessment.threat_type.value if assessment.threat_type else "indirect_injection"
+        logger.warning(
+            "Indirect prompt injection detected in document %s (item %s): threat=%s risk=%.2f",
+            getattr(item, "document_id", "?"),
+            getattr(item, "item_id", "?"),
+            threat,
+            assessment.risk_score,
+        )
+        screened.append(item.model_copy(update={"content": REDACTED_EVIDENCE_NOTICE}))
+    return tuple(screened)
+
+
 __all__ = [
     "InjectionThreatType",
     "InjectionAssessment",
@@ -655,4 +707,6 @@ __all__ = [
     "escape_sandbox_tags",
     "SandboxedPromptBuilder",
     "OutputInjectionValidator",
+    "REDACTED_EVIDENCE_NOTICE",
+    "screen_evidence_items",
 ]
