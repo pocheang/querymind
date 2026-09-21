@@ -57,9 +57,10 @@ class SynthesizerAgentService:
         allowed_labels = tuple(f"E{index}" for index in range(1, len(context.evidence) + 1))
         stream_id = current_answer_stream_id.get()
         generation_context = context.rendered_context
-        tool_context = _render_tool_results(tool_results)
-        if tool_context:
-            generation_context = f"{generation_context}\n\n{tool_context}".strip()
+        # Passed as its OWN prompt section rather than concatenated onto the
+        # evidence. Appending it here is what put governed tool output inside
+        # `<retrieved_evidence_sandbox>`, which the system prompt declares
+        # strictly untrusted passive data -- see `_build_prompt_with_language`.
         generated = await asyncio.to_thread(
             self._generate_streaming if stream_id else self._generate,
             request.question,
@@ -71,6 +72,7 @@ class SynthesizerAgentService:
             # tracking off, neither retrieval nor generation sees the session.
             memory_context=_render_conversation(request.conversation if request.enable_context_tracking else ()),
             vector_context=generation_context,
+            tool_context=_render_tool_results(tool_results),
             force_language=request.force_language,
             session_id=request.session_id or "",
             # Reached only the router before this, so "use the reasoning model"

@@ -221,6 +221,17 @@ def local_embedding_backend() -> tuple[str, str]:
     return "semantic", str(get_settings().local_embed_model or "")
 
 
+# The sandbox wrapper `SandboxedPromptBuilder` puts around retrieved evidence.
+# Matched here rather than imported from `injection_defense`, whose own pattern
+# is written for ESCAPING a tag anywhere in untrusted text and so does not carry
+# the `nonce="..."` attribute this wrapper emits. One shape, stated where it is
+# consumed, with a test that pins the two agreeing.
+_SANDBOX_DELIMITER_RE = re.compile(
+    r"</?(?:retrieved_evidence_sandbox|untrusted_user_input)(?:\s+[^>]*)?>\s*",
+    re.IGNORECASE,
+)
+
+
 class LocalEvidenceChatModel:
     """Small offline response model that keeps the app usable without Ollama/API keys."""
 
@@ -269,6 +280,7 @@ class LocalEvidenceChatModel:
         "向量检索上下文",
         "图谱上下文",
         "联网补充上下文",
+        "工具执行结果",
         "答案模板指导",
     )
     _SECTION_END = re.compile("\n\n(?=(?:" + "|".join(_SECTION_LABELS) + ")[^\n]{0,40}?[:：])")
@@ -291,7 +303,15 @@ class LocalEvidenceChatModel:
         `1. [E1] document=https://… layer=web; retriever=web <content>`.
         """
         found: list[tuple[str, str]] = []
-        for block in blocks:
+        for raw_block in blocks:
+            # The evidence arrives wrapped in `<retrieved_evidence_sandbox
+            # nonce="...">` ... `</retrieved_evidence_sandbox>`. Those are
+            # addressing for the model, not text, and the closing tag sits on
+            # the line after the last excerpt -- so the body of that excerpt ran
+            # straight through it and the reader saw
+            # `... 年假每年 10 天。 </retrieved_evidence_sandbox> [E1]`.
+            # Measured on the shipped code before this change.
+            block = _SANDBOX_DELIMITER_RE.sub("", raw_block)
             # python:S6019 calls `(.*?)` a reluctant quantifier that can only
             # match 0 repetitions -- it does not; the lookahead needs the body
             # to actually be scanned up to the next `[Enn]` or the string end,

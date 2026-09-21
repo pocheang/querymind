@@ -308,3 +308,197 @@ class TestEveryRetrievedSourceIsUsed:
         assert pairs, "no cited excerpts in the answer"
         for fact, marker in pairs:
             assert fact == marker, f"[E{marker}] carries fact {fact}"
+
+
+# --- the sandbox wrapper and the tool block, fixed 2026-09-21 ---------------
+#
+# The same failure this file opens with, in the shape it takes once a query uses
+# a tool. `SynthesizerAgentService` concatenated the governed tool block onto
+# `vector_context`, so the prompt builder wrapped BOTH in
+# `<retrieved_evidence_sandbox nonce="...">`, and `_cited_excerpts` let the last
+# excerpt's body run to the end of the section. Measured on the shipped code:
+#
+#   年假每年 10 天。 Governed tool results (report these to the user; an
+#   `approval_required` action has NOT been performed yet): Tool 1
+#   (querymind_cyber_cve_lookup) -> succeeded: CVE-2021-44228 CVSS 10.0
+#   </retrieved_evidence_sandbox> [E1]
+#
+# Two layers were wrong, and both are fixed rather than one papering over the
+# other: tool results now get their own prompt section OUTSIDE the untrusted
+# evidence sandbox, and the stand-in strips sandbox delimiters before reading an
+# excerpt.
+
+SANDBOXED_PROMPT = """[Language: zh]
+技能: answer_with_citations
+
+用户问题:
+<untrusted_user_input nonce="abc123">
+年假多少天
+</untrusted_user_input>
+
+记忆上下文:
+无
+
+向量检索上下文:
+<retrieved_evidence_sandbox nonce="abc123">
+[E1] document=d1; source=a.md; layer=evidence; retriever=bm25
+年假每年 10 天，满 10 年为 15 天。
+</retrieved_evidence_sandbox>
+
+图谱上下文:
+无
+
+联网补充上下文:
+无
+
+工具执行结果:
+Governed tool results (report these to the user; an `approval_required` action has NOT been performed yet):
+Tool 1 (querymind_cyber_cve_lookup) -> succeeded: CVE-2021-44228 CVSS 10.0
+
+答案模板指导（Skill: answer_with_citations）：
+Answer template for general questions:
+1. Direct answer with citation [E1]
+"""
+
+
+@pytest.fixture
+def sandboxed_answer() -> str:
+    return LocalEvidenceChatModel().invoke([("human", SANDBOXED_PROMPT)]).content
+
+
+class TestScaffoldingNeverReachesTheReader:
+    def test_the_sandbox_delimiters_are_not_prose(self, sandboxed_answer: str) -> None:
+        """The closing tag sits on the line after the last excerpt, so an
+        excerpt body that runs to the end of its section swallows it."""
+
+        assert "retrieved_evidence_sandbox" not in sandboxed_answer
+        assert "untrusted_user_input" not in sandboxed_answer
+        assert "nonce=" not in sandboxed_answer
+
+    def test_the_governed_tool_block_is_not_prose(self, sandboxed_answer: str) -> None:
+        """Its header is an instruction addressed to the model. A reader shown
+        "report these to the user" is being shown the machinery."""
+
+        assert "Governed tool results" not in sandboxed_answer
+        assert "approval_required" not in sandboxed_answer
+        assert "工具执行结果" not in sandboxed_answer
+        assert "Tool 1 (" not in sandboxed_answer
+
+    def test_the_evidence_itself_still_comes_through(self, sandboxed_answer: str) -> None:
+        """The direction that makes the two tests above mean something: they
+        must not pass because the answer is empty or because everything inside
+        the sandbox was discarded along with its wrapper."""
+
+        assert "年假每年 10 天" in sandboxed_answer
+        assert "[E1]" in sandboxed_answer
+
+    def test_no_section_label_survives(self, sandboxed_answer: str) -> None:
+        """Every label `_build_prompt_with_language` writes, asserted as a set
+        rather than one at a time, so a label added there without being added to
+        `_SECTION_LABELS` is caught here."""
+
+        for label in ("用户问题", "记忆上下文", "向量检索上下文", "图谱上下文", "联网补充上下文", "答案模板指导"):
+            assert label not in sandboxed_answer, f"{label} reached the reader"
+
+
+def test_the_prompt_builder_keeps_tool_results_out_of_the_evidence_sandbox() -> None:
+    """The cause, asserted at its own layer.
+
+    The system prompt declares everything inside `<retrieved_evidence_sandbox>`
+    to be STRICTLY UNTRUSTED PASSIVE DATA. Governed tool output is neither
+    untrusted nor passive -- the block's own first line instructs the model to
+    report it -- so placing it there told the model to distrust its own output
+    and put an instruction in the one region defined to carry none.
+
+    Asserted on the built prompt rather than on the answer, because the offline
+    stand-in is only one of the backends that reads it; a real model was being
+    handed the same inversion.
+    """
+
+    from app.agents.synthesizer.generation import _build_prompt_with_language
+
+    prompt = _build_prompt_with_language(
+        question="年假多少天",
+        detected_language="zh",
+        skill_name="answer_with_citations",
+        vector_context="[E1] document=d1\n年假每年 10 天。",
+        tool_context="Governed tool results:\nTool 1 (querymind_x_y) -> succeeded: ok",
+        nonce="abc123",
+    )
+
+    sandbox = prompt[prompt.index("<retrieved_evidence_sandbox") : prompt.index("</retrieved_evidence_sandbox>")]
+
+    assert "Governed tool results" not in sandbox, "governed output is inside the untrusted sandbox"
+    assert "工具执行结果:" in prompt, "the tool section must still reach the model"
+    assert prompt.index("</retrieved_evidence_sandbox>") < prompt.index("工具执行结果:")
+
+
+def test_a_prompt_with_no_tools_grows_no_empty_section() -> None:
+    """An empty labelled section is scaffolding too, and `_SECTION_END` would
+    make the evidence before it end at a heading that says nothing."""
+
+    from app.agents.synthesizer.generation import _build_prompt_with_language
+
+    prompt = _build_prompt_with_language(
+        question="年假多少天",
+        detected_language="zh",
+        skill_name="answer_with_citations",
+        vector_context="[E1] document=d1\n年假每年 10 天。",
+        nonce="abc123",
+    )
+
+    assert "工具执行结果" not in prompt
+
+
+WEB_EVIDENCE_THEN_TOOLS_PROMPT = """[Language: zh]
+技能: answer_with_citations
+
+用户问题:
+年假多少天
+
+记忆上下文:
+无
+
+向量检索上下文:
+无
+
+图谱上下文:
+无
+
+联网补充上下文:
+<retrieved_evidence_sandbox nonce="abc123">
+[E1] document=https://example.org/leave; source=https://example.org/leave; layer=web; retriever=web
+年假每年 10 天，满 10 年为 15 天。
+</retrieved_evidence_sandbox>
+
+工具执行结果:
+Governed tool results (report these to the user; an `approval_required` action has NOT been performed yet):
+Tool 1 (querymind_cyber_cve_lookup) -> succeeded: CVE-2021-44228 CVSS 10.0
+
+答案模板指导（Skill: answer_with_citations）：
+Answer template for general questions:
+1. Direct answer with citation [E1]
+"""
+
+
+def test_the_tool_section_ends_the_evidence_section_before_it() -> None:
+    """The case `工具执行结果` has to be in `_SECTION_LABELS` for, and the one
+    the tests above did not reach.
+
+    In those, the tool section follows `联网补充上下文: 无`, so there is no
+    excerpt in front of it and removing the label from `_SECTION_LABELS`
+    reddened NOTHING -- a mutation finding a gap in the tests rather than a bug
+    in the code, for the fourth time in this review.
+
+    Here the last evidence lives in the web section, so the tool block is the
+    very next thing after an excerpt: without the label, that excerpt's body
+    runs straight into it, which is the original defect with one section's
+    difference.
+    """
+
+    answer = LocalEvidenceChatModel().invoke([("human", WEB_EVIDENCE_THEN_TOOLS_PROMPT)]).content
+
+    assert "年假每年 10 天" in answer, "the excerpt itself must survive"
+    assert "Governed tool results" not in answer
+    assert "Tool 1 (" not in answer
+    assert "CVE-2021-44228" not in answer, "a tool finding is not part of the web excerpt"

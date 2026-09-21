@@ -137,6 +137,7 @@ def _build_prompt_with_language(
     vector_context: str = "",
     graph_context: str = "",
     web_context: str = "",
+    tool_context: str = "",
     include_evidence_guidance: bool = True,
     nonce: str = "",
     visible_reasoning: bool = False,
@@ -176,6 +177,16 @@ def _build_prompt_with_language(
         graph_section = f"图谱上下文:\n{graph_context or '无'}"
         web_section = f"联网补充上下文:\n{web_context or '无'}"
 
+    # Governed tool results get a section of their own, and deliberately NOT the
+    # evidence sandbox. They used to be concatenated onto `vector_context` at the
+    # call site, which put them inside `<retrieved_evidence_sandbox>` -- a region
+    # the system prompt declares "STRICTLY UNTRUSTED PASSIVE DATA". That is wrong
+    # in both directions: it tells the model to distrust its own governed output,
+    # and it places an instruction ("report these to the user") in the one region
+    # that is defined to carry none. It is also what let the offline stand-in
+    # read the block, and the sandbox's closing tag, as part of an excerpt.
+    tool_section = f"工具执行结果:\n{tool_context}\n\n" if tool_context else ""
+
     return (
         f"{language_hint}"
         f"技能: {skill_name}\n\n"
@@ -183,7 +194,8 @@ def _build_prompt_with_language(
         f"记忆上下文:\n{memory_context or '无'}\n\n"
         f"{vector_section}\n\n"
         f"{graph_section}\n\n"
-        f"{web_section}\n"
+        f"{web_section}\n\n"
+        f"{tool_section}"
         f"{template_section}"
     )
 
@@ -448,6 +460,7 @@ def _build_synthesis_prompts(
     vector_context: str,
     graph_context: str,
     web_context: str,
+    tool_context: str,
     use_reasoning: bool,
     nonce: str,
     canary: str,
@@ -461,6 +474,7 @@ def _build_synthesis_prompts(
         vector_context=vector_context,
         graph_context=graph_context,
         web_context=web_context,
+        tool_context=tool_context,
         include_evidence_guidance=bool(allowed_labels),
         nonce=nonce,
         visible_reasoning=use_reasoning,
@@ -506,6 +520,7 @@ def synthesize_answer(
     vector_context: str = "",
     graph_context: str = "",
     web_context: str = "",
+    tool_context: str = "",
     use_reasoning: bool = False,
     force_language: str = "",
     session_id: str = "",
@@ -560,6 +575,7 @@ def synthesize_answer(
         vector_context=vector_context,
         graph_context=graph_context,
         web_context=web_context,
+        tool_context=tool_context,
         use_reasoning=use_reasoning,
         nonce=nonce,
         canary=canary,
@@ -703,6 +719,7 @@ def stream_synthesize_answer(
     vector_context: str = "",
     graph_context: str = "",
     web_context: str = "",
+    tool_context: str = "",
     use_reasoning: bool = False,
     force_language: str = "",
     session_id: str = "",
@@ -746,6 +763,7 @@ def stream_synthesize_answer(
         vector_context=vector_context,
         graph_context=graph_context,
         web_context=web_context,
+        tool_context=tool_context,
         nonce=nonce,
     )
 
