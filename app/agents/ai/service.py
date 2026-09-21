@@ -8,18 +8,11 @@ Responsible for:
 
 from __future__ import annotations
 
-import logging
 import re
 
 from app.agents.base import BaseSpecialistAgent
-from app.agents.synthesizer.service import SynthesizerAgentService
 from app.domain.contracts import ToolResult
-from app.domain.workflow import CandidateAnswer, ContextBundle
-from app.orchestration.request import OrchestrationRequest
-from app.services.observability.log_safety import question_ref
 from app.tools.category import ToolCategory
-
-logger = logging.getLogger(__name__)
 
 AI_SPECIALIST_SYSTEM_PROMPT = """You are an AI & Machine Learning Research / Engineering Specialist Agent.
 Your role is to analyze model architectures, training algorithms, compute budgets, and mathematical formulas.
@@ -149,41 +142,14 @@ class AIAgentService(BaseSpecialistAgent):
             return "model_scaling_analysis"
         return "ai_deep_dive"
 
-    def __init__(self, synthesizer: SynthesizerAgentService | None = None) -> None:
-        """Generation is delegated -- see `CybersecurityAgentService.__init__`.
+    # The three things that are actually this specialist's. Everything else --
+    # delegation, logging, the extraction-as-tool-finding splice, the skill
+    # fallback -- lives once in `BaseSpecialistAgent`.
+    pipeline_skills = PIPELINE_SKILLS
+    fallback_pipeline_skill = "ai_knowledge_assistant"
 
-        The same defect applied here: an optional `model_invoker` nothing ever
-        supplied, so every AI-routed question was answered by a hardcoded
-        template rather than by the configured chat model.
-        """
-
-        self._synthesizer = synthesizer or SynthesizerAgentService()
-
-    async def synthesize_candidate(
-        self,
-        request: OrchestrationRequest,
-        context: ContextBundle,
-        tool_results: tuple[ToolResult, ...] = (),
-        skill: str = "ai_deep_dive",
-    ) -> CandidateAnswer:
-        """Domain-shaped synthesis through the ordinary generation path."""
-
-        logger.info(
-            "AIAgent synthesizing candidate for query=%s skill=%s tools=%d",
-            question_ref(request.question),
-            skill,
-            len(tool_results),
-        )
-
-        evidence_text = "\n".join(item.content for item in context.evidence)
-        tool_text = "\n".join(result.summary for result in tool_results if result.summary)
-        specs = extract_ai_specifications(
-            f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tool_text}"
-        )
-        extra = specification_tool_result(specs)
-        enriched = (*tool_results, extra) if extra is not None else tuple(tool_results)
-        pipeline_skill = PIPELINE_SKILLS.get(skill, "ai_knowledge_assistant")
-        return await self._synthesizer.synthesize_candidate(request, context, enriched, pipeline_skill)
+    def domain_findings(self, text: str) -> ToolResult | None:
+        return specification_tool_result(extract_ai_specifications(text))
 
 
 __all__ = ["AIAgentService", "AI_SPECIALIST_SYSTEM_PROMPT", "extract_ai_specifications"]

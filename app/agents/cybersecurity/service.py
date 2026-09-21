@@ -9,19 +9,11 @@ Responsible for:
 
 from __future__ import annotations
 
-import logging
 import re
 
 from app.agents.base import BaseSpecialistAgent
-from app.agents.synthesizer.service import SynthesizerAgentService
 from app.domain.contracts import ToolResult
-from app.domain.workflow import CandidateAnswer, ContextBundle
-from app.orchestration.request import OrchestrationRequest
-from app.services.observability.log_safety import question_ref
 from app.tools.category import ToolCategory
-
-logger = logging.getLogger(__name__)
-
 
 CYBERSECURITY_SYSTEM_PROMPT = """You are an Enterprise Cybersecurity & Threat Intelligence Specialist Agent.
 Your role is to analyze security incidents, vulnerabilities (CVEs), indicators of compromise (IoCs), and defensive hardening strategies.
@@ -154,60 +146,14 @@ class CybersecurityAgentService(BaseSpecialistAgent):
             return "cybersecurity_incident_response"
         return "cve_vulnerability_assessment"
 
-    def __init__(self, synthesizer: SynthesizerAgentService | None = None) -> None:
-        """Generation is delegated, never reimplemented.
+    # The three things that are actually this specialist's. Everything else --
+    # delegation, logging, the extraction-as-tool-finding splice, the skill
+    # fallback -- lives once in `BaseSpecialistAgent`.
+    pipeline_skills = PIPELINE_SKILLS
+    fallback_pipeline_skill = "cyber_attack_analysis"
 
-        This agent used to hold its own optional `model_invoker` and fall back to
-        a hardcoded Chinese template when it was absent -- and the one
-        construction site, `app/agents/registry.py`, passed nothing, so the
-        fallback was the ONLY path that ever ran in production. Measured, "我们被
-        Log4Shell 打了吗？应该怎么处置？" came back as boilerplate answering
-        neither question, with `[E1] [E2]` stapled to content-free sentences.
-        That is the "Knowledge Agent is not an agent" shape reached where it
-        costs the answer text rather than a source list.
-
-        `SynthesizerAgentService` is the one thing that knows how to generate an
-        answer here, and delegating inherits all of it: the real configured chat
-        model, `asyncio.to_thread` so the forward pass is off the event loop,
-        streaming into `AnswerStreamStore` (the specialist path emitted no
-        `answer_fragment` events at all, so the draft bubble stayed empty),
-        `[E{k}]` allow-listing, the documented no-evidence answer, and language
-        forcing.
-
-        What the specialist still contributes is what is genuinely its own: the
-        domain skill it picks, and the indicators it extracts.
-        """
-
-        self._synthesizer = synthesizer or SynthesizerAgentService()
-
-    async def synthesize_candidate(
-        self,
-        request: OrchestrationRequest,
-        context: ContextBundle,
-        tool_results: tuple[ToolResult, ...] = (),
-        skill: str = "cybersecurity_incident_response",
-    ) -> CandidateAnswer:
-        """Domain-shaped synthesis through the ordinary generation path."""
-
-        logger.info(
-            "CybersecurityAgent synthesizing candidate for query=%s skill=%s tools=%d",
-            # Never the question itself. A stable digest is what this repository
-            # requires of every log line, and both specialists interpolated
-            # `request.question` directly.
-            question_ref(request.question),
-            skill,
-            len(tool_results),
-        )
-
-        evidence_text = "\n".join(item.content for item in context.evidence)
-        tool_text = "\n".join(result.summary for result in tool_results if result.summary)
-        iocs = extract_security_indicators(
-            f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tool_text}"
-        )
-        extra = indicator_tool_result(iocs)
-        enriched = (*tool_results, extra) if extra is not None else tuple(tool_results)
-        pipeline_skill = PIPELINE_SKILLS.get(skill, "cyber_attack_analysis")
-        return await self._synthesizer.synthesize_candidate(request, context, enriched, pipeline_skill)
+    def domain_findings(self, text: str) -> ToolResult | None:
+        return indicator_tool_result(extract_security_indicators(text))
 
 
 __all__ = [

@@ -200,3 +200,67 @@ def test_a_skill_from_a_registered_specialist_survives_router_validation():
         assert _is_valid_skill(skill, "answer_with_citations")
 
     assert not _is_valid_skill("astrology", "answer_with_citations")
+
+
+def test_the_generation_shape_is_written_once_not_once_per_specialist():
+    """Delegation made the specialists thin, and thin made them identical.
+
+    After generation moved to `SynthesizerAgentService`, the two
+    `synthesize_candidate` bodies differed only in which extractor ran, which
+    tool id it reported under, and which skill it fell back to -- 31 shared
+    substantive lines, and SonarCloud's duplication on new code went 1.0% ->
+    1.7% on a repository that had deliberately driven it to 0.0%.
+
+    The shape lives in `BaseSpecialistAgent` now. A specialist that reimplements
+    it is free to, but doing so silently is how the two drift, so this asserts
+    neither shipped one does.
+    """
+
+    from app.agents.ai.service import AIAgentService
+    from app.agents.base import BaseSpecialistAgent
+    from app.agents.cybersecurity.service import CybersecurityAgentService
+
+    for cls in (CybersecurityAgentService, AIAgentService):
+        assert "synthesize_candidate" not in vars(cls), (
+            f"{cls.__name__} reimplements the generation shape instead of inheriting it"
+        )
+        assert cls.synthesize_candidate is BaseSpecialistAgent.synthesize_candidate
+        # What it must still supply: its own skill map, fallback and extractor.
+        assert vars(cls).get("pipeline_skills"), f"{cls.__name__} declares no skill map"
+        assert "fallback_pipeline_skill" in vars(cls)
+        assert "domain_findings" in vars(cls)
+
+
+def test_a_specialist_that_declares_nothing_still_answers():
+    """The base must be usable, not just shared.
+
+    `domain_findings` defaults to None and `fallback_pipeline_skill` to the
+    general skill, so a third-party agent that implements only `agent_class`
+    gets working delegation -- which is what `DomainExtensionBundle` promises.
+    """
+
+    import asyncio
+
+    from app.agents.base import BaseSpecialistAgent
+    from app.domain.workflow import CandidateAnswer, ContextBundle
+    from app.orchestration.request import OrchestrationRequest, RequestActor
+
+    seen: dict[str, object] = {}
+
+    class _Recording:
+        async def synthesize_candidate(self, request, context, tool_results, skill):
+            seen.update(tool_results=tool_results, skill=skill)
+            return CandidateAnswer(text="ok")
+
+    class _Minimal(BaseSpecialistAgent):
+        @property
+        def agent_class(self) -> str:
+            return "minimal"
+
+    agent = _Minimal(synthesizer=_Recording())
+    request = OrchestrationRequest(question="q", actor=RequestActor(user_id="u", tenant_id="t"))
+    answer = asyncio.run(agent.synthesize_candidate(request, ContextBundle(evidence=()), (), "anything"))
+
+    assert answer.text == "ok"
+    assert seen["tool_results"] == (), "a specialist with no extractor must not invent a tool finding"
+    assert seen["skill"] == "answer_with_citations"
