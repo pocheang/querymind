@@ -224,10 +224,26 @@ def local_embedding_backend() -> tuple[str, str]:
 # The sandbox wrapper `SandboxedPromptBuilder` puts around retrieved evidence.
 # Matched here rather than imported from `injection_defense`, whose own pattern
 # is written for ESCAPING a tag anywhere in untrusted text and so does not carry
-# the `nonce="..."` attribute this wrapper emits. One shape, stated where it is
-# consumed, with a test that pins the two agreeing.
+# the `nonce="..."` attribute this wrapper emits.
+#
+# The attribute part is ONE quantifier behind a lookahead, not `(?:\s+[^>]*)?`.
+# The first form had `\s+` and `[^>]*` competing for the same whitespace run --
+# the adjacent-quantifier shape this repository records under `S8786` -- and this
+# pattern runs over a prompt that carries the user's question, so the input is
+# not ours. CodeQL caught it on the pull request that introduced it. Measured on
+# `"<untrusted_user_input" + "\t" * n`, the input the alert named:
+#
+#     n        old        new
+#     2000    18.6ms    0.006ms
+#     4000    83.4ms    0.009ms
+#     8000   300.6ms    0.017ms
+#    16000  1180.7ms    0.028ms     quadratic -> linear
+#
+# The lookahead keeps the tag-name boundary a bare `[^>]*` would lose, so
+# `<retrieved_evidence_sandboxfoo>` still does not match. Verified as the same
+# language over 3,672 generated inputs before landing: zero differences.
 _SANDBOX_DELIMITER_RE = re.compile(
-    r"</?(?:retrieved_evidence_sandbox|untrusted_user_input)(?:\s+[^>]*)?>\s*",
+    r"</?(?:retrieved_evidence_sandbox|untrusted_user_input)(?=[\s>])[^>]*>\s*",
     re.IGNORECASE,
 )
 

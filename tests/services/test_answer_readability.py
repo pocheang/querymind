@@ -502,3 +502,77 @@ def test_the_tool_section_ends_the_evidence_section_before_it() -> None:
     assert "Governed tool results" not in answer
     assert "Tool 1 (" not in answer
     assert "CVE-2021-44228" not in answer, "a tool finding is not part of the web excerpt"
+
+
+def test_the_sandbox_pattern_has_no_competing_quantifiers() -> None:
+    """The stripper runs over a prompt that carries the user's question.
+
+    Its first form was `(?:\\s+[^>]*)?` -- `\\s+` and `[^>]*` competing for the
+    same whitespace run, the adjacent-quantifier shape this repository records
+    under `S8786`. CodeQL caught it on the pull request that introduced it
+    ("Polynomial regular expression used on uncontrolled data"), naming
+    `'<untrusted_user_input' + many tabs` as the input. Measured, it was
+    quadratic: 18.6ms at n=2000 against 1180.7ms at n=16000; the replacement is
+    0.006ms and 0.028ms.
+
+    **The first version of this test could not fail**, and that is worth more
+    than the fix. It asserted that `match` is None at offsets inside the tab run
+    and that `sub` terminates -- but a tab is not `<`, so the old pattern is
+    rejected in one step at those offsets too, and `sub` terminates either way,
+    just slowly. Restoring the quadratic form left all 31 assertions green (0.83s
+    -> 2.80s). The only thing that differed was the clock, and a clock is what
+    this repository says not to assert on in CI.
+
+    So the property is asserted where it actually lives: on the compiled
+    object's own source, that no two quantifiers able to match the same
+    whitespace sit next to each other. Structural rather than behavioural
+    because the defect is structural -- and read off `pattern.pattern`, the
+    shipped object, never a copy written into the test.
+    """
+
+    import re as _re
+
+    from app.services.models.runtime import _SANDBOX_DELIMITER_RE as pattern
+
+    source = pattern.pattern
+
+    # `\s+` or `\s*` immediately followed by a class that also accepts
+    # whitespace is the shape that backtracks. Exactly the old form.
+    assert _re.search(r"\\s[+*]\s*\[\^", source) is None, (
+        f"two quantifiers compete for the same whitespace run: {source!r}"
+    )
+
+    # And the behaviour that shape existed to provide is still there.
+    assert pattern.sub("", '<retrieved_evidence_sandbox nonce="abc">x</retrieved_evidence_sandbox>') == "x"
+    assert pattern.sub("", "<untrusted_user_input\tnonce='1'>y") == "y"
+    # The tag-name boundary a bare `[^>]*` would lose.
+    assert pattern.sub("", "<retrieved_evidence_sandboxfoo>x") == "<retrieved_evidence_sandboxfoo>x"
+
+
+def test_the_sandbox_pattern_strips_exactly_what_the_old_one_did() -> None:
+    """Changing a pattern is a behaviour change until proven otherwise.
+
+    The repository's rule for every regex it has unpicked: run the old and the
+    new against the same inputs and diff. Done here over the shapes that matter
+    -- both tag names, either slash, attributes with and without quotes, a `>`
+    inside an attribute value, tabs and newlines as separators -- so the
+    linear form is pinned as the same language rather than merely as fast.
+    """
+
+    import itertools
+    import re as _re
+
+    from app.services.models.runtime import _SANDBOX_DELIMITER_RE as pattern
+
+    previous = _re.compile(
+        r"</?(?:retrieved_evidence_sandbox|untrusted_user_input)(?:\s+[^>]*)?>\s*",
+        _re.IGNORECASE,
+    )
+
+    names = ["retrieved_evidence_sandbox", "untrusted_user_input", "RETRIEVED_EVIDENCE_SANDBOX", "evidence_item"]
+    attrs = ["", ' nonce="abc123"', "\tnonce='x'", "   a=1 b=2", ' nonce="a>b"']
+    bodies = ["年假每年 10 天。", "[E1] document=d1\ntext", "", "a>b"]
+
+    for name, attr, body, slash in itertools.product(names, attrs, bodies, ["", "/"]):
+        probe = f"<{slash}{name}{attr}>{body}"
+        assert pattern.sub("", probe) == previous.sub("", probe), probe
