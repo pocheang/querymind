@@ -286,7 +286,7 @@ class TestEveryRetrievedSourceIsUsed:
             "What is reciprocal rank fusion?",
             "en",
             "answer_with_citations",
-            vector_context=self._rendered(count),
+            contexts=generation.SynthesisContexts(vector=self._rendered(count)),
         )
         return LocalEvidenceChatModel().invoke([("human", prompt)]).content
 
@@ -415,14 +415,16 @@ def test_the_prompt_builder_keeps_tool_results_out_of_the_evidence_sandbox() -> 
     handed the same inversion.
     """
 
-    from app.agents.synthesizer.generation import _build_prompt_with_language
+    from app.agents.synthesizer.generation import SynthesisContexts, _build_prompt_with_language
 
     prompt = _build_prompt_with_language(
         question="年假多少天",
         detected_language="zh",
         skill_name="answer_with_citations",
-        vector_context="[E1] document=d1\n年假每年 10 天。",
-        tool_context="Governed tool results:\nTool 1 (querymind_x_y) -> succeeded: ok",
+        contexts=SynthesisContexts(
+            vector="[E1] document=d1\n年假每年 10 天。",
+            tool="Governed tool results:\nTool 1 (querymind_x_y) -> succeeded: ok",
+        ),
         nonce="abc123",
     )
 
@@ -437,13 +439,13 @@ def test_a_prompt_with_no_tools_grows_no_empty_section() -> None:
     """An empty labelled section is scaffolding too, and `_SECTION_END` would
     make the evidence before it end at a heading that says nothing."""
 
-    from app.agents.synthesizer.generation import _build_prompt_with_language
+    from app.agents.synthesizer.generation import SynthesisContexts, _build_prompt_with_language
 
     prompt = _build_prompt_with_language(
         question="年假多少天",
         detected_language="zh",
         skill_name="answer_with_citations",
-        vector_context="[E1] document=d1\n年假每年 10 天。",
+        contexts=SynthesisContexts(vector="[E1] document=d1\n年假每年 10 天。"),
         nonce="abc123",
     )
 

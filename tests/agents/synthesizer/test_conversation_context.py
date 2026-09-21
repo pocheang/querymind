@@ -2,8 +2,8 @@
 
 ``OrchestrationRequest.conversation`` was populated by the pipeline boundary but
 read by nothing, so multi-turn context was silently dropped before generation.
-``synthesize_answer`` has always accepted ``memory_context``; the synthesizer
-just never passed it.
+``synthesize_answer`` has always taken the conversation as its memory
+section; the synthesizer just never passed it.
 """
 
 from __future__ import annotations
@@ -69,8 +69,8 @@ async def test_conversation_is_passed_as_memory_context():
 
     await service.synthesize_candidate(request, _context(), ())
 
-    assert "Doc A covers X." in captured["memory_context"]
-    assert "Tell me about doc A." in captured["memory_context"]
+    assert "Doc A covers X." in captured["contexts"].memory
+    assert "Tell me about doc A." in captured["contexts"].memory
 
 
 @pytest.mark.asyncio
@@ -86,4 +86,4 @@ async def test_empty_conversation_keeps_memory_context_empty():
 
     await service.synthesize_candidate(request, _context(), ())
 
-    assert captured["memory_context"] == ""
+    assert captured["contexts"].memory == ""
