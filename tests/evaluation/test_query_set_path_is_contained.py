@@ -80,7 +80,15 @@ def test_a_symlink_out_of_the_tree_is_refused(tmp_path: Path, monkeypatch: pytes
     outside.write_text("{}", encoding="utf-8")
 
     link = ROOT / "config" / "eval" / "_symlink_probe.json"
-    link.symlink_to(outside)
+    try:
+        link.symlink_to(outside)
+    except OSError as exc:
+        # Windows refuses symlink creation without Developer Mode or elevation
+        # (ERROR_PRIVILEGE_NOT_HELD). Skip only that: a FileExistsError from a
+        # probe left behind is also an OSError, and must still fail loudly.
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("this platform cannot create symlinks without privilege")
+        raise
     try:
         # Resolved OUTSIDE the raises block (`python:S5778`), and that is not a
         # style point: `relative_to` can itself raise, and a `pytest.raises`
