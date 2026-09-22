@@ -146,9 +146,9 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 | **跨文档 P@5** | **0.4000（上限 0.4500）** | 同上，也是全项目**唯一一个 P@5 低于自身上限**的地方——即它终于在测检索，而不是在测标注。 |
 | **全链路检索质量** | **未测量（会拒绝）** | `make eval-full-pipeline` 测向量 + BM25 + 交叉编码器重排，但在本机**退出码 2、一个数字都不输出**：两个模型都以 `local_files_only=True` 加载，缺失时静默降级成词面回退和哈希嵌入。一个测错东西的绿色数字比没有数字更糟。 |
 | **端点数量** | **157** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
-| **后端行覆盖率** | **60.6%**（基线 60.2%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。 |
+| **后端行覆盖率** | **62.0%**（基线 61.8%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。 |
 | **认知复杂度** | **0 个函数 > 15** | `tests/core/test_cognitive_complexity_is_bounded.py`，覆盖 `app/` 与 `scripts/` 的硬门禁。`scripts/audit/cognitive_complexity.py` 本地实现了 Sonar 的评分规则，`--validate` 能逐条复现项目全部 75 条历史 S3776 发现。 |
-| **测试数量** | **2,535 后端 / 222 前端** | `pytest -q` 报告 2,535 passed / 3 skipped / 2 xfailed，`vitest` 报告 222 passed（32 文件）。写运行时真正打印的数字，而不是单一总数：`--collect-only` 与运行结果按不同口径计数，差值来自 import 阶段就跳过的模块，不是丢了用例。 |
+| **测试数量** | **2,697 后端 / 222 前端** | `pytest -q` 报告 2,697 passed / 3 skipped / 2 xfailed，`vitest` 报告 222 passed（32 文件）。写运行时真正打印的数字，而不是单一总数：`--collect-only` 与运行结果按不同口径计数，差值来自 import 阶段就跳过的模块，不是丢了用例。 |
 | **入口包体积** | **151.5 KB gzip** | `npm run build` 实测：入口 chunk 441 KB 原始 / 151.5 KB gzip，主样式 142 KB / 38.6 KB gzip，其余按路由拆成 40 个懒加载 chunk。 |
 | **Router 意图准确率** | **没有测量** | 项目里**不存在**标注过的路由测试集。此处曾写 99.1%，那个数字没有任何东西在测。 |
 | **引用完整性** | **没有聚合测量** | 每个回答由校验级联的引用阶段**逐条强制执行**，但从未在一个查询集上打过总分。 |
@@ -267,7 +267,7 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (Linter & Formatter), Pre-commit (CI 内同样执行)
-    ├── Testing: Pytest (后端 2,535 用例), Vitest (前端 222 用例), Prettier
+    ├── Testing: Pytest (后端 2,697 用例), Vitest (前端 222 用例), Prettier
     ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 20+22 / images / analysis)
     ├── Security: CodeQL (python + js-ts), pip-audit + npm audit 门禁, Trivy 镜像扫描（每周）
     ├── Static Analysis: SonarCloud Quality Gate, 认知复杂度本地门禁 (S3776, 0 超标)
@@ -315,7 +315,7 @@ multi_agent_rag_local_v4/
 ## 🧪 Testing & CI (工程质量与持续集成)
 
 ```bash
-# 后端：2,535 passed / 3 skipped / 2 xfailed（跳过的是缺可选的 openpyxl）
+# 后端：2,697 passed / 3 skipped / 2 xfailed（跳过的是缺可选的 openpyxl）
 pytest -q
 
 # 推送前用这个：把 CI 不安装的可选包（pytesseract / pdfplumber / sentence-transformers）屏蔽掉跑一遍
