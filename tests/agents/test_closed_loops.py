@@ -128,7 +128,7 @@ async def test_verification_without_source_documents_is_skipped_not_passed():
         generation.synthesize_answer,
         "q",
         "answer_with_citations",
-        vector_context="[E1] document=a.pdf\nsome text",
+        contexts=generation.SynthesisContexts(vector="[E1] document=a.pdf\nsome text"),
         enable_fact_verification=True,
         source_documents=None,
     )

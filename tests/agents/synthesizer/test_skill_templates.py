@@ -113,7 +113,7 @@ class TestItReachesThePrompt:
                 question_text,
                 "zh",
                 skill_name,
-                vector_context=str(kwargs.get("vector_context") or ""),
+                contexts=kwargs.get("contexts") or generation.SynthesisContexts(),
             )
             return {"answer": "占位 [E1]", "citations": []}
 

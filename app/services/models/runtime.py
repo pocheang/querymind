@@ -221,6 +221,46 @@ def local_embedding_backend() -> tuple[str, str]:
     return "semantic", str(get_settings().local_embed_model or "")
 
 
+# The sandbox wrapper `SandboxedPromptBuilder` puts around retrieved evidence.
+# Matched here rather than imported from `injection_defense`, whose own pattern
+# is written for ESCAPING a tag anywhere in untrusted text and so does not carry
+# the `nonce="..."` attribute this wrapper emits.
+#
+# The attribute part is ONE quantifier behind a lookahead, not `(?:\s+[^>]*)?`.
+# The first form had `\s+` and `[^>]*` competing for the same whitespace run --
+# the adjacent-quantifier shape this repository records under `S8786` -- and this
+# pattern runs over a prompt that carries the user's question, so the input is
+# not ours. CodeQL caught it on the pull request that introduced it. Measured on
+# `"<untrusted_user_input" + "\t" * n`, the input the alert named:
+#
+#     n        old        new
+#     2000    18.6ms    0.006ms
+#     4000    83.4ms    0.009ms
+#     8000   300.6ms    0.017ms
+#    16000  1180.7ms    0.028ms     quadratic -> linear
+#
+# CodeQL then named a SECOND input for the `(?=[\s>])[^>]*` form -- many
+# repetitions of `<untrusted_user_input=`. Measured, that one is linear
+# (0.85ms over 176KB, doubling with the input), so the pattern was not in fact
+# polynomial there. It is written bounded anyway rather than argued about: a
+# scanner's over-approximation still leaves the check red, and every part here
+# is now finite by construction instead of by measurement --
+# `[^>]{0,128}` for the attributes (a nonce is 12 hex characters) and
+# `[ \t\r\n]{0,4}` for the newline the wrapper puts after the tag, which is the
+# `\s{0,8}` idiom the streaming redactor already uses.
+#
+# The name boundary a bare `[^>]*` would lose is kept by a NEGATIVE lookahead,
+# which consumes nothing and admits `>` without having to enumerate it, so
+# `<retrieved_evidence_sandboxfoo>` still does not match. Verified as the same
+# language as the unbounded form over every realistic tag shape: zero
+# differences, and `test_the_sandbox_pattern_strips_what_the_builder_emits`
+# pins it against the real producer rather than against a transcription.
+_SANDBOX_DELIMITER_RE = re.compile(
+    r"</?(?:retrieved_evidence_sandbox|untrusted_user_input)(?![a-z0-9_])[^>]{0,128}>[ \t\r\n]{0,4}",
+    re.IGNORECASE,
+)
+
+
 class LocalEvidenceChatModel:
     """Small offline response model that keeps the app usable without Ollama/API keys."""
 
@@ -269,6 +309,7 @@ class LocalEvidenceChatModel:
         "向量检索上下文",
         "图谱上下文",
         "联网补充上下文",
+        "工具执行结果",
         "答案模板指导",
     )
     _SECTION_END = re.compile("\n\n(?=(?:" + "|".join(_SECTION_LABELS) + ")[^\n]{0,40}?[:：])")
@@ -291,7 +332,15 @@ class LocalEvidenceChatModel:
         `1. [E1] document=https://… layer=web; retriever=web <content>`.
         """
         found: list[tuple[str, str]] = []
-        for block in blocks:
+        for raw_block in blocks:
+            # The evidence arrives wrapped in `<retrieved_evidence_sandbox
+            # nonce="...">` ... `</retrieved_evidence_sandbox>`. Those are
+            # addressing for the model, not text, and the closing tag sits on
+            # the line after the last excerpt -- so the body of that excerpt ran
+            # straight through it and the reader saw
+            # `... 年假每年 10 天。 </retrieved_evidence_sandbox> [E1]`.
+            # Measured on the shipped code before this change.
+            block = _SANDBOX_DELIMITER_RE.sub("", raw_block)
             # python:S6019 calls `(.*?)` a reluctant quantifier that can only
             # match 0 repetitions -- it does not; the lookahead needs the body
             # to actually be scanned up to the next `[Enn]` or the string end,
