@@ -40,10 +40,62 @@ _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _UUID_RE = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b")
 _WINDOWS_PATH_RE = re.compile(r"\b[A-Za-z]:\\(?:[^\\\s]+\\)*[^\\\s]*")
 _UNIX_PATH_RE = re.compile(r"/(?:[^/\s]+/)+[^/\s]+")
-_PHONE_RE = re.compile(r"(?<!\w)\+?\d[\d()\-\s]{7,}\d(?!\w)")
+# `[\d()\-\s]` treats a dash and a space as free filler, so this rule used to
+# claim any digit run of the right length that happened to contain one -- and two
+# of those shapes are not phone numbers in any reading. Measured on the shipped
+# pattern through the live `filter_output`:
+#
+#     Log4Shell 是 CVE-2021-44228           -> Log4Shell 是 CVE-<PHONE_1>
+#     备份保留窗口为 2026-01-01 至 2026-12-31   -> 备份保留窗口为 <PHONE_1> 至 <PHONE_2>
+#     2026-09-21 12:00 告警，2026-09-21 12:40 隔离
+#                                           -> <PHONE_1>:00 告警，<PHONE_1>:40 隔离
+#
+# This is the failure recorded just below for China-specific identifiers -- the
+# generic rule owning a specific one's span and reporting it under the wrong
+# name -- reached from the other side: here the span is not sensitive at all, so
+# the redaction destroys text both the reader and the model need. The third line
+# is worse than noise: tokenization is stable by value, so two DIFFERENT
+# timestamps collapse into one token and an incident timeline reads as two
+# events at the same moment.
+#
+# `privacy_permission` REPLACES `request.question` with the inspected text, so
+# this ran inbound too: a question about CVE-2021-44228 reached the router, the
+# retrievers and `querymind_cyber_cve_lookup` as `CVE-<PHONE_1>`, in an
+# application whose skills include `cyber_attack_analysis`.
+#
+# A CVE id and a calendar date are public by construction, so the fix is to
+# match NOTHING rather than to match under a better name. A new kind would also
+# have to be added to the sets in app/privacy/text.py to have any effect at all
+# (`test_every_pattern_kind_is_reachable`), and a kind whose only purpose is to
+# hide a public identifier is a redaction that buys nobody anything.
+#
+# THREE lookarounds, and the second exists because the first two are not enough.
+# Rejecting a start AT the year only moves the start INSIDE the date -- the scan
+# restarts at the next offset, and `-` is not `\w` so `(?<!\w)` lets it in.
+# Measured, with only the CVE and date rules in place:
+#
+#     '2013-9-1 1997-11-14'  ->  matched '9-1 1997-11-14'
+#
+# `(?<!\d-)` forbids starting immediately after a dashed digit group, which is
+# what makes two adjacent dates survive whole. It cannot cost a real number: a
+# phone written `+86-138-0013-8000` is matched from its `+`, and an eleven-digit
+# mainland number preceded by `2021-` is MOBILE_CN's, which runs first.
+#
+# Deliberately STILL matched, because shape alone cannot separate these from a
+# national number: a bare `2021-44228` with no prefix, a range like `8000-9000`,
+# and a plain ten-digit run. `test_phone_false_positives.py` pins those as
+# matching too, so the boundary is stated rather than discovered.
+_PHONE_RE = re.compile(
+    # a CVE identifier's digits are not a phone number
+    r"(?<![Cc][Vv][Ee]-)"
+    # nor is a fragment that starts inside a dashed digit group
+    r"(?<!\d-)"
+    r"(?<!\w)\+?"
+    # nor is a calendar date, or a calendar date followed by a clock time
+    r"(?!(?:19|20)\d{2}-\d{1,2}-\d{1,2}(?!\d))"
+    r"\d[\d()\-\s]{7,}\d(?!\w)"
+)
 
-# An IPv6 address contains no whitespace, so app/privacy/streaming.py's second
-# property covers it and BASE_SAFETY_MARGIN does not need to grow for its length.
 _IPV6_RE = re.compile(
     r"(?<![:.\w])(?:"
     r"(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}"
