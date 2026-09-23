@@ -328,6 +328,45 @@ class AgentExecutionTracker:
         logger.debug(f"Recorded agent step: {agent_name} in {execution_id}")
         return step.step_id
 
+    def record_finished_step(
+        self,
+        execution_id: str,
+        agent_name: str,
+        *,
+        status: str,
+        duration_ms: float,
+        finished_at: datetime,
+        error: str | None = None,
+    ) -> bool:
+        """Record a step that has already finished, with its own timings.
+
+        The pipeline reports a stage once, when it ends, carrying how long it
+        took -- so `record_agent_step` + `complete_agent_step` would stamp both
+        ends "now" and measure every stage at 0 ms. This takes the times it is
+        given.
+
+        Only into a trace `start_execution` opened. A stage event from a run no
+        endpoint started (a benchmark, a rerun) belongs to no dashboard row, and
+        `record_agent_step`'s habit of inventing an "Unknown" trace for it would
+        count work nobody asked the dashboard about. Returns whether it was
+        recorded.
+        """
+
+        step = AgentStep(
+            agent_name=agent_name,
+            start_time=finished_at - timedelta(milliseconds=duration_ms),
+            end_time=finished_at,
+            duration_ms=duration_ms,
+            status=status,
+            error=error,
+        )
+        with self._traces_lock:
+            trace = self._traces.get(execution_id)
+            if trace is None:
+                return False
+            trace.steps.append(step)
+        return True
+
     def complete_agent_step(
         self,
         execution_id: str,
@@ -663,3 +702,35 @@ def track_agent_execution(agent_name: str) -> Callable:
 def get_tracker() -> AgentExecutionTracker:
     """Get the singleton instance of AgentExecutionTracker."""
     return AgentExecutionTracker.get_instance()
+
+
+# The run's own terminal markers, not stages of it: the endpoint already records
+# them through `complete_execution` / `fail_execution`.
+_TERMINAL_STAGES = frozenset({"complete", "failed"})
+
+
+def record_stage_event(execution_id: str, event: Any) -> None:
+    """Turn one pipeline stage event into a step on that run's trace.
+
+    This is the dashboard's producer. `get_quality_stats` aggregates nothing but
+    trace steps, and the only writer of a step was `record_agent_step`, which
+    nothing on the request path called -- so the admin "Agent Quality" page could
+    only ever show zero agents and zero executions, with nothing saying why. The
+    pipeline already reports every stage, with its status and duration, for the
+    live trace panel; the same events feed this.
+
+    A skipped stage is not recorded: it did not run, and counting it as an
+    execution that neither succeeded nor failed would drag every success rate
+    down for work that never happened.
+    """
+
+    if event.stage in _TERMINAL_STAGES or event.status not in ("completed", "failed"):
+        return
+    get_tracker().record_finished_step(
+        execution_id,
+        str(event.stage),
+        status=str(event.status),
+        duration_ms=float(event.duration_ms),
+        finished_at=event.occurred_at,
+        error=(event.message or "stage failed") if event.status == "failed" else None,
+    )

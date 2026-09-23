@@ -28,8 +28,8 @@
     "en": "🧠 Advanced RAG\nQuery Decomposition\nSelf-RAG Evaluation"
   },
   "8": {
-    "zh": "🎯 Router Agent\nLangGraph 工作流\n条件路由 + 分层执行\nFast/Balanced/Deep",
-    "en": "🎯 Router Agent\nLangGraph Workflow\nConditional Routing\nFast/Balanced/Deep"
+    "zh": "🎯 Router Agent\nLangGraph 工作流\n条件路由\n向量/图谱/混合/联网/工具",
+    "en": "🎯 Router Agent\nLangGraph Workflow\nConditional Routing\nVector/Graph/Hybrid/Web/Tool"
   },
   "9": {
     "zh": "🔍 Vector RAG Agent\n混合检索 Vector+BM25\nRRF 融合\nBGE-reranker-v2-m3",
@@ -96,8 +96,8 @@
     "en": "🛡️ Circuit Breaker\nFault Isolation\nBulkhead Pattern\nRetry Logic"
   },
   "25": {
-    "zh": "⚡ 负载降级\n高负载检测 (>80%)\n自动降档\nFast/Balanced/Deep",
-    "en": "⚡ Load Degradation\nHigh Load Detection (>80%)\nAuto Downgrade\nFast/Balanced/Deep"
+    "zh": "⚡ 负载保护\n按用户限流\n并发上限\n超时即降级",
+    "en": "⚡ Load Guard\nPer-user Rate Limit\nConcurrency Cap\nDegrade on Timeout"
   },
   "26": {
     "zh": "💨 内存缓存\n检索配置缓存\n运行时状态\n热数据加速",
@@ -116,16 +116,16 @@
     "en": "📈 Batch Chart Extraction\nParallel Processing\nThroughput Optimization\nImage Analysis"
   },
   "30": {
-    "zh": "🎯 Route Validator Agent\n路由验证代理\n3层验证 (95%+准确率)\n规则+置信度+LLM",
-    "en": "🎯 Route Validator Agent\nRoute Validation Agent\n3-Layer Validation (95%+)\nRule+Confidence+LLM"
+    "zh": "🎯 路由置信度\n低置信度复判\n推理模型重试\n可选置信度校准",
+    "en": "🎯 Router Confidence\nLow-confidence Re-ask\nReasoning-model Retry\nOptional Calibration"
   },
   "31": {
-    "zh": "📊 Retrieval Quality Agent\n检索质量代理\n多维度指标评估\nPrecision+Recall+F1",
-    "en": "📊 Retrieval Quality Agent\nRetrieval Quality Agent\nMulti-dimensional Metrics\nPrecision+Recall+F1"
+    "zh": "📊 离线检索评测\nmake eval-retrieval\nrecall@5 + MRR\nnDCG@5",
+    "en": "📊 Offline Retrieval Eval\nmake eval-retrieval\nrecall@5 + MRR\nnDCG@5"
   },
   "32": {
-    "zh": "🛡️ Answer Validator Agent\n答案验证代理\nNLI幻觉检测 (92%+)\n3层验证流水线",
-    "en": "🛡️ Answer Validator Agent\nAnswer Validation Agent\nNLI Hallucination (92%+)\n3-Level Pipeline"
+    "zh": "🛡️ 答案校验\n引用 + Grounding\nNLI 蕴含检测\n最多重试一次",
+    "en": "🛡️ Answer Verifier\nCitations + Grounding\nNLI Entailment\nOne Bounded Retry"
   },
   "33": {
     "zh": "💭 Context Tracker Agent\n上下文跟踪代理\n多轮对话追踪 (50轮)\n线程安全LRU缓存",

@@ -25,6 +25,7 @@ from app.pipeline.contracts import (
     to_orchestration_request,
 )
 from app.pipeline.profiles import PipelineProfile
+from app.services.observability.agent_execution_tracker import record_stage_event
 from app.services.query.input_normalizer import validate_user_question_security
 
 
@@ -93,7 +94,12 @@ class RAGPipeline:
         # trace endpoint with nothing but the tracker's terminal event.
         return OrchestrationEngine(
             services=self.capabilities.orchestration_services(),
-            publisher=ExecutionStoreEventPublisher(get_default_execution_event_store()),
+            # The same events also feed the admin Agent Quality dashboard, whose
+            # statistics had no producer at all -- see `record_stage_event`.
+            publisher=ExecutionStoreEventPublisher(
+                get_default_execution_event_store(),
+                step_sink=record_stage_event,
+            ),
             policy=ExecutionPolicy.for_profile(profile),
         )
 

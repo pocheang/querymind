@@ -52,7 +52,7 @@ const NODE_DEFINITIONS: NodeDef[] = [
   ["16", 500, 1400, "node-retrieval"],
   ["17", 700, 1400, "node-retrieval"],
   ["29", 900, 1400, "node-retrieval"],
-  // Layer 7: Retrieval Quality Check (y: 1550)
+  // Layer 7: Offline Retrieval Evaluation (y: 1550)
   ["31", 400, 1550, "node-validation"],
   // Layer 8: Synthesis & Answer Generation (y: 1700)
   ["18", 600, 1700, "node-output"],

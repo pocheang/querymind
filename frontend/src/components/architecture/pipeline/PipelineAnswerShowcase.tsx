@@ -56,7 +56,7 @@ function ShowcaseMetricsBadges({ isZh }: Readonly<{ isZh: boolean }>) {
         mono
         className="text-xs py-1 px-2.5 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 bg-emerald-500/10 font-semibold"
       >
-        {isZh ? "事实一致性: 99.2%" : "Grounding: 99.2%"}
+        {isZh ? "事实一致性：已校验" : "Grounding: verified"}
       </Badge>
       <Badge
         variant="outline"
@@ -64,7 +64,7 @@ function ShowcaseMetricsBadges({ isZh }: Readonly<{ isZh: boolean }>) {
         mono
         className="text-xs py-1 px-2.5 text-blue-600 dark:text-blue-400 border-blue-500/40 bg-blue-500/10 font-semibold"
       >
-        {isZh ? "幻觉率: <10%" : "Hallucination: <10%"}
+        {isZh ? "NLI 蕴含：已检测" : "NLI: checked"}
       </Badge>
       <Badge
         variant="outline"
@@ -72,7 +72,7 @@ function ShowcaseMetricsBadges({ isZh }: Readonly<{ isZh: boolean }>) {
         mono
         className="text-xs py-1 px-2.5 text-purple-600 dark:text-purple-400 border-purple-500/40 bg-purple-500/10 font-semibold"
       >
-        {isZh ? "首字耗时: 420ms" : "TTFT: 420ms"}
+        {isZh ? "SSE 流式输出" : "Streamed: SSE"}
       </Badge>
     </div>
   );

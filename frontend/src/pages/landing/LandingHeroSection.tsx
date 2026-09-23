@@ -16,9 +16,13 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
   const [activeTab, setActiveTab] = useState<"chat" | "graph" | "metrics">("chat");
 
   const trustMetrics = [
-    { value: "100%", label: t("pages.landing.trustPrivate"), desc: t("pages.landing.trustPrivateDesc") },
-    { value: "< 800ms", label: t("pages.landing.trustLatency"), desc: t("pages.landing.trustLatencyDesc") },
-    { value: "99.8%", label: t("pages.landing.trustGrounding"), desc: t("pages.landing.trustGroundingDesc") },
+    {
+      value: t("pages.landing.trustPrivateVal"),
+      label: t("pages.landing.trustPrivate"),
+      desc: t("pages.landing.trustPrivateDesc"),
+    },
+    { value: "SSE", label: t("pages.landing.trustLatency"), desc: t("pages.landing.trustLatencyDesc") },
+    { value: "[1]", label: t("pages.landing.trustGrounding"), desc: t("pages.landing.trustGroundingDesc") },
     {
       value: t("pages.landing.trustZeroDepsVal"),
       label: t("pages.landing.trustZeroDeps"),
@@ -191,10 +195,10 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
 
                   <div className="flex flex-wrap items-center gap-2.5 pt-2.5 border-t border-line-subtle text-xs">
                     <Badge variant="success" size="xs" mono className="text-xs font-semibold px-2 py-0.5">
-                      Grounding: 99.8%
+                      Grounding: verified
                     </Badge>
                     <Badge variant="brand" size="xs" mono className="text-xs font-semibold px-2 py-0.5">
-                      BGE-Reranker Score: 0.94
+                      Reranked
                     </Badge>
                     <span className="text-xs font-medium text-ink/75">{t("pages.landing.heroDataSource")}</span>
                   </div>
@@ -241,26 +245,28 @@ export function LandingHeroSection({ isLoggedIn }: Readonly<LandingHeroSectionPr
           {activeTab === "metrics" && (
             <div className="grid grid-cols-2 gap-3 py-3 sm:grid-cols-4">
               <div className="rounded-card border border-line-subtle bg-surface p-3.5 text-center">
-                <span className="text-xs font-medium text-ink/80 sm:text-sm">{t("pages.landing.heroTtftLabel")}</span>
-                <p className="mt-1 font-mono text-xl font-bold text-brand-text sm:text-2xl">420ms</p>
-                <span className="text-xs font-semibold text-success">{t("pages.landing.heroTtftSub")}</span>
+                <span className="text-xs font-medium text-ink/80 sm:text-sm">{t("pages.landing.heroBudgetLabel")}</span>
+                <p className="mt-1 font-mono text-xl font-bold text-brand-text sm:text-2xl">120s</p>
+                <span className="text-xs font-semibold text-success">{t("pages.landing.heroBudgetSub")}</span>
               </div>
               <div className="rounded-card border border-line-subtle bg-surface p-3.5 text-center">
-                <span className="text-xs font-medium text-ink/80 sm:text-sm">{t("pages.landing.heroRecallLabel")}</span>
-                <p className="mt-1 font-mono text-xl font-bold text-brand-text sm:text-2xl">98.4%</p>
-                <span className="text-xs font-semibold text-success">{t("pages.landing.heroRecallSub")}</span>
+                <span className="text-xs font-medium text-ink/80 sm:text-sm">
+                  {t("pages.landing.heroSourcesLabel")}
+                </span>
+                <p className="mt-1 font-mono text-xl font-bold text-brand-text sm:text-2xl">4</p>
+                <span className="text-xs font-semibold text-success">{t("pages.landing.heroSourcesSub")}</span>
               </div>
               <div className="rounded-card border border-line-subtle bg-surface p-3.5 text-center">
-                <span className="text-xs font-medium text-ink/80 sm:text-sm">{t("pages.landing.heroTpsLabel")}</span>
-                <p className="mt-1 font-mono text-xl font-bold text-brand-text sm:text-2xl">48 tok/s</p>
-                <span className="text-xs font-medium text-ink/70">{t("pages.landing.heroTpsSub")}</span>
+                <span className="text-xs font-medium text-ink/80 sm:text-sm">{t("pages.landing.heroChecksLabel")}</span>
+                <p className="mt-1 font-mono text-xl font-bold text-brand-text sm:text-2xl">3</p>
+                <span className="text-xs font-medium text-ink/70">{t("pages.landing.heroChecksSub")}</span>
               </div>
               <div className="rounded-card border border-line-subtle bg-surface p-3.5 text-center">
                 <span className="text-xs font-medium text-ink/80 sm:text-sm">
                   {t("pages.landing.heroLeakageLabel")}
                 </span>
                 <p className="mt-1 font-mono text-xl font-bold text-success sm:text-2xl">
-                  {t("pages.landing.heroZeroExfil")}
+                  {t("pages.landing.heroRedacted")}
                 </p>
                 <span className="text-xs font-medium text-ink/70">{t("pages.landing.heroAirGapped")}</span>
               </div>
