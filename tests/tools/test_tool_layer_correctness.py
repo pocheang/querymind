@@ -133,7 +133,9 @@ def test_log4shell_offers_no_workaround_apache_does_not():
     mitigation = _CURATED_CVE_DB["cve-2021-44228"]["mitigation"]
 
     assert "formatMsgNoLookups" not in mitigation
-    assert "2.15.0" in mitigation and "2.12.2" in mitigation and "2.3.1" in mitigation
+    assert "2.15.0" in mitigation
+    assert "2.12.2" in mitigation
+    assert "2.3.1" in mitigation
 
 
 def test_the_xz_mitigation_names_a_real_release():
@@ -261,8 +263,11 @@ def test_a_failed_search_logs_and_raises_without_the_question(throttled_searxng,
 
     settings = get_settings().model_copy(update={"searxng_base_url": throttled_searxng, "web_search_max_retries": 0})
 
+    # Built outside the `raises` block: a constructor that raised would
+    # otherwise pass this test for the wrong reason.
+    provider = SearXNGSearchProvider(settings)
     with caplog.at_level(logging.DEBUG), pytest.raises(WebSearchError) as raised:
-        SearXNGSearchProvider(settings).search(QUESTION)
+        provider.search(QUESTION)
 
     assert caplog.records, "the failure must still be logged"
     assert not [r for r in caplog.records if _carries_question(r.getMessage())]
