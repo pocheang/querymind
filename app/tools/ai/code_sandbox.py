@@ -196,7 +196,11 @@ AI_MATH_TOOL_DEFINITION = ToolDefinition(
     operation="read",
     risk="read_only",
     category="artificial_intelligence",
-    description="Safely compute mathematical formulas, FLOPs estimates (e.g. 6 * 7e9 * 1e12), memory footprints, or algorithm complexities via AST sandboxed execution.",
+    description=(
+        "Safely compute mathematical formulas, FLOPs estimates (e.g. 6 * 7e9 * 1e12), memory footprints, "
+        "or algorithm complexities via AST sandboxed execution. param_gb() returns GiB (1024**3 bytes) and "
+        "kv_cache_mb() returns MiB (1024**2 bytes) -- binary units, despite the names."
+    ),
     parameters=(
         ToolParameter(
             name="expression",

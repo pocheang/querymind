@@ -27,6 +27,15 @@ logger = logging.getLogger(__name__)
 # and CitrixBleed carried Citrix's own 9.4 where NVD has 7.5 -- the table mixed
 # sources without saying which. A score changed later must name its source and
 # date the same way.
+#
+# The same holds for the other two fields a reader acts on. `affected` is
+# generated from NVD's CPE configurations for each entry's primary products;
+# four read narrower than NVD (Spring4Shell, Struts2, CitrixBleed,
+# CVE-2023-38606), which tells someone on an affected version they are safe.
+# `mitigation` says what the official advisory it names says: Log4Shell's
+# offered `log4j2.formatMsgNoLookups=true`, which Apache's advisory for this CVE
+# does not list, and XZ's pointed at a "5.6.1+repack" build tukaani.org never
+# mentions.
 _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
     "cve-2021-44228": {
         "cve_id": "CVE-2021-44228",
@@ -35,9 +44,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "CRITICAL",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "Apache Log4j 2.0-beta9 to 2.14.1",
+        "affected": "Apache Log4j 2.0.1 to before 2.3.1, 2.4.0 to before 2.12.2, 2.13.0 to before 2.15.0, 2.0, 2.0-beta9, 2.0-rc1, 2.0-rc2",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "JNDI lookup feature vulnerability allowing unauthenticated remote code execution (RCE) via ldap:// or rmi:// injection.",
-        "mitigation": "Upgrade Log4j to >= 2.17.1, remove JndiLookup class, or set log4j2.formatMsgNoLookups=true.",
+        "mitigation": "Upgrade log4j-core to 2.15.0 or later (Java 8 and later), 2.12.2 (Java 7) or 2.3.1 (Java 6). Apache's advisory gives upgrading as the mitigation and lists no configuration-only workaround.",
+        "mitigation_source": "https://logging.apache.org/log4j/2.x/security.html, checked 2026-09-23",
     },
     "cve-2022-22965": {
         "cve_id": "CVE-2022-22965",
@@ -46,9 +57,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "CRITICAL",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "Spring Framework 5.3.0 to 5.3.17, 5.2.0 to 5.2.19 on JDK 9+",
+        "affected": "Spring Framework before 5.2.20, 5.3.0 to before 5.3.18",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Remote code execution via class loader manipulation when deployed as WAR on Apache Tomcat.",
-        "mitigation": "Upgrade Spring Framework to 5.3.18+ or 5.2.20+.",
+        "mitigation": "Upgrade Spring Framework to 5.3.18 or later, or 5.2.20 or later.",
+        "mitigation_source": "https://spring.io/security/cve-2022-22965, checked 2026-09-23",
     },
     "cve-2014-0160": {
         "cve_id": "CVE-2014-0160",
@@ -57,9 +70,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "HIGH",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "OpenSSL 1.0.1 through 1.0.1f",
+        "affected": "OpenSSL 1.0.1 to before 1.0.1g",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Information disclosure vulnerability in TLS heartbeat extension leading to memory leak.",
-        "mitigation": "Upgrade OpenSSL to 1.0.1g+ or recompile with -DOPENSSL_NO_HEARTBEATS.",
+        "mitigation": "Upgrade OpenSSL to 1.0.1g; if that is not immediately possible, recompile with -DOPENSSL_NO_HEARTBEATS.",
+        "mitigation_source": "https://www.openssl.org/news/secadv/20140407.txt, checked 2026-09-23",
     },
     "cve-2023-38606": {
         "cve_id": "CVE-2023-38606",
@@ -68,9 +83,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "MEDIUM",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "Apple iOS before 16.6, iPadOS, macOS",
+        "affected": "iPadOS before 15.7.8, 16.0 to before 16.6; iOS before 15.7.8, 16.0 to before 16.6; macOS 11.0 to before 11.7.9, 12.0.0 to before 12.6.8, 13.0 to before 13.5; tvOS before 16.6; watchOS before 9.6",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Hardware MMIO registers vulnerability enabling bypass of page table protections and kernel integrity.",
-        "mitigation": "Apply iOS 16.6+ security update.",
+        "mitigation": "Update to iOS/iPadOS 16.6 or 15.7.8, macOS 13.5, 12.6.8 or 11.7.9, tvOS 16.6, or watchOS 9.6.",
+        "mitigation_source": "https://support.apple.com/en-us/HT213841 and NVD's fixed versions, checked 2026-09-23",
     },
     "cve-2024-3094": {
         "cve_id": "CVE-2024-3094",
@@ -79,9 +96,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "CRITICAL",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "XZ Utils versions 5.6.0 and 5.6.1",
+        "affected": "XZ Utils 5.6.0, 5.6.1",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Malicious backdoor inserted into liblzma tarballs hijacking OpenSSH sshd pre-authentication flow via systemd notify socket.",
-        "mitigation": "Immediately downgrade xz-utils to 5.4.x or upgrade to fixed non-compromised builds (e.g. 5.6.1+repack).",
+        "mitigation": "Replace XZ Utils 5.6.0 and 5.6.1, whose release tarballs contain the backdoor: downgrade to a release before 5.6.0, or upgrade to 5.6.2 or later, the upstream cleanup release.",
+        "mitigation_source": "https://tukaani.org/xz-backdoor/, checked 2026-09-23",
     },
     "cve-2023-4863": {
         "cve_id": "CVE-2023-4863",
@@ -90,9 +109,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "HIGH",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "libwebp before 1.3.2, Google Chrome before 116.0.5845.187, Firefox, Electron",
+        "affected": "Google Chrome before 116.0.5845.187; Firefox before 102.15.1, before 117.0.1, 115.1.0 to before 115.2.1; Thunderbird before 102.15.1, 115.0 to before 115.2.2; libwebp before 1.3.2",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Heap buffer overflow in WebP lossless decoding allowing remote code execution via malicious .webp image.",
-        "mitigation": "Update libwebp to 1.3.2+ and patch all browsers/Electron-based applications.",
+        "mitigation": "Update libwebp to 1.3.2 or later, and every application that bundles it; NVD lists Chrome 116.0.5845.187, Firefox 117.0.1 / ESR 115.2.1 / 102.15.1 and Thunderbird 115.2.2 / 102.15.1 as fixed.",
+        "mitigation_source": "https://github.com/webmproject/libwebp/releases/tag/v1.3.2 and NVD's fixed versions, checked 2026-09-23",
     },
     "cve-2023-34362": {
         "cve_id": "CVE-2023-34362",
@@ -101,9 +122,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "CRITICAL",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "MOVEit Transfer versions prior to 2021.0.6, 2021.1.4, 2022.0.4, 2022.1.5, 2023.0.1",
+        "affected": "MOVEit Cloud before 14.0.5.45, 14.1.0.0 to before 14.1.6.97, 15.0.0.0 to before 15.0.2.39; MOVEit Transfer before 2021.0.7, 2021.1.0 to before 2021.1.5, 2022.0.0 to before 2022.0.5, 2022.1.0 to before 2022.1.6, 2023.0.0 to before 2023.0.2",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "SQL injection in MOVEit Transfer web application leading to unauthenticated privilege escalation and data exfiltration.",
-        "mitigation": "Apply vendor security hotfix, disable HTTP/HTTPS ports 80/443 temporarily, and inspect for human2.aspx webshell.",
+        "mitigation": "Deny HTTP and HTTPS traffic (ports 80 and 443) to MOVEit Transfer until the patch is applied; follow Progress's review-delete-reset steps (delete human2.aspx and any human2-prefixed files, .cmdline scripts and unauthorized user accounts); then apply Progress's fixed release.",
+        "mitigation_source": "https://community.progress.com/s/article/MOVEit-Transfer-Critical-Vulnerability-31May2023, checked 2026-09-23",
     },
     "cve-2024-21626": {
         "cve_id": "CVE-2024-21626",
@@ -112,9 +135,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "HIGH",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "runc versions <= 1.1.11, Docker, containerd, Kubernetes",
+        "affected": "runc before 1.1.12",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Internal file descriptor leak in runc init enabling container escape to host filesystem via /proc/self/fd/7.",
-        "mitigation": "Upgrade runc to >= 1.1.12.",
+        "mitigation": "Upgrade runc to 1.1.12 or later.",
+        "mitigation_source": "https://github.com/opencontainers/runc/security/advisories/GHSA-xr7r-f8xq-vfvv, checked 2026-09-23",
     },
     "cve-2017-0144": {
         "cve_id": "CVE-2017-0144",
@@ -123,9 +148,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "HIGH",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "Microsoft Windows Vista, 7, 8.1, 10, Server 2008/2012/2016",
+        "affected": "SMBv1 on Windows 10 1507, Windows 10 1511, Windows 10 1607, Windows 7 SP1, Windows 8.1, Windows RT 8.1, Windows Server 2008 SP2, Windows Server 2008 R2 SP1, Windows Server 2012, Windows Server 2012 R2, Windows Server 2016, Windows Vista SP2",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Remote code execution flaw in Microsoft Server Message Block 1.0 (SMBv1) protocol exploited by WannaCry ransomware.",
-        "mitigation": "Apply MS17-010 security bulletin, disable SMBv1, and block port 445 at network perimeter.",
+        "mitigation": "Install security update MS17-010. Microsoft's workaround is disabling SMBv1 (KB 2696547).",
+        "mitigation_source": "https://learn.microsoft.com/en-us/security-updates/securitybulletins/2017/ms17-010, checked 2026-09-23",
     },
     "cve-2017-5638": {
         "cve_id": "CVE-2017-5638",
@@ -134,9 +161,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "CRITICAL",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "Struts 2.3.5 - 2.3.31, 2.5 - 2.5.10",
+        "affected": "Apache Struts 2.2.3 to before 2.3.32, 2.5.0 to before 2.5.10.1",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Remote code execution vulnerability via malicious Content-Type header in Jakarta multipart parser.",
-        "mitigation": "Upgrade Struts to 2.3.32 or 2.5.10.1+.",
+        "mitigation": "Upgrade Apache Struts to 2.3.32 or 2.5.10.1, or switch to a different multipart parser than the Jakarta-based one.",
+        "mitigation_source": "https://cwiki.apache.org/confluence/display/WW/S2-045, checked 2026-09-23",
     },
     "cve-2020-1472": {
         "cve_id": "CVE-2020-1472",
@@ -145,9 +174,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "CRITICAL",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "Windows Server 2008 R2 through Server 2019",
+        "affected": "Windows Server 1903; Windows Server 1909; Windows Server 2004; Windows Server 2008 R2 SP1; Windows Server 2012, R2; Windows Server 2016; Windows Server 2019; Windows Server 20H2",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Elevation of privilege flaw in Netlogon Remote Protocol (MS-NRPC) allowing domain takeover without credentials.",
-        "mitigation": "Apply Microsoft August 2020 Netlogon patch and enforce secure RPC communication.",
+        "mitigation": "Install the August 11, 2020 or later Windows updates on every domain controller, then enable enforcement mode (FullSecureChannelProtection); updates from February 9, 2021 enforce it.",
+        "mitigation_source": "https://support.microsoft.com/en-us/topic/how-to-manage-the-changes-in-netlogon-secure-channel-connections-associated-with-cve-2020-1472-f7e8cc17-0309-1d6a-304e-5ba73cd1a11e, checked 2026-09-23",
     },
     "cve-2022-30190": {
         "cve_id": "CVE-2022-30190",
@@ -156,9 +187,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "HIGH",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "Microsoft Windows 7 through 11, Windows Server 2008 through 2022",
+        "affected": "Windows 10 1507 before 10.0.10240.19325; Windows 10 1607 before 10.0.14393.5192; Windows 10 1809 before 10.0.17763.3046; Windows 10 20H2 before 10.0.19042.1766; Windows 10 21H1 before 10.0.19043.1766; Windows 10 21H2 before 10.0.19044.1766; Windows 11 21H2 before 10.0.22000.739; Windows 7 SP1; Windows 8.1; Windows RT 8.1; Windows Server 2008 R2 SP1; Windows Server 2012, R2; Windows Server 2016 before 10.0.14393.5192; Windows Server 2019 before 10.0.17763.3046; Windows Server 2022 before 10.0.20348.770; Windows Server 20H2 before 10.0.19042.1766",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Remote code execution vulnerability in Microsoft Support Diagnostic Tool (MSDT) when invoked from applications like Word.",
-        "mitigation": "Apply June 2022 cumulative Windows update, disable MSDT URL protocol handler.",
+        "mitigation": "Install the June 2022 cumulative Windows updates.",
+        "mitigation_source": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2022-30190, checked 2026-09-23",
     },
     "cve-2023-4966": {
         "cve_id": "CVE-2023-4966",
@@ -167,9 +200,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "HIGH",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "NetScaler ADC and NetScaler Gateway versions 13.0, 13.1, 14.1",
+        "affected": "NetScaler ADC 12.1 to before 12.1-55.300, 13.0 to before 13.0-92.19, 13.1 to before 13.1-37.164, 13.1 to before 13.1-49.15, 14.1 to before 14.1-8.50; NetScaler Gateway 13.0 to before 13.0-92.19, 13.1 to before 13.1-49.15, 14.1 to before 14.1-8.50",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Sensitive information disclosure allowing session token hijacking to bypass multi-factor authentication.",
-        "mitigation": "Upgrade NetScaler firmware and terminate all active ICA/gateway sessions via CLI.",
+        "mitigation": "Install the fixed NetScaler ADC / Gateway builds, then kill active and persistent sessions: kill icaconnection -all, kill rdp connection -all, kill pcoipConnection -all, kill aaa session -all, clear lb persistentSessions.",
+        "mitigation_source": "https://www.netscaler.com/blog/news/cve-2023-4966-critical-security-update-now-available-for-netscaler-adc-and-netscaler-gateway/, checked 2026-09-23",
     },
     "cve-2014-6271": {
         "cve_id": "CVE-2014-6271",
@@ -178,9 +213,11 @@ _CURATED_CVE_DB: dict[str, dict[str, Any]] = {
         "severity": "CRITICAL",
         "cvss_source": "NVD (nvd@nist.gov), CVSS v3.1",
         "cvss_as_of": "2026-09-23",
-        "affected": "GNU Bash versions through 4.3",
+        "affected": "GNU Bash through 4.3",
+        "affected_source": "NVD CPE configurations, primary products, 2026-09-23",
         "description": "Arbitrary code execution flaw in Bash trailing function definitions exported via environment variables.",
-        "mitigation": "Upgrade bash package to patched vendor release.",
+        "mitigation": "Upgrade bash to your operating system vendor's patched release.",
+        "mitigation_source": "https://access.redhat.com/security/cve/cve-2014-6271, checked 2026-09-23",
     },
 }
 
@@ -417,7 +454,8 @@ async def execute_cve_lookup(call: ToolCall, actor: RequestActor) -> ToolResult:
         summary_text = (
             f"[{found['cve_id']}] {found['name']} (CVSS {found['cvss']} {found['severity']}, "
             f"{found['cvss_source']}, as of {found['cvss_as_of']}): "
-            f"Affects {found['affected']}. {found['description']} Mitigation: {found['mitigation']}"
+            f"Affects {found['affected']} ({found['affected_source']}). "
+            f"{found['description']} Mitigation ({found['mitigation_source']}): {found['mitigation']}"
         )
         return ToolResult(
             tool_id=call.tool_id,

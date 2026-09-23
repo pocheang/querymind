@@ -106,6 +106,43 @@ def test_every_score_names_its_source_and_date():
         assert entry.get("cvss_as_of"), key
 
 
+def test_every_affected_range_and_mitigation_names_its_source():
+    for key, entry in _CURATED_CVE_DB.items():
+        assert entry.get("affected_source"), key
+        assert entry.get("mitigation_source"), key
+
+
+@pytest.mark.parametrize(
+    ("key", "must_contain"),
+    [
+        # Each read narrower than NVD, telling someone on an affected version
+        # they were safe.
+        ("cve-2022-22965", "before 5.2.20"),  # was "5.2.0 to 5.2.19": older lines affected too
+        ("cve-2017-5638", "2.2.3 to before 2.3.32"),  # was "2.3.5 - 2.3.31"
+        ("cve-2023-4966", "12.1 to before 12.1-55.300"),  # 12.1 was missing
+        # The old text already said "macOS" as a bare word, so a version is what
+        # tells the two apart.
+        ("cve-2023-38606", "12.0.0 to before 12.6.8"),  # was "iOS before 16.6, iPadOS, macOS"
+    ],
+)
+def test_affected_ranges_are_not_narrower_than_nvd(key: str, must_contain: str):
+    assert must_contain in _CURATED_CVE_DB[key]["affected"]
+
+
+def test_log4shell_offers_no_workaround_apache_does_not():
+    mitigation = _CURATED_CVE_DB["cve-2021-44228"]["mitigation"]
+
+    assert "formatMsgNoLookups" not in mitigation
+    assert "2.15.0" in mitigation and "2.12.2" in mitigation and "2.3.1" in mitigation
+
+
+def test_the_xz_mitigation_names_a_real_release():
+    mitigation = _CURATED_CVE_DB["cve-2024-3094"]["mitigation"]
+
+    assert "repack" not in mitigation  # a build tukaani.org never mentions
+    assert "5.6.2" in mitigation
+
+
 @pytest.mark.asyncio
 async def test_the_answer_states_where_the_score_came_from():
     result = await _cve("CVE-2023-38606")
@@ -241,6 +278,41 @@ def test_no_provider_puts_an_exception_message_in_a_log_line():
         assert "str(exc)" not in source, path
         assert "str(last_err)" not in source, path
         assert "raise last_err" not in source, path
+
+
+@pytest.mark.parametrize("logger_name", ["httpx", "ddgs.ddgs", "primp"])
+def test_http_client_libraries_do_not_log_the_query(logger_name: str, caplog):
+    """The libraries' own lines, on their real logger names, including a child logger.
+
+    ddgs logs each failing engine as `Error in engine %s: %r` with primp's error,
+    whose text is `error sending request for url (<url>)`. Measured against a
+    refusing proxy before the fix: seven lines carrying the question for one
+    search. `ddgs.ddgs` is a child logger, which is why a filter on `ddgs` would
+    not have seen these records.
+    """
+
+    import app.tools.web.base  # noqa: F401  - installs the redaction, as the app does
+
+    url = f"https://www.example-search.com/search?q={quote(QUESTION)}&format=json"
+    error = ConnectionError(f"error sending request for url ({url})")
+
+    with caplog.at_level(logging.DEBUG):
+        logging.getLogger(logger_name).info("Error in engine %s: %r", "example", error)
+
+    message = caplog.records[-1].getMessage()
+    assert not _carries_question(message)
+    assert "https://www.example-search.com/search?<query redacted>" in message
+
+
+def test_the_application_s_own_log_lines_are_left_alone(caplog):
+    # Scope: only the HTTP client libraries are rewritten. The application's own
+    # lines are covered by `question_ref` and the AST guard over its logger calls.
+    import app.tools.web.base  # noqa: F401
+
+    with caplog.at_level(logging.DEBUG):
+        logging.getLogger("app.example").info("fetched %s", "https://example.com/page?id=7")
+
+    assert caplog.records[-1].getMessage() == "fetched https://example.com/page?id=7"
 
 
 def test_the_error_description_carries_type_and_status_only():

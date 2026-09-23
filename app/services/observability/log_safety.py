@@ -106,43 +106,64 @@ def install_control_character_escaping() -> None:
     _INSTALLED = True
 
 
-class _StripUrlQuery(logging.Filter):
-    """Drop the query string from any URL an HTTP client logs."""
+# The HTTP clients the web search reaches the network through. Their records
+# are scrubbed; the application's own are covered by `question_ref` and the AST
+# guard over its logger calls, which cannot see inside a third-party library.
+_HTTP_CLIENT_LOGGERS = ("httpx", "httpcore", "ddgs", "primp")
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        if isinstance(record.args, tuple) and record.args:
-            record.args = tuple(_without_query(arg) for arg in record.args)
-        return True
+# The query string of a URL, up to the first character that ends a URL in
+# prose or in a repr. Negated classes, no nested quantifiers: linear.
+_URL_QUERY = re.compile(r"(https?://[^\s'\"()<>?]+)\?[^\s'\"()<>]*")
 
-
-def _without_query(arg: object) -> object:
-    text = str(arg) if hasattr(arg, "query") or isinstance(arg, str) else None
-    if text is None or "?" not in text or not text.startswith(("http://", "https://")):
-        return arg
-    return text.split("?", 1)[0] + "?<query redacted>"
+_URL_REDACTION_INSTALLED = False
 
 
-_URL_FILTER = _StripUrlQuery()
+def _without_url_queries(text: str) -> str:
+    return _URL_QUERY.sub(r"\1?<query redacted>", text)
 
 
 def install_http_url_redaction() -> None:
-    """Keep the query string of an outgoing request out of httpx's own log line.
+    """Keep outgoing request query strings out of HTTP client libraries' log lines.
 
-    httpx logs every request at INFO: `HTTP Request: GET <url> "HTTP/1.1 200 OK"`.
-    Bing and SearXNG send the user's question as a GET parameter, so that line
-    is the question -- on every search, successful or not. It is invisible at
-    startup, where the root logger sits at WARNING, and appears the moment an
-    administrator sets the root to INFO from the console (which "reset log
-    levels" also does), straight into the buffer every administrator can read.
+    Web search sends the user's question as a URL parameter, and two libraries
+    log that URL themselves, neither through code this repository can change:
 
-    A filter on the logger rather than a level: the console's reset returns every
-    logger to inheriting the root, so a pinned level would be undone by the
-    button this exists to survive. Idempotent.
+    - httpx logs every request at INFO, `HTTP Request: GET <url> "HTTP/1.1 200 OK"`
+      -- the question, on every Bing or SearXNG search, successful or not;
+    - ddgs logs each failing engine at INFO as the exception's repr, and primp's
+      error text is `error sending request for url (<url>)` -- measured, seven
+      lines carrying the question for one DuckDuckGo search that failed.
+
+    Both are invisible at startup, where the root logger sits at WARNING, and
+    appear the moment an administrator sets INFO from the console (which "reset
+    log levels" also does), into the buffer every administrator can read.
+
+    A LogRecord factory rather than a level or a logger filter: the console's
+    reset returns every logger to inheriting the root, which undoes a pinned
+    level, and a filter on `ddgs` never sees a record logged on `ddgs.ddgs`,
+    because logger filters do not apply to records propagated from children.
+    The factory runs for every record at creation, whatever its logger's name.
+    Idempotent, and it chains to whatever factory was installed before it.
     """
 
-    httpx_logger = logging.getLogger("httpx")
-    if _URL_FILTER not in httpx_logger.filters:
-        httpx_logger.addFilter(_URL_FILTER)
+    global _URL_REDACTION_INSTALLED
+    if _URL_REDACTION_INSTALLED:
+        return
+
+    previous = logging.getLogRecordFactory()
+
+    def factory(*args, **kwargs):
+        record = previous(*args, **kwargs)
+        if record.name.split(".", 1)[0] in _HTTP_CLIENT_LOGGERS:
+            try:
+                message = record.getMessage()
+            except (TypeError, ValueError):  # malformed args: leave the record as it came
+                return record
+            record.msg, record.args = _without_url_queries(message), None
+        return record
+
+    logging.setLogRecordFactory(factory)
+    _URL_REDACTION_INSTALLED = True
 
 
 def _escaped_record_args(args: dict | tuple) -> dict | tuple:
