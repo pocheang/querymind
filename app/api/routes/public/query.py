@@ -105,6 +105,16 @@ class AdvancedRAGRequest(BaseModel):
             "automatically unless WEB_SEARCH_ON_EMPTY_CORPUS is off."
         ),
     )
+    agent_class_hint: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z][A-Za-z0-9_]{0,63}$",
+        description=(
+            "Route this question to a named agent class (for example cybersecurity) instead of "
+            "classifying it. The router accepts the built-in classes and any class a registered "
+            "domain agent declares, and ignores anything else, so an unknown value means automatic "
+            "routing rather than an error. Omit it for automatic routing."
+        ),
+    )
     timeout_ms: int | None = Field(
         default=None,
         ge=1_000,
@@ -440,7 +450,13 @@ async def _run_advanced_query(
             role=str(user.get("role", "") or "") or None,
             permissions=frozenset(user.get("permissions") or []),
         ),
-        source_scope=SourceScope(allowed_sources=frozenset(allowed_sources)),
+        # The chat sidebar's agent-mode picker. It was stored, shown as "locked",
+        # and sent nowhere -- this model had no field for it and this scope was
+        # built without it -- so the router's forced-class branch had no way in.
+        source_scope=SourceScope(
+            allowed_sources=frozenset(allowed_sources),
+            agent_class_hint=request_data.agent_class_hint,
+        ),
         enable_decomposition=request_data.enable_decomposition,
         enable_self_rag=request_data.enable_self_rag,
         use_reasoning=request_data.use_reasoning,

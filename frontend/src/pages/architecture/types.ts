@@ -24,14 +24,14 @@ export const ARCHITECTURE_CARDS: CardSectionConfig[] = [
     titleKey: "architecture.sections.pipeline",
     pillar: "pipeline",
     icon: Workflow,
-    tags: ["LangGraph", "Router (>99%)", "Planner", "ReAct", "Synthesizer", "Finalizer", "SSE Stream"],
+    tags: ["LangGraph", "Router", "Planner", "ReAct", "Synthesizer", "Finalizer", "SSE Stream"],
   },
   {
     key: "coreMethods",
     titleKey: "architecture.sections.coreMethods",
     pillar: "pipeline",
     icon: Sparkles,
-    tags: ["5 QA Validators", "Route Quality", "NLI Hallucination", "LRU Cache", "Self-RAG", "CI/CD Gate"],
+    tags: ["Answer Verifier", "Citation Grounding", "NLI Hallucination", "LRU Cache", "Self-RAG", "CI/CD Gate"],
   },
   {
     key: "hybridRetrieval",
@@ -52,7 +52,7 @@ export const ARCHITECTURE_CARDS: CardSectionConfig[] = [
     titleKey: "architecture.sections.groundingSecurity",
     pillar: "security",
     icon: ShieldCheck,
-    tags: ["Citation-First [1][2]", "Sentence Grounding", "NLI Entailment (<10%)", "Output DLP Redaction"],
+    tags: ["Citation-First [1][2]", "Sentence Grounding", "NLI Entailment", "Output DLP Redaction"],
   },
   {
     key: "security",

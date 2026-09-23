@@ -54,6 +54,10 @@ type AdvancedQueryInput = {
    *  event), then the answer. Off by default -- costs meaningfully more time
    *  and tokens than the silent-reasoning prompt every other question uses. */
   useReasoning?: boolean;
+  /** The agent class the user picked in the sidebar, or absent for automatic
+   *  routing. It used to stop at the store: the picker showed "locked" and the
+   *  request carried nothing, so every question was routed automatically. */
+  agentClassHint?: string;
   signal?: AbortSignal;
 };
 
@@ -142,6 +146,7 @@ export const queryApi = {
           ...(input.approvalToken ? { approval_token: input.approvalToken } : {}),
           ...(input.executionId ? { execution_id: input.executionId } : {}),
           ...(input.useReasoning ? { use_reasoning: input.useReasoning } : {}),
+          ...(input.agentClassHint ? { agent_class_hint: input.agentClassHint } : {}),
         }),
       },
       { timeoutMs: QUERY_ABORT_MS }

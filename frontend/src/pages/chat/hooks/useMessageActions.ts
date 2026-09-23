@@ -242,7 +242,7 @@ async function runQueryAndStream({
   actions,
 }: RunQueryStreamParams): Promise<void> {
   try {
-    const { useWebSearch, showReasoning } = useChatStore.getState();
+    const { useWebSearch, showReasoning, agentClassHint } = useChatStore.getState();
     // Generated here, not read from the response: `appApi.advanced` does not
     // resolve until the whole run has finished, so an id taken from its
     // result becomes known too late to watch the run live. Exposing our own
@@ -257,6 +257,8 @@ async function runQueryAndStream({
       enableSelfRag: true,
       useWebFallback: useWebSearch,
       useReasoning: showReasoning,
+      // The sidebar's agent mode. "" is Auto Router and sends nothing.
+      ...(agentClassHint ? { agentClassHint } : {}),
       ...(approvalToken ? { approvalToken } : {}),
       executionId,
       signal: runAbort.signal,

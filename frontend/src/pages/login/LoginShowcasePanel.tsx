@@ -76,15 +76,15 @@ export function LoginShowcasePanel() {
       {/* Bottom Enterprise SLA Readout Card */}
       <div className="relative z-10 rounded-xl border border-amber-200/90 bg-white/95 py-2 px-3 shadow-xs grid grid-cols-3 divide-x divide-amber-200 text-center">
         <div className="space-y-0.5">
-          <div className="text-lg sm:text-xl font-black text-amber-700">99.1%</div>
+          <div className="text-lg sm:text-xl font-black text-amber-700">5</div>
           <div className="text-xs font-bold text-stone-700">{t("pages.login.intentRecall")}</div>
         </div>
         <div className="space-y-0.5">
-          <div className="text-lg sm:text-xl font-black text-amber-700">&lt;420ms</div>
+          <div className="text-lg sm:text-xl font-black text-amber-700">SSE</div>
           <div className="text-xs font-bold text-stone-700">{t("pages.login.streamingLatency")}</div>
         </div>
         <div className="space-y-0.5">
-          <div className="text-lg sm:text-xl font-black text-amber-700">100%</div>
+          <div className="text-lg sm:text-xl font-black text-amber-700">{t("pages.login.tenantIsolationVal")}</div>
           <div className="text-xs font-bold text-stone-700">{t("pages.login.tenantIsolation")}</div>
         </div>
       </div>
