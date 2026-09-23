@@ -156,19 +156,21 @@ class DomainAgentRegistry:
         if not self._pending_defaults:
             return
         with self._lock:
-            # `list()` is load-bearing (python:S7504 flags it): registering pops
-            # the entry from the dict this loop walks.
-            for agent_class, factory in list(self._pending_defaults.items()):
+            # Built first, registered after: registering removes the entry from
+            # `_pending_defaults`, so doing it inside the loop would change the
+            # dict being iterated.
+            built: list[BaseSpecialistAgent] = []
+            for agent_class, factory in self._pending_defaults.items():
                 try:
-                    agent = factory()
+                    built.append(factory())
                 except Exception as err:  # an agent module may raise anything on import
                     first = agent_class not in self._default_failures
                     self._default_failures[agent_class] = f"{type(err).__name__}: {err}"
                     if first:
-                        logger.error("Built-in specialist '%s' could not be built", agent_class, exc_info=True)
+                        logger.exception("Built-in specialist '%s' could not be built", agent_class)
                     else:
                         logger.debug("Built-in specialist '%s' still unavailable: %s", agent_class, err)
-                    continue
+            for agent in built:
                 self._register_locked(agent)
 
 
