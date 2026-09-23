@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import Awaitable, Callable, Iterable
+from functools import lru_cache
 
 from app.core.config import Settings, get_settings
 from app.domain.contracts import TaskPlan
@@ -98,7 +99,7 @@ class KnowledgeAgentService:
         reasons: list[str],
     ) -> None:
         is_graph_candidate = "graph" in hints or _matches(
-            lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|connected|graph"
+            lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|dependencies|connected|graph"
         )
         is_table_candidate = _matches(lowered, _VISUAL_QUERY_PATTERN) or "multimodal" in hints
 
@@ -112,7 +113,9 @@ class KnowledgeAgentService:
             if "graph" in hints:
                 selected.append("graph")
                 reasons.append("graph route")
-            elif _matches(lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|connected|graph"):
+            elif _matches(
+                lowered, r"关系|关联|依赖|上下游|路径|拓扑|relationship|dependency|dependencies|connected|graph"
+            ):
                 selected.append("graph")
                 reasons.append("relationship query")
             if _matches(lowered, _VISUAL_QUERY_PATTERN):
@@ -416,7 +419,31 @@ _VISUAL_QUERY_PATTERN = (
 
 
 def _matches(text: str, pattern: str) -> bool:
-    return bool(re.search(pattern, text, re.IGNORECASE))
+    return _word_pattern(pattern).search(text) is not None
+
+
+@lru_cache(maxsize=64)
+def _word_pattern(pattern: str) -> re.Pattern[str]:
+    """The pattern with each Latin alternative matched as a word, plural allowed.
+
+    The alternatives used to match anywhere, so `figure` claimed "how do I
+    configure...", `table` "stable" and "notable", `chart` "charter", `graph`
+    "paragraph" and "photograph" -- measured, each of those questions pulled in
+    the multimodal or graph source for nothing. A Chinese alternative keeps
+    matching as a substring: Chinese has no word boundaries to require.
+
+    Not `\\b`: in Python's Unicode mode a CJK character is a word character, so
+    `\\bchart\\b` would miss "这个chart" -- the mixed-script way questions here
+    are written.
+    """
+
+    alternatives = []
+    for alternative in pattern.split("|"):
+        if alternative.isascii():
+            alternatives.append(rf"(?<![a-z0-9])(?:{alternative})(?:e?s)?(?![a-z0-9])")
+        else:
+            alternatives.append(alternative)
+    return re.compile("|".join(alternatives), re.IGNORECASE)
 
 
 __all__ = ["KnowledgeAgentService", "StrategyDecider"]

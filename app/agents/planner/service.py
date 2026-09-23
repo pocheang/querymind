@@ -52,23 +52,21 @@ class PlannerAgentService:
         """Plan only when useful; simple requests never invoke the decomposer."""
 
         if not route.requires_plan:
-            return self._validated(_direct_plan(request.question, route))
+            return self._direct(request.question, route)
 
         comparison = _comparison_plan(request.question, route)
         if comparison is not None:
             try:
                 return self._validated(comparison)
             except PlanLimitError as exc:
-                return self._validated(
-                    _direct_plan(
-                        request.question,
-                        route,
-                        fallback_reason=f"comparison_fallback:{type(exc).__name__}",
-                    )
+                return self._direct(
+                    request.question,
+                    route,
+                    fallback_reason=f"comparison_fallback:{type(exc).__name__}",
                 )
 
         if self._decompose is None or not request.enable_decomposition:
-            return self._validated(_direct_plan(request.question, route))
+            return self._direct(request.question, route)
 
         try:
             decomposed = await self._decompose(request.question)
@@ -82,12 +80,34 @@ class PlannerAgentService:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            fallback = _direct_plan(
+            return self._direct(
                 request.question,
                 route,
                 fallback_reason=f"decomposer_fallback:{type(exc).__name__}",
             )
-            return self._validated(fallback)
+
+    def _direct(self, question: str, route: RouteDecision, *, fallback_reason: str | None = None) -> TaskPlan:
+        """The one-task plan, with its budgets clamped to the configured limits.
+
+        It is what every other path falls back to, so it must not be able to
+        fail the checks the others fall back from. It could: its retrieval
+        budget is 2-3 and its tool budget 1, while `PLANNER_MAX_RETRIEVAL_BUDGET`
+        accepts 1 and `PLANNER_MAX_TOOL_BUDGET` accepts 0 -- measured, either
+        value raised `PlanLimitError` out of `plan()`, and the planner stage
+        failed every question (or every tool question) with it. A limit an
+        operator set is an instruction to do less, so the plan does less.
+        """
+
+        plan = _direct_plan(question, route, fallback_reason=fallback_reason)
+        task = plan.tasks[0]
+        budget = task.budget.model_copy(
+            update={
+                "max_retrievals": min(task.budget.max_retrievals, self._limits.max_retrieval_budget),
+                "max_tool_calls": min(task.budget.max_tool_calls, self._limits.max_tool_budget),
+            }
+        )
+        clamped = plan.model_copy(update={"tasks": (task.model_copy(update={"budget": budget}),)})
+        return self._validated(clamped)
 
     def _validated(self, plan: TaskPlan) -> TaskPlan:
         tasks = plan.tasks

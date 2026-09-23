@@ -148,7 +148,7 @@ class VerifierAgentService:
                 citation_errors=citation_tuple,
                 conflicts=conflicts,
                 missing_aspects=missing_tuple,
-                retry_query=_retry_query(request.question, unsupported_tuple, citation_tuple, missing_tuple),
+                retry_query=_retry_query(request.question, candidate.text, unsupported_tuple),
             )
         if needs_retrieval:
             status = "rejected" if action == "regenerate" or unsupported_tuple or citation_tuple else "degraded"
@@ -176,7 +176,7 @@ class VerifierAgentService:
                 status="retry_retrieval",
                 conflicts=conflicts,
                 missing_aspects=missing,
-                retry_query=_retry_query(request.question, (), (), missing),
+                retry_query=_retry_query(request.question, "", ()),
             )
         return VerificationDecision(status="degraded", conflicts=conflicts, missing_aspects=missing)
 
@@ -219,21 +219,38 @@ def _conflicts(context: ContextBundle) -> tuple[str, ...]:
     return tuple(dict.fromkeys(notes))
 
 
-def _retry_query(
-    question: str,
-    unsupported: tuple[str, ...],
-    citation_errors: tuple[str, ...],
-    missing: tuple[str, ...],
-) -> str:
-    categories = []
-    if unsupported:
-        categories.append("unsupported claims")
-    if citation_errors:
-        categories.append("citation targets")
-    if missing:
-        categories.append("missing evidence")
-    focus = ", ".join(categories) or "verification gaps"
-    return f"{question}\nRetrieve additional primary evidence for: {focus}."[:1_000]
+# At most this many unsupported claims, each at most this long, join the question.
+_RETRY_CLAIMS = 3
+_RETRY_CLAIM_CHARS = 200
+
+
+def _retry_query(question: str, answer: str, unsupported: tuple[str, ...]) -> str:
+    """What the retry searches: the question, plus the claims that lacked support.
+
+    It used to append a fixed English sentence -- "Retrieve additional primary
+    evidence for: unsupported claims." -- and that string IS the search query:
+    the Knowledge Agent takes it as the retry's question. Measured on the tracked
+    evaluation set, all ten Chinese questions lost their gold document from the
+    top five (recall@5 1.0 -> 0.375), because the Latin text pushed each query
+    under the tokenizer's old CJK threshold, and BM25 matched "evidence" and
+    "primary" instead. A retry runs exactly when the first answer was weak, so it
+    made Chinese answers worse where it was meant to help.
+
+    A claim counts only if it appears verbatim in the answer. The validator's
+    issue `content` is mostly its own English diagnosis -- "3 sentences
+    contradicted", "Citation number 2 not in source" -- which is no better a
+    search term than the sentence it replaces; text lifted from the answer is in
+    the answer's language and names what the evidence failed to support. With no
+    such claim the retry searches the question as asked.
+    """
+
+    claims: list[str] = []
+    for claim in dict.fromkeys(item.strip() for item in unsupported):
+        if claim and answer and claim in answer:
+            claims.append(claim[:_RETRY_CLAIM_CHARS])
+        if len(claims) >= _RETRY_CLAIMS:
+            break
+    return "\n".join([question, *claims])[:1_000]
 
 
 __all__ = ["Validator", "VerifierAgentService"]

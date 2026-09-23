@@ -45,16 +45,22 @@ def tokenize_chinese_aware(text: str) -> list[str]:
 
     text_lower = text.lower()
 
-    # Try to use jieba for Chinese text segmentation
+    # Any CJK at all takes the segmenting path. It used to require more than 20%
+    # of the characters to be CJK, and below that the text was tokenized as
+    # English -- every Chinese character a single token, which matches nothing an
+    # index of words and bigrams holds. Measured: "Kubernetes \u7684 pod affinity
+    # \u600e\u4e48\u914d\u7f6e" (19%) and "PostgreSQL connection pool \u8d85\u65f6\u600e\u4e48\u529e" (17%) produced
+    # no Chinese word at all, and the verifier's retry, which appended an English
+    # sentence to the question, pushed all ten Chinese evaluation questions under
+    # the line and lost every one of their gold documents. A question naming a
+    # product in English is how this application's users write.
+    #
+    # Text with no CJK is untouched, and so is text that already crossed the old
+    # threshold; only mixed text below it changes.
     try:
         import jieba
 
-        # Detect if text contains significant Chinese content (>20% Chinese chars)
-        chinese_char_count = len([c for c in text if "\u4e00" <= c <= "\u9fff"])
-        total_chars = len([c for c in text if not c.isspace()])
-
-        if total_chars > 0 and chinese_char_count / total_chars > 0.2:
-            # Use jieba for Chinese text
+        if any("\u4e00" <= c <= "\u9fff" for c in text):
             tokens = [t.strip() for t in jieba.cut_for_search(text_lower) if t.strip() and len(t.strip()) > 1]
             # Plus character bigrams over every CJK run. See _cjk_bigrams.
             return list(dict.fromkeys(tokens + _cjk_bigrams(text_lower)))
