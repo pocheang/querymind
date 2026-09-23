@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from app.agents.synthesizer.skills import SKILL_QUERY_TYPES, SKILL_TEMPLATES
 from app.services.observability.log_safety import question_ref
 
 if TYPE_CHECKING:
@@ -137,8 +138,33 @@ class BaseSpecialistAgent(ABC):
         tool_text = "\n".join(result.summary for result in results if result.summary)
         finding = self.domain_findings(f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tool_text}")
         enriched = (*results, finding) if finding is not None else results
-        pipeline_skill = self.pipeline_skills.get(skill, self.fallback_pipeline_skill)
+        pipeline_skill = self.pipeline_skill_for(skill)
         return await self._synthesizer.synthesize_candidate(request, context, enriched, pipeline_skill)
+
+    def pipeline_skill_for(self, skill: str) -> str:
+        """The synthesis skill to answer with, given the one the router chose.
+
+        Three cases, in this order:
+
+        - one of this specialist's own skill names is translated through
+          `pipeline_skills`;
+        - a skill `skills.py` gives a shape of its own is passed through as it
+          came. The router chose it with an LLM that read the whole question,
+          and this used to replace every such choice with the fallback --
+          `incident_response_playbook` became `cyber_attack_analysis`, and a
+          comparison routed to the AI specialist lost `COMPARISON_TEMPLATE`, so
+          being routed to a specialist made the answer worse than not;
+        - anything else -- a general skill, an unknown one, none -- lands on the
+          fallback, which is what keeps a security question off the general
+          template.
+        """
+
+        name = (skill or "").strip().lower()
+        if name in self.pipeline_skills:
+            return self.pipeline_skills[name]
+        if name in SKILL_TEMPLATES or name in SKILL_QUERY_TYPES:
+            return name
+        return self.fallback_pipeline_skill
 
     def describe(self) -> dict[str, Any]:
         """Provide diagnostic metadata about this specialist agent."""

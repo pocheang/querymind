@@ -5,12 +5,18 @@ from __future__ import annotations
 import logging
 import re
 import threading
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
+
+from app.services.query.keyword_match import count_keywords
 
 if TYPE_CHECKING:
     from app.agents.base import BaseSpecialistAgent
 
 logger = logging.getLogger(__name__)
+
+#: What one matching intent pattern is worth, in keyword hits.
+PATTERN_WEIGHT = 3
 
 
 class DomainAgentRegistry:
@@ -25,21 +31,36 @@ class DomainAgentRegistry:
         self._agents: dict[str, BaseSpecialistAgent] = {}
         self._skill_map: dict[str, BaseSpecialistAgent] = {}
         self._lock = threading.Lock()
-        self._initialized = False
+        # Built-in agents not yet registered, by agent class. An entry leaves
+        # only when its agent is registered or its class is already taken, so a
+        # default that failed to build is retried rather than forgotten.
+        self._pending_defaults: dict[str, Callable[[], BaseSpecialistAgent]] = dict(_BUILTIN_AGENT_FACTORIES)
+        self._default_failures: dict[str, str] = {}
 
     def register_agent(self, agent: BaseSpecialistAgent) -> None:
-        """Register a new domain specialist agent."""
+        """Register a domain specialist agent, replacing any with the same class.
+
+        A registered agent always outranks a built-in default of the same class,
+        whichever happens first. Registering used to leave the defaults pending,
+        so the first lookup afterwards built the built-in and wrote it over the
+        extension's agent -- the one thing the registry exists to allow.
+        """
         with self._lock:
-            key = agent.agent_class.strip().lower()
-            self._agents[key] = agent
-            for skill in agent.supported_skills:
-                self._skill_map[skill.strip().lower()] = agent
+            self._register_locked(agent)
             logger.debug(
                 "Registered specialist agent '%s' (class=%s, skills=%s)",
                 agent.__class__.__name__,
-                key,
+                agent.agent_class.strip().lower(),
                 agent.supported_skills,
             )
+
+    def _register_locked(self, agent: BaseSpecialistAgent) -> None:
+        key = agent.agent_class.strip().lower()
+        self._agents[key] = agent
+        self._pending_defaults.pop(key, None)
+        self._default_failures.pop(key, None)
+        for skill in agent.supported_skills:
+            self._skill_map[skill.strip().lower()] = agent
 
     def get_agent(self, agent_class: str) -> BaseSpecialistAgent | None:
         """Retrieve a specialist agent by its canonical agent_class."""
@@ -61,24 +82,19 @@ class DomainAgentRegistry:
 
         self._ensure_defaults()
         with self._lock:
-            # 1. Regex pattern check (highest precedence)
-            for agent in self._agents.values():
-                for pat in agent.intent_patterns:
-                    if re.search(pat, text, re.IGNORECASE):
-                        return agent.agent_class
-
-            # 2. Keyword frequency match
+            # One score per agent: each keyword it finds, as a word rather than
+            # a substring (see keyword_match), plus PATTERN_WEIGHT for each of its
+            # patterns. A pattern hit used to return on the spot, ahead of every
+            # keyword, so one generic word decided the whole question.
             best_agent: str | None = None
             best_score = 0
             for agent in self._agents.values():
-                score = sum(1 for kw in agent.intent_keywords if kw.lower() in text)
+                score = count_keywords(text, agent.intent_keywords)
+                score += PATTERN_WEIGHT * sum(1 for pat in agent.intent_patterns if re.search(pat, text, re.IGNORECASE))
                 if score > best_score:
                     best_score = score
                     best_agent = agent.agent_class
-
-            if best_score > 0 and best_agent is not None:
-                return best_agent
-            return None
+            return best_agent
 
     def pick_skill_for_agent(self, agent_class: str, question: str) -> str | None:
         """Ask the corresponding specialist agent to pick the most appropriate skill."""
@@ -120,35 +136,62 @@ class DomainAgentRegistry:
                 "total_agents": len(self._agents),
                 "agent_classes": sorted(self._agents.keys()),
                 "agents": {k: a.describe() for k, a in self._agents.items()},
+                # A built-in that could not be built is reported, not hidden:
+                # without this an unavailable specialist reads exactly like one
+                # that was never shipped.
+                "unavailable_defaults": dict(sorted(self._default_failures.items())),
             }
 
     def _ensure_defaults(self) -> None:
-        """Lazily initialize core built-in specialist agents if registry is empty."""
-        if self._initialized:
+        """Build any built-in specialist not yet registered, one at a time.
+
+        Each default is built on its own. They were built together inside one
+        `try`, so one failure registered neither; the registry was then marked
+        initialized anyway, never retried, and every domain route became
+        `general` for the life of the process behind a single warning. Now a
+        failed default stays pending and is retried on the next lookup, its
+        first failure is logged with the traceback, and `describe` names it.
+        """
+
+        if not self._pending_defaults:
             return
         with self._lock:
-            if self._initialized:
-                return
-            try:
-                from app.agents.ai.service import AIAgentService
-                from app.agents.cybersecurity.service import CybersecurityAgentService
+            # Built first, registered after: registering removes the entry from
+            # `_pending_defaults`, so doing it inside the loop would change the
+            # dict being iterated.
+            built: list[BaseSpecialistAgent] = []
+            for agent_class, factory in self._pending_defaults.items():
+                try:
+                    built.append(factory())
+                except Exception as err:  # an agent module may raise anything on import
+                    first = agent_class not in self._default_failures
+                    self._default_failures[agent_class] = f"{type(err).__name__}: {err}"
+                    if first:
+                        logger.exception("Built-in specialist '%s' could not be built", agent_class)
+                    else:
+                        logger.debug("Built-in specialist '%s' still unavailable: %s", agent_class, err)
+            for agent in built:
+                self._register_locked(agent)
 
-                cyber_agent = CybersecurityAgentService()
-                ai_agent = AIAgentService()
 
-                self._agents[cyber_agent.agent_class.strip().lower()] = cyber_agent
-                for s in cyber_agent.supported_skills:
-                    self._skill_map[s.strip().lower()] = cyber_agent
+def _build_cybersecurity_agent() -> BaseSpecialistAgent:
+    from app.agents.cybersecurity.service import CybersecurityAgentService
 
-                self._agents[ai_agent.agent_class.strip().lower()] = ai_agent
-                for s in ai_agent.supported_skills:
-                    self._skill_map[s.strip().lower()] = ai_agent
+    return CybersecurityAgentService()
 
-                self._initialized = True
-            except Exception as err:
-                logger.warning("Failed to auto-register built-in domain agents: %s", err)
-                self._initialized = True
 
+def _build_ai_agent() -> BaseSpecialistAgent:
+    from app.agents.ai.service import AIAgentService
+
+    return AIAgentService()
+
+
+#: Keyed by the agent class each factory builds, so a class an extension has
+#: already registered is skipped without building the built-in at all.
+_BUILTIN_AGENT_FACTORIES: dict[str, Callable[[], BaseSpecialistAgent]] = {
+    "cybersecurity": _build_cybersecurity_agent,
+    "artificial_intelligence": _build_ai_agent,
+}
 
 _REGISTRY_LOCK = threading.Lock()
 _GLOBAL_AGENT_REGISTRY: DomainAgentRegistry | None = None

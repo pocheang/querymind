@@ -31,7 +31,7 @@ from app.agents.shared.config import (
 from app.core.config import get_settings
 from app.domain.text import normalize_string
 from app.prompts import build_router_prompt
-from app.services.agent_classifier import classify_agent_class, pick_cyber_skill
+from app.services.agent_classifier import classify_agent_class
 from app.services.llm_intent_classifier import classify_intent_with_llm
 from app.services.models.runtime import get_chat_model, get_reasoning_model
 from app.services.query.intent import is_smalltalk_query
@@ -289,13 +289,12 @@ def _classify(question: str, forced: str | None, use_llm_intent: bool) -> tuple[
     if forced:
         return forced, 1.0, "forced"
 
-    # Prioritize registered domain agents if intent matches
-    registry = _domain_registry()
-    if registry is not None:
-        matched = registry.match_agent_class(question)
-        if matched and matched != "general":
-            return matched, 0.95, "domain_registry_match"
-
+    # The domain registry's keyword match is NOT consulted here, and must not be
+    # put back ahead of the LLM. It used to be, returning at 0.95 confidence, so
+    # the LLM classifier ran only when no keyword hit -- and a keyword hit was
+    # `"ai" in "email"`. The registry still decides whenever a rule decides:
+    # `classify_agent_class` and the LLM classifier's own fallback both consult
+    # it first, which on the offline `local` backend is every question.
     if not use_llm_intent:
         return classify_agent_class(question), 0.5, "rule_based"
     try:
@@ -321,8 +320,6 @@ def _skill_for(agent_class: str, question: str) -> str:
         if specialist_skill:
             return specialist_skill
 
-    if agent_class == "cybersecurity":
-        return pick_cyber_skill(question)
     if agent_class == "pdf_text":
         return "pdf_text_reader"
     lowered = question.lower()

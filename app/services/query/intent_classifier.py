@@ -6,6 +6,7 @@ import re
 
 from app.services.models.runtime import get_chat_model
 from app.services.observability.log_safety import question_ref
+from app.services.query.keyword_match import any_keyword
 
 logger = logging.getLogger(__name__)
 
@@ -242,21 +243,21 @@ def _fallback_classification(question: str) -> dict:
     ]
     pdf_keywords = ["pdf", "文档", "document", "阅读", "read", "分析", "analyze"]
 
-    if any(keyword in q_lower for keyword in security_keywords):
+    if any_keyword(q_lower, security_keywords):
         return {
             "agent_class": "cybersecurity",
             "confidence": 0.7,
             "reason": "Matched security keywords (fallback)",
             "method": "fallback",
         }
-    if any(keyword in q_lower for keyword in ai_keywords):
+    if any_keyword(q_lower, ai_keywords):
         return {
             "agent_class": "artificial_intelligence",
             "confidence": 0.7,
             "reason": "Matched AI keywords (fallback)",
             "method": "fallback",
         }
-    if any(keyword in q_lower for keyword in pdf_keywords):
+    if any_keyword(q_lower, pdf_keywords):
         return {
             "agent_class": "pdf_text",
             "confidence": 0.6,
