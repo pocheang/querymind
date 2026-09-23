@@ -20,56 +20,24 @@ from app.agents.router import routing
 from app.agents.router.service import RouterAgentService
 from app.api.routes.public import query as advanced_rag
 from app.orchestration.request import OrchestrationRequest, RequestScope
-from app.pipeline.contracts import PipelineRequest, PipelineResult, PipelineRoute
 
 
-class _CapturingPipeline:
-    captured: PipelineRequest | None = None
-
-    async def execute(self, request: PipelineRequest) -> PipelineResult:
-        _CapturingPipeline.captured = request
-        return PipelineResult(
-            answer="stub",
-            route=PipelineRoute(route="vector", reason="stub"),
-            execution_metadata={"validation": {"state": "validated"}},
-        )
-
-
-class _Request:
-    client = None
-    headers: dict[str, str] = {}
-    url = type("U", (), {"path": "/api/advanced-rag/query"})()
-
-
-@pytest.fixture(autouse=True)
-def _stub_query_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(advanced_rag, "_require_permission", lambda *a, **k: None)
-    monkeypatch.setattr(advanced_rag, "_resolve_advanced_allowed_sources", lambda user, req: ["corpus"])
-    monkeypatch.setattr(advanced_rag, "_build_memory_context_for_session", lambda *a, **k: "")
-    monkeypatch.setattr(advanced_rag, "RAGPipeline", _CapturingPipeline)
-    _CapturingPipeline.captured = None
-
-
-def _user() -> dict[str, Any]:
-    return {"user_id": "u1", "username": "u1", "role": "user", "permissions": []}
-
-
-def _run(request: advanced_rag.AdvancedRAGRequest) -> PipelineRequest:
-    asyncio.run(advanced_rag._process_advanced_rag_query_impl(request, _Request(), _user()))
-    assert _CapturingPipeline.captured is not None
-    return _CapturingPipeline.captured
-
-
-def test_the_hint_reaches_the_pipeline_request():
-    captured = _run(advanced_rag.AdvancedRAGRequest(query="怎么加固暴露的服务", agent_class_hint="cybersecurity"))
+@pytest.mark.asyncio
+async def test_the_hint_reaches_the_pipeline_request(submit_query):
+    captured = await submit_query(
+        advanced_rag.AdvancedRAGRequest(query="怎么加固暴露的服务", agent_class_hint="cybersecurity")
+    )
 
     assert captured.source_scope.agent_class_hint == "cybersecurity"
     # And the scope it rides on is still the resolver's, not widened by it.
     assert captured.source_scope.allowed_sources == frozenset({"corpus"})
 
 
-def test_no_hint_means_automatic_routing():
-    assert _run(advanced_rag.AdvancedRAGRequest(query="q")).source_scope.agent_class_hint is None
+@pytest.mark.asyncio
+async def test_no_hint_means_automatic_routing(submit_query):
+    captured = await submit_query(advanced_rag.AdvancedRAGRequest(query="q"))
+
+    assert captured.source_scope.agent_class_hint is None
 
 
 @pytest.mark.parametrize("value", ["cyber security", "../admin", "x" * 65, "1abc"])
