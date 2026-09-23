@@ -55,7 +55,7 @@ async def test_it_delegates_generation_rather_than_writing_the_answer_itself() -
     )
     context = ContextBundle(evidence=())
 
-    candidate = await agent.synthesize_candidate(req, context, (), "compute_estimation")
+    candidate = await agent.synthesize_candidate(req, context, (), "ai_deep_dive")
 
     assert candidate.text == "generated [E1]"
     assert recorder.seen["request"] is req

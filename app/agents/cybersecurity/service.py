@@ -13,22 +13,24 @@ import re
 
 from app.agents.base import BaseSpecialistAgent
 from app.domain.contracts import ToolResult
+from app.services.query.keyword_match import any_keyword
 from app.tools.category import ToolCategory
 
-CYBERSECURITY_SYSTEM_PROMPT = """You are an Enterprise Cybersecurity & Threat Intelligence Specialist Agent.
-Your role is to analyze security incidents, vulnerabilities (CVEs), indicators of compromise (IoCs), and defensive hardening strategies.
+# There is no domain system prompt here. One was written and exported and nothing
+# ever read it -- generation goes through `SynthesizerAgentService`, whose skill
+# templates are where answer guidance lives -- so it was deleted rather than
+# wired in: a second instruction block would compete with the template.
 
-Guidelines:
-1. Align analysis with MITRE ATT&CK taxonomy and OWASP GenAI / AppSec standards.
-2. Formulate attack chains chronologically: 初始访问 (Initial Access) -> 提权与执行 (Privilege Escalation & Execution) -> 横向移动 (Lateral Movement) -> 影响与危害 (Impact).
-3. Every causal claim, CVE severity, and mitigation control MUST cite supporting evidence using internal [E{k}] markers.
-4. If evidence is missing or ambiguous, state "材料未指明" or "材料未涵盖" explicitly without hallucinating indicators or actors.
-5. Emphasize actionable containment (抑制), eradication (根除), and operational remediation (加固) steps.
-"""
-
-_IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+# An octet is 0-255, and an address is not the middle of a longer dotted run:
+# `\d{1,3}` accepted 999.1.1.1, and `\b` let a version string such as 1.2.3.4.5
+# contribute its first four parts. The lookahead refuses a further `.digit`
+# rather than any `.`, so an address that ends a sentence is still found.
+_OCTET = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
+_IP_RE = re.compile(rf"(?<![\d.]){_OCTET}(?:\.{_OCTET}){{3}}(?!\.?\d)")
 _CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,7}\b", re.IGNORECASE)
-_HASH_RE = re.compile(r"\b[a-fA-F0-9]{32,64}\b")
+# MD5, SHA-1 and SHA-256 are 32, 40 and 64 hex characters. `{32,64}` also took
+# every length in between, which no digest has.
+_HASH_RE = re.compile(r"\b(?:[a-f0-9]{64}|[a-f0-9]{40}|[a-f0-9]{32})\b", re.IGNORECASE)
 
 
 def extract_security_indicators(text: str) -> dict[str, list[str]]:
@@ -57,6 +59,10 @@ PIPELINE_SKILLS: dict[str, str] = {
 }
 
 INDICATORS_TOOL_ID = "querymind_cyber_indicator_extract"
+
+
+_RESPONSE_KEYWORDS = ("应急", "处置", "隔离", "溯源", "恢复", "止损", "playbook", "incident response")
+_ASSESSMENT_KEYWORDS = ("cve", "补丁", "修复", "版本", "影响范围", "受影响", "patch", "affected")
 
 
 def indicator_tool_result(iocs: dict[str, list[str]]) -> ToolResult | None:
@@ -117,6 +123,14 @@ class CybersecurityAgentService(BaseSpecialistAgent):
             "勒索",
             "cve",
             "sql注入",
+            # Prompt injection is an attack on the application, not a question
+            # about models. Named in full: a bare "注入" would also claim
+            # "依赖注入", which is a software-design question.
+            "提示词注入",
+            "prompt注入",
+            "prompt 注入",
+            "prompt injection",
+            "注入攻击",
             "xss",
             "横向移动",
             "权限提升",
@@ -139,12 +153,24 @@ class CybersecurityAgentService(BaseSpecialistAgent):
         )
 
     def pick_skill(self, question: str) -> str:
-        text = (question or "").lower()
-        if any(k in text for k in ["攻击", "漏洞", "横向移动", "权限提升", "c2", "注入", "exploit", "cve"]):
-            return "cyber_attack_analysis"
-        if any(k in text for k in ["应急", "处置", "隔离", "溯源", "恢复", "playbook"]):
+        """Response first, then assessment; attack analysis otherwise.
+
+        The order is the point. "漏洞"/"cve" used to be tested first, so every
+        question naming a CVE became attack analysis -- including
+        "CVE-2021-44228 漏洞应急处置步骤", which asks for a playbook -- and
+        `cve_vulnerability_assessment` could only be reached by a question that
+        named no CVE at all. A question that asks how to respond wants the
+        response; the CVE is its subject, not its shape.
+
+        Attack wording needs no branch of its own: attack analysis is also the
+        fallback, so testing for it would return what not testing returns.
+        """
+
+        if any_keyword(question, _RESPONSE_KEYWORDS):
             return "cybersecurity_incident_response"
-        return "cve_vulnerability_assessment"
+        if any_keyword(question, _ASSESSMENT_KEYWORDS):
+            return "cve_vulnerability_assessment"
+        return "cyber_attack_analysis"
 
     # The three things that are actually this specialist's. Everything else --
     # delegation, logging, the extraction-as-tool-finding splice, the skill
@@ -157,7 +183,6 @@ class CybersecurityAgentService(BaseSpecialistAgent):
 
 
 __all__ = [
-    "CYBERSECURITY_SYSTEM_PROMPT",
     "CybersecurityAgentService",
     "PIPELINE_SKILLS",
     "extract_security_indicators",

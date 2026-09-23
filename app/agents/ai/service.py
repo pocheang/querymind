@@ -14,15 +14,10 @@ from app.agents.base import BaseSpecialistAgent
 from app.domain.contracts import ToolResult
 from app.tools.category import ToolCategory
 
-AI_SPECIALIST_SYSTEM_PROMPT = """You are an AI & Machine Learning Research / Engineering Specialist Agent.
-Your role is to analyze model architectures, training algorithms, compute budgets, and mathematical formulas.
-
-Guidelines:
-1. Provide precise technical insights into Transformer attention, optimization, and scaling laws.
-2. Ground all claims in provided documentation or evidence using [E{k}] citation markers.
-3. When mathematical or FLOPs calculations are present, explain the formula steps clearly.
-4. Clearly contrast trade-offs (e.g. latency vs. throughput, dense vs. MoE, FP16 vs. INT4 quantization).
-"""
+# There is no domain system prompt here. One was written and exported and nothing
+# ever read it -- generation goes through `SynthesizerAgentService`, whose skill
+# templates are where answer guidance lives -- so it was deleted rather than
+# wired in: a second instruction block would compete with the template.
 
 _PARAM_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*([bm])(?:\s*param(?:eter)?s?)?\b", re.IGNORECASE)
 _PRECISION_RE = re.compile(r"\b(FP16|FP32|FP8|BF16|INT8|INT4|NF4)\b", re.IGNORECASE)
@@ -46,15 +41,14 @@ def extract_ai_specifications(text: str) -> dict[str, list[str]]:
     }
 
 
-# None of this agent's skills names a shape `skills.py` describes, so they all
-# map onto the general-purpose skill and the question stays the best signal --
-# which is exactly what that module says to do for a skill that states no shape.
-# An AI-specific answer template is a separate, authorable change; inventing one
-# here would put a second answer shape in front of the model.
+# One skill, because there is one answer shape. There used to be four --
+# compute_estimation, model_scaling_analysis, llm_architecture_reasoning,
+# ai_deep_dive -- chosen by substring tests (`"layer"` matched "multiplayer",
+# `"mb"` matched almost anything), and all four mapped onto the same
+# `ai_knowledge_assistant`, so the choice changed a label and nothing else.
+# An AI-specific answer template would be a separate, authorable change; until
+# one exists a second skill name is a distinction the answer does not make.
 PIPELINE_SKILLS: dict[str, str] = {
-    "compute_estimation": "ai_knowledge_assistant",
-    "model_scaling_analysis": "ai_knowledge_assistant",
-    "llm_architecture_reasoning": "ai_knowledge_assistant",
     "ai_deep_dive": "ai_knowledge_assistant",
 }
 
@@ -90,12 +84,7 @@ class AIAgentService(BaseSpecialistAgent):
 
     @property
     def supported_skills(self) -> tuple[str, ...]:
-        return (
-            "ai_deep_dive",
-            "llm_architecture_reasoning",
-            "model_scaling_analysis",
-            "compute_estimation",
-        )
+        return ("ai_deep_dive",)
 
     @property
     def default_tool_category(self) -> ToolCategory:
@@ -123,24 +112,12 @@ class AIAgentService(BaseSpecialistAgent):
             "qlora",
         )
 
-    @property
-    def intent_patterns(self) -> tuple[str, ...]:
-        return (
-            r"\bflops\b",
-            r"\bkv\s*cache\b",
-            r"\btransformer\b",
-            r"\bllm\b",
-        )
-
-    def pick_skill(self, question: str) -> str:
-        text = (question or "").lower()
-        if any(k in text for k in ["flops", "显存", "算力", "计算", "kv cache", "mb", "gb"]):
-            return "compute_estimation"
-        if any(k in text for k in ["架构", "attention", "transformer", "moe", "rope", "layer"]):
-            return "llm_architecture_reasoning"
-        if any(k in text for k in ["参数", "scaling", "缩放律", "chinchilla"]):
-            return "model_scaling_analysis"
-        return "ai_deep_dive"
+    # No `intent_patterns`. There were four -- `\bflops\b`, `\bkv\s*cache\b`,
+    # `\btransformer\b`, `\bllm\b` -- each the same word as a keyword above,
+    # there only to add the word boundary keyword matching lacked. Keywords are
+    # matched as words now, and a pattern is worth PATTERN_WEIGHT keyword hits,
+    # so each of these made one word count four times: "LLM 遭遇 prompt 注入攻击怎么
+    # 防护" scored 5 here against 2 for the security specialist.
 
     # The three things that are actually this specialist's. Everything else --
     # delegation, logging, the extraction-as-tool-finding splice, the skill
@@ -152,4 +129,4 @@ class AIAgentService(BaseSpecialistAgent):
         return specification_tool_result(extract_ai_specifications(text))
 
 
-__all__ = ["AIAgentService", "AI_SPECIALIST_SYSTEM_PROMPT", "extract_ai_specifications"]
+__all__ = ["PIPELINE_SKILLS", "AIAgentService", "extract_ai_specifications"]

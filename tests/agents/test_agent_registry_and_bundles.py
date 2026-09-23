@@ -107,7 +107,7 @@ def test_agent_skill_lookup():
     assert cyber is not None
     assert cyber.agent_class == "cybersecurity"
 
-    ai = reg.get_agent_for_skill("compute_estimation")
+    ai = reg.get_agent_for_skill("ai_deep_dive")
     assert ai is not None
     assert ai.agent_class == "artificial_intelligence"
 
