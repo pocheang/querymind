@@ -6,7 +6,7 @@ import hashlib
 import logging
 import re
 
-__all__ = ["install_control_character_escaping", "key_ref", "question_ref"]
+__all__ = ["install_control_character_escaping", "install_http_url_redaction", "key_ref", "question_ref"]
 
 
 def _ref(prefix: str, text: str) -> str:
@@ -104,6 +104,66 @@ def install_control_character_escaping() -> None:
 
     logging.setLogRecordFactory(factory)
     _INSTALLED = True
+
+
+# The HTTP clients the web search reaches the network through. Their records
+# are scrubbed; the application's own are covered by `question_ref` and the AST
+# guard over its logger calls, which cannot see inside a third-party library.
+_HTTP_CLIENT_LOGGERS = ("httpx", "httpcore", "ddgs", "primp")
+
+# The query string of a URL, up to the first character that ends a URL in
+# prose or in a repr. Negated classes, no nested quantifiers: linear.
+_URL_QUERY = re.compile(r"(https?://[^\s'\"()<>?]+)\?[^\s'\"()<>]*")
+
+_URL_REDACTION_INSTALLED = False
+
+
+def _without_url_queries(text: str) -> str:
+    return _URL_QUERY.sub(r"\1?<query redacted>", text)
+
+
+def install_http_url_redaction() -> None:
+    """Keep outgoing request query strings out of HTTP client libraries' log lines.
+
+    Web search sends the user's question as a URL parameter, and two libraries
+    log that URL themselves, neither through code this repository can change:
+
+    - httpx logs every request at INFO, `HTTP Request: GET <url> "HTTP/1.1 200 OK"`
+      -- the question, on every Bing or SearXNG search, successful or not;
+    - ddgs logs each failing engine at INFO as the exception's repr, and primp's
+      error text is `error sending request for url (<url>)` -- measured, seven
+      lines carrying the question for one DuckDuckGo search that failed.
+
+    Both are invisible at startup, where the root logger sits at WARNING, and
+    appear the moment an administrator sets INFO from the console (which "reset
+    log levels" also does), into the buffer every administrator can read.
+
+    A LogRecord factory rather than a level or a logger filter: the console's
+    reset returns every logger to inheriting the root, which undoes a pinned
+    level, and a filter on `ddgs` never sees a record logged on `ddgs.ddgs`,
+    because logger filters do not apply to records propagated from children.
+    The factory runs for every record at creation, whatever its logger's name.
+    Idempotent, and it chains to whatever factory was installed before it.
+    """
+
+    global _URL_REDACTION_INSTALLED
+    if _URL_REDACTION_INSTALLED:
+        return
+
+    previous = logging.getLogRecordFactory()
+
+    def factory(*args, **kwargs):
+        record = previous(*args, **kwargs)
+        if record.name.split(".", 1)[0] in _HTTP_CLIENT_LOGGERS:
+            try:
+                message = record.getMessage()
+            except (TypeError, ValueError):  # malformed args: leave the record as it came
+                return record
+            record.msg, record.args = _without_url_queries(message), None
+        return record
+
+    logging.setLogRecordFactory(factory)
+    _URL_REDACTION_INSTALLED = True
 
 
 def _escaped_record_args(args: dict | tuple) -> dict | tuple:

@@ -47,7 +47,11 @@ def _gelu(x: float) -> float:
 
 
 def _param_gb(params: float, bits: float = 16.0) -> float:
-    """Calculate raw model weights size in gigabytes (GB)."""
+    """Raw model weight size in GiB (1024**3 bytes).
+
+    The name says GB and is kept, because it is the name a model writes in an
+    expression; the unit is binary, as memory is reported.
+    """
     return (params * bits) / (8.0 * (1024.0**3))
 
 
@@ -59,7 +63,7 @@ def _kv_cache_mb(
     batch_size: float = 1.0,
     bytes_per_elem: float = 2.0,
 ) -> float:
-    """Calculate Transformer KV cache memory in Megabytes (MB).
+    """Transformer KV cache memory in MiB (1024**2 bytes); the name says MB, as above.
 
     Formula: 2 (K and V) * layers * kv_heads * head_dim * seq_len * batch_size * bytes_per_elem / (1024^2)
     """
@@ -105,7 +109,9 @@ _SAFE_CONSTANTS = {
 
 
 def _eval_constant(node: ast.Constant) -> Any:
-    if isinstance(node.value, int | float | bool):
+    # `bool` is refused although it is an `int`: `True + True` evaluated to 2,
+    # which no formula asking this tool for a number means.
+    if isinstance(node.value, int | float) and not isinstance(node.value, bool):
         return node.value
     raise ValueError(f"Unsupported constant type: {type(node.value)}")
 
@@ -135,10 +141,22 @@ def _eval_bin_op(node: ast.BinOp) -> Any:
 
 
 def _eval_call(node: ast.Call) -> Any:
+    """Call an allow-listed function with its positional AND keyword arguments.
+
+    Keywords used to be dropped without a word: `kv_cache_mb(32, 8, 128, 4096,
+    batch_size=4)` returned 512 where the positional form returns 2048, and
+    `round(3.14159, ndigits=2)` returned 3 -- a wrong number reported as
+    `succeeded`, from the functions that exist for exactly this arithmetic.
+    `**mapping` has no key to check, so it is refused rather than guessed at.
+    """
+
     if isinstance(node.func, ast.Name) and node.func.id in _SAFE_MATH_FUNCS:
         func = _SAFE_MATH_FUNCS[node.func.id]
+        if any(keyword.arg is None for keyword in node.keywords):
+            raise ValueError("Keyword unpacking (**) is not supported")
         args = [_safe_eval_node(arg) for arg in node.args]
-        return func(*args)
+        kwargs = {keyword.arg: _safe_eval_node(keyword.value) for keyword in node.keywords}
+        return func(*args, **kwargs)
     raise ValueError(f"Unsupported function call: {ast.dump(node)}")
 
 
@@ -178,7 +196,11 @@ AI_MATH_TOOL_DEFINITION = ToolDefinition(
     operation="read",
     risk="read_only",
     category="artificial_intelligence",
-    description="Safely compute mathematical formulas, FLOPs estimates (e.g. 6 * 7e9 * 1e12), memory footprints, or algorithm complexities via AST sandboxed execution.",
+    description=(
+        "Safely compute mathematical formulas, FLOPs estimates (e.g. 6 * 7e9 * 1e12), memory footprints, "
+        "or algorithm complexities via AST sandboxed execution. param_gb() returns GiB (1024**3 bytes) and "
+        "kv_cache_mb() returns MiB (1024**2 bytes) -- binary units, despite the names."
+    ),
     parameters=(
         ToolParameter(
             name="expression",

@@ -9,7 +9,7 @@ from ddgs import DDGS
 
 from app.core.config import Settings, get_settings
 from app.services.observability.log_safety import question_ref
-from app.tools.web.base import BaseSearchProvider
+from app.tools.web.base import BaseSearchProvider, WebSearchError, describe_search_error
 
 logger = logging.getLogger(__name__)
 
@@ -79,13 +79,16 @@ class DuckDuckGoSearchProvider(BaseSearchProvider):
                     attempt + 1,
                     max_retries + 1,
                     question_ref(query),
-                    str(exc),
+                    describe_search_error(exc),
                 )
                 if attempt < max_retries:
                     time.sleep(0.5 * (attempt + 1))
 
         if last_err:
-            logger.error("DuckDuckGo search completely failed for %s: %s", question_ref(query), str(last_err))
-            raise last_err
+            logger.error(
+                "DuckDuckGo search completely failed for %s: %s", question_ref(query), describe_search_error(last_err)
+            )
+            # `from None`: the chained client exception would print its URL -- the question -- in any traceback.
+            raise WebSearchError(f"{self.name} search failed: {describe_search_error(last_err)}") from None
 
         return results
