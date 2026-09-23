@@ -42,7 +42,10 @@ async def test_cve_lookup_case_insensitive_and_whitespace(actor: RequestActor) -
 
 @pytest.mark.asyncio
 async def test_cve_lookup_by_alias(actor: RequestActor) -> None:
-    for alias in ["spring4shell", "xz", "moveit", "runc", "eternalblue", "struts2", "zerologon"]:
+    # Nicknames that name one vulnerability. Product names ("xz", "runc",
+    # "struts2", "moveit") used to be here and now deliberately do not resolve
+    # to one CVE -- see tests/tools/test_tool_layer_correctness.py.
+    for alias in ["spring4shell", "xz backdoor", "s2-045", "eternalblue", "zerologon"]:
         call = ToolCall(
             tool_id=CVE_TOOL_DEFINITION.tool_id,
             arguments=(ToolArgument(name="cve_id", value=alias),),

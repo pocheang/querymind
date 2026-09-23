@@ -26,22 +26,38 @@ class DomainToolRegistry:
 
     def __init__(self) -> None:
         self._providers: dict[ToolCategory, list[BaseToolProvider]] = {cat: [] for cat in ToolCategory}
+        # Registration order across categories, built-ins first. It decides which
+        # provider owns a tool id two of them declare -- see `register_all_into`.
+        self._ordered: list[BaseToolProvider] = []
         self._lock = threading.Lock()
         self._initialized = False
+        self._exported = False
 
     def register_provider(self, provider: BaseToolProvider) -> None:
-        """Register a new domain tool provider."""
+        """Register a domain tool provider; a later one overrides a tool id an earlier one declared.
+
+        Registration only reaches the MCP registry through `register_all_into`,
+        which runs once, when the governed tool stack is first built. A provider
+        registered after that is logged rather than silently absent: it reaches
+        the running stack only if the stack is rebuilt.
+        """
         with self._lock:
             cat_list = self._providers.setdefault(provider.category, [])
-            # Avoid duplicate registrations
-            if not any(p.__class__ == provider.__class__ for p in cat_list):
-                cat_list.append(provider)
-                logger.debug(
-                    "Registered tool provider '%s' under category '%s' (%d tools)",
+            if any(p.__class__ == provider.__class__ for p in cat_list):
+                return
+            cat_list.append(provider)
+            self._ordered.append(provider)
+            if self._exported:
+                logger.warning(
+                    "Tool provider '%s' registered after the tool stack was built; it is not in the running stack",
                     provider.__class__.__name__,
-                    provider.category.value,
-                    len(provider.tool_definitions),
                 )
+            logger.debug(
+                "Registered tool provider '%s' under category '%s' (%d tools)",
+                provider.__class__.__name__,
+                provider.category.value,
+                len(provider.tool_definitions),
+            )
 
     def get_providers(self, category: ToolCategory | str | None = None) -> tuple[BaseToolProvider, ...]:
         """Retrieve all providers, optionally filtered by ToolCategory."""
@@ -73,13 +89,38 @@ class DomainToolRegistry:
         return tuple(tools)
 
     def register_all_into(self, mcp_registry: ToolRegistry) -> None:
-        """Register all tools from all providers into an MCP ToolRegistry instance."""
-        providers = self.get_providers()
+        """Register every tool into an MCP ToolRegistry, each tool id exactly once.
+
+        When two providers declare one tool id, the later-registered provider
+        owns it -- which is what lets an extension replace a built-in, say the
+        curated offline CVE table with a live feed. The MCP registry refuses a
+        duplicate id with `ValueError`, and this used to hand it both: building
+        the governed tool stack then raised on every call, taking the connector
+        and approval tools down with the one that collided.
+        """
+        self._ensure_defaults()
+        with self._lock:
+            ordered = list(self._ordered)
+            self._exported = True
+        owners: dict[str, tuple[ToolDefinition, BaseToolProvider]] = {}
+        for provider in ordered:
+            for definition in provider.tool_definitions:
+                previous = owners.get(definition.tool_id)
+                if previous is not None:
+                    logger.warning(
+                        "Tool '%s' from '%s' is overridden by '%s'",
+                        definition.tool_id,
+                        previous[1].__class__.__name__,
+                        provider.__class__.__name__,
+                    )
+                owners[definition.tool_id] = (definition, provider)
         count = 0
-        for provider in providers:
-            provider.register_into(mcp_registry)
-            count += len(provider.tool_definitions)
-        logger.info("Successfully registered %d domain specialist tools into MCP ToolRegistry", count)
+        for tool_id, (definition, provider) in owners.items():
+            executor = provider.get_executor(tool_id)
+            if executor is not None:
+                mcp_registry.register(definition, executor)
+                count += 1
+        logger.info("Registered %d domain specialist tools into MCP ToolRegistry", count)
 
     def describe(self) -> dict[str, Any]:
         """Provide detailed diagnostic metadata about all registered providers."""
@@ -96,12 +137,20 @@ class DomainToolRegistry:
         with self._lock:
             if self._initialized:
                 return
-            # Register built-in domain providers
+            # Register built-in domain providers. They go FIRST in registration
+            # order whenever they are added, so a provider an extension
+            # registered earlier still overrides them, and one of the same class
+            # is not added twice.
             from app.tools.ai.provider import AIToolProvider
             from app.tools.cyber.provider import CybersecurityToolProvider
 
-            self._providers[ToolCategory.CYBERSECURITY].append(CybersecurityToolProvider())
-            self._providers[ToolCategory.ARTIFICIAL_INTELLIGENCE].append(AIToolProvider())
+            defaults: list[BaseToolProvider] = []
+            for provider in (CybersecurityToolProvider(), AIToolProvider()):
+                cat_list = self._providers.setdefault(provider.category, [])
+                if not any(p.__class__ == provider.__class__ for p in cat_list):
+                    cat_list.insert(0, provider)
+                    defaults.append(provider)
+            self._ordered[:0] = defaults
             self._initialized = True
 
 

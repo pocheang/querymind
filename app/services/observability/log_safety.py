@@ -6,7 +6,7 @@ import hashlib
 import logging
 import re
 
-__all__ = ["install_control_character_escaping", "key_ref", "question_ref"]
+__all__ = ["install_control_character_escaping", "install_http_url_redaction", "key_ref", "question_ref"]
 
 
 def _ref(prefix: str, text: str) -> str:
@@ -104,6 +104,45 @@ def install_control_character_escaping() -> None:
 
     logging.setLogRecordFactory(factory)
     _INSTALLED = True
+
+
+class _StripUrlQuery(logging.Filter):
+    """Drop the query string from any URL an HTTP client logs."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple) and record.args:
+            record.args = tuple(_without_query(arg) for arg in record.args)
+        return True
+
+
+def _without_query(arg: object) -> object:
+    text = str(arg) if hasattr(arg, "query") or isinstance(arg, str) else None
+    if text is None or "?" not in text or not text.startswith(("http://", "https://")):
+        return arg
+    return text.split("?", 1)[0] + "?<query redacted>"
+
+
+_URL_FILTER = _StripUrlQuery()
+
+
+def install_http_url_redaction() -> None:
+    """Keep the query string of an outgoing request out of httpx's own log line.
+
+    httpx logs every request at INFO: `HTTP Request: GET <url> "HTTP/1.1 200 OK"`.
+    Bing and SearXNG send the user's question as a GET parameter, so that line
+    is the question -- on every search, successful or not. It is invisible at
+    startup, where the root logger sits at WARNING, and appears the moment an
+    administrator sets the root to INFO from the console (which "reset log
+    levels" also does), straight into the buffer every administrator can read.
+
+    A filter on the logger rather than a level: the console's reset returns every
+    logger to inheriting the root, so a pinned level would be undone by the
+    button this exists to survive. Idempotent.
+    """
+
+    httpx_logger = logging.getLogger("httpx")
+    if _URL_FILTER not in httpx_logger.filters:
+        httpx_logger.addFilter(_URL_FILTER)
 
 
 def _escaped_record_args(args: dict | tuple) -> dict | tuple:
