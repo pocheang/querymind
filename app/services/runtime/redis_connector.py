@@ -219,7 +219,10 @@ class RedisConnector(_ConnectorBase):
         whether one exists -- so every later request pays the socket timeout again.
         """
 
-        logger.debug("redis_connector_dropped name=%s error=%s", self.name, error)
+        # A warning, not debug: a drop starts a cooldown during which every
+        # shared-state request answers 503, and that must have a logged cause.
+        # At most once per cooldown per connector, so it cannot flood.
+        logger.warning("redis_connector_dropped name=%s error=%s: %s", self.name, type(error).__name__, error)
         with self._lock:
             client, self._client = self._client, None
             self._start_cooldown(error)
@@ -284,7 +287,10 @@ class AsyncRedisConnector(_ConnectorBase):
         return client
 
     async def drop(self, error: BaseException | str = "") -> None:
-        logger.debug("redis_connector_dropped name=%s error=%s", self.name, error)
+        # A warning, not debug: a drop starts a cooldown during which every
+        # shared-state request answers 503, and that must have a logged cause.
+        # At most once per cooldown per connector, so it cannot flood.
+        logger.warning("redis_connector_dropped name=%s error=%s: %s", self.name, type(error).__name__, error)
         client, self._client = self._client, None
         self._start_cooldown(error)
         await self._discard(client)

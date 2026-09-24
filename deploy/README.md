@@ -24,7 +24,7 @@ $env:OPENAI_API_KEY = "your-api-key"
 
 ## Worker 数量约束
 
-[ARC-01 修复计划](../docs/querymind-deep-dive/arc-01-plan.html)完成前，后端只能以 1 个 worker 运行。限流、审批令牌、执行事件流、会话写入和文档摄取已经可以共享（阶段 0–5，需 `STATE_BACKEND=shared`），但各进程的缓存还不会跨进程失效（阶段 6），多个进程同时启动时建表还会互相冲突（阶段 7）。
+[ARC-01 修复计划](../docs/querymind-deep-dive/arc-01-plan.html)完成前，后端只能以 1 个 worker 运行。限流、审批令牌、执行事件流、会话写入和文档摄取已经可以共享（阶段 0–5，需 `STATE_BACKEND=shared`），各进程的缓存会在下一次请求时跟上别的进程的改动（阶段 6，Redis 代计数）；但多个进程同时启动时建表还会互相冲突（阶段 7）。
 
 - 设置 `APP_WORKERS` 大于 1 时，应用拒绝启动。
 - 这个检查只看 `APP_WORKERS` 这个**声明值**：用 `uvicorn --workers N` 启动却没设 `APP_WORKERS`，检查发现不了，所以两者要保持一致。

@@ -11,8 +11,8 @@
 #   python scripts/migrate_sessions_to_sqlite.py      # file sessions -> sqlite
 #   python scripts/migrate_chroma_to_server.py         # embedded vectors -> server
 #
-# APP_WORKERS stays 1 until ARC-01 phases 6-7 (cross-process cache
-# invalidation, the startup schema race) are done; see
+# APP_WORKERS stays 1 until ARC-01 phase 7 (the startup schema race) is
+# done; caches follow other workers since phase 6. See
 # docs/querymind-deep-dive/arc-01-plan.html.
 
 x-shared-state: &shared-state

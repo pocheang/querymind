@@ -150,3 +150,30 @@ def get_request_metrics() -> list[dict[str, Any]]:
     """Get recent request metrics."""
     with _request_metrics_lock:
         return list(_metrics())
+
+
+# Probes answer about this process and must not depend on Redis answering.
+_INVALIDATION_EXEMPT_PREFIXES = ("/health", "/ready", "/metrics", "/api/health", "/api/ready")
+
+
+async def invalidation_middleware(request, call_next):
+    """Bring this worker's caches up to date before the request reads any (ARC-01 phase 6).
+
+    One MGET per request, off the event loop -- and so is any clearing it
+    triggers, since a configuration reload rebuilds the query runtime. Redis not
+    answering is a 503 like any other shared state: answering from caches that
+    may still hold a deleted document is not something to do quietly.
+    """
+    import asyncio
+
+    from app.services.runtime.invalidation import catch_up
+    from app.services.runtime.shared_state import SharedStateUnavailable, is_shared
+
+    if is_shared() and not request.url.path.startswith(_INVALIDATION_EXEMPT_PREFIXES):
+        try:
+            await asyncio.to_thread(catch_up)
+        except SharedStateUnavailable:
+            from app.api.transport.errors import shared_state_unavailable_response
+
+            return shared_state_unavailable_response()
+    return await call_next(request)

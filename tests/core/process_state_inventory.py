@@ -190,11 +190,11 @@ INVENTORY: dict[str, tuple[Category, str]] = {
     ),
     "app/retrievers/bm25_retriever.py::_load_bm25": (
         "B",
-        "全局 BM25 倒排索引缓存，文档库更新时需要跨进程主动失效或重新构建",
+        "全局 BM25 倒排索引缓存；阶段 6：shared 模式下每个请求开始时比对 qm:gen:corpus，落后即清空（摄取、删除、全量重建后 announce）",
     ),
     "app/retrievers/bm25_retriever.py::_load_scoped_bm25": (
         "B",
-        "权限分域的 BM25 倒排索引缓存，文档变更时需要跨进程失效避免数据陈旧",
+        "权限分域的 BM25 倒排索引缓存；阶段 6：shared 模式下每个请求开始时比对 qm:gen:corpus，落后即清空",
     ),
     "app/retrievers/hybrid/caching.py::_REDIS": (
         "D",
@@ -202,7 +202,7 @@ INVENTORY: dict[str, tuple[Category, str]] = {
     ),
     "app/retrievers/hybrid/caching.py::_RETRIEVAL_CACHE": (
         "B",
-        "进程内混合检索结果缓存，底层文档变更时需要跨进程主动失效清理",
+        "进程内检索结果缓存，只在 memory 模式使用；shared 模式只用 Redis，键里带语料代号（阶段 6）",
     ),
     "app/retrievers/reranker.py::_load_cross_encoder": (
         "B",
@@ -214,7 +214,7 @@ INVENTORY: dict[str, tuple[Category, str]] = {
     ),
     "app/retrievers/stores/vector.py::_get_vector_store_cached": (
         "B",
-        "Chroma 向量存储客户端实例缓存，底层重新索引或集合变更时需要跨进程失效",
+        "Chroma 句柄缓存，持有 embedding 函数；阶段 6：shared 模式下每个请求开始时比对 qm:gen:model_settings 和 config，落后即清空",
     ),
     "app/services/auth/redis_rate_limit.py::_rate_limiter": (
         "D",
@@ -316,6 +316,18 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "每个进程一个到 Redis 的连接器（RQ 需要不解码响应），队列本身在 Redis 里，各进程共享",
     ),
+    "app/services/runtime/invalidation.py::_CONFIG_HANDLERS": (
+        "D",
+        "本进程里“配置变了”要做什么（API 与 worker 各自注册 apply_config_reload），无需共享",
+    ),
+    "app/services/runtime/invalidation.py::_LOCK": (
+        "D",
+        "保护本进程已应用代号和待发送通知的进程内锁",
+    ),
+    "app/services/runtime/invalidation.py::_PENDING": (
+        "D",
+        "Redis 不可用时没能发出的失效通知，本进程下次 catch_up/announce 时重发；丢失只会推迟而不会漏掉",
+    ),
     "app/services/runtime/ingest_queue.py::_EXECUTOR": (
         "D",
         "只在 memory 模式（单进程）运行摄取与重建任务；shared 模式任务进 Redis 的 RQ 队列，由唯一的 ingest-worker 执行（阶段 5）",
@@ -377,8 +389,8 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "保护会话锁注册表 _LOCK_REGISTRY 的进程内互斥锁，本身不需要跨进程共享",
     ),
     "app/services/sessions/metadata_db.py::_metadata_db_instances": (
-        "B",
-        "数据库会话元数据服务实例字典，各实例内含进程内 L1 LRU 缓存，跨进程更新时导致脏读",
+        "D",
+        "每个元数据库文件一个服务对象；阶段 6 起不再有进程内缓存，读写都直接访问 SQLite，更新是一个 BEGIN IMMEDIATE 事务",
     ),
     "app/services/sessions/service.py::_memory_service_instances": (
         "D",

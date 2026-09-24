@@ -21,6 +21,7 @@ from app.retrievers.stores.vector import (
 )
 from app.services.documents.index_lock import index_writes
 from app.services.evidence import ArtifactStore, ManifestStore, ParsedDocument, build_manifest
+from app.services.runtime.invalidation import announce
 
 logger = logging.getLogger(__name__)
 
@@ -90,9 +91,13 @@ def ingest_paths(
         return {"loaded_documents": 0, "chunks_indexed": 0, "triplets_written": 0}
     try:
         with index_writes():
-            return commit_ingest(prepared, reset_vector_store=reset_vector_store)
+            result = commit_ingest(prepared, reset_vector_store=reset_vector_store)
     finally:
         prepared.close()
+    # This process cleared its own BM25 and retrieval caches while committing;
+    # every other process learns of the new corpus on its next request.
+    announce("corpus")
+    return result
 
 
 def prepare_ingest(

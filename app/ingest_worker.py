@@ -68,7 +68,25 @@ def build_worker(connection, queue):
     class IngestWorker(SimpleWorker):
         death_penalty_class = TimerDeathPenalty
 
+        def perform_job(self, job, queue):
+            # A job embeds with the current model and writes with the current
+            # settings, so it starts from what the other processes changed.
+            _catch_up_before_work()
+            return super().perform_job(job, queue)
+
     return IngestWorker([queue], connection=connection)
+
+
+def _catch_up_before_work() -> None:
+    from app.services.runtime.invalidation import catch_up
+    from app.services.runtime.shared_state import SharedStateUnavailable
+
+    try:
+        catch_up()
+    except SharedStateUnavailable as error:
+        # The job itself came out of Redis a moment ago; if Redis is gone now,
+        # the job will fail on its own writes and say so.
+        logger.warning("ingest_worker_catch_up_failed error=%s", error)
 
 
 def _connect():
@@ -132,6 +150,11 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("Redis at REDIS_URL did not answer.")
         return 2
     queue = Queue(queue_name(), connection=connection)
+    from app.api.application.config_reload import apply_config_reload
+    from app.services.runtime.invalidation import catch_up, on_config_change
+
+    on_config_change(apply_config_reload)
+    catch_up()
     _abandon_started_jobs(queue)
     recovered = recover_unfinished_documents()
     logger.info("ingest_worker_starting queue=%s recovered=%d", queue.name, len(recovered))

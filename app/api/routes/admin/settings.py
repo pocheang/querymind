@@ -35,6 +35,7 @@ from app.services.models.config_store import (
 from app.services.models.effective import effective_model_configuration
 from app.services.models.runtime import active_admin_chat_model, probe_chat_model_configuration
 from app.services.observability.alerting import emit_alert
+from app.services.runtime.invalidation import announce
 from app.services.security.audit_actions import AuditAction
 from app.services.security.network import OutboundURLValidationError
 from app.services.security.rbac import Permission
@@ -187,6 +188,7 @@ RELOAD_SNAPSHOT_FIELDS: tuple[str, ...] = (
 def admin_reload_config(request: Request, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, Permission.ADMIN_OPS_MANAGE, request, "admin")
     new_settings = apply_config_reload()
+    announce("config")  # the other workers reload on their next request (ARC-01 phase 6)
     snapshot: dict[str, Any] = {name: getattr(new_settings, name) for name in RELOAD_SNAPSHOT_FIELDS}
     snapshot["global_model_settings"] = public_global_model_settings(get_global_model_settings())
     _audit(

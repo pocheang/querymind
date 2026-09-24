@@ -9,14 +9,14 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from collections import OrderedDict
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
 from app.services.sessions.metadata import (
-    MAX_SESSIONS,
     MetadataUpdate,
     SessionCategory,
     SessionMetadata,
@@ -71,32 +71,29 @@ CREATE_INDEXES_SQL = [
 
 class SessionMetadataDB:
     """
-    Database-backed session metadata service with LRU cache.
+    Database-backed session metadata service.
 
     Architecture:
-    - L1 Cache: OrderedDict (LRU, in-memory, fast reads)
     - L2 Storage: SQLite (persistent, survives restarts)
 
-    Write strategy: Write-through (update both cache and DB)
-    Read strategy: Cache-first (check cache, fallback to DB)
+    No in-process cache (ARC-01 phase 6). It had one -- an LRU read first,
+    with no expiry, per database file for the life of the process -- so with two
+    workers, tags edited on one were never seen by the other, and `update`
+    read the stale copy and wrote all of it back, undoing the other worker's
+    edits and losing its query counts. These are small per-user SQLite files;
+    every read goes to the file, and each read-modify-write is one
+    `BEGIN IMMEDIATE` transaction.
     """
 
-    def __init__(self, db_path: Path | None = None, max_cache_size: int = MAX_SESSIONS):
+    def __init__(self, db_path: Path | None = None):
         """
         Initialize database-backed metadata service.
 
         Args:
             db_path: Path to SQLite database (defaults to querymind.db)
-            max_cache_size: Maximum number of sessions in LRU cache
         """
         get_settings()
         self.db_path = db_path or self._get_db_path()
-        self.max_cache_size = max_cache_size
-
-        # L1 Cache (LRU)
-        self._cache: OrderedDict[str, SessionMetadata] = OrderedDict()
-
-        # Initialize database
         self._init_schema()
 
     def _get_db_path(self) -> Path:
@@ -126,9 +123,22 @@ class SessionMetadataDB:
         conn.execute("PRAGMA busy_timeout = 10000")
         return conn
 
+    @contextmanager
+    def _write(self) -> Iterator[sqlite3.Connection]:
+        """One write transaction; an exception rolls it back when the connection closes."""
+        with closing(self._connect()) as conn:
+            conn.isolation_level = None
+            conn.execute("BEGIN IMMEDIATE")
+            yield conn
+            conn.execute("COMMIT")
+
+    def _row(self, conn: sqlite3.Connection, session_id: str) -> SessionMetadata | None:
+        row = conn.execute("SELECT * FROM session_metadata WHERE session_id = ?", (session_id,)).fetchone()
+        return self._deserialize_row(row) if row else None
+
     def _init_schema(self) -> None:
         """Initialize database schema."""
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             conn.execute(CREATE_TABLE_SQL)
             for index_sql in CREATE_INDEXES_SQL:
                 conn.execute(index_sql)
@@ -165,99 +175,25 @@ class SessionMetadataDB:
             last_query_at=as_utc(datetime.fromisoformat(row["last_query_at"])) if row["last_query_at"] else None,
         )
 
-    def _evict_from_cache_if_needed(self) -> None:
-        """
-        Evict oldest entry from cache if at capacity.
-
-        安全修复：使用 logger 而非 print()
-        """
-        if len(self._cache) >= self.max_cache_size:
-            evicted_id, _ = self._cache.popitem(last=False)
-            logger.debug(f"LRU cache evicted session: {evicted_id}")
-
-    def _cache_put(self, metadata: SessionMetadata) -> None:
-        """Put metadata in cache (with LRU eviction)."""
-        self._evict_from_cache_if_needed()
-        self._cache[metadata.session_id] = metadata
-
-    def _cache_touch(self, session_id: str) -> None:
-        """Touch cache entry (move to end for LRU)."""
-        if session_id in self._cache:
-            self._cache.move_to_end(session_id)
-
     def create(self, metadata: SessionMetadata) -> SessionMetadata:
-        """
-        Create new session metadata (write-through).
-
-        安全修复：使用 BEGIN IMMEDIATE 防止并发竞态条件
-
-        Args:
-            metadata: Metadata to create
-
-        Returns:
-            Created metadata
-
-        Raises:
-            ValueError: If session already exists
-        """
-        # 安全修复：使用 BEGIN IMMEDIATE 获取立即写锁，防止竞态条件
-        with self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
-            try:
-                # Check if exists in DB
-                cursor = conn.execute(
-                    "SELECT session_id FROM session_metadata WHERE session_id = ?", (metadata.session_id,)
-                )
-                if cursor.fetchone():
-                    raise ValueError(f"Metadata already exists for session {metadata.session_id}")
-
-                # Insert into DB
-                row = self._serialize_metadata(metadata)
-                conn.execute(
-                    """
-                    INSERT INTO session_metadata
-                    (session_id, tags, category, description, auto_tags, created_at, updated_at, query_count, last_query_at)
-                    VALUES (:session_id, :tags, :category, :description, :auto_tags, :created_at, :updated_at, :query_count, :last_query_at)
-                    """,
-                    row,
-                )
-                conn.commit()
-            except Exception:
-                conn.rollback()
-                raise
-
-        # Update cache
-        self._cache_put(metadata)
-
+        """Create new session metadata; ValueError if the session already has some."""
+        with self._write() as conn:
+            if self._row(conn, metadata.session_id) is not None:
+                raise ValueError(f"Metadata already exists for session {metadata.session_id}")
+            conn.execute(
+                """
+                INSERT INTO session_metadata
+                (session_id, tags, category, description, auto_tags, created_at, updated_at, query_count, last_query_at)
+                VALUES (:session_id, :tags, :category, :description, :auto_tags, :created_at, :updated_at, :query_count, :last_query_at)
+                """,
+                self._serialize_metadata(metadata),
+            )
         return metadata
 
     def get(self, session_id: str) -> SessionMetadata | None:
-        """
-        Get session metadata (cache-first).
-
-        Args:
-            session_id: Session identifier
-
-        Returns:
-            Metadata or None if not found
-        """
-        # Check cache first
-        if session_id in self._cache:
-            self._cache_touch(session_id)
-            return self._cache[session_id]
-
-        # Fallback to DB
-        with self._connect() as conn:
-            cursor = conn.execute("SELECT * FROM session_metadata WHERE session_id = ?", (session_id,))
-            row = cursor.fetchone()
-
-            if row:
-                metadata = self._deserialize_row(row)
-                # Warm cache
-                self._cache_put(metadata)
-                return metadata
-
-        return None
+        """Session metadata, read from the database, or None."""
+        with closing(self._connect()) as conn:
+            return self._row(conn, session_id)
 
     def get_metadata(self, session_id: str) -> SessionMetadata | None:
         """
@@ -348,88 +284,38 @@ class SessionMetadataDB:
         messages: list[dict],
         max_tags: int = 5,
     ) -> list[str]:
-        """
-        Extract automatic tags from messages and update metadata.
-
-        Args:
-            session_id: Session to update
-            messages: Conversation messages
-            max_tags: Maximum tags to extract
-
-        Returns:
-            List of extracted tags
-
-        Raises:
-            KeyError: If session not found
-        """
+        """Extract automatic tags from messages and store them; KeyError if the session has no metadata."""
         from app.services.sessions.metadata import TagExtractor
 
-        metadata = self.get(session_id)
-        if not metadata:
-            raise KeyError(f"Session not found: {session_id}")
-
-        # Extract tags
-        extractor = TagExtractor()
-        auto_tags = extractor.extract_tags(messages, max_tags=max_tags)
-
-        # Update metadata
-        metadata.auto_tags = auto_tags
-        metadata.updated_at = utc_now()
-
-        # Write to DB
-        with self._connect() as conn:
-            row = self._serialize_metadata(metadata)
+        auto_tags = TagExtractor().extract_tags(messages, max_tags=max_tags)
+        with self._write() as conn:
+            metadata = self._row(conn, session_id)
+            if not metadata:
+                raise KeyError(f"Session not found: {session_id}")
+            metadata.auto_tags = auto_tags
+            metadata.updated_at = utc_now()
             conn.execute(
-                """
-                UPDATE session_metadata
-                SET auto_tags = :auto_tags,
-                    updated_at = :updated_at
-                WHERE session_id = :session_id
-                """,
-                row,
+                "UPDATE session_metadata SET auto_tags = :auto_tags, updated_at = :updated_at WHERE session_id = :session_id",
+                self._serialize_metadata(metadata),
             )
-            conn.commit()
-
-        # Update cache
-        self._cache_put(metadata)
-
         return auto_tags
 
     def update(self, session_id: str, update: MetadataUpdate) -> SessionMetadata:
-        """
-        Update session metadata (write-through).
-
-        Args:
-            session_id: Session to update
-            update: Update specification
-
-        Returns:
-            Updated metadata
-
-        Raises:
-            KeyError: If session not found
-        """
-        # Get current metadata
-        metadata = self.get(session_id)
-        if not metadata:
-            raise KeyError(f"Session not found: {session_id}")
-
-        # Apply updates
-        if update.tags is not None:
-            metadata.tags = normalize_tags(update.tags)
-        if update.category is not None:
-            metadata.category = update.category
-        if update.description is not None:
-            metadata.description = normalize_description(update.description)
-        if update.increment_query_count:
-            metadata.query_count += 1
-            metadata.last_query_at = utc_now()
-
-        metadata.updated_at = utc_now()
-
-        # Write to DB
-        with self._connect() as conn:
-            row = self._serialize_metadata(metadata)
+        """Apply `update` to the stored row in one transaction; KeyError if there is none."""
+        with self._write() as conn:
+            metadata = self._row(conn, session_id)
+            if not metadata:
+                raise KeyError(f"Session not found: {session_id}")
+            if update.tags is not None:
+                metadata.tags = normalize_tags(update.tags)
+            if update.category is not None:
+                metadata.category = update.category
+            if update.description is not None:
+                metadata.description = normalize_description(update.description)
+            if update.increment_query_count:
+                metadata.query_count += 1
+                metadata.last_query_at = utc_now()
+            metadata.updated_at = utc_now()
             conn.execute(
                 """
                 UPDATE session_metadata
@@ -442,36 +328,14 @@ class SessionMetadataDB:
                     last_query_at = :last_query_at
                 WHERE session_id = :session_id
                 """,
-                row,
+                self._serialize_metadata(metadata),
             )
-            conn.commit()
-
-        # Update cache
-        self._cache_put(metadata)
-
         return metadata
 
     def delete(self, session_id: str) -> bool:
-        """
-        Delete session metadata.
-
-        Args:
-            session_id: Session to delete
-
-        Returns:
-            True if deleted, False if not found
-        """
-        # Delete from DB
-        with self._connect() as conn:
-            cursor = conn.execute("DELETE FROM session_metadata WHERE session_id = ?", (session_id,))
-            conn.commit()
-            deleted = cursor.rowcount > 0
-
-        # Delete from cache
-        if session_id in self._cache:
-            del self._cache[session_id]
-
-        return deleted
+        """Delete session metadata; True if there was any."""
+        with self._write() as conn:
+            return conn.execute("DELETE FROM session_metadata WHERE session_id = ?", (session_id,)).rowcount > 0
 
     def list_all(self, limit: int | None = None, offset: int = 0) -> list[SessionMetadata]:
         """
@@ -484,7 +348,7 @@ class SessionMetadataDB:
         Returns:
             List of metadata (most recently updated first)
         """
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             sql = "SELECT * FROM session_metadata ORDER BY updated_at DESC"
             params: list[Any] = []
 
@@ -504,7 +368,7 @@ class SessionMetadataDB:
         """
         all_tags = set()
 
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             cursor = conn.execute("SELECT tags, auto_tags FROM session_metadata")
             for row in cursor.fetchall():
                 all_tags.update(json.loads(row["tags"]))
@@ -519,7 +383,7 @@ class SessionMetadataDB:
         Returns:
             Total session count
         """
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             cursor = conn.execute("SELECT COUNT(*) as count FROM session_metadata")
             return cursor.fetchone()["count"]
 
@@ -530,16 +394,7 @@ class SessionMetadataDB:
         Returns:
             Dictionary with stats
         """
-        total_in_db = self.count()
-        total_in_cache = len(self._cache)
-
-        return {
-            "total_sessions": total_in_db,
-            "cached_sessions": total_in_cache,
-            "max_cache_size": self.max_cache_size,
-            "cache_hit_rate": total_in_cache / total_in_db if total_in_db > 0 else 0,
-            "total_tags": len(self.get_all_tags()),
-        }
+        return {"total_sessions": self.count(), "total_tags": len(self.get_all_tags())}
 
 
 # ============================================================================

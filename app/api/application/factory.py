@@ -10,7 +10,7 @@ from app.api.application.router_registry import register_routers
 from app.api.application.static_files import StaticFilePaths, configure_static_files
 from app.api.middleware.rate_limit import RateLimitMiddleware
 from app.api.transport.errors import index_busy_response, shared_state_unavailable_response
-from app.api.transport.middleware import request_timing_middleware
+from app.api.transport.middleware import invalidation_middleware, request_timing_middleware
 from app.core.config import normalise_environment_name
 from app.services.runtime.file_locks import LockBusy
 from app.services.runtime.shared_state import SharedStateUnavailable
@@ -122,6 +122,7 @@ def create_app(settings_obj, static_paths: StaticFilePaths | None = None, static
         )
 
     app.middleware("http")(request_timing_middleware)
+    app.middleware("http")(invalidation_middleware)
     register_routers(app)
     configure_static_files(app, static_paths, static_handlers)
     return app

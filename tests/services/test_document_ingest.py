@@ -442,3 +442,10 @@ def test_a_failed_corpus_write_removes_the_vectors_it_would_have_described(wirin
         ingest_module.ingest_paths([Path("a.pdf")])
     assert removed == [["chunk-0"]]
     assert wiring.added, "the vectors were written before the corpus"
+
+
+def test_an_ingest_tells_the_other_workers_the_corpus_changed(wiring: _Calls, monkeypatch) -> None:
+    kinds: list[str] = []
+    monkeypatch.setattr(ingest_module, "announce", kinds.append)
+    ingest_module.ingest_paths([Path("a.pdf")])
+    assert kinds == ["corpus"]

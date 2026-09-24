@@ -93,6 +93,19 @@ def _purge_retired_user_model_settings() -> None:
         logger.info("Cleared retired per-user model settings from %d account(s)", cleared)
 
 
+def _start_invalidation_tracking() -> None:
+    """Record where this process starts, and what a configuration change means here.
+
+    Before any cache is built, so every cache this process builds is at least as
+    new as the generation recorded. A no-op outside shared mode.
+    """
+    from app.api.application.config_reload import apply_config_reload
+    from app.services.runtime.invalidation import catch_up, on_config_change
+
+    on_config_change(apply_config_reload)
+    catch_up()
+
+
 def _require_reachable_shared_state(settings) -> None:
     """With STATE_BACKEND=shared, a Redis that does not answer is a failed start.
 
@@ -258,6 +271,7 @@ async def lifespan(app: FastAPI):
     validate_worker_topology(settings)
     validate_shared_state_backends(settings)
     _require_reachable_shared_state(settings)
+    _start_invalidation_tracking()
 
     install_app_services(app)
     logger.info(

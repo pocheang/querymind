@@ -15,6 +15,7 @@ from app.services.documents.registry import (
     get_document_by_source,
     update_document_by_source,
 )
+from app.services.runtime.invalidation import announce
 from app.services.runtime.runtime_ops import append_index_freshness
 
 logger = logging.getLogger(__name__)
@@ -360,6 +361,7 @@ def delete_file_index(
             candidates = _physical_delete_candidates(filename, source, removed_sources, settings)
             file_removed = _delete_physical_files(candidates)
 
+        announce("corpus")
         return {
             "ok": True,
             "filename": filename,
@@ -553,4 +555,5 @@ def rebuild_all_vector_index() -> dict[str, Any]:
         reset_vector_store_from_records(records)
         _reset_bm25()
         _reset_retrieval_cache()
+    announce("corpus")
     return {"ok": True, "records_reindexed": len(records)}

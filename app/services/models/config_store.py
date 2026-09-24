@@ -230,6 +230,11 @@ def apply_global_model_settings(raw: dict[str, Any]) -> tuple[dict[str, Any], di
     saved = save_global_model_settings(raw)
     clear_model_caches()
     clear_vector_store_cache()
+    # Other workers read the new settings from the database by themselves, but
+    # their vector-store handles hold the old embedding function (ARC-01 phase 6).
+    from app.services.runtime.invalidation import announce
+
+    announce("model_settings")
     if embedding_settings_signature(saved) == embedding_before:
         return saved, None
     from app.services.runtime.ingest_queue import enqueue_rebuild_all_job
