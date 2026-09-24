@@ -152,6 +152,10 @@ class Settings(BaseSettings):
     app_env: Annotated[str, BeforeValidator(normalise_environment_name)] = Field(
         default=DEFAULT_ENVIRONMENT, alias="APP_ENV"
     )
+    # The worker count the operator *declares*; it must match the launch command
+    # (uvicorn --workers / gunicorn -w). Nothing can observe the real count from
+    # inside one worker, so `validate_worker_topology` trusts this value.
+    app_workers: int = Field(default=1, ge=1, alias="APP_WORKERS")
     # The six backends every comparison in app/ is written against, and the same
     # set `deploy/scripts/config.py::VALID_BACKENDS` validates at render time --
     # pinned against it by tests/core/test_config_choices.py.
@@ -695,6 +699,21 @@ def validate_security_settings(settings: Settings) -> None:
     if settings.app_env == "production":
         raise RuntimeError(message)
     logger.warning("%s; responses and audit events will be unsigned", message)
+
+
+def validate_worker_topology(settings: Settings) -> None:
+    """Refuse a declared multi-worker start while shared state is still per process (ARC-01).
+
+    Rate limiters, approval tokens, execution event streams and session locks
+    live in one process's memory, so a second worker silently splits them:
+    limits multiply, tokens cannot be redeemed, SSE subscribers get 404.
+    """
+    if settings.app_workers > 1:
+        raise RuntimeError(
+            f"APP_WORKERS={settings.app_workers} is not supported yet (ARC-01): rate limiters, "
+            "approval tokens, execution streams and session locks are still per process. "
+            "See docs/querymind-deep-dive/arc-01-plan.html."
+        )
 
 
 # Handed from `reload_settings` to `get_settings`, so a reload constructs

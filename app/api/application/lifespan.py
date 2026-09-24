@@ -17,7 +17,7 @@ from app.api.dependencies import (
     auto_ingest_watcher,
 )
 from app.api.deps.runtime import install_app_services
-from app.core.config import validate_security_settings
+from app.core.config import validate_security_settings, validate_worker_topology
 from app.core.remote_config import watch_remote_config
 from app.graph.knowledge.client import Neo4jClient
 from app.services.observability.log_buffer import setup_log_capture
@@ -208,6 +208,7 @@ async def lifespan(app: FastAPI):
     query_runtime = api_dependencies.get_query_runtime()
     settings = query_runtime.settings
     validate_security_settings(settings)
+    validate_worker_topology(settings)
 
     install_app_services(app)
     logger.info(

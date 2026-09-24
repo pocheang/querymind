@@ -22,6 +22,14 @@ $env:OPENAI_API_KEY = "your-api-key"
 
 可选参数：`--monitoring` / `-Monitoring` 启用 Prometheus、Alertmanager、Grafana；`--with-n8n` / `-WithN8n` 启用 n8n。
 
+## Worker 数量约束
+
+[ARC-01 修复计划](../docs/querymind-deep-dive/arc-01-plan.html)完成前，后端只能以 1 个 worker 运行。限流器、审批令牌、执行事件流和会话锁仍在进程内，多 worker 会让限流失效、审批令牌无法兑换、SSE 返回 404。
+
+- 设置 `APP_WORKERS` 大于 1 时，应用拒绝启动。
+- 这个检查只看 `APP_WORKERS` 这个**声明值**：用 `uvicorn --workers N` 启动却没设 `APP_WORKERS`，检查发现不了，所以两者要保持一致。
+- 隔离舱和断路器将来也是每个 worker 各一份，放开多 worker 后，相关并发上限要按 worker 数平分。
+
 ## 本地开发
 
 ```bash
