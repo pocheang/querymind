@@ -106,7 +106,7 @@ def admin_save_model_settings(
                 "embedding_model": str(e.settings_data.get("embedding_model", "")),
             },
         )
-        raise internal_error("model settings saved, but embedding reindex failed")
+        raise internal_error("model settings saved, but the embedding reindex could not be queued")
     except OutboundURLValidationError as e:
         raise bad_request(f"unsafe base_url: {e}")
     except ValueError as e:
@@ -121,13 +121,12 @@ def admin_save_model_settings(
         user=user,
         detail=(
             f"enabled={saved['enabled']}; provider={saved['provider']}; chat_model={saved['chat_model']}; "
-            f"embedding_reindexed={bool(reindex_result)}; records_reindexed={int((reindex_result or {}).get('records_reindexed', 0) or 0)}"
+            f"embedding_reindex_queued={bool(reindex_result)}"
         ),
     )
     response = _admin_model_settings_view(saved)
     if reindex_result is not None:
-        response.settings.embedding_reindexed = True
-        response.settings.records_reindexed = int(reindex_result.get("records_reindexed", 0) or 0)
+        response.settings.embedding_reindex_queued = True
     return response
 
 

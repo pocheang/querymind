@@ -445,13 +445,13 @@ export type AdminModelSettingsView = {
   embedding_model: string;
   temperature: number;
   max_tokens: number;
-  embedding_reindexed?: boolean;
+  /** A changed embedding model queues a re-embedding job; the save does not wait for it. */
+  embedding_reindex_queued?: boolean;
   // Whether these settings are actually in effect. MODEL_BACKEND=local in the
   // process environment makes the backend discard the global override, so a
   // saved configuration can be stored and inert at the same time.
   environment_pinned?: boolean;
   pinned_reason?: string;
-  records_reindexed?: number;
 };
 
 export type BenchmarkTrendItem = {

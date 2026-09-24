@@ -233,6 +233,32 @@ def _delete_tables_by_sources(sources: list[str]) -> int:
         return 0
 
 
+# The collections ingestion writes beside the chunk collection, one entry per
+# image or table, each carrying its document's `source` in its metadata.
+MULTIMODAL_COLLECTIONS = ("image_descriptions", "table_summaries")
+
+
+def _delete_multimodal_by_sources(sources: list[str]) -> None:
+    """Remove a deleted document's image and table vectors.
+
+    Deleting a document used to leave them: the chunks went, the SQL copy of its
+    tables went, and its images and table summaries stayed searchable through
+    the multimodal source. Full source paths only, for the reason the table
+    store gives. Optional like the graph: a failure costs these rows, not the
+    delete.
+    """
+    if not sources:
+        return
+    from app.retrievers.stores.vector import delete_where
+
+    where = {"source": {"$in": sorted(sources)}}
+    for collection in MULTIMODAL_COLLECTIONS:
+        try:
+            delete_where(collection, where)
+        except Exception as e:
+            logger.warning(f"Failed to delete {collection} entries for removed sources: {e}")
+
+
 def _delete_vector_documents(ids: list[str]) -> None:
     if not ids:
         return
@@ -326,6 +352,7 @@ def delete_file_index(
             source_keys.add(Path(source_value).name)
         triplets_removed = _delete_triplets_by_sources(sorted(source_keys))
         _delete_tables_by_sources(removed_sources)
+        _delete_multimodal_by_sources(sorted(set(removed_sources) | ({source} if source else set())))
 
         settings = get_settings()
         file_removed = False

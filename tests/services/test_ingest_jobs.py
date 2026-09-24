@@ -279,3 +279,85 @@ def test_asyncio_is_not_needed_here():
 
     for name in ("run_ingest_job", "run_reindex_job"):
         assert not asyncio.iscoroutinefunction(getattr(ingest_queue, name))
+
+
+# ---- the full rebuild is a job too -----------------------------------------------------
+
+
+def _model_settings_calls(monkeypatch, *, signature_changes: bool) -> list[str]:
+    from app.services.models import config_store
+    from app.services.runtime import rag_runtime_scope
+
+    calls: list[str] = []
+    signatures = iter(["before", "after" if signature_changes else "before"])
+    monkeypatch.setattr(config_store, "get_global_model_settings", lambda: {})
+    monkeypatch.setattr(config_store, "save_global_model_settings", lambda raw: dict(raw))
+    monkeypatch.setattr(rag_runtime_scope, "embedding_settings_signature", lambda settings: next(signatures))
+    monkeypatch.setattr(ingest_queue, "enqueue_rebuild_all_job", lambda: calls.append("queued"))
+    monkeypatch.setattr(
+        "app.services.documents.index_manager.rebuild_all_vector_index",
+        lambda: pytest.fail("the save re-embedded the corpus inside the request"),
+    )
+    return calls
+
+
+def test_a_changed_embedding_model_queues_the_rebuild_rather_than_running_it(data, monkeypatch):
+    from app.services.models.config_store import apply_global_model_settings
+
+    calls = _model_settings_calls(monkeypatch, signature_changes=True)
+    saved, rebuild = apply_global_model_settings({"provider": "local"})
+
+    assert rebuild == {"queued": True}
+    assert calls == ["queued"]
+
+
+def test_an_unchanged_embedding_model_queues_nothing(data, monkeypatch):
+    from app.services.models.config_store import apply_global_model_settings
+
+    calls = _model_settings_calls(monkeypatch, signature_changes=False)
+
+    assert apply_global_model_settings({"provider": "local"})[1] is None
+    assert calls == []
+
+
+def test_the_admin_is_told_a_rebuild_was_queued(data, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.api.routes.admin import settings as route
+
+    monkeypatch.setattr(route, "_require_permission", lambda *a, **k: None)
+    monkeypatch.setattr(route, "_audit", lambda *a, **k: None)
+    monkeypatch.setattr(
+        route,
+        "apply_global_model_settings",
+        lambda raw: ({"enabled": 1, "provider": "p", "chat_model": "c"}, {"queued": True}),
+    )
+    monkeypatch.setattr(
+        route,
+        "_admin_model_settings_view",
+        lambda saved: SimpleNamespace(settings=SimpleNamespace(embedding_reindex_queued=False)),
+    )
+
+    class _Req:
+        pass
+
+    response = route.admin_save_model_settings(
+        SimpleNamespace(model_dump=lambda: {}), _Req(), user={"user_id": "admin"}
+    )
+    assert response.settings.embedding_reindex_queued is True
+
+
+def test_the_worker_runs_the_rebuild_and_a_failure_raises_an_alert(data, redis_server, monkeypatch):
+    alerts: list[str] = []
+    monkeypatch.setattr("app.services.observability.alerting.emit_alert", lambda name, payload: alerts.append(name))
+
+    def rebuild():
+        raise RuntimeError("embedding service down")
+
+    monkeypatch.setattr(ingest_queue, "rebuild_all_vector_index", rebuild)
+    ingest_queue.enqueue_rebuild_all_job()
+    assert Queue(ingest_queue.queue_name(), connection=redis_server).job_ids == ["index-rebuild-all"]
+
+    _run_worker(redis_server)
+
+    assert alerts == ["admin_model_settings_embedding_reindex_failed"]

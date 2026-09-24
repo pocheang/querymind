@@ -361,6 +361,14 @@ def upsert_texts(
             raise _as_dimension_mismatch(error) from error
 
 
+def delete_where(collection_name: str, where: dict) -> None:
+    """Delete every entry of a named collection whose metadata matches `where`."""
+
+    store = _store_for(collection_name)
+    with _VECTOR_OP_LOCK:
+        store._collection.delete(where=where)  # noqa: SLF001 - langchain's delete takes ids only
+
+
 def delete_documents_by_ids(ids: list[str]):
     if not ids:
         return

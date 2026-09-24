@@ -246,3 +246,58 @@ def test_a_writer_outside_a_request_waits_for_the_lock_rather_than_writing_throu
     finally:
         holder.join()
     assert waited >= 0.7, f"{writer} wrote while another writer held the index lock"
+
+
+@pytest.mark.parametrize("has_chunks", [True, False])
+def test_deleting_a_document_removes_its_images_and_tables_from_the_multimodal_index(data, monkeypatch, has_chunks):
+    """Its chunks and SQL tables went; its image and table vectors used to stay searchable.
+
+    Without chunks too: an ingest that failed after writing its images leaves
+    no corpus row to learn the source from, and the explicit source must do.
+    """
+
+    from app.retrievers.stores import vector
+    from app.services.multimodal.image_processor import ImageProcessor
+    from app.services.multimodal.models import ImageContent, TableContent
+    from app.services.multimodal.table_extractor import TableExtractor
+
+    monkeypatch.setenv("CHROMA_PERSIST_DIR", str(data / "chroma"))
+    monkeypatch.setenv("MODEL_BACKEND", "local")
+    get_settings.cache_clear()
+    vector.clear_vector_store_cache()
+    mine, other = str(data / "uploads" / "report.txt"), str(data / "uploads" / "keep.txt")
+    try:
+        for source, tag in ((mine, "mine"), (other, "other")):
+            ImageProcessor().index_image(
+                ImageContent(
+                    image_id=f"img-{tag}",
+                    doc_id=tag,
+                    page_number=1,
+                    image_data=b"",
+                    description=f"diagram {tag}",
+                    metadata={"source": source},
+                )
+            )
+            TableExtractor().index_table(
+                TableContent(
+                    table_id=f"tbl-{tag}",
+                    doc_id=tag,
+                    page_number=1,
+                    headers=["a"],
+                    rows=[["1"]],
+                    summary=f"table {tag}",
+                    metadata={"source": source},
+                )
+            )
+        rows = [{"id": "chunk-1", "text": "t", "metadata": {"source": mine, "filename": "report.txt"}}]
+        write_corpus_records(rows if has_chunks else [])
+        monkeypatch.setattr(index_manager, "_delete_vector_documents", lambda ids: None)
+        monkeypatch.setattr(index_manager, "_delete_triplets_by_sources", lambda sources: 0)
+
+        index_manager.delete_file_index("report.txt", source=mine)
+
+        for collection, prefix in (("image_descriptions", "img"), ("table_summaries", "tbl")):
+            left = vector.get_named_vector_store(collection)._collection.get()["ids"]
+            assert left == [f"{prefix}-other"], collection
+    finally:
+        vector.clear_vector_store_cache()

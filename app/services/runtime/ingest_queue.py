@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
-from app.services.documents.index_manager import rebuild_document_index
+from app.services.documents.index_manager import rebuild_all_vector_index, rebuild_document_index
 from app.services.documents.ingest import ingest_paths
 from app.services.documents.registry import (
     create_document_record,
@@ -156,6 +156,32 @@ def run_reindex_job(*, document_id: str, user_id: str) -> dict[str, Any]:
         logger.exception("reindex_job_failed document_id=%s", document_id)
         update_document_record(document_id, {"status": "failed", "stage": "failed", "error": str(exc)})
         return {"ok": False, "error": str(exc)}
+
+
+# The key the full rebuild is queued under: one at a time, like a document.
+REBUILD_ALL_KEY = "rebuild-all"
+
+
+def run_rebuild_all_job() -> dict[str, Any]:
+    """Re-embed the whole corpus -- what changing the embedding model requires.
+
+    It used to run inside the admin's save request, holding the index lock for
+    the whole rebuild. As a job, a failure has no response to report it in, so
+    it is raised as an alert here instead.
+    """
+
+    try:
+        return rebuild_all_vector_index()
+    except Exception as exc:
+        from app.services.observability.alerting import emit_alert
+
+        logger.exception("rebuild_all_job_failed")
+        emit_alert("admin_model_settings_embedding_reindex_failed", {"message": f"{type(exc).__name__}: {exc}"})
+        return {"ok": False, "error": str(exc)}
+
+
+def enqueue_rebuild_all_job() -> None:
+    _submit(REBUILD_ALL_KEY, run_rebuild_all_job)
 
 
 def _record(document_id: str) -> dict[str, Any] | None:
