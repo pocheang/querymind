@@ -218,11 +218,23 @@ def test_a_reset_run_drops_the_collection_and_keeps_nothing_from_before(wiring: 
     assert wiring.vector_cache_cleared == 1
 
 
-def test_indexing_happens_even_when_the_graph_is_unavailable(wiring: _Calls, monkeypatch) -> None:
-    """Neo4j is optional -- a client that will not construct costs the triplets, nothing else."""
+def _service_unavailable() -> Exception:
+    from neo4j.exceptions import ServiceUnavailable
+
+    return ServiceUnavailable("Couldn't connect to neo4j:7687")
+
+
+@pytest.mark.parametrize("failure", [lambda: RuntimeError("no route to host"), _service_unavailable])
+def test_indexing_happens_even_when_the_graph_is_unavailable(wiring: _Calls, monkeypatch, failure) -> None:
+    """Neo4j is optional -- a client that will not construct costs the triplets, nothing else.
+
+    With the exception the real driver raises for a server it cannot reach, not
+    only a `RuntimeError`: that stand-in happened to be a type the code caught,
+    and the driver's is not.
+    """
 
     def refuse():
-        raise RuntimeError("no route to host")
+        raise failure()
 
     monkeypatch.setattr(ingest_module, "Neo4jClient", refuse)
 
@@ -404,3 +416,29 @@ def test_only_the_writes_happen_under_the_index_lock(wiring: _Calls, monkeypatch
         "vector write": True,
     }
     assert not lock.is_locked, "the lock was not released"
+
+
+def test_refused_vectors_leave_the_corpus_untouched(wiring: _Calls, monkeypatch) -> None:
+    """The corpus used to be written first, so a refused vector write left rows naming vectors that never existed."""
+
+    def refuse(*args, **kwargs):
+        raise ValueError("Batch size 14208 exceeds maximum batch size 5461")
+
+    monkeypatch.setattr(ingest_module, "upsert_texts", refuse)
+    with pytest.raises(ValueError):
+        ingest_module.ingest_paths([Path("a.pdf")])
+    assert wiring.corpus_written == []
+
+
+def test_a_failed_corpus_write_removes_the_vectors_it_would_have_described(wiring: _Calls, monkeypatch) -> None:
+    removed: list[list[str]] = []
+
+    def disk_full(rows):
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(ingest_module, "write_corpus_records", disk_full)
+    monkeypatch.setattr(ingest_module, "delete_documents_by_ids", lambda ids: removed.append(list(ids)))
+    with pytest.raises(OSError):
+        ingest_module.ingest_paths([Path("a.pdf")])
+    assert removed == [["chunk-0"]]
+    assert wiring.added, "the vectors were written before the corpus"

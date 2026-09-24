@@ -209,3 +209,37 @@ def test_a_refusal_is_audited_too(client, monkeypatch):
     client.delete(f"/documents/report.pdf?source={BOB_SOURCE}", headers=_as("alice"))
 
     assert [entry["result"] for entry in audits] == ["denied"]
+
+
+@pytest.mark.parametrize(("method", "suffix"), [("post", "/reindex"), ("delete", "")])
+def test_a_document_with_no_chunks_is_still_reachable_by_its_id(client, monkeypatch, method, suffix):
+    """A failed or not-yet-indexed document has no chunks, so its id comes only from its registry record.
+
+    The list merged that record in and offered the retry and delete buttons;
+    the action resolved against the unmerged rows and answered 404. Found by
+    failing an ingest in the running stack and trying to delete the document.
+    """
+
+    from app.services.documents import registry
+
+    source = "/uploads/alice/failed.pdf"
+    on_disk_only = {"filename": "failed.pdf", "source": source, "chunks": 0, "owner_user_id": None}
+    monkeypatch.setattr(documents_route, "_list_visible_documents_for_user", lambda user: [dict(on_disk_only)])
+    record = {
+        "document_id": "doc-alice-failed",
+        "source": source,
+        "filename": "failed.pdf",
+        "owner_user_id": "alice",
+        "tenant_id": "alice",
+        "visibility": "private",
+        "status": "failed",
+    }
+    monkeypatch.setattr(registry, "list_document_records", lambda path=None: [dict(record)])
+    _ROWS.append({**on_disk_only, "document_id": "doc-alice-failed"})
+    try:
+        response = getattr(client, method)(f"/documents/by-id/doc-alice-failed{suffix}", headers=_as("alice"))
+    finally:
+        _ROWS.pop()
+
+    assert response.status_code in {200, 202}, response.text
+    assert client.performed[-1]["source"] == source

@@ -60,11 +60,29 @@ from app.services.security.rbac import Permission
 router = APIRouter(tags=["documents"])
 
 
+def _visible_documents(user: dict[str, Any]) -> list[dict[str, Any]]:
+    """The caller's documents with their lifecycle record merged in -- what the list shows.
+
+    One view for listing and for acting on a document. A document's id comes
+    from its chunks or from its registry record, and a document that failed, or
+    has not been indexed yet, has no chunks: resolving against the unmerged rows
+    answered 404 for exactly the documents an owner most needs to retry or
+    delete, while the list offered them the buttons (found by running the stack).
+    """
+    rows = _list_visible_documents_for_user(user)
+    return merge_visible_document_status(
+        rows,
+        user_id=str(user.get("user_id", "")),
+        role=str(user.get("role", "viewer")),
+        approved_sources={str(row.get("source", "") or "") for row in rows},
+    )
+
+
 def _manageable_rows(user: dict[str, Any]) -> list[dict[str, Any]]:
     """Documents this caller can both see and act on."""
     return [
         row
-        for row in _list_visible_documents_for_user(user)
+        for row in _visible_documents(user)
         if str(row.get("source", "") or "").strip()
         and _is_source_manageable_for_user(str(row.get("source", "") or "").strip(), user)
     ]
@@ -136,13 +154,7 @@ def _approved_upload_visibility(requested_visibility: str, user: dict[str, Any])
 @router.get("/documents", response_model=list[IndexedFileSummary])
 def list_documents(request: Request, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, Permission.DOCUMENT_READ, request, "document")
-    rows = _list_visible_documents_for_user(user)
-    summaries = merge_visible_document_status(
-        rows,
-        user_id=str(user.get("user_id", "")),
-        role=str(user.get("role", "viewer")),
-        approved_sources={str(row.get("source", "") or "") for row in rows},
-    )
+    summaries = _visible_documents(user)
     # Answered by the same predicate `_resolve_manageable_document` enforces, so
     # a button the client offers is a request the server will accept. Visible is
     # wider than manageable -- the shared corpus is readable by everyone and

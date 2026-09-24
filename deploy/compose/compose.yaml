@@ -47,10 +47,17 @@ services:
     image: redis:7.4.1-alpine
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    # The healthcheck runs inside the container, where REDIS_PASSWORD was never
+    # set -- it only reached the command line above -- so `$${REDIS_PASSWORD}`
+    # expanded to nothing, every probe failed with WRONGPASS, and anything
+    # waiting for `service_healthy` never started. redis-cli reads REDISCLI_AUTH
+    # itself, which also keeps the password out of the probe's argv.
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5

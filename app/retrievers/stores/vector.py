@@ -353,12 +353,42 @@ def upsert_texts(
             return
         if not (len(ids) == len(texts) == len(metadatas) == len(embeddings)):
             raise ValueError("ids, texts, metadatas and embeddings must be the same length")
-        try:
+        _upsert_in_batches(store, list(ids), list(texts), list(metadatas), list(embeddings))
+
+
+def _max_batch_size(store: Chroma) -> int:
+    try:
+        return max(1, int(store._client.get_max_batch_size()))  # noqa: SLF001
+    except Exception:
+        return 5000
+
+
+def _upsert_in_batches(store: Chroma, ids: list, texts: list, metadatas: list, embeddings: list) -> None:
+    """Upsert in batches the server accepts; on a failure, remove what this call already wrote.
+
+    Chroma refuses a batch larger than `get_max_batch_size()` (5461 on 1.5), and
+    neither this code nor langchain's `add_texts` split one: a document of more
+    than that many chunks could never be indexed, and its corpus rows were
+    already written when the vectors were refused. Found by ingesting a 6 MB
+    file in the shared-mode stack.
+    """
+
+    size = _max_batch_size(store)
+    written: list = []
+    try:
+        for start in range(0, len(ids), size):
+            batch = slice(start, start + size)
             store._collection.upsert(  # noqa: SLF001 - langchain's add_texts has no way to pass vectors
-                ids=list(ids), embeddings=list(embeddings), documents=list(texts), metadatas=list(metadatas)
+                ids=ids[batch], embeddings=embeddings[batch], documents=texts[batch], metadatas=metadatas[batch]
             )
-        except Exception as error:
-            raise _as_dimension_mismatch(error) from error
+            written.extend(ids[batch])
+    except Exception as error:
+        if written:
+            try:
+                store._collection.delete(ids=written)  # noqa: SLF001
+            except Exception:
+                logger.exception("vector_upsert_rollback_failed count=%d", len(written))
+        raise _as_dimension_mismatch(error) from error
 
 
 def delete_where(collection_name: str, where: dict) -> None:

@@ -12,7 +12,13 @@ from app.retrievers.bm25_retriever import reset_bm25_cache
 from app.retrievers.hybrid.retriever import clear_retrieval_cache
 from app.retrievers.stores.corpus import documents_to_records, read_corpus_records, write_corpus_records
 from app.retrievers.stores.parent import read_parent_records, write_parent_records
-from app.retrievers.stores.vector import clear_vector_store_cache, embed_texts, get_vector_store, upsert_texts
+from app.retrievers.stores.vector import (
+    clear_vector_store_cache,
+    delete_documents_by_ids,
+    embed_texts,
+    get_vector_store,
+    upsert_texts,
+)
 from app.services.documents.index_lock import index_writes
 from app.services.evidence import ArtifactStore, ManifestStore, ParsedDocument, build_manifest
 
@@ -130,8 +136,16 @@ def prepare_ingest(
 def commit_ingest(prepared: PreparedIngest, *, reset_vector_store: bool) -> dict:
     """Write what `prepare_ingest` produced. The caller holds the index lock."""
 
-    _write_records(prepared.records, prepared.parent_records, reset_vector_store=reset_vector_store)
+    # Vectors first: if they are refused, the corpus is untouched; if the corpus
+    # write then fails, the vectors just written are removed. Either way the two
+    # stores a delete reads together still agree. The reverse order left corpus
+    # rows naming vectors that were never written.
     _write_chunk_vectors(prepared, reset_vector_store=reset_vector_store)
+    try:
+        _write_records(prepared.records, prepared.parent_records, reset_vector_store=reset_vector_store)
+    except BaseException:
+        delete_documents_by_ids([record["id"] for record in prepared.records])
+        raise
     images_indexed = _write_images(prepared.images, prepared.image_embeddings)
     tables_indexed = _write_tables(prepared.tables, prepared.table_embeddings)
     count_triplets = _write_graph_triplets(prepared)
@@ -529,11 +543,18 @@ def _write_chunk_vectors(prepared: PreparedIngest, *, reset_vector_store: bool) 
 
 
 def _graph_client() -> Any:
-    """A Neo4j client, or None when the graph is unavailable -- then nothing is extracted either."""
+    """A Neo4j client, or None when the graph is unavailable -- then nothing is extracted either.
+
+    Any exception, not a list of them: the client connects on construction, and
+    an unreachable server raises the driver's own `ServiceUnavailable`, which is
+    neither of the `RuntimeError`/`ValueError` this used to catch. So a
+    configured-but-down Neo4j failed the whole ingest -- found by running the
+    shared-mode stack without one -- where the graph is meant to be optional.
+    """
 
     try:
         return Neo4jClient()
-    except (ImportError, RuntimeError, ValueError) as e:
+    except Exception as e:
         logger.warning(
             f"Neo4j client initialization failed - graph features disabled. "
             f"Error: {e}. Check NEO4J_URI and credentials in environment.",

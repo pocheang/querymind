@@ -361,3 +361,21 @@ def test_the_worker_runs_the_rebuild_and_a_failure_raises_an_alert(data, redis_s
     _run_worker(redis_server)
 
     assert alerts == ["admin_model_settings_embedding_reindex_failed"]
+
+
+def test_the_worker_healthcheck_sees_a_registered_worker_and_nothing_else(data, redis_server):
+    from app.ingest_worker import build_worker, worker_is_alive
+
+    name = ingest_queue.queue_name()
+    assert worker_is_alive(redis_server, name) is False
+    build_worker(redis_server, Queue(name, connection=redis_server)).register_birth()
+    assert worker_is_alive(redis_server, name) is True
+    assert worker_is_alive(redis_server, "qm:some-other-queue") is False
+
+
+def test_the_healthcheck_asks_about_the_queue_jobs_are_sent_to(data):
+    """`--check` names the queue itself so it need not import the ingest pipeline; the names must agree."""
+
+    from app.services.runtime.shared_state import state_key
+
+    assert state_key("ingest") == ingest_queue.queue_name()

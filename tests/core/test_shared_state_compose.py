@@ -48,3 +48,33 @@ def test_the_chroma_server_matches_the_locked_client():
     locked = re.search(r'name = "chromadb"\nversion = "([^"]+)"', Path("uv.lock").read_text(encoding="utf-8"))
     assert locked, "chromadb is not in uv.lock"
     assert _services()["chroma"]["image"] == f"chromadb/chroma:{locked.group(1)}"
+
+
+# What `chromadb/chroma:1.5.9` has on its PATH, measured with `command -v` in the
+# image on 2026-09-24. Re-measure when the image version changes: the version
+# test above forces that change to be made here too.
+_CHROMA_IMAGE_TOOLS = {"bash"}
+_CHROMA_IMAGE_LACKS = {"wget", "curl", "python3", "nc"}
+
+
+def test_the_chroma_healthcheck_uses_a_tool_the_image_has():
+    """A probe naming a missing tool never passes, and every `service_healthy` dependent waits forever.
+
+    The first version of this overlay probed with wget, which the image does not ship.
+    """
+
+    chroma = _services()["chroma"]
+    test = chroma["healthcheck"]["test"]
+    assert test[0] == "CMD" and test[1] in _CHROMA_IMAGE_TOOLS
+    assert not any(tool in " ".join(test) for tool in _CHROMA_IMAGE_LACKS)
+    assert chroma["image"] == "chromadb/chroma:1.5.9", "re-measure _CHROMA_IMAGE_TOOLS for the new image"
+    for name in ("backend", "ingest-worker"):
+        assert _services()[name]["depends_on"]["chroma"]["condition"] == "service_healthy"
+
+
+def test_the_worker_replaces_the_images_http_probe():
+    """The Dockerfile's HEALTHCHECK curls port 8000, which the ingest worker never serves."""
+
+    healthcheck = _services()["ingest-worker"]["healthcheck"]
+    assert healthcheck["test"] == ["CMD", "python", "-m", "app.ingest_worker", "--check"]
+    assert "8000" not in " ".join(healthcheck["test"])

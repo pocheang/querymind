@@ -2,6 +2,7 @@
 
     python -m app.ingest_worker            # run until stopped
     python -m app.ingest_worker --burst    # run what is queued, then exit
+    python -m app.ingest_worker --check    # healthcheck: exit 0 if a worker is alive
 
 Only with STATE_BACKEND=shared; in memory mode the API process runs its own
 jobs and this refuses to start. Run exactly one: recovery at startup treats
@@ -70,17 +71,50 @@ def build_worker(connection, queue):
     return IngestWorker([queue], connection=connection)
 
 
+def _connect():
+    """Bytes, not text (RQ stores pickled payloads); no socket timeout (the worker blocks on the queue)."""
+
+    from app.services.runtime.redis_connector import RedisConnector
+
+    return RedisConnector("ingest_worker", decode_responses=False, socket_timeout=None).client()
+
+
+def worker_is_alive(connection, queue_name: str) -> bool:
+    """Whether some worker on this queue is registered in Redis.
+
+    RQ keeps a worker's key alive by heartbeat and lets it expire otherwise, so
+    a registered worker is one that has checked in within its TTL. The image's
+    own healthcheck asks port 8000 for HTTP, which this process never serves.
+    """
+
+    from rq import Queue, Worker
+
+    return bool(Worker.all(connection=connection, queue=Queue(queue_name, connection=connection)))
+
+
+def _check() -> int:
+    # Deliberately light: this runs every healthcheck interval, so it imports
+    # neither the ingest pipeline nor any model -- only Redis and RQ.
+    from app.services.runtime.shared_state import state_key
+
+    connection = _connect()
+    return 0 if connection is not None and worker_is_alive(connection, state_key("ingest")) else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run QueryMind ingest and reindex jobs from Redis.")
     parser.add_argument("--burst", action="store_true", help="run the queued jobs, then exit")
+    parser.add_argument("--check", action="store_true", help="exit 0 if a worker on the queue is alive, else 1")
     args = parser.parse_args(argv)
+    if args.check:
+        return _check()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
     from rq import Queue
 
     from app.core.config import get_settings, validate_shared_state_backends
     from app.services.runtime.ingest_queue import queue_name, recover_unfinished_documents
-    from app.services.runtime.redis_connector import RedisConnector, probe
+    from app.services.runtime.redis_connector import probe
 
     settings = get_settings()
     if settings.state_backend != "shared":
@@ -93,9 +127,7 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("Redis at REDIS_URL did not answer: %s", error)
         return 2
 
-    # No socket timeout: the worker blocks on the queue between jobs. Bytes, not
-    # text: RQ stores pickled payloads.
-    connection = RedisConnector("ingest_worker", decode_responses=False, socket_timeout=None).client()
+    connection = _connect()
     if connection is None:
         logger.error("Redis at REDIS_URL did not answer.")
         return 2
