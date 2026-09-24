@@ -86,6 +86,20 @@ def _repair_chroma_segments_foreign_key(persist_directory: str) -> None:
         conn.close()
 
 
+def chroma_http_client(server_url: str):
+    """A client for the Chroma server at `server_url` (`http[s]://host[:port]`)."""
+
+    from urllib.parse import urlparse
+
+    import chromadb
+
+    parsed = urlparse(server_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("CHROMA_SERVER_URL must look like http://host:port")
+    https = parsed.scheme == "https"
+    return chromadb.HttpClient(host=parsed.hostname, port=parsed.port or (443 if https else 8000), ssl=https)
+
+
 @lru_cache(maxsize=4)
 def _get_vector_store_cached(
     collection_name: str,
@@ -93,7 +107,16 @@ def _get_vector_store_cached(
     embedding_backend: str,
     embedding_model: str,
     embedding_base_url: str,
+    server_url: str = "",
 ) -> Chroma:
+    if server_url:
+        # Every process talks to one server, which serializes writes itself
+        # (ARC-01 phase 5); the directory repair below concerns a local file.
+        return Chroma(
+            collection_name=collection_name,
+            embedding_function=get_embedding_model(),
+            client=chroma_http_client(server_url),
+        )
     store = Chroma(
         collection_name=collection_name,
         embedding_function=get_embedding_model(),
@@ -123,6 +146,7 @@ def get_named_vector_store(collection_name: str) -> Chroma:
         embedding_backend=backend,
         embedding_model=embed_model,
         embedding_base_url=embed_base_url,
+        server_url=str(getattr(settings, "chroma_server_url", "") or "").strip(),
     )
 
 
@@ -291,6 +315,50 @@ def add_documents(documents, ids: list[str] | None = None):
             store.add_documents(documents, ids=ids)
         else:
             store.add_documents(documents)
+
+
+def _store_for(collection_name: str | None) -> Chroma:
+    return get_vector_store() if collection_name is None else get_named_vector_store(collection_name)
+
+
+def embed_texts(collection_name: str | None, texts: list[str]) -> list[list[float]]:
+    """Embed as the collection's own store would, so the work can happen before a lock is taken.
+
+    `collection_name=None` is the main chunk collection. Ingestion embeds here,
+    outside the index lock, and hands the vectors to `upsert_texts` under it
+    (ARC-01 phase 5): embedding is the slow half of an index write, and a
+    request waiting to delete a document should not wait for it.
+    """
+
+    if not texts:
+        return []
+    return [list(vector) for vector in _store_for(collection_name).embeddings.embed_documents(list(texts))]
+
+
+def upsert_texts(
+    collection_name: str | None,
+    ids: list[str],
+    texts: list[str],
+    metadatas: list[dict],
+    embeddings: list[list[float]] | None = None,
+) -> None:
+    """Write texts with their metadata; embed them here unless `embeddings` are given."""
+
+    if not ids:
+        return
+    store = _store_for(collection_name)
+    with _VECTOR_OP_LOCK:
+        if embeddings is None:
+            store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+            return
+        if not (len(ids) == len(texts) == len(metadatas) == len(embeddings)):
+            raise ValueError("ids, texts, metadatas and embeddings must be the same length")
+        try:
+            store._collection.upsert(  # noqa: SLF001 - langchain's add_texts has no way to pass vectors
+                ids=list(ids), embeddings=list(embeddings), documents=list(texts), metadatas=list(metadatas)
+            )
+        except Exception as error:
+            raise _as_dimension_mismatch(error) from error
 
 
 def delete_documents_by_ids(ids: list[str]):

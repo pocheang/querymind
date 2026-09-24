@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.retrievers.stores.corpus import read_corpus_records, write_corpus_records
 from app.retrievers.stores.parent import read_parent_records, write_parent_records
 from app.services.documents.dedup import compute_sha256
+from app.services.documents.index_lock import index_writes, request_index_writes
 from app.services.documents.registry import (
     delete_document_by_source,
     get_document_by_source,
@@ -281,69 +282,80 @@ def delete_file_index(
     version: int | None = None,
     tenant_id: str | None = None,
 ) -> dict[str, Any]:
-    records = read_corpus_records()
-    removed, keep = _select_records(
-        records=records,
-        filename=filename,
-        source=source,
-        document_id=document_id,
-        version=version,
-        tenant_id=tenant_id,
-    )
-    removed_ids: list[str] = []
-    for row in removed:
-        if row.get("id"):
-            removed_ids.append(str(row["id"]))
+    """Remove one document's rows from every part of the index, as one step under the index lock.
 
-    _delete_vector_documents(removed_ids)
-    write_corpus_records(keep)
-    parent_records = read_parent_records()
-    _, kept_parents = _select_records(
-        records=parent_records,
-        filename=filename,
-        source=source,
-        document_id=document_id,
-        version=version,
-        tenant_id=tenant_id,
-    )
-    write_parent_records(kept_parents)
-    _reset_bm25()
-    _reset_retrieval_cache()
+    It reads the corpus to learn which vector ids and sources to remove, so an
+    ingest writing between that read and these writes would leave vectors no
+    corpus row names. Waits for the lock as long as it takes; a request calls
+    this inside `request_index_writes`, which is what bounds the wait there.
+    """
 
-    removed_sources = sorted({_record_source(row) for row in removed if _record_source(row)})
-    source_keys = set(removed_sources)
-    for source_value in removed_sources:
-        source_keys.add(Path(source_value).name)
-    triplets_removed = _delete_triplets_by_sources(sorted(source_keys))
-    _delete_tables_by_sources(removed_sources)
+    with index_writes():
+        records = read_corpus_records()
+        removed, keep = _select_records(
+            records=records,
+            filename=filename,
+            source=source,
+            document_id=document_id,
+            version=version,
+            tenant_id=tenant_id,
+        )
+        removed_ids: list[str] = []
+        for row in removed:
+            if row.get("id"):
+                removed_ids.append(str(row["id"]))
 
-    settings = get_settings()
-    file_removed = False
-    if remove_physical_file:
-        candidates = _physical_delete_candidates(filename, source, removed_sources, settings)
-        file_removed = _delete_physical_files(candidates)
+        _delete_vector_documents(removed_ids)
+        write_corpus_records(keep)
+        parent_records = read_parent_records()
+        _, kept_parents = _select_records(
+            records=parent_records,
+            filename=filename,
+            source=source,
+            document_id=document_id,
+            version=version,
+            tenant_id=tenant_id,
+        )
+        write_parent_records(kept_parents)
+        _reset_bm25()
+        _reset_retrieval_cache()
 
-    return {
-        "ok": True,
-        "filename": filename,
-        "chunks_removed": len(removed),
-        "vector_ids_removed": len(removed_ids),
-        "triplets_removed": triplets_removed,
-        "file_removed": file_removed,
-    }
+        removed_sources = sorted({_record_source(row) for row in removed if _record_source(row)})
+        source_keys = set(removed_sources)
+        for source_value in removed_sources:
+            source_keys.add(Path(source_value).name)
+        triplets_removed = _delete_triplets_by_sources(sorted(source_keys))
+        _delete_tables_by_sources(removed_sources)
+
+        settings = get_settings()
+        file_removed = False
+        if remove_physical_file:
+            candidates = _physical_delete_candidates(filename, source, removed_sources, settings)
+            file_removed = _delete_physical_files(candidates)
+
+        return {
+            "ok": True,
+            "filename": filename,
+            "chunks_removed": len(removed),
+            "vector_ids_removed": len(removed_ids),
+            "triplets_removed": triplets_removed,
+            "file_removed": file_removed,
+        }
 
 
 def delete_document_index(filename: str, *, source: str, remove_physical_file: bool) -> dict[str, Any]:
     """Delete a document's index and synchronize its persisted lifecycle status."""
     record = _require_registered_filename_source(filename, source)
-    result = delete_file_index(
-        filename,
-        remove_physical_file=remove_physical_file,
-        source=source,
-        document_id=str(record.get("document_id", "") or "") or None,
-        version=int(record.get("version", 1) or 1),
-        tenant_id=str(record.get("tenant_id", "") or "") or None,
-    )
+    # A request: wait a few seconds for an ingest's commit, then answer 503.
+    with request_index_writes():
+        result = delete_file_index(
+            filename,
+            remove_physical_file=remove_physical_file,
+            source=source,
+            document_id=str(record.get("document_id", "") or "") or None,
+            version=int(record.get("version", 1) or 1),
+            tenant_id=str(record.get("tenant_id", "") or "") or None,
+        )
     if remove_physical_file:
         delete_document_by_source(source)
     else:
@@ -364,9 +376,10 @@ def delete_document_index(filename: str, *, source: str, remove_physical_file: b
 
 
 def prepare_uploaded_document_indexes(paths: list[Path]) -> None:
-    """Clear stale index data for files that have just been replaced in storage."""
-    for path in paths:
-        delete_file_index(path.name, remove_physical_file=False, source=str(path))
+    """Clear stale index data for files that have just been replaced in storage. Runs in the upload request."""
+    with request_index_writes():
+        for path in paths:
+            delete_file_index(path.name, remove_physical_file=False, source=str(path))
 
 
 def should_skip_reindex(path: Path, registry_path: Path | None = None) -> bool:
@@ -505,8 +518,12 @@ def rebuild_document_index(filename: str, *, source: str, user_id: str) -> dict[
 def rebuild_all_vector_index() -> dict[str, Any]:
     from app.retrievers.stores.vector import reset_vector_store_from_records
 
-    records = read_corpus_records()
-    reset_vector_store_from_records(records)
-    _reset_bm25()
-    _reset_retrieval_cache()
+    # The whole rebuild holds the lock: it re-embeds the corpus it read, and a
+    # write landing in between would be missing from the rebuilt collection.
+    # Rare (an embedding-model change), and requests meanwhile get 503.
+    with index_writes():
+        records = read_corpus_records()
+        reset_vector_store_from_records(records)
+        _reset_bm25()
+        _reset_retrieval_cache()
     return {"ok": True, "records_reindexed": len(records)}

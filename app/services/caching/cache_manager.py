@@ -11,6 +11,9 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any
 
+from app.services.runtime.redis_connector import AsyncRedisConnector
+from app.services.runtime.shared_state import is_unavailable_error
+
 logger = logging.getLogger(__name__)
 
 # A cache namespace is a name. `clear_prefix` builds a Redis match pattern from
@@ -186,25 +189,19 @@ class RedisCache(CacheBackend):
         self.redis_url = redis_url
         self.default_ttl = default_ttl
         self.namespace = namespace.strip(":") or "querymind:cache"
-        self._client: Any | None = None
+        # Pinged on connect and dropped on failure, with a cooldown before the
+        # next attempt. It used to connect without pinging and keep a broken
+        # client forever, logging a traceback on every cache access.
+        self._redis = AsyncRedisConnector(
+            "cache_manager_l2", url=lambda: self.redis_url, encoding="utf-8", decode_responses=True
+        )
 
     def _key(self, key: str) -> str:
         return f"{self.namespace}:{key}"
 
     async def _get_client(self):
-        """Get or create Redis client."""
-        if self._client is None:
-            try:
-                import redis.asyncio as redis
-
-                self._client = await redis.from_url(self.redis_url, encoding="utf-8", decode_responses=True)
-            except ImportError:
-                logger.warning("redis not installed, Redis cache disabled")
-                return None
-            except Exception:
-                logger.exception("Error connecting to Redis")
-                return None
-        return self._client
+        """The shared client, or None while Redis is unavailable or cooling down."""
+        return await self._redis.client()
 
     async def get(self, key: str) -> Any | None:
         """Get value from Redis."""
@@ -219,7 +216,9 @@ class RedisCache(CacheBackend):
 
             # Deserialize JSON
             return json.loads(value)
-        except Exception:
+        except Exception as exc:
+            if is_unavailable_error(exc):  # a payload that fails to parse is not an outage
+                await self._redis.drop(exc)
             logger.exception("Error getting from Redis")
             return None
 
@@ -234,7 +233,9 @@ class RedisCache(CacheBackend):
             # Serialize to JSON
             serialized = json.dumps(value)
             await client.setex(self._key(key), ttl, serialized)
-        except Exception:
+        except Exception as exc:
+            if is_unavailable_error(exc):  # a payload that fails to parse is not an outage
+                await self._redis.drop(exc)
             logger.exception("Error setting in Redis")
 
     async def delete(self, key: str) -> None:
@@ -245,7 +246,9 @@ class RedisCache(CacheBackend):
 
         try:
             await client.delete(self._key(key))
-        except Exception:
+        except Exception as exc:
+            if is_unavailable_error(exc):  # a payload that fails to parse is not an outage
+                await self._redis.drop(exc)
             logger.exception("Error deleting from Redis")
 
     async def clear(self) -> None:
@@ -258,7 +261,9 @@ class RedisCache(CacheBackend):
             keys = [key async for key in client.scan_iter(match=f"{self.namespace}:*")]
             if keys:
                 await client.delete(*keys)
-        except Exception:
+        except Exception as exc:
+            if is_unavailable_error(exc):  # a payload that fails to parse is not an outage
+                await self._redis.drop(exc)
             logger.exception("Error clearing Redis")
 
     async def clear_prefix(self, prefix: str) -> None:
@@ -271,7 +276,9 @@ class RedisCache(CacheBackend):
             keys = [key async for key in client.scan_iter(match=self._key(f"{prefix}:*"))]
             if keys:
                 await client.delete(*keys)
-        except Exception:
+        except Exception as exc:
+            if is_unavailable_error(exc):  # a payload that fails to parse is not an outage
+                await self._redis.drop(exc)
             logger.exception(f"Error clearing Redis prefix {prefix}")
 
     async def exists(self, key: str) -> bool:
@@ -282,19 +289,15 @@ class RedisCache(CacheBackend):
 
         try:
             return await client.exists(self._key(key)) > 0
-        except Exception:
+        except Exception as exc:
+            if is_unavailable_error(exc):  # a payload that fails to parse is not an outage
+                await self._redis.drop(exc)
             logger.exception("Error checking existence in Redis")
             return False
 
     async def close(self) -> None:
         """Close Redis connection."""
-        if self._client is not None:
-            try:
-                await self._client.aclose()
-            except Exception:
-                logger.exception("Error closing Redis connection")
-            finally:
-                self._client = None
+        await self._redis.close()
 
 
 class CacheManager:

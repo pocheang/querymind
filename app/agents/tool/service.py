@@ -8,6 +8,7 @@ no argument through which document content could arrive.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from uuid import uuid4
 
@@ -172,7 +173,8 @@ class ToolAgentService:
         replays exactly that one.
         """
 
-        approved = approvals.approved_call(str(request.approval_token), actor)
+        # A SQLite read since ARC-01 phase 2c, so off the event loop.
+        approved = await asyncio.to_thread(approvals.approved_call, str(request.approval_token), actor)
         if approved is None:
             return ToolResult(
                 tool_id=SELECTOR_TOOL_ID,

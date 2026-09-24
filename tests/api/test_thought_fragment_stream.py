@@ -119,21 +119,19 @@ async def test_a_fragment_is_emitted_once_however_many_times_the_loop_polls(exec
     thought_store.publish(execution_id, "two ")
 
     offsets = orchestration_module._poll_execution_updates(
-        tracker.get_execution_trace(execution_id), execution_id, event_store, answer_store, thought_store, 0, 0, 0, 0
+        execution_id, event_store, answer_store, thought_store, 0, 0, 0
     )
-    legacy_offset, event_offset, answer_offset, thought_offset, first = offsets
+    event_offset, answer_offset, thought_offset, first = offsets
     assert _payloads(first, "thought_fragment") == ["one ", "two "]
 
     thought_store.publish(execution_id, "three")
     answer_store.publish(execution_id, "BM25 is a ranking function.")
 
-    _, _, _, _, second = orchestration_module._poll_execution_updates(
-        tracker.get_execution_trace(execution_id),
+    _, _, _, second = orchestration_module._poll_execution_updates(
         execution_id,
         event_store,
         answer_store,
         thought_store,
-        legacy_offset,
         event_offset,
         answer_offset,
         thought_offset,

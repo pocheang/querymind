@@ -53,53 +53,58 @@ class TableExtractor:
             logger.exception("Error formatting table as text")
             return f"[Table {table.table_id}]"
 
-    def index_table(self, table: TableContent, collection_name: str = "table_summaries") -> None:
-        """Index table content in vector database.
+    def index_entry(self, table: TableContent) -> tuple[str, dict]:
+        """The text this table is embedded as, and the metadata stored beside it.
+
+        Separate from `index_table` so ingestion can embed the text before taking
+        the index lock and hand the vector back to `index_table` under it.
+        """
+
+        text_to_index = f"{table.summary}\n\n{self.format_table_as_text(table)}"
+        return text_to_index, {
+            "doc_id": table.doc_id,
+            "document_id": table.metadata.get("document_id", table.doc_id),
+            "tenant_id": table.metadata.get("tenant_id", "shared"),
+            # Absent keys do not match `$eq`, so a table indexed
+            # without these is invisible rather than public.
+            "owner_user_id": table.metadata.get("owner_user_id", ""),
+            "visibility": table.metadata.get("visibility", "private"),
+            "version": table.metadata.get("version", 1),
+            "page_number": table.page_number,
+            "source": table.metadata.get("source", table.doc_id),
+            "type": "table",
+            "table_id": table.table_id,
+            "sheet": str(table.metadata.get("sheet", "") or ""),
+            "columns": ", ".join(table.headers)[:500],
+            "num_rows": table.metadata.get("num_rows", len(table.rows)),
+            "num_cols": table.metadata.get("num_cols", len(table.headers)),
+            "extraction_method": table.metadata.get("extraction_method", "unknown"),
+        }
+
+    def index_table(
+        self,
+        table: TableContent,
+        collection_name: str = "table_summaries",
+        *,
+        embedding: list[float] | None = None,
+    ) -> None:
+        """Index table content in the vector database; embeds it here unless `embedding` is given.
 
         Synchronous: it awaits nothing, and its caller is document ingestion,
         which runs in a worker thread where an event loop must not be driven.
-
-        Args:
-            table: TableContent object
-            collection_name: ChromaDB collection name
         """
         try:
-            from app.retrievers.stores.vector import get_named_vector_store
+            from app.retrievers.stores.vector import upsert_texts
 
-            store = get_named_vector_store(collection_name)
-
-            # Create text representation for indexing
-            text_to_index = f"{table.summary}\n\n{self.format_table_as_text(table)}"
-
-            # Add to collection
-            store.add_texts(
-                ids=[table.table_id],
-                texts=[text_to_index],
-                metadatas=[
-                    {
-                        "doc_id": table.doc_id,
-                        "document_id": table.metadata.get("document_id", table.doc_id),
-                        "tenant_id": table.metadata.get("tenant_id", "shared"),
-                        # Absent keys do not match `$eq`, so a table indexed
-                        # without these is invisible rather than public.
-                        "owner_user_id": table.metadata.get("owner_user_id", ""),
-                        "visibility": table.metadata.get("visibility", "private"),
-                        "version": table.metadata.get("version", 1),
-                        "page_number": table.page_number,
-                        "source": table.metadata.get("source", table.doc_id),
-                        "type": "table",
-                        "table_id": table.table_id,
-                        "sheet": str(table.metadata.get("sheet", "") or ""),
-                        "columns": ", ".join(table.headers)[:500],
-                        "num_rows": table.metadata.get("num_rows", len(table.rows)),
-                        "num_cols": table.metadata.get("num_cols", len(table.headers)),
-                        "extraction_method": table.metadata.get("extraction_method", "unknown"),
-                    }
-                ],
+            text_to_index, metadata = self.index_entry(table)
+            upsert_texts(
+                collection_name,
+                [table.table_id],
+                [text_to_index],
+                [metadata],
+                None if embedding is None else [embedding],
             )
-
             logger.info(f"Indexed table {table.table_id} in collection {collection_name}")
-
         except Exception:
             logger.exception(f"Error indexing table {table.table_id}")
             raise

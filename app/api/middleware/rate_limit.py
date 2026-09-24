@@ -27,7 +27,9 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.api.transport.errors import shared_state_unavailable_response
 from app.services.auth.redis_rate_limit import get_rate_limiter
+from app.services.runtime.shared_state import SharedStateUnavailable
 
 HOUR = 3600
 MINUTE = 60
@@ -103,9 +105,9 @@ def get_client_ip(request: Request) -> str:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Limit requests to sensitive endpoints, per client IP."""
 
-    def __init__(self, app, redis_url=None):
+    def __init__(self, app, redis_url=None, shared: bool = False):
         super().__init__(app)
-        self.rate_limiter = get_rate_limiter(redis_url)
+        self.rate_limiter = get_rate_limiter(redis_url, shared=shared)
 
     async def dispatch(self, request: Request, call_next):
         """Check rate limits for sensitive endpoints."""
@@ -122,9 +124,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         rate_key = f"rate_limit:{client_ip}:{rule.name}"
 
-        is_allowed, retry_after = await self.rate_limiter.check_rate_limit_async(
-            rate_key, rule.max_requests, rule.window_seconds
-        )
+        try:
+            is_allowed, retry_after = await self.rate_limiter.check_rate_limit_async(
+                rate_key, rule.max_requests, rule.window_seconds
+            )
+        except SharedStateUnavailable:
+            # Answered here rather than by the application's exception handler:
+            # this middleware sits outside the layer that runs those handlers,
+            # so an exception raised here would reach the client as a 500.
+            return shared_state_unavailable_response()
 
         if not is_allowed:
             return JSONResponse(

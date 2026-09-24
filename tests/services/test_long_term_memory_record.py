@@ -22,8 +22,10 @@ operation reaches.
 from __future__ import annotations
 
 import shutil
+import sqlite3
 import tempfile
 from collections.abc import Iterator
+from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -225,7 +227,10 @@ def test_a_payload_nobody_can_read_does_not_take_the_others_with_it(store: Memor
     """
 
     target = str(store.list_all()[0]["candidate_id"])
-    (store.base_dir / "session-corrupt.json").write_text("{not json", encoding="utf-8")
+    with closing(sqlite3.connect(store.db_path)) as conn, conn:
+        conn.execute(
+            "INSERT INTO payloads(session_id, data_json, updated_at) VALUES('session-corrupt', '{not json', '')"
+        )
 
     assert len(store.list_all()) > 0
     assert store.forget(target) is True
@@ -243,10 +248,11 @@ def test_an_expired_memory_is_still_listed_and_still_deletable(store: MemoryStor
     about them than it does, and would give them no way to remove it.
     """
 
-    payload = store.get_session_payload("_global")
-    target = payload["candidates"][0]
-    target["expires_at"] = (datetime.now(UTC) - timedelta(days=1)).isoformat()
-    store._write("_global", payload)
+    with store._transaction(write=True) as payloads:
+        payload = payloads.get("_global")
+        target = payload["candidates"][0]
+        target["expires_at"] = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+        payloads.save("_global", payload)
     memory_id = str(target["candidate_id"])
 
     listed = {str(row["candidate_id"]): row for row in store.list_all()}

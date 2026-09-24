@@ -1,9 +1,11 @@
 """Public document management routes for the QueryMind API."""
 
+import asyncio
 from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
 
 from app.api.dependencies import (
     _audit,
@@ -46,11 +48,12 @@ from app.services.documents.index_health import build_index_health_report
 from app.services.documents.index_manager import (
     delete_document_index,
     prepare_uploaded_document_indexes,
-    rebuild_document_index,
+    should_skip_reindex,
 )
 from app.services.documents.registry import get_document_by_source, merge_visible_document_status
 from app.services.parser_profiles import choose_parser_profile
-from app.services.runtime.ingest_queue import register_and_enqueue_uploads
+from app.services.runtime.file_locks import LockBusy
+from app.services.runtime.ingest_queue import enqueue_reindex_job, register_and_enqueue_uploads
 from app.services.security.audit_actions import AuditAction
 from app.services.security.rbac import Permission
 
@@ -112,13 +115,14 @@ def _document_audit_detail(row: dict[str, Any]) -> str:
     )
 
 
-def _require_registered_filename_source(filename: str, source: str) -> None:
-    """Defend against a filename/source pair changing after route-level checks."""
+def _require_registered_filename_source(filename: str, source: str) -> dict[str, Any]:
+    """Defend against a filename/source pair changing after route-level checks; return the record."""
     record = get_document_by_source(source)
     if record is None:
         raise ValueError(f"source is not registered: {source}")
     if Path(source).name != filename or str(record.get("filename", "") or "") != filename:
         raise ValueError("filename does not match registered source")
+    return record
 
 
 def _approved_upload_visibility(requested_visibility: str, user: dict[str, Any]) -> tuple[str, bool]:
@@ -258,6 +262,30 @@ def _perform_delete(
         raise conflict(str(e))
 
 
+def _queue_reindex(record: dict[str, Any], filename: str, source: str, user_id: str):
+    """Queue the reindex and answer 202, or answer 200 at once when there is nothing to do.
+
+    The rebuild used to run inside this request -- parse, embed, write -- on a
+    worker thread for as long as it took. It is a job now, run by the ingest
+    worker or this process's pool, and the client follows the document's status.
+    """
+
+    if should_skip_reindex(Path(source)):
+        return FileIndexActionResponse(
+            filename=filename,
+            skipped=True,
+            reason="unchanged_file_hash",
+            status="ready",
+            document_id=str(record.get("document_id", "") or ""),
+        )
+    document_id = str(record.get("document_id", "") or "")
+    updated = enqueue_reindex_job(document_id=document_id, user_id=user_id)
+    body = FileIndexActionResponse(
+        filename=filename, queued=True, document_id=document_id, status=str(updated.get("status", "queued"))
+    )
+    return JSONResponse(status_code=202, content=body.model_dump())
+
+
 def _perform_reindex(
     row: dict[str, Any] | None,
     filename: str,
@@ -268,14 +296,8 @@ def _perform_reindex(
         _deny_unresolved(AuditAction.DOCUMENT_REINDEX, request, user, filename)
     source = str(row.get("source", "") or "")
     try:
-        _require_registered_filename_source(filename, source)
-        result = FileIndexActionResponse(
-            **rebuild_document_index(
-                filename,
-                source=source,
-                user_id=str(user.get("user_id", "")),
-            )
-        )
+        record = _require_registered_filename_source(filename, source)
+        result = _queue_reindex(record, filename, source, str(user.get("user_id", "")))
         _audit(
             request,
             action=AuditAction.DOCUMENT_REINDEX,
@@ -412,8 +434,15 @@ async def upload_files(
     if not storage_result.saved_uploads:
         return _handle_no_saved_uploads(request, user, storage_result)
 
+    # Both calls below are synchronous file and index I/O, and the first may wait
+    # a few seconds for the index lock: off the event loop, or every request in
+    # this process waits with it.
     try:
-        prepare_uploaded_document_indexes([upload.path for upload in storage_result.saved_uploads])
+        await asyncio.to_thread(
+            prepare_uploaded_document_indexes, [upload.path for upload in storage_result.saved_uploads]
+        )
+    except LockBusy:
+        raise  # 503 with Retry-After: another writer holds the index, nothing was changed
     except Exception as e:
         _audit(
             request,
@@ -426,7 +455,8 @@ async def upload_files(
         raise internal_error("upload pre-clean failed")
 
     try:
-        document_ids = register_and_enqueue_uploads(
+        document_ids = await asyncio.to_thread(
+            register_and_enqueue_uploads,
             uploads=storage_result.saved_uploads,
             owner_user_id=str(user.get("user_id", "")),
             visibility=storage_result.visibility_applied,

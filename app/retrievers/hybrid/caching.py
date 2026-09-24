@@ -1,34 +1,28 @@
 import json
 import logging
-import threading
-import time
 
+from app.services.runtime.redis_connector import RedisConnector
 from app.services.runtime.resilience import TTLCache
 
 logger = logging.getLogger(__name__)
 
 _RETRIEVAL_CACHE: TTLCache | None = None
-_REDIS_CLIENT = None
-_REDIS_LOCK = threading.Lock()
-_REDIS_UNAVAILABLE_UNTIL = 0.0
+# Bytes, not str: cached payloads are JSON that `json.loads` takes either way,
+# and this is what the client was configured with before the connector existed.
+_REDIS = RedisConnector(
+    "retrieval_cache",
+    max_connections=50,
+    socket_keepalive=True,
+    socket_connect_timeout=5,
+    socket_timeout=5,
+    decode_responses=False,
+    health_check_interval=30,
+)
 
 
-def _redis_retry_cooldown_seconds(settings) -> float:
-    return max(1.0, float(getattr(settings, "redis_retry_cooldown_seconds", 15) or 15))
-
-
-def _mark_redis_unavailable(settings, exc: BaseException) -> None:
+def _mark_redis_unavailable(settings, exc: BaseException) -> None:  # noqa: ARG001 -- kept for its callers
     """Discard a failed client so retrieval immediately falls back to memory."""
-    global _REDIS_CLIENT, _REDIS_UNAVAILABLE_UNTIL
-    with _REDIS_LOCK:
-        client = _REDIS_CLIENT
-        _REDIS_CLIENT = None
-        _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds(settings)
-    if client is not None:
-        try:
-            client.close()
-        except Exception:
-            pass
+    _REDIS.drop(exc)
     logger.warning("Redis retrieval cache unavailable; using memory cache: %s", exc)
 
 
@@ -42,38 +36,14 @@ def cache_backend(settings) -> str:
     return "auto"
 
 
-def redis_client(settings):
-    """Get or create Redis client."""
-    global _REDIS_CLIENT, _REDIS_UNAVAILABLE_UNTIL
-    if _REDIS_CLIENT is not None:
-        return _REDIS_CLIENT
-    if _REDIS_UNAVAILABLE_UNTIL and time.monotonic() < _REDIS_UNAVAILABLE_UNTIL:
-        return None
-    try:
-        import redis  # type: ignore
-    except ImportError:
-        logger.debug("Redis module not available")
-        return None
-    try:
-        # CRITICAL FIX: Add connection pooling configuration
-        _REDIS_CLIENT = redis.from_url(
-            str(getattr(settings, "redis_url", "")),
-            max_connections=50,  # Connection pool size
-            socket_keepalive=True,  # Keep connections alive
-            socket_connect_timeout=5,  # Connection timeout
-            socket_timeout=5,  # Socket operation timeout
-            decode_responses=False,  # Handle bytes explicitly for caching
-            health_check_interval=30,  # Health check every 30s
-        )
-        _REDIS_CLIENT.ping()
-        _REDIS_UNAVAILABLE_UNTIL = 0.0
-    except (redis.ConnectionError, redis.TimeoutError) as e:
-        logger.warning(f"Redis connection failed: {e}")
-        _REDIS_CLIENT = None
-    except Exception as e:
-        logger.exception(f"Unexpected Redis error: {e}")
-        _REDIS_CLIENT = None
-    return _REDIS_CLIENT
+def redis_client(settings):  # noqa: ARG001 -- the URL is read from settings at connect time
+    """The shared client, or None while Redis is unavailable or cooling down.
+
+    A failed connect used to leave no cooldown behind, so with Redis unreachable
+    every query paid the 5 second connect timeout again; the connector waits
+    `COOLDOWN_SECONDS` before the next attempt.
+    """
+    return _REDIS.client()
 
 
 def get_retrieval_cache(settings) -> TTLCache:

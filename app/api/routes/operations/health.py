@@ -1,6 +1,7 @@
 """Health check and metrics routes for the QueryMind API."""
 
 import asyncio
+import os
 import socket
 import time
 from typing import Any
@@ -15,6 +16,7 @@ from app.api import dependencies as api_dependencies
 from app.api.dependencies import runtime_metrics
 from app.api.deps.admin import _check_chroma_ready, _check_ollama_ready
 from app.api.deps.auth import require_admin
+from app.services.runtime.redis_connector import connector_status, probe
 
 router = APIRouter()
 
@@ -45,34 +47,51 @@ def _check_neo4j_ready() -> dict[str, Any]:
 
 
 def _check_redis_ready() -> dict[str, Any]:
-    """Check Redis connection (if Redis cache backend is enabled)."""
+    """Check Redis with the whole REDIS_URL.
+
+    It used to rebuild a client from host and port alone, dropping the password
+    and database number, so against the production compose file -- whose URL
+    carries a password -- it reported Redis down however healthy Redis was.
+    """
     settings = api_dependencies.get_query_runtime().settings
-    start = time.perf_counter()
     cache_backend = str(getattr(settings, "retrieval_cache_backend", "auto") or "auto").lower()
+    # Required when something is configured to depend on it rather than merely
+    # to prefer it: an explicit Redis retrieval cache, or shared worker state.
+    required = cache_backend == "redis" or settings.state_backend == "shared"
 
-    # Redis is only required if explicitly configured
-    required = cache_backend == "redis"
-
-    if cache_backend == "off" or cache_backend == "memory":
+    if not required and cache_backend in {"off", "memory"}:
         return {"ok": True, "required": False, "latency_ms": 0, "status": "not_configured"}
 
-    try:
-        import redis
+    url = settings.redis_url or "redis://localhost:6379/0"
+    parsed = urlparse(url)
+    start = time.perf_counter()
+    error = probe(url)
+    latency = int((time.perf_counter() - start) * 1000)
+    # Host and port only: the URL itself can carry the password.
+    result: dict[str, Any] = {
+        "ok": error is None,
+        "required": required,
+        "latency_ms": latency,
+        "host": f"{parsed.hostname or 'localhost'}:{parsed.port or 6379}",
+    }
+    if error is not None:
+        result["error"] = error
+    return result
 
-        parsed = urlparse(settings.redis_url or "redis://localhost:6379/0")
-        host = parsed.hostname or "localhost"
-        port = int(parsed.port or 6379)
 
-        client = redis.Redis(host=host, port=port, socket_connect_timeout=3, socket_timeout=3)
-        client.ping()
-        latency = int((time.perf_counter() - start) * 1000)
-        return {"ok": True, "required": required, "latency_ms": latency, "host": f"{host}:{port}"}
-    except ImportError:
-        latency = int((time.perf_counter() - start) * 1000)
-        return {"ok": False, "required": required, "latency_ms": latency, "error": "redis package not installed"}
-    except Exception as e:
-        latency = int((time.perf_counter() - start) * 1000)
-        return {"ok": False, "required": required, "latency_ms": latency, "error": str(e)}
+def _state_summary() -> dict[str, Any]:
+    """Where shared state lives in this process, for the admin readiness probe (ARC-01).
+
+    Deliberately not on /health: that probe is unauthenticated, and a process id
+    and connector states are internal topology.
+    """
+    settings = api_dependencies.get_query_runtime().settings
+    return {
+        "state_backend": settings.state_backend,
+        "app_workers": settings.app_workers,
+        "pid": os.getpid(),
+        "redis_connectors": connector_status(),
+    }
 
 
 # _check_postgres_ready was removed on 2026-08-29: it imported
@@ -275,6 +294,7 @@ async def ready_dependencies():
         "guard": query_runtime.query_guard.stats(),
         "shadow_queue": query_runtime.shadow_queue.stats(),
     }
+    payload["state"] = _state_summary()
     return JSONResponse(content=payload, status_code=code)
 
 

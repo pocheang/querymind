@@ -28,12 +28,12 @@ def _install(monkeypatch: pytest.MonkeyPatch, client: object) -> None:
     """Put the fake in as the module's real client.
 
     Patching `_get_redis_client` wholesale would hide the thing under test:
-    the fix drops the module-global client, and a stubbed getter would keep
+    the fix drops the connector's client, and a stubbed getter would keep
     handing it back regardless.
     """
 
-    monkeypatch.setattr(guard_module, "_REDIS_CLIENT", client, raising=False)
-    monkeypatch.setattr(guard_module, "_REDIS_UNAVAILABLE_UNTIL", 0.0, raising=False)
+    monkeypatch.setattr(guard_module._REDIS, "_client", client)
+    monkeypatch.setattr(guard_module._REDIS, "_unavailable_until", 0.0)
 
 
 def _guard(**overrides) -> QueryLoadGuard:
@@ -65,10 +65,8 @@ class _TimingOutClient:
         self.calls += 1
         raise self._error
 
-    incr = _boom
-    decr = _boom
-    expire = _boom
-    get = _boom
+    eval = _boom
+    zrem = _boom
 
 
 REDIS_FAILURES = [
@@ -115,7 +113,7 @@ def test_a_failing_command_drops_the_client(monkeypatch: pytest.MonkeyPatch, err
         pass
 
     calls_after_first = client.calls
-    assert guard_module._REDIS_CLIENT is None, "a failing command left the client in place"
+    assert guard_module._REDIS.client() is None, "a failing command left the client in place"
 
     # The second request takes the memory path and does not touch redis again.
     with _guard().acquire("user-1") as stats:
@@ -134,16 +132,12 @@ def test_a_rate_limit_is_still_a_refusal(monkeypatch: pytest.MonkeyPatch) -> Non
     from app.services.query.guard import QueryRateLimitedError
 
     class _OverLimit:
-        def incr(self, *_a, **_k):
-            return 10_000
+        """Redis answering that this user's window is full."""
 
-        def expire(self, *_a, **_k):
-            return True
+        def eval(self, script, numkeys, key, *args):
+            return 0 if ":rl:" in key else 1
 
-        def get(self, *_a, **_k):
-            return 0
-
-        def decr(self, *_a, **_k):
+        def zrem(self, *_a, **_k):
             return 0
 
     monkeypatch.setattr(guard_module, "_get_redis_client", lambda: _OverLimit())
@@ -153,16 +147,19 @@ def test_a_rate_limit_is_still_a_refusal(monkeypatch: pytest.MonkeyPatch) -> Non
             pass
 
 
-def test_no_handler_still_names_the_builtin_set_alone() -> None:
-    """The five sites are fixed together or the fix is half-applied.
+def test_every_guard_command_goes_through_the_one_handler() -> None:
+    """The five sites were fixed together or the fix was half-applied.
 
     Four of five would have looked like a complete change; the first sweep of
-    this file found three by reading and missed two, which is why this counts
-    rather than trusting the edit.
+    this file found three by reading and missed two. The guard now meets Redis
+    through `_call` alone (and `zrem` on release), so the property is that there
+    is exactly one `eval`, one place that decides what "unavailable" means, and
+    no handler naming the builtin set.
     """
 
     from pathlib import Path
 
     source = Path(guard_module.__file__).read_text(encoding="utf-8")
-    assert "except (ValueError, TypeError, OSError) as e:" not in source
-    assert source.count("except _redis_unavailable_errors() as e:") == 5
+    assert "except (ValueError, TypeError, OSError)" not in source
+    assert source.count("client.eval(") == 1
+    assert source.count("is_unavailable_error(e)") == 2  # `_call`, and the release path

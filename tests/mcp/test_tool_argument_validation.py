@@ -8,14 +8,24 @@ declared schema is the only thing standing between the model and the executor.
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import pytest
 
 from app.domain.contracts import ToolResult
 from app.mcp.approvals import ApprovalStore
+from app.mcp.audit import AuditLog
 from app.mcp.authorization import AuthorizationPolicy
 from app.mcp.contracts import ToolArgument, ToolCall, ToolDefinition, ToolParameter
 from app.mcp.registry import ToolRegistry
 from app.orchestration.request import RequestActor
+
+
+def _scratch_db() -> Path:
+    """Approvals live in SQLite; a test's belong in a throwaway file, never the developer's app.db."""
+    return Path(tempfile.mkdtemp()) / "app.db"
+
 
 _ACTOR = RequestActor(user_id="u1", tenant_id="t1", role="viewer")
 _TOOL_ID = "querymind_connector_disable_owned"
@@ -31,7 +41,11 @@ _DEFINITION = ToolDefinition(
 
 
 def _registry() -> ToolRegistry:
-    registry = ToolRegistry(authorization=AuthorizationPolicy(), approvals=ApprovalStore())
+    registry = ToolRegistry(
+        authorization=AuthorizationPolicy(),
+        approvals=ApprovalStore(_scratch_db()),
+        audit=AuditLog(write=lambda _record: None),  # never the developer's audit_logs
+    )
 
     async def executor(call: ToolCall, actor: RequestActor) -> ToolResult:
         del actor
@@ -85,7 +99,11 @@ def test_a_duplicate_argument_is_rejected():
 def test_the_catalogue_only_offers_what_the_actor_may_invoke():
     """Offering a tool and then refusing it wastes a turn and leaks that the
     tool exists."""
-    registry = ToolRegistry(authorization=AuthorizationPolicy(), approvals=ApprovalStore())
+    registry = ToolRegistry(
+        authorization=AuthorizationPolicy(),
+        approvals=ApprovalStore(_scratch_db()),
+        audit=AuditLog(write=lambda _record: None),  # never the developer's audit_logs
+    )
 
     async def executor(call: ToolCall, actor: RequestActor) -> ToolResult:
         del actor

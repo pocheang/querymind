@@ -11,14 +11,17 @@ from __future__ import annotations
 import http.server
 import logging
 import pathlib
+import tempfile
 import threading
 import traceback
+from pathlib import Path
 from urllib.parse import quote
 
 import pytest
 
 from app.core.config import get_settings
 from app.mcp.approvals import ApprovalStore
+from app.mcp.audit import AuditLog
 from app.mcp.authorization import AuthorizationPolicy
 from app.mcp.contracts import ToolArgument, ToolCall
 from app.mcp.registry import ToolRegistry
@@ -36,6 +39,12 @@ from app.tools.cyber.cve_tools import (
 from app.tools.registry import DomainToolRegistry
 from app.tools.web.base import WebSearchError, describe_search_error
 from app.tools.web.providers.searxng import SearXNGSearchProvider
+
+
+def _scratch_db() -> Path:
+    """Approvals live in SQLite; a test's belong in a throwaway file, never the developer's app.db."""
+    return Path(tempfile.mkdtemp()) / "app.db"
+
 
 ACTOR = RequestActor(user_id="u", tenant_id="t", role="user")
 
@@ -354,7 +363,11 @@ class _LiveCveProvider(BaseToolProvider):
 
 
 def _mcp_registry() -> ToolRegistry:
-    return ToolRegistry(authorization=AuthorizationPolicy(), approvals=ApprovalStore())
+    return ToolRegistry(
+        authorization=AuthorizationPolicy(),
+        approvals=ApprovalStore(_scratch_db()),
+        audit=AuditLog(write=lambda _record: None),  # never the developer's audit_logs
+    )
 
 
 def _executor_for(registry: ToolRegistry, tool_id: str):

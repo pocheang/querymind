@@ -77,9 +77,14 @@ class ToolRegistry:
                 ToolResult(tool_id=call.tool_id, status="failed", summary=f"invalid arguments: {argument_error}"),
                 definition=definition,
             )
-        approval = self._approvals.consume(call, actor) if definition.operation in _APPROVAL_OPERATIONS else None
+        # Approvals live in SQLite, so both calls leave the event loop.
+        approval = (
+            await asyncio.to_thread(self._approvals.consume, call, actor)
+            if definition.operation in _APPROVAL_OPERATIONS
+            else None
+        )
         if definition.operation in _APPROVAL_OPERATIONS and approval is None:
-            pending_approval = self._approvals.create(call, actor)
+            pending_approval = await asyncio.to_thread(self._approvals.create, call, actor)
             result = self._finish(
                 call,
                 actor,

@@ -45,7 +45,7 @@ from app.services.runtime.background_queue import BackgroundTaskQueue
 from app.services.runtime.runtime_metrics import RuntimeMetrics
 from app.services.security.audit_actions import AuditAction
 from app.services.security.quota import QuotaGuard
-from app.services.security.rate_limiter import SlidingWindowLimiter
+from app.services.security.rate_limiter import make_limiter
 
 # Global settings and logger
 settings = get_settings()
@@ -115,17 +115,21 @@ async def _reserve_chat_credit_async(request: Request, user: dict[str, Any], res
 prompt_store = PromptStore()
 auto_ingest_watcher = AutoIngestWatcher(settings=settings)
 
-# Rate limiters
-login_limiter = SlidingWindowLimiter(
+# Rate limiters. Per process with STATE_BACKEND=memory; counted in Redis, and so
+# shared by every worker, with STATE_BACKEND=shared (ARC-01 phase 2).
+login_limiter = make_limiter(
+    "login",
     max_attempts=settings.auth_login_max_failures,
     window_seconds=settings.auth_login_window_seconds,
 )
-register_limiter = SlidingWindowLimiter(
+register_limiter = make_limiter(
+    "register",
     max_attempts=settings.auth_register_max_attempts,
     window_seconds=settings.auth_register_window_seconds,
 )
 # Upload rate limiter - prevent storage abuse
-upload_limiter = SlidingWindowLimiter(
+upload_limiter = make_limiter(
+    "upload",
     max_attempts=20,  # 20 uploads per hour per user
     window_seconds=3600,
 )
@@ -151,6 +155,10 @@ def _build_query_runtime(new_settings: Settings) -> QueryRuntime:
             max_waiting=new_settings.query_max_waiting,
             acquire_timeout_ms=new_settings.query_acquire_timeout_ms,
             backend=new_settings.query_guard_backend,
+            shared=new_settings.state_backend == "shared",
+            # A slot must outlive the slowest query the pipeline allows, or it
+            # expires under a query still running and the gate admits one too many.
+            slot_lease_ms=new_settings.stage_timeout_total_ms + 30_000,
         ),
         quota_guard=QuotaGuard(),
         shadow_queue=BackgroundTaskQueue(

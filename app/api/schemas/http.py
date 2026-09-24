@@ -278,6 +278,11 @@ class FileIndexActionResponse(BaseModel):
     pages_by_source: dict[str, int] = Field(default_factory=dict)
     skipped: bool = False
     reason: str = ""
+    # A reindex is a job, not a request (ARC-01 phase 5): answered 202 with
+    # `queued` and the document id to follow in the document list.
+    queued: bool = False
+    document_id: str = ""
+    status: str = ""
 
 
 class IndexHealthResponse(BaseModel):

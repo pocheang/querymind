@@ -39,6 +39,7 @@ dependencies = [
   "jieba>=0.42.1",
   "python-multipart>=0.0.32,<1.0",
   "redis>=5.0.0",
+  "rq>=2.0,<3",
   "authlib>=1.3.0",
   "itsdangerous>=2.1.0",
   "scikit-learn>=1.3.0",
@@ -120,7 +121,13 @@ dev = [
   # change between them. A formatter that moves on its own is a build that
   # breaks for reasons nobody introduced.
   "ruff==0.16.5",
-  "pre-commit>=3.7.0"
+  "pre-commit>=3.7.0",
+  # ARC-01 moves rate limits, query-guard leases and execution streams into
+  # Redis, and their atomicity lives in Lua scripts. A hand-written fake can
+  # only agree with the code that wrote it; fakeredis runs the real commands,
+  # and the `lua` extra (lupa) runs the scripts, so neither a developer machine
+  # nor CI needs a Redis server to test them.
+  "fakeredis[lua]>=2.26.0"
 ]
 
 # A security floor on a package this project does not import.

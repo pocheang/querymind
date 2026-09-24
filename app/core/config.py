@@ -156,6 +156,13 @@ class Settings(BaseSettings):
     # (uvicorn --workers / gunicorn -w). Nothing can observe the real count from
     # inside one worker, so `validate_worker_topology` trusts this value.
     app_workers: int = Field(default=1, ge=1, alias="APP_WORKERS")
+    # Where state that must be shared between workers lives (ARC-01). `memory`
+    # keeps today's per-process stores; `shared` requires a reachable Redis at
+    # startup, and each ARC-01 phase moves its stores behind this switch.
+    state_backend: _choice("memory", "shared") = Field(default="memory", alias="STATE_BACKEND")
+    # Namespace for every shared-state key, so two deployments sharing one Redis
+    # (or a Redis shared with something else) cannot read each other's counters.
+    state_key_prefix: str = Field(default="qm:", min_length=1, max_length=32, alias="STATE_KEY_PREFIX")
     # The six backends every comparison in app/ is written against, and the same
     # set `deploy/scripts/config.py::VALID_BACKENDS` validates at render time --
     # pinned against it by tests/core/test_config_choices.py.
@@ -185,9 +192,22 @@ class Settings(BaseSettings):
 
     chroma_collection: str = Field(default="local_rag_collection", alias="CHROMA_COLLECTION")
     chroma_persist_dir: str = Field(default="./data/chroma", alias="CHROMA_PERSIST_DIR")
+    # A Chroma server (`http://chroma:8000`). Set, every process talks to it over
+    # HTTP; empty, the store is the embedded directory above, which only one
+    # process may write. STATE_BACKEND=shared requires it (ARC-01 phase 5).
+    chroma_server_url: str = Field(default="", alias="CHROMA_SERVER_URL")
     data_dir: str = Field(default="./data/docs", alias="DATA_DIR")
     corpus_store_path: str = Field(default="./data/chunks/chunks.jsonl", alias="CORPUS_STORE_PATH")
     parent_store_path_str: str = Field(default="./data/chunks/parents.jsonl", alias="PARENT_STORE_PATH")
+    # How long a request waits for the index lock before answering 503 (ARC-01
+    # phase 5). The ingest worker holds it only while writing, never while
+    # parsing or embedding, so a wait longer than this is a stuck writer.
+    index_lock_request_timeout_seconds: float = Field(
+        default=5.0, gt=0, le=60, alias="INDEX_LOCK_REQUEST_TIMEOUT_SECONDS"
+    )
+    # How long one ingest or reindex job may run in the ingest worker before RQ
+    # stops it and the document is marked failed (STATE_BACKEND=shared only).
+    ingest_job_timeout_seconds: int = Field(default=3600, ge=60, le=86_400, alias="INGEST_JOB_TIMEOUT_SECONDS")
     evidence_artifact_root: str = Field(default="./data/evidence", alias="EVIDENCE_ARTIFACT_ROOT")
     wiki_db_path_str: str = Field(default="./data/wiki/wiki.db", alias="WIKI_DB_PATH")
     wiki_generation_timeout_ms: int = Field(default=30_000, ge=100, le=120_000, alias="WIKI_GENERATION_TIMEOUT_MS")
@@ -704,16 +724,56 @@ def validate_security_settings(settings: Settings) -> None:
 def validate_worker_topology(settings: Settings) -> None:
     """Refuse a declared multi-worker start while shared state is still per process (ARC-01).
 
-    Rate limiters, approval tokens, execution event streams and session locks
-    live in one process's memory, so a second worker silently splits them:
-    limits multiply, tokens cannot be redeemed, SSE subscribers get 404.
+    Limits, approvals, execution streams, session writes and ingestion are
+    shared with STATE_BACKEND=shared (phases 1-5). What is left is caches that
+    one worker invalidates and the others keep serving (phase 6), and two
+    workers racing to create the same SQLite schema at startup (phase 7).
     """
     if settings.app_workers > 1:
         raise RuntimeError(
-            f"APP_WORKERS={settings.app_workers} is not supported yet (ARC-01): rate limiters, "
-            "approval tokens, execution streams and session locks are still per process. "
+            f"APP_WORKERS={settings.app_workers} is not supported yet (ARC-01): caches are "
+            "still invalidated per process and schema creation races at startup. "
             "See docs/querymind-deep-dive/arc-01-plan.html."
         )
+
+
+# What STATE_BACKEND=shared requires of each per-user store, and why the other
+# choice cannot be shared. Both are process-local by construction, so a worker
+# running one would silently keep its own copy -- the defect ARC-01 exists for.
+_SHARED_STORE_REQUIREMENTS = (
+    ("history_backend", "HISTORY_BACKEND", "sqlite", "the file backend serializes writes with a threading lock"),
+    (
+        "session_metadata_backend",
+        "SESSION_METADATA_BACKEND",
+        "database",
+        "the memory backend keeps session metadata in this process only",
+    ),
+)
+
+
+def _missing_chroma_server(settings: Settings) -> list[str]:
+    if str(settings.chroma_server_url or "").strip():
+        return []
+    return ["CHROMA_SERVER_URL (the embedded store under CHROMA_PERSIST_DIR is written by one process only)"]
+
+
+def validate_shared_state_backends(settings: Settings) -> None:
+    """With STATE_BACKEND=shared, refuse a store that can only be per process.
+
+    Refused rather than overridden: quietly switching HISTORY_BACKEND to sqlite
+    would hide every session an operator kept in files until they migrate them
+    (`scripts/migrate_sessions_to_sqlite.py`), which reads as data loss.
+    """
+    if settings.state_backend != "shared":
+        return
+    problems = [
+        f"{alias}={required} ({reason})"
+        for field, alias, required, reason in _SHARED_STORE_REQUIREMENTS
+        if getattr(settings, field) != required
+    ]
+    problems.extend(_missing_chroma_server(settings))
+    if problems:
+        raise RuntimeError("STATE_BACKEND=shared requires " + "; ".join(problems))
 
 
 # Handed from `reload_settings` to `get_settings`, so a reload constructs

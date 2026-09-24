@@ -58,7 +58,11 @@ def client(monkeypatch) -> TestClient:
         "_is_source_manageable_for_user",
         lambda source, user: str(source or "").startswith(f"/uploads/{user['user_id']}/"),
     )
-    monkeypatch.setattr(documents_route, "_require_registered_filename_source", lambda filename, source: None)
+    monkeypatch.setattr(
+        documents_route,
+        "_require_registered_filename_source",
+        lambda filename, source: next(dict(r) for r in _ROWS if r["source"] == source),
+    )
     monkeypatch.setattr(documents_route, "_require_permission", lambda *a, **k: None)
 
     performed: list[dict[str, Any]] = []
@@ -70,14 +74,15 @@ def client(monkeypatch) -> TestClient:
             or {"ok": True, "filename": filename, "removed_chunks": 1}
         ),
     )
-    monkeypatch.setattr(
-        documents_route,
-        "rebuild_document_index",
-        lambda filename, source, user_id: (
-            performed.append({"op": "reindex", "filename": filename, "source": source})
-            or {"ok": True, "filename": filename, "removed_chunks": 0}
-        ),
-    )
+    # A reindex is a queued job now (ARC-01 phase 5); record which document was queued.
+    monkeypatch.setattr(documents_route, "should_skip_reindex", lambda path: False)
+
+    def queue(*, document_id, user_id):
+        row = next(r for r in _ROWS if r["document_id"] == document_id)
+        performed.append({"op": "reindex", "filename": row["filename"], "source": row["source"]})
+        return {"status": "queued"}
+
+    monkeypatch.setattr(documents_route, "enqueue_reindex_job", queue)
 
     test_client = TestClient(main.app)
     test_client.performed = performed  # type: ignore[attr-defined]
@@ -147,7 +152,7 @@ def test_an_explicit_matching_source_still_works(client):
 def test_a_user_reindexes_their_own_document(client):
     response = client.post("/documents/notes.pdf/reindex", headers=_as("alice"))
 
-    assert response.status_code == 200
+    assert response.status_code == 202
     assert client.performed == [{"op": "reindex", "filename": "notes.pdf", "source": "/uploads/alice/notes.pdf"}]
 
 
@@ -164,7 +169,7 @@ def test_delete_by_id_targets_exactly_one_document(client):
 def test_reindex_by_id_targets_exactly_one_document(client):
     response = client.post("/documents/by-id/doc-alice-notes/reindex", headers=_as("alice"))
 
-    assert response.status_code == 200
+    assert response.status_code == 202
     assert client.performed == [{"op": "reindex", "filename": "notes.pdf", "source": "/uploads/alice/notes.pdf"}]
 
 

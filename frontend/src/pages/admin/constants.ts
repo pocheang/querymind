@@ -19,6 +19,8 @@ export const ACTION_KEYWORD_OPTIONS = [
   "memory.long.purge",
   "query.load_guard",
   "query.credit_reserve",
+  "tool.invoke",
+  "tool.approval_required",
   "document.upload",
   "document.delete",
   "prompt.create",

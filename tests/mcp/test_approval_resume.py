@@ -30,6 +30,12 @@ from app.mcp.contracts import ToolArgument, ToolCall
 from app.mcp.runtime import DISABLE_CONNECTOR_TOOL_ID, get_tool_stack, reset_tool_stack
 from app.orchestration.request import OrchestrationRequest, RequestActor
 
+
+def _scratch_db() -> Path:
+    """Approvals live in SQLite; a test's belong in a throwaway file, never the developer's app.db."""
+    return Path(tempfile.mkdtemp()) / "app.db"
+
+
 _ACTOR = RequestActor(user_id="alice", tenant_id="acme", role="viewer")
 _OTHER = RequestActor(user_id="mallory", tenant_id="acme", role="viewer")
 
@@ -185,7 +191,7 @@ def test_a_different_call_still_gets_a_different_fingerprint():
 
 
 def test_the_approval_record_carries_the_arguments_it_authorized():
-    store = ApprovalStore()
+    store = ApprovalStore(_scratch_db())
     call = ToolCall(
         tool_id=DISABLE_CONNECTOR_TOOL_ID,
         arguments=(ToolArgument(name="connector_id", value="slack"),),

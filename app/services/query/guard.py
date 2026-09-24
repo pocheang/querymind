@@ -5,44 +5,23 @@ import logging
 import sys
 import threading
 import time
+import uuid
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from app.core.config import get_settings
 from app.services.observability.log_safety import key_ref
+from app.services.runtime.redis_connector import RedisConnector, redis_unavailable_errors
+from app.services.runtime.shared_state import SharedStateUnavailable, is_unavailable_error, opaque, state_key
+from app.services.security.rate_limiter import _ACQUIRE as _RATE_ACQUIRE
 from app.services.security.rate_limiter import SlidingWindowLimiter
 
 logger = logging.getLogger(__name__)
 
-
-def _redis_unavailable_errors() -> tuple[type[BaseException], ...]:
-    """What "Redis is not answering" is actually raised as.
-
-    `redis.exceptions.TimeoutError` and `...ConnectionError` derive from
-    `RedisError(Exception)`, NOT from `OSError` -- and redis-py's
-    `ConnectionError` shadows the builtin, which is an `OSError`, so reading
-    `except OSError` as covering a connection failure is wrong in exactly the
-    way that looks right. Every handler below that means "degrade to memory"
-    uses this tuple.
-
-    Resolved once and cached: the guard is on the request path and redis is an
-    optional install, so this must neither import per call nor require redis.
-    """
-
-    global _REDIS_ERRORS
-    if _REDIS_ERRORS is None:
-        base: tuple[type[BaseException], ...] = (ValueError, TypeError, OSError)
-        try:
-            import redis  # type: ignore
-
-            _REDIS_ERRORS = (*base, redis.RedisError)
-        except ImportError:
-            _REDIS_ERRORS = base
-    return _REDIS_ERRORS
-
-
-_REDIS_ERRORS: tuple[type[BaseException], ...] | None = None
+# What "Redis is not answering" is raised as -- see `redis_unavailable_errors`
+# for why `OSError` alone is the wrong answer that looks right. Kept under this
+# name because it is the guard's public vocabulary for the question.
+_redis_unavailable_errors = redis_unavailable_errors
 
 
 class QueryRateLimitedError(RuntimeError):
@@ -55,35 +34,45 @@ class QueryOverloadedError(RuntimeError):
 
 _QUERY_QUEUE_FULL = "query queue full"
 
-_REDIS_CLIENT = None
-_REDIS_LOCK = threading.Lock()
-_REDIS_UNAVAILABLE_UNTIL = 0.0
+# Short timeouts on purpose: this client sits in front of every query, and a
+# Redis that is slow to answer must cost 0.2s once rather than a second each.
+_REDIS = RedisConnector(
+    "query_guard",
+    decode_responses=True,
+    socket_connect_timeout=0.2,
+    socket_timeout=0.2,
+    retry_on_timeout=False,
+    max_connections=50,
+    health_check_interval=30,
+)
 
+# A slot is a lease, not a counter. Each holder is a member of a sorted set
+# scored by when its lease runs out, and taking a slot first discards expired
+# leases. The counters this replaced (INCR on take, DECR on give-back) leaked:
+# a worker that died holding a slot never gave it back, and the cluster ran one
+# slot short until the shared key expired -- which it did only when nobody had
+# incremented it for a whole window, i.e. never under load.
+_TAKE = """
+local t = redis.call('TIME')
+local now = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
+if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[1]) then return 0 end
+redis.call('ZADD', KEYS[1], now + tonumber(ARGV[2]), ARGV[3])
+redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[2]) + 1000)
+return 1
+"""
 
-def _redis_retry_cooldown_seconds() -> float:
-    settings = get_settings()
-    return max(1.0, float(getattr(settings, "redis_retry_cooldown_seconds", 15) or 15))
+_COUNT = """
+local t = redis.call('TIME')
+local now = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
+return redis.call('ZCARD', KEYS[1])
+"""
 
-
-def _redis_is_cooling_down() -> bool:
-    return bool(_REDIS_UNAVAILABLE_UNTIL and time.monotonic() < _REDIS_UNAVAILABLE_UNTIL)
-
-
-def _drop_redis_client() -> None:
-    """Discard the client and stop trying until the cooldown expires.
-
-    Call under ``_REDIS_LOCK``. ``from_url`` can succeed and ``ping`` still fail,
-    so there may be a client to close even though the connection never worked.
-    """
-
-    global _REDIS_CLIENT, _REDIS_UNAVAILABLE_UNTIL
-    if _REDIS_CLIENT is not None:
-        try:
-            _REDIS_CLIENT.close()
-        except Exception as cleanup_error:
-            logger.debug(f"Redis cleanup failed while dropping the client: {cleanup_error}")
-        _REDIS_CLIENT = None
-    _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds()
+# How long a queued request may wait past its own deadline before its place is
+# presumed abandoned. The waiter removes itself; this only covers a worker that
+# died while waiting.
+_WAIT_LEASE_SLACK_MS = 5_000
 
 
 def _redis_command_failed(where: str, error: BaseException) -> None:
@@ -96,73 +85,42 @@ def _redis_command_failed(where: str, error: BaseException) -> None:
     """
 
     logger.debug("query_guard_redis_%s_failed error=%s", where, str(error))
-    with _REDIS_LOCK:
-        _drop_redis_client()
-
-
-def _connect_redis():
-    """Open the shared client, or start a cooldown. Call under ``_REDIS_LOCK``."""
-
-    global _REDIS_CLIENT, _REDIS_UNAVAILABLE_UNTIL
-    settings = get_settings()
-    try:
-        import redis  # type: ignore
-
-        _REDIS_CLIENT = redis.from_url(
-            str(getattr(settings, "redis_url", "")),
-            decode_responses=True,
-            socket_connect_timeout=0.2,
-            socket_timeout=0.2,
-            retry_on_timeout=False,
-            max_connections=50,  # Add connection pool
-            health_check_interval=30,
-        )
-        _REDIS_CLIENT.ping()
-        _REDIS_UNAVAILABLE_UNTIL = 0.0
-        return _REDIS_CLIENT
-    except (ImportError, AttributeError) as e:
-        # Not installed, or not the shape we expect -- routine, and not worth a warning.
-        logger.debug(f"Redis not available for query guard: {e}")
-    except Exception as e:
-        logger.warning(f"Redis connection failed for query guard: {e}", exc_info=True)
-    _drop_redis_client()
-    return None
+    _REDIS.drop(error)
 
 
 def _get_redis_client():
-    """The process-wide client, opened once and not retried during a cooldown.
+    """The process-wide client, or None while Redis is unavailable or cooling down."""
 
-    Checked before and again inside the lock: the wait for the lock is exactly
-    as long as another thread's connection attempt, which is the case worth not
-    repeating.
+    return _REDIS.client()
+
+
+class _RedisUnusable(Exception):
+    """Internal: Redis stopped answering partway through; the caller picks the fallback."""
+
+
+def _call(client, where: str, script: str, key: str, *args):
+    """Run one guard script, turning "Redis is not answering" into `_RedisUnusable`.
+
+    The only place a guard command meets Redis, so there is one handler that
+    decides what counts as unavailable -- the guard used to have five, and they
+    were fixed together or not at all. A script error is Redis *answering*, and
+    propagates as the bug it is.
     """
 
-    if _REDIS_CLIENT is not None:
-        return _REDIS_CLIENT
-    if _redis_is_cooling_down():
-        return None
-    with _REDIS_LOCK:
-        if _REDIS_CLIENT is not None:
-            return _REDIS_CLIENT
-        if _redis_is_cooling_down():
-            return None
-        return _connect_redis()
-
-
-_INFLIGHT_KEY = "qguard:inflight"
-_WAITING_KEY = "qguard:waiting"
+    try:
+        return client.eval(script, 1, key, *args)
+    except Exception as e:
+        if is_unavailable_error(e):
+            _redis_command_failed(where, e)
+            raise _RedisUnusable(where) from e
+        raise
 
 
 @dataclass
 class _RedisSlot:
-    """What one acquisition has taken from the shared counters.
+    """What one acquisition holds in Redis, so the release gives back exactly that."""
 
-    The release path runs whether the acquisition succeeded, was refused or
-    degraded to the in-memory guard, so it has to be told what to give back
-    rather than infer it.
-    """
-
-    user_rate_key: str
+    member: str = field(default_factory=lambda: uuid.uuid4().hex)
     acquired: bool = False
     queued: bool = False
 
@@ -189,7 +147,20 @@ class QueryLoadGuard:
         max_waiting: int,
         acquire_timeout_ms: int,
         backend: str = "auto",
+        shared: bool = False,
+        slot_lease_ms: int = 150_000,
     ):
+        """`shared` is STATE_BACKEND=shared: Redis is the only guard, and its absence a 503.
+
+        Otherwise Redis is used when it answers and the in-memory guard when it
+        does not -- which is the right trade for one worker and the ARC-01
+        defect for several, because each worker then admits `max_concurrent`.
+
+        `slot_lease_ms` bounds how long a slot survives a worker that died
+        holding it. It must outlast the slowest legitimate query, or a slow
+        query's slot expires under it and the gate admits one too many.
+        """
+
         self._user_limiter = SlidingWindowLimiter(
             max_attempts=max(1, int(per_user_max_requests)),
             window_seconds=max(1, int(per_user_window_seconds)),
@@ -203,38 +174,26 @@ class QueryLoadGuard:
         self._max_concurrent = max(1, int(max_concurrent))
         self._max_per_user = max(1, int(per_user_max_requests))
         self._window_seconds = max(1, int(per_user_window_seconds))
+        self._shared = bool(shared)
+        self._slot_lease_ms = max(1_000, int(slot_lease_ms))
+        self._wait_lease_ms = int(self._acquire_timeout_s * 1000) + _WAIT_LEASE_SLACK_MS
         b = str(backend or "auto").strip().lower()
         if b not in {"auto", "memory", "redis"}:
             b = "auto"
-        self._backend = b
+        # Shared state has one home; a per-guard "memory" preference cannot
+        # override it without splitting the gate by the number of workers.
+        self._backend = "redis" if self._shared else b
 
     def _effective_backend(self) -> str:
         if self._backend == "memory":
             return "memory"
-        if self._backend == "redis":
-            return "redis" if _get_redis_client() is not None else "memory"
+        if self._shared:
+            return "redis"
         return "redis" if _get_redis_client() is not None else "memory"
 
     def stats(self) -> dict[str, int | str]:
         if self._effective_backend() == "redis":
-            client = _get_redis_client()
-            inflight = 0
-            waiting = 0
-            if client is not None:
-                try:
-                    inflight = int(client.get(_INFLIGHT_KEY) or 0)
-                    waiting = int(client.get(_WAITING_KEY) or 0)
-                except _redis_unavailable_errors() as e:
-                    _redis_command_failed("stats", e)
-                    inflight = 0
-                    waiting = 0
-            return {
-                "backend": "redis",
-                "inflight": inflight,
-                "waiting": waiting,
-                "max_concurrent": self._max_concurrent,
-                "max_waiting": self._max_waiting,
-            }
+            return self._redis_stats()
         with self._state_lock:
             return {
                 "backend": "memory",
@@ -243,6 +202,28 @@ class QueryLoadGuard:
                 "max_concurrent": self._max_concurrent,
                 "max_waiting": self._max_waiting,
             }
+
+    def _redis_stats(self) -> dict[str, int | str]:
+        """Counts across every worker. Never raises: /metrics and /ready read this."""
+
+        client = _get_redis_client()
+        inflight = waiting = 0
+        backend = "redis"
+        if client is None:
+            backend = "redis_unavailable"
+        else:
+            try:
+                inflight = int(_call(client, "stats", _COUNT, state_key("qguard", "inflight")))
+                waiting = int(_call(client, "stats", _COUNT, state_key("qguard", "waiting")))
+            except _RedisUnusable:
+                backend = "redis_unavailable"
+        return {
+            "backend": backend,
+            "inflight": inflight,
+            "waiting": waiting,
+            "max_concurrent": self._max_concurrent,
+            "max_waiting": self._max_waiting,
+        }
 
     @contextmanager
     def acquire(self, user_key: str) -> Iterator[dict[str, int | str]]:
@@ -307,136 +288,113 @@ class QueryLoadGuard:
                 with self._state_lock:
                     self._waiting = max(0, self._waiting - 1)
 
+    def _redis_unusable(self, user_key: str):
+        """Redis cannot be used for this request: a 503 when shared, the memory guard otherwise."""
+
+        if self._shared:
+            raise SharedStateUnavailable("query guard: shared state store (Redis) is unavailable")
+        return self._acquire_memory(user_key)
+
     @contextmanager
     def _acquire_redis(self, user_key: str) -> Iterator[None]:
         client = _get_redis_client()
         if client is None:
-            with self._acquire_memory(user_key):
+            with self._redis_unusable(user_key):
                 yield
             return
 
-        slot = _RedisSlot(user_rate_key=f"qguard:rate:{user_key}")
+        slot = _RedisSlot()
         try:
-            if self._reserve_redis_slot(client, slot):
+            try:
+                self._reserve_redis_slot(client, slot, user_key)
+            except _RedisUnusable:
+                fallback = self._redis_unusable(user_key)
+            else:
+                fallback = None
+            if fallback is None:
                 yield
             else:
-                # Redis stopped answering partway through. Degrading to the
-                # in-memory guard keeps the request alive; the release below
-                # still gives back whatever had already been counted.
-                with self._acquire_memory(user_key):
+                with fallback:
                     yield
         finally:
             self._release_redis_slot(client, slot, user_key)
 
-    def _reserve_redis_slot(self, client, slot: _RedisSlot) -> bool:
-        """Take a slot, or say the cluster counters are unusable.
+    def _reserve_redis_slot(self, client, slot: _RedisSlot, user_key: str) -> None:
+        """Take a slot, or raise: a refusal, an overload, or `_RedisUnusable`."""
 
-        Returns False only for "Redis is not answering" -- a refusal is an
-        exception, so a caller cannot mistake being turned away for degrading.
-        """
-
-        if not self._within_user_rate(client, slot):
-            return False
-
+        self._check_user_rate(client, user_key)
         started = time.monotonic()
-        while True:
-            taken = self._take_inflight(client, slot)
-            if taken is None:
-                return False
-            if taken:
-                return True
-            if not slot.queued and not self._join_queue(client, slot):
-                return False
+        while not self._take_slot(client, slot, user_key):
+            if not slot.queued:
+                self._join_queue(client, slot)
             if (time.monotonic() - started) > self._acquire_timeout_s:
                 raise QueryOverloadedError("query queue timeout")
             time.sleep(_queue_backoff_seconds(time.monotonic() - started))
 
-    def _within_user_rate(self, client, slot: _RedisSlot) -> bool:
-        """A fixed-window counter approximating a sliding window, shared by every worker."""
+    def _check_user_rate(self, client, user_key: str) -> None:
+        """The per-user sliding window, shared by every worker; the key carries a digest, not the id."""
 
-        try:
-            current = int(client.incr(slot.user_rate_key))
-            if current == 1:
-                client.expire(slot.user_rate_key, self._window_seconds)
-            if current > self._max_per_user:
-                raise QueryRateLimitedError("query rate limit exceeded")
-        except QueryRateLimitedError:
-            raise
-        except _redis_unavailable_errors() as e:
-            _redis_command_failed("rate_check", e)
+        rate_key = state_key("rl", "query", opaque(user_key))
+        window_us = self._window_seconds * 1_000_000
+        allowed = _call(client, "rate_check", _RATE_ACQUIRE, rate_key, window_us, uuid.uuid4().hex, self._max_per_user)
+        if int(allowed) == 0:
+            raise QueryRateLimitedError("query rate limit exceeded")
+
+    def _take_slot(self, client, slot: _RedisSlot, user_key: str) -> bool:
+        taken = _call(
+            client,
+            "take",
+            _TAKE,
+            state_key("qguard", "inflight"),
+            self._max_concurrent,
+            self._slot_lease_ms,
+            slot.member,
+        )
+        if not int(taken):
             return False
+        slot.acquired = True
+        if slot.queued:
+            # Leave the queue now rather than at release: otherwise a request
+            # that waited is counted as waiting for its whole run.
+            self._release_redis_slot(client, _RedisSlot(member=slot.member, queued=True), user_key)
+            slot.queued = False
         return True
 
-    def _take_inflight(self, client, slot: _RedisSlot) -> bool | None:
-        """True when the slot is ours, False when the gate is full, None when Redis is unusable.
-
-        The probe increments first and gives the count back when it overshoots,
-        which is what makes the check atomic across workers.
-        """
-
-        try:
-            inflight = int(client.incr(_INFLIGHT_KEY))
-            if inflight == 1:
-                client.expire(_INFLIGHT_KEY, max(5, self._window_seconds))
-            if inflight <= self._max_concurrent:
-                slot.acquired = True
-                return True
-            client.decr(_INFLIGHT_KEY)
-            return False
-        except _redis_unavailable_errors() as e:
-            _redis_command_failed("inflight_incr", e)
-            return None
-
-    def _join_queue(self, client, slot: _RedisSlot) -> bool:
-        """Claim a place in the bounded queue. Raises when there is none; False when Redis is unusable."""
+    def _join_queue(self, client, slot: _RedisSlot) -> None:
+        """Claim a place in the bounded queue, or raise because there is none."""
 
         if self._max_waiting <= 0:
             raise QueryOverloadedError(_QUERY_QUEUE_FULL)
-        try:
-            waiting = int(client.incr(_WAITING_KEY))
-            if waiting == 1:
-                client.expire(_WAITING_KEY, max(5, self._window_seconds))
-            if waiting > self._max_waiting:
-                client.decr(_WAITING_KEY)
-                raise QueryOverloadedError(_QUERY_QUEUE_FULL)
-            slot.queued = True
-            return True
-        except QueryOverloadedError:
-            raise
-        except _redis_unavailable_errors() as e:
-            _redis_command_failed("waiting_incr", e)
-            return False
+        joined = _call(
+            client, "queue", _TAKE, state_key("qguard", "waiting"), self._max_waiting, self._wait_lease_ms, slot.member
+        )
+        if not int(joined):
+            raise QueryOverloadedError(_QUERY_QUEUE_FULL)
+        slot.queued = True
 
     def _release_redis_slot(self, client, slot: _RedisSlot, user_key: str) -> None:
-        if slot.queued:
-            self._give_back(client, _WAITING_KEY, name="waiting", limit=self._max_waiting, user_key=user_key)
-        if slot.acquired:
-            self._give_back(client, _INFLIGHT_KEY, name="inflight", limit=self._max_concurrent, user_key=user_key)
+        """Give back what this acquisition holds.
 
-    def _give_back(self, client, key: str, *, name: str, limit: int, user_key: str) -> None:
-        """Return a shared counter, and repair it if the decrement will not land.
-
-        These keys outlive the request that incremented them, so a decrement lost
-        to a blip costs the whole cluster that much capacity until the key
-        expires. A count past twice the limit is not a busy moment, it is a leak.
+        A failure here costs nothing lasting: the lease expires on its own,
+        which is exactly what the counters this replaced could not do.
         """
 
-        try:
-            client.decr(key)
-            return
-        except _redis_unavailable_errors() as e:
-            # Louder than the others on purpose: this key outlives the request
-            # that incremented it, so a lost decrement costs the cluster that
-            # much capacity until it expires.
-            logger.warning(
-                "query_guard_%s_decr_failed user=%s error=%s", name, key_ref(user_key), str(e), exc_info=True
-            )
-            _redis_command_failed("decr", e)
-
-        try:
-            current = int(client.get(key) or 0)
-            if current > limit * 2:
-                logger.exception(f"Resetting corrupted {name} counter: {current}")
-                client.set(key, 0, ex=max(5, self._window_seconds))
-        except Exception as reset_error:
-            logger.warning(f"Failed to reset {name} counter: {reset_error}")
+        held = [
+            (state_key("qguard", "waiting"), slot.queued),
+            (state_key("qguard", "inflight"), slot.acquired),
+        ]
+        for key, holds in held:
+            if not holds:
+                continue
+            try:
+                client.zrem(key, slot.member)
+            except Exception as e:
+                if not is_unavailable_error(e):
+                    raise
+                logger.warning(
+                    "query_guard_release_failed user=%s key=%s error=%s -- the lease expires on its own",
+                    key_ref(user_key),
+                    key.rsplit(":", 1)[-1],
+                    str(e),
+                )
+                _redis_command_failed("release", e)

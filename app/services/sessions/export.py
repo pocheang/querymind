@@ -17,7 +17,6 @@ from typing import Any, Literal
 from app.services.sessions.metadata import (
     SessionMetadata,
     SessionMetadataService,
-    get_metadata_service,
     utc_now,
 )
 
@@ -27,7 +26,6 @@ __all__ = [
     "ExportedSession",
     "ImportResult",
     "SessionExportService",
-    "get_export_service",
 ]
 
 
@@ -85,8 +83,10 @@ class ImportResult:
 class SessionExportService:
     """Service for exporting and importing sessions."""
 
-    def __init__(self, metadata_service: SessionMetadataService | None = None):
-        self.metadata_service = metadata_service or get_metadata_service()
+    def __init__(self, metadata_service: SessionMetadataService):
+        # Required: the fallback was a process-wide in-memory metadata service,
+        # which no route ever reached and which a second worker would not share.
+        self.metadata_service = metadata_service
 
     def export_session(
         self,
@@ -435,23 +435,3 @@ class SessionExportService:
             if self.metadata_service.get_metadata(new_id) is None:
                 return new_id
             suffix += 1
-
-
-# ============================================================================
-# Singleton Instance
-# ============================================================================
-
-_export_service_instance: SessionExportService | None = None
-
-
-def get_export_service() -> SessionExportService:
-    """
-    Get singleton instance of SessionExportService.
-
-    Returns:
-        Singleton service instance
-    """
-    global _export_service_instance
-    if _export_service_instance is None:
-        _export_service_instance = SessionExportService()
-    return _export_service_instance

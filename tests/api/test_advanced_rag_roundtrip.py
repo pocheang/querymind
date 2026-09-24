@@ -108,3 +108,35 @@ async def test_query_without_session_id_persists_nothing(history):
     )
 
     assert history.get_session(session_id)["messages"] == []
+
+
+@pytest.mark.asyncio
+async def test_the_session_and_its_memories_are_read_off_the_event_loop(history, monkeypatch):
+    """Both reads are synchronous SQLite; the memory store may wait on another worker's write lock.
+
+    On the loop that wait would stall every request in the process. The check
+    is "is there a running loop on this thread", which is true on the loop and
+    false on a `to_thread` worker.
+    """
+
+    import asyncio
+
+    threads_with_a_loop: list[bool] = []
+
+    def record(user, session_id, question):
+        try:
+            asyncio.get_running_loop()
+            threads_with_a_loop.append(True)
+        except RuntimeError:
+            threads_with_a_loop.append(False)
+        return ""
+
+    monkeypatch.setattr(advanced_rag, "_build_memory_context_for_session", record)
+    user = {"user_id": "u1", "username": "u", "role": "user", "permissions": []}
+    session_id = history.create_session()["session_id"]
+
+    await advanced_rag._process_advanced_rag_query_impl(
+        advanced_rag.AdvancedRAGRequest(query="hello", session_id=session_id), _Request(), user
+    )
+
+    assert threads_with_a_loop == [False]

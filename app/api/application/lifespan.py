@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
@@ -17,7 +18,7 @@ from app.api.dependencies import (
     auto_ingest_watcher,
 )
 from app.api.deps.runtime import install_app_services
-from app.core.config import validate_security_settings, validate_worker_topology
+from app.core.config import validate_security_settings, validate_shared_state_backends, validate_worker_topology
 from app.core.remote_config import watch_remote_config
 from app.graph.knowledge.client import Neo4jClient
 from app.services.observability.log_buffer import setup_log_capture
@@ -92,6 +93,23 @@ def _purge_retired_user_model_settings() -> None:
         logger.info("Cleared retired per-user model settings from %d account(s)", cleared)
 
 
+def _require_reachable_shared_state(settings) -> None:
+    """With STATE_BACKEND=shared, a Redis that does not answer is a failed start.
+
+    Shared state that silently fell back to process memory is the ARC-01 defect
+    itself, so this refuses instead of degrading. The URL is not repeated in the
+    message: it can carry the Redis password.
+    """
+
+    if settings.state_backend != "shared":
+        return
+    from app.services.runtime.redis_connector import probe
+
+    error = probe(settings.redis_url)
+    if error is not None:
+        raise RuntimeError(f"STATE_BACKEND=shared needs a reachable Redis at REDIS_URL, and it did not answer: {error}")
+
+
 def _warm_nli_model() -> None:
     try:
         from app.services.legacy_agent_runtime import warm_nli_model
@@ -161,9 +179,38 @@ def _init_cache_manager(settings) -> bool:
         return False
 
 
+def _recover_unfinished_ingests(settings) -> None:
+    """In memory mode this process is the only thing that runs ingest jobs.
+
+    So a document still pending or indexing when it starts belongs to a job that
+    died with the previous process, and nothing else will ever finish it. In
+    shared mode the ingest worker does this when it starts.
+
+    Skipped under pytest for the reason `_bootstrap_administrator` is: starting
+    an app in a test must not requeue the developer's own documents.
+    """
+    if settings.state_backend == "shared" or os.getenv("PYTEST_CURRENT_TEST"):
+        return
+    from app.services.runtime.ingest_queue import recover_unfinished_documents
+
+    try:
+        recovered = recover_unfinished_documents()
+    except Exception as e:
+        logger.warning(f"ingest recovery failed (non-critical): {e}", exc_info=True)
+        return
+    if recovered:
+        logger.warning("ingest_recovery requeued=%d", len(recovered))
+
+
 def _start_auto_ingest_thread(settings) -> None:
+    """Watch the document folders from this process -- in memory mode only.
+
+    With STATE_BACKEND=shared every API worker would run its own watcher and
+    ingest each new file once per worker, so the watcher lives in the ingest
+    worker instead (ARC-01 phase 5, C1).
+    """
     global _auto_ingest_thread
-    if not settings.auto_ingest_enabled:
+    if not settings.auto_ingest_enabled or settings.state_backend == "shared":
         return
     if _auto_ingest_thread is not None and _auto_ingest_thread.is_alive():
         return
@@ -209,6 +256,8 @@ async def lifespan(app: FastAPI):
     settings = query_runtime.settings
     validate_security_settings(settings)
     validate_worker_topology(settings)
+    validate_shared_state_backends(settings)
+    _require_reachable_shared_state(settings)
 
     install_app_services(app)
     logger.info(
@@ -248,6 +297,7 @@ async def lifespan(app: FastAPI):
     tracker.start_periodic_cleanup(interval_seconds=300)
 
     _cache_initialized = _init_cache_manager(settings)
+    await asyncio.to_thread(_recover_unfinished_ingests, settings)
     _start_auto_ingest_thread(settings)
 
     try:

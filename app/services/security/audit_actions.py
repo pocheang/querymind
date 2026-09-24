@@ -60,6 +60,11 @@ class AuditAction(StrEnum):
     # in similarity_search, neither of which audits per query, so there is nothing
     # to write this. Bring the name back with a writer, not before it.
 
+    # Governed tools (app/mcp/audit.py). Written for every tool decision since
+    # ARC-01 phase 2c; before that they went to a list in process memory (SEC-10).
+    TOOL_INVOKE = "tool.invoke"
+    TOOL_APPROVAL_REQUIRED = "tool.approval_required"
+
     # Prompt library
     PROMPT_CHECK = "prompt.check"
     PROMPT_CREATE = "prompt.create"

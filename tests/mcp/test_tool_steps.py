@@ -13,6 +13,9 @@ next tool choice.
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import pytest
 
 from app.agents.tool.selector import ToolObservation, ToolSelection
@@ -20,11 +23,18 @@ from app.agents.tool.service import SELECTOR_TOOL_ID, ToolAgentService, _observa
 from app.core.config import get_settings
 from app.domain.contracts import ToolResult
 from app.mcp.approvals import ApprovalStore
+from app.mcp.audit import AuditLog
 from app.mcp.authorization import AuthorizationPolicy
 from app.mcp.contracts import ToolArgument, ToolCall, ToolDefinition, ToolParameter
 from app.mcp.gateway import MCPGateway
 from app.mcp.registry import ToolRegistry
 from app.orchestration.request import OrchestrationRequest, RequestActor
+
+
+def _scratch_db() -> Path:
+    """Approvals live in SQLite; a test's belong in a throwaway file, never the developer's app.db."""
+    return Path(tempfile.mkdtemp()) / "app.db"
+
 
 _ACTOR = RequestActor(user_id="alice", tenant_id="acme", role="viewer")
 _FIRST = "querymind_step_one"
@@ -41,7 +51,11 @@ def _definition(tool_id: str, *, risk: str = "idempotent") -> ToolDefinition:
 
 
 def _stack(*definitions: ToolDefinition, outcome=None):
-    registry = ToolRegistry(authorization=AuthorizationPolicy(), approvals=ApprovalStore())
+    registry = ToolRegistry(
+        authorization=AuthorizationPolicy(),
+        approvals=ApprovalStore(_scratch_db()),
+        audit=AuditLog(write=lambda _record: None),  # never the developer's audit_logs
+    )
     invoked: list[str] = []
 
     async def executor(call: ToolCall, actor: RequestActor) -> ToolResult:
@@ -81,7 +95,9 @@ class _Script:
 
 def _agent(gateway, registry, selector, *, max_steps: int = 3) -> ToolAgentService:
     settings = get_settings().model_copy(update={"tool_max_steps": max_steps})
-    return ToolAgentService(gateway, registry, approvals=ApprovalStore(), selector=selector, settings=settings)
+    return ToolAgentService(
+        gateway, registry, approvals=ApprovalStore(_scratch_db()), selector=selector, settings=settings
+    )
 
 
 def _request() -> OrchestrationRequest:

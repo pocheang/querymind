@@ -297,13 +297,14 @@ def test_nl2sql_heuristic_template_matching() -> None:
     assert "COUNT(*)" in sql_count
 
 
-def test_ingest_pipeline_registers_table_in_table_store() -> None:
+def test_ingest_pipeline_registers_table_in_table_store(monkeypatch) -> None:
     from unittest.mock import MagicMock
 
     from app.ingestion.loaders.office_loader import TableBlock
-    from app.services.documents.ingest import _index_one_table
+    from app.services.documents.ingest import _table_content, _write_tables
 
-    mock_extractor = MagicMock()
+    # The vector write is somebody else's test; this one is about the SQL copy.
+    monkeypatch.setattr("app.services.multimodal.table_extractor.TableExtractor", MagicMock)
     table_block = TableBlock(
         table_id="tbl-ingest-test-77",
         page=1,
@@ -318,8 +319,9 @@ def test_ingest_pipeline_registers_table_in_table_store() -> None:
         "source": "uploads/ops-user/inventory.xlsx",
     }
 
-    ok = _index_one_table(mock_extractor, table_block, canonical)
-    assert ok is True
+    content = _table_content(table_block, canonical)
+    assert content is not None
+    assert _write_tables([(content, canonical)], None) == 1
 
     # Check that TableStore now holds this table, for its owner and nobody else
     store = get_table_store()

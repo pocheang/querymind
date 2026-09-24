@@ -743,13 +743,10 @@ def test_table_importance_score_high_density_boost() -> None:
 
 
 def test_ingest_index_one_table_enriches_summary_and_metadata() -> None:
-    """Validate that _index_one_table creates TableContent with columns and dimensions in summary."""
-    from unittest.mock import MagicMock
-
+    """Validate that _table_content creates TableContent with columns and dimensions in summary."""
     from app.ingestion.loaders.office_loader import TableBlock
-    from app.services.documents.ingest import _index_one_table
+    from app.services.documents.ingest import _table_content
 
-    mock_extractor = MagicMock()
     table_block = TableBlock(
         table_id="tbl-ledger-88",
         page=3,
@@ -762,10 +759,8 @@ def test_ingest_index_one_table_enriches_summary_and_metadata() -> None:
         "owner_user_id": "user-1",
     }
 
-    result = _index_one_table(mock_extractor, table_block, canonical)
-    assert result is True
-    mock_extractor.index_table.assert_called_once()
-    call_arg = mock_extractor.index_table.call_args[0][0]
+    call_arg = _table_content(table_block, canonical)
+    assert call_arg is not None
 
     assert call_arg.table_id == "tbl-ledger-88"
     assert "sheet: Q3_Summary" in call_arg.summary

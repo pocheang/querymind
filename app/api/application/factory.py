@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from app.api.application.lifespan import lifespan
 from app.api.application.router_registry import register_routers
 from app.api.application.static_files import StaticFilePaths, configure_static_files
 from app.api.middleware.rate_limit import RateLimitMiddleware
+from app.api.transport.errors import index_busy_response, shared_state_unavailable_response
 from app.api.transport.middleware import request_timing_middleware
 from app.core.config import normalise_environment_name
+from app.services.runtime.file_locks import LockBusy
+from app.services.runtime.shared_state import SharedStateUnavailable
 
 _APP_BASE_API_SEGMENTS = {
     "admin",
@@ -78,9 +82,23 @@ def _configure_cors(app_obj: FastAPI, settings_obj) -> None:
     )
 
 
+async def shared_state_unavailable(_request: Request, exc: SharedStateUnavailable) -> JSONResponse:
+    """Redis holds state every worker must agree on and is not answering: 503, not 500."""
+
+    return shared_state_unavailable_response()
+
+
+async def index_busy(_request: Request, exc: LockBusy) -> JSONResponse:
+    """Another writer holds the document index past the request's wait: 503, retry."""
+
+    return index_busy_response()
+
+
 def create_app(settings_obj, static_paths: StaticFilePaths | None = None, static_handlers=None) -> FastAPI:
     """Build the public application while preserving the historical order."""
     app = FastAPI(title="QueryMind（智询）", lifespan=lifespan)
+    app.add_exception_handler(SharedStateUnavailable, shared_state_unavailable)
+    app.add_exception_handler(LockBusy, index_busy)
     app.middleware("http")(rewrite_app_prefixed_api_paths)
     _configure_cors(app, settings_obj)
 
@@ -97,7 +115,11 @@ def create_app(settings_obj, static_paths: StaticFilePaths | None = None, static
     rate_limit_enabled = getattr(settings_obj, "rate_limit_enabled", True)
     redis_url = getattr(settings_obj, "redis_url", None)
     if rate_limit_enabled:
-        app.add_middleware(RateLimitMiddleware, redis_url=redis_url)
+        app.add_middleware(
+            RateLimitMiddleware,
+            redis_url=redis_url,
+            shared=getattr(settings_obj, "state_backend", "memory") == "shared",
+        )
 
     app.middleware("http")(request_timing_middleware)
     register_routers(app)
@@ -105,4 +127,4 @@ def create_app(settings_obj, static_paths: StaticFilePaths | None = None, static
     return app
 
 
-__all__ = ["create_app", "lifespan", "rewrite_app_prefixed_api_paths", "_configure_cors"]
+__all__ = ["create_app", "lifespan", "rewrite_app_prefixed_api_paths", "shared_state_unavailable", "_configure_cors"]

@@ -25,7 +25,6 @@ __all__ = [
     "MetadataUpdate",
     "TagExtractor",
     "SessionMetadataService",
-    "get_metadata_service",
 ]
 
 
@@ -696,23 +695,3 @@ class SessionMetadataService:
             "total_tags": len(self.get_all_tags()),
             "utilization": len(self._sessions) / self._max_sessions if self._max_sessions > 0 else 0,
         }
-
-
-# ============================================================================
-# Singleton Instance
-# ============================================================================
-
-_metadata_service_instance: SessionMetadataService | None = None
-
-
-def get_metadata_service() -> SessionMetadataService:
-    """
-    Get singleton instance of SessionMetadataService.
-
-    Returns:
-        Singleton service instance
-    """
-    global _metadata_service_instance
-    if _metadata_service_instance is None:
-        _metadata_service_instance = SessionMetadataService()
-    return _metadata_service_instance

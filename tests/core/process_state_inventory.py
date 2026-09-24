@@ -85,40 +85,32 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "答案校验级联实例缓存，重载配置时需要跨进程失效并重新构建校验器",
     ),
     "app/api/application/lifespan.py::_auto_ingest_thread": (
-        "C",
-        "文件系统自动摄取后台轮询线程，集群中只能有一个实例运行以避免重复摄取",
+        "D",
+        "自动摄取监视线程只在 STATE_BACKEND=memory（单进程）时由 API 启动；shared 模式下监视器运行在唯一的 ingest-worker 里（阶段 5）",
     ),
     "app/api/application/lifespan.py::_cache_initialized": (
         "D",
         "进程生命周期内缓存服务初始化状态标志，各进程独立维护自身的启停状态",
     ),
     "app/api/dependencies.py::_auto_ingest_stop_event": (
-        "C",
-        "自动摄取后台任务停止事件信号，只能与单例后台线程配套存在",
+        "D",
+        "配合上面的监视线程，只在 memory 模式（单进程）使用",
     ),
     "app/api/dependencies.py::_query_runtime": (
-        "A",
-        "查询请求运行时快照，多 worker 各自维护一份运行时可能导致服务配置不一致",
+        "D",
+        "查询运行时快照，每个进程各一份即可；其中的查询守卫在 STATE_BACKEND=shared 时以 Redis 名额租约跨 worker 共享（ARC-01 阶段 2b）",
     ),
     "app/api/dependencies.py::_runtime_reload_lock": (
         "D",
         "查询运行时热重载线程锁，多进程各持一份保护自身内部运行时替换",
     ),
     "app/api/dependencies.py::auto_ingest_watcher": (
-        "C",
-        "文件系统自动摄取监控器，单例后台轮询任务，多进程启动会导致重复并发摄取",
-    ),
-    "app/api/dependencies.py::login_limiter": (
-        "A",
-        "登录失败计数器，按进程计数会导致最大尝试次数在多 worker 下被放大 N 倍",
+        "D",
+        "API 进程里的监视器只在 memory 模式启动；shared 模式由 ingest-worker 自己构造并运行（阶段 5）",
     ),
     "app/api/dependencies.py::prompt_store": (
         "D",
         "基于 SQLite 的提示词模板仓储，本身无内存状态，各进程可保留独立实例",
-    ),
-    "app/api/dependencies.py::register_limiter": (
-        "A",
-        "用户注册频率限制器，按进程计数会导致注册限额在多 worker 下被放大 N 倍",
     ),
     "app/api/dependencies.py::runtime_metrics": (
         "D",
@@ -128,17 +120,17 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "B",
         "全局配置对象引用，管理重载配置时需要跨进程同步刷新或重新加载",
     ),
-    "app/api/dependencies.py::upload_limiter": (
-        "A",
-        "文件上传频率限制器，按进程计数会导致上传限额在多 worker 下被放大 N 倍",
-    ),
     "app/api/deps/auth.py::auth_service": (
         "D",
         "基于 SQLite 数据库的用户认证服务实例，各进程可独立持有无状态服务对象",
     ),
     "app/api/routes/public/auth.py::oauth_state_store": (
-        "A",
-        "OAuth 授权状态与 CSRF 校验令牌仓储，降级到内存时多 worker 无法跨进程兑换导致认证失败",
+        "D",
+        "OAuth state 在 Redis 里；STATE_BACKEND=shared 时 Redis 不可用返回 503，不再退回进程内存（ARC-01 阶段 2f）",
+    ),
+    "app/api/routes/public/orchestration.py::_pending_subscriptions": (
+        "D",
+        "每个用户正在等待尚未开始的执行的订阅数，用于每进程的并发上限（ARC-02）；按 worker 计数足以防止一个调用方耗尽一个进程",
     ),
     "app/api/transport/middleware.py::_request_metrics": (
         "D",
@@ -169,20 +161,28 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "工具栈延迟初始化线程互斥锁，多进程各持一份保护自身单例构建",
     ),
     "app/mcp/runtime.py::_stack": (
-        "A",
-        "工具栈单例内含审批令牌仓储，多 worker 下审批令牌无法跨进程查找和兑换",
+        "D",
+        "工具栈每个进程各一份即可：审批令牌存 app.db（阶段 2c），工具审计写 audit_logs（阶段 2d），不再有只在本进程的数据",
     ),
     "app/orchestration/answer_stream.py::_default_store": (
-        "A",
-        "流式答案草稿分片仓储，写入与 SSE 读取跨 worker 时会导致流式输出 404",
+        "D",
+        "每个 worker 各一份：shared 模式下每个脱敏草稿片段同时写入该执行的 Redis 流，SSE 从流里读（ARC-01 阶段 3）",
     ),
     "app/orchestration/answer_stream.py::_default_thought_store": (
-        "A",
-        "思考流草稿分片仓储，写入与 SSE 读取跨 worker 时会导致思考内容丢失",
+        "D",
+        "每个 worker 各一份：shared 模式下每个脱敏推理片段同时写入该执行的 Redis 流，SSE 从流里读（ARC-01 阶段 3）",
     ),
     "app/orchestration/execution_events.py::_default_store": (
-        "A",
-        "执行事件流仓储，执行引擎写入与 SSE 读取跨 worker 时会导致事件流 404",
+        "D",
+        "每个 worker 各一份：shared 模式下每个阶段事件同时写入该执行的 Redis 流，SSE 从流里读（ARC-01 阶段 3）",
+    ),
+    "app/orchestration/shared_execution.py::_READER": (
+        "D",
+        "SSE 读取共享执行流用的异步 Redis 连接器，持有本进程的连接和故障冷却期，每个 worker 各一份",
+    ),
+    "app/orchestration/shared_execution.py::_WRITER": (
+        "D",
+        "共享执行流的后台写入线程和队列，写入的数据在 Redis 里；队列本身只缓冲本进程待发送的写入",
     ),
     "app/pipeline/rag_pipeline.py::_ENGINE_CACHE": (
         "D",
@@ -196,17 +196,9 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "B",
         "权限分域的 BM25 倒排索引缓存，文档变更时需要跨进程失效避免数据陈旧",
     ),
-    "app/retrievers/hybrid/caching.py::_REDIS_CLIENT": (
+    "app/retrievers/hybrid/caching.py::_REDIS": (
         "D",
-        "检索缓存的 Redis 连接客户端，各进程独立维护长连接池与熔断状态",
-    ),
-    "app/retrievers/hybrid/caching.py::_REDIS_LOCK": (
-        "D",
-        "Redis 连接与状态探测互斥锁，多进程各持一份保护自身连接池与探测状态",
-    ),
-    "app/retrievers/hybrid/caching.py::_REDIS_UNAVAILABLE_UNTIL": (
-        "D",
-        "Redis 故障退避熔断时间戳，多 worker 各自退避不影响正确性，仅在 Redis 宕机时避免重复探测",
+        "检索缓存的 Redis 连接器，持有本进程的连接池和故障冷却期；连接本身不能跨进程共享，每个 worker 各一份",
     ),
     "app/retrievers/hybrid/caching.py::_RETRIEVAL_CACHE": (
         "B",
@@ -225,8 +217,8 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "Chroma 向量存储客户端实例缓存，底层重新索引或集合变更时需要跨进程失效",
     ),
     "app/services/auth/redis_rate_limit.py::_rate_limiter": (
-        "A",
-        "分布式速率限制器进程内降级实例，Redis 不可用时多 worker 导致限流配额放大",
+        "D",
+        "中间件限流计数在 Redis 里；STATE_BACKEND=shared 时 Redis 不可用返回 503，不再按进程计数（ARC-01 阶段 2f）",
     ),
     "app/services/caching/__init__.py::_cache_manager_instance": (
         "B",
@@ -235,10 +227,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
     "app/services/context_management.py::_context_service_instance": (
         "A",
         "多轮对话实体追踪与指代消解上下文服务，会话状态保存在内存字典中，多 worker 下状态丢失",
-    ),
-    "app/services/documents/registry.py::_LOCK": (
-        "D",
-        "保护文档注册表读写的进程内互斥锁，本身不需要跨进程共享",
     ),
     "app/services/language/analytics.py::LanguageAnalytics._instance": (
         "D",
@@ -257,8 +245,8 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "本地嵌入模型权重加载缓存，模型路径或类型变更时需要跨进程失效",
     ),
     "app/services/observability/agent_execution_tracker.py::AgentExecutionTracker._instance": (
-        "A",
-        "智能体执行追踪单例，跨进程导致执行步骤事件分裂和状态无法聚合",
+        "D",
+        "每个 worker 各一份：SSE 需要的归属和状态在 shared 模式下写入 Redis，看板统计写入 SQLite（ARC-01 阶段 3）；含问题原文的完整调试记录按决定只留在本进程，/agent-tracking 只能看到本 worker",
     ),
     "app/services/observability/alerting.py::_LAST_SENT": (
         "A",
@@ -296,21 +284,9 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "AI 报告编辑器无状态服务单例，多进程各持一份调用底层模型",
     ),
-    "app/services/query/guard.py::_REDIS_CLIENT": (
+    "app/services/query/guard.py::_REDIS": (
         "D",
-        "查询保护器的 Redis 连接客户端，各进程独立维护长连接池与熔断状态",
-    ),
-    "app/services/query/guard.py::_REDIS_ERRORS": (
-        "D",
-        "Redis 异常类型元组惰性缓存，纯类型引用，各进程可独立保留",
-    ),
-    "app/services/query/guard.py::_REDIS_LOCK": (
-        "D",
-        "查询保护器 Redis 客户端连接锁，各进程独立维护长连接初始化",
-    ),
-    "app/services/query/guard.py::_REDIS_UNAVAILABLE_UNTIL": (
-        "D",
-        "查询保护器 Redis 熔断冷却时间戳，记录单进程内的重试时机",
+        "查询守卫的 Redis 连接器，持有本进程的连接池和故障冷却期；连接本身不能跨进程共享，每个 worker 各一份",
     ),
     "app/services/query/keyword_match.py::_latin_keyword_pattern": (
         "D",
@@ -328,13 +304,33 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "每个 worker 各自保护自己；并发上限会随 worker 数放大，部署时按 worker 数平分配置",
     ),
-    "app/services/runtime/ingest_queue.py::_EXECUTOR": (
-        "A",
-        "文档摄取线程池，多进程各自启动线程池会导致并发摄取打垮系统计算资源",
+    "app/services/runtime/file_locks.py::_LOCKS": (
+        "D",
+        "每个锁文件在本进程内对应一个 FileLock 对象；真正的互斥由操作系统文件锁完成，跨进程天然生效",
     ),
-    "app/services/runtime/ingest_queue.py::_JOBS": (
-        "A",
-        "摄取任务状态字典，多 worker 下查询任务状态时无法跨进程找到其他 worker 的任务",
+    "app/services/runtime/file_locks.py::_LOCKS_GUARD": (
+        "D",
+        "保护上面 FileLock 缓存的进程内互斥锁，本身不需要跨进程共享",
+    ),
+    "app/services/runtime/ingest_queue.py::_RQ_CONNECTOR": (
+        "D",
+        "每个进程一个到 Redis 的连接器（RQ 需要不解码响应），队列本身在 Redis 里，各进程共享",
+    ),
+    "app/services/runtime/ingest_queue.py::_EXECUTOR": (
+        "D",
+        "只在 memory 模式（单进程）运行摄取与重建任务；shared 模式任务进 Redis 的 RQ 队列，由唯一的 ingest-worker 执行（阶段 5）",
+    ),
+    "app/services/runtime/redis_connector.py::_ERRORS": (
+        "D",
+        "Redis 异常类型元组的惰性缓存，只是类型引用，每个进程解析一次即可",
+    ),
+    "app/services/runtime/redis_connector.py::_REGISTRY": (
+        "D",
+        "本进程创建的 Redis 连接器登记表，只供管理员就绪探针报告本进程的连接状态",
+    ),
+    "app/services/runtime/redis_connector.py::_REGISTRY_LOCK": (
+        "D",
+        "保护 _REGISTRY 的进程内互斥锁，本身不需要跨进程共享",
     ),
     "app/services/runtime/resilience.py::_BREAKERS": (
         "D",
@@ -356,9 +352,13 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "服务健康检查缓存读取互斥锁，多进程各持一份保护自身缓存",
     ),
+    "app/services/runtime/shared_state.py::_CONNECTOR": (
+        "D",
+        "共享状态用的 Redis 连接器，持有本进程的连接池和故障冷却期；共享的数据在 Redis 里，连接本身每个 worker 各一份",
+    ),
     "app/services/security/admin_token_tracker.py::_global_tracker": (
-        "A",
-        "管理员一次性审批令牌追踪器，多 worker 下各自记录导致单次令牌被重复使用",
+        "D",
+        "管理员一次性令牌的使用记录存在 app.db，用原子 UPSERT 认领，所有 worker 共享（ARC-01 阶段 2e）",
     ),
     "app/services/security/injection_defense.py::_GLOBAL_DETECTOR": (
         "D",
@@ -368,29 +368,21 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "B",
         "出站脱敏自定义正则缓存，配置更新时需要跨进程失效清理缓存",
     ),
-    "app/services/sessions/export.py::_export_service_instance": (
-        "D",
-        "会话导入导出无状态服务单例，各进程可保留独立实例处理导出任务",
-    ),
     "app/services/sessions/history.py::_LOCK_REGISTRY": (
-        "A",
-        "会话文件锁注册表，多 worker 下无法跨进程互斥导致同一会话并发写损坏",
+        "D",
+        "进程内会话锁，阶段 4 后只是优化：sqlite 后端的每次改动都在 BEGIN IMMEDIATE 事务里跨进程串行，file 后端在 STATE_BACKEND=shared 下拒绝启动",
     ),
     "app/services/sessions/history.py::_LOCK_REGISTRY_GUARD": (
         "D",
         "保护会话锁注册表 _LOCK_REGISTRY 的进程内互斥锁，本身不需要跨进程共享",
-    ),
-    "app/services/sessions/metadata.py::_metadata_service_instance": (
-        "A",
-        "metadata.py 自带的 get_metadata_service 在 app/ 内没有调用方，疑似死代码",
     ),
     "app/services/sessions/metadata_db.py::_metadata_db_instances": (
         "B",
         "数据库会话元数据服务实例字典，各实例内含进程内 L1 LRU 缓存，跨进程更新时导致脏读",
     ),
     "app/services/sessions/service.py::_memory_service_instances": (
-        "A",
-        "仅在 SESSION_METADATA_BACKEND=memory 时使用（默认 database）",
+        "D",
+        "仅 SESSION_METADATA_BACKEND=memory 使用；STATE_BACKEND=shared 拒绝该后端（阶段 4），所以只在单进程部署里存在",
     ),
     "app/services/tables/store.py::_GLOBAL_LOCK": (
         "D",

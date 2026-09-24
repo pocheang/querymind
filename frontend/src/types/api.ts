@@ -197,6 +197,10 @@ export type FileIndexActionResponse = {
   pages_by_source?: Record<string, number>;
   skipped?: boolean;
   reason?: string;
+  /** A reindex answered 202: it is a job now, followed through the document list. */
+  queued?: boolean;
+  document_id?: string;
+  status?: string;
 };
 
 export type UploadResponse = {
