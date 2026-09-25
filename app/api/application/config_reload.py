@@ -69,6 +69,11 @@ def apply_config_reload() -> Settings:
     # Search providers are cached with the Settings object they were built from,
     # so WEB_SEARCH_PROVIDER / WEB_SEARCH_MAX_RETRIES edits need a fresh instance.
     clear_provider_cache()
+    # The quota limits and mode are read when the guard is built; like the router
+    # memo above, a hand-rolled singleton the lru_cache guard cannot find.
+    from app.services.security.quota import reset_quota_guard
+
+    reset_quota_guard()
     Neo4jClient.close_shared_driver()
     reset_bulkheads()
     return new_settings

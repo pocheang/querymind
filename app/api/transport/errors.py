@@ -78,6 +78,11 @@ def rate_limited(detail: str = "Too many requests, retry later") -> HTTPExceptio
     return HTTPException(status_code=429, detail=detail)
 
 
+def quota_exceeded(detail: str, retry_after: int) -> HTTPException:
+    """429 for a per-minute quota, saying when the oldest counted use leaves the window."""
+    return HTTPException(status_code=429, detail=detail, headers={"Retry-After": str(max(1, int(retry_after)))})
+
+
 def service_unavailable(detail: str = "Service temporarily overloaded, retry later") -> HTTPException:
     """Return a 503 Service Unavailable error."""
     return HTTPException(status_code=503, detail=detail)

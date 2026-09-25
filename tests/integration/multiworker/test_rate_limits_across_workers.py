@@ -27,6 +27,7 @@ from multiworker_stack import build_stack
 pytestmark = pytest.mark.timeout(300)
 
 MAX_FAILURES = 3
+QUERY_QUOTA = 3
 
 
 @pytest.fixture(scope="module")
@@ -36,6 +37,8 @@ def stack(tmp_path_factory):
         RATE_LIMIT_ENABLED="false",
         AUTH_REGISTER_MAX_ATTEMPTS="3",
         AUTH_LOGIN_MAX_FAILURES=str(MAX_FAILURES),
+        QUOTA_ENABLED="true",
+        QUOTA_QUERY_MAX_PER_MINUTE=str(QUERY_QUOTA),
     )
 
 
@@ -57,6 +60,22 @@ def test_the_register_limit_is_shared_across_workers(stack):
         statuses.append(httpx.post(f"{worker.base_url}/auth/register", json=body).status_code)
 
     assert statuses == [200, 200, 200, 429]
+
+
+def test_the_query_quota_is_one_count_for_every_worker(stack):
+    """A quota counted per process would admit QUERY_QUOTA per worker -- the ARC-01 defect it had.
+
+    Before the login-lockout test below, which locks this administrator on purpose.
+    """
+
+    clients = [stack.login(worker) for worker in stack.workers]
+
+    statuses = [
+        clients[n % 2].post("/api/advanced-rag/query", json={"query": f"quota probe {n}"}).status_code
+        for n in range(QUERY_QUOTA + 1)
+    ]
+
+    assert statuses == [200] * QUERY_QUOTA + [429]
 
 
 def test_login_failures_add_up_across_workers_and_lock_both(stack):

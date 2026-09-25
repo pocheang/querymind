@@ -26,7 +26,7 @@ from app.api.dependencies import (
 from app.api.deps.auth import require_admin
 from app.api.deps.documents import _allowed_sources_for_user
 from app.api.routes.internal.pipeline_contract import record_query_analytics, retrieval_summary
-from app.api.transport.errors import internal_error, service_unavailable
+from app.api.transport.errors import internal_error, quota_exceeded, service_unavailable
 from app.api.transport.middleware import record_grounding_support
 from app.core.config import get_settings
 from app.domain.advanced_rag import (
@@ -51,6 +51,7 @@ from app.services.observability.agent_execution_tracker import AgentExecutionTra
 from app.services.observability.log_safety import question_ref
 from app.services.query.decomposer import DEFAULT_MAX_SUB_QUERIES
 from app.services.runtime.shared_state import is_shared
+from app.services.security.quota import get_quota_guard
 from app.services.security.rbac import Permission
 
 logger = logging.getLogger(__name__)
@@ -627,7 +628,22 @@ async def _process_advanced_rag_query_impl(
         tracker.complete_execution(execution_id, result.model_dump())
         return result
     except Exception as exc:
+        failure = _retrieval_failure(exc)
+        if failure is not None and _refused_only_by_web_quota(failure):
+            # Not an outage: web was the only source and the caller's web quota
+            # refused every search. A 503 would send someone to look at the
+            # infrastructure; the truth is "wait", and for how long.
+            tracker.fail_execution(execution_id, "web search quota exceeded")
+            user_id = str(user.get("user_id", "") or "")
+            retry_after = await asyncio.to_thread(get_quota_guard().web_retry_after, user_id)
+            raise quota_exceeded(
+                "Web search quota exceeded, and web search was the only source for this question.", retry_after
+            ) from exc
         _raise_advanced_query_failure(exc, tracker, execution_id, request_data.query)
+
+
+def _refused_only_by_web_quota(failure: RetrievalFailureError) -> bool:
+    return failure.failed_retrievers == {"web"} and failure.error_types.get("web") == "WebQuotaExceededError"
 
 
 @router.post("/query", response_model=AdvancedRAGResult)

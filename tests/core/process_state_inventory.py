@@ -456,4 +456,12 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "DDGS 客户端并发实例化互斥锁，多进程各持一份保护自身客户端构造",
     ),
+    "app/services/security/quota.py::_GUARD": (
+        "D",
+        "配额守卫单例；shared 模式下计数在 Redis（make_limiter），对象本身只持有限额与模式；配置重载时由 reset_quota_guard 重建",
+    ),
+    "app/services/security/quota.py::_GUARD_LOCK": (
+        "D",
+        "只保护配额守卫单例的惰性构建，不持有任何状态",
+    ),
 }

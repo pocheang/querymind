@@ -25,7 +25,7 @@ from app.api.deps.sessions import (
     _history_store_for_user,
 )
 from app.api.schemas import AdminModelSettingsResponse
-from app.api.transport.errors import bad_request, forbidden, rate_limited, service_unavailable
+from app.api.transport.errors import bad_request, forbidden, quota_exceeded, rate_limited, service_unavailable
 from app.api.utils.auth_helpers import (
     _audit,
 )
@@ -43,7 +43,7 @@ from app.services.query.guard import QueryLoadGuard, QueryOverloadedError, Query
 from app.services.runtime.auto_ingest_watcher import AutoIngestWatcher
 from app.services.runtime.background_queue import BackgroundTaskQueue
 from app.services.security.audit_actions import AuditAction
-from app.services.security.quota import QuotaGuard
+from app.services.security.quota import QuotaExceededError, get_quota_guard
 from app.services.security.rate_limiter import make_limiter
 
 # Global settings and logger
@@ -60,6 +60,21 @@ def _reserve_chat_credit(request: Request, user: dict[str, Any], resource_type: 
     existing per-user credit balance check.
     """
     user_key = str(user.get("user_id", "") or "") or "anonymous"
+    # Before the load guard, and outside the try below: that block wraps the
+    # route body through `yield`, so a quota error raised by the body would be
+    # caught there and reported as this one.
+    try:
+        get_quota_guard().enforce_query_quota(str(user.get("user_id", "") or ""))
+    except QuotaExceededError as exc:
+        _audit(
+            request,
+            action=AuditAction.QUERY_QUOTA,
+            resource_type=resource_type,
+            result="blocked",
+            user=user,
+            detail=str(exc),
+        )
+        raise quota_exceeded(str(exc), exc.retry_after) from exc
     try:
         with get_query_runtime().query_guard.acquire(user_key):
             with auth_service.chat_credit_reservation(str(user.get("user_id", ""))) as credit:
@@ -140,7 +155,6 @@ class QueryRuntime:
 
     settings: Settings
     query_guard: QueryLoadGuard
-    quota_guard: QuotaGuard
     shadow_queue: BackgroundTaskQueue
 
 
@@ -159,7 +173,6 @@ def _build_query_runtime(new_settings: Settings) -> QueryRuntime:
             # expires under a query still running and the gate admits one too many.
             slot_lease_ms=new_settings.stage_timeout_total_ms + 30_000,
         ),
-        quota_guard=QuotaGuard(),
         shadow_queue=BackgroundTaskQueue(
             maxsize=new_settings.shadow_queue_maxsize,
             workers=new_settings.shadow_queue_workers,
@@ -207,7 +220,6 @@ def __getattr__(name: str):
     """Resolve legacy helper imports from split utility modules."""
     runtime_attributes = {
         "query_guard": "query_guard",
-        "quota_guard": "quota_guard",
         "shadow_queue": "shadow_queue",
     }
     if name in runtime_attributes:
