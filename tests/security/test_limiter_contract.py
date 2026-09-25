@@ -201,6 +201,59 @@ def test_concurrent_callers_cannot_exceed_the_ceiling(make):
     assert granted.count(True) == 50
 
 
+# ---- release: an attempt refused for a reason that was not the caller's --------
+#
+# The upload route answers 503 INDEX_BUSY -- "nothing was changed, retry
+# shortly" -- after it has taken an attempt from the hourly budget, and before
+# `release` existed every retry the response asked for cost the caller an upload
+# (ARC-01 phase 10, scenario 5).
+
+
+def test_release_gives_one_attempt_back(make):
+    limiter = make(3)
+    assert [limiter.try_acquire("k") for _ in range(3)] == [True, True, True]
+
+    limiter.release("k")
+
+    assert limiter.get_limit_info("k")["attempts_used"] == 2
+    assert [limiter.try_acquire("k") for _ in range(2)] == [True, False]
+
+
+def test_release_never_goes_below_nothing(make):
+    limiter = make(2)
+
+    limiter.release("k")
+    limiter.release("k")
+
+    assert limiter.get_limit_info("k")["attempts_used"] == 0
+    assert [limiter.try_acquire("k") for _ in range(3)] == [True, True, False]
+
+
+def test_a_release_after_the_window_has_passed_changes_nothing(make, redis_client):
+    """No credit carried forward: a window that already emptied cannot be released into."""
+
+    limiter = make(2, window_seconds=60)
+    limiter.try_acquire("k")
+    limiter.try_acquire("k")
+    _age(limiter, "k", 61, redis_client)
+
+    limiter.release("k")
+
+    assert limiter.get_limit_info("k")["attempts_used"] == 0
+    assert [limiter.try_acquire("k") for _ in range(3)] == [True, True, False]
+
+
+def test_release_is_per_key(make):
+    limiter = make(1)
+    limiter.try_acquire("a")
+    limiter.try_acquire("b")
+
+    limiter.release("a")
+
+    assert limiter.try_acquire("a") is True
+    assert limiter.try_acquire("b") is False
+
+
 # ---- only the shared limiter ------------------------------------------------
 
 
@@ -243,7 +296,7 @@ def test_keys_expire_after_the_window(redis_client):
     assert 60_000 < ttl_ms <= 61_000
 
 
-@pytest.mark.parametrize("call", ["is_limited", "get_limit_info", "record", "try_acquire", "reset"])
+@pytest.mark.parametrize("call", ["is_limited", "get_limit_info", "record", "try_acquire", "reset", "release"])
 def test_an_unavailable_redis_is_a_refusal_not_a_per_process_count(monkeypatch, call):
     """Falling back to process memory here is the defect ARC-01 exists to remove."""
 
@@ -262,6 +315,7 @@ def test_an_empty_key_never_touches_redis(monkeypatch):
 
     assert limiter.try_acquire("") is True
     assert limiter.is_limited("") is False
+    assert limiter.release("") is None
 
 
 def test_a_command_that_fails_mid_flight_drops_the_client(redis_client, monkeypatch):

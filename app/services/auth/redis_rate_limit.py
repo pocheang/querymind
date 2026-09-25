@@ -8,6 +8,7 @@ middleware, so every operation here is async.
 
 import logging
 import time
+import uuid
 
 from app.services.runtime.redis_connector import AsyncRedisConnector
 from app.services.runtime.shared_state import SharedStateUnavailable, is_unavailable_error
@@ -36,7 +37,7 @@ class RedisRateLimiter:
         # set "connection attempted" once and never clear it, so a single blip
         # moved this limiter to per-process counting until the process restarted.
         self._redis = AsyncRedisConnector("rate_limit_middleware", url=lambda: redis_url or "", decode_responses=False)
-        self._memory_store: dict[str, dict[str, float]] = {}
+        self._memory_store: dict[str, list[float]] = {}
 
     async def _get_client(self):
         """The shared client, or None to take the in-memory path (never None when shared)."""
@@ -55,7 +56,10 @@ class RedisRateLimiter:
             pipe = client.pipeline()
             pipe.zremrangebyscore(key, 0, current_time - window_seconds)
             pipe.zcard(key)
-            pipe.zadd(key, {str(current_time): current_time})
+            # A unique member per attempt: keyed on the timestamp alone, two
+            # attempts in the same instant -- a burst, or two workers -- were one
+            # member and counted once.
+            pipe.zadd(key, {f"{current_time}:{uuid.uuid4().hex}": current_time})
             pipe.expire(key, window_seconds + 1)
             results = await pipe.execute()
 
@@ -74,23 +78,30 @@ class RedisRateLimiter:
             return self._check_memory(key, max_requests, window_seconds)
 
     def _check_memory(self, key: str, max_requests: int, window_seconds: int) -> tuple[bool, int | None]:
-        """In-memory fallback. Pure CPU, so it is safe to call from the loop."""
+        """In-memory fallback, with the Redis path's semantics. Pure CPU, so safe on the loop.
+
+        The same sliding log as the pipeline above: every attempt is recorded,
+        refused ones included, and an attempt is allowed while fewer than
+        `max_requests` fall inside the window. It used to be a fixed window that
+        ignored refused attempts, so a client that kept hammering through a
+        refusal was let back in when the window rolled over here and kept out
+        in Redis -- the same deployment answering differently depending on
+        whether Redis was reachable (tests/contracts/test_middleware_limiter_contract.py).
+        """
         current_time = time.time()
+        cutoff = current_time - window_seconds
 
         if len(self._memory_store) > _MEMORY_STORE_MAX_KEYS:
-            cutoff = current_time - _MEMORY_STORE_TTL_SECONDS
-            self._memory_store = {k: v for k, v in self._memory_store.items() if v["window_start"] > cutoff}
+            horizon = current_time - _MEMORY_STORE_TTL_SECONDS
+            self._memory_store = {k: v for k, v in self._memory_store.items() if v and v[-1] > horizon}
 
-        entry = self._memory_store.get(key)
-        if entry is None or current_time - entry["window_start"] > window_seconds:
-            self._memory_store[key] = {"count": 1, "window_start": current_time}
+        attempts = [stamp for stamp in self._memory_store.get(key, ()) if stamp > cutoff]
+        allowed = len(attempts) < max_requests
+        attempts.append(current_time)
+        self._memory_store[key] = attempts
+        if allowed:
             return True, None
-
-        if entry["count"] >= max_requests:
-            return False, int(window_seconds - (current_time - entry["window_start"])) + 1
-
-        entry["count"] += 1
-        return True, None
+        return False, int(window_seconds - (current_time - attempts[0])) + 1
 
     async def reset(self, key: str) -> None:
         """Clear one key's window."""

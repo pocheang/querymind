@@ -13,6 +13,7 @@ Enhanced features:
 
 from __future__ import annotations
 
+import copy
 import re
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -538,7 +539,7 @@ class SessionMetadataService:
         )
 
         self._sessions[session_id] = metadata
-        return metadata
+        return copy.deepcopy(metadata)
 
     def get_metadata(self, session_id: str) -> SessionMetadata | None:
         """
@@ -554,7 +555,9 @@ class SessionMetadataService:
         if metadata:
             # Move to end for LRU
             self._sessions.move_to_end(session_id)
-        return metadata
+        # A copy, as the database backend returns: handing out the stored object
+        # let a caller edit the store without going through `update_metadata`.
+        return copy.deepcopy(metadata)
 
     def update_metadata(
         self,
@@ -598,7 +601,7 @@ class SessionMetadataService:
         # Move to end for LRU
         self._sessions.move_to_end(session_id)
 
-        return metadata
+        return copy.deepcopy(metadata)
 
     def delete_metadata(self, session_id: str) -> bool:
         """
@@ -617,19 +620,20 @@ class SessionMetadataService:
 
     def list_all(self) -> list[SessionMetadata]:
         """
-        List all session metadata.
-
-        Returns:
-            List of all metadata (most recently used first)
+        List all session metadata, most recently *updated* first -- the database
+        backend's order. This used to be most recently *used* first, so reading a
+        session's metadata moved it up the list in memory and not in SQLite
+        (tests/contracts/test_session_metadata_contract.py).
         """
-        return list(reversed(self._sessions.values()))
+        ordered = sorted(self._sessions.values(), key=lambda metadata: metadata.updated_at, reverse=True)
+        return [copy.deepcopy(metadata) for metadata in ordered]
 
     def list_all_metadata(self) -> list[SessionMetadata]:
         """
         List all session metadata (alias for list_all).
 
         Returns:
-            List of all metadata (most recently used first)
+            List of all metadata (most recently updated first)
         """
         return self.list_all()
 

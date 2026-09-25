@@ -1,87 +1,80 @@
-"""Integration tests testing rate limits and process isolation across multiple workers.
+"""Limits hold across workers (ARC-01 phase 0 guardrail, scenario 1 of phase 10).
 
-ARC-01 Phase 0 Guardrail:
-- test_two_workers_are_separate_processes (PASS)
-- test_register_limit_is_shared_across_workers (XFAIL strict)
+Phase 0 wrote the registration test as a strict xfail: each worker counted in
+its own memory, so four registrations alternating between two workers all got
+through a limit of three. With STATE_BACKEND=shared it passes, and the marker is
+gone. Login failures are scenario 1 of the phase 10 table: counted across
+workers, and once over the limit refused on both.
+
+The per-address middleware limiter is switched off in this stack
+(RATE_LIMIT_ENABLED=false): every request here comes from 127.0.0.1, so it
+would count all of them together and turn one test's traffic into another's
+refusal. The limits under test are the route's own; the middleware has its own
+contract suite (tests/contracts/test_middleware_limiter_contract.py).
 """
+
+from __future__ import annotations
 
 import uuid
 
 import httpx
 import pytest
+from multiworker_stack import build_stack
+
+# The first test of a module includes starting the stack (init, an ingest worker,
+# two API processes), and scenario 7 waits out a 40-second lease; CI's 120s
+# per-test hang detector is sized for unit tests.
+pytestmark = pytest.mark.timeout(300)
+
+MAX_FAILURES = 3
 
 
-def test_two_workers_are_separate_processes(two_workers):
-    """Verify that the two workers are running in distinct OS processes with different PIDs."""
-    worker_1 = two_workers["worker_1"]
-    worker_2 = two_workers["worker_2"]
-
-    pid_1 = worker_1["pid"]
-    pid_2 = worker_2["pid"]
-
-    assert pid_1 > 0, f"Worker 1 PID must be a positive integer, got {pid_1}"
-    assert pid_2 > 0, f"Worker 2 PID must be a positive integer, got {pid_2}"
-    assert pid_1 != pid_2, f"Worker 1 and Worker 2 must have distinct PIDs (got {pid_1} for both)"
-
-    # Verify both respond to health check
-    with httpx.Client(timeout=5.0) as client:
-        r1 = client.get(f"{worker_1['base_url']}/health")
-        assert r1.status_code == 200
-        assert r1.json().get("status") == "ok"
-
-        r2 = client.get(f"{worker_2['base_url']}/health")
-        assert r2.status_code == 200
-        assert r2.json().get("status") == "ok"
+@pytest.fixture(scope="module")
+def stack(tmp_path_factory):
+    yield from build_stack(
+        tmp_path_factory.mktemp("limits"),
+        RATE_LIMIT_ENABLED="false",
+        AUTH_REGISTER_MAX_ATTEMPTS="3",
+        AUTH_LOGIN_MAX_FAILURES=str(MAX_FAILURES),
+    )
 
 
-class RegisterLimitNotShared(AssertionError):
-    """第 4 次注册在集群范围内本应被拒绝，但被放行了。"""
+def test_the_workers_are_separate_processes(stack):
+    a, b = stack.workers
+
+    assert a.pid != b.pid
+    for worker in (a, b):
+        assert httpx.get(f"{worker.base_url}/health").json().get("status") == "ok"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=RegisterLimitNotShared,
-    reason="ARC-01 阶段 2：注册限流仍按进程计数",
-)
-def test_register_limit_is_shared_across_workers(two_workers):
-    """Verify that the registration rate limit is enforced globally across all workers.
+def test_the_register_limit_is_shared_across_workers(stack):
+    """Four registrations alternating between two workers, against a limit of three."""
 
-    Under in-process memory rate limiting (Phase 0), each worker tracks registration
-    attempts independently in memory. When 4 requests are alternated across 2 workers,
-    each worker only sees 2 attempts (under the threshold of 3 per window), allowing all
-    4 registrations through.
+    statuses = []
+    for n in range(4):
+        worker = stack.workers[n % 2]
+        body = {"username": f"reg_{uuid.uuid4().hex[:8]}", "password": "ValidPass123!"}
+        statuses.append(httpx.post(f"{worker.base_url}/auth/register", json=body).status_code)
 
-    In Phase 1, when rate limiting is backed by shared storage (e.g. Redis), the 4th
-    request will be blocked with HTTP 429 Too Many Requests.
-    """
-    workers = [
-        two_workers["worker_1"]["base_url"],
-        two_workers["worker_2"]["base_url"],
-    ]
+    assert statuses == [200, 200, 200, 429]
 
-    responses = []
-    with httpx.Client(timeout=10.0) as client:
-        for i in range(4):
-            target_url = workers[i % 2]
-            unique_username = f"arc01_user_{uuid.uuid4().hex[:8]}"
-            payload = {
-                "username": unique_username,
-                "password": "ValidPass123!",
-            }
-            resp = client.post(f"{target_url}/auth/register", json=payload)
-            responses.append(resp)
 
-    # First 3 requests should succeed
-    for i in range(3):
-        assert responses[i].status_code in {200, 201}, (
-            f"Request {i + 1} to worker {i % 2 + 1} should succeed, but got {responses[i].status_code}: {responses[i].text}"
+def test_login_failures_add_up_across_workers_and_lock_both(stack):
+    """Scenario 1. The lock is the route's own answer, not a middleware refusal."""
+
+    a, b = stack.workers
+    wrong = {"username": "stackadmin", "password": "not-the-password"}
+
+    failures = [httpx.post(f"{stack.workers[n % 2].base_url}/auth/login", json=wrong).status_code for n in range(3)]
+    assert failures == [401, 401, 401]
+
+    for worker in (a, b):
+        locked = httpx.post(f"{worker.base_url}/auth/login", json=wrong)
+        assert locked.status_code == 429, worker.name
+        detail = locked.json()["detail"]
+        assert (detail["error"], detail["attempts_used"], detail["max_attempts"]) == (
+            "rate_limited",
+            MAX_FAILURES,
+            MAX_FAILURES,
         )
-
-    # In a distributed rate limited system, the 4th request MUST be rate limited (HTTP 429).
-    # In Phase 0, each worker only saw 2 requests, so request 4 succeeds with 200/201.
-    # This assertion will fail in Phase 0, raising RegisterLimitNotShared to trigger strict xfail.
-    if responses[3].status_code != 429:
-        raise RegisterLimitNotShared(
-            f"Expected 4th registration request to be blocked by distributed rate limiter (HTTP 429), "
-            f"but got status code {responses[3].status_code} because worker 2 only counted 2 requests in its local process memory."
-        )
+        assert int(locked.headers["Retry-After"]) > 0

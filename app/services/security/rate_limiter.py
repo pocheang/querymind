@@ -115,6 +115,25 @@ class SlidingWindowLimiter:
         with self._lock:
             self._events.pop(key, None)
 
+    def release(self, key: str) -> None:
+        """Give back one attempt: the caller was refused for a reason that was not theirs.
+
+        The most recent attempt goes, not necessarily this caller's own -- the
+        attempts in a window are interchangeable for counting, so which one
+        leaves changes no answer. Nothing to give back is not an error.
+        """
+        if not key:
+            return
+        with self._lock:
+            queue = self._events.get(key)
+            if queue is None:
+                return
+            self._trim(queue, _utcnow())
+            if queue:
+                queue.pop()
+            if not queue:
+                del self._events[key]
+
     def _trim(self, queue: deque[datetime], now: datetime) -> None:
         cutoff = now - self.window
         while queue and queue[0] < cutoff:
@@ -158,6 +177,16 @@ _ACQUIRE = (
 if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[3]) then return 0 end
 redis.call('ZADD', KEYS[1], now, ARGV[2])
 redis.call('PEXPIRE', KEYS[1], math.floor(tonumber(ARGV[1]) / 1000) + 1000)
+return 1
+"""
+)
+
+# The newest attempt is the highest score. Trim first, so an attempt that has
+# already left the window is not what gets "given back".
+_RELEASE = (
+    _TRIM
+    + """
+redis.call('ZPOPMAX', KEYS[1])
 return 1
 """
 )
@@ -227,6 +256,11 @@ class RedisSlidingWindowLimiter:
         if not key:
             return True
         return int(self._eval(_ACQUIRE, key, uuid.uuid4().hex, self.max_attempts)) == 1
+
+    def release(self, key: str) -> None:
+        if not key:
+            return
+        self._eval(_RELEASE, key)
 
     def reset(self, key: str) -> None:
         if not key:

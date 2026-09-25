@@ -50,6 +50,14 @@ $env:OPENAI_API_KEY = "your-api-key"
 
 只想在本机跑 uvicorn、让 Compose 提供依赖时，`make up` 启动 Neo4j（`127.0.0.1:7474` / `7687`）、Redis（`127.0.0.1:6379`，密码是 `.runtime/development.env` 里的 `REDIS_PASSWORD`）和 Chroma 服务端（`127.0.0.1:8001`，因为 8000 留给后端）。要在本地试 shared 模式，把 `REDIS_URL` 和 `CHROMA_SERVER_URL=http://localhost:8001` 指过去。
 
+多进程集成测试（`tests/integration/multiworker/`，ARC-01 阶段 10）自己启动 init、一个 ingest-worker 和两个 API 进程，但需要真正的 Redis 和 Chroma 服务端（fakeredis 的 TCP 服务端跨进程时阻塞读不正确）。`make up` 之后：
+
+```bash
+QM_INTEGRATION_REDIS_URL="redis://:<REDIS_PASSWORD>@127.0.0.1:6379/0" QM_INTEGRATION_CHROMA_URL=http://127.0.0.1:8001 pytest tests/integration/multiworker -q
+```
+
+不设置这两个变量时这组测试整体跳过并说明原因。每次运行使用独立的键前缀和 Chroma 集合，结束时清理，不影响同一 Redis 上的其他数据。
+
 ## 配置目录
 
 - `compose/`：生产基线、开发覆盖和监控覆盖。

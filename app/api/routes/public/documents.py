@@ -454,7 +454,13 @@ async def upload_files(
             prepare_uploaded_document_indexes, [upload.path for upload in storage_result.saved_uploads]
         )
     except LockBusy:
-        raise  # 503 with Retry-After: another writer holds the index, nothing was changed
+        # 503 with Retry-After: another writer holds the index and nothing was
+        # changed. The response asks the client to retry, so the attempt must not
+        # cost the hourly upload budget -- it used to, and ten concurrent uploads
+        # that retried as told used the whole budget and then got an hour of 429
+        # (ARC-01 phase 10, scenario 5).
+        upload_limiter.release(limiter_key)
+        raise
     except Exception as e:
         _audit(
             request,

@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 
@@ -142,7 +143,11 @@ def _memory_lookup(settings, cache_key: str):
     cached = get_retrieval_cache(settings).get(cache_key)
     if not cached:
         return None
-    results, diagnostics = cached
+    # Deep copies on the way out as well as in: Redis returns a fresh decode of
+    # JSON on every hit, and a memory layer handing out the objects it holds
+    # let whoever received a hit rewrite the next caller's results
+    # (tests/contracts/test_retrieval_cache_contract.py).
+    results, diagnostics = copy.deepcopy(cached)
     out_diag = dict(diagnostics)
     out_diag["cache_hit"] = True
     out_diag["cache_backend"] = "memory"
@@ -208,7 +213,9 @@ def cache_store(cache_key: str, results: list, diagnostics: dict, settings, ttl_
         ttl_override if ttl_override is not None else int(getattr(settings, "retrieval_cache_ttl_seconds", 45) or 45)
     )
     if _uses_memory_layer():
-        get_retrieval_cache(settings).set(cache_key, (list(results), dict(diagnostics)))
+        # Retrieval returns the list it has just cached, and its callers go on to
+        # rerank and mask it; a shallow copy kept their edits in the cache.
+        get_retrieval_cache(settings).set(cache_key, copy.deepcopy((list(results), dict(diagnostics))))
     key = _redis_key(cache_key)
     if key is not None and _redis_allowed(settings):
         _redis_store(settings, key, results, diagnostics, ttl_seconds)
