@@ -188,30 +188,6 @@ def load_calibration_data(config_path: Path | None = None) -> CalibrationData:
     return CalibrationData()
 
 
-def update_calibration_data(data: CalibrationData, raw_confidence: float, was_correct: bool) -> None:
-    """
-    Update calibration data with feedback from a routing decision.
-
-    Args:
-        data: CalibrationData to update
-        raw_confidence: Raw confidence score that was used
-        was_correct: Whether the routing decision was correct
-    """
-    bucket_name = get_bucket_for_confidence(raw_confidence)
-    bucket = data.buckets[bucket_name]
-
-    bucket.total_predictions += 1
-    if was_correct:
-        bucket.correct_predictions += 1
-    bucket.last_updated = datetime.now().isoformat()
-
-    logger.debug(
-        f"Updated calibration bucket {bucket_name}: "
-        f"{bucket.correct_predictions}/{bucket.total_predictions} "
-        f"(accuracy={bucket.historical_accuracy:.2f})"
-    )
-
-
 def apply_calibration(raw_confidence: float, data: CalibrationData) -> float:
     """
     Apply calibration to a raw confidence score.

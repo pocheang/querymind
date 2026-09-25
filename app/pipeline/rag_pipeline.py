@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
 from typing import Any, Protocol
 
 from app.core.config import get_settings
@@ -45,8 +44,6 @@ def _parse_citation_label(label: str) -> PipelineCitation:
 
 class PipelineExecutionEngine(Protocol):
     async def execute(self, request: Any) -> FinalAnswer: ...
-
-    def execute_stream(self, request: Any, **kwargs: Any) -> AsyncIterator[dict[str, Any]]: ...
 
 
 # One compiled LangGraph workflow per profile.  Building it costs ~20ms of
@@ -126,21 +123,6 @@ class RAGPipeline:
 
     def execute_sync(self, request: PipelineRequest, profile: PipelineProfile | str | None = None) -> PipelineResult:
         return asyncio.run(self.execute(request, profile))
-
-    async def execute_stream(
-        self,
-        request: PipelineRequest,
-        *,
-        execution_id: str,
-        result_postprocessor: object | None = None,
-    ) -> AsyncIterator[dict[str, Any]]:
-        del result_postprocessor
-        selected = request.profile
-        if getattr(get_settings(), "prompt_injection_defense_enabled", True):
-            validate_user_question_security(request.question)
-        orchestration_request = to_orchestration_request(request).model_copy(update={"execution_id": execution_id})
-        async for event in self._engine_for(selected).execute_stream(orchestration_request):
-            yield event
 
     @staticmethod
     def _result_from_final_answer(profile: PipelineProfile, answer: FinalAnswer) -> PipelineResult:
