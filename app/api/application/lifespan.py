@@ -65,9 +65,12 @@ def _start_invalidation_tracking() -> None:
     """
     from app.api.application.config_reload import apply_config_reload
     from app.services.runtime.invalidation import catch_up, on_config_change
+    from app.services.runtime.shared_log_levels import apply_stored_levels
 
     on_config_change(apply_config_reload)
     catch_up()
+    # Levels an administrator set before this process started (phase 8).
+    apply_stored_levels(reset_first=False)
 
 
 def _require_reachable_shared_state(settings) -> None:

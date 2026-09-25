@@ -23,9 +23,9 @@ Two kinds of work, deliberately handled differently:
   an installation that cannot create an administrator still answers questions.
 
 This replaced `deploy/scripts/init_app.py` as the thing that initialises a
-database. That script imported a module that no longer existed, and
-`deploy.sh` ran it inside the backend image, which does not contain `deploy/`
--- so the step failed twice over. It is a thin wrapper around this now.
+database. That script imported a module that no longer existed, so the
+deployment scripts' init step could not have run. It is a thin wrapper around
+this now; `python -m app.init_app` is the form to use in a container.
 """
 
 from __future__ import annotations

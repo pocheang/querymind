@@ -44,6 +44,9 @@ ALLOWED: dict[str, str] = {
     # source that supplies Settings, so it cannot be supplied by it. It is also
     # why NACOS_PASSWORD stays in the environment and never becomes a field.
     "app/core/remote_config.py::_bootstrap": "bootstraps the configuration source itself",
+    # prometheus_client reads PROMETHEUS_MULTIPROC_DIR from the process environment
+    # at import to decide where values live; a Settings field could not change it.
+    "app/services/runtime/runtime_metrics.py::multiprocess_dir": "read by prometheus_client itself at import",
     # A deployment pinning the local backend must beat persisted admin settings;
     # reading it from Settings would let the admin UI override the pin.
     "app/services/models/runtime.py::_local_backend_forced": "process-env pin over admin settings",

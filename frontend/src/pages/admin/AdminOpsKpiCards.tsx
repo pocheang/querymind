@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { OpsOverview } from "@/types/api";
-import { KpiCard, KpiGrid } from "./components/AdminPrimitives";
+import { KpiCard, KpiGrid, Muted, RowActions, WorkerScopeBadge } from "./components/AdminPrimitives";
 
 type Props = {
   ops: OpsOverview;
@@ -30,6 +30,12 @@ export function AdminOpsKpiCards({ ops }: Readonly<Props>) {
 
   return (
     <>
+      {ops.worker && (
+        <RowActions>
+          <WorkerScopeBadge worker={ops.worker} />
+          <Muted>{t("admin.worker.overviewNote")}</Muted>
+        </RowActions>
+      )}
       <KpiGrid cols={6}>
         {primary.map(([label, value]) => (
           <KpiCard key={String(label)} label={label} value={value} />

@@ -75,6 +75,11 @@ USER querymind
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+# Every worker writes its metrics here and /metrics sums them (ARC-01 phase 8,
+# app/services/runtime/runtime_metrics.py). Per container, in the writable /tmp:
+# counters of a finished process still count, and live gauges of a dead one are
+# dropped at scrape time.
+ENV PROMETHEUS_MULTIPROC_DIR=/tmp/querymind-metrics
 # Where `app` is. uvicorn would also find it -- --app-dir defaults to "" and it
 # inserts that into sys.path, which resolves to the working directory -- but a
 # production image should not depend on one CLI's default for whether its own

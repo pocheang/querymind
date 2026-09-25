@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.core.config import get_settings
+from app.services.runtime.runtime_metrics import record_circuit_breaker
 
 
 class CircuitBreakerOpenError(RuntimeError):
@@ -39,26 +40,43 @@ def call_with_circuit_breaker(name: str, fn: Callable[[], Any]) -> Any:
 
     try:
         result = fn()
-        # Success: reset failure count
-        with _BREAKERS_LOCK:
-            state = _BREAKERS.get(name)
-            if state:
-                state.fails = 0
-                state.opened_until = 0.0
-        return result
     except Exception:
-        # Failure: increment counter and potentially open circuit
-        with _BREAKERS_LOCK:
-            state = _BREAKERS.get(name)
-            if state:
-                state.fails += 1
-                threshold = int(getattr(settings, "circuit_breaker_fail_threshold", 5) or 5)
-                cooldown = int(getattr(settings, "circuit_breaker_cooldown_seconds", 60) or 60)
-                if state.fails >= threshold:
-                    state.opened_until = time.time() + max(1, cooldown)
-                    # Reset fails to avoid overflow on repeated failures
-                    state.fails = 0
+        _record_failure(name, settings)
         raise
+    # Outside the try: only fn() failing counts against the breaker, never the
+    # bookkeeping or the metric that follows it.
+    _record_success(name)
+    return result
+
+
+def _record_success(name: str) -> None:
+    reopened = False
+    with _BREAKERS_LOCK:
+        state = _BREAKERS.get(name)
+        if state:
+            reopened = state.opened_until != 0.0
+            state.fails = 0
+            state.opened_until = 0.0
+    if reopened:
+        record_circuit_breaker(name, 0.0)
+
+
+def _record_failure(name: str, settings) -> None:
+    opened_until = None
+    with _BREAKERS_LOCK:
+        state = _BREAKERS.get(name)
+        if state:
+            state.fails += 1
+            threshold = int(getattr(settings, "circuit_breaker_fail_threshold", 5) or 5)
+            cooldown = int(getattr(settings, "circuit_breaker_cooldown_seconds", 60) or 60)
+            if state.fails >= threshold:
+                state.opened_until = time.time() + max(1, cooldown)
+                # Reset fails to avoid overflow on repeated failures
+                state.fails = 0
+                opened_until = state.opened_until
+    if opened_until is not None:
+        # Exported per breaker; a scrape takes the latest across workers.
+        record_circuit_breaker(name, opened_until)
 
 
 class TTLCache:

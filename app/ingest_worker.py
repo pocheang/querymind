@@ -152,9 +152,11 @@ def main(argv: list[str] | None = None) -> int:
     queue = Queue(queue_name(), connection=connection)
     from app.api.application.config_reload import apply_config_reload
     from app.services.runtime.invalidation import catch_up, on_config_change
+    from app.services.runtime.shared_log_levels import apply_stored_levels
 
     on_config_change(apply_config_reload)
     catch_up()
+    apply_stored_levels(reset_first=False)
     _abandon_started_jobs(queue)
     recovered = recover_unfinished_documents()
     logger.info("ingest_worker_starting queue=%s recovered=%d", queue.name, len(recovered))

@@ -99,12 +99,17 @@ def list_log_levels() -> dict[str, Any]:
     }
 
 
-def set_logger_level(*, logger_name: str, level: str) -> dict[str, Any]:
-    """Set one logger's level, or the root level when ``logger_name`` is root."""
+def validate_logger_level(*, logger_name: str, level: str) -> None:
+    """ValueError unless ``logger_name`` and ``level`` are a change `set_logger_level` would make."""
     if not logger_name:
         raise ValueError("logger name is required")
     if level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
         raise ValueError(f"Invalid log level: {level}")
+
+
+def set_logger_level(*, logger_name: str, level: str) -> dict[str, Any]:
+    """Set one logger's level, or the root level when ``logger_name`` is root."""
+    validate_logger_level(logger_name=logger_name, level=level)
     numeric_level = getattr(logging, level)
     if logger_name == "root":
         logging.getLogger().setLevel(numeric_level)

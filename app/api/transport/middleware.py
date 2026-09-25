@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import Request
 
 from app.core.config import get_settings
-from app.services.runtime.runtime_metrics import RuntimeMetrics
+from app.services.runtime.runtime_metrics import record_request, request_kind
 
 # Global metrics storage.
 #
@@ -21,7 +21,6 @@ from app.services.runtime.runtime_metrics import RuntimeMetrics
 # field now, and Settings is not loaded yet while this module is being imported.
 _request_metrics_lock = threading.Lock()
 _request_metrics: deque[dict[str, Any]] | None = None
-runtime_metrics = RuntimeMetrics()
 
 
 def _metrics() -> deque[dict[str, Any]]:
@@ -141,9 +140,9 @@ async def request_timing_middleware(request: Request, call_next):
         }
         with _request_metrics_lock:
             _metrics().append(metric)
-        runtime_metrics.inc("http_requests_total")
-        runtime_metrics.inc(f"http_status_{status_code}_total")
-        runtime_metrics.observe("http_request_duration", elapsed_ms / 1000.0)
+        # Exported by /metrics. It used to go into an instance of its own that
+        # /metrics never rendered, so no scrape ever described a request.
+        record_request(status_code, elapsed_ms / 1000.0, request_kind(request.method, request.url.path))
 
 
 def get_request_metrics() -> list[dict[str, Any]]:

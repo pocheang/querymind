@@ -372,6 +372,11 @@
         "budgets": "Budgets and timeouts",
         "security": "Security"
       }
+    },
+    "worker": {
+      "badge": "This worker · pid {{pid}}",
+      "hint": "These figures come from the worker process on {{host}} that answered this request; with several workers, each keeps its own.",
+      "overviewNote": "Request counts and error rate come from the worker that answered; audit, user and session figures cover the whole deployment."
     }
   },
   "common": {

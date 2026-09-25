@@ -42,7 +42,6 @@ from app.services.prompts.store import PromptStore
 from app.services.query.guard import QueryLoadGuard, QueryOverloadedError, QueryRateLimitedError
 from app.services.runtime.auto_ingest_watcher import AutoIngestWatcher
 from app.services.runtime.background_queue import BackgroundTaskQueue
-from app.services.runtime.runtime_metrics import RuntimeMetrics
 from app.services.security.audit_actions import AuditAction
 from app.services.security.quota import QuotaGuard
 from app.services.security.rate_limiter import make_limiter
@@ -202,9 +201,6 @@ def reload_query_runtime(new_settings: Settings) -> QueryRuntime:
 # Auto-ingest watcher state
 _auto_ingest_stop_event = threading.Event()
 _auto_ingest_thread: threading.Thread | None = None
-
-# Runtime metrics
-runtime_metrics = RuntimeMetrics()
 
 
 def __getattr__(name: str):

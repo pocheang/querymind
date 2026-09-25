@@ -372,6 +372,11 @@
         "budgets": "预算与超时",
         "security": "安全"
       }
+    },
+    "worker": {
+      "badge": "本 worker · pid {{pid}}",
+      "hint": "这些数字来自 {{host}} 上处理本次请求的那个 worker 进程；有多个 worker 时，其他 worker 各有自己的一份。",
+      "overviewNote": "请求数与错误率来自处理本次请求的 worker；审计、用户与会话数字是整个部署的。"
     }
   },
   "common": {

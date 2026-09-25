@@ -289,6 +289,8 @@ export type OpsServiceHealth = {
 
 export type OpsOverview = {
   generated_at: string;
+  /** Request figures and diagnostics are this worker's; audit, users and sessions are not. */
+  worker?: WorkerScope;
   window_hours: number;
   status: Known<"healthy" | "degraded">;
   kpi: {
@@ -382,8 +384,16 @@ export type ModelCatalogResponse = {
   providers: Record<ModelProvider, ProviderCatalogEntry>;
 };
 
+/** The process that answered a request built from its own memory. */
+export type WorkerScope = {
+  pid: number;
+  host: string;
+};
+
 export type AdminRuntimeSnapshot = {
   generated_at: string;
+  /** The worker whose memory these figures came from (ARC-01 phase 8). */
+  worker?: WorkerScope;
   status: Known<"healthy" | "degraded">;
   blocking_services: string[];
   resources: {

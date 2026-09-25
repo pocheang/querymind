@@ -35,6 +35,7 @@ from app.api.schemas import (
 from app.api.transport.errors import bad_request, not_found
 from app.services.auth.auth_service import AdminProvenance
 from app.services.observability.log_buffer import list_captured_logs
+from app.services.observability.worker_scope import this_worker
 from app.services.security.admin_security import (
     check_admin_role_change,
     check_self_modification,
@@ -428,4 +429,5 @@ def admin_system_logs(
     """Get system logs (admin only)."""
     _require_permission(user, Permission.ADMIN_AUDIT_READ, request, "admin")
     rows = list_captured_logs(limit=limit, level=level, logger_keyword=logger, keyword=keyword)
-    return {"items": rows, "count": len(rows)}
+    # The capture buffer is per process: these are the logs of the worker that answered.
+    return {"items": rows, "count": len(rows), "worker": this_worker()}

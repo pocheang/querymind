@@ -12,7 +12,6 @@ from app.api.dependencies import (
     _require_permission,
     _require_user,
     _trace_id,
-    runtime_metrics,
 )
 from app.api.schemas import (
     ActiveModelResponse,
@@ -36,6 +35,7 @@ from app.services.models.effective import effective_model_configuration
 from app.services.models.runtime import active_admin_chat_model, probe_chat_model_configuration
 from app.services.observability.alerting import emit_alert
 from app.services.runtime.invalidation import announce
+from app.services.runtime.runtime_metrics import record_embedding_reindex
 from app.services.security.audit_actions import AuditAction
 from app.services.security.network import OutboundURLValidationError
 from app.services.security.rbac import Permission
@@ -97,7 +97,7 @@ def admin_save_model_settings(
     try:
         saved, reindex_result = apply_global_model_settings(req.model_dump())
     except ModelSettingsReindexError as e:
-        runtime_metrics.inc("admin_model_settings_embedding_reindex_failed_total")
+        record_embedding_reindex("failed")
         emit_alert(
             "admin_model_settings_embedding_reindex_failed",
             {
@@ -113,7 +113,7 @@ def admin_save_model_settings(
     except ValueError as e:
         raise bad_request(str(e))
     if reindex_result is not None:
-        runtime_metrics.inc("admin_model_settings_embedding_reindex_total")
+        record_embedding_reindex("queued")
     _audit(
         request,
         action=AuditAction.ADMIN_MODEL_SETTINGS_SAVE,

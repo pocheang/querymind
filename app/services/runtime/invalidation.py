@@ -47,7 +47,8 @@ logger = logging.getLogger(__name__)
 # corpus:         the document index changed (ingest, delete, full rebuild)
 # config:         Settings were reloaded
 # model_settings: the administrator's model configuration was saved
-KINDS = ("corpus", "config", "model_settings")
+# log_levels:     an administrator changed a logger's level (phase 8)
+KINDS = ("corpus", "config", "model_settings", "log_levels")
 
 _LOCK = threading.Lock()
 # The last generation of each kind this process has applied; None until the
@@ -74,6 +75,12 @@ def _clear_model_caches() -> None:
     clear_vector_store_cache()
 
 
+def _apply_log_levels() -> None:
+    from app.services.runtime.shared_log_levels import apply_stored_levels
+
+    apply_stored_levels()
+
+
 def _run_config_handlers() -> None:
     for handler in list(_CONFIG_HANDLERS):
         handler()
@@ -83,6 +90,7 @@ _HANDLERS: dict[str, Callable[[], None]] = {
     "corpus": _clear_corpus_caches,
     "config": _run_config_handlers,
     "model_settings": _clear_model_caches,
+    "log_levels": _apply_log_levels,
 }
 
 

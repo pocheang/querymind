@@ -30,7 +30,6 @@ from app.api.dependencies import (
     _require_user,
     _runtime_diagnostics_summary,
     auth_service,
-    runtime_metrics,
     settings,
 )
 from app.api.routes.internal.pipeline_contract import execute_standard_compatibility
@@ -39,7 +38,13 @@ from app.api.transport.middleware import get_request_metrics
 from app.core.config import get_settings
 from app.pipeline.contracts import PipelineUser
 from app.services.models.config_store import get_global_model_settings, public_global_model_settings
-from app.services.observability.log_buffer import list_log_levels, reset_logger_levels, set_logger_level
+from app.services.observability.log_buffer import (
+    list_log_levels,
+    reset_logger_levels,
+    set_logger_level,
+    validate_logger_level,
+)
+from app.services.observability.worker_scope import this_worker
 from app.services.runtime.runtime_ops import (
     build_ops_alerts,
     build_ops_overview,
@@ -53,6 +58,8 @@ from app.services.runtime.runtime_ops import (
     run_replay,
     system_resource_snapshot,
 )
+from app.services.runtime.shared_log_levels import publish_level, publish_reset, stored_levels
+from app.services.runtime.shared_state import is_shared
 from app.services.security.audit_actions import AuditAction
 from app.services.security.rbac import Permission
 
@@ -94,7 +101,7 @@ def _runtime_snapshot_payload() -> dict[str, Any]:
     public_model = public_global_model_settings(global_model)
     provider = str(global_model.get("provider", "local") or "local")
     model_ready = provider in {"local", "ollama"} or bool(global_model.get("api_key"))
-    return build_runtime_snapshot(
+    snapshot = build_runtime_snapshot(
         generated_at=now,
         request_rows=rows,
         resources=system_resource_snapshot(settings.app_db_path.parent),
@@ -102,8 +109,12 @@ def _runtime_snapshot_payload() -> dict[str, Any]:
         public_model=public_model,
         model_ready=model_ready,
         model_required=bool(global_model.get("enabled", False)),
-        active_requests=int((runtime_metrics.snapshot().get("gauges") or {}).get("query_guard_inflight", 0) or 0),
+        # Read from the guard itself: this used to be the gauge a /metrics scrape
+        # last wrote, so with no Prometheus scraping it was always 0.
+        active_requests=int(api_dependencies.get_query_runtime().query_guard.stats().get("inflight", 0) or 0),
     )
+    # The request window is this worker's; see app/services/observability/worker_scope.py.
+    return {**snapshot, "worker": this_worker()}
 
 
 def _overview_payload(
@@ -133,7 +144,7 @@ def _overview_payload(
         "chroma": _check_chroma_ready(),
         "neo4j": {"ok": True, "required": False, "message": "not probed in admin overview"},
     }
-    return build_ops_overview(
+    overview = build_ops_overview(
         generated_at=now,
         window_hours=window_hours,
         window_rows=window_rows,
@@ -146,6 +157,9 @@ def _overview_payload(
         actor_user_id=actor_user_id,
         action_keyword=action_keyword,
     )
+    # Audit rows, users and sessions are the whole deployment's; the request
+    # figures and the diagnostics are this worker's.
+    return {**overview, "worker": this_worker(), "worker_scoped": ["requests", "diagnostics"]}
 
 
 def _alerts_payload(*, hours: int) -> dict[str, Any]:
@@ -234,6 +248,9 @@ def admin_ops_export_csv(
     writer.writerow(["section", "key", "value"])
     writer.writerow(["meta", "generated_at", overview["generated_at"]])
     writer.writerow(["meta", "window_hours", overview["window_hours"]])
+    # The request figures below are this worker's (ARC-01 phase 8).
+    writer.writerow(["meta", "worker_pid", overview["worker"]["pid"]])
+    writer.writerow(["meta", "worker_host", overview["worker"]["host"]])
     writer.writerow(["summary", "status", overview["status"]])
     writer.writerow(["summary", "request_count", overview["kpi"]["requests_total"]])
     writer.writerow(["summary", "requests_total", overview["kpi"]["requests_total"]])
@@ -333,6 +350,8 @@ def admin_ops_audit_report_md(
         f"- generated_at: {datetime.now(UTC).isoformat()}",
         f"- window_hours: {hours}",
         f"- status: {overview.get('status', 'unknown')}",
+        # KPI request figures and the SLO section come from one worker's memory.
+        f"- request_figures_from_worker: pid {overview['worker']['pid']} on {overview['worker']['host']}",
         "",
         "## KPI",
         "",
@@ -483,7 +502,8 @@ def get_log_levels(
     Returns a dictionary of logger names and their current levels.
     """
     _require_permission(user, Permission.ADMIN_OPS_MANAGE, request, "admin")
-    return list_log_levels()
+    # `loggers` is this worker's; `shared_levels` is what every worker is asked to run with.
+    return {**list_log_levels(), "worker": this_worker(), "shared_levels": stored_levels()}
 
 
 @router.post("/logging/level")
@@ -509,9 +529,13 @@ def set_log_level(
     logger_name = str(payload.get("logger", "")).strip()
     level_str = str(payload.get("level", "")).strip().upper()
     try:
-        result = set_logger_level(logger_name=logger_name, level=level_str)
+        validate_logger_level(logger_name=logger_name, level=level_str)
     except ValueError as exc:
         raise bad_request(str(exc))
+    # Published first: if Redis does not answer this is a 503 and no worker has
+    # changed, rather than this one alone (ARC-01 phase 8).
+    publish_level(logger_name, level_str)
+    result = {**set_logger_level(logger_name=logger_name, level=level_str), **_level_scope()}
 
     # Audit the change
     _audit(
@@ -538,7 +562,8 @@ def reset_log_levels(
     """
     _require_permission(user, Permission.ADMIN_OPS_MANAGE, request, "admin")
 
-    result = reset_logger_levels()
+    publish_reset()
+    result = {**reset_logger_levels(), **_level_scope()}
 
     _audit(
         request,
@@ -549,3 +574,9 @@ def reset_log_levels(
         detail=f"reset_count={result['reset_count']}",
     )
     return result
+
+
+def _level_scope() -> dict[str, Any]:
+    """Which processes a level change reaches: every worker in shared mode, else this one."""
+
+    return {"applies_to": "all_workers" if is_shared() else "this_process", "worker": this_worker()}

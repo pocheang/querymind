@@ -1,16 +1,17 @@
 import type {
   AdminModelSettingsPayload,
   AdminModelSettingsView,
-  EffectiveModelConfigResponse,
   AdminRuntimeSnapshot,
-  ConfigSaveResponse,
-  ConfigSchemaResponse,
   AdminUserSummary,
   AuditLogEntry,
   BenchmarkTrendItem,
+  ConfigSaveResponse,
+  ConfigSchemaResponse,
+  EffectiveModelConfigResponse,
   ModelCatalogResponse,
   OpsOverview,
   SystemLogEntry,
+  WorkerScope,
 } from "@/types/api";
 import { request, ApiError, safeParsePayload, authFetch, parseOrThrow } from "@/services/http/client";
 import {
@@ -216,7 +217,7 @@ export const adminSystemLogApi = {
       logger: input.logger,
       keyword: input.keyword,
     });
-    return request<{ items: SystemLogEntry[]; count: number }>(`/admin/system-logs?${qs}`);
+    return request<{ items: SystemLogEntry[]; count: number; worker?: WorkerScope }>(`/admin/system-logs?${qs}`);
   },
 };
 

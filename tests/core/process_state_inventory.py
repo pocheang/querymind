@@ -112,9 +112,13 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "基于 SQLite 的提示词模板仓储，本身无内存状态，各进程可保留独立实例",
     ),
-    "app/api/dependencies.py::runtime_metrics": (
+    "app/api/routes/operations/metrics_collectors.py::_cache_lock": (
         "D",
-        "运行时性能度量指标收集器单例，按进程汇总统计指标，多进程各自保留本地度量",
+        "保护下面依赖探测缓存的进程内锁",
+    ),
+    "app/api/routes/operations/metrics_collectors.py::_cached": (
+        "D",
+        "抓取 /metrics 时依赖探测结果的短时缓存（15 秒），每个 worker 各自探测，结果描述的是整个部署（阶段 8）",
     ),
     "app/api/dependencies.py::settings": (
         "B",
@@ -139,10 +143,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
     "app/api/transport/middleware.py::_request_metrics_lock": (
         "D",
         "请求度量环形缓冲区互斥锁，多进程各持一份保护自身度量数据读写",
-    ),
-    "app/api/transport/middleware.py::runtime_metrics": (
-        "D",
-        "中间件层运行时性能指标单例，各工作进程可各自统计本地请求指标",
     ),
     "app/core/config.py::_PENDING": (
         "D",
