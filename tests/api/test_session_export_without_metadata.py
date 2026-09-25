@@ -18,13 +18,21 @@ session and tags are decoration.
 
 from __future__ import annotations
 
+import io
 import json
+import uuid
 from dataclasses import asdict
+from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
+from app.api.dependencies import _require_user
+from app.api.routes.sessions import export as export_routes
 from app.services.sessions.export import SessionExportService
-from app.services.sessions.metadata import SessionCategory, SessionMetadata, utc_now
+from app.services.sessions.history import HistoryStore
+from app.services.sessions.metadata import SessionCategory, SessionMetadata, SessionMetadataService, utc_now
 
 
 class _NoMetadata:
@@ -88,34 +96,62 @@ def test_no_date_is_invented_on_export():
     assert exported["metadata"]["last_query_at"] is None
 
 
-def test_that_export_can_be_imported_again():
+@pytest.fixture
+def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, HistoryStore]:
+    store = HistoryStore(base_dir=tmp_path / "sessions")
+    metadata = SessionMetadataService()
+    monkeypatch.setattr(export_routes, "_history_store_for_user", lambda _user: store)
+    monkeypatch.setattr(export_routes, "get_metadata_service", lambda _user_id: metadata)
+    app = FastAPI()
+    app.include_router(export_routes.router)
+    app.dependency_overrides[_require_user] = lambda: {"user_id": "u-1", "tenant_id": "t-1", "role": "user"}
+    return TestClient(app), store
+
+
+def test_that_export_can_be_imported_again(client):
     """The half that would have broken if only the exporter were fixed.
 
-    `_dict_to_metadata` called `datetime.fromisoformat` on those fields, and
-    `fromisoformat(None)` raises -- so an export with no metadata would have
-    written a file the importer could not read.
+    Driven through both routes, because the route is the importer: this used
+    to call `SessionExportService._dict_to_metadata`, which only a parallel
+    import path nothing called ever reached, and was deleted with it.
     """
 
-    service = SessionExportService(metadata_service=_NoMetadata())
-    blob = json.loads(json.dumps(asdict(service.export_session("s-1", MESSAGES))))
+    http, store = client
+    session_id = uuid.uuid4().hex
+    store.create_session(session_id=session_id)
+    for message in MESSAGES:
+        store.append_message(session_id, message["role"], message["content"])
 
-    restored = service._dict_to_metadata("s-1", blob["metadata"])
+    exported = http.post(f"/api/v1/sessions/{session_id}/export", json={"format": "json"})
+    assert exported.status_code == 200
+    assert json.loads(exported.content)["metadata"]["created_at"] is None
 
-    assert restored.session_id == "s-1"
-    assert restored.tags == []
-    # A missing date becomes now, which is the truth: this metadata is being
-    # created at import time.
-    assert restored.created_at is not None
-    assert restored.last_query_at is None
+    imported = http.post(
+        "/api/v1/sessions/import?conflict_strategy=rename",
+        files={"file": ("s.json", io.BytesIO(exported.content), "application/json")},
+    )
+
+    assert imported.status_code == 200, imported.text
+    restored = store.get_session(imported.json()["session_id"])
+    assert [m["content"] for m in restored["messages"]] == [m["content"] for m in MESSAGES]
 
 
 @pytest.mark.parametrize("bad", ["", "not-a-date", None])
-def test_an_unreadable_date_does_not_break_an_import(bad):
+def test_an_unreadable_date_does_not_break_an_import(client, bad):
     """Import is the one place a hand-edited or foreign file arrives."""
 
-    service = SessionExportService(metadata_service=_NoMetadata())
+    http, store = client
+    document = {
+        "session_id": uuid.uuid4().hex,
+        "metadata": {"tags": [], "created_at": bad, "updated_at": bad, "last_query_at": bad},
+        "messages": MESSAGES,
+        "export_version": "1.0",
+    }
 
-    restored = service._dict_to_metadata("s-1", {"created_at": bad, "updated_at": bad, "last_query_at": bad})
+    imported = http.post(
+        "/api/v1/sessions/import",
+        files={"file": ("s.json", io.BytesIO(json.dumps(document).encode("utf-8")), "application/json")},
+    )
 
-    assert restored.created_at is not None
-    assert restored.last_query_at is None
+    assert imported.status_code == 200, imported.text
+    assert imported.json()["messages_imported"] == len(MESSAGES)

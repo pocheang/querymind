@@ -20,6 +20,7 @@ from app.api.dependencies import _history_store_for_user, _require_user, _requir
 from app.api.transport.errors import error_responses
 from app.core.config import get_settings
 from app.services.sessions.export import (
+    EXPORT_VERSION,
     ConflictStrategy,
     ExportFormat,
     SessionExportService,
@@ -166,7 +167,7 @@ def _parse_import_payload(json_data: bytes) -> dict:
         imported = json.loads(json_data.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise HTTPException(status_code=400, detail=f"Invalid session JSON: {exc}")
-    if not isinstance(imported, dict) or imported.get("export_version") != "1.0":
+    if not isinstance(imported, dict) or imported.get("export_version") != EXPORT_VERSION:
         raise HTTPException(status_code=400, detail="Unsupported or missing export version")
     return imported
 
