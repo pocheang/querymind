@@ -56,7 +56,7 @@ def test_an_untagged_session_exports():
 
     service = SessionExportService(metadata_service=_NoMetadata())
 
-    exported = service.export_session(session_id="s-1", messages=MESSAGES, context=None)
+    exported = service.export_session(session_id="s-1", messages=MESSAGES)
 
     assert exported.session_id == "s-1"
     # The messages are the point of an export.

@@ -56,7 +56,6 @@ class ExportedSession:
     session_id: str
     metadata: dict[str, Any]
     messages: list[dict[str, Any]]
-    context: dict[str, Any] | None = None
     export_version: str = EXPORT_VERSION
     exported_at: str = ""
 
@@ -92,7 +91,6 @@ class SessionExportService:
         self,
         session_id: str,
         messages: list[dict[str, Any]] | None = None,
-        context: dict[str, Any] | None = None,
     ) -> ExportedSession:
         """
         Export a single session.
@@ -100,7 +98,6 @@ class SessionExportService:
         Args:
             session_id: Session identifier
             messages: Optional message history
-            context: Optional context data
 
         Returns:
             ExportedSession
@@ -121,14 +118,12 @@ class SessionExportService:
             session_id=session_id,
             metadata=metadata_dict,
             messages=messages or [],
-            context=context,
         )
 
     def export_to_json(
         self,
         session_id: str,
         messages: list[dict[str, Any]] | None = None,
-        context: dict[str, Any] | None = None,
     ) -> str:
         """
         Export session to JSON string.
@@ -136,12 +131,11 @@ class SessionExportService:
         Args:
             session_id: Session identifier
             messages: Optional message history
-            context: Optional context data
 
         Returns:
             JSON string
         """
-        exported = self.export_session(session_id, messages, context)
+        exported = self.export_session(session_id, messages)
         return json.dumps(asdict(exported), indent=2, ensure_ascii=False)
 
     def export_to_file(
@@ -149,7 +143,6 @@ class SessionExportService:
         session_id: str,
         output_path: str | Path,
         messages: list[dict[str, Any]] | None = None,
-        context: dict[str, Any] | None = None,
     ) -> None:
         """
         Export session to JSON file.
@@ -158,9 +151,8 @@ class SessionExportService:
             session_id: Session identifier
             output_path: Output file path
             messages: Optional message history
-            context: Optional context data
         """
-        json_str = self.export_to_json(session_id, messages, context)
+        json_str = self.export_to_json(session_id, messages)
 
         output_path = Path(output_path)
         output_path.write_text(json_str, encoding="utf-8")
@@ -170,7 +162,6 @@ class SessionExportService:
         session_ids: list[str],
         output_path: str | Path,
         messages_map: dict[str, list[dict[str, Any]]] | None = None,
-        context_map: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         """
         Export multiple sessions to ZIP archive.
@@ -179,10 +170,8 @@ class SessionExportService:
             session_ids: List of session identifiers
             output_path: Output ZIP file path
             messages_map: Map of session_id -> messages
-            context_map: Map of session_id -> context
         """
         messages_map = messages_map or {}
-        context_map = context_map or {}
 
         output_path = Path(output_path)
 
@@ -193,7 +182,6 @@ class SessionExportService:
                     json_str = self.export_to_json(
                         session_id,
                         messages=messages_map.get(session_id),
-                        context=context_map.get(session_id),
                     )
 
                     # Add to ZIP

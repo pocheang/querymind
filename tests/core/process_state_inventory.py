@@ -228,10 +228,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "B",
         "全局两级缓存管理器单例，包含进程内 L1 内存缓存，跨进程更新时需协调失效",
     ),
-    "app/services/context_management.py::_context_service_instance": (
-        "D",
-        "没有任何写入方（只有会话导出读取它，结果总是空的），多 worker 下没有可以不一致的状态；ARC-01 审计 2026-09-25",
-    ),
     "app/services/language/analytics.py::LanguageAnalytics._instance": (
         "D",
         "语言检测统计分析单例，保存在进程内存中的度量指标，各进程可独立保留自身事件流",

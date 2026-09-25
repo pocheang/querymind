@@ -70,7 +70,6 @@ export interface SearchResponse {
 
 export interface ExportRequest {
   format?: ExportFormat;
-  include_context?: boolean;
 }
 
 export interface ImportResponse {
@@ -80,7 +79,6 @@ export interface ImportResponse {
   conflict_resolution: string | null;
   messages_imported: number;
   metadata_imported: boolean;
-  context_imported: boolean;
 }
 
 export interface Facets {

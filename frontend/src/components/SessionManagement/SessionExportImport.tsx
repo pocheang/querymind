@@ -25,7 +25,6 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
 
   // Export state
   const [exportFormat, setExportFormat] = useState<ExportFormat>("json");
-  const [includeContext, setIncludeContext] = useState(true);
   const [exporting, setExporting] = useState(false);
 
   // Import state
@@ -48,10 +47,7 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
     setError(null);
 
     try {
-      const blob = await sessionManagementApi.exportSession(sessionId, {
-        format: exportFormat,
-        include_context: includeContext,
-      });
+      const blob = await sessionManagementApi.exportSession(sessionId, { format: exportFormat });
 
       // Trigger download
       const url = window.URL.createObjectURL(blob);
@@ -178,17 +174,6 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
             </div>
           </div>
 
-          <label className={ROW}>
-            <input
-              className={RADIO}
-              type="checkbox"
-              checked={includeContext}
-              onChange={(e) => setIncludeContext(e.target.checked)}
-              disabled={exporting}
-            />
-            <span>{t("sessionManagement.includeContext")}</span>
-          </label>
-
           <Button size="sm" onClick={handleExport} disabled={exporting}>
             {exporting && <Loader2 className="size-3 animate-spin" aria-hidden="true" />}
             {t("sessionManagement.export")}
@@ -279,7 +264,6 @@ export const SessionExportImport: React.FC<SessionExportImportProps> = ({ sessio
                   : []),
                 [t("sessionManagement.messagesImported"), String(importResult.messages_imported)],
                 [t("sessionManagement.metadataImported"), importResult.metadata_imported ? "yes" : "no"],
-                [t("sessionManagement.contextImported"), importResult.context_imported ? "yes" : "no"],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-2">
                   <dt className="font-medium text-ink/80">{label}:</dt>

@@ -1524,7 +1524,6 @@
     "tryDifferentSearch": "Try adjusting your search criteria or filters",
     "exportSession": "Export Session",
     "exportFormat": "Export Format",
-    "includeContext": "Include context tracking data",
     "export": "Export",
     "importSession": "Import Session",
     "dragDropFile": "Drag and drop a file here",
@@ -1551,7 +1550,6 @@
     "conflictResolution": "Conflict Resolution",
     "messagesImported": "Messages Imported",
     "metadataImported": "Metadata Imported",
-    "contextImported": "Context Imported",
     "title": "Session management",
     "searchesMetadataOnly": "This searches tags, category and description. Add them on the Edit metadata tab to make a session findable here."
   },
