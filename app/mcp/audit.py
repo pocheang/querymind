@@ -56,16 +56,23 @@ def _detail(record: AuditRecord) -> str:
 
 
 class _AuditLogsWriter:
-    """Writes to `audit_logs` through the auth service, opened once on the writer thread."""
+    """Writes to `audit_logs` through the auth service, opened once on the writer thread.
+
+    Which database is decided here, when the log is created, not on the writer
+    thread at its first write: by then the settings may name another one.
+    """
 
     def __init__(self) -> None:
+        from app.core.config import get_settings
+
+        self._db_path = get_settings().app_db_path
         self._service = None
 
     def __call__(self, record: AuditRecord) -> None:
         if self._service is None:
             from app.services.auth.auth_service import AuthDBService
 
-            self._service = AuthDBService()
+            self._service = AuthDBService(db_path=self._db_path)
         self._service.add_audit_log(
             action=str(action_for(record)),
             resource_type="tool",

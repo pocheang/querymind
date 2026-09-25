@@ -11,6 +11,7 @@ from pathlib import Path
 
 from app.core.config import Settings, get_settings
 from app.domain.knowledge import AccessScope
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 from app.wiki.models import WikiArticleVersion, WikiDiff, WikiSourceReference, WikiVersionSummary
 from app.wiki.versioning import unified_content_diff, wiki_content_hash
 
@@ -28,7 +29,7 @@ class WikiStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._timeout = active.sqlite_busy_timeout_seconds
         self._scan_limit = active.wiki_scan_limit
-        self._init_schema()
+        ensure_schema(self.db_path, "wiki", WIKI_MIGRATIONS, timeout_seconds=self._timeout)
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.db_path, timeout=self._timeout)
@@ -36,57 +37,6 @@ class WikiStore:
         connection.execute(f"PRAGMA busy_timeout = {int(self._timeout * 1000)}")
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
-
-    def _init_schema(self) -> None:
-        with self._connect() as connection:
-            connection.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS wiki_articles (
-                    tenant_id TEXT NOT NULL,
-                    article_id TEXT NOT NULL,
-                    slug TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    current_version INTEGER NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    PRIMARY KEY (tenant_id, article_id),
-                    UNIQUE (tenant_id, slug)
-                );
-                CREATE TABLE IF NOT EXISTS wiki_versions (
-                    tenant_id TEXT NOT NULL,
-                    article_id TEXT NOT NULL,
-                    version INTEGER NOT NULL,
-                    title TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    content_hash TEXT NOT NULL,
-                    change_note TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    PRIMARY KEY (tenant_id, article_id, version),
-                    FOREIGN KEY (tenant_id, article_id)
-                        REFERENCES wiki_articles(tenant_id, article_id) ON DELETE CASCADE
-                );
-                CREATE TABLE IF NOT EXISTS wiki_source_mappings (
-                    tenant_id TEXT NOT NULL,
-                    article_id TEXT NOT NULL,
-                    version INTEGER NOT NULL,
-                    ordinal INTEGER NOT NULL,
-                    source TEXT NOT NULL,
-                    document_id TEXT NOT NULL,
-                    document_version INTEGER NOT NULL,
-                    page INTEGER,
-                    chunk_id TEXT,
-                    image_id TEXT,
-                    acl_tags_json TEXT NOT NULL,
-                    PRIMARY KEY (tenant_id, article_id, version, ordinal),
-                    FOREIGN KEY (tenant_id, article_id, version)
-                        REFERENCES wiki_versions(tenant_id, article_id, version) ON DELETE CASCADE
-                );
-                CREATE INDEX IF NOT EXISTS idx_wiki_articles_current
-                    ON wiki_articles(tenant_id, updated_at DESC);
-                CREATE INDEX IF NOT EXISTS idx_wiki_sources_document
-                    ON wiki_source_mappings(tenant_id, document_id, document_version);
-                """
-            )
 
     def upsert(
         self,
@@ -346,3 +296,62 @@ def _required(value: str, label: str) -> str:
 
 
 __all__ = ["WikiStore"]
+
+
+_WIKI_BASELINE = """
+    CREATE TABLE IF NOT EXISTS wiki_articles (
+        tenant_id TEXT NOT NULL,
+        article_id TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        title TEXT NOT NULL,
+        current_version INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, article_id),
+        UNIQUE (tenant_id, slug)
+    );
+    CREATE TABLE IF NOT EXISTS wiki_versions (
+        tenant_id TEXT NOT NULL,
+        article_id TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        change_note TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, article_id, version),
+        FOREIGN KEY (tenant_id, article_id)
+            REFERENCES wiki_articles(tenant_id, article_id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS wiki_source_mappings (
+        tenant_id TEXT NOT NULL,
+        article_id TEXT NOT NULL,
+        version INTEGER NOT NULL,
+        ordinal INTEGER NOT NULL,
+        source TEXT NOT NULL,
+        document_id TEXT NOT NULL,
+        document_version INTEGER NOT NULL,
+        page INTEGER,
+        chunk_id TEXT,
+        image_id TEXT,
+        acl_tags_json TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, article_id, version, ordinal),
+        FOREIGN KEY (tenant_id, article_id, version)
+            REFERENCES wiki_versions(tenant_id, article_id, version) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_wiki_articles_current
+        ON wiki_articles(tenant_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_wiki_sources_document
+        ON wiki_source_mappings(tenant_id, document_id, document_version);
+"""
+
+
+def _wiki_baseline(connection: sqlite3.Connection) -> None:
+    # One statement at a time: executescript commits first, which would end the
+    # migration's transaction.
+    for statement in _WIKI_BASELINE.split(";"):
+        if statement.strip():
+            connection.execute(statement)
+
+
+WIKI_MIGRATIONS = (Migration(1, "baseline: wiki articles, versions and source mappings", _wiki_baseline),)

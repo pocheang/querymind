@@ -26,6 +26,7 @@ from pathlib import Path
 
 from app.mcp.contracts import ApprovalRequest, ToolArgument, ToolCall
 from app.orchestration.request import RequestActor
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 
 # Rows are pruned this long after they expire: long enough to answer "why was my
 # token refused" from the table, short enough that it stays small.
@@ -42,7 +43,7 @@ class ApprovalStore:
             db_path = get_settings().app_db_path
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_schema()
+        ensure_schema(self.db_path, "tool_approvals", APPROVAL_MIGRATIONS, wal=True)
 
     def _connect(self) -> sqlite3.Connection:
         # A generous busy timeout: a write here is one small row, and waiting
@@ -52,24 +53,24 @@ class ApprovalStore:
         conn.row_factory = sqlite3.Row
         return conn
 
-    def _init_schema(self) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS tool_approvals (
-                  token TEXT PRIMARY KEY,
-                  tool_id TEXT NOT NULL,
-                  actor_id TEXT NOT NULL,
-                  arguments TEXT NOT NULL,
-                  call_fingerprint TEXT NOT NULL,
-                  expires_at REAL NOT NULL,
-                  approved INTEGER NOT NULL DEFAULT 0,
-                  approved_by TEXT,
-                  consumed INTEGER NOT NULL DEFAULT 0
-                )
-                """
+    @staticmethod
+    def _baseline_schema(conn: sqlite3.Connection) -> None:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tool_approvals (
+              token TEXT PRIMARY KEY,
+              tool_id TEXT NOT NULL,
+              actor_id TEXT NOT NULL,
+              arguments TEXT NOT NULL,
+              call_fingerprint TEXT NOT NULL,
+              expires_at REAL NOT NULL,
+              approved INTEGER NOT NULL DEFAULT 0,
+              approved_by TEXT,
+              consumed INTEGER NOT NULL DEFAULT 0
             )
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_tool_approvals_expires ON tool_approvals(expires_at)")
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tool_approvals_expires ON tool_approvals(expires_at)")
 
     def create(self, call: ToolCall, actor: RequestActor) -> ApprovalRequest:
         """Create an approval token bound to one actor and one exact call."""
@@ -216,3 +217,6 @@ def _actor_id(actor: RequestActor) -> str:
     if not actor.user_id:
         raise ValueError("approval requires an authenticated actor")
     return actor.user_id
+
+
+APPROVAL_MIGRATIONS = (Migration(1, "baseline: tool_approvals", ApprovalStore._baseline_schema),)

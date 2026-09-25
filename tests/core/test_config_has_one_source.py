@@ -51,8 +51,7 @@ ALLOWED: dict[str, str] = {
     "app/api/application/lifespan.py::lifespan": "conda environment diagnostics",
     "app/api/deps/admin.py::_runtime_diagnostics_summary": "conda environment diagnostics",
     "app/api/deps/auth.py::_resolve_pytest_header_user": "test-run detection",
-    "app/api/application/lifespan.py::_bootstrap_administrator": "test-run detection",
-    "app/api/application/lifespan.py::_purge_retired_user_model_settings": "test-run detection",
+    "app/api/application/lifespan.py::_run_startup_tasks": "test-run detection",
     "app/api/application/lifespan.py::_recover_unfinished_ingests": "test-run detection",
     # A test run must not persist structured tables into the developer's APP_DB_PATH.
     "app/services/tables/store.py::_default_db_path": "test-run detection",

@@ -79,11 +79,22 @@ def get_tool_stack() -> ToolStack:
 
 
 def reset_tool_stack() -> None:
-    """Drop the cached stack. For tests that install their own connectors."""
+    """Drop the cached stack. For tests that install their own connectors.
+
+    Its queued audit rows are written first. Left queued, they ran later on the
+    writer thread, which opened the auth store through `get_settings()` --
+    after the caller had moved on to another database, and sometimes while it
+    was clearing the settings cache, which `lru_cache` then refilled with the
+    old path. The next stack was built on the previous test's database, and
+    tests failed intermittently with FOREIGN KEY errors from a `users` table
+    that was not theirs.
+    """
 
     global _stack
     with _lock:
-        _stack = None
+        stack, _stack = _stack, None
+    if stack is not None:
+        stack.registry.flush_audit()
 
 
 def _build_tool_stack() -> ToolStack:

@@ -43,7 +43,7 @@ if ($WithN8n) {
 $env:RUNTIME_ENV_FILE = $RuntimeEnv
 docker compose @ComposeArgs config -q
 docker compose @ComposeArgs up -d --build
-docker compose @ComposeArgs run --rm backend python deploy/scripts/init_app.py
+docker compose @ComposeArgs run --rm backend python -m app.init_app
 docker compose @ComposeArgs exec -T backend python deploy/scripts/healthcheck.py
 
 Write-Host "QueryMind deployed: environment=$Environment profile=$Profile"

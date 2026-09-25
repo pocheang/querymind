@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 from app.services.sessions.metadata import (
     MetadataUpdate,
     SessionCategory,
@@ -69,6 +70,23 @@ CREATE_INDEXES_SQL = [
 # ============================================================================
 
 
+def _metadata_baseline(conn: sqlite3.Connection) -> None:
+    conn.execute(CREATE_TABLE_SQL)
+    for index_sql in CREATE_INDEXES_SQL:
+        conn.execute(index_sql)
+
+
+SESSION_METADATA_MIGRATIONS = (Migration(1, "baseline: session_metadata and its indexes", _metadata_baseline),)
+
+
+def ensure_session_metadata_schema(db_path: Path | None = None) -> int:
+    """Create or upgrade the session-metadata table; safe from any number of processes at once."""
+
+    path = Path(db_path or SessionMetadataDB._get_db_path())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return ensure_schema(path, "session_metadata", SESSION_METADATA_MIGRATIONS, wal=True)
+
+
 class SessionMetadataDB:
     """
     Database-backed session metadata service.
@@ -94,11 +112,12 @@ class SessionMetadataDB:
         """
         get_settings()
         self.db_path = db_path or self._get_db_path()
-        self._init_schema()
+        ensure_session_metadata_schema(self.db_path)
 
-    def _get_db_path(self) -> Path:
-        """Get database path from settings."""
-        settings = get_settings()
+    @staticmethod
+    def _get_db_path(settings=None) -> Path:
+        """The database DATABASE_URL names -- in `settings` when given, else the process's."""
+        settings = settings or get_settings()
         # Parse DATABASE_URL (e.g. "sqlite:///./data/querymind.db")
         db_url = getattr(settings, "database_url", "sqlite:///./data/querymind.db")
         if db_url.startswith("sqlite:///"):
@@ -119,7 +138,7 @@ class SessionMetadataDB:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path, timeout=10.0, check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
+        # WAL is set once, by the migration (ensure_session_metadata_schema).
         conn.execute("PRAGMA busy_timeout = 10000")
         return conn
 
@@ -135,14 +154,6 @@ class SessionMetadataDB:
     def _row(self, conn: sqlite3.Connection, session_id: str) -> SessionMetadata | None:
         row = conn.execute("SELECT * FROM session_metadata WHERE session_id = ?", (session_id,)).fetchone()
         return self._deserialize_row(row) if row else None
-
-    def _init_schema(self) -> None:
-        """Initialize database schema."""
-        with closing(self._connect()) as conn:
-            conn.execute(CREATE_TABLE_SQL)
-            for index_sql in CREATE_INDEXES_SQL:
-                conn.execute(index_sql)
-            conn.commit()
 
     def _serialize_metadata(self, metadata: SessionMetadata) -> dict[str, Any]:
         """Serialize SessionMetadata to database row."""

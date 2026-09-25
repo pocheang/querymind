@@ -23,6 +23,7 @@ from app.services.auth.validation import (
     validate_role,
     validate_username,
 )
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 
 
 @dataclass(frozen=True)
@@ -91,7 +92,7 @@ class AuthDBService:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._api_settings_key_lock = threading.Lock()
         self._api_settings_key: bytes | None = None
-        self._init_schema()
+        ensure_auth_schema(self.db_path)
 
         self.user_manager = UserManager(self._connect)
         self.session_manager = SessionManager(self._connect, self.token_ttl_hours)
@@ -123,145 +124,137 @@ class AuthDBService:
         return decrypt_api_settings_payload(payload, self._api_settings_data_key())
 
     def _connect(self) -> sqlite3.Connection:
-        settings = get_settings()
-        # 安全修复：严格验证和类型转换，防止SQL注入
-        try:
-            timeout_s = float(getattr(settings, "sqlite_busy_timeout_seconds", 10) or 10)
-            # 钳位到安全范围 [1.0, 3600.0]
-            timeout_s = max(1.0, min(timeout_s, 3600.0))
-        except (ValueError, TypeError):
-            # 无效配置值，使用安全默认值
-            timeout_s = 10.0
-
+        timeout_s = _busy_timeout_seconds()
         timeout_ms = int(timeout_s * 1000)
 
         conn = sqlite3.connect(self.db_path, timeout=timeout_s, check_same_thread=False)
         conn.row_factory = sqlite3.Row
 
         # PRAGMA statements do not accept bind parameters.
-        # timeout_ms is strictly clamped to an integer in [1000, 3600000] above.
+        # timeout_ms is strictly clamped to an integer in [1000, 3600000] by _busy_timeout_seconds.
         assert isinstance(timeout_ms, int) and 1000 <= timeout_ms <= 3600000, "timeout_ms validation failed"
         conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
-
-        conn.execute("PRAGMA journal_mode=WAL")
+        # WAL is a property of the file, set once by the migration (ensure_auth_schema);
+        # setting it here, on every connection, needed an exclusive lock each time.
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
-    def _init_schema(self) -> None:
-        with self._connect() as conn:
-            # credit_balance's default is interpolated, not parameterized -- a DEFAULT
-            # clause takes no placeholder -- from the same int constant the ALTER below
-            # uses, so a fresh database and an upgraded one cannot start users on
-            # different balances. It was a literal 10 here against the constant there.
-            conn.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS users (
-                  user_id TEXT PRIMARY KEY,
-                  username TEXT NOT NULL UNIQUE COLLATE NOCASE,
-                  salt TEXT NOT NULL,
-                  password_hash TEXT NOT NULL,
-                  role TEXT NOT NULL DEFAULT 'viewer',
-                  status TEXT NOT NULL DEFAULT 'active',
-                  created_by_user_id TEXT,
-                  created_by_username TEXT,
-                  admin_ticket_id TEXT,
-                  admin_approval_token_hash TEXT,
-                  business_unit TEXT,
-                  department TEXT,
-                  user_type TEXT,
-                  data_scope TEXT,
-                  credit_balance INTEGER NOT NULL DEFAULT {DEFAULT_CHAT_CREDITS} CHECK(credit_balance >= 0),
-                  created_at TEXT NOT NULL
-                )
-                """
+    @staticmethod
+    def _baseline_schema(conn: sqlite3.Connection) -> None:
+        # credit_balance's default is interpolated, not parameterized -- a DEFAULT
+        # clause takes no placeholder -- from the same int constant the ALTER below
+        # uses, so a fresh database and an upgraded one cannot start users on
+        # different balances. It was a literal 10 here against the constant there.
+        conn.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS users (
+              user_id TEXT PRIMARY KEY,
+              username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+              salt TEXT NOT NULL,
+              password_hash TEXT NOT NULL,
+              role TEXT NOT NULL DEFAULT 'viewer',
+              status TEXT NOT NULL DEFAULT 'active',
+              created_by_user_id TEXT,
+              created_by_username TEXT,
+              admin_ticket_id TEXT,
+              admin_approval_token_hash TEXT,
+              business_unit TEXT,
+              department TEXT,
+              user_type TEXT,
+              data_scope TEXT,
+              credit_balance INTEGER NOT NULL DEFAULT {DEFAULT_CHAT_CREDITS} CHECK(credit_balance >= 0),
+              created_at TEXT NOT NULL
             )
-            self._ensure_users_columns(conn)
+            """
+        )
+        AuthDBService._ensure_users_columns(conn)
 
-            # 性能优化：添加用户名索引（已使用 COLLATE NOCASE）
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username COLLATE NOCASE)")
+        # 性能优化：添加用户名索引（已使用 COLLATE NOCASE）
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username COLLATE NOCASE)")
 
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS oauth_identities (
-                  provider TEXT NOT NULL,
-                  email TEXT NOT NULL COLLATE NOCASE,
-                  user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-                  created_at TEXT NOT NULL,
-                  PRIMARY KEY (provider, email)
-                )
-                """
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS oauth_identities (
+              provider TEXT NOT NULL,
+              email TEXT NOT NULL COLLATE NOCASE,
+              user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              created_at TEXT NOT NULL,
+              PRIMARY KEY (provider, email)
             )
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_oauth_identities_user ON oauth_identities(user_id)")
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS auth_sessions (
-                  token TEXT PRIMARY KEY,
-                  user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-                  username TEXT NOT NULL,
-                  issued_at TEXT NOT NULL,
-                  last_seen_at TEXT NOT NULL,
-                  expires_at TEXT NOT NULL
-                )
-                """
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_oauth_identities_user ON oauth_identities(user_id)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_sessions (
+              token TEXT PRIMARY KEY,
+              user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              username TEXT NOT NULL,
+              issued_at TEXT NOT NULL,
+              last_seen_at TEXT NOT NULL,
+              expires_at TEXT NOT NULL
             )
-            self._ensure_auth_session_columns(conn)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id)")
-            # HIGH PRIORITY FIX: Add indexes for query performance
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions(expires_at)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_last_seen ON auth_sessions(last_seen_at)")
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS audit_logs (
-                  event_id TEXT PRIMARY KEY,
-                  actor_user_id TEXT,
-                  actor_role TEXT,
-                  action TEXT NOT NULL,
-                  event_category TEXT,
-                  severity TEXT,
-                  resource_type TEXT NOT NULL,
-                  resource_id TEXT,
-                  result TEXT NOT NULL,
-                  ip TEXT,
-                  user_agent TEXT,
-                  detail TEXT,
-                  created_at TEXT NOT NULL
-                )
-                """
+            """
+        )
+        AuthDBService._ensure_auth_session_columns(conn)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id)")
+        # HIGH PRIORITY FIX: Add indexes for query performance
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions(expires_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_sessions_last_seen ON auth_sessions(last_seen_at)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_logs (
+              event_id TEXT PRIMARY KEY,
+              actor_user_id TEXT,
+              actor_role TEXT,
+              action TEXT NOT NULL,
+              event_category TEXT,
+              severity TEXT,
+              resource_type TEXT NOT NULL,
+              resource_id TEXT,
+              result TEXT NOT NULL,
+              ip TEXT,
+              user_agent TEXT,
+              detail TEXT,
+              created_at TEXT NOT NULL
             )
-            self._ensure_audit_columns(conn)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_user_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at)")
+            """
+        )
+        AuthDBService._ensure_audit_columns(conn)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at)")
 
-            # 安全修复：添加触发器防止审计日志被修改或删除
-            conn.execute(
-                """
-                CREATE TRIGGER IF NOT EXISTS protect_audit_logs_update
-                BEFORE UPDATE ON audit_logs
-                BEGIN
-                    SELECT RAISE(ABORT, 'Audit logs are immutable and cannot be modified');
-                END
-                """
+        # 安全修复：添加触发器防止审计日志被修改或删除
+        conn.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS protect_audit_logs_update
+            BEFORE UPDATE ON audit_logs
+            BEGIN
+                SELECT RAISE(ABORT, 'Audit logs are immutable and cannot be modified');
+            END
+            """
+        )
+        conn.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS protect_audit_logs_delete
+            BEFORE DELETE ON audit_logs
+            BEGIN
+                SELECT RAISE(ABORT, 'Audit logs cannot be deleted');
+            END
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS system_settings (
+              key TEXT PRIMARY KEY,
+              value TEXT NOT NULL,
+              updated_at TEXT NOT NULL
             )
-            conn.execute(
-                """
-                CREATE TRIGGER IF NOT EXISTS protect_audit_logs_delete
-                BEFORE DELETE ON audit_logs
-                BEGIN
-                    SELECT RAISE(ABORT, 'Audit logs cannot be deleted');
-                END
-                """
-            )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS system_settings (
-                  key TEXT PRIMARY KEY,
-                  value TEXT NOT NULL,
-                  updated_at TEXT NOT NULL
-                )
-                """
-            )
+            """
+        )
 
-    def _ensure_users_columns(self, conn: sqlite3.Connection) -> None:
+    @staticmethod
+    def _ensure_users_columns(conn: sqlite3.Connection) -> None:
         rows = conn.execute("PRAGMA table_info(users)").fetchall()
         existing = {str(r["name"]) for r in rows}
         if "role" not in existing:
@@ -294,7 +287,8 @@ class AuthDBService:
                 "CHECK(credit_balance >= 0)"
             )
 
-    def _ensure_audit_columns(self, conn: sqlite3.Connection) -> None:
+    @staticmethod
+    def _ensure_audit_columns(conn: sqlite3.Connection) -> None:
         rows = conn.execute("PRAGMA table_info(audit_logs)").fetchall()
         existing = {str(r["name"]) for r in rows}
         if "event_category" not in existing:
@@ -308,7 +302,8 @@ class AuthDBService:
         if "hash_kid" not in existing:
             conn.execute("ALTER TABLE audit_logs ADD COLUMN hash_kid TEXT")
 
-    def _ensure_auth_session_columns(self, conn: sqlite3.Connection) -> None:
+    @staticmethod
+    def _ensure_auth_session_columns(conn: sqlite3.Connection) -> None:
         rows = conn.execute("PRAGMA table_info(auth_sessions)").fetchall()
         existing = {str(r["name"]) for r in rows}
         if "last_seen_at" not in existing:
@@ -801,3 +796,30 @@ class AuthDBService:
                 (key, json.dumps(to_store), iso(now())),
             )
             conn.commit()
+
+
+def _busy_timeout_seconds() -> float:
+    settings = get_settings()
+    # 安全修复：严格验证和类型转换，防止SQL注入
+    try:
+        timeout_s = float(getattr(settings, "sqlite_busy_timeout_seconds", 10) or 10)
+    except (ValueError, TypeError):
+        # 无效配置值，使用安全默认值
+        return 10.0
+    # 钳位到安全范围 [1.0, 3600.0]
+    return max(1.0, min(timeout_s, 3600.0))
+
+
+AUTH_MIGRATIONS = (
+    Migration(
+        1, "baseline: users, OAuth identities, sessions, audit log, system settings", AuthDBService._baseline_schema
+    ),
+)
+
+
+def ensure_auth_schema(db_path: Path | None = None) -> int:
+    """Create or upgrade the authentication tables; safe to call from any number of processes at once."""
+
+    path = db_path or get_settings().app_db_path
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    return ensure_schema(path, "auth", AUTH_MIGRATIONS, wal=True, timeout_seconds=_busy_timeout_seconds())

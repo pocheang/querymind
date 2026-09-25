@@ -1,6 +1,7 @@
 """Authentication dependencies used by API routes."""
 
 import os
+import threading
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
@@ -12,7 +13,39 @@ from app.services.security.audit_actions import AuditAction
 from app.services.security.rbac import Permission
 
 auth_scheme = HTTPBearer(auto_error=False)
-auth_service = AuthDBService()
+
+
+class _LazyAuthService:
+    """The process's `AuthDBService`, built on first use rather than at import (ARC-09).
+
+    It used to be constructed here, at import, which opened the database and
+    created its tables as a side effect of importing a module -- in every
+    process, before any configuration or lifespan had run, and the reason two
+    workers starting together could crash on `database is locked` before a
+    single request (ARC-01 phase 7). Importing a module should not write a
+    database.
+
+    Stays one module-level object on purpose: several modules bind it with
+    `from ... import auth_service`, and tests replace it by name with
+    `monkeypatch.setattr`, both of which keep working unchanged.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._service: AuthDBService | None = None
+
+    def _get(self) -> AuthDBService:
+        if self._service is None:
+            with self._lock:
+                if self._service is None:
+                    self._service = AuthDBService()
+        return self._service
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._get(), name)
+
+
+auth_service = _LazyAuthService()
 
 
 def _resolve_pytest_header_user(request: Request) -> dict[str, Any] | None:

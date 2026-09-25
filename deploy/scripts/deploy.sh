@@ -57,7 +57,7 @@ fi
 export RUNTIME_ENV_FILE="$RUNTIME_ENV"
 docker compose "${COMPOSE_ARGS[@]}" config -q
 docker compose "${COMPOSE_ARGS[@]}" up -d --build
-docker compose "${COMPOSE_ARGS[@]}" run --rm backend python deploy/scripts/init_app.py
+docker compose "${COMPOSE_ARGS[@]}" run --rm backend python -m app.init_app
 docker compose "${COMPOSE_ARGS[@]}" exec -T backend python deploy/scripts/healthcheck.py
 
 echo "QueryMind deployed: environment=$ENVIRONMENT profile=$PROFILE"

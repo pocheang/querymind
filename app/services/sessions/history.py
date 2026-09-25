@@ -28,6 +28,7 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.domain.text import normalize_string
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ def _decode(raw: object, session_id: str) -> dict[str, Any] | None:
 
 def upsert_session_row(conn: sqlite3.Connection, namespace: str, session_id: str, data: dict[str, Any]) -> None:
     """Write one session row. UPDATE-then-INSERT rather than `ON CONFLICT`,
-    because a table upgraded by `_init_sqlite`'s ALTER keeps its original
+    because a table upgraded by the baseline migration's ALTER keeps its original
     primary key, which does not name `namespace`."""
 
     now = datetime.now(UTC).isoformat()
@@ -556,8 +557,7 @@ class HistoryStore:
         return connect_history_db(self._db_path)
 
     def _init_sqlite(self) -> None:
-        with self._lock, closing(self._connect()) as conn:
-            ensure_history_schema(conn)
+        ensure_history_schema(self._db_path)
 
     @staticmethod
     def _now() -> str:
@@ -637,27 +637,28 @@ class HistoryStore:
 
 
 def connect_history_db(db_path: Path) -> sqlite3.Connection:
-    settings = get_settings()
-    try:
-        timeout_s = float(getattr(settings, "sqlite_busy_timeout_seconds", 10) or 10)
-        timeout_s = max(1.0, min(timeout_s, 3600.0))
-    except (ValueError, TypeError):
-        timeout_s = 10.0
-
+    timeout_s = _busy_timeout_seconds()
     timeout_ms = int(timeout_s * 1000)
 
     conn = sqlite3.connect(db_path, timeout=timeout_s)
 
     # PRAGMA statements do not accept bind parameters.
-    # timeout_ms is strictly clamped to an integer in [1000, 3600000] above.
+    # timeout_ms is strictly clamped to an integer in [1000, 3600000] by _busy_timeout_seconds.
     assert isinstance(timeout_ms, int) and 1000 <= timeout_ms <= 3600000, "timeout_ms validation failed"
     conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
-
-    conn.execute("PRAGMA journal_mode=WAL")
+    # WAL is set once, by the migration (ensure_history_schema).
     return conn
 
 
-def ensure_history_schema(conn: sqlite3.Connection) -> None:
+def _busy_timeout_seconds() -> float:
+    try:
+        timeout_s = float(getattr(get_settings(), "sqlite_busy_timeout_seconds", 10) or 10)
+    except (ValueError, TypeError):
+        return 10.0
+    return max(1.0, min(timeout_s, 3600.0))
+
+
+def _history_baseline(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS sessions(
@@ -674,4 +675,13 @@ def ensure_history_schema(conn: sqlite3.Connection) -> None:
     if "namespace" not in cols:
         conn.execute("ALTER TABLE sessions ADD COLUMN namespace TEXT NOT NULL DEFAULT ''")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_ns_updated_at ON sessions(namespace, updated_at)")
-    conn.commit()
+
+
+HISTORY_MIGRATIONS = (Migration(1, "baseline: sessions keyed by namespace and session id", _history_baseline),)
+
+
+def ensure_history_schema(db_path: Path) -> int:
+    """Create or upgrade the session-history tables; safe from any number of processes at once."""
+
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    return ensure_schema(db_path, "history", HISTORY_MIGRATIONS, wal=True, timeout_seconds=_busy_timeout_seconds())

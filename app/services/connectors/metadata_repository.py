@@ -18,29 +18,32 @@ import sqlite3
 
 from app.services.connectors.contracts import ConnectorMetadata
 from app.services.connectors.repository import BaseConnectorRepository
+from app.services.runtime.sqlite_schema import Migration
 
 
 class ConnectorMetadataRepository(BaseConnectorRepository):
     """Store connector metadata without co-locating or exposing credentials."""
 
-    def _init_schema(self) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS connector_metadata (
-                  owner_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-                  connector_id TEXT NOT NULL,
-                  name TEXT NOT NULL,
-                  base_url TEXT NOT NULL,
-                  allowed_hosts TEXT NOT NULL,
-                  credential_id TEXT NOT NULL,
-                  credential_display TEXT NOT NULL,
-                  status TEXT NOT NULL,
-                  test_status TEXT NOT NULL,
-                  PRIMARY KEY (owner_id, connector_id)
-                )
-                """
+    SCHEMA_COMPONENT = "connector_metadata"
+
+    @staticmethod
+    def _baseline_schema(conn: sqlite3.Connection) -> None:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS connector_metadata (
+              owner_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              connector_id TEXT NOT NULL,
+              name TEXT NOT NULL,
+              base_url TEXT NOT NULL,
+              allowed_hosts TEXT NOT NULL,
+              credential_id TEXT NOT NULL,
+              credential_display TEXT NOT NULL,
+              status TEXT NOT NULL,
+              test_status TEXT NOT NULL,
+              PRIMARY KEY (owner_id, connector_id)
             )
+            """
+        )
 
     def create(self, metadata: ConnectorMetadata) -> ConnectorMetadata:
         """Insert, letting the primary key decide whether it already exists.
@@ -140,3 +143,8 @@ def _from_row(row: sqlite3.Row) -> ConnectorMetadata:
         status=row["status"],
         test_status=row["test_status"],
     )
+
+
+ConnectorMetadataRepository.MIGRATIONS = (
+    Migration(1, "baseline: connector_metadata", ConnectorMetadataRepository._baseline_schema),
+)

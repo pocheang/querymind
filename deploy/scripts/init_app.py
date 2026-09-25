@@ -1,12 +1,11 @@
-"""Idempotently initialize application-owned SQLite/auth schema."""
+"""Initialise the application databases: every schema migration, then the one-time tasks.
 
-from app.api.utils.auth_dependencies import auth_service
+The work lives in `app/init_app.py` so it ships in the backend image, which does
+not contain `deploy/`. Inside a container run `python -m app.init_app`; this
+wrapper is for a checkout.
+"""
 
-
-def main() -> int:
-    print(f"Application database initialized: {auth_service.db_path}")
-    return 0
-
+from app.init_app import main
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -15,8 +15,12 @@ both lock kinds, measured before this file was written.
 
 The exclusive-lock case is the control. It proves the harness really holds a
 lock, really releases it, and that the store really waits -- so the xfail
-below can only be failing for the reason it names. ARC-01 phase 7 fixes it;
-the xfail then turns red and the marker comes off.
+below could only be failing for the reason it named.
+
+ARC-01 phase 7 fixed it, and the strict xfail turned red the moment it did:
+the schema is created by `app/services/runtime/sqlite_schema.py`, which asks
+for WAL only when the file is not already in WAL mode and retries while it is
+locked, and runs the rest in a `BEGIN IMMEDIATE` transaction that waits.
 """
 
 from __future__ import annotations
@@ -84,14 +88,6 @@ def test_the_store_waits_for_an_exclusive_lock_to_clear(tmp_path):
     assert elapsed >= _HOLD_SECONDS * 0.8, f"returned after {elapsed:.3f}s -- it did not wait for the lock"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=sqlite3.OperationalError,
-    reason=(
-        "ARC-01 phase 7: PRAGMA journal_mode=WAL fails at once while another connection "
-        "holds a write lock; busy_timeout does not apply"
-    ),
-)
 def test_the_store_waits_for_a_concurrent_writer(tmp_path):
     elapsed = _construct_while_another_connection_holds("BEGIN IMMEDIATE", tmp_path / "app.db")
 

@@ -34,6 +34,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.services.runtime.background_writer import BackgroundWriter
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 
 # Rows older than this are pruned. The dashboards read the tracker's own window
 # (an hour); a day leaves room to widen that without losing history on the way.
@@ -57,22 +58,7 @@ class StageStatsStore:
         self._drain_queued = False
         self._last_prune = float("-inf")
         self.dropped = 0
-        with closing(self._connect()) as conn, conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS execution_stage_stats (
-                  execution_id TEXT NOT NULL,
-                  stage TEXT NOT NULL,
-                  status TEXT NOT NULL,
-                  duration_ms REAL NOT NULL,
-                  finished_at REAL NOT NULL,
-                  error_type TEXT
-                )
-                """
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_execution_stage_stats_finished ON execution_stage_stats(finished_at)"
-            )
+        ensure_schema(self.db_path, "stage_stats", STAGE_STATS_MIGRATIONS, wal=True)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path, timeout=10.0)
@@ -160,6 +146,25 @@ def from_timestamp(value: float) -> datetime:
     """Back to the tracker's convention: timezone-aware UTC, so it compares with `utcnow()`."""
 
     return datetime.fromtimestamp(value, UTC)
+
+
+def _stage_stats_baseline(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS execution_stage_stats (
+          execution_id TEXT NOT NULL,
+          stage TEXT NOT NULL,
+          status TEXT NOT NULL,
+          duration_ms REAL NOT NULL,
+          finished_at REAL NOT NULL,
+          error_type TEXT
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_execution_stage_stats_finished ON execution_stage_stats(finished_at)")
+
+
+STAGE_STATS_MIGRATIONS = (Migration(1, "baseline: execution_stage_stats", _stage_stats_baseline),)
 
 
 __all__ = ["RETENTION_SECONDS", "StageStatsStore", "from_timestamp"]

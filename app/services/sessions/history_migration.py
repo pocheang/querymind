@@ -126,8 +126,8 @@ def migrate_file_sessions(
     sessions_root: Path, cold_root: Path, db_path: Path, *, dry_run: bool = False
 ) -> MigrationReport:
     report = MigrationReport()
+    ensure_history_schema(db_path)
     with closing(connect_history_db(db_path)) as conn:
-        ensure_history_schema(conn)
         conn.isolation_level = None
         for namespace, sessions in _bases_with_sessions(sessions_root, cold_root, report):
             report.namespaces += 1

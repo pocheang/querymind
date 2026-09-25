@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 
 from app.services.observability.log_safety import key_ref
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 
 logger = logging.getLogger(__name__)
 
@@ -43,16 +44,7 @@ class AdminTokenTracker:
             db_path = get_settings().app_db_path
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS admin_token_uses (
-                  token_hash TEXT PRIMARY KEY,
-                  used_by TEXT NOT NULL,
-                  used_at REAL NOT NULL
-                )
-                """
-            )
+        ensure_schema(self.db_path, "admin_token_uses", ADMIN_TOKEN_MIGRATIONS, wal=True)
         logger.info(f"AdminTokenTracker initialized with {expiry_hours}h expiry")
 
     def _connect(self) -> sqlite3.Connection:
@@ -216,3 +208,18 @@ def get_token_tracker() -> AdminTokenTracker:
     if _global_tracker is None:
         _global_tracker = AdminTokenTracker(expiry_hours=24)
     return _global_tracker
+
+
+def _admin_token_baseline(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS admin_token_uses (
+          token_hash TEXT PRIMARY KEY,
+          used_by TEXT NOT NULL,
+          used_at REAL NOT NULL
+        )
+        """
+    )
+
+
+ADMIN_TOKEN_MIGRATIONS = (Migration(1, "baseline: admin_token_uses", _admin_token_baseline),)

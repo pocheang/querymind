@@ -43,7 +43,7 @@ def test_there_are_healthchecks_to_check():
 @pytest.mark.parametrize("name", sorted(_merged_services()))
 def test_a_healthcheck_reads_only_variables_its_container_has(name):
     service = _merged_services()[name]
-    if not service["healthcheck"]:
+    if not service["healthcheck"] or service["healthcheck"].get("disable"):
         pytest.skip("no healthcheck")
     probe = " ".join(map(str, service["healthcheck"]["test"]))
     missing = sorted(set(_CONTAINER_VARIABLE.findall(probe)) - service["environment"])

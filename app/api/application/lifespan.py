@@ -34,63 +34,27 @@ _auto_ingest_thread: threading.Thread | None = None
 _cache_initialized = False
 
 
-def _bootstrap_administrator() -> None:
-    """Make sure a first run can open the admin console.
+def _run_startup_tasks(settings) -> None:
+    """Migrate every SQLite store and run the once-only tasks (`app/init_app.py`).
+
+    The shared-state deployment runs the same code first, in its `init`
+    service; here it is the backstop, and costs one read per store once the
+    databases are current. Any number of processes may run it at once: the
+    migrations are transactions and the once-only tasks hold a file lock.
 
     Skipped under pytest: a test run must not write an account into the
     developer's `data/app.db`, and the behaviour is driven directly by
-    `tests/services/test_admin_bootstrap.py`, which is a better test of it than
-    a side effect of starting an app would be.
-
-    A failure here is reported and does not stop startup -- an installation
-    that cannot create an administrator is still an installation that answers
-    questions -- but it is logged at ERROR, because the alternative is a server
-    that looks healthy and has no way in.
+    `tests/services/test_admin_bootstrap.py` and `tests/core/test_init_app.py`,
+    which are better tests of it than a side effect of starting an app would
+    be. Each store still migrates itself when it is constructed.
     """
 
     if os.getenv("PYTEST_CURRENT_TEST"):
         return
 
-    from app.services.auth.bootstrap import AdminBootstrapError, describe_bootstrap, ensure_admin_account
+    from app.init_app import run
 
-    try:
-        created = ensure_admin_account()
-    except AdminBootstrapError as exc:
-        logger.exception("No administrator exists and one could not be created: %s", exc)
-        return
-    except Exception as exc:  # pragma: no cover - a broken database is its own problem
-        logger.exception("Administrator bootstrap failed: %s", exc)
-        return
-
-    if created is not None:
-        # stderr, not the logger: see `describe_bootstrap`.
-        print(describe_bootstrap(created), file=sys.stderr, flush=True)
-
-
-def _purge_retired_user_model_settings() -> None:
-    """Clear per-user model configurations left over from before 2026-09-08.
-
-    Skipped under pytest for the reason `_bootstrap_administrator` is: a test
-    run must not write to the developer's `data/app.db`.
-
-    A failure is logged and does not stop startup -- the values are already
-    unreadable by anything, so a server that could not clear them is still a
-    correct server, just one still holding credentials it has no use for.
-    """
-
-    if os.getenv("PYTEST_CURRENT_TEST"):
-        return
-
-    from app.services.models.config_store import purge_user_api_settings
-
-    try:
-        cleared = purge_user_api_settings()
-    except Exception as exc:  # pragma: no cover - a broken database is its own problem
-        logger.exception("Could not clear retired per-user model settings: %s", exc)
-        return
-
-    if cleared:
-        logger.info("Cleared retired per-user model settings from %d account(s)", cleared)
+    run(settings)
 
 
 def _start_invalidation_tracking() -> None:
@@ -199,7 +163,7 @@ def _recover_unfinished_ingests(settings) -> None:
     died with the previous process, and nothing else will ever finish it. In
     shared mode the ingest worker does this when it starts.
 
-    Skipped under pytest for the reason `_bootstrap_administrator` is: starting
+    Skipped under pytest for the reason `_run_startup_tasks` is: starting
     an app in a test must not requeue the developer's own documents.
     """
     if settings.state_backend == "shared" or os.getenv("PYTEST_CURRENT_TEST"):
@@ -283,15 +247,10 @@ async def lifespan(app: FastAPI):
         str(settings.ollama_chat_model or ""),
     )
 
-    # A checkout with no administrator cannot open the console that manages it,
-    # and until 2026-09-08 that was every checkout. See
-    # `app/services/auth/bootstrap.py` for why there is no default password.
-    _bootstrap_administrator()
-
-    # Models are configured by an administrator, for everyone. Accounts that
-    # went through the retired per-user settings page still hold an encrypted
-    # provider key nothing reads.
-    _purge_retired_user_model_settings()
+    # Schema first, then the tasks that must run once: an administrator for a
+    # checkout that has none (see `app/services/auth/bootstrap.py` for why there
+    # is no default password), and clearing the retired per-user model keys.
+    _run_startup_tasks(settings)
 
     query_runtime.shadow_queue.start()
 

@@ -11,8 +11,8 @@
 #   python scripts/migrate_sessions_to_sqlite.py      # file sessions -> sqlite
 #   python scripts/migrate_chroma_to_server.py         # embedded vectors -> server
 #
-# APP_WORKERS stays 1 until ARC-01 phase 7 (the startup schema race) is
-# done; caches follow other workers since phase 6. See
+# Since ARC-01 phase 7 the `init` service creates and migrates every table
+# before any worker starts; caches follow other workers since phase 6. See
 # docs/querymind-deep-dive/arc-01-plan.html.
 
 x-shared-state: &shared-state
@@ -44,10 +44,34 @@ services:
       start_period: 20s
     networks: [querymind]
 
+  # Runs once, to completion, before anything that uses the databases starts:
+  # every SQLite migration, the first administrator, and the purge of retired
+  # per-user model keys (app/init_app.py). With several workers, doing this in
+  # each one meant two processes creating the same tables at once. The workers
+  # still run the same code at startup as a backstop; it finds nothing to do.
+  init:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    command: ["python", "-m", "app.init_app"]
+    restart: "no"
+    # The image's HTTP probe asks port 8000, which this never serves.
+    healthcheck:
+      disable: true
+    env_file:
+      - ${RUNTIME_ENV_FILE:-../../.runtime/production.env}
+    environment:
+      <<: *shared-state
+    volumes:
+      - app_data:/app/data
+    networks: [querymind]
+
   backend:
     environment:
       <<: *shared-state
     depends_on:
+      init:
+        condition: service_completed_successfully
       chroma:
         condition: service_healthy
 
@@ -89,6 +113,8 @@ services:
       - app_data:/app/data
       - logs_data:/app/logs
     depends_on:
+      init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       chroma:
