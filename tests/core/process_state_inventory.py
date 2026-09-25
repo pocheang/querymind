@@ -56,9 +56,13 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "智能体注册表互斥锁，多进程各持一份保护自身单例初始化与查找",
     ),
+    "app/agents/router/calibration.py::_WRITER": (
+        "D",
+        "路由校准的后台写入线程和队列，写入的是 app.db 里的原子累加；队列本身只缓冲本进程待写的增量",
+    ),
     "app/agents/router/routing.py::_calibrator": (
-        "A",
-        "仅在 ENABLE_CALIBRATION=true 时生效（默认关闭）；多 worker 下各自累积反馈，并发写校准文件",
+        "D",
+        "ARC-01 审计（2026-09-25）后：计数存在 app.db 的 router_calibration 表，各 worker 只做原子累加并定期重读；这个对象只缓冲不超过 20 条未写入的结果",
     ),
     "app/agents/router/routing.py::_calibrator_lock": (
         "D",
@@ -225,8 +229,8 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "全局两级缓存管理器单例，包含进程内 L1 内存缓存，跨进程更新时需协调失效",
     ),
     "app/services/context_management.py::_context_service_instance": (
-        "A",
-        "多轮对话实体追踪与指代消解上下文服务，会话状态保存在内存字典中，多 worker 下状态丢失",
+        "D",
+        "没有任何写入方（只有会话导出读取它，结果总是空的），多 worker 下没有可以不一致的状态；ARC-01 审计 2026-09-25",
     ),
     "app/services/language/analytics.py::LanguageAnalytics._instance": (
         "D",
@@ -249,8 +253,8 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "每个 worker 各一份：SSE 需要的归属和状态在 shared 模式下写入 Redis，看板统计写入 SQLite（ARC-01 阶段 3）；含问题原文的完整调试记录按决定只留在本进程，/agent-tracking 只能看到本 worker",
     ),
     "app/services/observability/alerting.py::_LAST_SENT": (
-        "A",
-        "告警发送冷却时间字典，多 worker 下各持一份会导致告警抑制失效并对渠道重复报警",
+        "D",
+        "ARC-01 审计（2026-09-25）后：shared 模式的冷却是 Redis 键（SET NX），这个字典只在 Redis 不可用时兜底",
     ),
     "app/services/observability/alerting.py::_LOCK": (
         "D",

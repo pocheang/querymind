@@ -19,16 +19,46 @@ _LAST_SENT: dict[str, float] = {}
 
 
 def _rate_limit_ok(key: str) -> bool:
-    """Shared per-key cooldown so repeated triggers don't spam a channel."""
+    """Per-key cooldown so repeated triggers don't spam a channel -- across every worker.
+
+    With STATE_BACKEND=shared the cooldown is one Redis key per channel and
+    event, claimed with SET NX: the worker that claims it sends, the others stay
+    quiet. It used to be this process's dict alone, so each worker kept its own
+    cooldown and one incident reached the channel once per worker (ARC-01 audit,
+    2026-09-25). If Redis cannot answer, the local cooldown decides: an alert is
+    often *about* an outage, and a duplicate is a better failure than silence.
+    """
     settings = get_settings()
     now = time.time()
     interval = max(1, int(getattr(settings, "alert_min_interval_seconds", 60) or 60))
+    claimed = _claim_shared_cooldown(key, interval)
+    if claimed is not None:
+        return claimed
     with _LOCK:
         last = float(_LAST_SENT.get(key, 0.0) or 0.0)
         if (now - last) < interval:
             return False
         _LAST_SENT[key] = now
         return True
+
+
+def _claim_shared_cooldown(key: str, interval_seconds: int) -> bool | None:
+    """True to send, False to stay quiet, None when there is no shared answer to give."""
+
+    from app.services.runtime.shared_state import is_shared, is_unavailable_error, shared_client, state_key
+
+    if not is_shared():
+        return None
+    try:
+        client = shared_client()
+        return bool(client.set(state_key("alert", key), "1", nx=True, px=interval_seconds * 1000))
+    except Exception as exc:  # noqa: BLE001 -- the local cooldown is the fallback for any failure here
+        if is_unavailable_error(exc):
+            from app.services.runtime.shared_state import report_failure
+
+            report_failure(exc)
+        logger.warning("alert_cooldown_shared_unavailable key=%s error=%s", key, type(exc).__name__)
+        return None
 
 
 def emit_alert(event_type: str, payload: dict[str, Any]) -> bool:

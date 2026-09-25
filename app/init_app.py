@@ -62,6 +62,7 @@ def schema_targets(settings: Settings) -> list[SchemaTarget]:
     Authentication first: the connector and prompt tables reference `users`.
     """
 
+    from app.agents.router.calibration import CALIBRATION_MIGRATIONS
     from app.mcp.approvals import APPROVAL_MIGRATIONS
     from app.services.auth.auth_service import AUTH_MIGRATIONS
     from app.services.connectors.metadata_repository import ConnectorMetadataRepository
@@ -84,6 +85,7 @@ def schema_targets(settings: Settings) -> list[SchemaTarget]:
         SchemaTarget("stage_stats", app_db, STAGE_STATS_MIGRATIONS, True),
         SchemaTarget("prompts", app_db, PROMPT_MIGRATIONS, True),
         SchemaTarget("structured_tables", app_db, TABLE_STORE_MIGRATIONS, True),
+        SchemaTarget("router_calibration", app_db, CALIBRATION_MIGRATIONS, True),
         SchemaTarget("wiki", Path(settings.wiki_db_path).resolve(), WIKI_MIGRATIONS, False),
     ]
     if str(settings.history_backend).lower() == "sqlite":
