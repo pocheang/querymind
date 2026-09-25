@@ -722,17 +722,21 @@ def validate_security_settings(settings: Settings) -> None:
 
 
 def validate_worker_topology(settings: Settings) -> None:
-    """Refuse a declared multi-worker start while shared state is still per process (ARC-01).
+    """Refuse several workers unless their state is shared (ARC-01).
 
-    Limits, approvals, execution streams, session writes and ingestion are
-    shared with STATE_BACKEND=shared (phases 1-5). What is left is caches that
-    one worker invalidates and the others keep serving (phase 6), and two
-    workers racing to create the same SQLite schema at startup (phase 7).
+    With STATE_BACKEND=shared every piece of state that has to agree across
+    workers lives in Redis, SQLite, the Chroma server or the single
+    ingest-worker (phases 1-8), so APP_WORKERS may be raised. In memory mode each
+    worker would keep its own limits, sessions and indexes -- the defect ARC-01
+    exists for -- so more than one is still refused.
+
+    APP_WORKERS is the count gunicorn starts (deploy/gunicorn.conf.py reads the
+    same variable), so the declared and the actual number cannot disagree.
     """
-    if settings.app_workers > 1:
+    if settings.app_workers > 1 and settings.state_backend != "shared":
         raise RuntimeError(
-            f"APP_WORKERS={settings.app_workers} is not supported yet (ARC-01): caches are "
-            "still invalidated per process and schema creation races at startup. "
+            f"APP_WORKERS={settings.app_workers} needs STATE_BACKEND=shared: in memory mode each "
+            "worker keeps its own limits, sessions and indexes. "
             "See docs/querymind-deep-dive/arc-01-plan.html."
         )
 

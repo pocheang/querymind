@@ -56,8 +56,12 @@ fi
 
 export RUNTIME_ENV_FILE="$RUNTIME_ENV"
 docker compose "${COMPOSE_ARGS[@]}" config -q
-docker compose "${COMPOSE_ARGS[@]}" up -d --build
-docker compose "${COMPOSE_ARGS[@]}" run --rm backend python -m app.init_app
+# Migrations, the first administrator and moving an older installation's data
+# are the `init` service's job; the backend does not start unless it succeeded.
+docker compose "${COMPOSE_ARGS[@]}" up -d --build || {
+  echo "Deployment stopped. If init failed: docker compose ${COMPOSE_ARGS[*]} logs init" >&2
+  exit 1
+}
 docker compose "${COMPOSE_ARGS[@]}" exec -T backend python deploy/scripts/healthcheck.py
 
 echo "QueryMind deployed: environment=$ENVIRONMENT profile=$PROFILE"

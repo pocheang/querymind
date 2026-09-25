@@ -27,14 +27,24 @@ _APP_BASE_API_SEGMENTS = {
     "user",
 }
 
+# Bare routers the production frontend reaches through nginx's /api/ location:
+# its build sets VITE_API_BASE_URL=/api, so `/admin/users` is requested as
+# `/api/admin/users`. `admin`, `user` and `model-catalog` were missing until
+# 2026-09-25, so behind the production nginx the whole admin console, the
+# active-model poll and the model catalog answered 404 -- invisible in
+# development, where Vite proxies the bare paths directly.
+# tests/api/test_frontend_paths_reach_the_backend.py keeps this in step.
 _LEGACY_API_PREFIX_SEGMENTS = {
+    "admin",
     "agent-tracking",
     "auth",
     "documents",
+    "model-catalog",
     "prompts",
     "query",
     "sessions",
     "upload",
+    "user",
 }
 
 
@@ -99,7 +109,6 @@ def create_app(settings_obj, static_paths: StaticFilePaths | None = None, static
     app = FastAPI(title="QueryMind（智询）", lifespan=lifespan)
     app.add_exception_handler(SharedStateUnavailable, shared_state_unavailable)
     app.add_exception_handler(LockBusy, index_busy)
-    app.middleware("http")(rewrite_app_prefixed_api_paths)
     _configure_cors(app, settings_obj)
 
     # Add security middleware with Redis support
@@ -123,6 +132,13 @@ def create_app(settings_obj, static_paths: StaticFilePaths | None = None, static
 
     app.middleware("http")(request_timing_middleware)
     app.middleware("http")(invalidation_middleware)
+    # Registered last, so it runs first: the last middleware added is the
+    # outermost. Every middleware below it then sees one spelling of a path.
+    # It used to be registered first -- the innermost -- so the rate limiter
+    # saw `/api/auth/register` behind the production nginx, matched no rule,
+    # and never limited anything the frontend sends; the metrics filed the
+    # agent-tracking stream as `other` for the same reason (ARC-01 phase 9).
+    app.middleware("http")(rewrite_app_prefixed_api_paths)
     register_routers(app)
     configure_static_files(app, static_paths, static_handlers)
     return app

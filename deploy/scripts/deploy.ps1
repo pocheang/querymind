@@ -42,8 +42,14 @@ if ($WithN8n) {
 
 $env:RUNTIME_ENV_FILE = $RuntimeEnv
 docker compose @ComposeArgs config -q
+# Migrations, the first administrator and moving an older installation's data
+# are the `init` service's job; the backend does not start unless it succeeded.
+# A native command's exit code does not stop the script under
+# $ErrorActionPreference, so it is checked here.
 docker compose @ComposeArgs up -d --build
-docker compose @ComposeArgs run --rm backend python -m app.init_app
+if ($LASTEXITCODE -ne 0) {
+    throw "Deployment stopped. If init failed: docker compose $($ComposeArgs -join ' ') logs init"
+}
 docker compose @ComposeArgs exec -T backend python deploy/scripts/healthcheck.py
 
 Write-Host "QueryMind deployed: environment=$Environment profile=$Profile"

@@ -14,6 +14,19 @@ services:
       - "127.0.0.1:7474:7474"  # Browser (HTTP)
       - "127.0.0.1:7687:7687"  # Bolt
 
+  # The shared-state stores, for the same reason: a locally run uvicorn with
+  # STATE_BACKEND=shared needs Redis and a Chroma server it can reach. Chroma is
+  # published on 8001 because the backend takes 8000, so point a local process
+  # at CHROMA_SERVER_URL=http://localhost:8001. Redis keeps its password
+  # (REDIS_PASSWORD in .runtime/development.env).
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  chroma:
+    ports:
+      - "127.0.0.1:8001:8000"
+
   backend:
     env_file:
       - ${RUNTIME_ENV_FILE:-../../.runtime/development.env}

@@ -9,6 +9,7 @@ from fastapi import Request, Response
 from fastapi.security import HTTPAuthorizationCredentials
 
 from app.api.deps.auth import auth_service
+from app.api.transport.client_address import UNKNOWN, client_ip
 from app.api.transport.errors import forbidden
 from app.core.config import get_settings
 
@@ -110,14 +111,14 @@ def _enforce_cookie_csrf(request: Request, token_source: str | None) -> None:
 
 
 def _client_ip(request: Request) -> str:
-    """Extract client IP address from request."""
-    ip, _ua = _request_meta(request)
-    return ip or "unknown"
+    """The client's address, as the server decided it (app/api/transport/client_address.py)."""
+    return client_ip(request)
 
 
 def _request_meta(request: Request) -> tuple[str | None, str | None]:
     """Extract client IP and user agent from request."""
-    return request.client.host if request.client else None, request.headers.get("user-agent")
+    address = client_ip(request)
+    return (None if address == UNKNOWN else address), request.headers.get("user-agent")
 
 
 def _audit(

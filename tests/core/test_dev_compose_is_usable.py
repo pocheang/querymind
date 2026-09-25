@@ -1,4 +1,4 @@
-"""`make up` has to actually start Neo4j, and only on the development stack.
+"""`make up` has to actually start Neo4j, Redis and Chroma, reachable only on the development stack.
 
 Two defects, both invisible until someone ran it.
 
@@ -116,18 +116,39 @@ def test_make_up_does_not_override_the_compose_base_directory():
     assert "--project-directory" not in _up_recipe()
 
 
-@pytest.mark.parametrize("port", ["7474", "7687"])
-def test_development_publishes_the_graph_ports(port: str):
-    published = _services(DEV).get("neo4j", {}).get("ports", [])
+# What a locally run uvicorn needs from the stack: the graph, and -- since shared
+# state became the default in ARC-01 phase 9 -- Redis and the Chroma server.
+# Chroma's host port is 8001 because the backend takes 8000.
+_DEV_PORTS = [
+    ("neo4j", "127.0.0.1:7474:7474"),
+    ("neo4j", "127.0.0.1:7687:7687"),
+    ("redis", "127.0.0.1:6379:6379"),
+    ("chroma", "127.0.0.1:8001:8000"),
+]
 
-    assert any(port in str(entry) for entry in published), f"port {port} is not published for development"
+
+@pytest.mark.parametrize(("service", "mapping"), _DEV_PORTS)
+def test_development_publishes_what_a_local_process_needs(service: str, mapping: str):
+    published = [str(entry) for entry in _services(DEV).get(service, {}).get("ports", [])]
+
+    assert mapping in published, f"{service} does not publish {mapping} for development"
 
 
-def test_production_publishes_no_graph_port():
-    """The half that keeps the fix from leaking. Neo4j here holds a password
-    from .runtime/, and the production stack deliberately publishes nothing."""
+@pytest.mark.parametrize("service", sorted({service for service, _ in _DEV_PORTS}))
+def test_make_up_starts_every_service_the_overlay_publishes(service: str):
+    """A published port on a service `make up` does not start is a port nothing answers on."""
 
-    assert "ports" not in _services(BASE).get("neo4j", {})
+    compose_line = next(line for line in _up_recipe().splitlines() if "docker compose" in line)
+    assert re.search(rf"\bup -d\b.*\b{service}\b", compose_line), f"`make up` does not start {service}"
+
+
+@pytest.mark.parametrize("service", sorted({service for service, _ in _DEV_PORTS}))
+def test_production_publishes_none_of_them(service: str):
+    """The half that keeps the fix from leaking. Each of these holds a password
+    from .runtime/ or an unauthenticated API, and the production stack
+    deliberately publishes nothing."""
+
+    assert "ports" not in _services(BASE).get(service, {})
 
 
 def test_every_development_port_is_bound_to_loopback():

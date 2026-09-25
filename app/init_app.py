@@ -2,9 +2,10 @@
 
     python -m app.init_app
 
-The shared-state deployment runs this as a one-shot `init` service that the
-backend and the ingest-worker wait for (`deploy/compose/compose.shared-state.yaml`),
-so no worker process races another to create a table. Every API process also
+The compose stack runs this as a one-shot `init` service that the backend and
+the ingest-worker wait for (`deploy/compose/compose.yaml`), so no worker
+process races another to create a table. There it also moves a single-worker
+installation's data to where shared mode reads it (`migrate_legacy_data`). Every API process also
 runs it from its lifespan, which is the backstop: once the databases are
 current it amounts to one read per store, and a deployment that skipped the
 init service still starts correctly.
@@ -159,6 +160,87 @@ def run(settings: Settings | None = None) -> dict[str, int]:
     return versions
 
 
+# Written next to the legacy data once it has been copied and verified, so a
+# redeploy does not copy every vector again. Nothing writes the legacy stores in
+# shared mode, so what was verified stays verified.
+_SESSIONS_MARKER = ".migrated-to-sqlite"
+_CHROMA_MARKER = ".migrated-to-chroma-server"
+# One missing id per line; a failed copy of a whole collection would otherwise
+# bury the first line of the log under thousands.
+_PROBLEMS_SHOWN = 50
+
+
+def migrate_legacy_data(settings: Settings | None = None) -> list[str]:
+    """Move a single-worker installation's data to where shared mode reads it; return the problems.
+
+    Shared state is the default topology since ARC-01 phase 9, so an existing
+    deployment upgrades onto it with file-backed sessions and vectors in an
+    embedded Chroma directory. Both copies are the existing migration tools --
+    idempotent, never deleting the source, and read back to verify -- run here
+    so an upgrade has no manual step. Only the init service calls this: it is a
+    bulk copy, not something every worker should attempt at startup.
+    """
+
+    settings = settings or get_settings()
+    if settings.state_backend != "shared":
+        return []
+    return [*_migrate_file_sessions(settings), *_migrate_embedded_vectors(settings)]
+
+
+def _has_json(directory: Path) -> bool:
+    return directory.is_dir() and any(directory.rglob("*.json"))
+
+
+def _migrate_file_sessions(settings: Settings) -> list[str]:
+    from app.services.sessions.history_migration import migrate_file_sessions
+
+    root = Path(settings.sessions_path)
+    cold = Path(settings.history_cold_path)
+    marker = root / _SESSIONS_MARKER
+    # The cold directory counts on its own: a user whose sessions were all moved
+    # there has no hot files left, and the tool reads both.
+    if marker.exists() or not (_has_json(root) or _has_json(cold)):
+        return []
+    report = migrate_file_sessions(root, cold, Path(settings.history_sqlite_path))
+    print(f"sessions: {report.imported} imported, {report.already_present} already present, of {report.sessions}")
+    problems = [f"unreadable session file {path}" for path in report.unreadable]
+    problems += [f"session not found after import {key}" for key in report.missing_after]
+    if not problems and not report.verified:
+        accounted = report.imported + report.already_present
+        problems.append(f"sessions: {accounted} accounted for of {report.sessions} found")
+    if not problems:
+        root.mkdir(parents=True, exist_ok=True)
+        marker.write_text(f"{report.sessions} sessions verified in {settings.history_sqlite_path}\n", encoding="utf-8")
+    return problems
+
+
+def _migrate_embedded_vectors(settings: Settings) -> list[str]:
+    source_dir = Path(settings.chroma_path)
+    marker = source_dir / _CHROMA_MARKER
+    server_url = str(settings.chroma_server_url or "").strip()
+    if marker.exists() or not server_url or not (source_dir / "chroma.sqlite3").exists():
+        return []
+
+    import chromadb
+
+    from app.retrievers.stores.chroma_migration import copy_collections
+    from app.retrievers.stores.vector import chroma_http_client
+
+    reports = copy_collections(chromadb.PersistentClient(path=str(source_dir)), chroma_http_client(server_url))
+    problems = []
+    for report in reports:
+        print(f"vectors: {report.name} {report.copied}/{report.source_count}")
+        problems += [
+            f"vector {identifier} in {report.name} not found after copy" for identifier in report.missing_after
+        ]
+        if not report.missing_after and not report.verified:
+            problems.append(f"vectors: {report.name} copied {report.copied} of {report.source_count}")
+    if not problems:
+        counts = ", ".join(f"{report.name}={report.copied}" for report in reports) or "no collections"
+        marker.write_text(f"copied to {server_url}: {counts}\n", encoding="utf-8")
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Migrate every SQLite store and run the one-time startup tasks.")
     parser.parse_args(argv)
@@ -166,7 +248,14 @@ def main(argv: list[str] | None = None) -> int:
     versions = run()
     for component, version in versions.items():
         print(f"{component}: schema version {version}")
-    return 0
+    problems = migrate_legacy_data()
+    for problem in problems[:_PROBLEMS_SHOWN]:
+        print(f"MIGRATION PROBLEM: {problem}", file=sys.stderr)
+    if len(problems) > _PROBLEMS_SHOWN:
+        print(f"MIGRATION PROBLEM: ... and {len(problems) - _PROBLEMS_SHOWN} more", file=sys.stderr)
+    # Non-zero keeps the backend from starting on half-moved data (compose waits
+    # for this service to complete successfully).
+    return 1 if problems else 0
 
 
 if __name__ == "__main__":

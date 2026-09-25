@@ -93,5 +93,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application: gunicorn supervising APP_WORKERS uvicorn workers, and
+# replacing one whose event loop stops (ARC-01 phase 9, deploy/gunicorn.conf.py).
+# The development overlay and the init/ingest-worker services override this.
+CMD ["gunicorn", "-c", "deploy/gunicorn.conf.py", "app.api.main:app"]

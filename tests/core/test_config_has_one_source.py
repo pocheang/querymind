@@ -61,6 +61,12 @@ ALLOWED: dict[str, str] = {
     # A bootstrap credential must not become a Settings field, for the same
     # reason NACOS_PASSWORD is not one: a field can reach a config endpoint.
     "app/services/auth/bootstrap.py::ensure_admin_account": "first-run admin credential",
+    # Which peers may name the client's address (SEC-02). gunicorn builds each
+    # uvicorn worker's config before the application -- and so before any
+    # Settings -- exists (app/gunicorn_worker.py). A Settings field would
+    # also make it editable from a config endpoint, which is the one thing a
+    # trust boundary for spoofable headers must not be.
+    "app/api/transport/client_address.py::trusted_proxies": "proxy trust, read before Settings exists",
 }
 
 

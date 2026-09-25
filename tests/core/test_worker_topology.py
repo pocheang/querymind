@@ -27,18 +27,27 @@ def test_default_settings_has_one_worker_and_validation_passes():
     validate_worker_topology(settings)
 
 
-def test_worker_topology_rejects_more_than_one_worker(monkeypatch):
+def test_several_workers_are_refused_while_state_is_per_process(monkeypatch):
     monkeypatch.setenv("APP_WORKERS", "2")
     settings = Settings()
     assert settings.app_workers == 2
+    assert settings.state_backend == "memory"
 
     with pytest.raises(RuntimeError) as exc_info:
         validate_worker_topology(settings)
 
     message = str(exc_info.value)
-    assert "APP_WORKERS" in message
-    assert "2" in message
-    assert "ARC-01" in message
+    assert "APP_WORKERS=2" in message
+    assert "STATE_BACKEND=shared" in message
+
+
+def test_several_workers_are_allowed_once_state_is_shared(monkeypatch):
+    """ARC-01 phases 1-8 moved every piece of cross-worker state out of the process."""
+
+    monkeypatch.setenv("APP_WORKERS", "4")
+    monkeypatch.setenv("STATE_BACKEND", "shared")
+
+    validate_worker_topology(Settings())
 
 
 def test_worker_topology_rejects_zero_workers():
