@@ -46,11 +46,24 @@ def _specialists() -> list[BaseSpecialistAgent]:
 SPECIALISTS = pytest.mark.parametrize("specialist", _specialists(), ids=lambda s: s.agent_class)
 
 
-@SPECIALISTS
-@pytest.mark.parametrize("skill", SHAPED_SKILLS)
+def _passed_through() -> list:
+    """(specialist, skill) pairs where the skill is the router's to pass through.
+
+    A skill the specialist names itself is translated, not passed through, and
+    the translation test covers it; generating that pair and skipping it made a
+    skip that meant "not a case" rather than "could not run here".
+    """
+
+    return [
+        pytest.param(specialist, skill, id=f"{specialist.agent_class}-{skill}")
+        for specialist in _specialists()
+        for skill in SHAPED_SKILLS
+        if skill not in specialist.pipeline_skills
+    ]
+
+
+@pytest.mark.parametrize(("specialist", "skill"), _passed_through())
 def test_a_shaped_router_skill_passes_through(specialist: BaseSpecialistAgent, skill: str):
-    if skill in specialist.pipeline_skills:
-        pytest.skip("the specialist names this skill itself; covered by the translation test")
     assert specialist.pipeline_skill_for(skill) == skill
 
 

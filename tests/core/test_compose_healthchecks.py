@@ -36,15 +36,29 @@ def _merged_services() -> dict[str, dict]:
     return merged
 
 
+def _probed() -> list[str]:
+    """Services with a healthcheck that runs -- the only ones this check has anything to read.
+
+    Filtered here rather than skipped in the test: a service with no probe (or
+    `disable: true`, like the one-shot init) is not a case that could not run,
+    it is not a case at all, and five skips per run made "skipped" stop meaning
+    "could not run here".
+    """
+
+    return sorted(
+        name
+        for name, service in _merged_services().items()
+        if service["healthcheck"] and not service["healthcheck"].get("disable")
+    )
+
+
 def test_there_are_healthchecks_to_check():
-    assert sum(1 for s in _merged_services().values() if s["healthcheck"]) >= 3
+    assert len(_probed()) >= 3
 
 
-@pytest.mark.parametrize("name", sorted(_merged_services()))
+@pytest.mark.parametrize("name", _probed())
 def test_a_healthcheck_reads_only_variables_its_container_has(name):
     service = _merged_services()[name]
-    if not service["healthcheck"] or service["healthcheck"].get("disable"):
-        pytest.skip("no healthcheck")
     probe = " ".join(map(str, service["healthcheck"]["test"]))
     missing = sorted(set(_CONTAINER_VARIABLE.findall(probe)) - service["environment"])
     assert not missing, f"{name}'s healthcheck reads {missing}, which its container does not set"

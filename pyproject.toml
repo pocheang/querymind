@@ -117,6 +117,11 @@ dev = [
   # evidence `dump_traceback_later` was used to capture by hand.
   "pytest-timeout>=2.3.0",
   "reportlab>=4.0.0",
+  # openpyxl alone, not the whole `office` extra: without it CI skipped every
+  # XLSX test, so spreadsheet ingestion was never exercised there. The rest of
+  # that extra stays out on purpose -- with duckdb installed, CI would stop
+  # testing the table engine's SQLite fallback, which is what runs without it.
+  "openpyxl>=3.1.0",
   # Declared rather than borrowed from langchain's transitive tree: the
   # workflow-parses test is the one thing standing between a mistyped YAML and
   # a CI run that reports failure without running anything.
