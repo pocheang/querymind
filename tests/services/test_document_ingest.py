@@ -13,6 +13,7 @@ with what, and what survives a failure.
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -127,9 +128,15 @@ def wiring(monkeypatch: pytest.MonkeyPatch) -> _Calls:
     monkeypatch.setattr(ingest_module, "clear_retrieval_cache", lambda: _bump(calls, "retrieval_cache_cleared"))
     monkeypatch.setattr(ingest_module, "clear_vector_store_cache", lambda: _bump(calls, "vector_cache_cleared"))
     monkeypatch.setattr(ingest_module, "get_vector_store", lambda: _FakeStore(calls))
-    monkeypatch.setattr(
-        ingest_module, "add_documents", lambda chunks, ids: calls.added.append((list(chunks), list(ids)))
-    )
+    monkeypatch.setattr(ingest_module, "embed_texts", lambda collection, texts: [[0.0] for _ in texts])
+
+    def upsert(collection, ids, texts, metadatas, embeddings):
+        if collection is None:
+            docs = [Document(page_content=t, metadata=m) for t, m in zip(texts, metadatas, strict=True)]
+            calls.added.append((docs, list(ids)))
+
+    monkeypatch.setattr(ingest_module, "upsert_texts", upsert)
+    monkeypatch.setattr(ingest_module, "index_writes", nullcontext)
     monkeypatch.setattr(ingest_module, "Neo4jClient", lambda: _FakeNeo4j(calls))
     monkeypatch.setattr(
         ingest_module,
@@ -211,11 +218,23 @@ def test_a_reset_run_drops_the_collection_and_keeps_nothing_from_before(wiring: 
     assert wiring.vector_cache_cleared == 1
 
 
-def test_indexing_happens_even_when_the_graph_is_unavailable(wiring: _Calls, monkeypatch) -> None:
-    """Neo4j is optional -- a client that will not construct costs the triplets, nothing else."""
+def _service_unavailable() -> Exception:
+    from neo4j.exceptions import ServiceUnavailable
+
+    return ServiceUnavailable("Couldn't connect to neo4j:7687")
+
+
+@pytest.mark.parametrize("failure", [lambda: RuntimeError("no route to host"), _service_unavailable])
+def test_indexing_happens_even_when_the_graph_is_unavailable(wiring: _Calls, monkeypatch, failure) -> None:
+    """Neo4j is optional -- a client that will not construct costs the triplets, nothing else.
+
+    With the exception the real driver raises for a server it cannot reach, not
+    only a `RuntimeError`: that stand-in happened to be a type the code caught,
+    and the driver's is not.
+    """
 
     def refuse():
-        raise RuntimeError("no route to host")
+        raise failure()
 
     monkeypatch.setattr(ingest_module, "Neo4jClient", refuse)
 
@@ -302,7 +321,10 @@ def test_a_documents_images_are_indexed_and_counted(wiring: _Calls, monkeypatch)
     indexed: list[object] = []
 
     class _FakeProcessor:
-        def index_image(self, image, collection_name: str = "image_descriptions") -> None:
+        def index_entry(self, image):
+            return image.description, {}
+
+        def index_image(self, image, collection_name: str = "image_descriptions", *, embedding=None) -> None:
             indexed.append(image)
 
     monkeypatch.setattr(ingest_module, "load_document_with_evidence", load)
@@ -348,3 +370,82 @@ def test_a_run_that_fell_back_to_rules_writes_no_triplets_and_says_so(wiring: _C
     assert result["triplets_discarded_low_confidence"] == 3
     assert result["triplet_methods"] == {"rules_llm_fallback": 3}
     assert wiring.upserted == []
+
+
+def test_only_the_writes_happen_under_the_index_lock(wiring: _Calls, monkeypatch, tmp_path) -> None:
+    """Embedding and triplet extraction are the slow half; a delete must not wait for them (ARC-01 phase 5)."""
+
+    from app.core.config import get_settings
+    from app.services.documents import index_lock
+    from app.services.runtime import file_locks
+
+    monkeypatch.setenv("CORPUS_STORE_PATH", str(tmp_path / "chunks" / "chunks.jsonl"))
+    get_settings.cache_clear()
+    try:
+        monkeypatch.setattr(ingest_module, "index_writes", index_lock.index_writes)
+        lock = file_locks._lock_for(index_lock.index_lock_path())
+        held: dict[str, bool] = {}
+
+        def embed(collection, texts):
+            held["embedding"] = lock.is_locked
+            return [[0.0] for _ in texts]
+
+        def extract(text, min_confidence):
+            held["triplet extraction"] = lock.is_locked
+            return [_Triplet("A", "relates_to", "B")], {"llm": 1}
+
+        def upsert(collection, ids, texts, metadatas, embeddings):
+            held["vector write"] = lock.is_locked
+
+        def write_corpus(rows):
+            held["corpus write"] = lock.is_locked
+
+        monkeypatch.setattr(ingest_module, "embed_texts", embed)
+        monkeypatch.setattr(ingest_module, "extract_graph_triplets_with_diagnostics", extract)
+        monkeypatch.setattr(ingest_module, "upsert_texts", upsert)
+        monkeypatch.setattr(ingest_module, "write_corpus_records", write_corpus)
+
+        ingest_module.ingest_paths([Path("a.pdf")])
+    finally:
+        get_settings.cache_clear()
+
+    assert held == {
+        "embedding": False,
+        "triplet extraction": False,
+        "corpus write": True,
+        "vector write": True,
+    }
+    assert not lock.is_locked, "the lock was not released"
+
+
+def test_refused_vectors_leave_the_corpus_untouched(wiring: _Calls, monkeypatch) -> None:
+    """The corpus used to be written first, so a refused vector write left rows naming vectors that never existed."""
+
+    def refuse(*args, **kwargs):
+        raise ValueError("Batch size 14208 exceeds maximum batch size 5461")
+
+    monkeypatch.setattr(ingest_module, "upsert_texts", refuse)
+    with pytest.raises(ValueError):
+        ingest_module.ingest_paths([Path("a.pdf")])
+    assert wiring.corpus_written == []
+
+
+def test_a_failed_corpus_write_removes_the_vectors_it_would_have_described(wiring: _Calls, monkeypatch) -> None:
+    removed: list[list[str]] = []
+
+    def disk_full(rows):
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(ingest_module, "write_corpus_records", disk_full)
+    monkeypatch.setattr(ingest_module, "delete_documents_by_ids", lambda ids: removed.append(list(ids)))
+    with pytest.raises(OSError):
+        ingest_module.ingest_paths([Path("a.pdf")])
+    assert removed == [["chunk-0"]]
+    assert wiring.added, "the vectors were written before the corpus"
+
+
+def test_an_ingest_tells_the_other_workers_the_corpus_changed(wiring: _Calls, monkeypatch) -> None:
+    kinds: list[str] = []
+    monkeypatch.setattr(ingest_module, "announce", kinds.append)
+    ingest_module.ingest_paths([Path("a.pdf")])
+    assert kinds == ["corpus"]

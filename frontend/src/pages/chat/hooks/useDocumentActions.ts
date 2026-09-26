@@ -1,10 +1,33 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { appApi } from "@/lib/api";
-import type { IndexedFileSummary, UploadResponse } from "@/types/api";
+import type { FileIndexActionResponse, IndexedFileSummary, UploadResponse } from "@/types/api";
+import { waitForReindex, type ReindexOutcome } from "./reindexPolling";
 
 type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 type TFn = ReturnType<typeof useTranslation>["t"];
+
+function reindexOutcomeMessage(
+  outcome: ReindexOutcome,
+  filename: string,
+  t: TFn
+): { text: string; kind: "success" | "error" | "info" } {
+  if (outcome.kind === "ready") {
+    const parts = [t("components.workbench.reindexComplete", { filename })];
+    if (outcome.document.chunks > 0) {
+      parts.push(t("components.workbench.indexedChunksCount", { count: outcome.document.chunks }));
+    }
+    return { text: parts.join(" - "), kind: "success" };
+  }
+  if (outcome.kind === "failed") {
+    const reason = outcome.document.indexing_error || t("components.workbench.reindexDocumentFailed");
+    return { text: t("components.workbench.reindexFailedDetail", { filename, reason }), kind: "error" };
+  }
+  if (outcome.kind === "gone") {
+    return { text: t("components.workbench.reindexDocumentGone", { filename }), kind: "info" };
+  }
+  return { text: t("components.workbench.reindexStillRunning", { filename }), kind: "info" };
+}
 
 function buildUploadSummary(data: UploadResponse, t: TFn): string[] {
   const uploadSummary: string[] = [];
@@ -147,9 +170,25 @@ export function useDocumentActions(params: UseDocumentActionsParams) {
     }
   };
 
+  const followQueuedReindex = async (item: IndexedFileSummary, res: FileIndexActionResponse) => {
+    const queued = t("components.workbench.reindexQueued", { filename: item.filename });
+    setUploadInfo(queued);
+    notify(queued, "info", 3000);
+    await refreshDocuments();
+    const outcome = await waitForReindex(String(res.document_id), () => appApi.documents());
+    const message = reindexOutcomeMessage(outcome, item.filename, t);
+    setUploadInfo(message.text);
+    notify(message.text, message.kind, 4000);
+    await refreshDocuments();
+  };
+
   const reindexDocument = async (item: IndexedFileSummary) => {
     try {
       const res = await appApi.documentReindex(item.filename, item.source, item.document_id);
+      if (res.queued && res.document_id) {
+        await followQueuedReindex(item, res);
+        return;
+      }
       if (res.skipped) {
         const skippedSummary = t("components.workbench.reindexSkipped", {
           filename: item.filename,

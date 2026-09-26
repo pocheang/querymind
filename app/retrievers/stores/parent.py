@@ -3,16 +3,14 @@ from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
+from app.services.runtime.file_locks import write_lines
 
 
 def write_parent_records(records: list[dict[str, Any]], path: Path | None = None) -> None:
-    settings = get_settings()
-    target = path or settings.parent_store_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    # OPTIMIZATION: Add explicit 64KB buffering for better I/O performance
-    with target.open("w", encoding="utf-8", buffering=65536) as f:
-        for row in records:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    """Replace the file atomically. The caller holds the index lock (`index_writes`)
+    for the read-modify-write around this; see `app/services/documents/index_lock.py`."""
+
+    write_lines(path or get_settings().parent_store_path, records)
 
 
 def read_parent_records(path: Path | None = None) -> list[dict[str, Any]]:

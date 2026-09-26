@@ -18,7 +18,16 @@ import {
 import type { AdminRuntimeSnapshot } from "@/types/api";
 import { adminOpsApi } from "@/services/api/admin";
 import { Button } from "@/components/ui/button";
-import { AdminPanel, KpiCard, KpiGrid, OpsGrid, RowActions, StatePanel, SubTitle } from "./components/AdminPrimitives";
+import {
+  AdminPanel,
+  KpiCard,
+  KpiGrid,
+  OpsGrid,
+  RowActions,
+  StatePanel,
+  SubTitle,
+  WorkerScopeBadge,
+} from "./components/AdminPrimitives";
 import { CHART_AXIS, CHART_GRID, CHART_TOOLTIP } from "./components/adminClasses";
 
 export function AdminSystemMonitor() {
@@ -97,7 +106,10 @@ export function AdminSystemMonitor() {
     <main className="space-y-6">
       <AdminPanel>
         <RowActions className="mb-4 justify-between">
-          <SubTitle>{t("admin.systemMonitor.title", "Runtime Monitor")}</SubTitle>
+          <span className="flex items-center gap-2">
+            <SubTitle>{t("admin.systemMonitor.title", "Runtime Monitor")}</SubTitle>
+            <WorkerScopeBadge worker={snapshot.worker} />
+          </span>
           <RowActions>
             <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink/80">
               <input

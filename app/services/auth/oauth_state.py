@@ -7,6 +7,9 @@ import threading
 import time
 from typing import Any
 
+from app.services.runtime.redis_connector import RedisConnector
+from app.services.runtime.shared_state import SharedStateUnavailable, is_unavailable_error
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,8 +18,22 @@ class OAuthStateStore:
 
     _MAX_MEMORY_ENTRIES = 1_024
 
-    def __init__(self, redis_url: str | None):
+    def __init__(self, redis_url: str | None, *, shared: bool = False):
         self.redis_url = redis_url or "redis://localhost:6379/0"
+        # STATE_BACKEND=shared: the callback may land on any worker, so a state
+        # held in one worker's memory is a login that fails on the next one.
+        # With Redis gone the answer is a 503, never the in-process fallback.
+        self._shared = shared
+        # One pooled client, pinged once, with a cooldown after a failure. It
+        # used to build a new pool per call and never ping, so an unreachable
+        # Redis cost every OAuth callback a 0.5s timeout per operation.
+        self._redis = RedisConnector(
+            "oauth_state",
+            url=lambda: self.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=0.5,
+            socket_timeout=0.5,
+        )
         self._memory: dict[str, tuple[float, dict[str, Any]]] = {}
         # A single re-entrant lock makes the Redis/memory hand-off a one-time
         # operation inside this process while still allowing the helpers below
@@ -69,8 +86,8 @@ class OAuthStateStore:
             try:
                 # 使用命名空间前缀
                 return redis_client.exists(f"oauth:state:{state}") > 0
-            except Exception:
-                pass
+            except Exception as exc:
+                self._redis_failed(exc)
 
         # Fallback to memory
         with self._memory_lock:
@@ -98,6 +115,7 @@ class OAuthStateStore:
                 redis_client.setex(f"oauth:state:{state}", ttl_seconds, json.dumps(data))
                 return
             except Exception as exc:
+                self._redis_failed(exc)
                 logger.warning("Failed to store OAuth state in Redis: %s", exc)
         expires_at = time.monotonic() + max(0, ttl_seconds)
         with self._memory_lock:
@@ -132,6 +150,7 @@ class OAuthStateStore:
                 if value:
                     return json.loads(value)
             except Exception as exc:
+                self._redis_failed(exc)
                 logger.warning("Failed to get OAuth state from Redis: %s", exc)
         return self._get_memory(state)
 
@@ -146,8 +165,8 @@ class OAuthStateStore:
             try:
                 # 安全改进：使用 oauth:state: 命名空间
                 redis_client.delete(f"oauth:state:{state}")
-            except Exception:
-                pass
+            except Exception as exc:
+                self._redis_failed(exc)
         with self._memory_lock:
             self._memory.pop(state, None)
 
@@ -169,6 +188,7 @@ class OAuthStateStore:
                         self._pop_memory(state)
                         return json.loads(value)
                 except Exception as exc:
+                    self._redis_failed(exc)
                     logger.warning("Failed to consume OAuth state from Redis: %s", exc)
             # Redis GETDEL/Lua/WATCH may legitimately find nothing (or be
             # unavailable).  The protected in-process copy remains the fallback.
@@ -250,15 +270,20 @@ class OAuthStateStore:
             return data
 
     def _redis_client(self):
-        try:
-            import redis
+        client = self._redis.client()
+        if client is None and self._shared:
+            raise SharedStateUnavailable("OAuth state store (Redis) is unavailable")
+        return client
 
-            return redis.from_url(
-                self.redis_url,
-                decode_responses=True,
-                socket_connect_timeout=0.5,
-                socket_timeout=0.5,
-            )
-        except Exception as exc:
-            logger.warning("Redis not available for OAuth state storage: %s", exc)
-            return None
+    def _redis_failed(self, exc: BaseException) -> None:
+        """A Redis operation raised: drop the client only if Redis stopped answering.
+
+        A payload that does not parse is not an outage, and dropping the client
+        for it would send fifteen seconds of logins to the fallback for nothing.
+        With shared state there is no fallback: an unavailable Redis is a 503.
+        """
+
+        if is_unavailable_error(exc):
+            self._redis.drop(exc)
+            if self._shared:
+                raise SharedStateUnavailable("OAuth state store (Redis) failed") from exc

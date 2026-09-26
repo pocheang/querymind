@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from typing import Any, Protocol
 
@@ -95,12 +94,6 @@ class SecurityGuardrailLike(Protocol):
     def inspect_and_authorize(self, question: str, actor: Any, source_scope: Any = None) -> Any: ...
 
     def inspect_evidence(self, items: Any) -> tuple[Any, ...]: ...
-
-
-class CompatibilityStreamExecutor(Protocol):
-    """Deprecated protocol retained only for import compatibility."""
-
-    def __call__(self, *args: Any, **kwargs: Any) -> AsyncIterator[dict[str, Any]]: ...
 
 
 class OrchestrationServices:
@@ -221,42 +214,6 @@ class OrchestrationEngine:
     async def execute(self, request: OrchestrationRequest) -> FinalAnswer:
         return await self._execute(request)
 
-    async def execute_stream(self, request: OrchestrationRequest, **_: Any) -> AsyncIterator[dict[str, Any]]:
-        """Adapt the same typed execution into transport-neutral event dictionaries."""
-        queue: asyncio.Queue[ExecutionEvent | FinalAnswer | Exception | None] = asyncio.Queue()
-
-        def publish(event: ExecutionEvent) -> None:
-            self._publisher.publish(event)
-            # Unbounded, so this can never be full -- `await queue.put` on it
-            # never suspended either.
-            queue.put_nowait(event)
-
-        async def run() -> None:
-            try:
-                answer = await self._execute(request, publish=publish)
-                await queue.put(answer)
-            except Exception as exc:
-                await queue.put(exc)
-            finally:
-                await queue.put(None)
-
-        task = asyncio.create_task(run())
-        try:
-            while True:
-                item = await queue.get()
-                if item is None:
-                    break
-                if isinstance(item, ExecutionEvent):
-                    yield {"type": "status", "stage": item.stage, "status": item.status, "message": item.message}
-                elif isinstance(item, Exception):
-                    raise item
-                else:
-                    yield {"type": "done", "result": _terminal_payload(item)}
-        finally:
-            if not task.done():
-                task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-
     async def _execute(
         self,
         request: OrchestrationRequest,
@@ -335,20 +292,6 @@ class OrchestrationEngine:
             )
         )
         return answer
-
-
-def _terminal_payload(answer: FinalAnswer) -> dict[str, Any]:
-    return {
-        "answer": answer.answer,
-        "citations": list(answer.citations),
-        "route": answer.route.effective_route,
-        "validation": answer.validation.model_dump(mode="json"),
-        "validation_status": answer.validation.state,
-        "grounding": dict(answer.grounding),
-        "safety": dict(answer.safety),
-        "quality_report": answer.quality_report.model_dump(mode="json") if answer.quality_report is not None else None,
-        "execution_metadata": dict(answer.execution_metadata),
-    }
 
 
 async def _default_knowledge_agent(

@@ -372,6 +372,11 @@
         "budgets": "预算与超时",
         "security": "安全"
       }
+    },
+    "worker": {
+      "badge": "本 worker · pid {{pid}}",
+      "hint": "这些数字来自 {{host}} 上处理本次请求的那个 worker 进程；有多个 worker 时，其他 worker 各有自己的一份。",
+      "overviewNote": "请求数与错误率来自处理本次请求的 worker；审计、用户与会话数字是整个部署的。"
     }
   },
   "common": {
@@ -1005,6 +1010,10 @@
       "unchangedReason": "未变化",
       "reindexComplete": "✓ {{filename}} 重新索引完成",
       "reindexDocumentFailed": "重新索引文档失败",
+      "reindexQueued": "{{filename}} 已加入重建索引队列",
+      "reindexFailedDetail": "{{filename}} 重建索引失败：{{reason}}",
+      "reindexDocumentGone": "{{filename}} 已不在文档列表中",
+      "reindexStillRunning": "{{filename}} 仍在重建索引，状态会在列表中更新",
       "titleContentRequired": "标题和内容不能为空",
       "titleTooLong": "标题不能超过 {{max}} 个字符",
       "contentTooLong": "内容不能超过 {{max}} 个字符",
@@ -1515,7 +1524,6 @@
     "tryDifferentSearch": "尝试调整搜索条件或筛选器",
     "exportSession": "导出会话",
     "exportFormat": "导出格式",
-    "includeContext": "包含上下文跟踪数据",
     "export": "导出",
     "importSession": "导入会话",
     "dragDropFile": "拖放文件到此处",
@@ -1542,7 +1550,6 @@
     "conflictResolution": "冲突解决",
     "messagesImported": "导入消息数",
     "metadataImported": "元数据已导入",
-    "contextImported": "上下文已导入",
     "title": "会话管理",
     "searchesMetadataOnly": "这里搜的是标签、分类和描述。在“编辑会话元数据”里填写后，会话才能在此处被找到。"
   },

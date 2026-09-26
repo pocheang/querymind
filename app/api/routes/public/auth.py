@@ -50,7 +50,7 @@ if oauth is not None and settings.google_client_id and settings.google_client_se
         client_kwargs={"scope": "openid email profile"},
     )
 
-oauth_state_store = OAuthStateStore(settings.redis_url)
+oauth_state_store = OAuthStateStore(settings.redis_url, shared=settings.state_backend == "shared")
 
 
 def _google_client():

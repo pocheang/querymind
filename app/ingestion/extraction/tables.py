@@ -2,15 +2,6 @@
 
 import re
 
-_SEPARATOR_ROW_RE = re.compile(r"^\|[\s\-:]+\|")
-"""The row under a markdown table header.
-
-Named on 2026-09-05 because three call sites had to agree on it. Two of them,
-`is_table_start` and `extract_table_header`, were deleted the next day together
-with `merge_table_pages`, their only caller -- so one asks it today. Still named
-and compiled once: `is_table_continuation` is defined by what it excludes, and a
-bare pattern there would say less than the name does."""
-
 
 def _is_table_row(line: str) -> bool:
     s = line.strip()
@@ -47,25 +38,6 @@ def _extract_table_header_from_end(text: str) -> tuple[int, list[str]]:
             if cells:
                 return len(cells), []
     return 0, []
-
-
-def _extract_table_columns_from_end(text: str) -> int:
-    return _extract_table_header_from_end(text)[0]
-
-
-def is_table_continuation(text: str, prev_cols: int | None = None, prev_headers: list[str] | None = None) -> bool:
-    """Check if text looks like table continuation.
-
-    Args:
-        text: Text content
-        prev_cols: Optional expected column count from previous page's table
-        prev_headers: Optional expected column headers from previous page's table
-
-    Returns:
-        True if looks like table continuation
-    """
-    is_cont, _ = check_table_continuation(text, prev_cols=prev_cols, prev_headers=prev_headers)
-    return is_cont
 
 
 def _find_first_table_line_idx(lines: list[str]) -> int:
@@ -248,16 +220,3 @@ def merge_cross_page_tables_with_spans(pages_content: list[str]) -> list[tuple[s
         i += 1
 
     return spanned
-
-
-def merge_cross_page_tables(pages_content: list[str]) -> list[str]:
-    """Main function to merge tables across pages.
-
-    Args:
-        pages_content: List of page content (Markdown format)
-
-    Returns:
-        List of pages with cross-page tables merged
-    """
-    spanned = merge_cross_page_tables_with_spans(pages_content)
-    return [content for content, _ in spanned]

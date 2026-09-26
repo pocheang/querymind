@@ -241,13 +241,30 @@ def _as_quality_documents(items: tuple[EvidenceItem, ...]) -> list[dict] | None:
 
 async def _retrieve_web(plan: KnowledgeSourcePlan, scope: AccessScope) -> RankedGroups:
     from app.agents.rag.web import run_web_research
+    from app.services.security.quota import WebQuotaExceededError, get_quota_guard
 
-    async def one(query: str) -> tuple[EvidenceItem, ...]:
+    guard = get_quota_guard()
+    # One quota unit per search call -- what the provider charges and throttles
+    # -- decided in plan order before any search starts, so a question near its
+    # quota searches what the quota allows. A refused search keeps its slot as
+    # an empty list: RankedGroups is one list per query, in order.
+    permitted = [await asyncio.to_thread(guard.allow_web_search, scope.user_id) for _ in plan.queries]
+    if plan.queries and not any(permitted):
+        # The source fails with this type, the other sources answer, and the
+        # query route turns it into a 429 if web was the only source there was.
+        retry_after = await asyncio.to_thread(guard.web_retry_after, scope.user_id)
+        raise WebQuotaExceededError("web search quota exceeded", retry_after)
+
+    async def one(query: str, allowed: bool) -> tuple[EvidenceItem, ...]:
+        if not allowed:
+            return ()
         result = await asyncio.to_thread(run_web_research, query, scope.user_id, None)
         bundle = bundle_from_legacy_payload(result, "web")
         return tuple(item.model_copy(update={"layer": "web"}) for item in bundle.items)
 
-    return tuple(await asyncio.gather(*(one(query) for query in plan.queries)))
+    return tuple(
+        await asyncio.gather(*(one(query, allowed) for query, allowed in zip(plan.queries, permitted, strict=True)))
+    )
 
 
 async def _retrieve_multimodal(plan: KnowledgeSourcePlan, scope: AccessScope) -> RankedGroups:

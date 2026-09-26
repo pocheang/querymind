@@ -12,6 +12,7 @@ export function createSystemLogActions(params: AdminActionsParams, errorHandler:
     systemLogKeyword,
     isAdmin,
     setSystemLogs,
+    setSystemLogWorker,
     setError,
     setLoadingSystemLogs,
   } = params;
@@ -29,6 +30,7 @@ export function createSystemLogActions(params: AdminActionsParams, errorHandler:
         keyword: systemLogKeyword.trim() || undefined,
       });
       setSystemLogs(res.items || []);
+      setSystemLogWorker(res.worker ?? null);
       setError("");
     } catch (e) {
       await handleApiError(e, t("admin.actions.loadSystemLogsFailed"));

@@ -1,6 +1,7 @@
 """Health check and metrics routes for the QueryMind API."""
 
 import asyncio
+import os
 import socket
 import time
 from typing import Any
@@ -12,9 +13,12 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from app.__version__ import __version__
 from app.api import dependencies as api_dependencies
-from app.api.dependencies import runtime_metrics
 from app.api.deps.admin import _check_chroma_ready, _check_ollama_ready
 from app.api.deps.auth import require_admin
+from app.api.routes.operations.metrics_collectors import DeploymentStateCollector, probe_dependencies
+from app.services.observability.worker_scope import this_worker
+from app.services.runtime.redis_connector import connector_status, probe
+from app.services.runtime.runtime_metrics import render
 
 router = APIRouter()
 
@@ -45,34 +49,51 @@ def _check_neo4j_ready() -> dict[str, Any]:
 
 
 def _check_redis_ready() -> dict[str, Any]:
-    """Check Redis connection (if Redis cache backend is enabled)."""
+    """Check Redis with the whole REDIS_URL.
+
+    It used to rebuild a client from host and port alone, dropping the password
+    and database number, so against the production compose file -- whose URL
+    carries a password -- it reported Redis down however healthy Redis was.
+    """
     settings = api_dependencies.get_query_runtime().settings
-    start = time.perf_counter()
     cache_backend = str(getattr(settings, "retrieval_cache_backend", "auto") or "auto").lower()
+    # Required when something is configured to depend on it rather than merely
+    # to prefer it: an explicit Redis retrieval cache, or shared worker state.
+    required = cache_backend == "redis" or settings.state_backend == "shared"
 
-    # Redis is only required if explicitly configured
-    required = cache_backend == "redis"
-
-    if cache_backend == "off" or cache_backend == "memory":
+    if not required and cache_backend in {"off", "memory"}:
         return {"ok": True, "required": False, "latency_ms": 0, "status": "not_configured"}
 
-    try:
-        import redis
+    url = settings.redis_url or "redis://localhost:6379/0"
+    parsed = urlparse(url)
+    start = time.perf_counter()
+    error = probe(url)
+    latency = int((time.perf_counter() - start) * 1000)
+    # Host and port only: the URL itself can carry the password.
+    result: dict[str, Any] = {
+        "ok": error is None,
+        "required": required,
+        "latency_ms": latency,
+        "host": f"{parsed.hostname or 'localhost'}:{parsed.port or 6379}",
+    }
+    if error is not None:
+        result["error"] = error
+    return result
 
-        parsed = urlparse(settings.redis_url or "redis://localhost:6379/0")
-        host = parsed.hostname or "localhost"
-        port = int(parsed.port or 6379)
 
-        client = redis.Redis(host=host, port=port, socket_connect_timeout=3, socket_timeout=3)
-        client.ping()
-        latency = int((time.perf_counter() - start) * 1000)
-        return {"ok": True, "required": required, "latency_ms": latency, "host": f"{host}:{port}"}
-    except ImportError:
-        latency = int((time.perf_counter() - start) * 1000)
-        return {"ok": False, "required": required, "latency_ms": latency, "error": "redis package not installed"}
-    except Exception as e:
-        latency = int((time.perf_counter() - start) * 1000)
-        return {"ok": False, "required": required, "latency_ms": latency, "error": str(e)}
+def _state_summary() -> dict[str, Any]:
+    """Where shared state lives in this process, for the admin readiness probe (ARC-01).
+
+    Deliberately not on /health: that probe is unauthenticated, and a process id
+    and connector states are internal topology.
+    """
+    settings = api_dependencies.get_query_runtime().settings
+    return {
+        "state_backend": settings.state_backend,
+        "app_workers": settings.app_workers,
+        "pid": os.getpid(),
+        "redis_connectors": connector_status(),
+    }
 
 
 # _check_postgres_ready was removed on 2026-08-29: it imported
@@ -180,16 +201,28 @@ def health():
     }
 
 
+# The deployment's own infrastructure; never the external model providers, which
+# cost money per call (see metrics_collectors).
+_SCRAPED_DEPENDENCIES = {
+    "redis": _check_redis_ready,
+    "chroma": _check_chroma_ready,
+    "neo4j": _check_neo4j_ready,
+    "ollama": _check_ollama_ready,
+}
+
+
 @router.get("/metrics")
-def metrics():
-    query_runtime = api_dependencies.get_query_runtime()
-    guard = query_runtime.query_guard.stats()
-    runtime_metrics.set_gauge("query_guard_inflight", float(guard.get("inflight", 0) or 0))
-    runtime_metrics.set_gauge("query_guard_waiting", float(guard.get("waiting", 0) or 0))
-    qstats = query_runtime.shadow_queue.stats()
-    runtime_metrics.set_gauge("shadow_queue_size", float(qstats.get("queue_size", 0) or 0))
-    runtime_metrics.set_gauge("shadow_queue_workers", float(qstats.get("workers", 0) or 0))
-    return Response(content=runtime_metrics.render_prometheus(), media_type="text/plain; version=0.0.4")
+async def metrics():
+    """Prometheus exposition, aggregated over every worker (ARC-01 phase 8).
+
+    The shadow-queue gauges this used to set are gone: they were per process,
+    set only by the worker a scrape happened to reach, and nothing read them.
+    """
+
+    guard = await asyncio.to_thread(api_dependencies.get_query_runtime().query_guard.stats)
+    dependencies = await probe_dependencies(_SCRAPED_DEPENDENCIES)
+    body, content_type = await asyncio.to_thread(render, [DeploymentStateCollector(guard, dependencies)])
+    return Response(content=body, media_type=content_type)
 
 
 def _readiness_payload(checks: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], int]:
@@ -275,6 +308,7 @@ async def ready_dependencies():
         "guard": query_runtime.query_guard.stats(),
         "shadow_queue": query_runtime.shadow_queue.stats(),
     }
+    payload["state"] = _state_summary()
     return JSONResponse(content=payload, status_code=code)
 
 
@@ -303,6 +337,8 @@ def circuit_breaker_status():
 
     return {
         "timestamp": current_time,
+        # Breakers are per process; /metrics has the latest across every worker.
+        "worker": this_worker(),
         "total_circuits": len(circuits),
         "open_circuits": sum(1 for c in circuits.values() if c["state"] == "open"),
         "circuits": circuits,

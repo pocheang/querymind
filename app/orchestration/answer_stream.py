@@ -41,7 +41,11 @@ class AnswerStreamStore:
         *,
         max_executions: int = _MAX_EXECUTIONS,
         max_fragments_per_execution: int = _MAX_FRAGMENTS_PER_EXECUTION,
+        shared_kind: str | None = None,
     ) -> None:
+        # Set only on the process-wide stores: with STATE_BACKEND=shared the SSE
+        # subscriber may be on another worker, and reads the shared stream.
+        self._shared_kind = shared_kind
         self._fragments: OrderedDict[str, list[str]] = OrderedDict()
         self._complete: set[str] = set()
         self._max_executions = max_executions
@@ -69,6 +73,8 @@ class AnswerStreamStore:
                 self._fragments.move_to_end(execution_id)
             if len(fragments) < self._max_fragments:
                 fragments.append(fragment)
+        if self._shared_kind is not None:
+            _mirror(execution_id, self._shared_kind, fragment)
 
     def complete(self, execution_id: str) -> None:
         """Mark that no further fragments are coming, so a reader can stop."""
@@ -84,7 +90,15 @@ class AnswerStreamStore:
             return execution_id in self._complete
 
 
-_default_store = AnswerStreamStore()
+def _mirror(execution_id: str, kind: str, fragment: str) -> None:
+    from app.orchestration import shared_execution
+    from app.services.runtime.shared_state import is_shared
+
+    if is_shared():
+        shared_execution.publish_fragment(execution_id, kind, fragment)
+
+
+_default_store = AnswerStreamStore(shared_kind="answer")
 # A second, independent instance for the reasoning channel -- not a second
 # namespace inside the same store. `AnswerStreamStore` has no answer-specific
 # logic (it is already just "ordered fragments per execution id"), so reusing
@@ -92,7 +106,7 @@ _default_store = AnswerStreamStore()
 # instance would require every offset (`since`, `is_complete`) to also carry a
 # channel, which is exactly the kind of two-purposes-in-one-key confusion this
 # avoids.
-_default_thought_store = AnswerStreamStore()
+_default_thought_store = AnswerStreamStore(shared_kind="thought")
 
 
 def get_default_answer_stream_store() -> AnswerStreamStore:

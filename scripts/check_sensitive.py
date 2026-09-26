@@ -97,14 +97,12 @@ SECRET_BASELINE = {
     "tests/orchestration/test_output_filter_reasoning.py",
     "tests/services/test_answer_safety.py",
     "tests/security/test_sensitive_content_gate.py",
-    "docs/development/daily-logs/2026-08-17/streaming-and-long-text-config.md",
-    "docs/superpowers/plans/2026-08-29-backend-full-audit-remediation.md",
 }
 
-# Files that quote a developer's absolute path. The two documents are session
-# notes written before this check existed; neither is worth rewriting, and a new
-# one is. The third is this file: LOCAL_PATH below spells out "/c/Users/", so the
-# pattern matches its own source. Writing it in pieces to dodge that would make
+# Files that quote a developer's absolute path. Only this file: LOCAL_PATH below
+# spells out "/c/Users/", so the pattern matches its own source. (Two session
+# notes under docs/superpowers/ were here too until those notes stopped being
+# published on 2026-09-26.) Writing it in pieces to dodge that would make
 # the one regex here that has already been got wrong twice unreadable, which is a
 # bad trade for exempting a 250-line file nobody edits casually.
 # Files whose extension is forbidden but whose content is not. `.jsonl` is on the
@@ -119,8 +117,6 @@ FORBIDDEN_TYPE_BASELINE = {
 
 LOCAL_PATH_BASELINE = {
     "scripts/check_sensitive.py",
-    "docs/superpowers/plans/2026-08-23-session-handoff-prompt.md",
-    "docs/superpowers/plans/2026-08-29-frontend-audit-remediation.md",
 }
 
 # Case-insensitive only on the drive letter. "/Users/" stays exact: macOS home

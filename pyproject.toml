@@ -39,6 +39,13 @@ dependencies = [
   "jieba>=0.42.1",
   "python-multipart>=0.0.32,<1.0",
   "redis>=5.0.0",
+  "rq>=2.0,<3",
+  # /metrics across workers (multiprocess mode), ARC-01 phase 8.
+  "prometheus-client>=0.20,<1",
+  # The production process manager: gunicorn restarts a worker whose heartbeat
+  # stops, which a wedged-but-alive process does (ARC-01 phase 9).
+  "gunicorn>=23.0,<24",
+  "uvicorn-worker>=0.3,<1",
   "authlib>=1.3.0",
   "itsdangerous>=2.1.0",
   "scikit-learn>=1.3.0",
@@ -110,6 +117,11 @@ dev = [
   # evidence `dump_traceback_later` was used to capture by hand.
   "pytest-timeout>=2.3.0",
   "reportlab>=4.0.0",
+  # openpyxl alone, not the whole `office` extra: without it CI skipped every
+  # XLSX test, so spreadsheet ingestion was never exercised there. The rest of
+  # that extra stays out on purpose -- with duckdb installed, CI would stop
+  # testing the table engine's SQLite fallback, which is what runs without it.
+  "openpyxl>=3.1.0",
   # Declared rather than borrowed from langchain's transitive tree: the
   # workflow-parses test is the one thing standing between a mistyped YAML and
   # a CI run that reports failure without running anything.
@@ -120,7 +132,13 @@ dev = [
   # change between them. A formatter that moves on its own is a build that
   # breaks for reasons nobody introduced.
   "ruff==0.16.5",
-  "pre-commit>=3.7.0"
+  "pre-commit>=3.7.0",
+  # ARC-01 moves rate limits, query-guard leases and execution streams into
+  # Redis, and their atomicity lives in Lua scripts. A hand-written fake can
+  # only agree with the code that wrote it; fakeredis runs the real commands,
+  # and the `lua` extra (lupa) runs the scripts, so neither a developer machine
+  # nor CI needs a Redis server to test them.
+  "fakeredis[lua]>=2.26.0"
 ]
 
 # A security floor on a package this project does not import.

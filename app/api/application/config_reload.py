@@ -27,6 +27,7 @@ from app.retrievers.reranker import clear_reranker_cache
 from app.retrievers.stores.vector import clear_vector_store_cache
 from app.services.models.runtime import clear_model_caches
 from app.services.runtime.bulkhead import reset_bulkheads
+from app.services.runtime.invalidation import announce
 from app.tools.web.factory import clear_provider_cache
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,11 @@ def apply_config_reload() -> Settings:
     # Search providers are cached with the Settings object they were built from,
     # so WEB_SEARCH_PROVIDER / WEB_SEARCH_MAX_RETRIES edits need a fresh instance.
     clear_provider_cache()
+    # The quota limits and mode are read when the guard is built; like the router
+    # memo above, a hand-rolled singleton the lru_cache guard cannot find.
+    from app.services.security.quota import reset_quota_guard
+
+    reset_quota_guard()
     Neo4jClient.close_shared_driver()
     reset_bulkheads()
     return new_settings
@@ -179,9 +185,13 @@ def write_config_values(values: dict[str, str], data_id: str | None = None) -> l
         # otherwise the page shows one configuration and the running process uses
         # another until the poller happens to notice.
         apply_config_reload()
+        announce("config")
         raise
 
     apply_config_reload()
+    # Every process polls the configuration centre, so the others would get this
+    # within NACOS_POLL_INTERVAL_MS anyway; announcing makes it the next request.
+    announce("config")
     return sorted(written)
 
 

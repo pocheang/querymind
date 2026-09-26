@@ -27,7 +27,10 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.api.transport.client_address import client_ip as resolve_client_ip
+from app.api.transport.errors import shared_state_unavailable_response
 from app.services.auth.redis_rate_limit import get_rate_limiter
+from app.services.runtime.shared_state import SharedStateUnavailable
 
 HOUR = 3600
 MINUTE = 60
@@ -82,30 +85,12 @@ RATE_LIMIT_RULES: tuple[RateLimitRule, ...] = (
 )
 
 
-def get_client_ip(request: Request) -> str:
-    """Extract client IP address from request."""
-    # Check for proxy headers first
-    forwarded_for = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-    if forwarded_for:
-        return forwarded_for
-
-    real_ip = request.headers.get("X-Real-IP", "").strip()
-    if real_ip:
-        return real_ip
-
-    # Fallback to direct connection IP
-    if request.client and request.client.host:
-        return request.client.host
-
-    return "unknown"
-
-
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Limit requests to sensitive endpoints, per client IP."""
 
-    def __init__(self, app, redis_url=None):
+    def __init__(self, app, redis_url=None, shared: bool = False):
         super().__init__(app)
-        self.rate_limiter = get_rate_limiter(redis_url)
+        self.rate_limiter = get_rate_limiter(redis_url, shared=shared)
 
     async def dispatch(self, request: Request, call_next):
         """Check rate limits for sensitive endpoints."""
@@ -115,16 +100,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if rule is None:
             return await call_next(request)
 
-        client_ip = get_client_ip(request)
+        # The server's answer, never a header the client sent (SEC-02).
+        client_ip = resolve_client_ip(request)
         if client_ip == "unknown":
             # Can't rate limit without IP, allow but log
             return await call_next(request)
 
         rate_key = f"rate_limit:{client_ip}:{rule.name}"
 
-        is_allowed, retry_after = await self.rate_limiter.check_rate_limit_async(
-            rate_key, rule.max_requests, rule.window_seconds
-        )
+        try:
+            is_allowed, retry_after = await self.rate_limiter.check_rate_limit_async(
+                rate_key, rule.max_requests, rule.window_seconds
+            )
+        except SharedStateUnavailable:
+            # Answered here rather than by the application's exception handler:
+            # this middleware sits outside the layer that runs those handlers,
+            # so an exception raised here would reach the client as a 500.
+            return shared_state_unavailable_response()
 
         if not is_allowed:
             return JSONResponse(

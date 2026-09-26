@@ -6,6 +6,7 @@ import type {
   BenchmarkTrendItem,
   OpsOverview,
   SystemLogEntry,
+  WorkerScope,
 } from "@/types/api";
 
 export type Section =
@@ -16,6 +17,8 @@ export interface AdminState {
   users: AdminUserSummary[];
   logs: AuditLogEntry[];
   systemLogs: SystemLogEntry[];
+  /** The worker whose capture buffer `systemLogs` came from; the buffer is per process. */
+  systemLogWorker: WorkerScope | null;
   ops: OpsOverview | null;
   benchmarkTrends: BenchmarkTrendItem[];
   modelSettings: AdminModelSettingsView | null;
@@ -78,6 +81,7 @@ export interface AdminState {
   setUsers: (val: AdminUserSummary[] | ((prev: AdminUserSummary[]) => AdminUserSummary[])) => void;
   setLogs: (val: AuditLogEntry[] | ((prev: AuditLogEntry[]) => AuditLogEntry[])) => void;
   setSystemLogs: (val: SystemLogEntry[] | ((prev: SystemLogEntry[]) => SystemLogEntry[])) => void;
+  setSystemLogWorker: (val: WorkerScope | null) => void;
   setOps: (val: OpsOverview | null | ((prev: OpsOverview | null) => OpsOverview | null)) => void;
   setBenchmarkTrends: (val: BenchmarkTrendItem[] | ((prev: BenchmarkTrendItem[]) => BenchmarkTrendItem[])) => void;
   setModelSettings: (
@@ -172,6 +176,7 @@ const INITIAL_STATE: AdminData = {
   users: [],
   logs: [],
   systemLogs: [],
+  systemLogWorker: null,
   ops: null,
   benchmarkTrends: [],
   modelSettings: null,
@@ -237,6 +242,7 @@ export const useAdminStore = create<AdminState>((set) => ({
   setUsers: (val) => set((s) => ({ users: updateValue(val, s.users) })),
   setLogs: (val) => set((s) => ({ logs: updateValue(val, s.logs) })),
   setSystemLogs: (val) => set((s) => ({ systemLogs: updateValue(val, s.systemLogs) })),
+  setSystemLogWorker: (val) => set({ systemLogWorker: val }),
   setOps: (val) => set((s) => ({ ops: updateValue(val, s.ops) })),
   setBenchmarkTrends: (val) => set((s) => ({ benchmarkTrends: updateValue(val, s.benchmarkTrends) })),
   setModelSettings: (val) => set((s) => ({ modelSettings: updateValue(val, s.modelSettings) })),

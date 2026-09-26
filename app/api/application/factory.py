@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from app.api.application.lifespan import lifespan
 from app.api.application.router_registry import register_routers
 from app.api.application.static_files import StaticFilePaths, configure_static_files
 from app.api.middleware.rate_limit import RateLimitMiddleware
-from app.api.transport.middleware import request_timing_middleware
+from app.api.transport.errors import index_busy_response, shared_state_unavailable_response
+from app.api.transport.middleware import invalidation_middleware, request_timing_middleware
 from app.core.config import normalise_environment_name
+from app.services.runtime.file_locks import LockBusy
+from app.services.runtime.shared_state import SharedStateUnavailable
 
 _APP_BASE_API_SEGMENTS = {
     "admin",
@@ -23,14 +27,24 @@ _APP_BASE_API_SEGMENTS = {
     "user",
 }
 
+# Bare routers the production frontend reaches through nginx's /api/ location:
+# its build sets VITE_API_BASE_URL=/api, so `/admin/users` is requested as
+# `/api/admin/users`. `admin`, `user` and `model-catalog` were missing until
+# 2026-09-25, so behind the production nginx the whole admin console, the
+# active-model poll and the model catalog answered 404 -- invisible in
+# development, where Vite proxies the bare paths directly.
+# tests/api/test_frontend_paths_reach_the_backend.py keeps this in step.
 _LEGACY_API_PREFIX_SEGMENTS = {
+    "admin",
     "agent-tracking",
     "auth",
     "documents",
+    "model-catalog",
     "prompts",
     "query",
     "sessions",
     "upload",
+    "user",
 }
 
 
@@ -78,10 +92,27 @@ def _configure_cors(app_obj: FastAPI, settings_obj) -> None:
     )
 
 
+def shared_state_unavailable(_request: Request, exc: SharedStateUnavailable) -> JSONResponse:
+    """Redis holds state every worker must agree on and is not answering: 503, not 500.
+
+    Synchronous on purpose (python:S7503): it awaits nothing, and Starlette runs a
+    sync exception handler in its threadpool, which is cheap for a JSON body.
+    """
+
+    return shared_state_unavailable_response()
+
+
+def index_busy(_request: Request, exc: LockBusy) -> JSONResponse:
+    """Another writer holds the document index past the request's wait: 503, retry."""
+
+    return index_busy_response()
+
+
 def create_app(settings_obj, static_paths: StaticFilePaths | None = None, static_handlers=None) -> FastAPI:
     """Build the public application while preserving the historical order."""
     app = FastAPI(title="QueryMind（智询）", lifespan=lifespan)
-    app.middleware("http")(rewrite_app_prefixed_api_paths)
+    app.add_exception_handler(SharedStateUnavailable, shared_state_unavailable)
+    app.add_exception_handler(LockBusy, index_busy)
     _configure_cors(app, settings_obj)
 
     # Add security middleware with Redis support
@@ -97,12 +128,24 @@ def create_app(settings_obj, static_paths: StaticFilePaths | None = None, static
     rate_limit_enabled = getattr(settings_obj, "rate_limit_enabled", True)
     redis_url = getattr(settings_obj, "redis_url", None)
     if rate_limit_enabled:
-        app.add_middleware(RateLimitMiddleware, redis_url=redis_url)
+        app.add_middleware(
+            RateLimitMiddleware,
+            redis_url=redis_url,
+            shared=getattr(settings_obj, "state_backend", "memory") == "shared",
+        )
 
     app.middleware("http")(request_timing_middleware)
+    app.middleware("http")(invalidation_middleware)
+    # Registered last, so it runs first: the last middleware added is the
+    # outermost. Every middleware below it then sees one spelling of a path.
+    # It used to be registered first -- the innermost -- so the rate limiter
+    # saw `/api/auth/register` behind the production nginx, matched no rule,
+    # and never limited anything the frontend sends; the metrics filed the
+    # agent-tracking stream as `other` for the same reason (ARC-01 phase 9).
+    app.middleware("http")(rewrite_app_prefixed_api_paths)
     register_routers(app)
     configure_static_files(app, static_paths, static_handlers)
     return app
 
 
-__all__ = ["create_app", "lifespan", "rewrite_app_prefixed_api_paths", "_configure_cors"]
+__all__ = ["create_app", "lifespan", "rewrite_app_prefixed_api_paths", "shared_state_unavailable", "_configure_cors"]

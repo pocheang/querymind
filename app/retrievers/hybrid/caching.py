@@ -1,34 +1,29 @@
+import copy
 import json
 import logging
-import threading
-import time
 
+from app.services.runtime.redis_connector import RedisConnector
 from app.services.runtime.resilience import TTLCache
 
 logger = logging.getLogger(__name__)
 
 _RETRIEVAL_CACHE: TTLCache | None = None
-_REDIS_CLIENT = None
-_REDIS_LOCK = threading.Lock()
-_REDIS_UNAVAILABLE_UNTIL = 0.0
+# Bytes, not str: cached payloads are JSON that `json.loads` takes either way,
+# and this is what the client was configured with before the connector existed.
+_REDIS = RedisConnector(
+    "retrieval_cache",
+    max_connections=50,
+    socket_keepalive=True,
+    socket_connect_timeout=5,
+    socket_timeout=5,
+    decode_responses=False,
+    health_check_interval=30,
+)
 
 
-def _redis_retry_cooldown_seconds(settings) -> float:
-    return max(1.0, float(getattr(settings, "redis_retry_cooldown_seconds", 15) or 15))
-
-
-def _mark_redis_unavailable(settings, exc: BaseException) -> None:
+def _mark_redis_unavailable(exc: BaseException) -> None:
     """Discard a failed client so retrieval immediately falls back to memory."""
-    global _REDIS_CLIENT, _REDIS_UNAVAILABLE_UNTIL
-    with _REDIS_LOCK:
-        client = _REDIS_CLIENT
-        _REDIS_CLIENT = None
-        _REDIS_UNAVAILABLE_UNTIL = time.monotonic() + _redis_retry_cooldown_seconds(settings)
-    if client is not None:
-        try:
-            client.close()
-        except Exception:
-            pass
+    _REDIS.drop(exc)
     logger.warning("Redis retrieval cache unavailable; using memory cache: %s", exc)
 
 
@@ -42,38 +37,14 @@ def cache_backend(settings) -> str:
     return "auto"
 
 
-def redis_client(settings):
-    """Get or create Redis client."""
-    global _REDIS_CLIENT, _REDIS_UNAVAILABLE_UNTIL
-    if _REDIS_CLIENT is not None:
-        return _REDIS_CLIENT
-    if _REDIS_UNAVAILABLE_UNTIL and time.monotonic() < _REDIS_UNAVAILABLE_UNTIL:
-        return None
-    try:
-        import redis  # type: ignore
-    except ImportError:
-        logger.debug("Redis module not available")
-        return None
-    try:
-        # CRITICAL FIX: Add connection pooling configuration
-        _REDIS_CLIENT = redis.from_url(
-            str(getattr(settings, "redis_url", "")),
-            max_connections=50,  # Connection pool size
-            socket_keepalive=True,  # Keep connections alive
-            socket_connect_timeout=5,  # Connection timeout
-            socket_timeout=5,  # Socket operation timeout
-            decode_responses=False,  # Handle bytes explicitly for caching
-            health_check_interval=30,  # Health check every 30s
-        )
-        _REDIS_CLIENT.ping()
-        _REDIS_UNAVAILABLE_UNTIL = 0.0
-    except (redis.ConnectionError, redis.TimeoutError) as e:
-        logger.warning(f"Redis connection failed: {e}")
-        _REDIS_CLIENT = None
-    except Exception as e:
-        logger.exception(f"Unexpected Redis error: {e}")
-        _REDIS_CLIENT = None
-    return _REDIS_CLIENT
+def redis_client(settings):  # noqa: ARG001 -- the URL is read from settings at connect time
+    """The shared client, or None while Redis is unavailable or cooling down.
+
+    A failed connect used to leave no cooldown behind, so with Redis unreachable
+    every query paid the 5 second connect timeout again; the connector waits
+    `COOLDOWN_SECONDS` before the next attempt.
+    """
+    return _REDIS.client()
 
 
 def get_retrieval_cache(settings) -> TTLCache:
@@ -112,43 +83,117 @@ def clear_retrieval_cache() -> None:
         return
 
 
+def drop_local_retrieval_cache() -> None:
+    """Forget this process's in-memory results; Redis entries are left to their keys (below)."""
+    global _RETRIEVAL_CACHE
+    _RETRIEVAL_CACHE = None
+
+
+def _shared() -> bool:
+    from app.services.runtime.shared_state import is_shared
+
+    return is_shared()
+
+
+def _redis_key(cache_key: str) -> str | None:
+    """The Redis key for a result, or None when it must not be cached at all.
+
+    With STATE_BACKEND=shared the corpus generation is part of the key (ARC-01
+    phase 6). A delete on one worker used to leave its results in every other
+    worker's memory layer -- which lookups fell back to -- and even in Redis a
+    result computed just before a change could be stored just after it. Keyed on
+    the generation, a lookup can only find results built from the corpus this
+    process has caught up to. Before its first look there is no generation to
+    trust, so nothing is cached.
+    """
+    if not _shared():
+        return f"retrieval:{cache_key}"
+    from app.services.runtime.invalidation import generation
+
+    corpus = generation("corpus")
+    return None if corpus is None else f"retrieval:g{corpus}:{cache_key}"
+
+
+def _uses_memory_layer() -> bool:
+    # Per process, so never with shared state: nothing tells one worker's memory
+    # that another worker deleted a document.
+    return not _shared()
+
+
+def _redis_lookup(settings, key: str):
+    client = redis_client(settings)
+    if client is None:
+        return None
+    try:
+        raw = client.get(key)
+    except Exception as e:
+        _mark_redis_unavailable(e)
+        logger.debug(f"Redis cache lookup failed: {type(e).__name__}")
+        return None
+    if not raw:
+        return None
+    payload = json.loads(raw)
+    out_diag = dict(payload.get("diagnostics", {}))
+    out_diag["cache_hit"] = True
+    out_diag["cache_backend"] = "redis"
+    return list(payload.get("results", [])), out_diag
+
+
+def _memory_lookup(settings, cache_key: str):
+    cached = get_retrieval_cache(settings).get(cache_key)
+    if not cached:
+        return None
+    # Deep copies on the way out as well as in: Redis returns a fresh decode of
+    # JSON on every hit, and a memory layer handing out the objects it holds
+    # let whoever received a hit rewrite the next caller's results
+    # (tests/contracts/test_retrieval_cache_contract.py).
+    results, diagnostics = copy.deepcopy(cached)
+    out_diag = dict(diagnostics)
+    out_diag["cache_hit"] = True
+    out_diag["cache_backend"] = "memory"
+    return list(results), out_diag
+
+
+def _enabled(settings) -> bool:
+    return bool(getattr(settings, "retrieval_cache_enabled", True)) and cache_backend(settings) != "off"
+
+
+def _redis_allowed(settings) -> bool:
+    # Shared state forces Redis whatever RETRIEVAL_CACHE_BACKEND says (ARC-01 B2).
+    return _shared() or cache_backend(settings) in {"redis", "auto"}
+
+
 def cache_lookup(cache_key: str, settings, traced_span_fn):
     """Look up cached results from Redis or memory."""
-    backend = cache_backend(settings)
-    use_cache = bool(getattr(settings, "retrieval_cache_enabled", True)) and backend != "off"
-    if not use_cache:
+    if not _enabled(settings):
         return None
-
-    with traced_span_fn("retrieval.cache_lookup", {"backend": backend}):
-        if backend in {"redis", "auto"}:
-            client = redis_client(settings)
-        else:
-            client = None
-        if client is not None:
-            try:
-                raw = client.get(f"retrieval:{cache_key}")
-                if raw:
-                    payload = json.loads(raw)
-                    out_diag = dict(payload.get("diagnostics", {}))
-                    out_diag["cache_hit"] = True
-                    out_diag["cache_backend"] = "redis"
-                    return list(payload.get("results", [])), out_diag
-            except Exception as e:
-                _mark_redis_unavailable(settings, e)
-                import logging
-
-                logging.getLogger(__name__).debug(
-                    f"Redis cache lookup failed, falling back to memory: {type(e).__name__}"
-                )
-        cache = get_retrieval_cache(settings)
-        cached = cache.get(cache_key)
-        if cached:
-            results, diagnostics = cached
-            out_diag = dict(diagnostics)
-            out_diag["cache_hit"] = True
-            out_diag["cache_backend"] = "memory"
-            return list(results), out_diag
+    with traced_span_fn("retrieval.cache_lookup", {"backend": cache_backend(settings)}):
+        key = _redis_key(cache_key)
+        if key is not None and _redis_allowed(settings):
+            hit = _redis_lookup(settings, key)
+            if hit is not None:
+                return hit
+        if _uses_memory_layer():
+            return _memory_lookup(settings, cache_key)
     return None
+
+
+def _redis_store(settings, key: str, results: list, diagnostics: dict, ttl_seconds: int) -> None:
+    client = redis_client(settings)
+    if client is None:
+        diagnostics["cache_backend"] = "memory" if _uses_memory_layer() else "none"
+        return
+    try:
+        client.setex(key, ttl_seconds, json.dumps({"results": results, "diagnostics": diagnostics}, ensure_ascii=False))
+        diagnostics["cache_backend"] = "redis"
+        diagnostics["cache_ttl"] = ttl_seconds
+    except (json.JSONEncodeError, TypeError) as e:
+        logger.debug(f"Redis cache store failed (serialization): {e}")
+        diagnostics["cache_backend"] = "memory" if _uses_memory_layer() else "none"
+    except Exception as e:
+        _mark_redis_unavailable(e)
+        logger.debug(f"Redis cache store failed: {e}")
+        diagnostics["cache_backend"] = "memory" if _uses_memory_layer() else "none"
 
 
 def cache_store(cache_key: str, results: list, diagnostics: dict, settings, ttl_override: int = None):
@@ -162,35 +207,17 @@ def cache_store(cache_key: str, results: list, diagnostics: dict, settings, ttl_
         settings: Settings object
         ttl_override: Optional TTL override (seconds). If None, uses settings default.
     """
-    backend = cache_backend(settings)
-    use_cache = bool(getattr(settings, "retrieval_cache_enabled", True)) and backend != "off"
-    if not use_cache:
+    if not _enabled(settings):
         return
-
-    # Use adaptive TTL if provided, otherwise fall back to settings
     ttl_seconds = (
         ttl_override if ttl_override is not None else int(getattr(settings, "retrieval_cache_ttl_seconds", 45) or 45)
     )
-
-    cache = get_retrieval_cache(settings)
-    cache.set(cache_key, (list(results), dict(diagnostics)))
-    if backend in {"redis", "auto"}:
-        client = redis_client(settings)
-        if client is not None:
-            try:
-                client.setex(
-                    f"retrieval:{cache_key}",
-                    ttl_seconds,
-                    json.dumps({"results": results, "diagnostics": diagnostics}, ensure_ascii=False),
-                )
-                diagnostics["cache_backend"] = "redis"
-                diagnostics["cache_ttl"] = ttl_seconds
-            except (json.JSONEncodeError, TypeError) as e:
-                logger.debug(f"Redis cache store failed (serialization): {e}")
-                diagnostics["cache_backend"] = "memory"
-            except Exception as e:
-                _mark_redis_unavailable(settings, e)
-                logger.debug(f"Redis cache store failed: {e}")
-                diagnostics["cache_backend"] = "memory"
-        else:
-            diagnostics["cache_backend"] = "memory"
+    if _uses_memory_layer():
+        # Retrieval returns the list it has just cached, and its callers go on to
+        # rerank and mask it; a shallow copy kept their edits in the cache.
+        get_retrieval_cache(settings).set(cache_key, copy.deepcopy((list(results), dict(diagnostics))))
+    key = _redis_key(cache_key)
+    if key is not None and _redis_allowed(settings):
+        _redis_store(settings, key, results, diagnostics, ttl_seconds)
+    elif _uses_memory_layer():
+        diagnostics["cache_backend"] = "memory"

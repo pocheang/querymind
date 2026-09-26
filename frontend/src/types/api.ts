@@ -197,6 +197,10 @@ export type FileIndexActionResponse = {
   pages_by_source?: Record<string, number>;
   skipped?: boolean;
   reason?: string;
+  /** A reindex answered 202: it is a job now, followed through the document list. */
+  queued?: boolean;
+  document_id?: string;
+  status?: string;
 };
 
 export type UploadResponse = {
@@ -285,6 +289,8 @@ export type OpsServiceHealth = {
 
 export type OpsOverview = {
   generated_at: string;
+  /** Request figures and diagnostics are this worker's; audit, users and sessions are not. */
+  worker?: WorkerScope;
   window_hours: number;
   status: Known<"healthy" | "degraded">;
   kpi: {
@@ -378,8 +384,16 @@ export type ModelCatalogResponse = {
   providers: Record<ModelProvider, ProviderCatalogEntry>;
 };
 
+/** The process that answered a request built from its own memory. */
+export type WorkerScope = {
+  pid: number;
+  host: string;
+};
+
 export type AdminRuntimeSnapshot = {
   generated_at: string;
+  /** The worker whose memory these figures came from (ARC-01 phase 8). */
+  worker?: WorkerScope;
   status: Known<"healthy" | "degraded">;
   blocking_services: string[];
   resources: {
@@ -441,13 +455,13 @@ export type AdminModelSettingsView = {
   embedding_model: string;
   temperature: number;
   max_tokens: number;
-  embedding_reindexed?: boolean;
+  /** A changed embedding model queues a re-embedding job; the save does not wait for it. */
+  embedding_reindex_queued?: boolean;
   // Whether these settings are actually in effect. MODEL_BACKEND=local in the
   // process environment makes the backend discard the global override, so a
   // saved configuration can be stored and inert at the same time.
   environment_pinned?: boolean;
   pinned_reason?: string;
-  records_reindexed?: number;
 };
 
 export type BenchmarkTrendItem = {

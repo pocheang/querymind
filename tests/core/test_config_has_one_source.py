@@ -44,6 +44,9 @@ ALLOWED: dict[str, str] = {
     # source that supplies Settings, so it cannot be supplied by it. It is also
     # why NACOS_PASSWORD stays in the environment and never becomes a field.
     "app/core/remote_config.py::_bootstrap": "bootstraps the configuration source itself",
+    # prometheus_client reads PROMETHEUS_MULTIPROC_DIR from the process environment
+    # at import to decide where values live; a Settings field could not change it.
+    "app/services/runtime/runtime_metrics.py::multiprocess_dir": "read by prometheus_client itself at import",
     # A deployment pinning the local backend must beat persisted admin settings;
     # reading it from Settings would let the admin UI override the pin.
     "app/services/models/runtime.py::_local_backend_forced": "process-env pin over admin settings",
@@ -51,13 +54,19 @@ ALLOWED: dict[str, str] = {
     "app/api/application/lifespan.py::lifespan": "conda environment diagnostics",
     "app/api/deps/admin.py::_runtime_diagnostics_summary": "conda environment diagnostics",
     "app/api/deps/auth.py::_resolve_pytest_header_user": "test-run detection",
-    "app/api/application/lifespan.py::_bootstrap_administrator": "test-run detection",
-    "app/api/application/lifespan.py::_purge_retired_user_model_settings": "test-run detection",
+    "app/api/application/lifespan.py::_run_startup_tasks": "test-run detection",
+    "app/api/application/lifespan.py::_recover_unfinished_ingests": "test-run detection",
     # A test run must not persist structured tables into the developer's APP_DB_PATH.
     "app/services/tables/store.py::_default_db_path": "test-run detection",
     # A bootstrap credential must not become a Settings field, for the same
     # reason NACOS_PASSWORD is not one: a field can reach a config endpoint.
     "app/services/auth/bootstrap.py::ensure_admin_account": "first-run admin credential",
+    # Which peers may name the client's address (SEC-02). gunicorn builds each
+    # uvicorn worker's config before the application -- and so before any
+    # Settings -- exists (app/gunicorn_worker.py). A Settings field would
+    # also make it editable from a config endpoint, which is the one thing a
+    # trust boundary for spoofable headers must not be.
+    "app/api/transport/client_address.py::trusted_proxies": "proxy trust, read before Settings exists",
 }
 
 

@@ -36,6 +36,11 @@ class ToolRegistry:
         self._execution_events = execution_events
         self._tools: dict[str, tuple[ToolDefinition, ToolExecutor]] = {}
 
+    def flush_audit(self, timeout: float = 5.0) -> bool:
+        """Wait for this registry's queued audit rows to be written. True if they were in time."""
+
+        return self._audit.flush(timeout)
+
     def register(self, definition: ToolDefinition, executor: ToolExecutor) -> None:
         """Register one unique, schema-governed tool implementation."""
         if definition.tool_id in self._tools:
@@ -77,9 +82,14 @@ class ToolRegistry:
                 ToolResult(tool_id=call.tool_id, status="failed", summary=f"invalid arguments: {argument_error}"),
                 definition=definition,
             )
-        approval = self._approvals.consume(call, actor) if definition.operation in _APPROVAL_OPERATIONS else None
+        # Approvals live in SQLite, so both calls leave the event loop.
+        approval = (
+            await asyncio.to_thread(self._approvals.consume, call, actor)
+            if definition.operation in _APPROVAL_OPERATIONS
+            else None
+        )
         if definition.operation in _APPROVAL_OPERATIONS and approval is None:
-            pending_approval = self._approvals.create(call, actor)
+            pending_approval = await asyncio.to_thread(self._approvals.create, call, actor)
             result = self._finish(
                 call,
                 actor,

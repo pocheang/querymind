@@ -142,7 +142,7 @@ export function LandingFeaturesSection({ onSelectFeature }: Readonly<LandingFeat
       desc: t("pages.landing.feature7Desc"),
       badge: "Context & Budget",
       accent: "text-sky-600 dark:text-sky-400 bg-sky-500/10 border-sky-500/20",
-      sourceFile: "app/services/context_management.py",
+      sourceFile: "app/knowledge/context.py",
       pipelineFlow: t("pages.landing.feature7Flow"),
       technicalMechanism: t("pages.landing.feature7Mechanism"),
       engineeringSpecs: [

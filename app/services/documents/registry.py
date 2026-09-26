@@ -3,15 +3,26 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-import threading
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
+from app.services.runtime.file_locks import held
 
-_LOCK = threading.RLock()
+
+def _registry_lock(target: Path):
+    """Each read-modify-write of the registry, serialized across processes.
+
+    It was a `threading.RLock`, so two workers updating two documents' status at
+    once each wrote back the registry they had read and one update was lost.
+    Its own lock file rather than the index lock: status updates are frequent
+    and short, and must not queue behind an index commit. Reads take no lock:
+    the file is replaced atomically, so a reader sees one whole version.
+    """
+
+    return held(target.with_name(target.name + ".lock"))
 
 
 def _now_iso() -> str:
@@ -89,18 +100,16 @@ def _write_document_records(target: Path, records: list[dict[str, Any]]) -> None
 
 def list_document_records(path: Path | None = None) -> list[dict[str, Any]]:
     target = path or _default_path()
-    with _LOCK:
-        return _read_document_records(target)
+    return _read_document_records(target)
 
 
 def get_document_by_source(source: str, path: Path | None = None) -> dict[str, Any] | None:
     source_value = str(source)
     target = path or _default_path()
-    with _LOCK:
-        for row in _read_document_records(target):
-            if str(row.get("source", "")) == source_value:
-                return row
-        return None
+    for row in _read_document_records(target):
+        if str(row.get("source", "")) == source_value:
+            return row
+    return None
 
 
 def _find_existing_document_record(
@@ -160,7 +169,7 @@ def create_document_record(
     target = path or _default_path()
     source_value = str(source)
     now = _now_iso()
-    with _LOCK:
+    with _registry_lock(target):
         rows = _read_document_records(target)
         existing = _find_existing_document_record(
             rows,
@@ -215,7 +224,7 @@ def update_document_record(
     path: Path | None = None,
 ) -> dict[str, Any]:
     target = path or _default_path()
-    with _LOCK:
+    with _registry_lock(target):
         rows = _read_document_records(target)
         updated: dict[str, Any] | None = None
         out: list[dict[str, Any]] = []
@@ -235,7 +244,7 @@ def update_document_record(
 def update_document_by_source(source: str, fields: dict[str, Any], path: Path | None = None) -> dict[str, Any]:
     target = path or _default_path()
     source_value = str(source)
-    with _LOCK:
+    with _registry_lock(target):
         rows = _read_document_records(target)
         updated: dict[str, Any] | None = None
         out: list[dict[str, Any]] = []
@@ -255,7 +264,7 @@ def update_document_by_source(source: str, fields: dict[str, Any], path: Path | 
 def delete_document_by_source(source: str, path: Path | None = None) -> bool:
     target = path or _default_path()
     source_value = str(source)
-    with _LOCK:
+    with _registry_lock(target):
         rows = _read_document_records(target)
         keep = [row for row in rows if str(row.get("source", "")) != source_value]
         if len(keep) == len(rows):

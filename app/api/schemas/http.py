@@ -278,6 +278,11 @@ class FileIndexActionResponse(BaseModel):
     pages_by_source: dict[str, int] = Field(default_factory=dict)
     skipped: bool = False
     reason: str = ""
+    # A reindex is a job, not a request (ARC-01 phase 5): answered 202 with
+    # `queued` and the document id to follow in the document list.
+    queued: bool = False
+    document_id: str = ""
+    status: str = ""
 
 
 class IndexHealthResponse(BaseModel):
@@ -369,8 +374,9 @@ class AdminModelSettingsView(BaseModel):
     embedding_model: str = ""
     temperature: float = Field(default=0.7, ge=0.0, le=1.0)
     max_tokens: int = Field(default=2048, ge=256, le=131072)
-    embedding_reindexed: bool = False
-    records_reindexed: int = 0
+    # A changed embedding model means re-embedding the corpus. That is a job
+    # (ARC-01 phase 5): the save answers at once and this says one was queued.
+    embedding_reindex_queued: bool = False
     # Whether these settings are actually in effect. `MODEL_BACKEND=local` in the
     # real process environment makes `get_chat_model` discard the global override
     # entirely (`_local_backend_forced`), so without this the page could report a

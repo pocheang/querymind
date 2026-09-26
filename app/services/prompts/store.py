@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 
 
 def _now_iso() -> str:
@@ -18,7 +19,7 @@ class PromptStore:
         settings = get_settings()
         self.db_path = db_path or settings.app_db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_schema()
+        ensure_schema(self.db_path, "prompts", PROMPT_MIGRATIONS, wal=True)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -26,46 +27,46 @@ class PromptStore:
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
-    def _init_schema(self) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS prompt_templates (
-                  prompt_id TEXT PRIMARY KEY,
-                  user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-                  title TEXT NOT NULL,
-                  content TEXT NOT NULL,
-                  agent_class TEXT NOT NULL DEFAULT 'general',
-                  created_at TEXT NOT NULL,
-                  updated_at TEXT NOT NULL
-                )
-                """
+    @staticmethod
+    def _baseline_schema(conn: sqlite3.Connection) -> None:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS prompt_templates (
+              prompt_id TEXT PRIMARY KEY,
+              user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              title TEXT NOT NULL,
+              content TEXT NOT NULL,
+              agent_class TEXT NOT NULL DEFAULT 'general',
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
             )
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_prompt_templates_user ON prompt_templates(user_id)")
-            rows = conn.execute("PRAGMA table_info(prompt_templates)").fetchall()
-            cols = {str(r[1]) for r in rows}
-            if "agent_class" not in cols:
-                conn.execute("ALTER TABLE prompt_templates ADD COLUMN agent_class TEXT NOT NULL DEFAULT 'general'")
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS prompt_template_versions (
-                  version_id TEXT PRIMARY KEY,
-                  prompt_id TEXT NOT NULL REFERENCES prompt_templates(prompt_id) ON DELETE CASCADE,
-                  user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-                  title TEXT NOT NULL,
-                  content TEXT NOT NULL,
-                  agent_class TEXT NOT NULL DEFAULT 'general',
-                  change_note TEXT,
-                  status TEXT NOT NULL DEFAULT 'draft',
-                  approved_by TEXT,
-                  approved_at TEXT,
-                  created_at TEXT NOT NULL
-                )
-                """
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_prompt_templates_user ON prompt_templates(user_id)")
+        rows = conn.execute("PRAGMA table_info(prompt_templates)").fetchall()
+        cols = {str(r[1]) for r in rows}
+        if "agent_class" not in cols:
+            conn.execute("ALTER TABLE prompt_templates ADD COLUMN agent_class TEXT NOT NULL DEFAULT 'general'")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS prompt_template_versions (
+              version_id TEXT PRIMARY KEY,
+              prompt_id TEXT NOT NULL REFERENCES prompt_templates(prompt_id) ON DELETE CASCADE,
+              user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              title TEXT NOT NULL,
+              content TEXT NOT NULL,
+              agent_class TEXT NOT NULL DEFAULT 'general',
+              change_note TEXT,
+              status TEXT NOT NULL DEFAULT 'draft',
+              approved_by TEXT,
+              approved_at TEXT,
+              created_at TEXT NOT NULL
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_prompt_versions_prompt ON prompt_template_versions(prompt_id, created_at DESC)"
-            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_prompt_versions_prompt ON prompt_template_versions(prompt_id, created_at DESC)"
+        )
 
     def list_prompts(self, user_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:
@@ -269,3 +270,6 @@ class PromptStore:
                 (prompt_id, user_id),
             )
             return True
+
+
+PROMPT_MIGRATIONS = (Migration(1, "baseline: prompt templates and their versions", PromptStore._baseline_schema),)

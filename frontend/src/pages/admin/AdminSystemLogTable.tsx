@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { AdminFormField, AdminFormSelect } from "@/components/AdminFormField";
 import { AdminPagination } from "@/components/AdminPagination";
 import { useTranslation } from "react-i18next";
-import type { SystemLogEntry } from "@/types/api";
+import type { SystemLogEntry, WorkerScope } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -14,12 +14,15 @@ import {
   RowActions,
   SectionHead,
   StatePanel,
+  WorkerScopeBadge,
 } from "./components/AdminPrimitives";
 import { ADMIN_TABLE, ADMIN_TABLE_WIDE, ADMIN_TABLE_WRAP } from "./components/adminClasses";
 import { LogLimitActions } from "./components/LogLimitActions";
 
 type Props = {
   systemLogs: SystemLogEntry[];
+  /** The capture buffer is per process: whose logs these are (ARC-01 phase 8). */
+  systemLogWorker?: WorkerScope | null;
   loadingSystemLogs: boolean;
   systemLogLimit: number;
   systemLogLevel: string;
@@ -52,6 +55,7 @@ const LOG_TEXT = "line-clamp-3 whitespace-normal break-words text-xs leading-rel
 
 export function AdminSystemLogTable({
   systemLogs,
+  systemLogWorker,
   loadingSystemLogs,
   systemLogLimit,
   systemLogLevel,
@@ -87,7 +91,10 @@ export function AdminSystemLogTable({
 
   return (
     <main className="space-y-6">
-      <SectionHead title={t("admin.ui.systemLogs")}>
+      <SectionHead
+        title={t("admin.ui.systemLogs")}
+        description={systemLogWorker ? <WorkerScopeBadge worker={systemLogWorker} /> : undefined}
+      >
         <LogLimitActions limit={systemLogLimit} onLimitChange={onSystemLogLimitChange} onRefresh={onRefresh} />
       </SectionHead>
       <Hint>{t("admin.ui.systemLogHint")}</Hint>

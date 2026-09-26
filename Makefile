@@ -23,8 +23,9 @@ COMPOSE_DEV = RUNTIME_ENV_FILE=../../.runtime/development.env docker compose --p
 
 up:
 	@test -f .runtime/development.env || { echo "Missing .runtime/development.env -- run: make config-render ENV=development" >&2; exit 1; }
-	$(COMPOSE_DEV) up -d neo4j
+	$(COMPOSE_DEV) up -d neo4j redis chroma
 	@echo "Neo4j Browser: http://localhost:7474 (user neo4j, password in .runtime/development.env)"
+	@echo "Redis: localhost:6379 (REDIS_PASSWORD in .runtime/development.env); Chroma server: http://localhost:8001"
 
 down:
 	$(COMPOSE_DEV) down

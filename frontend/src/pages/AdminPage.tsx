@@ -389,6 +389,7 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
           {state.section === "syslog" && (
             <AdminSystemLogTable
               systemLogs={state.systemLogs}
+              systemLogWorker={state.systemLogWorker}
               loadingSystemLogs={state.loadingSystemLogs}
               systemLogLimit={state.systemLogLimit}
               systemLogLevel={state.systemLogLevel}

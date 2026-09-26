@@ -25,6 +25,16 @@ from app.retrievers.multimodal_retriever import _scope_filter
 from app.services.documents import ingest as ingest_module
 
 
+def _index_images(parsed, image_artifacts, canonical) -> int:
+    """Both halves ingestion runs on either side of the index lock: read, then write."""
+
+    return ingest_module._write_images(ingest_module._image_contents(parsed, image_artifacts, canonical), None)
+
+
+def _index_tables(parsed, canonical) -> int:
+    return ingest_module._write_tables(ingest_module._table_contents(parsed, canonical), None)
+
+
 @dataclass
 class _Image:
     image_id: str
@@ -52,7 +62,7 @@ def indexer(monkeypatch: pytest.MonkeyPatch) -> _Indexed:
     recorded = _Indexed()
 
     class _FakeProcessor:
-        def index_image(self, image, collection_name: str = "image_descriptions") -> None:
+        def index_image(self, image, collection_name: str = "image_descriptions", *, embedding=None) -> None:
             recorded.calls.append(image)
 
     monkeypatch.setattr("app.services.multimodal.image_processor.ImageProcessor", _FakeProcessor)
@@ -72,7 +82,7 @@ CANONICAL = {
 def test_an_image_that_was_read_is_indexed_with_its_owner(indexer: _Indexed) -> None:
     parsed = _Parsed(images=(_Image("img-1", description="an architecture diagram of the ingest path"),))
 
-    count = ingest_module._index_images(parsed, {"img-1": "artifact://img-1"}, CANONICAL)
+    count = _index_images(parsed, {"img-1": "artifact://img-1"}, CANONICAL)
 
     assert count == 1
     (written,) = indexer.calls
@@ -86,7 +96,7 @@ def test_an_image_that_was_read_is_indexed_with_its_owner(indexer: _Indexed) -> 
 def test_ocr_text_is_used_when_the_loader_gave_no_description(indexer: _Indexed) -> None:
     parsed = _Parsed(images=(_Image("img-1", ocr_text="Q3 revenue by region"),))
 
-    assert ingest_module._index_images(parsed, {}, CANONICAL) == 1
+    assert _index_images(parsed, {}, CANONICAL) == 1
     assert "Q3 revenue by region" in indexer.calls[0].description
 
 
@@ -99,7 +109,7 @@ def test_an_image_nobody_could_read_is_not_indexed(indexer: _Indexed, monkeypatc
 
     monkeypatch.setattr("app.ingestion.extraction.ocr.ocr_image_bytes", lambda *a, **k: [_Doc()])
 
-    assert ingest_module._index_images(_Parsed(images=(_Image("img-1"),)), {}, CANONICAL) == 0
+    assert _index_images(_Parsed(images=(_Image("img-1"),)), {}, CANONICAL) == 0
     assert indexer.calls == []
 
 
@@ -115,13 +125,13 @@ def test_ocr_runs_for_an_image_the_loader_left_bare(indexer: _Indexed, monkeypat
 
     monkeypatch.setattr("app.ingestion.extraction.ocr.ocr_image_bytes", fake_ocr)
 
-    assert ingest_module._index_images(_Parsed(images=(_Image("img-1"),)), {}, CANONICAL) == 1
+    assert _index_images(_Parsed(images=(_Image("img-1"),)), {}, CANONICAL) == 1
     assert seen == [Path("/uploads/alice/report.pdf")]
     assert "Deployment topology" in indexer.calls[0].description
 
 
 def test_a_document_with_no_images_writes_nothing(indexer: _Indexed) -> None:
-    assert ingest_module._index_images(_Parsed(), {}, CANONICAL) == 0
+    assert _index_images(_Parsed(), {}, CANONICAL) == 0
     assert indexer.calls == []
 
 
@@ -129,12 +139,12 @@ def test_an_indexing_failure_costs_that_image_and_not_the_ingest(
     indexer: _Indexed, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class _Refusing:
-        def index_image(self, image, collection_name: str = "image_descriptions") -> None:
+        def index_image(self, image, collection_name: str = "image_descriptions", *, embedding=None) -> None:
             raise RuntimeError("collection is locked")
 
     monkeypatch.setattr("app.services.multimodal.image_processor.ImageProcessor", _Refusing)
 
-    assert ingest_module._index_images(_Parsed(images=(_Image("img-1", description="a chart"),)), {}, CANONICAL) == 0
+    assert _index_images(_Parsed(images=(_Image("img-1", description="a chart"),)), {}, CANONICAL) == 0
 
 
 def _scope(**overrides) -> AccessScope:
@@ -204,7 +214,7 @@ def table_indexer(monkeypatch: pytest.MonkeyPatch) -> _Indexed:
     recorded = _Indexed()
 
     class _FakeExtractor:
-        def index_table(self, table, collection_name: str = "table_summaries") -> None:
+        def index_table(self, table, collection_name: str = "table_summaries", *, embedding=None) -> None:
             recorded.calls.append(table)
 
     monkeypatch.setattr("app.services.multimodal.table_extractor.TableExtractor", _FakeExtractor)
@@ -214,7 +224,7 @@ def table_indexer(monkeypatch: pytest.MonkeyPatch) -> _Indexed:
 def test_a_table_is_indexed_whole_with_its_header_and_its_owner(table_indexer: _Indexed) -> None:
     """The header is the part a size-split fragment loses."""
 
-    count = ingest_module._index_tables(_ParsedWithTables(tables=(_Table(),)), CANONICAL)
+    count = _index_tables(_ParsedWithTables(tables=(_Table(),)), CANONICAL)
 
     assert count == 1
     (written,) = table_indexer.calls
@@ -226,12 +236,12 @@ def test_a_table_is_indexed_whole_with_its_header_and_its_owner(table_indexer: _
 
 
 def test_a_table_that_parsed_to_nothing_is_not_indexed(table_indexer: _Indexed) -> None:
-    assert ingest_module._index_tables(_ParsedWithTables(tables=(_Table(markdown="(no table)"),)), CANONICAL) == 0
+    assert _index_tables(_ParsedWithTables(tables=(_Table(markdown="(no table)"),)), CANONICAL) == 0
     assert table_indexer.calls == []
 
 
 def test_a_document_with_no_tables_writes_nothing(table_indexer: _Indexed) -> None:
-    assert ingest_module._index_tables(_ParsedWithTables(), CANONICAL) == 0
+    assert _index_tables(_ParsedWithTables(), CANONICAL) == 0
 
 
 def test_an_escaped_pipe_stays_inside_its_cell() -> None:
@@ -276,8 +286,6 @@ def test_indexing_degrades_when_the_optional_extra_is_absent(
     monkeypatch.setitem(sys.modules, module, None)
 
     if call == "images":
-        assert (
-            ingest_module._index_images(_Parsed(images=(_Image("img-1", description="a chart"),)), {}, CANONICAL) == 0
-        )
+        assert _index_images(_Parsed(images=(_Image("img-1", description="a chart"),)), {}, CANONICAL) == 0
     else:
-        assert ingest_module._index_tables(_ParsedWithTables(tables=(_Table(),)), CANONICAL) == 0
+        assert _index_tables(_ParsedWithTables(tables=(_Table(),)), CANONICAL) == 0

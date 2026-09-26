@@ -22,7 +22,13 @@ from app.domain.workflow import RouterDecision
 from app.ingestion.chunking.splitter import split_documents
 from app.ingestion.loaders.dispatch import load_document_with_evidence
 from app.orchestration.request import OrchestrationRequest
-from app.services.documents.ingest import _canonical_metadata, _index_tables
+from app.services.documents.ingest import _canonical_metadata, _table_contents, _write_tables
+
+
+def _index_tables(parsed, canonical) -> int:
+    """Both halves ingestion runs on either side of the index lock: read, then write."""
+
+    return _write_tables(_table_contents(parsed, canonical), None)
 
 
 def Workbook():  # noqa: N802 -- stands in for openpyxl.Workbook at its call sites

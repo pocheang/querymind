@@ -25,6 +25,17 @@ except ImportError:
     }
 
 
+def _catch_up() -> None:
+    """Ingest with the current settings and model: the watcher is not a request, so it asks itself."""
+    from app.services.runtime.invalidation import catch_up
+    from app.services.runtime.shared_state import SharedStateUnavailable
+
+    try:
+        catch_up()
+    except SharedStateUnavailable as error:
+        logger.warning("auto_ingest_catch_up_failed error=%s", error)
+
+
 class AutoIngestWatcher:
     def __init__(
         self,
@@ -160,6 +171,7 @@ class AutoIngestWatcher:
     def scan_once(self) -> dict[str, int]:
         if not self.settings.auto_ingest_enabled:
             return {"discovered": 0, "ready": 0, "ingested": 0}
+        _catch_up()
 
         discovered, ready_paths, current_keys = self._discover_ready_paths()
         self._prune_stale_signatures(current_keys)

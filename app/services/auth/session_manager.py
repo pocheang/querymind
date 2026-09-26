@@ -1,8 +1,17 @@
+import logging
 import secrets
+import sqlite3
+from contextlib import closing
 from datetime import timedelta
 from typing import Any
 
 from app.services.auth.utils import iso, now, parse_iso
+
+logger = logging.getLogger(__name__)
+
+# `last_seen_at` has one reader, the admin view's "online in the last 10
+# minutes", so recording it more than once a minute buys nothing.
+TOUCH_INTERVAL_SECONDS = 60
 
 
 class SessionManager:
@@ -80,8 +89,30 @@ class SessionManager:
             }
 
     def touch_session(self, token: str) -> None:
-        with self.conn_factory() as conn:
-            conn.execute("UPDATE auth_sessions SET last_seen_at=? WHERE token=?", (iso(now()), token))
+        """Record that the session was used -- at most once a minute, and never at the cost of the request.
+
+        This ran an UPDATE on every authenticated request, so every request
+        needed `app.db`'s write lock. With several workers, and a busy writer
+        on the same file, a request waited out the whole busy timeout and was
+        answered 500 `database is locked` (ARC-01, found running two workers).
+        A read decides whether a write is needed -- in WAL mode a read never
+        waits for a writer -- and a write that still meets contention is
+        skipped: `last_seen_at` is bookkeeping, and a value one minute stale
+        only makes the session look older than it is.
+        """
+
+        current = now()
+        with closing(self.conn_factory()) as conn:
+            row = conn.execute("SELECT last_seen_at FROM auth_sessions WHERE token=?", (token,)).fetchone()
+        if row is None or _seen_recently(row["last_seen_at"], current):
+            return
+        try:
+            with closing(self.conn_factory()) as conn, conn:
+                conn.execute("UPDATE auth_sessions SET last_seen_at=? WHERE token=?", (iso(current), token))
+        except sqlite3.OperationalError as error:
+            if not _is_contention(error):
+                raise
+            logger.warning("session_touch_skipped reason=%s", error)
 
     def rotate_session_token(
         self,
@@ -106,3 +137,17 @@ class SessionManager:
         with self.conn_factory() as conn:
             row = conn.execute("SELECT COUNT(*) AS c FROM auth_sessions WHERE expires_at > ?", (now_ts,)).fetchone()
             return int(row["c"]) if row else 0
+
+
+def _seen_recently(last_seen_at: Any, current) -> bool:
+    if not last_seen_at:
+        return False
+    try:
+        return (current - parse_iso(str(last_seen_at))).total_seconds() < TOUCH_INTERVAL_SECONDS
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_contention(error: sqlite3.OperationalError) -> bool:
+    message = str(error).lower()
+    return "locked" in message or "busy" in message

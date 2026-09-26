@@ -6,10 +6,6 @@ import pytest
 
 from app.agents.clarification.rules import (
     _clean_comparison_target,
-    _extract_optimization_fields,
-    _extract_setup_fields,
-    _extract_troubleshooting_fields,
-    _extract_usage_fields,
     assess_completeness,
     max_rounds_for,
     missing_fields,
@@ -132,11 +128,98 @@ def test_complete_and_specific_queries_do_not_block_with_vague_clarification(que
         assert missing_fields(assessment, {}) == ()
 
 
-def test_backward_compatible_extraction_helpers():
-    assert "error_details" in _extract_troubleshooting_fields("FastAPI timeout 报错")
-    assert "target_component" in _extract_setup_fields("如何配置 Neo4j 图谱？")
-    assert "usage_target" in _extract_usage_fields("多智能体问答怎么操作？")
-    assert "optimization_target" in _extract_optimization_fields("如何提升检索准确率？")
+@pytest.mark.parametrize(
+    ("question", "component"),
+    [("redis 报错", "redis"), ("docker 出错了", "docker"), ("exception", "exception")],
+)
+def test_a_vague_error_report_that_names_a_component_is_not_asked_about_it(question, component):
+    """Troubleshooting is the one rule whose keywords can fire: its short-input
+    door admits a question with a component attached, and naming one answers
+    the question the clarifier would otherwise ask.
+
+    This replaced a test of four `_extract_*_fields` wrappers, which fed them
+    sentences like "如何配置 Neo4j 图谱？" -- a question `assess_completeness`
+    classifies as complete, so production never extracted from it at all."""
+    assessment = assess_completeness(question)
+
+    assert assessment.intent == "troubleshooting"
+    assert assessment.extracted_info.get("error_details") == component
+    assert missing_fields(assessment, {}) == ()
+
+
+@pytest.mark.parametrize(
+    ("question", "component"),
+    [("neo4j报错", "neo4j"), ("cuda运行失败", "cuda"), ("timeout报错", "timeout"), ("Redis出错了", "Redis")],
+)
+def test_a_component_written_against_chinese_is_still_found(question, component):
+    """Chinese is usually typed with no space before 报错. The keywords used
+    `\\b`, and CJK is a word character to `re`, so "neo4j报错" had no boundary
+    after the name: nothing was extracted and the user was asked what the error
+    was about after naming it."""
+    assert assess_completeness(question).extracted_info.get("error_details") == component
+
+
+@pytest.mark.parametrize("question", ["redisx报错", "xredis报错", "redis_x报错", "neo4j2报错"])
+def test_a_longer_ascii_word_is_still_not_a_component(question):
+    """The boundary moved for CJK only: an ASCII letter, digit or underscore
+    still continues the word, so a name that merely contains a keyword is not it."""
+    assessment = assess_completeness(question)
+
+    assert assessment.intent == "troubleshooting"
+    assert "error_details" not in assessment.extracted_info
+
+
+@pytest.mark.parametrize(
+    ("question", "field", "value"),
+    [
+        ("数据源是mysql数据，帮我设计一个检索增强系统", "data_source", "数据库"),
+        ("设计一个检索增强系统，接入api数据", "data_source", "API"),
+        ("设计一个helpdesk问答的rag", "scenario", "客服问答"),
+        ("设计一个给developer用的rag", "scenario", "代码知识库"),
+        ("对比两份文档的cost差异", "comparison_aspect", "cost"),
+        ("对比两份文档，输出table格式", "output_format", "table"),
+    ],
+)
+def test_a_field_named_in_english_against_chinese_is_extracted(question, field, value):
+    """The same `\\b` defect in the field patterns: "mysql数据" named a data
+    source and the RAG design flow still asked for one."""
+    assert assess_completeness(question).extracted_info.get(field) == value
+
+
+def test_a_longer_ascii_word_still_names_no_data_source():
+    assessment = assess_completeness("设计一个检索增强系统，接入mysqlx")
+
+    assert assessment.intent == "rag_design"
+    assert "data_source" not in assessment.extracted_info
+
+
+@pytest.mark.parametrize(
+    "question",
+    ["介绍一下versus这个词", "解释一下difference-in-differences方法", "如何compare两个json文件"],
+)
+def test_an_english_comparison_word_against_chinese_is_not_a_comparison(question):
+    """The comparison-*intent* pattern keeps the Unicode boundary on purpose.
+    Giving it re.ASCII turned each of these into a comparison and asked which
+    documents to compare."""
+    assert assess_completeness(question).intent == "complete"
+
+
+@pytest.mark.parametrize(
+    ("question", "intent", "field"),
+    [
+        ("如何配置", "environment_setup", "target_component"),
+        ("这个系统怎么使用？", "usage_guidance", "usage_target"),
+        ("how to optimize", "optimization", "optimization_target"),
+    ],
+)
+def test_the_other_vague_intents_always_ask_for_their_field(question, intent, field):
+    """Their patterns match whole sentences of filler words, so there is never a
+    keyword to extract; a question that names one is not vague and answers as
+    complete instead."""
+    assessment = assess_completeness(question)
+
+    assert assessment.intent == intent
+    assert missing_fields(assessment, {}) == (field,)
 
 
 def test_question_immutability():

@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "react-i18next";
+import type { WorkerScope } from "@/types/api";
 
 /**
  * The console's layout vocabulary, as components.
@@ -386,5 +389,21 @@ export function AuditBadge({ value, kind }: Readonly<{ value?: string | null; ki
     >
       {value || "-"}
     </span>
+  );
+}
+
+/**
+ * Names the worker a figure came from. Some admin views are one process's
+ * memory -- with several workers, one slice of the traffic, chosen by where the
+ * request landed -- and unlabelled a slice reads as the whole deployment
+ * (ARC-01 phase 8). Renders nothing when the response carries no worker.
+ */
+export function WorkerScopeBadge({ worker }: Readonly<{ worker?: WorkerScope | null }>) {
+  const { t } = useTranslation();
+  if (!worker) return null;
+  return (
+    <Badge variant="outline" size="sm" mono title={t("admin.worker.hint", { host: worker.host })}>
+      {t("admin.worker.badge", { pid: worker.pid })}
+    </Badge>
   );
 }

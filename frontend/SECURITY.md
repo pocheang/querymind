@@ -82,12 +82,12 @@ async def validate_csrf(request: Request, call_next):
 | :--- | :--- | :--- | :--- | :--- |
 | `auth_token` | `localStorage` | JWT Access Token | High | Bearer Header Only |
 | `csrf_token` | `sessionStorage` | Anti-CSRF Token | High | Ephemeral (Tab Lifetime) |
-| `sec_remembered_username` | `localStorage` | Login pre-fill | Medium | XOR Masking / Obfuscation |
+| `remembered_username` | `localStorage` | Login pre-fill | Low | Plaintext (a convenience, not a secret) |
 | `language` | `localStorage` | Locale preference (`zh` / `en`) | Low | Plaintext |
 | `chatSectionsHidden` | `localStorage` | Workspace layout preferences | Low | Plaintext |
 
-### 4.2 Credential Obfuscation
-Username remembrance uses bidirectional XOR byte scrambling (`src/lib/rememberedUsername.ts`) to prevent trivial cleartext inspection from browser storage viewers.
+### 4.2 Remembered Username
+"Remember me" stores the username as plain text (`src/lib/rememberedUsername.ts`). A username is not a secret, so obfuscating it bought nothing, and the XOR + base64 scheme that used to do so threw on non-Latin-1 usernames inside the login handler, turning a successful sign-in into an error. Every storage access is wrapped so a private window that refuses storage cannot fail a login. Passwords and tokens are never stored this way. The old `sec_remembered_username` key is never read; it is removed whenever the username is remembered or forgotten.
 
 ---
 

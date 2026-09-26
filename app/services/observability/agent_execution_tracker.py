@@ -244,6 +244,46 @@ def _quality_error_type(error_message: str) -> str:
     return error_type[:50] if len(error_type) > 50 else error_type
 
 
+def _shared() -> bool:
+    from app.services.runtime.shared_state import is_shared
+
+    return is_shared()
+
+
+def terminal_event(trace: ExecutionTrace):
+    """The event that ends a run's SSE stream, built one way for both delivery paths."""
+
+    from app.domain.events import ExecutionEvent
+
+    return ExecutionEvent(
+        stage="complete" if trace.status == "completed" else "failed",
+        status=trace.status,
+        duration_ms=max(0, int(trace.total_duration_ms or 0)),
+        occurred_at=trace.end_time or trace.start_time,
+    )
+
+
+def _mirror_finish(trace: ExecutionTrace) -> None:
+    if _shared():
+        from app.orchestration import shared_execution
+
+        shared_execution.finish_execution(trace.execution_id, terminal_event(trace))
+
+
+def _step_from_row(row) -> AgentStep:
+    from app.services.observability.stage_stats import from_timestamp
+
+    finished = from_timestamp(row["finished_at"])
+    return AgentStep(
+        agent_name=row["stage"],
+        start_time=finished - timedelta(milliseconds=row["duration_ms"]),
+        end_time=finished,
+        duration_ms=row["duration_ms"],
+        status=row["status"],
+        error=row["error_type"],
+    )
+
+
 class AgentExecutionTracker:
     _instance: Optional["AgentExecutionTracker"] = None
     _lock = threading.Lock()
@@ -254,6 +294,8 @@ class AgentExecutionTracker:
         self._trace_locks: dict[str, threading.RLock] = defaultdict(threading.RLock)  # Per-trace fine-grained locks
         self._ttl_hours = 1
         self._cleanup_task: asyncio.Task | None = None
+        # STATE_BACKEND=shared only: the dashboards' steps from every worker.
+        self._stage_stats = None
 
     @classmethod
     def get_instance(cls) -> "AgentExecutionTracker":
@@ -295,6 +337,12 @@ class AgentExecutionTracker:
         }
         with self._traces_lock:
             self._traces[execution_id] = trace
+        if _shared():
+            # Owner and status only -- never the question -- so a subscriber on
+            # another worker can be authorized and can tell when the run ends.
+            from app.orchestration import shared_execution
+
+            shared_execution.open_execution(execution_id, user_id)
 
         logger.info(  # NOSONAR
             "execution_trace_started execution=%s user=%s",
@@ -365,6 +413,15 @@ class AgentExecutionTracker:
             if trace is None:
                 return False
             trace.steps.append(step)
+        if _shared():
+            self._shared_stage_stats().record(
+                execution_id,
+                agent_name,
+                status=status,
+                duration_ms=duration_ms,
+                finished_at=finished_at,
+                error_type=_quality_error_type(error) if error else None,
+            )
         return True
 
     def complete_agent_step(
@@ -432,6 +489,7 @@ class AgentExecutionTracker:
             if final_result is not None:
                 trace.metadata["result"] = final_result
             logger.info("Completed execution trace: %s", trace.execution_id)
+        _mirror_finish(trace)
 
     def fail_execution(self, execution_id: str, error: str) -> None:
         with self._traces_lock:
@@ -446,6 +504,7 @@ class AgentExecutionTracker:
             trace.status = "failed"
             trace.metadata["error"] = error
             logger.info("Failed execution trace: %s", trace.execution_id)
+        _mirror_finish(trace)
 
     def get_execution_trace(self, execution_id: str) -> ExecutionTrace | None:
         with self._traces_lock:
@@ -480,6 +539,8 @@ class AgentExecutionTracker:
             self._traces.clear()
             # Also clear per-trace locks to prevent memory leak
             self._trace_locks.clear()
+        if _shared():
+            self._shared_stage_stats().clear()
         logger.info("Cleared all execution traces")
 
     def get_execution_stats(self) -> dict[str, Any]:
@@ -489,17 +550,11 @@ class AgentExecutionTracker:
         Returns:
             Dictionary with agent names as keys and their stats as values.
         """
-        logger.info(f"Getting execution stats. Total traces: {len(self._traces)}")
         stats: dict[str, dict[str, Any]] = {}
+        for step in self._stat_steps():
+            bucket = stats.setdefault(step.agent_name, _blank_execution_stats())
+            _accumulate_execution_step(bucket, step)
 
-        with self._traces_lock:
-            for trace_id, trace in self._traces.items():
-                logger.debug(f"Processing trace {trace_id} with {len(trace.steps)} steps")
-                for step in trace.steps:
-                    bucket = stats.setdefault(step.agent_name, _blank_execution_stats())
-                    _accumulate_execution_step(bucket, step)
-
-        # Averages are computed outside the lock: nothing here reads self._traces.
         for agent_stats in stats.values():
             _finalize_execution_stats(agent_stats)
 
@@ -512,33 +567,52 @@ class AgentExecutionTracker:
         Returns:
             Dictionary with summary, agents, timeline, and error_distribution.
         """
+        agents_map: dict[str, dict[str, Any]] = {}
+        timeline_map: dict[str, dict[str, int]] = {}
+        error_distribution: dict[str, int] = {}
+        totals = _blank_quality_totals()
+
+        for step in self._stat_steps():
+            agent = agents_map.setdefault(step.agent_name, _blank_agent_quality(step.agent_name))
+            _accumulate_quality_step(agent, step, totals, error_distribution)
+            _accumulate_timeline(timeline_map, step)
+
+        # One clock read for the whole report, so two agents cannot land on
+        # opposite sides of the one-hour "active" boundary within one call.
+        now = utcnow()
+        active_agents = sum(_finalize_agent_quality(agent, now) for agent in agents_map.values())
+        agents = sorted(agents_map.values(), key=lambda a: a["total_executions"], reverse=True)
+
+        return {
+            "summary": _quality_summary(len(agents), totals, active_agents),
+            "agents": agents,
+            "timeline": [
+                {"timestamp": ts, "success": counts["success"], "failure": counts["failure"]}
+                for ts, counts in sorted(timeline_map.items())
+            ],
+            "error_distribution": error_distribution,
+        }
+
+    def _stat_steps(self) -> list[AgentStep]:
+        """The steps the dashboards aggregate: every worker's with shared state, this one's otherwise.
+
+        Shared steps are rebuilt from `execution_stage_stats` over the same window
+        this tracker keeps traces for, and fed to the same accumulators, so the
+        numbers mean the same thing in both modes.
+        """
+
+        if _shared():
+            cutoff = utcnow() - timedelta(hours=self._ttl_hours)
+            return [_step_from_row(row) for row in self._shared_stage_stats().rows_since(cutoff)]
         with self._traces_lock:
-            agents_map: dict[str, dict[str, Any]] = {}
-            timeline_map: dict[str, dict[str, int]] = {}
-            error_distribution: dict[str, int] = {}
-            totals = _blank_quality_totals()
+            return [step for trace in self._traces.values() for step in trace.steps]
 
-            for trace in self._traces.values():
-                for step in trace.steps:
-                    agent = agents_map.setdefault(step.agent_name, _blank_agent_quality(step.agent_name))
-                    _accumulate_quality_step(agent, step, totals, error_distribution)
-                    _accumulate_timeline(timeline_map, step)
+    def _shared_stage_stats(self):
+        if self._stage_stats is None:
+            from app.services.observability.stage_stats import StageStatsStore
 
-            # One clock read for the whole report, so two agents cannot land on
-            # opposite sides of the one-hour "active" boundary within one call.
-            now = utcnow()
-            active_agents = sum(_finalize_agent_quality(agent, now) for agent in agents_map.values())
-            agents = sorted(agents_map.values(), key=lambda a: a["total_executions"], reverse=True)
-
-            return {
-                "summary": _quality_summary(len(agents), totals, active_agents),
-                "agents": agents,
-                "timeline": [
-                    {"timestamp": ts, "success": counts["success"], "failure": counts["failure"]}
-                    for ts, counts in sorted(timeline_map.items())
-                ],
-                "error_distribution": error_distribution,
-            }
+            self._stage_stats = StageStatsStore()
+        return self._stage_stats
 
     @staticmethod
     def _extract_error_type(error_message: str) -> str:

@@ -43,7 +43,8 @@ caller-dependent shape already recorded for `admin_security`:
 from __future__ import annotations
 
 import hashlib
-from datetime import timedelta
+import sqlite3
+import threading
 
 import pytest
 
@@ -55,12 +56,18 @@ HASH = hashlib.sha256(TOKEN.encode("utf-8")).hexdigest()
 
 
 @pytest.fixture
-def tracker() -> AdminTokenTracker:
-    return AdminTokenTracker(expiry_hours=24)
+def tracker(tmp_path) -> AdminTokenTracker:
+    # The records are rows in app.db since ARC-01 phase 2e; a test's go in a scratch file.
+    return AdminTokenTracker(expiry_hours=24, db_path=tmp_path / "app.db")
 
 
 def _age_record(tracker: AdminTokenTracker, digest: str, hours: float) -> None:
-    tracker._used_tokens[digest]["used_at"] -= timedelta(hours=hours)
+    with sqlite3.connect(tracker.db_path) as conn:
+        conn.execute("UPDATE admin_token_uses SET used_at = used_at - ? WHERE token_hash = ?", (hours * 3600, digest))
+
+
+def _used_count(tracker: AdminTokenTracker) -> int:
+    return tracker.get_usage_stats()["total_used_tokens"]
 
 
 class TestTheHappyPathIsExactlyOnce:
@@ -112,12 +119,12 @@ class TestSingleUseExpires:
 
         assert validate_admin_approval_token(TOKEN, HASH, "admin-2", tracker) == (False, "already_used")
 
-    def test_a_shorter_expiry_is_honoured(self) -> None:
+    def test_a_shorter_expiry_is_honoured(self, tmp_path) -> None:
         """`expiry_hours` is a constructor argument and `get_token_tracker`
         hardcodes 24. Asserted separately so the window is known to follow the
         configured value rather than a constant that happens to match."""
 
-        tracker = AdminTokenTracker(expiry_hours=1)
+        tracker = AdminTokenTracker(expiry_hours=1, db_path=tmp_path / "app.db")
         validate_admin_approval_token(TOKEN, HASH, "admin-1", tracker)
 
         _age_record(tracker, HASH, 2)
@@ -182,14 +189,14 @@ class TestTheRefusalModes:
         assert validate_admin_approval_token(TOKEN, HASH, "a", tracker) == (True, "hash")
 
     def test_neither_refusal_spends_the_token(self, tracker: AdminTokenTracker) -> None:
-        """`missing` and `empty` both return before `mark_token_used`. Marking
+        """`missing` and `empty` both return before the token is claimed. Claiming
         there would let an unconfigured deployment, or an empty POST, consume
         the real token."""
 
         validate_admin_approval_token(TOKEN, "", "a", tracker)
         validate_admin_approval_token("", HASH, "a", tracker)
 
-        assert tracker._used_tokens == {}
+        assert _used_count(tracker) == 0
         assert validate_admin_approval_token(TOKEN, HASH, "admin-1", tracker) == (True, "hash")
 
 
@@ -240,3 +247,53 @@ class TestTheTrackerIsOneObjectPerProcess:
         for, and it is how the lazy path stopped being exercised."""
 
         assert not hasattr(tracker_module, "token_tracker")
+
+
+class TestSingleUseHoldsAcrossWorkers:
+    """ARC-01 phase 2e. The records were a dict per process, so "single-use" was
+    single-use per worker; and "check it is unused, then mark it" let two
+    requests on one worker through as well."""
+
+    def test_a_token_spent_on_one_worker_is_spent_on_another(self, tmp_path) -> None:
+        worker_a = AdminTokenTracker(expiry_hours=24, db_path=tmp_path / "app.db")
+        worker_b = AdminTokenTracker(expiry_hours=24, db_path=tmp_path / "app.db")
+
+        assert validate_admin_approval_token(TOKEN, HASH, "admin-1", worker_a) == (True, "hash")
+        assert validate_admin_approval_token(TOKEN, HASH, "admin-2", worker_b) == (False, "already_used")
+
+    def test_concurrent_uses_of_one_token_admit_exactly_one(self, tmp_path) -> None:
+        outcomes: list[tuple[bool, str]] = []
+        lock = threading.Lock()
+        start = threading.Barrier(8)
+
+        def attempt(index: int) -> None:
+            tracker = AdminTokenTracker(expiry_hours=24, db_path=tmp_path / "app.db")
+            start.wait()
+            outcome = validate_admin_approval_token(TOKEN, HASH, f"admin-{index}", tracker)
+            with lock:
+                outcomes.append(outcome)
+
+        threads = [threading.Thread(target=attempt, args=(index,)) for index in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert outcomes.count((True, "hash")) == 1
+        assert all(outcome == (False, "already_used") for outcome in outcomes if outcome[0] is False)
+
+    def test_the_race_is_settled_by_the_claim_not_by_the_check(self, tracker: AdminTokenTracker) -> None:
+        """The deterministic form of the race above: the check says unused, and
+        another request spends the token before this one claims it."""
+
+        tracker.is_token_used = lambda digest: False  # the check lost the race
+        assert tracker.claim(HASH, "admin-0") is True  # the other request's claim
+
+        assert validate_admin_approval_token(TOKEN, HASH, "admin-1", tracker) == (False, "already_used")
+
+    def test_an_expired_record_can_be_claimed_again(self, tracker: AdminTokenTracker) -> None:
+        assert tracker.claim(HASH, "admin-1") is True
+        assert tracker.claim(HASH, "admin-2") is False
+
+        _age_record(tracker, HASH, 25)
+        assert tracker.claim(HASH, "admin-2") is True

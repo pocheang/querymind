@@ -26,7 +26,7 @@ from app.api.dependencies import (
 from app.api.deps.auth import require_admin
 from app.api.deps.documents import _allowed_sources_for_user
 from app.api.routes.internal.pipeline_contract import record_query_analytics, retrieval_summary
-from app.api.transport.errors import internal_error, service_unavailable
+from app.api.transport.errors import internal_error, quota_exceeded, service_unavailable
 from app.api.transport.middleware import record_grounding_support
 from app.core.config import get_settings
 from app.domain.advanced_rag import (
@@ -36,6 +36,7 @@ from app.domain.advanced_rag import (
     PendingApprovalView,
     SubQueryResult,
 )
+from app.orchestration import shared_execution
 from app.pipeline.contracts import (
     ConversationMessage,
     PipelineContext,
@@ -49,6 +50,8 @@ from app.pipeline.rag_pipeline import RAGPipeline
 from app.services.observability.agent_execution_tracker import AgentExecutionTracker
 from app.services.observability.log_safety import question_ref
 from app.services.query.decomposer import DEFAULT_MAX_SUB_QUERIES
+from app.services.runtime.shared_state import is_shared
+from app.services.security.quota import get_quota_guard
 from app.services.security.rbac import Permission
 
 logger = logging.getLogger(__name__)
@@ -142,6 +145,17 @@ class AdvancedRAGRequest(BaseModel):
             "ever be inspected after the fact."
         ),
     )
+
+
+def _session_conversation(user: dict[str, Any], session_id: str | None, question: str) -> tuple:
+    """Read the session and its memories -- synchronous SQLite, so called off the event loop.
+
+    Opening a user's memory store for the first time takes SQLite's write lock
+    to import their older JSON payloads, and another worker may hold it; on the
+    loop that wait would stall every request in this process, not just this one.
+    """
+
+    return _conversation_for(user, session_id, _build_memory_context_for_session(user, session_id, question))
 
 
 def _conversation_for(
@@ -437,8 +451,7 @@ async def _run_advanced_query(
     execution_id: str,
 ) -> AdvancedRAGResult:
     allowed_sources = _resolve_advanced_allowed_sources(user, request_data.allowed_sources)
-    memory_context = _build_memory_context_for_session(user, session_id, request_data.query)
-    conversation = _conversation_for(user, session_id, memory_context)
+    conversation = await asyncio.to_thread(_session_conversation, user, session_id, request_data.query)
     pipeline_request = PipelineRequest(
         question=request_data.query,
         profile=PipelineProfile.ADVANCED,
@@ -553,6 +566,20 @@ def _raise_advanced_query_failure(exc: Exception, tracker, execution_id: str, qu
     ) from exc
 
 
+async def _execution_id_taken(tracker, execution_id: str) -> bool:
+    """Whether a client-chosen id already names a run -- on this worker, or with shared state on any.
+
+    Checking only this process let a client claim an id another worker's
+    in-flight request was using, and then watch that run's stream.
+    """
+
+    if tracker.get_execution_trace(execution_id) is not None:
+        return True
+    if is_shared():
+        return await asyncio.to_thread(shared_execution.execution_exists, execution_id)
+    return False
+
+
 async def _process_advanced_rag_query_impl(
     request_data: AdvancedRAGRequest,
     request: Request,
@@ -588,7 +615,7 @@ async def _process_advanced_rag_query_impl(
         except (ValueError, AttributeError):
             requested_execution_id = None
 
-    if requested_execution_id is not None and tracker.get_execution_trace(requested_execution_id) is not None:
+    if requested_execution_id is not None and await _execution_id_taken(tracker, requested_execution_id):
         requested_execution_id = None
     execution_id = tracker.start_execution(
         request_data.query,
@@ -601,7 +628,22 @@ async def _process_advanced_rag_query_impl(
         tracker.complete_execution(execution_id, result.model_dump())
         return result
     except Exception as exc:
+        failure = _retrieval_failure(exc)
+        if failure is not None and _refused_only_by_web_quota(failure):
+            # Not an outage: web was the only source and the caller's web quota
+            # refused every search. A 503 would send someone to look at the
+            # infrastructure; the truth is "wait", and for how long.
+            tracker.fail_execution(execution_id, "web search quota exceeded")
+            user_id = str(user.get("user_id", "") or "")
+            retry_after = await asyncio.to_thread(get_quota_guard().web_retry_after, user_id)
+            raise quota_exceeded(
+                "Web search quota exceeded, and web search was the only source for this question.", retry_after
+            ) from exc
         _raise_advanced_query_failure(exc, tracker, execution_id, request_data.query)
+
+
+def _refused_only_by_web_quota(failure: RetrievalFailureError) -> bool:
+    return failure.failed_retrievers == {"web"} and failure.error_types.get("web") == "WebQuotaExceededError"
 
 
 @router.post("/query", response_model=AdvancedRAGResult)

@@ -248,7 +248,18 @@ def test_a_retired_per_user_configuration_is_cleared(auth_service):
 def test_the_purge_runs_at_startup():
     """A purge nothing calls is the defect this whole file is about."""
 
-    source = (APP / "api" / "application" / "lifespan.py").read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    called = {node.func.id for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
-    assert "_purge_retired_user_model_settings" in called
+    def called_in(path, function: str | None = None) -> set[str]:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        if function is not None:
+            # AsyncFunctionDef too: `lifespan` is an `async def`, and the first version of
+            # this helper looked only at plain functions, so it could never find it.
+            functions = (ast.FunctionDef, ast.AsyncFunctionDef)
+            tree = next(n for n in ast.walk(tree) if isinstance(n, functions) and n.name == function)
+        return {n.func.id for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+
+    # lifespan -> _run_startup_tasks -> app.init_app.run -> the purge; every hop is checked,
+    # because a chain is only as reachable as its weakest link.
+    assert "_run_startup_tasks" in called_in(APP / "api" / "application" / "lifespan.py", "lifespan")
+    assert "run" in called_in(APP / "api" / "application" / "lifespan.py", "_run_startup_tasks")
+    assert "purge_retired_user_model_settings" in called_in(APP / "init_app.py", "run")
+    assert "purge_user_api_settings" in called_in(APP / "init_app.py", "purge_retired_user_model_settings")

@@ -20,6 +20,7 @@ from pathlib import Path
 
 from app.core.config import get_settings
 from app.mcp.contracts import ConnectorCredential
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 
 
 class BaseConnectorRepository:
@@ -28,7 +29,7 @@ class BaseConnectorRepository:
     def __init__(self, db_path: Path | None = None) -> None:
         self.db_path = db_path or get_settings().app_db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_schema()
+        ensure_schema(self.db_path, self.SCHEMA_COMPONENT, self.MIGRATIONS, wal=True)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -36,29 +37,30 @@ class BaseConnectorRepository:
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
-    def _init_schema(self) -> None:
-        raise NotImplementedError
+    # Each repository names its component and migrations (app/services/runtime/sqlite_schema.py).
+    SCHEMA_COMPONENT: str = ""
+    MIGRATIONS: tuple[Migration, ...] = ()
 
 
 class CredentialRepository(BaseConnectorRepository):
     """Persist encrypted credentials without a plaintext accessor."""
 
-    def _init_schema(self) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS connector_credentials (
-                  credential_id TEXT PRIMARY KEY,
-                  connector_id TEXT NOT NULL,
-                  owner_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-                  encrypted_secret TEXT NOT NULL,
-                  display_value TEXT NOT NULL
-                )
-                """
+    SCHEMA_COMPONENT = "connector_credentials"
+
+    @staticmethod
+    def _baseline_schema(conn: sqlite3.Connection) -> None:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS connector_credentials (
+              credential_id TEXT PRIMARY KEY,
+              connector_id TEXT NOT NULL,
+              owner_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              encrypted_secret TEXT NOT NULL,
+              display_value TEXT NOT NULL
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_connector_credentials_owner ON connector_credentials(owner_id)"
-            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_connector_credentials_owner ON connector_credentials(owner_id)")
 
     def save(self, credential: ConnectorCredential) -> ConnectorCredential:
         with self._connect() as conn:
@@ -114,3 +116,8 @@ class CredentialRepository(BaseConnectorRepository):
             encrypted_secret=row["encrypted_secret"],
             display_value=row["display_value"],
         )
+
+
+CredentialRepository.MIGRATIONS = (
+    Migration(1, "baseline: connector_credentials", CredentialRepository._baseline_schema),
+)

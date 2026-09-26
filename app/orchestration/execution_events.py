@@ -30,7 +30,11 @@ class ExecutionEventStore:
         *,
         max_executions: int = _MAX_EXECUTIONS,
         max_events_per_execution: int = _MAX_EVENTS_PER_EXECUTION,
+        mirror_to_shared: bool = False,
     ) -> None:
+        # Only the process-wide store mirrors: with STATE_BACKEND=shared the SSE
+        # subscriber may be on another worker, and reads the shared stream.
+        self._mirror_to_shared = mirror_to_shared
         self._events: OrderedDict[str, list[ExecutionEvent]] = OrderedDict()
         self._max_executions = max_executions
         self._max_events_per_execution = max_events_per_execution
@@ -55,6 +59,8 @@ class ExecutionEventStore:
                 self._events.move_to_end(execution_id)
             if len(events) < self._max_events_per_execution:
                 events.append(event)
+        if self._mirror_to_shared:
+            _mirror(execution_id, event)
 
     def events_since(self, execution_id: str, offset: int) -> tuple[ExecutionEvent, ...]:
         """Return an immutable ordered slice without leaking storage internals."""
@@ -62,7 +68,15 @@ class ExecutionEventStore:
             return tuple(self._events.get(execution_id, ())[offset:])
 
 
-_default_store = ExecutionEventStore()
+def _mirror(execution_id: str, event: ExecutionEvent) -> None:
+    from app.orchestration import shared_execution
+    from app.services.runtime.shared_state import is_shared
+
+    if is_shared():
+        shared_execution.publish_event(execution_id, event)
+
+
+_default_store = ExecutionEventStore(mirror_to_shared=True)
 
 
 def get_default_execution_event_store() -> ExecutionEventStore:

@@ -57,7 +57,7 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 └────────────────────────────────────────┬────────────────────────────────────────┘
                                          │ HTTP / REST / SSE Stream
 ┌────────────────────────────────────────▼────────────────────────────────────────┐
-│                   FastAPI Enterprise Gateway (Python 3.11+)                     │
+│        FastAPI Enterprise Gateway (Python 3.11+, gunicorn × N workers)          │
 │  ┌───────────────────────────────────────────────────────────────────────────┐  │
 │  │                    Canonical LangGraph Orchestration Pipeline             │  │
 │  │                                                                           │  │
@@ -79,13 +79,17 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 │  └───────────────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────┬────────────────────────────────────────┘
                                          │
-        ┌────────────────────────────────┼────────────────────────────────┐
-        ▼                                ▼                                ▼
-┌─────────────────┐            ┌───────────────────┐            ┌─────────────────┐
-│ ChromaDB 0.5+   │            │ SQLite            │            │ Neo4j 5.24+     │
-│ 向量嵌入 (BGE)   │            │ 用户/会话/审计/元数据│            │ 知识图谱多跳拓扑  │
-└─────────────────┘            └───────────────────┘            └─────────────────┘
+       ┌──────────────────┬──────────────┴───┬──────────────────┐
+       ▼                  ▼                  ▼                  ▼
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│ Chroma 1.5   │   │ SQLite (WAL) │   │ Redis 7.4    │   │ Neo4j 5.26   │
+│ 向量检索      │   │ 用户/会话/审计 │   │ 限流/事件流   │   │ 知识图谱      │
+│ (服务端模式)  │   │ 版本化迁移    │   │ 摄取队列      │   │ (可选)        │
+└──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘
 ```
+
+多个 API worker 之间需要一致的状态（限流、审批令牌、执行事件流、会话历史、摄取任务）放在 Redis 与 SQLite 里，
+而不是各进程的内存里；写入文档索引的只有一个 `ingest-worker`。部署细节见 [deploy/README.md](deploy/README.md)。
 
 ### 🧩 核心智能体组件设计理念
 
@@ -146,9 +150,9 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 | **跨文档 P@5** | **0.4000（上限 0.4500）** | 同上，也是全项目**唯一一个 P@5 低于自身上限**的地方——即它终于在测检索，而不是在测标注。 |
 | **全链路检索质量** | **未测量（会拒绝）** | `make eval-full-pipeline` 测向量 + BM25 + 交叉编码器重排，但在本机**退出码 2、一个数字都不输出**：两个模型都以 `local_files_only=True` 加载，缺失时静默降级成词面回退和哈希嵌入。一个测错东西的绿色数字比没有数字更糟。 |
 | **端点数量** | **157** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
-| **后端行覆盖率** | **62.0%**（基线 61.8%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。 |
+| **后端行覆盖率** | **69.8%**（基线 68.6%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。数字取自 CI 的 Python 3.11 任务。 |
 | **认知复杂度** | **0 个函数 > 15** | `tests/core/test_cognitive_complexity_is_bounded.py`，覆盖 `app/` 与 `scripts/` 的硬门禁。`scripts/audit/cognitive_complexity.py` 本地实现了 Sonar 的评分规则，`--validate` 能逐条复现项目全部 75 条历史 S3776 发现。 |
-| **测试数量** | **2,697 后端 / 222 前端** | `pytest -q` 报告 2,697 passed / 3 skipped / 2 xfailed，`vitest` 报告 222 passed（32 文件）。写运行时真正打印的数字，而不是单一总数：`--collect-only` 与运行结果按不同口径计数，差值来自 import 阶段就跳过的模块，不是丢了用例。 |
+| **测试数量** | **3,498 后端 / 232 前端** | CI 的 Python 3.11 任务（Linux，带 Redis 与 Chroma 服务容器）报告 3,498 passed、0 skipped；Windows 本机 `make test-ci` 报告 3,483 passed / 15 skipped——5 个是 Windows 上跑不了的用例，10 个是没配 Redis/Chroma 时的多进程组。`vitest` 报告 232 passed（35 文件）。没有 xfail。写运行时真正打印的数字，而不是单一总数。 |
 | **入口包体积** | **151.5 KB gzip** | `npm run build` 实测：入口 chunk 441 KB 原始 / 151.5 KB gzip，主样式 142 KB / 38.6 KB gzip，其余按路由拆成 40 个懒加载 chunk。 |
 | **Router 意图准确率** | **没有测量** | 项目里**不存在**标注过的路由测试集。此处曾写 99.1%，那个数字没有任何东西在测。 |
 | **引用完整性** | **没有聚合测量** | 每个回答由校验级联的引用阶段**逐条强制执行**，但从未在一个查询集上打过总分。 |
@@ -185,11 +189,13 @@ pip install -e ".[office]"
 # 3. 启动 FastAPI 后端服务（自动初始化 SQLite 与内置 ChromaDB）
 uvicorn app.api.main:app --host 127.0.0.1 --port 8000
 ```
+> 本地这样起的是**单进程**（`STATE_BACKEND` 默认 `memory`），不需要 Redis。要多个 worker 就用下面的 Docker 部署：
+> 启动检查会拒绝 `APP_WORKERS>1` 却没设 `STATE_BACKEND=shared` 的组合。
 > 💡 **管理员账号怎么来**
 >
 > 本项目**不内置任何默认密码**——仓库里的凭据等于每一份 checkout 里的凭据。账号按下述规则产生：
 >
-> - **仅当数据库里没有任何"启用中的管理员"时**，启动会自动创建一个，并把密码打到 **stderr（终端 / `docker logs`）打印一次**，只存哈希。已经有管理员的部署重启不会创建，也不会重复打印。
+> - **仅当数据库里没有任何"启用中的管理员"时**，启动会自动创建一个，并把密码打到 **stderr 打印一次**，只存哈希。本地是终端；Docker 部署由一次性的 `init` 服务创建，密码在 `docker compose logs init` 里。已经有管理员的部署重启不会创建，也不会重复打印。
 > - 想自己指定，就在**真实进程环境变量**里设 `ADMIN_USERNAME` / `ADMIN_PASSWORD`（密码需满足：12 位以上，含大小写、数字、特殊字符）。
 >   ⚠️ 写进 `.runtime/*.env` **无效**——那个文件只会被读进 `Settings`，不会导出到进程环境，而这两个键是直接 `os.getenv` 读的。
 > - 若该用户名已被一个非管理员账号占用，启动会**报错并拒绝**，不会把它提权（凭用户名撞车就提权等于按字符串提权）。换个 `ADMIN_USERNAME` 即可。
@@ -238,9 +244,15 @@ export OLLAMA_BASE_URL="http://localhost:11434"
 QueryMind 提供了生产环境标准的 Docker Compose 一键式编排体系：
 
 ```bash
-# 一键拉起完整生产容器栈 (API + Frontend Nginx + Prometheus + Grafana + Neo4j)
+# 生产栈：init → backend（gunicorn，默认 2 个 worker）+ ingest-worker + Redis + Chroma 服务端 + Neo4j + 前端 Nginx
 ./deploy/scripts/deploy.sh production balanced
+# 加上 Prometheus / Alertmanager / Grafana
+./deploy/scripts/deploy.sh production balanced --monitoring
 ```
+
+- **多 worker 是默认的**：Compose 里 `STATE_BACKEND=shared`，Redis 和 Chroma 服务端因此是**必需**的依赖；Redis 不可用时登录、查询等接口返回 503，而不是悄悄退回按进程计数。
+- **从旧版本升级**：第一次部署前先 `docker compose down`（**不要加 `-v`**，那会删掉数据卷）。`init` 服务会把旧的文件会话和内置向量库迁移过去并逐条核对，核对失败就不启动 backend。
+- 完整说明（worker 数、可信代理、超时、迁移、多进程测试）见 [deploy/README.md](deploy/README.md)。
 
 ---
 
@@ -249,15 +261,17 @@ QueryMind 提供了生产环境标准的 Docker Compose 一键式编排体系：
 ```
 QueryMind Technology Stack
 ├── Backend Core
-│   ├── Framework: FastAPI 0.138+ (ASGI, 强类型 Pydantic v2 Settings)
-│   ├── Workflow Engine: LangGraph 0.2+ (有状态多智能体图编排)
-│   ├── LLM Ecosystem: LangChain 0.3+, Ollama SDK, OpenAI, Anthropic
-│   ├── Vector Database: ChromaDB 0.5+ (轻量嵌入式 / Client-Server 模式)
-│   ├── Graph Database: Neo4j 5.24+ (Cypher 图遍历，关系推理)
+│   ├── Framework: FastAPI 0.141 (ASGI, 强类型 Pydantic v2 Settings)
+│   ├── Process Model: gunicorn 23 + uvicorn workers (APP_WORKERS，生产默认 2 个)
+│   ├── Workflow Engine: LangGraph 1.2 (有状态多智能体图编排)
+│   ├── LLM Ecosystem: LangChain, Ollama SDK, OpenAI, Anthropic
+│   ├── Vector Database: ChromaDB 1.5 (本地单进程嵌入式 / 部署时服务端模式)
+│   ├── Shared State & Queue: Redis 7.4 (限流、执行事件流、缓存失效代计数), RQ (摄取队列)
+│   ├── Graph Database: Neo4j 5.26 (Cypher 图遍历，关系推理，可选)
 │   ├── Search & Tokenizer: rank-bm25, jieba, Sentence-Transformers
 │   ├── Embeddings & Reranker: BGE-M3 (密集向量), BGE-Reranker-V2-M3
 │   ├── Table Analytics: DuckDB (只读、关闭外部访问) / SQLite 回退
-│   └── Database & Security: SQLite (本地轻量持久化), Passlib PBKDF2, PyJWT
+│   └── Database & Security: SQLite (WAL + 版本化迁移), Passlib PBKDF2, PyJWT
 ├── Frontend Modern Web
 │   ├── Core Framework: React 18.3, TypeScript 5.9, Vite 6
 │   ├── Styling System: Tailwind CSS v4 (@theme, CSS 原生变量, tw-animate-css)
@@ -267,11 +281,11 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (Linter & Formatter), Pre-commit (CI 内同样执行)
-    ├── Testing: Pytest (后端 2,697 用例), Vitest (前端 222 用例), Prettier
+    ├── Testing: Pytest (后端 3,498 用例，含真实 Redis/Chroma 上的多进程组), Vitest (前端 232 用例), Prettier
     ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 22+24 / images / analysis)
     ├── Security: CodeQL (python + js-ts), pip-audit + npm audit 门禁, Trivy 镜像扫描（每周）
     ├── Static Analysis: SonarCloud Quality Gate, 认知复杂度本地门禁 (S3776, 0 超标)
-    └── Observability: Prometheus Metrics (/metrics), Grafana Dashboard
+    └── Observability: Prometheus Metrics (/metrics，多进程模式汇总所有 worker), Grafana Dashboard
 ```
 
 ---
@@ -306,8 +320,7 @@ multi_agent_rag_local_v4/
 ├── docs/                       # 架构与开发文档中心
 │   └── releases/               # 历史版本发布说明 (v0.7.0.1 Release Notes)
 ├── tests/                      # 自动化测试套件 (Pytest 单元、集成、安全回归测试)
-├── pyproject.toml              # Python 构建配置与依赖锁定声明
-└── CLAUDE.md                   # 架构技术规范与工程实现备忘录
+└── pyproject.toml              # Python 构建配置与依赖锁定声明
 ```
 
 ---
@@ -315,13 +328,15 @@ multi_agent_rag_local_v4/
 ## 🧪 Testing & CI (工程质量与持续集成)
 
 ```bash
-# 后端：2,697 passed / 3 skipped / 2 xfailed（跳过的是缺可选的 openpyxl）
-pytest -q
-
-# 推送前用这个：把 CI 不安装的可选包（pytesseract / pdfplumber / sentence-transformers）屏蔽掉跑一遍
+# 后端，推送前用这个：屏蔽 CI 不安装的可选包、不读本机 .runtime/ 与 data/，结果可复现
+# Windows 本机：3,483 passed / 15 skipped；CI（Linux + Redis + Chroma）：3,498 passed
 make test-ci
 
-# 前端：222 项用例，32 个文件
+# 多进程组：两个 API 进程 + init + ingest-worker，需要真实的 Redis 和 Chroma 服务端（没配置时整组跳过）
+make up
+QM_INTEGRATION_REDIS_URL=redis://:PASSWORD@127.0.0.1:6379/0 QM_INTEGRATION_CHROMA_URL=http://127.0.0.1:8001 pytest tests/integration/multiworker -q
+
+# 前端：232 项用例，35 个文件
 cd frontend && npm test -- --run
 
 # 静态检查
@@ -345,7 +360,7 @@ make eval-full-pipeline
 | Job | 内容 |
 | :--- | :--- |
 | `lint` | 敏感内容闸门 + ruff。**不装项目依赖**，所以一分钟内出结果——风格问题不会再把测试结果挡在后面。 |
-| `backend` | 按 lock 安装、pre-commit 全量、pytest + 覆盖率 + 覆盖率棘轮。**3.11 / 3.12 矩阵**。 |
+| `backend` | 按 lock 安装、pre-commit 全量、pytest + 覆盖率 + 覆盖率棘轮。**3.11 / 3.12 矩阵**；3.11 任务另起 Redis 与 Chroma 服务容器，跑多进程组（两个 API 进程 + init + ingest-worker）。 |
 | `frontend` | eslint、tsc、prettier、设计尺度棘轮、vitest + 覆盖率、build、死类名审计。**Node 22 / 24 矩阵**（下限 22.22.2）。 |
 | `images` | 校验九种环境×profile 配置组合，构建两个 Dockerfile，**然后真的把它们跑起来**：两个容器上同一个网络，对着它们发真实请求，再用无头 Chromium 打开页面。 |
 | `analysis` | 下载前后端两份覆盖率报告到同一个工作区，SonarCloud 扫描（当前休眠，等 `SONAR_TOKEN`）。 |
@@ -358,13 +373,12 @@ make eval-full-pipeline
 - ✅ **棘轮双向失败。** 覆盖率掉了是回归，涨了说明基线过期；端点数少了是 router 掉了，多了是基线该更新。只能涨不能收的豁免名单会从「决策记录」退化成「不做决策的方式」。
 - ✅ **容器不只是构建，还要服务。** jsdom 测试、`npm run build`、`nginx -t` 全都能在一个**只会显示白屏**的部署上通过。冒烟检查断言 `/api/advanced-rag/health` 返回的是 JSON 而不是 SPA 兜底的 `index.html`——只有这一条能发现代理没接到后端。
 - ✅ **Pre-commit 在 CI 里有副本。** 钩子能被 `--no-verify` 绕过，在没跑过 `pre-commit install` 的新 clone 里则根本不存在。
-- ✅ **SonarCloud 严苛审查（100% 满分 Quality Gate）**：SonarCloud 官方全指标通过（Bugs: 0, Vulnerabilities: 0, Security Hotspots: 0, Code Smells: 0），高认知复杂度（S3776）全量解耦重构，**Duplicated Lines 彻底归零（0 行 / 0 块，0.0% 重复率）**。
+- ✅ **SonarCloud Quality Gate 通过**：main 分支（2026-09-26 查询）0 Bugs / 0 Vulnerabilities / 0 Security Hotspots；认知复杂度（S3776）由本地门禁保持 0 个函数超标。Code smell（9）和重复率（0.1%）不为零，以 [SonarCloud 仪表盘](https://sonarcloud.io/dashboard?id=pocheang_querymind) 为准——这里曾写“全部为 0”，那是某一天的快照，写在 README 里就会过期。
 
 ---
 
 ## 📜 Documentation Index (文档索引)
 
-- 📗 **[CLAUDE.md](CLAUDE.md)**：系统底层实现细节、设计决策演进与工程规范
 - 📝 **[v0.7.0.3 发布说明](docs/releases/v0.7.0.3-release-notes.md)**：最新版本——动态双轨制澄清 Agent（静态规则快速通道 + LLM 真实智能反问）、交互提问规范对标 Codex/Claude Code、SonarQube 质量门禁 100% 满分通过
 - 📝 **[v0.7.0.2 发布说明](docs/releases/v0.7.0.2-release-notes.md)**：SonarQube 质量门禁全量通过（安全漏洞/缺陷/代码异味 100% 清零）、重复代码彻底归零（0 块 / 0.0% 重复率）、前端可视化拓扑与管理状态解耦重构
 - 📝 **[v0.7.0.1 发布说明](docs/releases/v0.7.0.1-release-notes.md)**：表格与 Excel/CSV、表格 SQL 分析、图谱社区、多搜索源、提示词注入防护及升级说明

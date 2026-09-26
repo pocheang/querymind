@@ -1,5 +1,6 @@
 import logging
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -11,8 +12,16 @@ from app.retrievers.bm25_retriever import reset_bm25_cache
 from app.retrievers.hybrid.retriever import clear_retrieval_cache
 from app.retrievers.stores.corpus import documents_to_records, read_corpus_records, write_corpus_records
 from app.retrievers.stores.parent import read_parent_records, write_parent_records
-from app.retrievers.stores.vector import add_documents, clear_vector_store_cache, get_vector_store
+from app.retrievers.stores.vector import (
+    clear_vector_store_cache,
+    delete_documents_by_ids,
+    embed_texts,
+    get_vector_store,
+    upsert_texts,
+)
+from app.services.documents.index_lock import index_writes
 from app.services.evidence import ArtifactStore, ManifestStore, ParsedDocument, build_manifest
+from app.services.runtime.invalidation import announce
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +39,37 @@ def _merge_records_by_id(existing: list[dict], incoming: list[dict]) -> list[dic
     return [merged[row_id] for row_id in order]
 
 
+@dataclass
+class PreparedIngest:
+    """Everything an ingest has worked out before it writes anything.
+
+    Parsing, OCR, chunking, embedding and triplet extraction all happen while
+    building this, with no lock held; `commit_ingest` only writes it, under the
+    index lock (ARC-01 phase 5). The split is what lets a request that wants to
+    delete a document wait seconds rather than for somebody else's embedding.
+    """
+
+    docs: list[Any]
+    parsed_documents: list[ParsedDocument]
+    chunks: list[Any]
+    parent_records: list[dict]
+    records: list[dict]
+    chunk_embeddings: list[list[float]]
+    images: list[Any] = field(default_factory=list)
+    image_embeddings: list[list[float]] | None = None
+    tables: list[tuple[Any, dict[str, Any]]] = field(default_factory=list)
+    table_embeddings: list[list[float]] | None = None
+    graph_client: Any = None
+    triplet_rows: list[dict[str, Any]] = field(default_factory=list)
+    extraction_errors: int = 0
+    triplet_methods: dict[str, int] = field(default_factory=dict)
+
+    def close(self) -> None:
+        if self.graph_client is not None:
+            self.graph_client.close()
+            self.graph_client = None
+
+
 def ingest_paths(
     paths: list[Path],
     reset_vector_store: bool = False,
@@ -37,40 +77,99 @@ def ingest_paths(
     parser_profiles_by_source: dict[str, dict[str, Any]] | None = None,
     persist_evidence: bool = True,
 ) -> dict:
-    """Load, index and graph-extract a set of files, and report what happened."""
+    """Load, index and graph-extract a set of files, and report what happened.
 
-    docs, parsed_documents, images_indexed, tables_indexed = _load_documents(
-        paths, metadata_overrides_by_source, persist_evidence
-    )
-    if not docs:
+    Waits for the index lock as long as it takes: this is the ingest worker's
+    path, not a request's.
+    """
+
+    prepared = prepare_ingest(paths, metadata_overrides_by_source, parser_profiles_by_source, persist_evidence)
+    if prepared is None:
         # Deliberately shorter than the result below: there is no chunk, page or
         # manifest to report. Evidence has still been persisted for whatever
         # parsed to no text -- this discards the manifest it just wrote.
         return {"loaded_documents": 0, "chunks_indexed": 0, "triplets_written": 0}
+    try:
+        with index_writes():
+            result = commit_ingest(prepared, reset_vector_store=reset_vector_store)
+    finally:
+        prepared.close()
+    # This process cleared its own BM25 and retrieval caches while committing;
+    # every other process learns of the new corpus on its next request.
+    announce("corpus")
+    return result
 
-    pages_by_source = _pages_by_source(docs)
-    sources = {str((doc.metadata or {}).get("source", "")) for doc in docs}
-    sources.discard("")
 
+def prepare_ingest(
+    paths: list[Path],
+    metadata_overrides_by_source: dict[str, dict[str, Any]] | None = None,
+    parser_profiles_by_source: dict[str, dict[str, Any]] | None = None,
+    persist_evidence: bool = True,
+) -> PreparedIngest | None:
+    """Parse, chunk, embed and extract, writing nothing to the index. None if nothing loaded."""
+
+    docs, parsed_documents, images, tables = _load_documents(paths, metadata_overrides_by_source, persist_evidence)
+    if not docs:
+        return None
     chunks, parent_records = split_documents(docs)
-    records = _write_records(chunks, parent_records, reset_vector_store=reset_vector_store)
-    _rebuild_vector_index(chunks, [record["id"] for record in records], reset_vector_store=reset_vector_store)
-    count_triplets, triplet_methods = _write_graph_triplets(chunks, parser_profiles_by_source)
+    records = documents_to_records(chunks)
+    for chunk, record in zip(chunks, records, strict=False):
+        chunk.metadata = record["metadata"]
+    prepared = PreparedIngest(
+        docs=docs,
+        parsed_documents=parsed_documents,
+        chunks=chunks,
+        parent_records=parent_records,
+        records=records,
+        chunk_embeddings=embed_texts(None, [chunk.page_content for chunk in chunks]),
+        images=images,
+        image_embeddings=_embed_entries(images, "image_descriptions", _image_index_entry),
+        tables=tables,
+        table_embeddings=_embed_entries([t for t, _ in tables], "table_summaries", _table_index_entry),
+    )
+    prepared.graph_client = _graph_client()
+    if prepared.graph_client is not None:
+        try:
+            rows, errors, methods = _triplet_rows(chunks, parser_profiles_by_source)
+        except Exception as e:
+            logger.exception(f"Unexpected error during graph extraction: {e}")
+            rows, errors, methods = [], 0, {}
+        prepared.triplet_rows, prepared.extraction_errors, prepared.triplet_methods = rows, errors, methods
+    return prepared
 
+
+def commit_ingest(prepared: PreparedIngest, *, reset_vector_store: bool) -> dict:
+    """Write what `prepare_ingest` produced. The caller holds the index lock."""
+
+    # Vectors first: if they are refused, the corpus is untouched; if the corpus
+    # write then fails, the vectors just written are removed. Either way the two
+    # stores a delete reads together still agree. The reverse order left corpus
+    # rows naming vectors that were never written.
+    _write_chunk_vectors(prepared, reset_vector_store=reset_vector_store)
+    try:
+        _write_records(prepared.records, prepared.parent_records, reset_vector_store=reset_vector_store)
+    except BaseException:
+        delete_documents_by_ids([record["id"] for record in prepared.records])
+        raise
+    images_indexed = _write_images(prepared.images, prepared.image_embeddings)
+    tables_indexed = _write_tables(prepared.tables, prepared.table_embeddings)
+    count_triplets = _write_graph_triplets(prepared)
+    methods = prepared.triplet_methods
+    pages_by_source = _pages_by_source(prepared.docs)
+    sources = {str((doc.metadata or {}).get("source", "")) for doc in prepared.docs}
+    sources.discard("")
     return {
         # Files, not Document objects: one PDF arrives as one Document per page.
         "loaded_documents": len(sources),
-        "chunks_indexed": len(chunks),
+        "chunks_indexed": len(prepared.chunks),
         "triplets_written": count_triplets,
         # Which extractor produced the candidates, and how many the confidence
         # threshold dropped. A bare `triplets_written: 0` cannot distinguish "no
         # Neo4j", "nothing extractable" and "everything the rule extractor
         # produced was correctly rejected" -- and the last of those is the
         # default on an installation with no LLM.
-        "triplets_discarded_low_confidence": int(triplet_methods.get("discarded_low_confidence", 0)),
-        "triplet_methods": {
-            name: count for name, count in triplet_methods.items() if name != "discarded_low_confidence"
-        },
+        "triplets_discarded_low_confidence": int(methods.get("discarded_low_confidence", 0)),
+        "triplet_methods": {name: count for name, count in methods.items() if name != "discarded_low_confidence"},
         "images_indexed": images_indexed,
         "tables_indexed": tables_indexed,
         "pages_by_source": {source: len(pages) for source, pages in pages_by_source.items()},
@@ -80,7 +179,7 @@ def ingest_paths(
                 "version": parsed.document.version,
                 "tenant_id": parsed.document.tenant_id,
             }
-            for parsed in parsed_documents
+            for parsed in prepared.parsed_documents
         ],
     }
 
@@ -89,17 +188,18 @@ def _load_documents(
     paths: list[Path],
     metadata_overrides_by_source: dict[str, dict[str, Any]] | None,
     persist_evidence: bool,
-) -> tuple[list[Any], list[ParsedDocument], int, int]:
+) -> tuple[list[Any], list[ParsedDocument], list[Any], list[tuple[Any, dict[str, Any]]]]:
     """Parse each file and stamp every document it yields with its provenance.
 
     Metadata is layered loader < caller override < canonical, so the identifiers
-    the rest of the system scopes on cannot be overwritten by a caller.
+    the rest of the system scopes on cannot be overwritten by a caller. Returns
+    the images and tables to index alongside, read but not yet written.
     """
 
     docs: list[Any] = []
     parsed_documents: list[ParsedDocument] = []
-    images_indexed = 0
-    tables_indexed = 0
+    images: list[Any] = []
+    tables: list[tuple[Any, dict[str, Any]]] = []
     for path in paths:
         source = str(path)
         metadata = dict((metadata_overrides_by_source or {}).get(source, {}))
@@ -111,11 +211,39 @@ def _load_documents(
             image_id = str(doc.metadata.get("image_id", "") or "")
             if image_id in image_artifacts:
                 doc.metadata["artifact_uri"] = image_artifacts[image_id]
-        images_indexed += _index_images(parsed, image_artifacts, canonical)
-        tables_indexed += _index_tables(parsed, canonical)
+        images.extend(_image_contents(parsed, image_artifacts, canonical))
+        tables.extend(_table_contents(parsed, canonical))
         docs.extend(loaded)
         parsed_documents.append(parsed)
-    return docs, parsed_documents, images_indexed, tables_indexed
+    return docs, parsed_documents, images, tables
+
+
+def _embed_entries(contents: list[Any], collection: str, entry: Any) -> list[list[float]] | None:
+    """Embed each content's index text now, outside the lock; None if that is impossible.
+
+    None makes the writer embed under the lock instead -- slower for whoever
+    waits on it, but a failure to precompute is not a reason to lose the image.
+    """
+
+    if not contents:
+        return []
+    try:
+        return embed_texts(collection, [entry(content)[0] for content in contents])
+    except Exception as e:
+        logger.warning(f"multimodal_embedding_failed collection={collection} error={e}")
+        return None
+
+
+def _image_index_entry(image: Any) -> tuple[str, dict]:
+    from app.services.multimodal.image_processor import ImageProcessor
+
+    return ImageProcessor().index_entry(image)
+
+
+def _table_index_entry(table: Any) -> tuple[str, dict]:
+    from app.services.multimodal.table_extractor import TableExtractor
+
+    return TableExtractor().index_entry(table)
 
 
 # The multimodal source retrieves images by the text something managed to read out
@@ -125,34 +253,26 @@ def _load_documents(
 _IMAGE_ERROR_MARKER = "[image_ocr_error]"
 
 
-def _index_images(
-    parsed: ParsedDocument,
-    image_artifacts: dict[str, str],
-    canonical: dict[str, Any],
-) -> int:
-    """Index each of a document's images, and report how many became searchable.
+def _image_contents(parsed: ParsedDocument, image_artifacts: dict[str, str], canonical: dict[str, Any]) -> list[Any]:
+    """A document's images that something could read, ready to index.
 
     Synchronous on purpose. `ingest_paths` is reached from ``asyncio.to_thread``,
     where driving an event loop is the defect this repository has fixed twice, and
-    nothing here needs one: `ocr_image_bytes` is synchronous and so is the store.
+    nothing here needs one: `ocr_image_bytes` is synchronous.
     """
 
     if not parsed.images:
-        return 0
-
+        return []
     try:
         from app.ingestion.extraction.ocr import ocr_image_bytes
-        from app.services.multimodal.image_processor import ImageProcessor
         from app.services.multimodal.models import ImageContent
     except ImportError as e:
         # The `multimodal` extra is optional and ingesting a document is not.
         logger.info(f"image_indexing_unavailable error={e}")
-        return 0
+        return []
 
-    processor = ImageProcessor()
     source = Path(str(canonical.get("source", "") or ""))
-    indexed = 0
-
+    contents: list[Any] = []
     for image in parsed.images:
         text = _readable_image_text(image, ocr_image_bytes, source)
         if not text:
@@ -160,22 +280,41 @@ def _index_images(
             # "Tesseract executable not found" -- would make the diagnostic itself
             # retrievable, which is worse than the image being absent.
             continue
-        try:
-            processor.index_image(
-                ImageContent(
-                    image_id=image.image_id,
-                    doc_id=str(canonical.get("document_id", "") or ""),
-                    page_number=image.page,
-                    image_data=b"",  # the bytes live in the artifact store, not the index
-                    description=text,
-                    tenant_id=str(canonical.get("tenant_id", "") or ""),
-                    owner_user_id=str(canonical.get("owner_user_id", "") or ""),
-                    visibility=str(canonical.get("visibility", "private") or "private"),
-                    version=int(canonical.get("version", 1) or 1),
-                    artifact_uri=image_artifacts.get(image.image_id, ""),
-                    metadata={"source": str(canonical.get("source", "") or ""), "filename": image.filename},
-                )
+        contents.append(
+            ImageContent(
+                image_id=image.image_id,
+                doc_id=str(canonical.get("document_id", "") or ""),
+                page_number=image.page,
+                image_data=b"",  # the bytes live in the artifact store, not the index
+                description=text,
+                tenant_id=str(canonical.get("tenant_id", "") or ""),
+                owner_user_id=str(canonical.get("owner_user_id", "") or ""),
+                visibility=str(canonical.get("visibility", "private") or "private"),
+                version=int(canonical.get("version", 1) or 1),
+                artifact_uri=image_artifacts.get(image.image_id, ""),
+                metadata={"source": str(canonical.get("source", "") or ""), "filename": image.filename},
             )
+        )
+    return contents
+
+
+def _write_images(images: list[Any], embeddings: list[list[float]] | None) -> int:
+    """Index each prepared image, and report how many became searchable."""
+
+    if not images:
+        return 0
+    try:
+        from app.services.multimodal.image_processor import ImageProcessor
+    except ImportError as e:
+        # The `multimodal` extra is optional and ingesting a document is not.
+        logger.info(f"image_indexing_unavailable error={e}")
+        return 0
+
+    processor = ImageProcessor()
+    indexed = 0
+    for position, image in enumerate(images):
+        try:
+            processor.index_image(image, embedding=None if embeddings is None else embeddings[position])
             indexed += 1
         except Exception as e:
             logger.warning(f"image_index_failed image_id={image.image_id} error={e}")
@@ -221,34 +360,25 @@ def _readable_image_text(image: Any, ocr_image_bytes: Any, source: Path) -> str:
     return "\n\n".join(part for part in parts if part)[:4000]
 
 
-def _index_tables(
-    parsed: ParsedDocument,
-    canonical: dict[str, Any],
-) -> int:
-    """Index each table as a unit, and report how many became searchable.
+def _table_contents(parsed: ParsedDocument, canonical: dict[str, Any]) -> list[tuple[Any, dict[str, Any]]]:
+    """A document's tables, each as one unit ready to index.
 
     The chunker splits by size, so a table longer than a chunk is cut across
     several of them and none of the fragments carries the header row -- the
     classic way a retrieved table answers a question wrongly. Indexed whole, one
     hit is the whole table.
-
-    Synchronous for the same reason as `_index_images`: this runs in a worker
-    thread, and nothing here needs an event loop.
     """
 
     if not parsed.tables:
-        return 0
-
+        return []
     try:
-        from app.services.multimodal.table_extractor import TableExtractor
+        from app.services.multimodal.models import TableContent  # noqa: F401 - probes the optional extra
     except ImportError as e:
         # As above: without the extra a document still ingests, with no tables
         # indexed rather than no ingest at all.
         logger.info(f"table_indexing_unavailable error={e}")
-        return 0
-
-    extractor = TableExtractor()
-    return sum(1 for table in parsed.tables if _index_one_table(extractor, table, canonical))
+        return []
+    return [(content, canonical) for table in parsed.tables if (content := _table_content(table, canonical))]
 
 
 def _build_table_summary(page: int, sheet: str, headers: list[str], rows: list[list[str]]) -> str:
@@ -276,17 +406,17 @@ def _register_in_table_store(canonical: dict[str, Any], content: Any, table_id: 
         logger.debug(f"TableStore registration skipped for {table_id}: {te}")
 
 
-def _index_one_table(extractor: Any, table: Any, canonical: dict[str, Any]) -> bool:
-    """Index one table; False for an empty table or one the extractor rejects."""
+def _table_content(table: Any, canonical: dict[str, Any]) -> Any | None:
+    """One table as `TableContent`; None for an empty table or one that will not build."""
     from app.services.multimodal.models import TableContent
 
     headers, rows = _table_from_markdown(str(table.markdown or ""))
     if not headers and not rows:
-        return False
+        return None
     sheet = str(getattr(table, "sheet", "") or "")
     summary = _build_table_summary(table.page, sheet, headers, rows)
     try:
-        content = TableContent(
+        return TableContent(
             table_id=table.table_id,
             doc_id=str(canonical.get("document_id", "") or ""),
             page_number=table.page,
@@ -307,12 +437,33 @@ def _index_one_table(extractor: Any, table: Any, canonical: dict[str, Any]) -> b
                 "extraction_method": "loader_markdown",
             },
         )
-        extractor.index_table(content)
-        _register_in_table_store(canonical, content, table.table_id)
-        return True
     except Exception as e:
         logger.warning(f"table_index_failed table_id={table.table_id} error={e}")
-        return False
+        return None
+
+
+def _write_tables(tables: list[tuple[Any, dict[str, Any]]], embeddings: list[list[float]] | None) -> int:
+    """Index each prepared table and register it for SQL, and report how many became searchable."""
+
+    if not tables:
+        return 0
+    try:
+        from app.services.multimodal.table_extractor import TableExtractor
+    except ImportError as e:
+        logger.info(f"table_indexing_unavailable error={e}")
+        return 0
+
+    extractor = TableExtractor()
+    indexed = 0
+    for position, (table, canonical) in enumerate(tables):
+        try:
+            extractor.index_table(table, embedding=None if embeddings is None else embeddings[position])
+        except Exception as e:
+            logger.warning(f"table_index_failed table_id={table.table_id} error={e}")
+            continue
+        _register_in_table_store(canonical, table, table.table_id)
+        indexed += 1
+    return indexed
 
 
 def _table_from_markdown(markdown: str) -> tuple[list[str], list[list[str]]]:
@@ -359,16 +510,14 @@ def _pages_by_source(docs: list[Any]) -> dict[str, set[int]]:
     return pages_by_source
 
 
-def _write_records(chunks: list[Any], parent_records: list[dict], *, reset_vector_store: bool) -> list[dict]:
-    """Persist the corpus and parent rows, and hand each chunk its record metadata.
+def _write_records(records: list[dict], parent_records: list[dict], *, reset_vector_store: bool) -> None:
+    """Persist the corpus and parent rows. The caller holds the index lock.
 
     A reset run starts from nothing; every other run merges by id, so re-ingesting
-    one file replaces its rows and leaves the rest of the corpus alone.
+    one file replaces its rows and leaves the rest of the corpus alone. The read
+    and the write are one step under the lock: two ingests used to each write
+    back the corpus they had read, and one document's chunks were lost.
     """
-
-    records = documents_to_records(chunks)
-    for chunk, record in zip(chunks, records, strict=False):
-        chunk.metadata = record["metadata"]
 
     existing = [] if reset_vector_store else read_corpus_records()
     write_corpus_records(_merge_records_by_id(existing, records))
@@ -377,54 +526,65 @@ def _write_records(chunks: list[Any], parent_records: list[dict], *, reset_vecto
     write_parent_records(_merge_records_by_id(existing_parents, parent_records))
 
     reset_bm25_cache()
-    return records
 
 
-def _rebuild_vector_index(chunks: list[Any], record_ids: list[str], *, reset_vector_store: bool) -> None:
-    store = get_vector_store()
+def _write_chunk_vectors(prepared: PreparedIngest, *, reset_vector_store: bool) -> None:
     if reset_vector_store:
+        store = get_vector_store()
         try:
             store.delete_collection()
         except (RuntimeError, ValueError) as e:
             logger.warning(f"vector_store_delete_collection_failed: {e}", exc_info=True)
         clear_vector_store_cache()
         get_vector_store()  # reopen behind the cleared cache, so the collection exists again
-    add_documents(chunks, ids=record_ids)
+    upsert_texts(
+        None,
+        [record["id"] for record in prepared.records],
+        [chunk.page_content for chunk in prepared.chunks],
+        [record["metadata"] for record in prepared.records],
+        prepared.chunk_embeddings,
+    )
     clear_retrieval_cache()
 
 
-def _write_graph_triplets(
-    chunks: list[Any], parser_profiles_by_source: dict[str, dict[str, Any]] | None
-) -> tuple[int, dict[str, int]]:
-    """Extract and insert graph triplets, or write none without disturbing the run.
+def _graph_client() -> Any:
+    """A Neo4j client, or None when the graph is unavailable -- then nothing is extracted either.
 
-    Neo4j is optional throughout this system, so every failure here -- an absent
-    server, an unparseable chunk, a rejected batch -- costs the triplets and
-    nothing else.
-
-    Returns the count written and a per-extractor breakdown, because "wrote
-    nothing" now has several distinct causes and the caller cannot tell them
-    apart from a zero.
+    Any exception, not a list of them: the client connects on construction, and
+    an unreachable server raises the driver's own `ServiceUnavailable`, which is
+    neither of the `RuntimeError`/`ValueError` this used to catch. So a
+    configured-but-down Neo4j failed the whole ingest -- found by running the
+    shared-mode stack without one -- where the graph is meant to be optional.
     """
 
     try:
-        client = Neo4jClient()
-    except (ImportError, RuntimeError, ValueError) as e:
+        return Neo4jClient()
+    except Exception as e:
         logger.warning(
             f"Neo4j client initialization failed - graph features disabled. "
             f"Error: {e}. Check NEO4J_URI and credentials in environment.",
             exc_info=True,
         )
-        return 0, {}
+        return None
 
+
+def _write_graph_triplets(prepared: PreparedIngest) -> int:
+    """Insert the extracted triplets, or write none without disturbing the run.
+
+    Neo4j is optional throughout this system, so every failure here -- an absent
+    server, an unparseable chunk, a rejected batch -- costs the triplets and
+    nothing else.
+    """
+
+    if prepared.graph_client is None:
+        return 0
     try:
-        rows, extraction_errors, methods = _triplet_rows(chunks, parser_profiles_by_source)
-        return _insert_triplets(client, rows, extraction_errors, methods), methods
+        return _insert_triplets(
+            prepared.graph_client, prepared.triplet_rows, prepared.extraction_errors, prepared.triplet_methods
+        )
     except Exception as e:
         logger.exception(f"Unexpected error during graph ingestion: {e}")
-        return 0, {}
-    finally:
-        client.close()
+        return 0
 
 
 def _triplet_rows(

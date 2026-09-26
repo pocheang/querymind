@@ -58,7 +58,11 @@ def client(monkeypatch) -> TestClient:
         "_is_source_manageable_for_user",
         lambda source, user: str(source or "").startswith(f"/uploads/{user['user_id']}/"),
     )
-    monkeypatch.setattr(documents_route, "_require_registered_filename_source", lambda filename, source: None)
+    monkeypatch.setattr(
+        documents_route,
+        "_require_registered_filename_source",
+        lambda filename, source: next(dict(r) for r in _ROWS if r["source"] == source),
+    )
     monkeypatch.setattr(documents_route, "_require_permission", lambda *a, **k: None)
 
     performed: list[dict[str, Any]] = []
@@ -70,14 +74,15 @@ def client(monkeypatch) -> TestClient:
             or {"ok": True, "filename": filename, "removed_chunks": 1}
         ),
     )
-    monkeypatch.setattr(
-        documents_route,
-        "rebuild_document_index",
-        lambda filename, source, user_id: (
-            performed.append({"op": "reindex", "filename": filename, "source": source})
-            or {"ok": True, "filename": filename, "removed_chunks": 0}
-        ),
-    )
+    # A reindex is a queued job now (ARC-01 phase 5); record which document was queued.
+    monkeypatch.setattr(documents_route, "should_skip_reindex", lambda path: False)
+
+    def queue(*, document_id, user_id):
+        row = next(r for r in _ROWS if r["document_id"] == document_id)
+        performed.append({"op": "reindex", "filename": row["filename"], "source": row["source"]})
+        return {"status": "queued"}
+
+    monkeypatch.setattr(documents_route, "enqueue_reindex_job", queue)
 
     test_client = TestClient(main.app)
     test_client.performed = performed  # type: ignore[attr-defined]
@@ -147,7 +152,7 @@ def test_an_explicit_matching_source_still_works(client):
 def test_a_user_reindexes_their_own_document(client):
     response = client.post("/documents/notes.pdf/reindex", headers=_as("alice"))
 
-    assert response.status_code == 200
+    assert response.status_code == 202
     assert client.performed == [{"op": "reindex", "filename": "notes.pdf", "source": "/uploads/alice/notes.pdf"}]
 
 
@@ -164,7 +169,7 @@ def test_delete_by_id_targets_exactly_one_document(client):
 def test_reindex_by_id_targets_exactly_one_document(client):
     response = client.post("/documents/by-id/doc-alice-notes/reindex", headers=_as("alice"))
 
-    assert response.status_code == 200
+    assert response.status_code == 202
     assert client.performed == [{"op": "reindex", "filename": "notes.pdf", "source": "/uploads/alice/notes.pdf"}]
 
 
@@ -204,3 +209,37 @@ def test_a_refusal_is_audited_too(client, monkeypatch):
     client.delete(f"/documents/report.pdf?source={BOB_SOURCE}", headers=_as("alice"))
 
     assert [entry["result"] for entry in audits] == ["denied"]
+
+
+@pytest.mark.parametrize(("method", "suffix"), [("post", "/reindex"), ("delete", "")])
+def test_a_document_with_no_chunks_is_still_reachable_by_its_id(client, monkeypatch, method, suffix):
+    """A failed or not-yet-indexed document has no chunks, so its id comes only from its registry record.
+
+    The list merged that record in and offered the retry and delete buttons;
+    the action resolved against the unmerged rows and answered 404. Found by
+    failing an ingest in the running stack and trying to delete the document.
+    """
+
+    from app.services.documents import registry
+
+    source = "/uploads/alice/failed.pdf"
+    on_disk_only = {"filename": "failed.pdf", "source": source, "chunks": 0, "owner_user_id": None}
+    monkeypatch.setattr(documents_route, "_list_visible_documents_for_user", lambda user: [dict(on_disk_only)])
+    record = {
+        "document_id": "doc-alice-failed",
+        "source": source,
+        "filename": "failed.pdf",
+        "owner_user_id": "alice",
+        "tenant_id": "alice",
+        "visibility": "private",
+        "status": "failed",
+    }
+    monkeypatch.setattr(registry, "list_document_records", lambda path=None: [dict(record)])
+    _ROWS.append({**on_disk_only, "document_id": "doc-alice-failed"})
+    try:
+        response = getattr(client, method)(f"/documents/by-id/doc-alice-failed{suffix}", headers=_as("alice"))
+    finally:
+        _ROWS.pop()
+
+    assert response.status_code in {200, 202}, response.text
+    assert client.performed[-1]["source"] == source

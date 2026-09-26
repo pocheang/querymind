@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Path, status
@@ -147,7 +148,8 @@ async def confirm_approval(
     if not body.confirmed:
         raise bad_request("approval confirmation is required")
     try:
-        approval_store.approve(token, actor)
+        # A SQLite write, so off the event loop.
+        await asyncio.to_thread(approval_store.approve, token, actor)
     except ValueError as exc:
         raise not_found("Approval") from exc
     return ApprovalConfirmationResponse()

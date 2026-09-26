@@ -14,7 +14,6 @@ switched on, because the half that feeds it was never connected:
 
 from __future__ import annotations
 
-import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -153,6 +152,9 @@ def calibration_path(monkeypatch):
     from app.core.config import get_settings
 
     monkeypatch.setenv("ROUTER_CALIBRATION_PATH", str(root / "router_calibration.json"))
+    # The counts live in the application database now; without this the
+    # calibrator created its table in the developer's data/app.db.
+    monkeypatch.setenv("APP_DB_PATH", str(root / "app.db"))
     get_settings.cache_clear()
     try:
         yield root / "router_calibration.json"
@@ -235,17 +237,26 @@ def test_the_router_carries_the_pre_calibration_confidence():
     assert _to_domain_route("vector", 0.72, "reason", 0.91).raw_confidence == 0.91
 
 
+def _stored_total(calibration_path, bucket: str = "0.8-0.9") -> int:
+    import sqlite3
+
+    with sqlite3.connect(calibration_path.parent / "app.db") as conn:
+        row = conn.execute("SELECT total_predictions FROM router_calibration WHERE bucket = ?", (bucket,)).fetchone()
+    return row[0]
+
+
 def test_accumulated_outcomes_do_not_dirty_the_tracked_config(calibration_path):
     """The calibrator wrote config/router_calibration.json on every request."""
     from app.agents.router.calibration import CALIBRATION_CONFIG_PATH, ConfidenceCalibrator
 
     before = CALIBRATION_CONFIG_PATH.read_text(encoding="utf-8")
     calibrator = ConfidenceCalibrator()
+    seeded = _stored_total(calibration_path)
     for _ in range(25):
         calibrator.record_feedback(0.85, was_correct=True)
     calibrator.flush()
 
-    assert calibration_path.exists()
+    assert _stored_total(calibration_path) == seeded + 25
     assert CALIBRATION_CONFIG_PATH.read_text(encoding="utf-8") == before
 
 
@@ -262,10 +273,11 @@ def test_feedback_is_buffered_rather_than_written_per_request(calibration_path):
     from app.agents.router.calibration import ConfidenceCalibrator
 
     calibrator = ConfidenceCalibrator()
+    seeded = _stored_total(calibration_path)
     calibrator.record_feedback(0.85, was_correct=True)
 
-    assert not calibration_path.exists(), "one record must not trigger a disk write"
+    assert _stored_total(calibration_path) == seeded, "one record must not trigger a database write"
+    assert calibrator.get_stats()["0.8-0.9"]["total_predictions"] == seeded + 1, "but it counts at once here"
 
     calibrator.flush()
-    assert calibration_path.exists()
-    assert json.loads(calibration_path.read_text(encoding="utf-8"))["buckets"]
+    assert _stored_total(calibration_path) == seeded + 1

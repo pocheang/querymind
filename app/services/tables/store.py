@@ -18,6 +18,7 @@ from typing import Any
 
 from app.retrievers.stores.vector import SHARED_CORPUS_TENANT
 from app.services.multimodal.models import TableContent
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 from app.services.tables.engine import TableEngine, TableQueryResult, TableSchema
 
 logger = logging.getLogger(__name__)
@@ -100,22 +101,7 @@ class _SqliteBackend:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connection() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS structured_tables (
-                  table_id TEXT NOT NULL,
-                  tenant_id TEXT NOT NULL,
-                  owner_user_id TEXT NOT NULL,
-                  visibility TEXT NOT NULL,
-                  source TEXT NOT NULL,
-                  updated_at INTEGER NOT NULL,
-                  content_json TEXT NOT NULL,
-                  PRIMARY KEY (table_id, tenant_id)
-                )
-                """
-            )
-            conn.execute("CREATE INDEX IF NOT EXISTS structured_tables_source ON structured_tables (source)")
+        ensure_schema(self.db_path, "structured_tables", TABLE_STORE_MIGRATIONS, wal=True)
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
@@ -419,3 +405,24 @@ def get_table_store() -> TableStore:
             if _GLOBAL_TABLE_STORE is None:
                 _GLOBAL_TABLE_STORE = TableStore(db_path=_default_db_path())
     return _GLOBAL_TABLE_STORE
+
+
+def _tables_baseline(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS structured_tables (
+          table_id TEXT NOT NULL,
+          tenant_id TEXT NOT NULL,
+          owner_user_id TEXT NOT NULL,
+          visibility TEXT NOT NULL,
+          source TEXT NOT NULL,
+          updated_at INTEGER NOT NULL,
+          content_json TEXT NOT NULL,
+          PRIMARY KEY (table_id, tenant_id)
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS structured_tables_source ON structured_tables (source)")
+
+
+TABLE_STORE_MIGRATIONS = (Migration(1, "baseline: structured_tables", _tables_baseline),)

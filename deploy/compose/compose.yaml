@@ -1,5 +1,18 @@
 name: querymind
 
+# ARC-01: state every worker must agree on lives outside the backend process --
+# limits, approvals, execution streams and the ingest queue in Redis, vectors in
+# a Chroma server, sessions in SQLite, ingestion in one `ingest-worker`. Shared
+# is the default since phase 9 (it was the compose.shared-state.yaml overlay);
+# the `init` service moves a single-worker installation's data across on the
+# first start, so an upgrade has no manual step. STATE_BACKEND stays
+# overridable from the shell because `environment:` outranks `env_file:`.
+x-shared-state: &shared-state
+  STATE_BACKEND: ${STATE_BACKEND:-shared}
+  HISTORY_BACKEND: sqlite
+  SESSION_METADATA_BACKEND: database
+  CHROMA_SERVER_URL: http://chroma:8000
+
 services:
   # Only n8n uses this. The backend does not: it is SQLite-only
   # (app/services/sessions/metadata_db.py), so postgres sits in the same opt-in
@@ -46,14 +59,78 @@ services:
   redis:
     image: redis:7.4.1-alpine
     restart: unless-stopped
+    # AOF stays on: Redis is no longer only a cache. It holds the ingest queue,
+    # pending approval tokens and the execution event streams, so a restart
+    # without persistence would silently drop queued uploads and strand every
+    # approval a user had been shown.
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    # The healthcheck runs inside the container, where REDIS_PASSWORD was never
+    # set -- it only reached the command line above -- so `$${REDIS_PASSWORD}`
+    # expanded to nothing, every probe failed with WRONGPASS, and anything
+    # waiting for `service_healthy` never started. redis-cli reads REDISCLI_AUTH
+    # itself, which also keeps the password out of the probe's argv.
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [querymind]
+
+  chroma:
+    # The server's version follows the client's (chromadb in uv.lock): the HTTP
+    # API is only guaranteed between matching releases.
+    image: chromadb/chroma:1.5.9
+    restart: unless-stopped
+    volumes:
+      - chroma_server_data:/data
+    # The image has bash and no wget, curl or python (measured on 1.5.9), so the
+    # probe speaks HTTP over bash's /dev/tcp. A probe naming a tool the image
+    # lacks never passes, and holds every dependent service at "starting".
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - 'exec 3<>/dev/tcp/127.0.0.1/8000 && printf "GET /api/v2/heartbeat HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && head -1 <&3 | grep -q " 200 "'
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks: [querymind]
+
+  # Runs once, to completion, before anything that uses the databases starts:
+  # every SQLite migration, the first administrator, the purge of retired
+  # per-user model keys, and -- in shared mode -- copying a single-worker
+  # installation's file sessions and embedded vectors to where shared mode reads
+  # them, each read back to verify (app/init_app.py). A failed verification
+  # exits non-zero, and nothing below starts on half-moved data. The workers
+  # still run the migrations at startup as a backstop; they find nothing to do.
+  init:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    command: ["python", "-m", "app.init_app"]
+    restart: "no"
+    # The image's HTTP probe asks port 8000, which this never serves.
+    healthcheck:
+      disable: true
+    env_file:
+      - ${RUNTIME_ENV_FILE:-../../.runtime/production.env}
+    environment:
+      <<: *shared-state
+      CHROMA_PERSIST_DIR: /app/data/chroma
+    # chroma_data is the embedded store an older installation wrote; it is read
+    # here as the migration source and never deleted.
+    volumes:
+      - chroma_data:/app/data/chroma
+      - app_data:/app/data
+    depends_on:
+      chroma:
+        condition: service_healthy
     networks: [querymind]
 
   backend:
@@ -64,6 +141,12 @@ services:
     env_file:
       - ${RUNTIME_ENV_FILE:-../../.runtime/production.env}
     environment:
+      <<: *shared-state
+      # The frontend nginx is the only peer allowed to name the client's address
+      # (X-Forwarded-For). Its address is whatever Docker assigns inside this
+      # subnet, so the trust is the subnet -- which is why the network below
+      # pins one (SEC-02, app/api/transport/client_address.py).
+      QUERYMIND_TRUSTED_PROXIES: ${QUERYMIND_SUBNET:-172.29.72.0/24}
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USERNAME: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
@@ -81,6 +164,10 @@ services:
       - app_data:/app/data
       - logs_data:/app/logs
     depends_on:
+      init:
+        condition: service_completed_successfully
+      chroma:
+        condition: service_healthy
       neo4j:
         condition: service_healthy
       redis:
@@ -93,6 +180,54 @@ services:
       start_period: 40s
     networks: [querymind]
 
+  # Exactly one. Its startup treats every job RQ still lists as started as
+  # abandoned, which is only true while it is the only worker.
+  ingest-worker:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    command: ["python", "-m", "app.ingest_worker"]
+    restart: unless-stopped
+    # Replaces the image's HTTP probe, which asks port 8000 -- a port this
+    # process never serves, so it would report unhealthy while working. The
+    # probe takes ~1s idle, but measured 9-16s while the worker rewrote a 30 MB
+    # corpus and Chroma took 14,000 vectors (disk contention, not the probe),
+    # and a 15s timeout flipped a working worker to unhealthy. It also keeps
+    # passing for up to RQ's worker TTL (~7 min) after a worker dies, since the
+    # registration outlives the process until it expires.
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.ingest_worker", "--check"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 60s
+    deploy:
+      replicas: 1
+    env_file:
+      - ${RUNTIME_ENV_FILE:-../../.runtime/production.env}
+    environment:
+      <<: *shared-state
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    # The same files the backend reads and deletes from: the registry, the
+    # corpus, uploads and the index lock all live under these.
+    volumes:
+      - chunks_data:/app/data/chunks
+      - app_data:/app/data
+      - logs_data:/app/logs
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    networks: [querymind]
+
   frontend:
     build:
       context: ../..
@@ -103,8 +238,9 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    # 127.0.0.1: busybox wget tries ::1 for localhost and nginx listens on IPv4 only.
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -139,6 +275,7 @@ volumes:
   neo4j_plugins:
   redis_data:
   chroma_data:
+  chroma_server_data:
   chunks_data:
   app_data:
   logs_data:
@@ -147,3 +284,9 @@ volumes:
 networks:
   querymind:
     driver: bridge
+    # Pinned so the backend can trust exactly this range for X-Forwarded-For
+    # (QUERYMIND_TRUSTED_PROXIES above). Override QUERYMIND_SUBNET if it collides with
+    # a network the host already routes.
+    ipam:
+      config:
+        - subnet: ${QUERYMIND_SUBNET:-172.29.72.0/24}

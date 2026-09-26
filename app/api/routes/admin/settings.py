@@ -12,7 +12,6 @@ from app.api.dependencies import (
     _require_permission,
     _require_user,
     _trace_id,
-    runtime_metrics,
 )
 from app.api.schemas import (
     ActiveModelResponse,
@@ -35,6 +34,8 @@ from app.services.models.config_store import (
 from app.services.models.effective import effective_model_configuration
 from app.services.models.runtime import active_admin_chat_model, probe_chat_model_configuration
 from app.services.observability.alerting import emit_alert
+from app.services.runtime.invalidation import announce
+from app.services.runtime.runtime_metrics import record_embedding_reindex
 from app.services.security.audit_actions import AuditAction
 from app.services.security.network import OutboundURLValidationError
 from app.services.security.rbac import Permission
@@ -96,7 +97,7 @@ def admin_save_model_settings(
     try:
         saved, reindex_result = apply_global_model_settings(req.model_dump())
     except ModelSettingsReindexError as e:
-        runtime_metrics.inc("admin_model_settings_embedding_reindex_failed_total")
+        record_embedding_reindex("failed")
         emit_alert(
             "admin_model_settings_embedding_reindex_failed",
             {
@@ -106,13 +107,13 @@ def admin_save_model_settings(
                 "embedding_model": str(e.settings_data.get("embedding_model", "")),
             },
         )
-        raise internal_error("model settings saved, but embedding reindex failed")
+        raise internal_error("model settings saved, but the embedding reindex could not be queued")
     except OutboundURLValidationError as e:
         raise bad_request(f"unsafe base_url: {e}")
     except ValueError as e:
         raise bad_request(str(e))
     if reindex_result is not None:
-        runtime_metrics.inc("admin_model_settings_embedding_reindex_total")
+        record_embedding_reindex("queued")
     _audit(
         request,
         action=AuditAction.ADMIN_MODEL_SETTINGS_SAVE,
@@ -121,13 +122,12 @@ def admin_save_model_settings(
         user=user,
         detail=(
             f"enabled={saved['enabled']}; provider={saved['provider']}; chat_model={saved['chat_model']}; "
-            f"embedding_reindexed={bool(reindex_result)}; records_reindexed={int((reindex_result or {}).get('records_reindexed', 0) or 0)}"
+            f"embedding_reindex_queued={bool(reindex_result)}"
         ),
     )
     response = _admin_model_settings_view(saved)
     if reindex_result is not None:
-        response.settings.embedding_reindexed = True
-        response.settings.records_reindexed = int(reindex_result.get("records_reindexed", 0) or 0)
+        response.settings.embedding_reindex_queued = True
     return response
 
 
@@ -188,6 +188,7 @@ RELOAD_SNAPSHOT_FIELDS: tuple[str, ...] = (
 def admin_reload_config(request: Request, user: dict[str, Any] = Depends(_require_user)):
     _require_permission(user, Permission.ADMIN_OPS_MANAGE, request, "admin")
     new_settings = apply_config_reload()
+    announce("config")  # the other workers reload on their next request (ARC-01 phase 6)
     snapshot: dict[str, Any] = {name: getattr(new_settings, name) for name in RELOAD_SNAPSHOT_FIELDS}
     snapshot["global_model_settings"] = public_global_model_settings(get_global_model_settings())
     _audit(

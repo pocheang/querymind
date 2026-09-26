@@ -1,45 +1,111 @@
+"""Where ingest and reindex jobs run (ARC-01 phase 5).
+
+`STATE_BACKEND=memory` keeps the in-process thread pool: one process, no Redis,
+the behaviour a development checkout has always had. `STATE_BACKEND=shared`
+puts each job on an RQ queue in Redis, and the one `ingest-worker` process
+(`python -m app.ingest_worker`) runs them -- so a job survives the API process
+that accepted it, and no API worker spends its threads parsing PDFs.
+
+Each document has at most one job at a time. RQ enqueues a job id twice if it
+is asked to, and running a reindex twice is harmless but pointless, so
+`enqueue_*` returns without a second enqueue while a job for the document is
+still waiting.
+
+Crash recovery is `recover_unfinished_documents`: run when the only thing that
+could be running a job has just started -- the API process in memory mode, the
+ingest worker in shared mode -- so a document still marked pending, queued or
+indexing, with no job waiting for it, can only be one whose job died. It is
+reindexed, which deletes whatever the dead job had half-written first.
+"""
+
 from __future__ import annotations
 
 import atexit
 import logging
-from concurrent.futures import Future, ThreadPoolExecutor
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+from app.core.config import get_settings
+from app.services.documents.index_manager import rebuild_all_vector_index, rebuild_document_index
 from app.services.documents.ingest import ingest_paths
-from app.services.documents.registry import create_document_record, update_document_record
+from app.services.documents.registry import (
+    create_document_record,
+    list_document_records,
+    update_document_record,
+)
+from app.services.runtime.redis_connector import RedisConnector, redis_unavailable_errors
 from app.services.runtime.runtime_ops import append_index_freshness
+from app.services.runtime.shared_state import SharedStateUnavailable, is_shared, state_key
 
 logger = logging.getLogger(__name__)
 
+# The states a document is in while a job for it is owed or running.
+UNFINISHED_STATES = frozenset({"pending", "queued", "indexing"})
+
+# STATE_BACKEND=memory only. Two threads, as before; the index lock is what
+# keeps them from losing each other's writes now.
 _EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="ingest")
-_JOBS: dict[str, Future] = {}
+atexit.register(lambda: _EXECUTOR.shutdown(wait=False))
+
+# RQ stores pickled payloads, so this client must not decode responses.
+_RQ_CONNECTOR = RedisConnector("ingest_queue", decode_responses=False, socket_connect_timeout=2, socket_timeout=5)
 
 
-def _cleanup_completed_jobs() -> None:
-    """Remove completed jobs from the _JOBS dict to prevent unbounded growth."""
-    completed_ids = [doc_id for doc_id, future in _JOBS.items() if future.done()]
-    for doc_id in completed_ids:
-        del _JOBS[doc_id]
-    if completed_ids:
-        logger.debug(f"Cleaned up {len(completed_ids)} completed ingest jobs")
+def queue_name() -> str:
+    return state_key("ingest")
 
 
-def shutdown_ingest_queue(wait: bool = True) -> None:
-    """
-    Gracefully shutdown the ingest queue thread pool.
-
-    Args:
-        wait: If True, wait for all pending jobs to complete
-    """
-    global _EXECUTOR
-    logger.info(f"Shutting down ingest queue (wait={wait}, pending_jobs={len(_JOBS)})")
-    _EXECUTOR.shutdown(wait=wait)
-    _JOBS.clear()
+def job_id_for(document_id: str) -> str:
+    return f"index-{document_id}"
 
 
-# Register cleanup on application exit
-atexit.register(lambda: shutdown_ingest_queue(wait=False))
+def _rq_queue():
+    from rq import Queue
+
+    client = _RQ_CONNECTOR.client()
+    if client is None:
+        raise SharedStateUnavailable("ingest queue (Redis) is unavailable")
+    return Queue(queue_name(), connection=client)
+
+
+def _job_is_waiting(queue: Any, job_id: str) -> bool:
+    from rq.exceptions import NoSuchJobError
+    from rq.job import Job, JobStatus
+
+    try:
+        status = Job.fetch(job_id, connection=queue.connection).get_status()
+    except NoSuchJobError:
+        return False
+    return status in {JobStatus.QUEUED, JobStatus.DEFERRED, JobStatus.SCHEDULED}
+
+
+def _submit(document_id: str, func: Callable[..., Any], /, **kwargs: Any) -> None:
+    if not is_shared():
+        _EXECUTOR.submit(func, **kwargs)
+        return
+    try:
+        queue = _rq_queue()
+        job_id = job_id_for(document_id)
+        if _job_is_waiting(queue, job_id):
+            return
+        queue.enqueue(
+            func,
+            kwargs=kwargs,
+            job_id=job_id,
+            job_timeout=int(get_settings().ingest_job_timeout_seconds),
+            result_ttl=3600,
+            failure_ttl=7 * 24 * 3600,
+        )
+    except redis_unavailable_errors() as error:
+        _RQ_CONNECTOR.drop(error)
+        raise SharedStateUnavailable("ingest queue (Redis) is unavailable") from error
+
+
+# ---- jobs --------------------------------------------------------------------------
+# Module-level functions with plain arguments: RQ imports them by name in the
+# worker process and pickles the keyword arguments.
 
 
 def run_ingest_job(
@@ -71,11 +137,58 @@ def run_ingest_job(
         return {"ok": True, "result": result, "document": updated}
     except Exception as exc:
         logger.exception("ingest_job_failed document_id=%s path=%s", document_id, path)
-        update_document_record(
-            document_id,
-            {"status": "failed", "stage": "failed", "error": str(exc)},
-        )
+        update_document_record(document_id, {"status": "failed", "stage": "failed", "error": str(exc)})
         return {"ok": False, "error": str(exc)}
+
+
+def run_reindex_job(*, document_id: str, user_id: str) -> dict[str, Any]:
+    """Delete a document's rows and ingest it again; the record says whether it worked."""
+
+    record = _record(document_id)
+    if record is None:
+        logger.warning("reindex_job_document_gone document_id=%s", document_id)
+        return {"ok": False, "error": "document not found"}
+    try:
+        return rebuild_document_index(
+            str(record.get("filename", "") or ""), source=str(record.get("source", "") or ""), user_id=user_id
+        )
+    except Exception as exc:
+        logger.exception("reindex_job_failed document_id=%s", document_id)
+        update_document_record(document_id, {"status": "failed", "stage": "failed", "error": str(exc)})
+        return {"ok": False, "error": str(exc)}
+
+
+# The key the full rebuild is queued under: one at a time, like a document.
+REBUILD_ALL_KEY = "rebuild-all"
+
+
+def run_rebuild_all_job() -> dict[str, Any]:
+    """Re-embed the whole corpus -- what changing the embedding model requires.
+
+    It used to run inside the admin's save request, holding the index lock for
+    the whole rebuild. As a job, a failure has no response to report it in, so
+    it is raised as an alert here instead.
+    """
+
+    try:
+        return rebuild_all_vector_index()
+    except Exception as exc:
+        from app.services.observability.alerting import emit_alert
+
+        logger.exception("rebuild_all_job_failed")
+        emit_alert("admin_model_settings_embedding_reindex_failed", {"message": f"{type(exc).__name__}: {exc}"})
+        return {"ok": False, "error": str(exc)}
+
+
+def enqueue_rebuild_all_job() -> None:
+    _submit(REBUILD_ALL_KEY, run_rebuild_all_job)
+
+
+def _record(document_id: str) -> dict[str, Any] | None:
+    return next((row for row in list_document_records() if row.get("document_id") == document_id), None)
+
+
+# ---- entry points ------------------------------------------------------------------
 
 
 def enqueue_ingest_job(
@@ -85,18 +198,36 @@ def enqueue_ingest_job(
     metadata_overrides: dict[str, Any],
     parser_profile: dict[str, Any] | None = None,
 ) -> bool:
-    # Clean up completed jobs to prevent unbounded memory growth
-    _cleanup_completed_jobs()
-
-    future = _EXECUTOR.submit(
+    _submit(
+        document_id,
         run_ingest_job,
         document_id=document_id,
         path=path,
         metadata_overrides=metadata_overrides,
         parser_profile=parser_profile,
     )
-    _JOBS[document_id] = future
     return True
+
+
+def enqueue_reindex_job(*, document_id: str, user_id: str) -> dict[str, Any]:
+    """Mark the document queued and hand its reindex to whichever runner this deployment has.
+
+    Marked first: a job can start the moment it is submitted, and marking after
+    would overwrite its "indexing" with "queued". If the submit fails the mark
+    is put back, so a 503 does not leave a document queued behind no job.
+    """
+
+    before = _record(document_id) or {}
+    updated = update_document_record(document_id, {"status": "queued", "stage": "reindex_queued", "error": ""})
+    try:
+        _submit(document_id, run_reindex_job, document_id=document_id, user_id=user_id)
+    except Exception:
+        update_document_record(
+            document_id,
+            {key: before.get(key, "") for key in ("status", "stage", "error")},
+        )
+        raise
+    return updated
 
 
 def register_and_enqueue_uploads(
@@ -150,3 +281,27 @@ def register_and_enqueue_uploads(
             }
         )
     return document_ids
+
+
+def recover_unfinished_documents() -> list[str]:
+    """Reindex every document whose job cannot still be running; return their ids.
+
+    Call only where nothing else can be running a job: at the start of the
+    process that runs them. The ingest worker also clears RQ's started-job
+    registry first, since the only worker that could have started those jobs is
+    the one that is starting now.
+    """
+
+    queue = _rq_queue() if is_shared() else None
+    recovered: list[str] = []
+    for record in list_document_records():
+        document_id = str(record.get("document_id", "") or "")
+        if not document_id or str(record.get("status", "")) not in UNFINISHED_STATES:
+            continue
+        if queue is not None and _job_is_waiting(queue, job_id_for(document_id)):
+            continue
+        owner = str(record.get("owner_user_id", "") or "")
+        logger.warning("ingest_recovery_requeue document_id=%s status=%s", document_id, record.get("status"))
+        enqueue_reindex_job(document_id=document_id, user_id=owner)
+        recovered.append(document_id)
+    return recovered

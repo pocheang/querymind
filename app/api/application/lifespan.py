@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
@@ -17,7 +18,7 @@ from app.api.dependencies import (
     auto_ingest_watcher,
 )
 from app.api.deps.runtime import install_app_services
-from app.core.config import validate_security_settings
+from app.core.config import validate_security_settings, validate_shared_state_backends, validate_worker_topology
 from app.core.remote_config import watch_remote_config
 from app.graph.knowledge.client import Neo4jClient
 from app.services.observability.log_buffer import setup_log_capture
@@ -33,63 +34,60 @@ _auto_ingest_thread: threading.Thread | None = None
 _cache_initialized = False
 
 
-def _bootstrap_administrator() -> None:
-    """Make sure a first run can open the admin console.
+def _run_startup_tasks(settings) -> None:
+    """Migrate every SQLite store and run the once-only tasks (`app/init_app.py`).
+
+    The shared-state deployment runs the same code first, in its `init`
+    service; here it is the backstop, and costs one read per store once the
+    databases are current. Any number of processes may run it at once: the
+    migrations are transactions and the once-only tasks hold a file lock.
 
     Skipped under pytest: a test run must not write an account into the
     developer's `data/app.db`, and the behaviour is driven directly by
-    `tests/services/test_admin_bootstrap.py`, which is a better test of it than
-    a side effect of starting an app would be.
-
-    A failure here is reported and does not stop startup -- an installation
-    that cannot create an administrator is still an installation that answers
-    questions -- but it is logged at ERROR, because the alternative is a server
-    that looks healthy and has no way in.
+    `tests/services/test_admin_bootstrap.py` and `tests/core/test_init_app.py`,
+    which are better tests of it than a side effect of starting an app would
+    be. Each store still migrates itself when it is constructed.
     """
 
     if os.getenv("PYTEST_CURRENT_TEST"):
         return
 
-    from app.services.auth.bootstrap import AdminBootstrapError, describe_bootstrap, ensure_admin_account
+    from app.init_app import run
 
-    try:
-        created = ensure_admin_account()
-    except AdminBootstrapError as exc:
-        logger.exception("No administrator exists and one could not be created: %s", exc)
-        return
-    except Exception as exc:  # pragma: no cover - a broken database is its own problem
-        logger.exception("Administrator bootstrap failed: %s", exc)
-        return
-
-    if created is not None:
-        # stderr, not the logger: see `describe_bootstrap`.
-        print(describe_bootstrap(created), file=sys.stderr, flush=True)
+    run(settings)
 
 
-def _purge_retired_user_model_settings() -> None:
-    """Clear per-user model configurations left over from before 2026-09-08.
+def _start_invalidation_tracking() -> None:
+    """Record where this process starts, and what a configuration change means here.
 
-    Skipped under pytest for the reason `_bootstrap_administrator` is: a test
-    run must not write to the developer's `data/app.db`.
+    Before any cache is built, so every cache this process builds is at least as
+    new as the generation recorded. A no-op outside shared mode.
+    """
+    from app.api.application.config_reload import apply_config_reload
+    from app.services.runtime.invalidation import catch_up, on_config_change
+    from app.services.runtime.shared_log_levels import apply_stored_levels
 
-    A failure is logged and does not stop startup -- the values are already
-    unreadable by anything, so a server that could not clear them is still a
-    correct server, just one still holding credentials it has no use for.
+    on_config_change(apply_config_reload)
+    catch_up()
+    # Levels an administrator set before this process started (phase 8).
+    apply_stored_levels(reset_first=False)
+
+
+def _require_reachable_shared_state(settings) -> None:
+    """With STATE_BACKEND=shared, a Redis that does not answer is a failed start.
+
+    Shared state that silently fell back to process memory is the ARC-01 defect
+    itself, so this refuses instead of degrading. The URL is not repeated in the
+    message: it can carry the Redis password.
     """
 
-    if os.getenv("PYTEST_CURRENT_TEST"):
+    if settings.state_backend != "shared":
         return
+    from app.services.runtime.redis_connector import probe
 
-    from app.services.models.config_store import purge_user_api_settings
-
-    try:
-        cleared = purge_user_api_settings()
-    except Exception as exc:  # pragma: no cover - a broken database is its own problem
-        logger.exception("Could not clear retired per-user model settings: %s", exc)
-        return
-
-    if cleared:
-        logger.info("Cleared retired per-user model settings from %d account(s)", cleared)
+    error = probe(settings.redis_url)
+    if error is not None:
+        raise RuntimeError(f"STATE_BACKEND=shared needs a reachable Redis at REDIS_URL, and it did not answer: {error}")
 
 
 def _warm_nli_model() -> None:
@@ -161,9 +159,38 @@ def _init_cache_manager(settings) -> bool:
         return False
 
 
+def _recover_unfinished_ingests(settings) -> None:
+    """In memory mode this process is the only thing that runs ingest jobs.
+
+    So a document still pending or indexing when it starts belongs to a job that
+    died with the previous process, and nothing else will ever finish it. In
+    shared mode the ingest worker does this when it starts.
+
+    Skipped under pytest for the reason `_run_startup_tasks` is: starting
+    an app in a test must not requeue the developer's own documents.
+    """
+    if settings.state_backend == "shared" or os.getenv("PYTEST_CURRENT_TEST"):
+        return
+    from app.services.runtime.ingest_queue import recover_unfinished_documents
+
+    try:
+        recovered = recover_unfinished_documents()
+    except Exception as e:
+        logger.warning(f"ingest recovery failed (non-critical): {e}", exc_info=True)
+        return
+    if recovered:
+        logger.warning("ingest_recovery requeued=%d", len(recovered))
+
+
 def _start_auto_ingest_thread(settings) -> None:
+    """Watch the document folders from this process -- in memory mode only.
+
+    With STATE_BACKEND=shared every API worker would run its own watcher and
+    ingest each new file once per worker, so the watcher lives in the ingest
+    worker instead (ARC-01 phase 5, C1).
+    """
     global _auto_ingest_thread
-    if not settings.auto_ingest_enabled:
+    if not settings.auto_ingest_enabled or settings.state_backend == "shared":
         return
     if _auto_ingest_thread is not None and _auto_ingest_thread.is_alive():
         return
@@ -208,6 +235,10 @@ async def lifespan(app: FastAPI):
     query_runtime = api_dependencies.get_query_runtime()
     settings = query_runtime.settings
     validate_security_settings(settings)
+    validate_worker_topology(settings)
+    validate_shared_state_backends(settings)
+    _require_reachable_shared_state(settings)
+    _start_invalidation_tracking()
 
     install_app_services(app)
     logger.info(
@@ -219,15 +250,10 @@ async def lifespan(app: FastAPI):
         str(settings.ollama_chat_model or ""),
     )
 
-    # A checkout with no administrator cannot open the console that manages it,
-    # and until 2026-09-08 that was every checkout. See
-    # `app/services/auth/bootstrap.py` for why there is no default password.
-    _bootstrap_administrator()
-
-    # Models are configured by an administrator, for everyone. Accounts that
-    # went through the retired per-user settings page still hold an encrypted
-    # provider key nothing reads.
-    _purge_retired_user_model_settings()
+    # Schema first, then the tasks that must run once: an administrator for a
+    # checkout that has none (see `app/services/auth/bootstrap.py` for why there
+    # is no default password), and clearing the retired per-user model keys.
+    _run_startup_tasks(settings)
 
     query_runtime.shadow_queue.start()
 
@@ -247,6 +273,7 @@ async def lifespan(app: FastAPI):
     tracker.start_periodic_cleanup(interval_seconds=300)
 
     _cache_initialized = _init_cache_manager(settings)
+    await asyncio.to_thread(_recover_unfinished_ingests, settings)
     _start_auto_ingest_thread(settings)
 
     try:

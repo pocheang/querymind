@@ -5,6 +5,7 @@ import type {
   SystemLogEntry,
   OpsOverview,
   BenchmarkTrendItem,
+  WorkerScope,
 } from "@/types/api";
 
 export interface AdminActionsParams {
@@ -47,6 +48,7 @@ export interface AdminActionsParams {
   setUsers: (users: AdminUserSummary[] | ((prev: AdminUserSummary[]) => AdminUserSummary[])) => void;
   setLogs: (logs: AuditLogEntry[]) => void;
   setSystemLogs: (logs: SystemLogEntry[]) => void;
+  setSystemLogWorker: (worker: WorkerScope | null) => void;
   setOps: (ops: OpsOverview | ((prev: OpsOverview | null) => OpsOverview | null) | null) => void;
   setBenchmarkTrends: (trends: BenchmarkTrendItem[] | ((prev: BenchmarkTrendItem[]) => BenchmarkTrendItem[])) => void;
   setModelSettings: (

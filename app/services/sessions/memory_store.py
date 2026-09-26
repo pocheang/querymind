@@ -1,6 +1,9 @@
 import json
 import logging
 import re
+import sqlite3
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -196,42 +199,167 @@ def build_memory_context(
     return "\n\n".join(parts)
 
 
-class MemoryStore:
-    def __init__(self, base_dir: Path | None = None):
-        settings = get_settings()
-        self.settings = settings
-        self.base_dir = base_dir or (settings.sessions_path / "_long_memory")
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.resolver = MemoryResolver(settings)
+MEMORY_DB_NAME = "memory.db"
 
-    def get_session_payload(self, session_id: str) -> dict[str, Any]:
-        session_id = validate_session_id(session_id)
-        path = self.base_dir / f"{session_id}.json"
-        if not path.exists():
-            return self._new_payload(session_id)
-        data = json.loads(path.read_text(encoding="utf-8"))
+# `PRAGMA user_version` once this user's JSON payloads have been imported.
+_IMPORTED_JSON = 1
+
+
+class _Payloads:
+    """The payloads of one user's store, read and written on one connection."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def ids(self) -> list[str]:
+        """Every session this store holds a payload for, `_global` included."""
+
+        return [str(row[0]) for row in self._conn.execute("SELECT session_id FROM payloads ORDER BY session_id")]
+
+    def get(self, session_id: str) -> dict[str, Any]:
+        """One payload, a fresh empty one if there is none. Raises ValueError if unreadable."""
+
+        row = self._conn.execute("SELECT data_json FROM payloads WHERE session_id=?", (session_id,)).fetchone()
+        if row is None:
+            return MemoryStore._new_payload(session_id)
+        data = json.loads(str(row[0] or ""))
+        if not isinstance(data, dict):
+            raise ValueError("memory payload is not an object")
         data.setdefault("session_id", session_id)
         data.setdefault("updated_at", _now_iso())
         data.setdefault("candidates", [])
         data.setdefault("long_term_ids", [])
         return data
 
+    def load(self, session_id: str) -> dict[str, Any] | None:
+        """One payload, or None when it cannot be read.
+
+        A payload this store cannot parse holds no memory it can show and none
+        it can delete, and one such row must not take the others with it:
+        `list_all` would raise on a corrupt sibling, and `forget` would abort
+        before reaching the second copy of the memory it was asked to remove.
+        """
+
+        try:
+            return self.get(session_id)
+        except ValueError as error:
+            logger.warning("memory_store_unreadable_payload session=%s error=%s", session_id, str(error))
+            return None
+
+    def save(self, session_id: str, payload: dict[str, Any]) -> None:
+        self._conn.execute(
+            "INSERT INTO payloads(session_id, data_json, updated_at) VALUES(?, ?, ?) "
+            "ON CONFLICT(session_id) DO UPDATE SET data_json=excluded.data_json, updated_at=excluded.updated_at",
+            (session_id, json.dumps(payload, ensure_ascii=False), str(payload.get("updated_at") or _now_iso())),
+        )
+
+
+class MemoryStore:
+    """One user's long-term memories, in `memory.db` inside `base_dir`.
+
+    Every change is one `BEGIN IMMEDIATE` transaction, so a change reads the
+    version it replaces whichever worker wrote last (ARC-01). Until 2026-09-24
+    the payloads were JSON files rewritten with no lock of any kind: two
+    requests promoting a memory at once -- in one process, not only across
+    workers -- each wrote back the payload they had read, and one memory was
+    lost. `add_candidate` touches two payloads and is now one transaction; it
+    used to be two independent writes.
+
+    A database per user rather than one shared one, because the directory is
+    already the unit this store is scoped by: an id in a URL names nothing
+    outside the caller's own file, and removing a user's directory removes
+    their memories. SQLite's file lock is what serializes workers on one host.
+    The default rollback journal rather than WAL: switching a fresh file to WAL
+    fails at once, not after the busy timeout, when another connection holds
+    its write lock -- exactly the state two workers creating the same user's
+    store are in.
+
+    The JSON payloads written before this are imported on first use, inside the
+    same transaction that marks them imported, and never deleted.
+    """
+
+    def __init__(self, base_dir: Path | None = None):
+        settings = get_settings()
+        self.settings = settings
+        self.base_dir = base_dir or (settings.sessions_path / "_long_memory")
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.db_path = self.base_dir / MEMORY_DB_NAME
+        self.resolver = MemoryResolver(settings)
+        self._prepare()
+
+    # ---- storage ----------------------------------------------------------------
+
+    def _connect(self) -> sqlite3.Connection:
+        try:
+            timeout_s = max(1.0, min(float(self.settings.sqlite_busy_timeout_seconds or 10), 3600.0))
+        except (TypeError, ValueError):
+            timeout_s = 10.0
+        conn = sqlite3.connect(self.db_path, timeout=timeout_s, isolation_level=None)
+        conn.execute(f"PRAGMA busy_timeout = {int(timeout_s * 1000)}")
+        return conn
+
+    @contextmanager
+    def _transaction(self, *, write: bool) -> Iterator[_Payloads]:
+        """All payloads, consistently. `write=True` holds the write lock for the whole block.
+
+        An exception from the block skips the COMMIT, and closing a connection
+        with a transaction open rolls it back.
+        """
+
+        with closing(self._connect()) as conn:
+            conn.execute("BEGIN IMMEDIATE" if write else "BEGIN")
+            yield _Payloads(conn)
+            conn.execute("COMMIT")
+
+    def _prepare(self) -> None:
+        with closing(self._connect()) as conn:
+            if int(conn.execute("PRAGMA user_version").fetchone()[0]) >= _IMPORTED_JSON:
+                return
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS payloads("
+                "session_id TEXT PRIMARY KEY, data_json TEXT NOT NULL, updated_at TEXT NOT NULL)"
+            )
+            # Re-read under the write lock: another worker may have imported
+            # while this one waited for it.
+            if int(conn.execute("PRAGMA user_version").fetchone()[0]) < _IMPORTED_JSON:
+                self._import_json_payloads(_Payloads(conn))
+                conn.execute(f"PRAGMA user_version = {_IMPORTED_JSON}")
+            conn.execute("COMMIT")
+
+    def _import_json_payloads(self, payloads: _Payloads) -> None:
+        for path in sorted(self.base_dir.glob("*.json")):
+            try:
+                session_id = validate_session_id(path.stem)
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as error:
+                # Not a payload this store wrote, or not readable. Skipping it
+                # is safer than letting one stray file hide every real memory.
+                logger.warning("memory_store_skipping_json_payload name=%s error=%s", path.name, str(error))
+                continue
+            if isinstance(data, dict):
+                payloads.save(session_id, data)
+
+    # ---- reads ------------------------------------------------------------------
+
+    def get_session_payload(self, session_id: str) -> dict[str, Any]:
+        session_id = validate_session_id(session_id)
+        with self._transaction(write=False) as payloads:
+            return payloads.get(session_id)
+
     def list_long_term(self, session_id: str) -> list[dict[str, Any]]:
         session_id = validate_session_id(session_id)
-        data = self.get_session_payload(session_id)
+        with self._transaction(write=False) as payloads:
+            data = payloads.get(session_id)
+            global_rows = self._live(payloads.get(GLOBAL_MEMORY_SESSION_ID))
         valid = {
             str(item.get("candidate_id")): item
             for item in data.get("candidates", [])
             if item.get("candidate_id") and not item.get("deleted")
         }
-        out: list[dict[str, Any]] = []
-        for candidate_id in data.get("long_term_ids", []):
-            item = valid.get(str(candidate_id))
-            if item is not None:
-                out.append(item)
+        out = [valid[str(cid)] for cid in data.get("long_term_ids", []) if str(cid) in valid]
         if session_id == GLOBAL_MEMORY_SESSION_ID:
             return out
-        global_rows = self.list_global()
         row_map = {str(row.get("candidate_id")): row for row in (*global_rows, *out)}
         session_items = tuple(item for row in out if (item := memory_item_from_row(row)) is not None)
         global_items = tuple(item for row in global_rows if (item := memory_item_from_row(row)) is not None)
@@ -241,8 +369,44 @@ class MemoryStore:
         return [*structured, *legacy][:LONG_TERM_TOP_N]
 
     def list_global(self) -> list[dict[str, Any]]:
-        data = self.get_session_payload(GLOBAL_MEMORY_SESSION_ID)
-        return [item for item in data.get("candidates", []) if item.get("candidate_id") and not item.get("deleted")]
+        return self._live(self.get_session_payload(GLOBAL_MEMORY_SESSION_ID))
+
+    @staticmethod
+    def _live(payload: dict[str, Any]) -> list[dict[str, Any]]:
+        return [item for item in payload.get("candidates", []) if item.get("candidate_id") and not item.get("deleted")]
+
+    def list_all(self) -> list[dict[str, Any]]:
+        """Every memory stored for this user, not the set one session would use.
+
+        `list_long_term` answers a different question -- which memories reach
+        the model for THIS conversation -- and caps at LONG_TERM_TOP_N. Nine
+        stored memories listed as five, and as a different five depending on
+        which session asked. Somebody asking what the system remembers about
+        them has to be shown all of it, or the page is a claim the data behind
+        it does not support.
+
+        Reads every payload rather than the global one alone. A candidate lives
+        in the global payload and in the session that promoted it, and the two
+        can disagree -- rows written before the global store existed are
+        session-only, and `list_long_term` still feeds those to the model. A
+        memory is listed if any copy of it is live, because a live copy is one
+        the model can still be given.
+        """
+
+        rows: dict[str, dict[str, Any]] = {}
+        with self._transaction(write=False) as payloads:
+            for session_id in payloads.ids():
+                for item in (payloads.load(session_id) or {}).get("candidates", []) or []:
+                    candidate_id = str(item.get("candidate_id") or "")
+                    if candidate_id and not item.get("deleted"):
+                        rows.setdefault(candidate_id, item)
+        return sorted(
+            rows.values(),
+            key=lambda row: str(row.get("updated_at") or row.get("created_at") or ""),
+            reverse=True,
+        )
+
+    # ---- writes -----------------------------------------------------------------
 
     def add_candidate(
         self, session_id: str, question: str, answer: str, signals: dict[str, Any] | None = None
@@ -273,47 +437,17 @@ class MemoryStore:
             "deleted": False,
         }
 
-        candidate = self._upsert_global(candidate)
-        data = self.get_session_payload(session_id)
-        data.setdefault("candidates", []).append(candidate)
-        data["candidates"] = sorted(data.get("candidates", []), key=lambda x: x.get("created_at", ""), reverse=True)[
-            :LONG_TERM_WINDOW_SIZE
-        ]
-        data["updated_at"] = now
-        self._recompute_long_term_ids(data)
-        self._write(session_id, data)
+        with self._transaction(write=True) as payloads:
+            candidate = self._upsert_global(payloads, candidate)
+            data = payloads.get(session_id)
+            data.setdefault("candidates", []).append(candidate)
+            data["candidates"] = sorted(
+                data.get("candidates", []), key=lambda x: x.get("created_at", ""), reverse=True
+            )[:LONG_TERM_WINDOW_SIZE]
+            data["updated_at"] = now
+            self._recompute_long_term_ids(data)
+            payloads.save(session_id, data)
         return candidate
-
-    def list_all(self) -> list[dict[str, Any]]:
-        """Every memory stored for this user, not the set one session would use.
-
-        `list_long_term` answers a different question -- which memories reach
-        the model for THIS conversation -- and caps at LONG_TERM_TOP_N. Nine
-        stored memories listed as five, and as a different five depending on
-        which session asked. Somebody asking what the system remembers about
-        them has to be shown all of it, or the page is a claim the data behind
-        it does not support.
-
-        Reads every payload rather than the global one alone. A candidate lives
-        in the global payload and in the session that promoted it, and the two
-        can disagree -- rows written before the global store existed are
-        session-only, and `list_long_term` still feeds those to the model. A
-        memory is listed if any copy of it is live, because a live copy is one
-        the model can still be given.
-        """
-
-        rows: dict[str, dict[str, Any]] = {}
-        for session_id in self._payload_ids():
-            data = self._load_payload(session_id)
-            for item in (data or {}).get("candidates", []) or []:
-                candidate_id = str(item.get("candidate_id") or "")
-                if candidate_id and not item.get("deleted"):
-                    rows.setdefault(candidate_id, item)
-        return sorted(
-            rows.values(),
-            key=lambda row: str(row.get("updated_at") or row.get("created_at") or ""),
-            reverse=True,
-        )
 
     def forget(self, memory_id: str) -> bool:
         """Remove one memory from everywhere this store keeps it.
@@ -329,8 +463,9 @@ class MemoryStore:
         memory_id = str(memory_id or "").strip()
         if not memory_id:
             return False
-        # Fully evaluate all payloads without short-circuiting so both copies expire
-        expired_results = [self._expire_in_payload(sid, memory_id) for sid in self._payload_ids()]
+        with self._transaction(write=True) as payloads:
+            # Fully evaluate all payloads without short-circuiting so both copies expire
+            expired_results = [self._expire_in_payload(payloads, sid, memory_id) for sid in payloads.ids()]
         return any(expired_results)  # NOSONAR
 
     def forget_all(self) -> int:
@@ -342,22 +477,21 @@ class MemoryStore:
         """
 
         forgotten: set[str] = set()
-        for session_id in self._payload_ids():
-            data = self._load_payload(session_id)
-            if data is None:
-                continue
-            changed = False
-            for item in data.get("candidates", []) or []:
-                candidate_id = str(item.get("candidate_id") or "")
-                if not candidate_id or item.get("deleted"):
+        with self._transaction(write=True) as payloads:
+            for session_id in payloads.ids():
+                data = payloads.load(session_id)
+                if data is None:
                     continue
-                item["deleted"] = True
-                forgotten.add(candidate_id)
-                changed = True
-            if changed:
+                live = [item for item in data.get("candidates", []) or [] if item.get("candidate_id")]
+                live = [item for item in live if not item.get("deleted")]
+                if not live:
+                    continue
+                for item in live:
+                    item["deleted"] = True
+                    forgotten.add(str(item["candidate_id"]))
                 data["updated_at"] = _now_iso()
                 self._recompute_long_term_ids(data)
-                self._write(session_id, data)
+                payloads.save(session_id, data)
         return len(forgotten)
 
     def delete_long_term(self, session_id: str, candidate_id: str) -> bool:
@@ -376,11 +510,13 @@ class MemoryStore:
     def upsert_memory(self, item: MemoryItem) -> MemoryItem:
         normalized = self.resolver.normalize_item(item)
         candidate = _candidate_from_memory(normalized)
-        canonical = self._upsert_global(candidate)
+        with self._transaction(write=True) as payloads:
+            canonical = self._upsert_global(payloads, candidate)
         return memory_item_from_row(canonical) or normalized
 
     def expire_memory(self, memory_id: str) -> bool:
-        return self._expire_in_payload(GLOBAL_MEMORY_SESSION_ID, memory_id)
+        with self._transaction(write=True) as payloads:
+            return self._expire_in_payload(payloads, GLOBAL_MEMORY_SESSION_ID, memory_id)
 
     @staticmethod
     def _new_payload(session_id: str) -> dict[str, Any]:
@@ -391,43 +527,8 @@ class MemoryStore:
             "long_term_ids": [],
         }
 
-    def _payload_ids(self) -> list[str]:
-        """Every session this store holds a payload for, `_global` included."""
-
-        ids: list[str] = []
-        for path in sorted(self.base_dir.glob("*.json")):
-            try:
-                ids.append(validate_session_id(path.stem))
-            except ValueError:
-                # Not a payload this store wrote. Skipping it is safer than
-                # letting one stray filename hide every real memory.
-                logger.warning("memory_store_skipping_unrecognised_payload name=%s", path.name)
-        return ids
-
-    def _load_payload(self, session_id: str) -> dict[str, Any] | None:
-        """One payload, or None when it cannot be read.
-
-        A payload this store cannot parse holds no memory it can show and none
-        it can delete, and one such file must not take the others with it:
-        `list_all` would raise on a corrupt sibling, and `forget` would abort
-        before reaching the second copy of the memory it was asked to remove.
-        """
-
-        try:
-            return self.get_session_payload(session_id)
-        except (OSError, ValueError) as error:
-            logger.warning("memory_store_unreadable_payload session=%s error=%s", session_id, str(error))
-            return None
-
-    def _write(self, session_id: str, payload: dict[str, Any]) -> None:
-        session_id = validate_session_id(session_id)
-        path = self.base_dir / f"{session_id}.json"
-        temp_path = path.with_suffix(".json.tmp")
-        temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        temp_path.replace(path)
-
-    def _upsert_global(self, candidate: dict[str, Any]) -> dict[str, Any]:
-        data = self.get_session_payload(GLOBAL_MEMORY_SESSION_ID)
+    def _upsert_global(self, payloads: _Payloads, candidate: dict[str, Any]) -> dict[str, Any]:
+        data = payloads.get(GLOBAL_MEMORY_SESSION_ID)
         memory_key = str(candidate.get("memory_key", "") or "")
         for existing in data.get("candidates", []):
             if existing.get("deleted") or not memory_key or str(existing.get("memory_key", "")) != memory_key:
@@ -436,7 +537,7 @@ class MemoryStore:
                 existing["updated_at"] = candidate.get("updated_at")
                 existing["source_session_id"] = candidate.get("source_session_id")
                 self._recompute_long_term_ids(data)
-                self._write(GLOBAL_MEMORY_SESSION_ID, data)
+                payloads.save(GLOBAL_MEMORY_SESSION_ID, data)
                 return dict(existing)
             existing["deleted"] = True
             candidate["supersedes"] = existing.get("candidate_id")
@@ -448,11 +549,11 @@ class MemoryStore:
         )[: self.settings.long_term_memory_max_items]
         data["updated_at"] = _now_iso()
         self._recompute_long_term_ids(data)
-        self._write(GLOBAL_MEMORY_SESSION_ID, data)
+        payloads.save(GLOBAL_MEMORY_SESSION_ID, data)
         return dict(candidate)
 
-    def _expire_in_payload(self, session_id: str, memory_id: str) -> bool:
-        data = self._load_payload(session_id)
+    def _expire_in_payload(self, payloads: _Payloads, session_id: str, memory_id: str) -> bool:
+        data = payloads.load(session_id)
         if data is None:
             return False
         found = False
@@ -463,7 +564,7 @@ class MemoryStore:
         if found:
             data["updated_at"] = _now_iso()
             self._recompute_long_term_ids(data)
-            self._write(session_id, data)
+            payloads.save(session_id, data)
         return found
 
     @staticmethod

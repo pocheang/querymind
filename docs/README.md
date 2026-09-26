@@ -19,10 +19,10 @@ QueryMind 现已正式发布 **v0.7** 版本，包含交互式系统全景架构
 - [v0.7.0.1 发布说明](releases/v0.7.0.1-release-notes.md) — 表格与 SQL 分析、图谱社区、多搜索源、注入防护及升级说明
 - [v0.7.0 发布说明](releases/v0.7.0-release-notes.md) — v0.7.0 架构升级、执行跟踪与性能优化详细说明
 - [版本发布总览](releases/README.md) — 历史版本发布说明总览
-- [开发日志](development/daily-logs/README.md) — 按日期归档的日常研发工作记录
 - [变更日志](../CHANGELOG.md) — 完整版本变更日志与升级记录
-- [技术细节总览 (CLAUDE.md)](../CLAUDE.md) — 系统实现细节与工程规范
 
 
 内部专用内容（历史归档、设计记录、模板、安全审计）不发布，保留在本地 `docs/archive/`、
 `docs/design/`、`docs/templates/`、`docs/security/`（均在 `.gitignore` 中）。
+开发日志（`docs/development/daily-logs/`）、实施计划（`docs/superpowers/`）、
+深度解析与问题清单（`docs/querymind-deep-dive/`）和 `CLAUDE.md` 同样只保留在本地。

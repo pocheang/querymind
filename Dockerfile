@@ -75,6 +75,11 @@ USER querymind
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+# Every worker writes its metrics here and /metrics sums them (ARC-01 phase 8,
+# app/services/runtime/runtime_metrics.py). Per container, in the writable /tmp:
+# counters of a finished process still count, and live gauges of a dead one are
+# dropped at scrape time.
+ENV PROMETHEUS_MULTIPROC_DIR=/tmp/querymind-metrics
 # Where `app` is. uvicorn would also find it -- --app-dir defaults to "" and it
 # inserts that into sys.path, which resolves to the working directory -- but a
 # production image should not depend on one CLI's default for whether its own
@@ -88,5 +93,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application: gunicorn supervising APP_WORKERS uvicorn workers, and
+# replacing one whose event loop stops (ARC-01 phase 9, deploy/gunicorn.conf.py).
+# The development overlay and the init/ingest-worker services override this.
+CMD ["gunicorn", "-c", "deploy/gunicorn.conf.py", "app.api.main:app"]

@@ -1,3 +1,18 @@
+"""Per-user chat session history.
+
+Two backends. `file` keeps one JSON document per session and is correct only
+inside one process: its lock is a `threading.RLock`. `sqlite` keeps the same
+document in one row, and since ARC-01 phase 4 every change is one
+read-modify-write inside a single `BEGIN IMMEDIATE` transaction, so SQLite's
+write lock serializes it across processes as well as threads. Before that the
+read and the write were separate connections, and two workers appending to one
+session each wrote back the list they had read -- one of the two messages was
+lost, on either backend.
+
+The process lock stays on the sqlite path as an optimization only: threads in
+one process queue on it instead of on SQLite's busy handler.
+"""
+
 import json
 import logging
 import re
@@ -5,22 +20,36 @@ import sqlite3
 import threading
 import time
 import uuid
+from collections.abc import Callable, Iterator
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
 from app.domain.text import normalize_string
+from app.services.runtime.sqlite_schema import Migration, ensure_schema
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TITLE = "\u65b0\u4f1a\u8bdd"
+DEFAULT_TITLE = "新会话"
+
+# BUG-11 (docs/querymind-deep-dive/issues.html): a new or reset session records
+# `max_rounds: 10`, while the cap that actually applies is derived per intent by
+# `max_rounds_for` (0-4). Kept as it was -- ARC-01 moves where sessions are
+# stored and changes nothing about what they hold -- but stated once rather
+# than four times, so the fix is one line.
+_LEGACY_MAX_ROUNDS = 10
 
 
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 _LOCK_REGISTRY_GUARD = threading.Lock()
 _LOCK_REGISTRY: dict[str, threading.RLock] = {}
 _SESSION_FILE_GLOB = "*.json"
+
+# A change: edit the session in place and return True to write it back, or
+# False to abandon it -- nothing is written and the caller gets None.
+Change = Callable[[dict[str, Any]], bool]
 
 
 def _shared_lock_for_namespace(namespace: str) -> threading.RLock:
@@ -39,6 +68,66 @@ def validate_session_id(session_id: str) -> str:
     return value
 
 
+def namespace_for(base_dir: Path) -> str:
+    """The key a user's sessions are stored under in the sqlite backend.
+
+    One definition, because the migration script has to write rows the store
+    will find: a namespace spelled differently there imports every session into
+    a key nothing reads, and the counts would still look right.
+    """
+
+    return str(base_dir.resolve())
+
+
+def default_clarification_context() -> dict[str, Any]:
+    return {
+        "collected_info": {},
+        "asked_questions": [],
+        "clarification_round": 0,
+        "max_rounds": _LEGACY_MAX_ROUNDS,
+        "intent": "",
+        "original_query": "",
+    }
+
+
+def _decode(raw: object, session_id: str) -> dict[str, Any] | None:
+    try:
+        data = json.loads(str(raw or ""))
+    except ValueError as e:
+        logger.warning(f"Failed to parse session data for {session_id}: {e}")
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def upsert_session_row(conn: sqlite3.Connection, namespace: str, session_id: str, data: dict[str, Any]) -> None:
+    """Write one session row. UPDATE-then-INSERT rather than `ON CONFLICT`,
+    because a table upgraded by the baseline migration's ALTER keeps its original
+    primary key, which does not name `namespace`."""
+
+    now = datetime.now(UTC).isoformat()
+    payload = json.dumps(data, ensure_ascii=False)
+    updated_at = str(data.get("updated_at") or now)
+    updated = conn.execute(
+        "UPDATE sessions SET data_json=?, updated_at=? WHERE namespace=? AND session_id=?",
+        (payload, updated_at, namespace, session_id),
+    )
+    if int(updated.rowcount or 0) == 0:
+        conn.execute(
+            "INSERT INTO sessions(namespace, session_id, data_json, created_at, updated_at) VALUES(?, ?, ?, ?, ?)",
+            (namespace, session_id, payload, str(data.get("created_at") or now), updated_at),
+        )
+
+
+class _Unit:
+    """One session read for update: `data` as found (None if absent), and `save`."""
+
+    __slots__ = ("data", "save")
+
+    def __init__(self, data: dict[str, Any] | None, save: Callable[[dict[str, Any]], None]) -> None:
+        self.data = data
+        self.save = save
+
+
 class HistoryStore:
     def __init__(self, base_dir: Path | None = None):
         settings = get_settings()
@@ -51,44 +140,93 @@ class HistoryStore:
         self._cold_dir.mkdir(parents=True, exist_ok=True)
         self._hot_days = max(1, int(getattr(settings, "history_hot_tier_days", 14) or 14))
         self._db_path = settings.history_sqlite_path
-        self._namespace = str(self.base_dir.resolve())
+        self._namespace = namespace_for(self.base_dir)
         self._lock = _shared_lock_for_namespace(self._namespace)
         self._last_tier_ts = 0.0
         if self._backend == "sqlite":
             self._init_sqlite()
 
-    def create_session(self, title: str | None = None, session_id: str | None = None) -> dict[str, Any]:
-        session_id = validate_session_id(session_id) if session_id else uuid.uuid4().hex
+    # ---- the one write path -----------------------------------------------------
+
+    @contextmanager
+    def _unit(self, session_id: str) -> Iterator[_Unit]:
+        """Read one session and hold the right to write it until the block ends."""
+
+        with self._lock:
+            if self._backend != "sqlite":
+                yield _Unit(self._read(session_id), lambda data: self._write_file(session_id, data))
+                return
+            # An exception from the block skips the COMMIT, and closing a
+            # connection with a transaction open rolls it back.
+            with closing(self._connect()) as conn:
+                conn.isolation_level = None
+                conn.execute("BEGIN IMMEDIATE")
+                row = conn.execute(
+                    "SELECT data_json FROM sessions WHERE namespace=? AND session_id=?",
+                    (self._namespace, session_id),
+                ).fetchone()
+                data = _decode(row[0], session_id) if row else None
+                yield _Unit(data, lambda new: upsert_session_row(conn, self._namespace, session_id, new))
+                conn.execute("COMMIT")
+
+    def _mutate(self, session_id: str, change: Change, *, create: bool = False) -> dict[str, Any] | None:
+        """Apply `change` to one session as a single read-modify-write.
+
+        Every change to an existing session goes through here, which is what
+        makes it one transaction: the version `change` sees is the version it
+        replaces, whichever worker wrote last.
+        """
+
+        try:
+            session_id = validate_session_id(session_id)
+        except ValueError:
+            return None
+        with self._unit(session_id) as unit:
+            data = unit.data
+            if data is None:
+                if not create:
+                    return None
+                data = self._new_session(session_id)
+            self._ensure_message_ids(data)
+            if not change(data):
+                return None
+            unit.save(data)
+            return data
+
+    def _new_session(self, session_id: str, title: str | None = None) -> dict[str, Any]:
         now = self._now()
-        data = {
+        return {
             "session_id": session_id,
             "title": title or DEFAULT_TITLE,
             "created_at": now,
             "updated_at": now,
             "messages": [],
             "runtime_policy": {"strategy_lock": None},
-            "clarification_context": {
-                "collected_info": {},
-                "asked_questions": [],
-                "clarification_round": 0,
-                "max_rounds": 10,
-                "intent": "",
-                "original_query": "",
-            },
+            "clarification_context": default_clarification_context(),
         }
-        with self._lock:
-            self._write(session_id, data)
+
+    def _touch(self, data: dict[str, Any]) -> None:
+        data["updated_at"] = self._now()
+
+    # ---- sessions ---------------------------------------------------------------
+
+    def create_session(self, title: str | None = None, session_id: str | None = None) -> dict[str, Any]:
+        session_id = validate_session_id(session_id) if session_id else uuid.uuid4().hex
+        data = self._new_session(session_id, title)
+        with self._unit(session_id) as unit:
+            unit.save(data)
         return data
 
     def get_or_create_session(self, session_id: str | None = None) -> dict[str, Any]:
-        with self._lock:
-            if session_id:
-                session_id = validate_session_id(session_id)
-                existing = self.get_session(session_id)
-                if existing is not None:
-                    return existing
-                return self.create_session(session_id=session_id)
+        if not session_id:
             return self.create_session()
+        session_id = validate_session_id(session_id)
+        existing = self.get_session(session_id)
+        if existing is not None:
+            return existing
+        created = self._mutate(session_id, lambda _data: True, create=True)
+        assert created is not None  # the id was validated above
+        return created
 
     def list_sessions(self) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
@@ -111,13 +249,14 @@ class HistoryStore:
             session_id = validate_session_id(session_id)
         except ValueError:
             return None
-        with self._lock:
-            data = self._read(session_id)
-            if data is None:
-                return None
-            if self._ensure_message_ids(data):
-                self._write(session_id, data)
-            return data
+        data = self._read(session_id)
+        if data is None:
+            return None
+        if any(not msg.get("message_id") for msg in data.get("messages", [])):
+            # A message stored before ids existed gets one, and it is persisted
+            # so the id a client was shown still names the message next time.
+            return self._mutate(session_id, lambda _data: True)
+        return data
 
     def get_session_strategy_lock(self, session_id: str) -> str | None:
         data = self.get_session(session_id)
@@ -128,50 +267,34 @@ class HistoryStore:
         return value or None
 
     def set_session_strategy_lock(self, session_id: str, strategy: str | None) -> dict[str, Any] | None:
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
-            return None
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
+        def change(data: dict[str, Any]) -> bool:
             policy = dict(data.get("runtime_policy", {}) or {})
             policy["strategy_lock"] = normalize_string(strategy, lowercase=True) or None
             data["runtime_policy"] = policy
-            data["updated_at"] = self._now()
-            self._write(session_id, data)
-            return data
+            self._touch(data)
+            return True
+
+        return self._mutate(session_id, change)
 
     def update_session_title(self, session_id: str, title: str) -> dict[str, Any] | None:
         """Update session title."""
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
-            return None
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
+
+        def change(data: dict[str, Any]) -> bool:
             data["title"] = str(title).strip()[:200] or DEFAULT_TITLE
-            data["updated_at"] = self._now()
-            self._write(session_id, data)
-            return data
+            self._touch(data)
+            return True
+
+        return self._mutate(session_id, change)
 
     def update_session_pinned(self, session_id: str, pinned: bool) -> dict[str, Any] | None:
         """Update session pinned status."""
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
-            return None
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
+
+        def change(data: dict[str, Any]) -> bool:
             data["pinned"] = bool(pinned)
-            data["updated_at"] = self._now()
-            self._write(session_id, data)
-            return data
+            self._touch(data)
+            return True
+
+        return self._mutate(session_id, change)
 
     def delete_session(self, session_id: str) -> bool:
         try:
@@ -179,7 +302,7 @@ class HistoryStore:
         except ValueError:
             return False
         if self._backend == "sqlite":
-            with self._lock, self._connect() as conn:
+            with self._lock, closing(self._connect()) as conn:
                 cur = conn.execute(
                     "DELETE FROM sessions WHERE namespace=? AND session_id=?", (self._namespace, session_id)
                 )
@@ -192,12 +315,14 @@ class HistoryStore:
             path.unlink()
             return True
 
+    # ---- messages ---------------------------------------------------------------
+
     def append_message(
         self, session_id: str, role: str, content: str, metadata: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         session_id = validate_session_id(session_id)
-        with self._lock:
-            data = self.get_or_create_session(session_id)
+
+        def change(data: dict[str, Any]) -> bool:
             if not data.get("messages") and role == "user":
                 title = (content or DEFAULT_TITLE).strip().replace("\n", " ")[:40]
                 data["title"] = title or data.get("title", DEFAULT_TITLE)
@@ -210,40 +335,31 @@ class HistoryStore:
                     "created_at": self._now(),
                 }
             )
-            data["updated_at"] = self._now()
-            self._write(data["session_id"], data)
-            return data
+            self._touch(data)
+            return True
+
+        updated = self._mutate(session_id, change, create=True)
+        assert updated is not None  # the id was validated above
+        return updated
 
     def update_message(self, session_id: str, message_id: str, content: str) -> dict[str, Any] | None:
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
-            return None
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
+        def change(data: dict[str, Any]) -> bool:
             if self._update_message_in_data(data, message_id, content) is None:
-                return None
-            data["updated_at"] = self._now()
+                return False
+            self._touch(data)
             self._refresh_title(data)
-            self._write(session_id, data)
-            return data
+            return True
+
+        return self._mutate(session_id, change)
 
     def get_message(self, session_id: str, message_id: str) -> dict[str, Any] | None:
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
+        data = self.get_session(session_id)
+        if data is None:
             return None
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
-            self._ensure_message_ids(data)
-            for msg in data.get("messages", []):
-                if msg.get("message_id") == message_id:
-                    return msg
-            return None
+        for msg in data.get("messages", []):
+            if msg.get("message_id") == message_id:
+                return msg
+        return None
 
     def upsert_assistant_after_user(
         self,
@@ -252,61 +368,44 @@ class HistoryStore:
         assistant_content: str,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
-            return None
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
-            self._ensure_message_ids(data)
+        def change(data: dict[str, Any]) -> bool:
             messages = data.get("messages", [])
-            for idx, msg in enumerate(messages):
-                if msg.get("message_id") != user_message_id:
-                    continue
-                if msg.get("role") != "user":
-                    return None
-                candidate_idx = idx + 1
-                if candidate_idx < len(messages) and messages[candidate_idx].get("role") == "assistant":
-                    messages[candidate_idx]["content"] = assistant_content
-                    messages[candidate_idx]["metadata"] = metadata or {}
-                    messages[candidate_idx]["updated_at"] = self._now()
-                else:
-                    messages.insert(
-                        candidate_idx,
-                        {
-                            "message_id": uuid.uuid4().hex,
-                            "role": "assistant",
-                            "content": assistant_content,
-                            "metadata": metadata or {},
-                            "created_at": self._now(),
-                        },
-                    )
-                data["updated_at"] = self._now()
-                self._write(session_id, data)
-                return data
-            return None
+            idx = next((i for i, m in enumerate(messages) if m.get("message_id") == user_message_id), None)
+            if idx is None or messages[idx].get("role") != "user":
+                return False
+            following = idx + 1
+            if following < len(messages) and messages[following].get("role") == "assistant":
+                messages[following]["content"] = assistant_content
+                messages[following]["metadata"] = metadata or {}
+                messages[following]["updated_at"] = self._now()
+            else:
+                messages.insert(
+                    following,
+                    {
+                        "message_id": uuid.uuid4().hex,
+                        "role": "assistant",
+                        "content": assistant_content,
+                        "metadata": metadata or {},
+                        "created_at": self._now(),
+                    },
+                )
+            self._touch(data)
+            return True
+
+        return self._mutate(session_id, change)
 
     def delete_message(self, session_id: str, message_id: str) -> dict[str, Any] | None:
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
-            return None
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
+        def change(data: dict[str, Any]) -> bool:
             messages = data.get("messages", [])
-            self._ensure_message_ids(data)
             kept = [m for m in messages if m.get("message_id") != message_id]
             if len(kept) == len(messages):
-                return None
+                return False
             data["messages"] = kept
-            data["updated_at"] = self._now()
+            self._touch(data)
             self._refresh_title(data)
-            self._write(session_id, data)
-            return data
+            return True
+
+        return self._mutate(session_id, change)
 
     def _refresh_title(self, data: dict[str, Any]) -> None:
         for msg in data.get("messages", []):
@@ -317,7 +416,6 @@ class HistoryStore:
         data["title"] = DEFAULT_TITLE
 
     def _update_message_in_data(self, data: dict[str, Any], message_id: str, content: str) -> dict[str, Any] | None:
-        self._ensure_message_ids(data)
         for msg in data.get("messages", []):
             if msg.get("message_id") != message_id:
                 continue
@@ -334,27 +432,9 @@ class HistoryStore:
                 changed = True
         return changed
 
-    def _write(self, session_id: str, data: dict[str, Any]) -> None:
-        session_id = validate_session_id(session_id)
-        if self._backend == "sqlite":
-            created_at = str(data.get("created_at") or self._now())
-            updated_at = str(data.get("updated_at") or self._now())
-            payload = json.dumps(data, ensure_ascii=False)
-            with self._lock, self._connect() as conn:
-                updated = conn.execute(
-                    "UPDATE sessions SET data_json=?, updated_at=? WHERE namespace=? AND session_id=?",
-                    (payload, updated_at, self._namespace, session_id),
-                )
-                if int(updated.rowcount or 0) == 0:
-                    conn.execute(
-                        """
-                    INSERT INTO sessions(namespace, session_id, data_json, created_at, updated_at)
-                    VALUES(?, ?, ?, ?, ?)
-                    """,
-                        (self._namespace, session_id, payload, created_at, updated_at),
-                    )
-                conn.commit()
-            return
+    # ---- storage ----------------------------------------------------------------
+
+    def _write_file(self, session_id: str, data: dict[str, Any]) -> None:
         path = self.base_dir / f"{session_id}.json"
         temp_path = path.with_suffix(".json.tmp")
         payload = json.dumps(data, ensure_ascii=False, indent=2)
@@ -371,24 +451,19 @@ class HistoryStore:
             self._tier_cold_files_if_needed()
 
     def _read(self, session_id: str) -> dict[str, Any] | None:
+        """Read one session without taking the write lock -- for reads only."""
+
         try:
             session_id = validate_session_id(session_id)
         except ValueError:
             return None
         if self._backend == "sqlite":
-            with self._lock, self._connect() as conn:
+            with closing(self._connect()) as conn:
                 row = conn.execute(
                     "SELECT data_json FROM sessions WHERE namespace=? AND session_id=?",
                     (self._namespace, session_id),
                 ).fetchone()
-            if not row:
-                return None
-            try:
-                data = json.loads(str(row[0] or ""))
-            except ValueError as e:
-                logger.warning(f"Failed to parse session data for {session_id}: {e}")
-                return None
-            return data if isinstance(data, dict) else None
+            return _decode(row[0], session_id) if row else None
         with self._lock:
             path = self.base_dir / f"{session_id}.json"
             if not path.exists():
@@ -405,7 +480,7 @@ class HistoryStore:
             return data if isinstance(data, dict) else None
 
     def _rows_from_sqlite(self) -> list[dict[str, Any]]:
-        with self._lock, self._connect() as conn:
+        with closing(self._connect()) as conn:
             out = conn.execute(
                 "SELECT data_json FROM sessions WHERE namespace=? ORDER BY updated_at DESC",
                 (self._namespace,),
@@ -479,50 +554,16 @@ class HistoryStore:
                 self._tier_one_file_if_stale(path, cutoff)
 
     def _connect(self) -> sqlite3.Connection:
-        settings = get_settings()
-        try:
-            timeout_s = float(getattr(settings, "sqlite_busy_timeout_seconds", 10) or 10)
-            timeout_s = max(1.0, min(timeout_s, 3600.0))
-        except (ValueError, TypeError):
-            timeout_s = 10.0
-
-        timeout_ms = int(timeout_s * 1000)
-
-        conn = sqlite3.connect(self._db_path, timeout=timeout_s)
-
-        # PRAGMA statements do not accept bind parameters.
-        # timeout_ms is strictly clamped to an integer in [1000, 3600000] above.
-        assert isinstance(timeout_ms, int) and 1000 <= timeout_ms <= 3600000, "timeout_ms validation failed"
-        conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
-
-        conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        return connect_history_db(self._db_path)
 
     def _init_sqlite(self) -> None:
-        with self._lock, self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS sessions(
-                    namespace TEXT NOT NULL DEFAULT '',
-                    session_id TEXT NOT NULL,
-                    data_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    PRIMARY KEY(namespace, session_id)
-                )
-                """
-            )
-            cols = [str(r[1]) for r in conn.execute("PRAGMA table_info(sessions)").fetchall()]
-            if "namespace" not in cols:
-                conn.execute("ALTER TABLE sessions ADD COLUMN namespace TEXT NOT NULL DEFAULT ''")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_ns_updated_at ON sessions(namespace, updated_at)")
-            conn.commit()
+        ensure_history_schema(self._db_path)
 
     @staticmethod
     def _now() -> str:
         return datetime.now(UTC).isoformat()
 
-    # Clarification context management methods
+    # ---- clarification context --------------------------------------------------
 
     def set_clarification_context(
         self,
@@ -531,10 +572,6 @@ class HistoryStore:
     ) -> dict[str, Any] | None:
         """Persist a normalized clarification context without advancing its round."""
 
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
-            return None
         normalized = {
             "collected_info": dict(context.get("collected_info", {}) or {}),
             "asked_questions": list(context.get("asked_questions", []) or []),
@@ -543,14 +580,13 @@ class HistoryStore:
             "intent": str(context.get("intent", "") or ""),
             "original_query": str(context.get("original_query", "") or ""),
         }
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
+
+        def change(data: dict[str, Any]) -> bool:
             data["clarification_context"] = normalized
-            data["updated_at"] = self._now()
-            self._write(session_id, data)
-            return data
+            self._touch(data)
+            return True
+
+        return self._mutate(session_id, change)
 
     def update_clarification_context(
         self,
@@ -558,116 +594,96 @@ class HistoryStore:
         field_name: str,
         value: str,
     ) -> dict[str, Any] | None:
-        """Update clarification context for a session.
+        """Record the user's answer for one clarification field.
 
-        Args:
-            session_id: Session ID
-            field_name: Field name being clarified (e.g. 'scenario')
-            value: User's answer
-
-        Returns:
-            Updated session data, or None if session not found
+        Returns the updated session data, or None if the session does not exist.
         """
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
-            return None
 
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
-
+        def change(data: dict[str, Any]) -> bool:
             ctx = data.get("clarification_context", {})
             if not isinstance(ctx, dict):
-                ctx = {
-                    "collected_info": {},
-                    "asked_questions": [],
-                    "clarification_round": 0,
-                    "max_rounds": 10,
-                    "intent": "",
-                    "original_query": "",
-                }
-
-            # Update collected information
+                ctx = default_clarification_context()
             ctx.setdefault("collected_info", {})[field_name] = value
-
-            # Record asked field
             if field_name not in ctx.get("asked_questions", []):
                 ctx.setdefault("asked_questions", []).append(field_name)
-
             # The round is advanced by *asking*, in ClarificationAgentService, and
             # this used to advance it again on the answer. One counter, one owner:
             # incrementing here as well double-counted every completed exchange
             # and made the cap fire at half the configured number of questions.
-
             data["clarification_context"] = ctx
-            data["updated_at"] = self._now()
-            self._write(session_id, data)
-            return data
+            self._touch(data)
+            return True
+
+        return self._mutate(session_id, change)
 
     def reset_clarification_context(self, session_id: str) -> dict[str, Any] | None:
-        """Reset clarification context for a session.
+        """Reset clarification context for a session (information is sufficient)."""
 
-        Called when entering CONTINUE phase (information is sufficient).
+        def change(data: dict[str, Any]) -> bool:
+            data["clarification_context"] = default_clarification_context()
+            self._touch(data)
+            return True
 
-        Args:
-            session_id: Session ID
-
-        Returns:
-            Updated session data, or None if session not found
-        """
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
-            return None
-
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
-
-            data["clarification_context"] = {
-                "collected_info": {},
-                "asked_questions": [],
-                "clarification_round": 0,
-                "max_rounds": 10,
-                "intent": "",
-                "original_query": "",
-            }
-            data["updated_at"] = self._now()
-            self._write(session_id, data)
-            return data
+        return self._mutate(session_id, change)
 
     def get_clarification_context(self, session_id: str) -> dict[str, Any] | None:
-        """Get clarification context for a session.
+        """Clarification context for a session, or None if the session does not exist."""
 
-        Args:
-            session_id: Session ID
-
-        Returns:
-            Clarification context dict, or None if session not found
-        """
-        try:
-            session_id = validate_session_id(session_id)
-        except ValueError:
+        data = self.get_session(session_id)
+        if data is None:
             return None
+        ctx = data.get("clarification_context")
+        return ctx if isinstance(ctx, dict) else default_clarification_context()
 
-        with self._lock:
-            data = self.get_session(session_id)
-            if data is None:
-                return None
 
-            ctx = data.get("clarification_context")
-            if not isinstance(ctx, dict):
-                # Return default context
-                return {
-                    "collected_info": {},
-                    "asked_questions": [],
-                    "clarification_round": 0,
-                    "max_rounds": 10,
-                    "intent": "",
-                    "original_query": "",
-                }
+def connect_history_db(db_path: Path) -> sqlite3.Connection:
+    timeout_s = _busy_timeout_seconds()
+    timeout_ms = int(timeout_s * 1000)
 
-            return ctx
+    conn = sqlite3.connect(db_path, timeout=timeout_s)
+
+    # PRAGMA statements do not accept bind parameters.
+    # timeout_ms is an int clamped to [1000, 3600000] by _busy_timeout_seconds; checked
+    # again with a raise rather than an assert, which `python -O` would strip.
+    if not 1000 <= timeout_ms <= 3_600_000:
+        raise ValueError(f"busy_timeout out of range: {timeout_ms}")
+    conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
+    # WAL is set once, by the migration (ensure_history_schema).
+    return conn
+
+
+def _busy_timeout_seconds() -> float:
+    try:
+        timeout_s = float(getattr(get_settings(), "sqlite_busy_timeout_seconds", 10) or 10)
+    except (ValueError, TypeError):
+        return 10.0
+    return max(1.0, min(timeout_s, 3600.0))
+
+
+def _history_baseline(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sessions(
+            namespace TEXT NOT NULL DEFAULT '',
+            session_id TEXT NOT NULL,
+            data_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(namespace, session_id)
+        )
+        """
+    )
+    cols = [str(r[1]) for r in conn.execute("PRAGMA table_info(sessions)").fetchall()]
+    if "namespace" not in cols:
+        conn.execute("ALTER TABLE sessions ADD COLUMN namespace TEXT NOT NULL DEFAULT ''")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_ns_updated_at ON sessions(namespace, updated_at)")
+
+
+HISTORY_MIGRATIONS = (Migration(1, "baseline: sessions keyed by namespace and session id", _history_baseline),)
+
+
+def ensure_history_schema(db_path: Path) -> int:
+    """Create or upgrade the session-history tables; safe from any number of processes at once."""
+
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    return ensure_schema(db_path, "history", HISTORY_MIGRATIONS, wal=True, timeout_seconds=_busy_timeout_seconds())

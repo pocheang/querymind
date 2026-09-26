@@ -71,12 +71,22 @@ class RetrievalFailureError(Exception):
         total_attempts: Number of retrieval attempts made
         failed_retrievers: Set of retriever names that failed
         successful_attempts: Number of attempts that succeeded
+        error_types: The exception type each failed retriever raised, where it
+            raised one -- how the query route tells a quota refusal (429) from an
+            outage (503).
     """
 
-    def __init__(self, total_attempts: int, failed_retrievers: set[str], successful_attempts: int = 0):
+    def __init__(
+        self,
+        total_attempts: int,
+        failed_retrievers: set[str],
+        successful_attempts: int = 0,
+        error_types: dict[str, str] | None = None,
+    ):
         self.total_attempts = total_attempts
         self.failed_retrievers = failed_retrievers
         self.successful_attempts = successful_attempts
+        self.error_types = dict(error_types or {})
 
         # Generate accurate message based on success/failure counts
         if successful_attempts == 0:
@@ -333,7 +343,9 @@ class RAGAgentService:
         failed = {str(name) for name in attempted if status[name] != "completed"}
         successful = len(attempted) - len(failed)
         if not self._degradation_policy.is_acceptable(successful, len(attempted), failed):
-            raise RetrievalFailureError(len(attempted), failed, successful)
+            raise RetrievalFailureError(
+                len(attempted), failed, successful, {name: str(errors[name]) for name in failed if name in errors}
+            )
         return context
 
 

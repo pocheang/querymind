@@ -214,9 +214,14 @@ def purge_user_api_settings() -> int:
 
 
 def apply_global_model_settings(raw: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
-    """Persist global settings and rebuild embeddings only when their signature changed."""
+    """Persist global settings; queue a rebuild of every embedding only when their signature changed.
+
+    Returns the rebuild's state: None when none was needed, `{"queued": True}`
+    when one was queued. It runs as a job (ARC-01 phase 5) -- the save used to
+    re-embed the whole corpus inside the admin's request while holding the index
+    lock, so every delete meanwhile answered 503.
+    """
     from app.retrievers.stores.vector import clear_vector_store_cache
-    from app.services.documents.index_manager import rebuild_all_vector_index
     from app.services.models.runtime import clear_model_caches
     from app.services.runtime.rag_runtime_scope import embedding_settings_signature
 
@@ -225,12 +230,20 @@ def apply_global_model_settings(raw: dict[str, Any]) -> tuple[dict[str, Any], di
     saved = save_global_model_settings(raw)
     clear_model_caches()
     clear_vector_store_cache()
+    # Other workers read the new settings from the database by themselves, but
+    # their vector-store handles hold the old embedding function (ARC-01 phase 6).
+    from app.services.runtime.invalidation import announce
+
+    announce("model_settings")
     if embedding_settings_signature(saved) == embedding_before:
         return saved, None
+    from app.services.runtime.ingest_queue import enqueue_rebuild_all_job
+
     try:
-        return saved, rebuild_all_vector_index()
+        enqueue_rebuild_all_job()
     except Exception as error:
         raise ModelSettingsReindexError(saved, error) from error
+    return saved, {"queued": True}
 
 
 def mask_api_key(api_key: str) -> str:

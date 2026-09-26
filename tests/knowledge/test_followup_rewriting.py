@@ -9,18 +9,19 @@ synthesizer then had to answer from evidence fetched for the wrong query. The
 failure looked like poor retrieval rather than a missing resolution step.
 
 The fix is the rewrite step the repository already had a slot for, given the one
-argument it was missing. `app/services/context_management.py` implements the
-older rule-based alternative (pronoun -> entity) and is deliberately *not* wired
-here: it detects a follow-up by substring-matching a fixed pronoun list, and the
-most common Chinese follow-up shape drops the subject entirely -- there is no
-pronoun to match. It keeps its existing reader, the session export endpoint.
+argument it was missing. The older rule-based alternative (pronoun -> entity,
+`app/services/context_management.py`) was deliberately *not* wired here and was
+deleted on 2026-09-26 once its last reader went: it detected a follow-up by
+substring-matching a fixed pronoun list, which fails on ordinary Chinese in both
+directions -- the most common follow-up shape drops the subject entirely, so
+there is no pronoun to match ("成本呢？"), while 那/这 are substrings of ordinary
+words and particles, so a self-contained question ("那延迟呢") had a stale entity
+substituted into it. Reviving that approach should start from those two cases.
 """
 
 from __future__ import annotations
 
 import asyncio
-
-import pytest
 
 from app.domain.contracts import EvidenceItem
 from app.domain.knowledge import AccessScope, KnowledgeSourcePlan, KnowledgeStrategy
@@ -199,31 +200,3 @@ class TestThePrompt:
         import app.services.query.rule_rewrite as rule_rewrite
 
         assert rule_rewrite._llm_rewrite(FOLLOW_UP, PRIOR_TURNS) is None
-
-
-class TestWhyNotTheRuleBasedResolver:
-    """Why `app/services/context_management.py` is not what gets wired here.
-
-    It decides a question needs resolving by substring-matching a fixed pronoun
-    list. Both directions fail on ordinary Chinese, and they fail differently.
-    Pinned so that reviving it stays a deliberate choice made with this in view.
-    """
-
-    @staticmethod
-    def _resolver():
-        from app.services.context_management import CoreferenceResolver
-
-        return CoreferenceResolver()
-
-    @pytest.mark.parametrize("question", ["成本呢？", "对比一下", "多少钱"])
-    def test_a_dropped_subject_is_invisible_to_it(self, question: str) -> None:
-        """The most common Chinese follow-up shape carries no pronoun at all, so
-        there is nothing to match and the question passes through unresolved."""
-        assert self._resolver()._has_coreference(question) is False
-
-    @pytest.mark.parametrize("question", ["那延迟呢", "这样做的成本是多少"])
-    def test_a_discourse_particle_reads_as_a_pronoun(self, question: str) -> None:
-        """The opposite failure: 那/这 are substrings of ordinary words and
-        particles, so a self-contained question is judged to need resolving and
-        gets a stale entity substituted into it."""
-        assert self._resolver()._has_coreference(question) is True

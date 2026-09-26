@@ -2,6 +2,13 @@
 
 Official release notes for QueryMind（智询）.
 
+## Upcoming (draft)
+
+**[Unreleased](unreleased-release-notes.md)** - multiple workers on one host
+- Shared state in Redis and SQLite; queued ingestion with a single `ingest-worker` and a Chroma server
+- Quotas counted once across workers; clarification fix for English terms next to Chinese
+- **Upgrade**: `docker compose down` (never `-v`) first; Redis and the Chroma server become required
+
 ## Latest Release
 
 **[v0.7.0.3](v0.7.0.3-release-notes.md)** - 2026-09-18

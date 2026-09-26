@@ -1,7 +1,7 @@
 # Version History
 
 **Status**: Public  
-**Last Updated**: 2026-09-16  
+**Last Updated**: 2026-09-26  
 **Audience**: Users, operators, contributors, maintainers  
 
 This file is the public version timeline for QueryMind（智询）. It keeps a
@@ -15,6 +15,7 @@ For current release notes, also see [../../CHANGELOG.md](../../CHANGELOG.md).
 
 | Version | Date | Type | Public Summary |
 | --- | --- | --- | --- |
+| Unreleased | — | Feature / Deployment | Multiple workers on one host: shared state in Redis and SQLite, queued ingestion with a Chroma server, cross-worker cache invalidation, one-time `init` service, per-worker observability, quotas counted once for all workers; clarification fix for English terms next to Chinese; dead-code cleanup |
 | v0.7.0.3 | 2026-09-18 | Feature / Quality & Standards | Dynamic dual-track clarification agent (fast-path deterministic rules + intelligent LLM questioning), Codex/Claude Code structured interaction standards (recommended options, user write-in fallback), SonarCloud 100% quality gate mastery (0 bugs/vulns/smells) |
 | v0.7.0.2 | 2026-09-16 | Patch / Quality & Security | Full SonarQube quality gate remediation (0 vulnerabilities, 0 bugs, 0 code smells), 100% duplication elimination (0 lines / 0 blocks, 0.0% density), frontend topology & admin state decoupling |
 | v0.7.0.1 | 2026-09-14 | Patch / Feature / Security | Table & Excel pipeline fixes, CSV/TSV ingestion, header-preserving table chunking, owner-scoped table SQL, rich graph with per-source communities, web-search providers, prompt-injection screening |
@@ -41,6 +42,19 @@ For current release notes, also see [../../CHANGELOG.md](../../CHANGELOG.md).
 | v0.2.1 | 2026-04-09 | Feature | RAG and agent operations controls |
 | v0.2.0 | 2026-04-08 | Feature | Admin operations and user management |
 | v0.1.0 | 2026-04-08 | Initial release | Initial public baseline |
+
+## Unreleased
+
+**Type**: Feature / Deployment (multiple workers on one host)  
+**Status**: In review  
+
+Public highlights:
+
+- **Multiple workers**: state that every worker must agree on (limits, approvals, execution streams, session history, ingestion) moved out of the process into Redis and SQLite; the production layer runs several gunicorn workers by default.
+- **Queued ingestion**: a single `ingest-worker` owns writes to the document index, with Chroma as a server.
+- **Consistency across workers**: configuration, model settings and corpus changes reach every worker; metrics and log levels cover all of them.
+- **Upgrade**: `docker compose down` (without `-v`) before the first deploy; Redis and the Chroma server become required; the `init` service migrates existing data and verifies it.
+- **Fixes**: clarification recognises English terms written next to Chinese; the session export's empty "context" option is gone; unused code removed.
 
 ## v0.7.0.2
 

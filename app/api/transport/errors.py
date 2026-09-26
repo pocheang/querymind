@@ -78,6 +78,11 @@ def rate_limited(detail: str = "Too many requests, retry later") -> HTTPExceptio
     return HTTPException(status_code=429, detail=detail)
 
 
+def quota_exceeded(detail: str, retry_after: int) -> HTTPException:
+    """429 for a per-minute quota, saying when the oldest counted use leaves the window."""
+    return HTTPException(status_code=429, detail=detail, headers={"Retry-After": str(max(1, int(retry_after)))})
+
+
 def service_unavailable(detail: str = "Service temporarily overloaded, retry later") -> HTTPException:
     """Return a 503 Service Unavailable error."""
     return HTTPException(status_code=503, detail=detail)
@@ -86,3 +91,51 @@ def service_unavailable(detail: str = "Service temporarily overloaded, retry lat
 def not_implemented(detail: str = "Not implemented") -> HTTPException:
     """Return a 501 Not Implemented error."""
     return HTTPException(status_code=501, detail=detail)
+
+
+def index_busy_response():
+    """503 for "another writer holds the document index" (ARC-01 phase 5).
+
+    A delete waits `INDEX_LOCK_REQUEST_TIMEOUT_SECONDS` for an ingest's commit
+    and then answers this rather than holding a worker thread. Nothing has been
+    changed, so retrying is safe.
+    """
+
+    from fastapi.responses import JSONResponse
+
+    from app.core.config import get_settings
+
+    retry_after = max(1, int(round(float(get_settings().index_lock_request_timeout_seconds))))
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "The document index is being written by another request. Nothing was changed; retry shortly.",
+            "error_code": "INDEX_BUSY",
+        },
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
+def shared_state_unavailable_response():
+    """503 for "the shared state store (Redis) is not answering" (ARC-01).
+
+    One builder for both places that produce it: the application's exception
+    handler for `SharedStateUnavailable`, and the rate-limit middleware, which
+    sits outside the layer that runs exception handlers and so has to answer
+    itself. 500 would say "look at this service"; 503 says "look at what it
+    depends on", and only the second is true. Retry-After matches the
+    connector's cooldown, which is when the next request will try Redis again.
+    """
+
+    from fastapi.responses import JSONResponse
+
+    from app.services.runtime.redis_connector import COOLDOWN_SECONDS
+
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Temporarily unavailable: the shared state store is not reachable. Retry shortly.",
+            "error_code": "SHARED_STATE_UNAVAILABLE",
+        },
+        headers={"Retry-After": str(int(COOLDOWN_SECONDS))},
+    )

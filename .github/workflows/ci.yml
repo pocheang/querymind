@@ -89,6 +89,20 @@ jobs:
         # that claim was untested. 3.11 stays canonical: it is what the image,
         # the conda environment and the coverage baseline are.
         python-version: ["3.11", "3.12"]
+    # What tests/integration/multiworker/ runs against (ARC-01 phase 10): two
+    # API processes and an ingest worker the suite starts itself, sharing one
+    # real Redis and one Chroma server. Real ones, not fakes -- fakeredis's TCP
+    # server answers a blocking XREAD wrongly across processes, and the SSE path
+    # is built on exactly that. The Chroma image matches the locked client, as
+    # compose.yaml's does. No health options: the Chroma image has no curl, and
+    # the fixture waits for both to answer before it starts anything.
+    services:
+      redis:
+        image: redis:7.4.1-alpine
+        ports: ["6379:6379"]
+      chroma:
+        image: chromadb/chroma:1.5.9
+        ports: ["8001:8000"]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -190,6 +204,14 @@ jobs:
         # than as a metric that quietly stays empty -- which is the state this
         # project was in until now: Automatic Analysis cannot read a coverage
         # report, so the suite's coverage had never reached SonarCloud at all.
+        #
+        # The multi-process suite runs on the canonical interpreter only: it is
+        # about processes sharing Redis and SQLite, not about the interpreter, and
+        # it is the slowest part of the job. Without these two variables it skips
+        # itself and says why.
+        env:
+          QM_INTEGRATION_REDIS_URL: ${{ matrix.python-version == '3.11' && 'redis://localhost:6379/0' || '' }}
+          QM_INTEGRATION_CHROMA_URL: ${{ matrix.python-version == '3.11' && 'http://localhost:8001' || '' }}
         run: pytest tests/ -q --timeout=120 --timeout-method=thread --cov=app --cov-report=xml:coverage.xml
 
       - name: Coverage ratchet

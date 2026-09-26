@@ -26,7 +26,12 @@ from app.ingestion.chunking.splitter import (
     _split_single_table_block,
     split_documents,
 )
-from app.ingestion.extraction.tables import merge_cross_page_tables
+from app.ingestion.extraction.tables import merge_cross_page_tables_with_spans
+
+
+def _merged_pages(pages: list[str]) -> list[str]:
+    """The merged page texts, through the function the PDF loader calls."""
+    return [content for content, _ in merge_cross_page_tables_with_spans(pages)]
 
 
 def test_parent_child_global_row_coordinate_preservation() -> None:
@@ -165,7 +170,7 @@ def test_adjacent_back_to_back_tables_isolated() -> None:
 
 
 def test_multi_page_table_merging_3_pages() -> None:
-    """Validate that merge_cross_page_tables seamlessly merges tables spanning 3 pages."""
+    """Validate that cross-page merging seamlessly merges tables spanning 3 pages."""
     page1 = """# Section 1
 Here is the multi-page table:
 
@@ -190,7 +195,7 @@ End of table notes.
 """
 
     pages = [page1, page2, page3]
-    merged = merge_cross_page_tables(pages)
+    merged = _merged_pages(pages)
     assert len(merged) == 1, f"Expected 1 merged document for 3-page table, got {len(merged)}"
     merged_text = merged[0]
     assert "| 1 | Val1 |" in merged_text
@@ -299,7 +304,7 @@ def test_repeated_header_cross_page_merging() -> None:
 |---|---|
 | row2 | data2 |
 """
-    merged = merge_cross_page_tables([page1, page2])
+    merged = _merged_pages([page1, page2])
     assert len(merged) == 1, f"Expected 1 merged page, got {len(merged)}"
     assert "| row1 | data1 |" in merged[0]
     assert "| row2 | data2 |" in merged[0]
@@ -359,7 +364,7 @@ def test_cross_page_merging_rejects_different_headers_with_same_col_count() -> N
 |---|---|---|
 | Laptop | Electronics | $1000 |
 """
-    merged = merge_cross_page_tables([page1, page2])
+    merged = _merged_pages([page1, page2])
     assert len(merged) == 2, f"Expected 2 separate pages, but got merged into {len(merged)}!"
     assert "Employee" in merged[0]
     assert "Product" in merged[1]
@@ -376,7 +381,7 @@ def test_cross_page_merging_prevents_merging_across_chapter_headings_and_keeps_n
 |---|---|
 | 3 | 4 |
 """
-    merged1 = merge_cross_page_tables([page1, page2_with_heading])
+    merged1 = _merged_pages([page1, page2_with_heading])
     assert len(merged1) == 2, "Cross-page merge should not merge across chapter headings"
 
     page2_with_note = """*Note: Figures in thousands*
@@ -384,7 +389,7 @@ def test_cross_page_merging_prevents_merging_across_chapter_headings_and_keeps_n
 |---|---|
 | 3 | 4 |
 """
-    merged2 = merge_cross_page_tables([page1, page2_with_note])
+    merged2 = _merged_pages([page1, page2_with_note])
     assert len(merged2) == 1, "Expected table to merge with note preserved"
     assert "*Note: Figures in thousands*" in merged2[0]
     assert "| 1 | 2 |" in merged2[0]
@@ -743,13 +748,10 @@ def test_table_importance_score_high_density_boost() -> None:
 
 
 def test_ingest_index_one_table_enriches_summary_and_metadata() -> None:
-    """Validate that _index_one_table creates TableContent with columns and dimensions in summary."""
-    from unittest.mock import MagicMock
-
+    """Validate that _table_content creates TableContent with columns and dimensions in summary."""
     from app.ingestion.loaders.office_loader import TableBlock
-    from app.services.documents.ingest import _index_one_table
+    from app.services.documents.ingest import _table_content
 
-    mock_extractor = MagicMock()
     table_block = TableBlock(
         table_id="tbl-ledger-88",
         page=3,
@@ -762,10 +764,8 @@ def test_ingest_index_one_table_enriches_summary_and_metadata() -> None:
         "owner_user_id": "user-1",
     }
 
-    result = _index_one_table(mock_extractor, table_block, canonical)
-    assert result is True
-    mock_extractor.index_table.assert_called_once()
-    call_arg = mock_extractor.index_table.call_args[0][0]
+    call_arg = _table_content(table_block, canonical)
+    assert call_arg is not None
 
     assert call_arg.table_id == "tbl-ledger-88"
     assert "sheet: Q3_Summary" in call_arg.summary

@@ -20,6 +20,7 @@ from app.api.dependencies import _history_store_for_user, _require_user, _requir
 from app.api.transport.errors import error_responses
 from app.core.config import get_settings
 from app.services.sessions.export import (
+    EXPORT_VERSION,
     ConflictStrategy,
     ExportFormat,
     SessionExportService,
@@ -38,10 +39,14 @@ router = APIRouter(prefix="/api/v1/sessions", tags=["session-export"])
 
 
 class ExportRequest(BaseModel):
-    """Request model for session export."""
+    """Request model for session export.
+
+    There is no `include_context`. It read a process-local entity tracker that
+    nothing on the request path ever wrote, so it exported nothing whichever way
+    it was set; an older client still sending it is ignored rather than refused.
+    """
 
     format: ExportFormat = Field(default="json", description="Export format (json/zip)")
-    include_context: bool = Field(default=True, description="Include context tracking data")
 
 
 class ExportResponse(BaseModel):
@@ -71,7 +76,6 @@ class ImportResponse(BaseModel):
     conflict_resolution: str | None
     messages_imported: int
     metadata_imported: bool
-    context_imported: bool
 
 
 # ============================================================================
@@ -100,35 +104,9 @@ async def export_session(
         if session is None:
             raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
 
-        # Get metadata
-        # Get context if requested
-        context_data = None
-        if request.include_context:
-            from app.services.context_management import get_context_service
-
-            context_service = get_context_service()
-            context = context_service.get_context(session_id)
-            if context:
-                context_data = {
-                    "entities": [
-                        {
-                            "text": e.text,
-                            "type": e.entity_type,
-                            "confidence": e.confidence,
-                            "mention_turn": e.mention_turn,
-                        }
-                        for e in context.entities
-                    ],
-                    "current_topic": context.current_topic,
-                    "previous_topics": context.previous_topics,
-                    "current_turn": context.current_turn,
-                }
-
-        # Export
         exported = service.export_session(
             session_id=session_id,
             messages=list(session.get("messages", []) or []),
-            context=context_data,
         )
 
         json_data = json.dumps(asdict(exported), ensure_ascii=False, indent=2).encode("utf-8")
@@ -189,7 +167,7 @@ def _parse_import_payload(json_data: bytes) -> dict:
         imported = json.loads(json_data.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise HTTPException(status_code=400, detail=f"Invalid session JSON: {exc}")
-    if not isinstance(imported, dict) or imported.get("export_version") != "1.0":
+    if not isinstance(imported, dict) or imported.get("export_version") != EXPORT_VERSION:
         raise HTTPException(status_code=400, detail="Unsupported or missing export version")
     return imported
 
@@ -308,7 +286,6 @@ async def import_session(
             conflict_resolution=conflict_resolution,
             messages_imported=len(messages),
             metadata_imported=True,
-            context_imported=False,
         )
 
     except HTTPException:
