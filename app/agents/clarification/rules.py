@@ -391,6 +391,15 @@ _COMPARISON_TARGET_NOISE_RE = re.compile(
 )
 
 
+# A keyword boundary that only ASCII word characters can break. `\b` is a
+# Unicode word boundary and CJK counts as a word character, so `\bneo4j\b` found
+# nothing in "neo4j报错" -- the way Chinese is usually typed -- and the user was
+# asked what the error was about after naming it. The underscore stays a word
+# character so "redis_url" is still not "redis".
+_ASCII_WORD_START = r"(?<![A-Za-z0-9_])"
+_ASCII_WORD_END = r"(?![A-Za-z0-9_])"
+
+
 @dataclass(frozen=True)
 class _VagueIntentRule:
     """Encapsulates vague query matching and key parameter extraction.
@@ -445,12 +454,16 @@ _TROUBLESHOOTING_RULE = _VagueIntentRule(
     keyword_patterns=(
         # Technical error terms & status codes (<= 15 branches)
         re.compile(
-            r"\b(?:timeout|404|500|connection refused|exception|traceback|oom|cuda|syntax|null|undefined|cors)\b",
+            _ASCII_WORD_START
+            + r"(?:timeout|404|500|connection refused|exception|traceback|oom|cuda|syntax|null|undefined|cors)"
+            + _ASCII_WORD_END,
             re.IGNORECASE,
         ),
         # Middleware & service components (<= 15 branches)
         re.compile(
-            r"\b(?:milvus|neo4j|ollama|redis|nginx|docker|uvicorn|fastapi|chroma|langgraph|pydantic)\b",
+            _ASCII_WORD_START
+            + r"(?:milvus|neo4j|ollama|redis|nginx|docker|uvicorn|fastapi|chroma|langgraph|pydantic)"
+            + _ASCII_WORD_END,
             re.IGNORECASE,
         ),
         # Specific operational and fault keywords (<= 15 branches)

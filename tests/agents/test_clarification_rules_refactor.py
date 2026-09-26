@@ -148,6 +148,28 @@ def test_a_vague_error_report_that_names_a_component_is_not_asked_about_it(quest
 
 
 @pytest.mark.parametrize(
+    ("question", "component"),
+    [("neo4j报错", "neo4j"), ("cuda运行失败", "cuda"), ("timeout报错", "timeout"), ("Redis出错了", "Redis")],
+)
+def test_a_component_written_against_chinese_is_still_found(question, component):
+    """Chinese is usually typed with no space before 报错. The keywords used
+    `\\b`, and CJK is a word character to `re`, so "neo4j报错" had no boundary
+    after the name: nothing was extracted and the user was asked what the error
+    was about after naming it."""
+    assert assess_completeness(question).extracted_info.get("error_details") == component
+
+
+@pytest.mark.parametrize("question", ["redisx报错", "xredis报错", "redis_x报错", "neo4j2报错"])
+def test_a_longer_ascii_word_is_still_not_a_component(question):
+    """The boundary moved for CJK only: an ASCII letter, digit or underscore
+    still continues the word, so a name that merely contains a keyword is not it."""
+    assessment = assess_completeness(question)
+
+    assert assessment.intent == "troubleshooting"
+    assert "error_details" not in assessment.extracted_info
+
+
+@pytest.mark.parametrize(
     ("question", "intent", "field"),
     [
         ("如何配置", "environment_setup", "target_component"),
