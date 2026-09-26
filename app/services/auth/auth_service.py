@@ -1,4 +1,3 @@
-import hashlib
 import json
 import secrets
 import sqlite3
@@ -11,7 +10,11 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.services.auth.audit_logger import AuditLogger
-from app.services.auth.encryption import decrypt_api_settings_payload, encrypt_api_settings_payload
+from app.services.auth.encryption import (
+    decrypt_api_settings_payload,
+    encrypt_api_settings_payload,
+    encryption_key_from_seed,
+)
 from app.services.auth.password_utils import generate_salt, hash_password
 from app.services.auth.session_manager import SessionManager
 from app.services.auth.user_manager import DEFAULT_CHAT_CREDITS, UserManager
@@ -114,7 +117,7 @@ class AuthDBService:
                     "Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(48))' "
                     "and set it in the generated .runtime environment file. Auto-generation is disabled for security."
                 )
-            self._api_settings_key = hashlib.sha256(seed.encode("utf-8")).digest()
+            self._api_settings_key = encryption_key_from_seed(seed)
             return self._api_settings_key
 
     def _encrypt_api_settings_payload(self, payload: dict[str, Any]) -> dict[str, Any]:

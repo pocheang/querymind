@@ -7,7 +7,6 @@ helper functions from specialized utility modules.
 
 import asyncio
 import logging
-import re
 import sys
 import threading
 import uuid
@@ -299,11 +298,22 @@ def _resolve_effective_agent_class(question: str, agent_class_hint: str | None) 
 
 
 def _normalize_prompt_fields(title: str, content: str) -> tuple[str, str]:
-    """Normalize and validate prompt fields with security checks."""
+    """Trim and bound a prompt template's fields. Text is stored as written.
+
+    There used to be an HTML blacklist here -- strip `<...>`, `javascript:`,
+    `on\\w+=` and `<script>...</script>` -- and it was wrong three ways. It was no
+    XSS defence: `<img src=x onerror=alert(1)>` came out as `<img src=x
+    alert(1)>`, and the frontend renders prompts as React text anyway, which is
+    where escaping belongs. It damaged ordinary prompts: a title "Compare <A> and
+    <B>" lost both names, a prompt about JavaScript lost `javascript:`, and
+    `button=` lost its `on`. And it was a denial of service (CodeQL
+    py/polynomial-redos): on a 50,000-character `content` the patterns backtrack
+    quadratically -- 32,000 characters of "on" took 6.1 s, a request any
+    signed-in user can send.
+    """
     t = (title or "").strip()
     c = (content or "").strip()
 
-    # Required field validation
     if not t:
         raise bad_request("title is required")
     if not c:
@@ -314,24 +324,6 @@ def _normalize_prompt_fields(title: str, content: str) -> tuple[str, str]:
         raise bad_request("title must be under 200 characters")
     if len(c) > 50000:
         raise bad_request("content must be under 50000 characters")
-
-    # Security: Remove dangerous characters that could lead to XSS
-    # Remove HTML tags and script-related patterns
-    t = re.sub(r"<[^>]*>", "", t)
-    t = re.sub(r"javascript:", "", t, flags=re.IGNORECASE)
-    t = re.sub(r"on\w+\s*=", "", t, flags=re.IGNORECASE)
-
-    c = re.sub(r"<script[^>]*>.*?</script>", "", c, flags=re.IGNORECASE | re.DOTALL)
-    c = re.sub(r"javascript:", "", c, flags=re.IGNORECASE)
-    c = re.sub(r"on\w+\s*=", "", c, flags=re.IGNORECASE)
-
-    # Final trim after sanitization
-    t = t.strip()
-    c = c.strip()
-
-    # Recheck after sanitization
-    if not t or not c:
-        raise bad_request("invalid content after sanitization")
 
     return t, c
 

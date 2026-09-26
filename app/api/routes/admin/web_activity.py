@@ -270,18 +270,21 @@ async def health_check():
         get_activity_logger()
         health_status["components"]["logger"] = "ok"
     except Exception as e:
-        health_status["components"]["logger"] = f"error: {str(e)}"
+        logger.exception("web activity health: logger unavailable")
+        health_status["components"]["logger"] = f"error: {type(e).__name__}"
         health_status["status"] = "unhealthy"
     try:
         get_activity_analyzer()
         health_status["components"]["analyzer"] = "ok"
     except Exception as e:
-        health_status["components"]["analyzer"] = f"error: {str(e)}"
+        logger.exception("web activity health: analyzer unavailable")
+        health_status["components"]["analyzer"] = f"error: {type(e).__name__}"
         health_status["status"] = "unhealthy"
     try:
         get_alert_system()
         health_status["components"]["alerts"] = "ok"
     except Exception as e:
-        health_status["components"]["alerts"] = f"error: {str(e)}"
+        logger.exception("web activity health: alert system unavailable")
+        health_status["components"]["alerts"] = f"error: {type(e).__name__}"
         health_status["status"] = "unhealthy"
     return health_status

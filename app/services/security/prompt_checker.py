@@ -18,13 +18,16 @@ _DANGEROUS_RE = re.compile(
 
 
 def _sanitize_output(text: str) -> str:
-    if not text:
-        return ""
-    text = re.sub(r"<[^>]*>", "", text)
-    text = re.sub(r"javascript:", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"on\w+\s*=", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"<script[^>]*>.*?</script>", "", text, flags=re.IGNORECASE | re.DOTALL)
-    return text.strip()
+    """Trim. Nothing else, on purpose.
+
+    This stripped an HTML blacklist, the same one `_normalize_prompt_fields`
+    carried and for the same non-reasons: the checked prompt is rendered as React
+    text, the blacklist mangled ordinary prompt wording, and its patterns
+    backtracked quadratically on the 50,000-character input `/prompts/check`
+    accepts (CodeQL py/polynomial-redos, py/bad-tag-filter). Unsafe *content* is
+    reported by `_DANGEROUS_RE` as an issue for the author, not silently edited.
+    """
+    return (text or "").strip()
 
 
 def _extract_json(text: str) -> dict[str, Any] | None:

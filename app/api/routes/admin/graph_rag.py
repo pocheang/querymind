@@ -195,10 +195,11 @@ async def graph_rag_health_check(
         client.close()
         health["checks"]["neo4j"] = {"status": "ok"}
     except Exception as e:
+        logger.exception("graph-rag health: Neo4j check failed")
         health["status"] = "degraded"
         health["checks"]["neo4j"] = {
             "status": "error",
-            "error": str(e),
+            "error": type(e).__name__,
         }
 
     # Check cache status
@@ -210,10 +211,11 @@ async def graph_rag_health_check(
             "total_entries": total_size,
         }
     except Exception as e:
+        logger.exception("graph-rag health: cache check failed")
         health["status"] = "degraded"
         health["checks"]["cache"] = {
             "status": "error",
-            "error": str(e),
+            "error": type(e).__name__,
         }
 
     return health

@@ -66,7 +66,11 @@ SYNONYM_DICT = {
 # Regex patterns for entity extraction
 # Matches uppercase acronyms (2-6 chars) and technical terms
 ACRONYM_PATTERN = re.compile(r"\b[A-Z]{2,6}\b")
-TECHNICAL_TERM_PATTERN = re.compile(r"\b(?:[a-z]+[A-Z][a-z]*)+\b")  # camelCase
+# camelCase. Written so each word has one parse: `(?:[a-z]+[A-Z][a-z]*)+` let a
+# lowercase run belong to either neighbouring chunk, which backtracked
+# exponentially on "aaA" repeated (CodeQL py/redos) -- and this runs on the user's
+# question. Same matches over 60,000 generated inputs; linear now.
+TECHNICAL_TERM_PATTERN = re.compile(r"\b[a-z]+[A-Z](?:[a-z]+[A-Z])*[a-z]*\b")
 COMPOUND_TERM_PATTERN = re.compile(
     r"\b(?:machine learning|deep learning|neural network|"
     r"natural language|computer vision|data science|"

@@ -28,7 +28,7 @@ def _tool_stack(monkeypatch):
     tests: a test key, the app database in a throwaway directory (deliberately not
     tmp_path -- see tests/mcp/test_tool_stack_sharing.py), a fresh stack.
     """
-    monkeypatch.setenv("API_SETTINGS_ENCRYPTION_KEY", "test-key-for-table-tool")
+    monkeypatch.setenv("API_SETTINGS_ENCRYPTION_KEY", "test-key-for-the-table-sql-tool-stack")
     root = Path(tempfile.mkdtemp(prefix="querymind-table-tool-"))
     monkeypatch.setenv("APP_DB_PATH", str(root / "app.db"))
     get_settings.cache_clear()

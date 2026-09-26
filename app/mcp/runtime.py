@@ -23,7 +23,6 @@ import asyncio
 import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
-from hashlib import sha256
 
 from app.domain.contracts import ToolResult
 from app.mcp.approvals import ApprovalStore
@@ -33,6 +32,7 @@ from app.mcp.gateway import MCPGateway
 from app.mcp.registry import ToolRegistry
 from app.orchestration.execution_events import get_default_execution_event_store
 from app.orchestration.request import RequestActor
+from app.services.auth.encryption import encryption_key_from_seed
 from app.services.connectors.contracts import ConnectorView
 from app.services.connectors.management import ConnectorManagementService, probe_http_connector
 from app.services.connectors.metadata_repository import ConnectorMetadataRepository
@@ -114,7 +114,7 @@ def _build_tool_stack() -> ToolStack:
     )
     credentials = ConnectorCredentialService(
         CredentialRepository(),
-        encryption_key=sha256(seed.encode("utf-8")).digest(),
+        encryption_key=encryption_key_from_seed(seed),
     )
     connectors = ConnectorManagementService(
         ConnectorMetadataRepository(),

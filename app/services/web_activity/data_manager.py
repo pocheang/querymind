@@ -105,7 +105,7 @@ class WebActivityDataManager:
             }
         except Exception as e:
             logger.exception("Backup failed")
-            return {"success": False, "message": str(e), "file_count": 0}
+            return {"success": False, "message": f"{type(e).__name__} (details in the server log)", "file_count": 0}
 
     def archive_old_logs(self, days: int = 30) -> dict:
         """
@@ -154,7 +154,7 @@ class WebActivityDataManager:
                 logger.warning(f"Skip file with invalid date format: {log_file}")
             except Exception as e:
                 logger.exception(f"Failed to archive {log_file}")
-                failed_files.append({"file": str(log_file), "error": str(e)})
+                failed_files.append({"file": str(log_file), "error": type(e).__name__})
 
         return {
             "success": not failed_files,
@@ -195,7 +195,7 @@ class WebActivityDataManager:
                 pass
             except Exception as e:
                 logger.exception(f"Failed to delete {log_file}")
-                failed_files.append({"file": str(log_file), "error": str(e)})
+                failed_files.append({"file": str(log_file), "error": type(e).__name__})
 
         # 清理归档文件
         for archive_file in self.archive_dir.glob("web_activity_*.jsonl.gz"):
@@ -212,7 +212,7 @@ class WebActivityDataManager:
                 pass
             except Exception as e:
                 logger.exception(f"Failed to delete {archive_file}")
-                failed_files.append({"file": str(archive_file), "error": str(e)})
+                failed_files.append({"file": str(archive_file), "error": type(e).__name__})
 
         return {
             "success": not failed_files,
@@ -250,7 +250,7 @@ class WebActivityDataManager:
 
             except Exception as e:
                 logger.exception(f"Failed to delete backup {backup_file}")
-                failed_backups.append({"file": str(backup_file), "error": str(e)})
+                failed_backups.append({"file": str(backup_file), "error": type(e).__name__})
 
         return {
             "success": not failed_backups,
@@ -290,7 +290,7 @@ class WebActivityDataManager:
 
         except Exception as e:
             logger.exception("Restore failed")
-            return {"success": False, "message": str(e)}
+            return {"success": False, "message": f"{type(e).__name__} (details in the server log)"}
 
     def get_storage_info(self) -> dict:
         """
