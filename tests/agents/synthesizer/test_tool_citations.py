@@ -299,7 +299,8 @@ async def test_the_reader_sees_tool_sources_after_the_references() -> None:
     answer = await _filtered("CVSS 为 10.0 [T1]，先隔离主机 [E1]。", (_FAILED, _CVE))
 
     body, _, tail = answer.answer.partition("**参考来源**")
-    assert "[T1]" in body and "[1]" in body
+    assert "[T1]" in body
+    assert "[1]" in body
     assert tail.index("playbook.md") < tail.index("**工具来源**")
     assert "- [T1] querymind_cyber_cve_lookup: [CVE-2021-44228] Log4Shell" in tail
 
