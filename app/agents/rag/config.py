@@ -137,7 +137,13 @@ PATTERN_PROPER_NOUNS = re.compile(r"\b[A-Z][a-z]+(?: [A-Z][a-z]+){0,3}\b")
 
 PATTERN_ACRONYMS = re.compile(r"\b[A-Z]{2,6}s?\b")
 
-PATTERN_CAMEL_CASE = re.compile(r"\b[A-Z][a-z]+(?:[A-Z][A-Za-z0-9]+)+\b")
+# `(?:[A-Z][A-Za-z0-9]+)+` accepts exactly the strings `[A-Z][A-Za-z0-9]+` does --
+# one chunk can already hold every uppercase letter -- so the repetition only
+# multiplied the ways to split a run of capitals, and backtracked exponentially
+# when the word then failed its `\b` (CodeQL py/redos; "Ab" + "A"*22 + "_" took
+# 1.3 ms and doubled every two characters). Same matches over 60,000 generated
+# inputs; linear now.
+PATTERN_CAMEL_CASE = re.compile(r"\b[A-Z][a-z]+[A-Z][A-Za-z0-9]+\b")
 
 PATTERN_CHINESE_TERMS = re.compile(r"[一-鿿]{2,10}(?:模型|系统|机制|架构|翻译|分析|处理)")
 

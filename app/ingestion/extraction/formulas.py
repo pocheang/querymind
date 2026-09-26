@@ -2,6 +2,19 @@
 
 import re
 
+# Common mathematical expressions: E = mc^2, F = ma, etc.
+#
+# An operator is also a token character, so `a+b` with no spaces is one token
+# and the old `(?:\s*[op]\s*token)*` could re-split it at every operator: on
+# "!*" repeated it backtracked exponentially (CodeQL py/redos; 35 characters
+# took 23 ms, growing ~4.5x every 4). Uploaded documents reach this, so one
+# crafted PDF could stall the ingest worker. Each repetition now has to cross
+# whitespace, which is the only thing the old form added over one token.
+# Diffed over 200,000 generated inputs: no old match is lost or shortened; the
+# new form additionally accepts an operator standing alone before a space
+# (`F = - 0`, a unary minus the old form could not read).
+EQUATION_PATTERN = re.compile(r"\b([A-Z])\s*=\s*([^\s,;.]+(?:(?<=[+\-*/^])\s+[^\s,;.]+|\s+[+\-*/^]\s*[^\s,;.]+)*)\b")
+
 
 def detect_formula(text: str) -> list[dict[str, str]]:
     """
@@ -29,10 +42,7 @@ def detect_formula(text: str) -> list[dict[str, str]]:
             {"formula": match.group(1), "type": "latex_display", "position": match.start(), "raw": match.group(0)}
         )
 
-    # Common mathematical expressions
-    # Pattern: E = mc^2, F = ma, etc.
-    equation_pattern = r"\b([A-Z])\s*=\s*([^\s,;.]+(?:\s*[+\-*/^]\s*[^\s,;.]+)*)\b"
-    for match in re.finditer(equation_pattern, text):
+    for match in EQUATION_PATTERN.finditer(text):
         formulas.append(
             {"formula": match.group(0), "type": "equation", "position": match.start(), "raw": match.group(0)}
         )
