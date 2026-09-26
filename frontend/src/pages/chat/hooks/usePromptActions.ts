@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { appApi } from "@/lib/api";
 import type { PromptTemplate } from "@/types/api";
 import type { Toast } from "@/pages/chat/types";
-import { sanitizeString } from "@/lib/validation";
 
 type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 
@@ -130,21 +129,23 @@ export function usePromptActions(params: UsePromptActionsParams) {
       setPromptCheckInfo(t("components.workbench.checkingPrompt"));
       const res = await appApi.promptCheck(title, content, useReasoning);
 
-      // Sanitize API response data to prevent XSS
-      const sanitizedTitle = sanitizeString(res.title || title);
-      const sanitizedContent = sanitizeString(res.content || content);
-      const sanitizedSuggestions = (res.suggestions || []).filter(Boolean).map((s) => sanitizeString(String(s)));
+      // Kept as the server returned it. These values go into React state and are
+      // rendered as text, which React escapes; a blacklist that stripped `<`, `>`
+      // and `javascript:` here was no XSS defence and cut them out of prompts.
+      const checkedTitle = String(res.title || title);
+      const checkedContent = String(res.content || content);
+      const suggestions = (res.suggestions || []).filter(Boolean).map((s) => String(s));
 
-      const numberedSuggestions = sanitizedSuggestions.map((x, i) => `${i + 1}. ${x}`).join("\n");
-      const suggestionBlock = sanitizedSuggestions.length
+      const numberedSuggestions = suggestions.map((x, i) => `${i + 1}. ${x}`).join("\n");
+      const suggestionBlock = suggestions.length
         ? `${t("components.workbench.suggestionsLabel")}${numberedSuggestions}`
         : "";
 
-      const sanitizedIssues = (res.issues || []).slice(0, 3).map((issue) => sanitizeString(String(issue)));
+      const issues = (res.issues || []).slice(0, 3).map((issue) => String(issue));
 
-      setPromptTitle(sanitizedTitle);
-      setPromptContent(`${sanitizedContent.trim()}${suggestionBlock}`);
-      setPromptCheckInfo(t("components.workbench.checkDone", { issues: sanitizedIssues.join(";") }));
+      setPromptTitle(checkedTitle);
+      setPromptContent(`${checkedContent.trim()}${suggestionBlock}`);
+      setPromptCheckInfo(t("components.workbench.checkDone", { issues: issues.join(";") }));
       notify(t("components.workbench.promptCheckCompleted"), "success");
     } catch (e) {
       setPromptCheckInfo("");
@@ -153,10 +154,9 @@ export function usePromptActions(params: UsePromptActionsParams) {
   };
 
   const deletePrompt = async (item: PromptTemplate, editingPromptId: string | null) => {
-    // Sanitize title for display in confirmation dialog
-    const sanitizedTitle = sanitizeString(item.title);
     const confirmed = await confirm({
-      message: t("components.workbench.deleteTemplateConfirm", { title: sanitizedTitle }),
+      // ConfirmDialog renders `message` as text, so the title needs no filtering.
+      message: t("components.workbench.deleteTemplateConfirm", { title: item.title }),
       isDanger: true,
     });
     if (!confirmed) return;
