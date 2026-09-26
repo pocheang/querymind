@@ -397,12 +397,21 @@ class _VagueIntentRule:
 
     Regex patterns are bounded with <= 15 alternation branches per expression
     to guarantee SonarQube regex complexity limits (<= 20) are never exceeded.
+
+    `keyword_patterns` only means something when a question can match this rule
+    *and* name a keyword. `extract` runs only after `matches`, and an anchored
+    `vague_patterns` entry admits filler words alone ("这个系统如何配置"), so a
+    rule whose only way in is that full-sentence match can never extract
+    anything. Setup, usage and optimization carried keyword lists anyway until
+    2026-09-26; enumerating every sentence their patterns accept (808, 1442 and
+    385) found no extraction at all. Troubleshooting keeps its list because its
+    `short_patterns` let a question like "redis 报错" in with a keyword attached.
     """
 
     intent: ClarificationIntent
     field_name: str
     vague_patterns: tuple[re.Pattern[str], ...]
-    keyword_patterns: tuple[re.Pattern[str], ...]
+    keyword_patterns: tuple[re.Pattern[str], ...] = ()
     max_short_len: int = 0
     short_patterns: tuple[re.Pattern[str], ...] = ()
 
@@ -461,14 +470,6 @@ _SETUP_RULE = _VagueIntentRule(
         ),
         re.compile(r"^(?:how\s+to\s+)?(?:deploy|install|configure|setup)$"),
     ),
-    keyword_patterns=(
-        # Chinese system/component keywords (<= 10 branches)
-        re.compile(r"前端|界面|后端|服务|向量库|向量数据库|图谱|大模型|环境变量"),
-        # Core service and technology stacks (<= 12 branches)
-        re.compile(r"\b(?:web|ui|backend|api|milvus|chroma|neo4j|ollama|llm|embedding)\b", re.IGNORECASE),
-        # Infrastructure and runtimes (<= 10 branches)
-        re.compile(r"\b(?:docker|compose|nginx|cuda|gpu|python|node|env)\b", re.IGNORECASE),
-    ),
 )
 
 _USAGE_RULE = _VagueIntentRule(
@@ -480,14 +481,6 @@ _USAGE_RULE = _VagueIntentRule(
         ),
         re.compile(r"^(?:how\s+to\s+use|how\s+does\s+it\s+work)$"),
     ),
-    keyword_patterns=(
-        # Chinese document management and retrieval (<= 10 branches)
-        re.compile(r"文档|文件|上传|解析|切片|知识库|检索|搜索|图谱|推理"),
-        # Interaction, agent, and API workflows (<= 12 branches)
-        re.compile(r"多智能体|问答|会话|模型|切换|提示词|接口|调用|鉴权|权限|管理后台"),
-        # English technical terms (<= 10 branches)
-        re.compile(r"\b(?:pdf|chunking?|agent|chat|prompt|restful|api)\b", re.IGNORECASE),
-    ),
 )
 
 _OPTIMIZATION_RULE = _VagueIntentRule(
@@ -496,15 +489,6 @@ _OPTIMIZATION_RULE = _VagueIntentRule(
     vague_patterns=(
         re.compile(r"^(?:请问)?(?:这个|系统|平台)?(?:如何|怎么|怎样)?(?:优化|调优|加速)(?:呢|方法|建议)?$"),
         re.compile(r"^how\s+to\s+optimize$"),
-    ),
-    keyword_patterns=(
-        # Recall, precision, and chunking (<= 12 branches)
-        re.compile(r"准确率|召回率|重排|向量|切片|分块|\b(?:recall|precision|rerank|bm25|chunking)\b", re.IGNORECASE),
-        # Performance, latency, and resource metrics (<= 14 branches)
-        re.compile(
-            r"延迟|耗时|速度|响应时间|并发|吞吐|显存|内存|成本|费用|\b(?:latency|tps|qps|token|gpu|ram)\b",
-            re.IGNORECASE,
-        ),
     ),
 )
 
@@ -662,22 +646,6 @@ def _extract_comparison_fields(text: str) -> dict[str, str]:
     if output_format:
         extracted["output_format"] = output_format.group(0)
     return extracted
-
-
-def _extract_troubleshooting_fields(text: str) -> dict[str, str]:
-    return _TROUBLESHOOTING_RULE.extract(text)
-
-
-def _extract_setup_fields(text: str) -> dict[str, str]:
-    return _SETUP_RULE.extract(text)
-
-
-def _extract_usage_fields(text: str) -> dict[str, str]:
-    return _USAGE_RULE.extract(text)
-
-
-def _extract_optimization_fields(text: str) -> dict[str, str]:
-    return _OPTIMIZATION_RULE.extract(text)
 
 
 def _nonblank(values: dict[str, str]) -> dict[str, str]:

@@ -220,16 +220,3 @@ def merge_cross_page_tables_with_spans(pages_content: list[str]) -> list[tuple[s
         i += 1
 
     return spanned
-
-
-def merge_cross_page_tables(pages_content: list[str]) -> list[str]:
-    """Main function to merge tables across pages.
-
-    Args:
-        pages_content: List of page content (Markdown format)
-
-    Returns:
-        List of pages with cross-page tables merged
-    """
-    spanned = merge_cross_page_tables_with_spans(pages_content)
-    return [content for content, _ in spanned]

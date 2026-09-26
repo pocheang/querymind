@@ -6,10 +6,6 @@ import pytest
 
 from app.agents.clarification.rules import (
     _clean_comparison_target,
-    _extract_optimization_fields,
-    _extract_setup_fields,
-    _extract_troubleshooting_fields,
-    _extract_usage_fields,
     assess_completeness,
     max_rounds_for,
     missing_fields,
@@ -132,11 +128,41 @@ def test_complete_and_specific_queries_do_not_block_with_vague_clarification(que
         assert missing_fields(assessment, {}) == ()
 
 
-def test_backward_compatible_extraction_helpers():
-    assert "error_details" in _extract_troubleshooting_fields("FastAPI timeout 报错")
-    assert "target_component" in _extract_setup_fields("如何配置 Neo4j 图谱？")
-    assert "usage_target" in _extract_usage_fields("多智能体问答怎么操作？")
-    assert "optimization_target" in _extract_optimization_fields("如何提升检索准确率？")
+@pytest.mark.parametrize(
+    ("question", "component"),
+    [("redis 报错", "redis"), ("docker 出错了", "docker"), ("exception", "exception")],
+)
+def test_a_vague_error_report_that_names_a_component_is_not_asked_about_it(question, component):
+    """Troubleshooting is the one rule whose keywords can fire: its short-input
+    door admits a question with a component attached, and naming one answers
+    the question the clarifier would otherwise ask.
+
+    This replaced a test of four `_extract_*_fields` wrappers, which fed them
+    sentences like "如何配置 Neo4j 图谱？" -- a question `assess_completeness`
+    classifies as complete, so production never extracted from it at all."""
+    assessment = assess_completeness(question)
+
+    assert assessment.intent == "troubleshooting"
+    assert assessment.extracted_info.get("error_details") == component
+    assert missing_fields(assessment, {}) == ()
+
+
+@pytest.mark.parametrize(
+    ("question", "intent", "field"),
+    [
+        ("如何配置", "environment_setup", "target_component"),
+        ("这个系统怎么使用？", "usage_guidance", "usage_target"),
+        ("how to optimize", "optimization", "optimization_target"),
+    ],
+)
+def test_the_other_vague_intents_always_ask_for_their_field(question, intent, field):
+    """Their patterns match whole sentences of filler words, so there is never a
+    keyword to extract; a question that names one is not vague and answers as
+    complete instead."""
+    assessment = assess_completeness(question)
+
+    assert assessment.intent == intent
+    assert missing_fields(assessment, {}) == (field,)
 
 
 def test_question_immutability():
