@@ -85,7 +85,7 @@ def test_the_overlay_is_gone_and_nothing_tells_an_operator_to_use_it():
         if path.is_file():
             assert RETIRED_OVERLAY.name not in path.read_text(encoding="utf-8"), f"{path} still names the overlay"
     as_argument = re.compile(r"-f\s+\S*" + re.escape(RETIRED_OVERLAY.name))
-    for path in (Path("deploy/README.md"), Path("CLAUDE.md")):
+    for path in (Path("deploy/README.md"),):
         assert not as_argument.search(path.read_text(encoding="utf-8")), f"{path} still tells an operator to use it"
 
 

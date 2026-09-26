@@ -128,7 +128,7 @@ from app.orchestration.engine import OrchestrationEngine
 
 ## 🔗 相关文档
 
-- [架构说明](../../CLAUDE.md)
+- [架构说明](../../README.md)
 
 ---
 

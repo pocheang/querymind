@@ -737,7 +737,7 @@ def validate_worker_topology(settings: Settings) -> None:
         raise RuntimeError(
             f"APP_WORKERS={settings.app_workers} needs STATE_BACKEND=shared: in memory mode each "
             "worker keeps its own limits, sessions and indexes. "
-            "See docs/querymind-deep-dive/arc-01-plan.html."
+            "See deploy/README.md."
         )
 
 

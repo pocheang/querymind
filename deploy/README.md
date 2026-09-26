@@ -24,7 +24,7 @@ $env:OPENAI_API_KEY = "your-api-key"
 
 ## 多 worker 部署
 
-从 [ARC-01](../docs/querymind-deep-dive/arc-01-plan.html) 阶段 9 起，生产部署默认就是多 worker：镜像用 gunicorn 管理 `APP_WORKERS` 个 uvicorn worker（生产配置层默认 2 个，`deploy/gunicorn.conf.py`），Compose 默认 `STATE_BACKEND=shared`，同一个 `compose.yaml` 里包含 Redis、Chroma 服务端、一次性的 `init` 服务和唯一一个 `ingest-worker`。原来的 `compose.shared-state.yaml` 叠加文件已并入并删除。
+从 ARC-01 阶段 9 起，生产部署默认就是多 worker：镜像用 gunicorn 管理 `APP_WORKERS` 个 uvicorn worker（生产配置层默认 2 个，`deploy/gunicorn.conf.py`），Compose 默认 `STATE_BACKEND=shared`，同一个 `compose.yaml` 里包含 Redis、Chroma 服务端、一次性的 `init` 服务和唯一一个 `ingest-worker`。原来的 `compose.shared-state.yaml` 叠加文件已并入并删除。
 
 **第一次部署阶段 9 之前先停栈：`docker compose down`（绝不加 `-v`，那会删掉所有数据卷），再运行部署脚本。**网络现在固定了子网，而已存在、配置没变的容器（redis、chroma）会继续指向旧网络的 ID，启动时报 `network ... not found`——验证环境里实测到过。`down` 删除的是容器和网络，数据卷全部保留。
 

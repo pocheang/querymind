@@ -306,8 +306,7 @@ multi_agent_rag_local_v4/
 ├── docs/                       # 架构与开发文档中心
 │   └── releases/               # 历史版本发布说明 (v0.7.0.1 Release Notes)
 ├── tests/                      # 自动化测试套件 (Pytest 单元、集成、安全回归测试)
-├── pyproject.toml              # Python 构建配置与依赖锁定声明
-└── CLAUDE.md                   # 架构技术规范与工程实现备忘录
+└── pyproject.toml              # Python 构建配置与依赖锁定声明
 ```
 
 ---
@@ -364,7 +363,6 @@ make eval-full-pipeline
 
 ## 📜 Documentation Index (文档索引)
 
-- 📗 **[CLAUDE.md](CLAUDE.md)**：系统底层实现细节、设计决策演进与工程规范
 - 📝 **[v0.7.0.3 发布说明](docs/releases/v0.7.0.3-release-notes.md)**：最新版本——动态双轨制澄清 Agent（静态规则快速通道 + LLM 真实智能反问）、交互提问规范对标 Codex/Claude Code、SonarQube 质量门禁 100% 满分通过
 - 📝 **[v0.7.0.2 发布说明](docs/releases/v0.7.0.2-release-notes.md)**：SonarQube 质量门禁全量通过（安全漏洞/缺陷/代码异味 100% 清零）、重复代码彻底归零（0 块 / 0.0% 重复率）、前端可视化拓扑与管理状态解耦重构
 - 📝 **[v0.7.0.1 发布说明](docs/releases/v0.7.0.1-release-notes.md)**：表格与 Excel/CSV、表格 SQL 分析、图谱社区、多搜索源、提示词注入防护及升级说明

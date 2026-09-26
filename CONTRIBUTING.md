@@ -437,7 +437,7 @@ docs/
 - Keep consistent formatting
 - Update table of contents
 
-**Documentation Guide:** [docs/README.md](docs/README.md), and the daily-log convention in [CLAUDE.md](CLAUDE.md).
+**Documentation Guide:** [docs/README.md](docs/README.md).
 
 ---
 
@@ -452,7 +452,7 @@ docs/
 
 ### Getting Help
 
-- Read [CLAUDE.md](CLAUDE.md), which describes how the system works today
+- Read [README.md](README.md) and [docs/README.md](docs/README.md) for how the system works today
 - Search existing [GitHub Issues](https://github.com/pocheang/querymind/issues)
 - Ask in [GitHub Discussions](https://github.com/pocheang/querymind/discussions)
 

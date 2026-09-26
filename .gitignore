@@ -130,6 +130,11 @@ yarn-error.log*
 internal_docs/
 docs/internal/
 docs/private/
+# 开发日志、实施计划、深度解析（含问题清单）和 AI 工作说明：只保留在本地
+docs/development/daily-logs/
+docs/superpowers/
+docs/querymind-deep-dive/
+CLAUDE.md
 
 # 审计和报告
 *_AUDIT*.md
