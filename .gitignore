@@ -239,9 +239,11 @@ frontend/.tmp_*.log
 # ============================================
 # AI ASSISTANT SETTINGS
 # ============================================
-.claude/settings.json
-.claude/settings.local.json
-.claude/worktrees/
+# The whole directory: settings, worktrees, the local dev-server launch.json and
+# scheduler locks are all per-machine.
+.claude/
+# Workspace instructions for AI assistants, like CLAUDE.md: local only.
+AGENTS.md
 .cursor/
 .continue/
 skills-lock.json
