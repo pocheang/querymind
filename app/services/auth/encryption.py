@@ -12,6 +12,34 @@ logger = logging.getLogger(__name__)
 
 API_KEY_ENC_PREFIX = "enc:v1:"
 
+MIN_ENCRYPTION_SEED_LENGTH = 32
+_GENERATE_HINT = "Generate one with: python -c 'import secrets; print(secrets.token_urlsafe(48))'"
+
+
+def encryption_key_from_seed(seed: str) -> bytes:
+    """The 32-byte key the stored credentials are encrypted with, from API_SETTINGS_ENCRYPTION_KEY.
+
+    One definition for both stores that use it (user API settings and connector
+    credentials), so they cannot derive different keys from the same setting.
+
+    SHA-256 is a sound way to turn a random secret into a key and a poor way to
+    turn a passphrase into one: it is fast, so a short human-chosen value falls
+    to a dictionary. Nothing checked which of the two an operator supplied, so a
+    value shorter than 32 characters is refused rather than used. The derivation
+    itself is unchanged, so every existing ciphertext still decrypts.
+    """
+
+    value = str(seed or "").strip()
+    if not value:
+        raise RuntimeError(f"API_SETTINGS_ENCRYPTION_KEY is required. {_GENERATE_HINT}")
+    if len(value) < MIN_ENCRYPTION_SEED_LENGTH:
+        raise RuntimeError(
+            f"API_SETTINGS_ENCRYPTION_KEY must be at least {MIN_ENCRYPTION_SEED_LENGTH} characters "
+            f"(got {len(value)}): it is hashed straight into a key, so it has to be a random secret, "
+            f"not a password. {_GENERATE_HINT}"
+        )
+    return hashlib.sha256(value.encode("utf-8")).digest()
+
 
 def stream_xor(data: bytes, key: bytes, nonce: bytes) -> bytes:
     out = bytearray()
