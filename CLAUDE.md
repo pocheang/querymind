@@ -3770,7 +3770,7 @@ hygiene hooks, pytest with coverage, the coverage ratchet; a 3.11/3.12 matrix), 
 in that order, the last two after the build because they need what the browser receives),
 `images` (the configuration layers, then both Dockerfiles, each then run), and `analysis`,
 which needs backend and frontend and is where the SonarCloud scanner lives. `backend` is a
-3.11/3.12 matrix and `frontend` a Node 20/22 one, with the version-independent checks
+3.11/3.12 matrix and `frontend` a Node 22/24 one, with the version-independent checks
 pinned to the canonical leg of each. Two more workflows: `security.yml` (dependency and
 image scanning, weekly) and `codeql.yml`.
 
@@ -3971,8 +3971,8 @@ action to a commit means reading a repository outside this project; and it reads
 tarball rather than a mounted `/var/run/docker.sock`, because handing a container the
 daemon socket is handing it the host.
 
-**Node is a 20/22 matrix.** 20 is canonical -- `Dockerfile.frontend` builds the shipped
-bundle on `node:20-alpine`, so the linters, the coverage upload and the dead-class audit run
+**Node was a 20/22 matrix, and is 22/24 since 2026-09-26** (see below). 20 was canonical --
+`Dockerfile.frontend` built the shipped bundle on `node:20-alpine`, so the linters, the coverage upload and the dead-class audit run
 only there -- and 22 is the current LTS. Measured on both before adding it: 214 tests, the
 build and the dead-class audit pass on each.
 
@@ -3983,6 +3983,17 @@ dev-only so nothing shipped is affected, and the suite passes on 20 anyway -- bu
 toolchain has been asking for a Node newer than the only one CI ever ran, and nobody could
 have seen that from a single-version job. Not acted on here: raising the floor to 22 means
 `node:22-alpine` in the image too, which is a deployment change and not a CI one.
+
+**It was acted on on 2026-09-26, when the toolchain stopped asking.** vitest 5 declares
+`node: ^22.12.0` and jsdom 30 `^22.22.2`, and on Node 20 jsdom 30 does not warn -- it
+fails to load, taking 19 of the 33 test files with it while the 99 tests in the other 14
+pass, so the run reads as mostly green. Dependabot's two PRs (#38, #40) were red for that
+reason alone; #40 was also red for a second one, `@vitest/coverage-v8` peer-pinning
+`vitest` to its own exact version, so the two must always move together. The floor is 22
+now: `Dockerfile.frontend` builds on `node:22-alpine`, the matrix is 22/24 with 22
+canonical, `security.yml`'s audit and the smoke step run on 22, and `package.json`
+declares `engines` so the requirement is stated where npm reads it rather than only in
+this file.
 
 #### The stack is served, and a browser looks at it
 
