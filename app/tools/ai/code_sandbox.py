@@ -196,10 +196,17 @@ AI_MATH_TOOL_DEFINITION = ToolDefinition(
     operation="read",
     risk="read_only",
     category="artificial_intelligence",
+    # Every helper's signature and units are spelled out, and
+    # tests/tools/test_ai_math_tool_description.py checks them against the
+    # functions. The description used to name no arguments, and asked for 70B
+    # weights at "2 bytes per parameter" a real model wrote param_gb(70e9, 2) --
+    # the second argument is BITS -- and reported 16.3 GiB for ~130 GiB.
     description=(
-        "Safely compute mathematical formulas, FLOPs estimates (e.g. 6 * 7e9 * 1e12), memory footprints, "
-        "or algorithm complexities via AST sandboxed execution. param_gb() returns GiB (1024**3 bytes) and "
-        "kv_cache_mb() returns MiB (1024**2 bytes) -- binary units, despite the names."
+        "AST-sandboxed calculator for formulas, FLOPs and memory. Helpers: "
+        "param_gb(params, bits=16) -> weights in GiB; 2nd arg is BITS per param (FP16=16, INT8=8, INT4=4), "
+        "not bytes. kv_cache_mb(layers, kv_heads, head_dim, seq_len, batch_size=1, bytes_per_elem=2) -> MiB; "
+        "last arg is BYTES. flops_train(params, tokens) = 6*P*D. flops_infer(params, tokens) = 2*P*D. "
+        "GiB/MiB are binary units."
     ),
     parameters=(
         ToolParameter(
