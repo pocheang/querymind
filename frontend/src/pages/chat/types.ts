@@ -1,5 +1,14 @@
 import type { AuthUser, Citation, IndexedFileSummary, PromptTemplate, SessionMessage, ToolRun } from "@/types/api";
 
+/**
+ * The agent classes a user can pin a question to, plus "" for the router's own choice.
+ *
+ * Declared here and nowhere else. It was written out in five files, and the
+ * backend's list was written out four more times; a class missing from one copy
+ * is not an error, it is a question quietly answered as `general`.
+ * `tests/agents/test_agent_class_vocabulary.py` checks this union against the
+ * backend's `AgentClass`.
+ */
 export type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 
 export type AgentMode = {

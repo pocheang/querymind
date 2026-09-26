@@ -2,9 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { appApi } from "@/lib/api";
 import type { PromptTemplate } from "@/types/api";
-import type { Toast } from "@/pages/chat/types";
-
-type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
+import type { AgentClassHint, Toast } from "@/pages/chat/types";
 
 // Security constants
 const MAX_TITLE_LENGTH = 200;

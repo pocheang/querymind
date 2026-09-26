@@ -8,6 +8,7 @@ import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from app.agents.catalog import AgentClass
 from app.services.query.keyword_match import count_keywords
 
 if TYPE_CHECKING:
@@ -189,8 +190,8 @@ def _build_ai_agent() -> BaseSpecialistAgent:
 #: Keyed by the agent class each factory builds, so a class an extension has
 #: already registered is skipped without building the built-in at all.
 _BUILTIN_AGENT_FACTORIES: dict[str, Callable[[], BaseSpecialistAgent]] = {
-    "cybersecurity": _build_cybersecurity_agent,
-    "artificial_intelligence": _build_ai_agent,
+    AgentClass.CYBERSECURITY: _build_cybersecurity_agent,
+    AgentClass.ARTIFICIAL_INTELLIGENCE: _build_ai_agent,
 }
 
 _REGISTRY_LOCK = threading.Lock()

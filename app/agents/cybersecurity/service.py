@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 
 from app.agents.base import BaseSpecialistAgent
+from app.agents.catalog import AgentClass
 from app.domain.contracts import ToolResult
 from app.services.query.keyword_match import any_keyword
 from app.tools.category import ToolCategory
@@ -91,7 +92,7 @@ class CybersecurityAgentService(BaseSpecialistAgent):
 
     @property
     def agent_class(self) -> str:
-        return "cybersecurity"
+        return AgentClass.CYBERSECURITY
 
     @property
     def supported_skills(self) -> tuple[str, ...]:

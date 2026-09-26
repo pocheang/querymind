@@ -16,6 +16,7 @@ from typing import Any
 
 from fastapi import Request
 
+from app.agents.catalog import AgentClass, normalize_agent_class
 from app.api.deps.admin import _runtime_diagnostics_summary as _runtime_diagnostics_summary_impl
 from app.api.deps.auth import (
     auth_service,
@@ -32,7 +33,6 @@ from app.api.utils.memory_helpers import _build_memory_context_for_session as _b
 from app.api.utils.memory_helpers import _recent_session_turns as _recent_session_turns_impl
 
 # Import helper functions from utility modules
-from app.api.utils.string_utils import normalize_string
 from app.core.config import Settings, get_settings
 from app.services.agent_classifier import classify_agent_class
 from app.services.auth.user_manager import InsufficientCreditsError
@@ -274,22 +274,18 @@ def _trace_id(request: Request) -> str:
     return str(getattr(request.state, "trace_id", "") or "").strip() or uuid.uuid4().hex
 
 
-_ALLOWED_AGENT_CLASSES = {"general", "cybersecurity", "artificial_intelligence", "pdf_text", "policy"}
-
-
-def _normalize_agent_class_hint(value: str | None) -> str | None:
-    """Normalize a public agent-class hint against the allowed class set."""
-    hint = normalize_string(value, lowercase=True)
-    return hint if hint in _ALLOWED_AGENT_CLASSES else None
-
-
 def _resolve_effective_agent_class(question: str, agent_class_hint: str | None) -> str:
-    """Resolve the canonical agent class for a question, honoring an explicit hint."""
-    hinted = _normalize_agent_class_hint(agent_class_hint)
+    """Resolve the canonical agent class for a question, honoring an explicit hint.
+
+    Uses the router's rule for what counts as a class. This module used to keep
+    its own list and its own normalizer, which ignored classes a registered
+    specialist declares -- so the same hint could be honoured by the router and
+    discarded here.
+    """
+    hinted = normalize_agent_class(agent_class_hint)
     if hinted:
         return hinted
-    guessed = classify_agent_class(question)
-    return guessed if guessed in _ALLOWED_AGENT_CLASSES else "general"
+    return normalize_agent_class(classify_agent_class(question)) or AgentClass.GENERAL
 
 
 # ============================================================================

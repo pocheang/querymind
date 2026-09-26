@@ -2,14 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-
-type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
-
-type AgentMode = {
-  key: AgentClassHint;
-  title: string;
-  desc: string;
-};
+import type { AgentClassHint, AgentMode } from "@/pages/chat/types";
 
 type Props = {
   agentClassHint: AgentClassHint;

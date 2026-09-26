@@ -4,6 +4,7 @@ import json
 import logging
 import re
 
+from app.agents.catalog import AgentClass, normalize_agent_class
 from app.services.models.runtime import get_chat_model
 from app.services.observability.log_safety import question_ref
 from app.services.query.keyword_match import any_keyword
@@ -71,18 +72,12 @@ def classify_intent_with_llm(question: str) -> dict:
                 logger.warning(f"JSON parse error: {error}, content: {json_str}")
                 return _fallback_classification(question)
 
-            valid_classes = {"cybersecurity", "artificial_intelligence", "pdf_text", "general"}
-            try:
-                from app.agents.registry import get_domain_agent_registry
-
-                valid_classes.update(get_domain_agent_registry().list_agent_classes())
-            except Exception:
-                pass
-
-            agent_class = result.get("agent_class", "general")
-            if agent_class not in valid_classes:
-                logger.warning(f"Invalid agent_class '{agent_class}', fallback to 'general'")
-                agent_class = "general"
+            # The same rule every other reader of an agent class applies. This
+            # used to be a hand-written set of four that lacked `policy`.
+            agent_class = normalize_agent_class(str(result.get("agent_class") or ""))
+            if agent_class is None:
+                logger.warning("LLM intent classifier returned an unknown agent_class; using general")
+                agent_class = AgentClass.GENERAL
 
             confidence = float(result.get("confidence", 0.5))
             confidence = max(0.0, min(1.0, confidence))

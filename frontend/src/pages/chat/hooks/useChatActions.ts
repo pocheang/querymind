@@ -2,14 +2,12 @@ import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { createApiErrorHandler } from "@/lib/api-error-handler";
 import type { IndexedFileSummary, PromptTemplate, SessionMessage, SessionSummary } from "@/types/api";
-import type { Toast } from "@/pages/chat/types";
+import type { AgentClassHint, Toast } from "@/pages/chat/types";
 import { useSessionActions } from "./useSessionActions";
 import { useDocumentActions } from "./useDocumentActions";
 import { usePromptActions } from "./usePromptActions";
 import { useMessageOperations } from "./useMessageOperations";
 import { randomId } from "@/lib/randomId";
-
-type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 
 interface UseChatActionsParams {
   setToasts: Dispatch<SetStateAction<Toast[]>>;

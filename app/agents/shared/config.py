@@ -16,6 +16,8 @@ from typing import Final
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.agents.catalog import BUILTIN_AGENT_CLASSES, AgentClass
+
 # ============================================================================
 # Vector RAG Configuration (3 constants)
 # WHY: Control retrieval quality thresholds and preview lengths
@@ -38,19 +40,12 @@ ROUTER_LOW_CONFIDENCE_THRESHOLD: Final[float] = 0.6
 """Threshold below which router confidence is considered low.
 WHY: Triggers fallback behavior or additional validation."""
 
-AGENT_CLASS_GENERAL: Final[str] = "general"
+AGENT_CLASS_GENERAL: Final[str] = AgentClass.GENERAL
 """Default agent class for general-purpose queries."""
 
-VALID_AGENT_CLASSES: Final[frozenset[str]] = frozenset(
-    {
-        "general",
-        "cybersecurity",
-        "artificial_intelligence",
-        "pdf_text",
-        "policy",
-    }
-)
-"""Valid agent class identifiers for query classification."""
+VALID_AGENT_CLASSES: Final[frozenset[str]] = BUILTIN_AGENT_CLASSES
+"""The shipped agent classes, defined in ``app/agents/catalog.py``. A class an
+extension registers is valid too; ask ``known_agent_classes()`` for that."""
 
 
 # ============================================================================
