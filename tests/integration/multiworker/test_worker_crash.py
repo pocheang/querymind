@@ -103,16 +103,29 @@ def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stac
     a, b = stack.workers
     on_a, on_b = stack.login(a), stack.login(b)
     assert on_b.post("/api/advanced-rag/query", json={"query": "warm up"}).status_code == 200
+    # A is deliberately NOT warmed up: its first graph lookup is the one that
+    # hangs on the silent socket. Warming it was tried (2026-09-26) and the slow
+    # question then answered 200 at once without holding the slot.
 
-    threading.Thread(
-        target=lambda: _ignore(lambda: on_a.post("/api/advanced-rag/query", json={"query": SLOW_QUESTION})),
-        daemon=True,
-    ).start()
-    deadline = time.monotonic() + 10
+    # What A answered, so a failure below says whether its query finished fast or
+    # never started. This failed once in CI (2026-09-26) with no way to tell.
+    outcome: dict[str, object] = {}
+
+    def slow_query() -> None:
+        try:
+            outcome["status"] = on_a.post("/api/advanced-rag/query", json={"query": SLOW_QUESTION}).status_code
+        except httpx.HTTPError as exc:  # the worker serving it is killed mid-request
+            outcome["error"] = type(exc).__name__
+
+    threading.Thread(target=slow_query, daemon=True).start()
+    # Generous on purpose: A's first query also pays A's cold start, and a shared
+    # CI runner can take longer than 10 s for that. Nothing below is timed from
+    # here -- the lease's own expiry is read from Redis.
+    deadline = time.monotonic() + 30
     while not _leases(stack) and time.monotonic() < deadline:
         time.sleep(0.05)
     leases = _leases(stack)
-    assert len(leases) == 1, "A's query never took the slot"
+    assert len(leases) == 1, f"A's query never took the slot; A answered: {outcome or 'nothing yet'}"
     expires_at = leases[0][1] / 1000  # milliseconds, Redis's clock
 
     stack.kill(a)
@@ -127,13 +140,6 @@ def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stac
     assert admitted_at is not None, f"B never admitted a query after {LEASE_SECONDS + 20}s"
     assert redis_now >= expires_at - 1.0, "admitted before the dead worker's lease expired"
     assert redis_now <= expires_at + 5.0, "the slot came back long after its lease expired"
-
-
-def _ignore(call) -> None:
-    try:
-        call()
-    except httpx.HTTPError:
-        pass  # the worker serving it is killed mid-request
 
 
 def _first_admission(client: httpx.Client, *, timeout: float) -> float | None:
