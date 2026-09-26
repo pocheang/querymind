@@ -12,6 +12,7 @@ import asyncio
 from collections.abc import Sequence
 from uuid import uuid4
 
+from app.agents.tool.catalog import catalog_for_route, is_consulted
 from app.agents.tool.selector import ToolObservation, ToolSelection, ToolSelector
 from app.core.config import Settings, get_settings
 from app.domain.contracts import RouteDecision, TaskPlan, ToolResult
@@ -60,13 +61,18 @@ class ToolAgentService:
         request: OrchestrationRequest,
         *,
         execution_id: str,
+        route: RouteDecision | None = None,
     ) -> tuple[ToolResult, ...]:
         """Select a governed tool from the user's request and invoke it.
 
-        Always reports an outcome once the router has asked for tools. Returning
+        Always reports an outcome when the user asked for an action. Returning
         an empty tuple when nothing matched is what made a mis-routed request a
         silent no-op: the user got an ordinary answer and no hint that the action
         they asked for had not happened.
+
+        A specialist *consulting* its own read-only tools is the other case
+        (see ``catalog.py``): nobody asked for an action, so when none fits
+        there is nothing to report and the result is empty.
         """
 
         actor = request.actor
@@ -97,7 +103,7 @@ class ToolAgentService:
             # every action that already succeeded.
             return (await self._replay_approved(approvals, gateway, request, actor, execution_id),)
 
-        return await self._run_steps(gateway, registry, request, actor, execution_id)
+        return await self._run_steps(gateway, registry, request, actor, execution_id, route)
 
     async def _run_steps(
         self,
@@ -106,6 +112,7 @@ class ToolAgentService:
         request: OrchestrationRequest,
         actor: RequestActor,
         execution_id: str,
+        route: RouteDecision | None = None,
     ) -> tuple[ToolResult, ...]:
         """Select, invoke, observe, repeat -- up to ``TOOL_MAX_STEPS`` hops.
 
@@ -115,12 +122,16 @@ class ToolAgentService:
         problem. Both end the loop and are reported as-is.
         """
 
-        catalog = registry.catalog(actor)
+        catalog = catalog_for_route(registry.catalog(actor), route)
+        consulted = is_consulted(route)
         results: list[ToolResult] = []
         observations: list[ToolObservation] = []
         attempted: set[tuple[str, tuple[tuple[str, str], ...]]] = set()
+        # With nothing this specialist may consult, no step runs: asking the
+        # selector would spend a model call to learn that.
+        steps = 0 if consulted and not catalog else self._max_steps
 
-        for _step in range(self._max_steps):
+        for _step in range(steps):
             selection: ToolSelection = await self._selector.select(
                 request.question,
                 request.conversation,
@@ -129,15 +140,15 @@ class ToolAgentService:
                 execution_id=execution_id,
             )
             if selection.call is None:
-                if results:
-                    break
-                return (
-                    ToolResult(
-                        tool_id=SELECTOR_TOOL_ID,
-                        status="skipped",
-                        summary=f"no action taken: {selection.reason}",
-                    ),
-                )
+                if not results and not consulted:
+                    results.append(
+                        ToolResult(
+                            tool_id=SELECTOR_TOOL_ID,
+                            status="skipped",
+                            summary=f"no action taken: {selection.reason}",
+                        )
+                    )
+                break
             fingerprint = (
                 selection.call.tool_id,
                 tuple((argument.name, argument.value) for argument in selection.call.arguments),
@@ -196,9 +207,11 @@ class ToolAgentService:
         No ``evidence`` parameter, on purpose: see ``selector`` for why the tool
         path must not be reachable from retrieved content.
         """
-        del route, plan
+        del plan
         return await self.invoke_requested(
-            request, execution_id=request.execution_id or request.request_id or str(uuid4())
+            request,
+            execution_id=request.execution_id or request.request_id or str(uuid4()),
+            route=route,
         )
 
 
