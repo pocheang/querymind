@@ -92,13 +92,17 @@ def _configure_cors(app_obj: FastAPI, settings_obj) -> None:
     )
 
 
-async def shared_state_unavailable(_request: Request, exc: SharedStateUnavailable) -> JSONResponse:
-    """Redis holds state every worker must agree on and is not answering: 503, not 500."""
+def shared_state_unavailable(_request: Request, exc: SharedStateUnavailable) -> JSONResponse:
+    """Redis holds state every worker must agree on and is not answering: 503, not 500.
+
+    Synchronous on purpose (python:S7503): it awaits nothing, and Starlette runs a
+    sync exception handler in its threadpool, which is cheap for a JSON body.
+    """
 
     return shared_state_unavailable_response()
 
 
-async def index_busy(_request: Request, exc: LockBusy) -> JSONResponse:
+def index_busy(_request: Request, exc: LockBusy) -> JSONResponse:
     """Another writer holds the document index past the request's wait: 503, retry."""
 
     return index_busy_response()

@@ -173,7 +173,7 @@ def test_lock_busy_is_a_503_with_retry_after(data):
     from app.api.main import app
 
     handler = app.exception_handlers[LockBusy]
-    response = asyncio.run(handler(None, LockBusy("index.lock is held by another writer")))
+    response = handler(None, LockBusy("index.lock is held by another writer"))
 
     assert response.status_code == 503
     assert response.headers["Retry-After"] == "1"

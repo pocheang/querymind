@@ -54,7 +54,9 @@ def _record_success(name: str) -> None:
     with _BREAKERS_LOCK:
         state = _BREAKERS.get(name)
         if state:
-            reopened = state.opened_until != 0.0
+            # `opened_until` is 0.0 when closed and a wall-clock time when open,
+            # so "was it open" is a sign test, not a float equality (python:S1244).
+            reopened = state.opened_until > 0.0
             state.fails = 0
             state.opened_until = 0.0
     if reopened:
