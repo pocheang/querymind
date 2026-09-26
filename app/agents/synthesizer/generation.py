@@ -12,6 +12,7 @@ from app.agents.synthesizer.citations import (
     extract_reasoning_block,
     normalize_answer_citations,
     strip_conversation_meta_preamble,
+    tool_citation_labels,
 )
 from app.agents.synthesizer.skills import skill_answer_template
 from app.agents.synthesizer.templates import (
@@ -157,6 +158,17 @@ class SynthesisContexts:
 
         return (self.vector, self.graph, self.web)
 
+    @property
+    def citation_labels(self) -> frozenset[str]:
+        """Every marker the answer may use: ``E{k}`` from evidence, ``T{k}`` from tools.
+
+        Two label spaces, each read from its own section: the tool section is
+        never scanned for evidence labels, so ``[E{k}]`` can only ever name
+        retrieved evidence and ``[T{k}]`` only a citable tool result.
+        """
+
+        return citation_labels_from_contexts(*self.evidence_sections) | tool_citation_labels(self.tool)
+
 
 def _build_prompt_with_language(
     question: str,
@@ -230,11 +242,9 @@ def _evidence_generation_prompt(
     nonce: str = "",
     canary: str = "",
 ) -> str:
-    markers = ", ".join(f"[{label}]" for label in sorted(allowed_labels))
     base = (
         f"{ANSWER_PROMPT}\n\n"
-        "Allowed citation markers from retrieved evidence: "
-        f"{markers}. Use only these exact markers; never invent citation markers."
+        f"{_allowed_markers_line(allowed_labels)} Use only these exact markers; never invent citation markers."
     )
     if nonce and canary:
         base += f"\n\n{SandboxedPromptBuilder.build_security_invariants(nonce, canary)}"
@@ -242,12 +252,33 @@ def _evidence_generation_prompt(
 
 
 def _evidence_review_prompt(allowed_labels: Collection[str]) -> str:
-    markers = ", ".join(f"[{label}]" for label in sorted(allowed_labels))
     return (
         f"{REVIEW_PROMPT}\n\n"
-        "Allowed citation markers from retrieved evidence: "
-        f"{markers}. Preserve only these exact markers and remove invented markers."
+        f"{_allowed_markers_line(allowed_labels)} Preserve only these exact markers and remove invented markers."
     )
+
+
+def _allowed_markers_line(allowed_labels: Collection[str]) -> str:
+    """Name the evidence markers and the tool-result markers separately.
+
+    One undivided list would read as one kind of source; a model shown
+    `[E1], [T1]` side by side has no way to know `[T1]` is only for a fact
+    taken from a tool result. Anything that is not a `T{k}` label is evidence,
+    as it always was; numbered labels sort numerically, so `[E10]` follows `[E9]`.
+    """
+
+    def key(label: str) -> tuple[int, int, str]:
+        return (0, int(label[1:]), "") if label[1:].isdigit() else (1, 0, label)
+
+    tools = {label for label in allowed_labels if label.startswith("T") and label[1:].isdigit()}
+    evidence = ", ".join(f"[{label}]" for label in sorted(set(allowed_labels) - tools, key=key))
+    tool_markers = ", ".join(f"[{label}]" for label in sorted(tools, key=key))
+    parts = []
+    if evidence:
+        parts.append(f"Allowed citation markers from retrieved evidence: {evidence}.")
+    if tool_markers:
+        parts.append(f"Allowed markers for facts taken from governed tool results: {tool_markers}.")
+    return " ".join(parts)
 
 
 def _stream_content(model, system_prompt: str, prompt: str, on_token: Callable[[str], None]) -> str:
@@ -567,7 +598,7 @@ def synthesize_answer(
     nonce = SandboxedPromptBuilder.generate_nonce() if defense_enabled else ""
     canary = SandboxedPromptBuilder.generate_canary() if defense_enabled else ""
 
-    allowed_labels = citation_labels_from_contexts(*contexts.evidence_sections)
+    allowed_labels = contexts.citation_labels
 
     # Build prompt with language hint and sandboxed boundaries
     system_prompt, prompt = _build_synthesis_prompts(
@@ -741,7 +772,7 @@ def stream_synthesize_answer(
     defense_enabled = bool(getattr(settings, "prompt_injection_defense_enabled", True))
     nonce = SandboxedPromptBuilder.generate_nonce() if defense_enabled else ""
 
-    allowed_labels = citation_labels_from_contexts(*contexts.evidence_sections)
+    allowed_labels = contexts.citation_labels
 
     # Build prompt with language hint and sandboxed boundaries
     prompt = _build_prompt_with_language(

@@ -83,6 +83,7 @@ def indicator_tool_result(iocs: dict[str, list[str]]) -> ToolResult | None:
     return ToolResult(
         tool_id=INDICATORS_TOOL_ID,
         status="succeeded",
+        derived=True,
         summary="Indicators extracted from the question and retrieved material -- " + "; ".join(lines),
     )
 

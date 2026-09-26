@@ -7,7 +7,12 @@ import re
 from collections.abc import Callable, Mapping, Sequence
 
 from app.agents.shared.config import SKILL_DEFAULT
-from app.agents.synthesizer.citations import EVIDENCE_MARKER_RE, normalize_answer_citations
+from app.agents.synthesizer.citations import (
+    EVIDENCE_MARKER_RE,
+    TOOL_MARKER_RE,
+    citable_tool_results,
+    normalize_answer_citations,
+)
 from app.agents.synthesizer.generation import SynthesisContexts, is_synthesis_fallback, synthesis_fallback
 from app.agents.synthesizer.thinking_stream import ReasoningStreamSplitter
 from app.core.config import Settings, get_settings
@@ -54,7 +59,11 @@ class SynthesizerAgentService:
                 unresolved_items=("no_evidence",),
             )
 
-        allowed_labels = tuple(f"E{index}" for index in range(1, len(context.evidence) + 1))
+        tool_sources = citable_tool_results(tool_results)
+        allowed_labels = (
+            *(f"E{index}" for index in range(1, len(context.evidence) + 1)),
+            *(f"T{index}" for index in range(1, len(tool_sources) + 1)),
+        )
         stream_id = current_answer_stream_id.get()
         generation_context = context.rendered_context
         # Passed as its OWN prompt section rather than concatenated onto the
@@ -91,7 +100,7 @@ class SynthesizerAgentService:
             enable_self_review=False,
         )
         text = _postprocess_answer_text(generated, allowed_labels, request.question, context)
-        return _build_candidate_answer(text, generated, context)
+        return _build_candidate_answer(text, generated, context, tool_sources)
 
     async def synthesize(
         self,
@@ -177,7 +186,7 @@ class SynthesizerAgentService:
                 store.publish(stream_id, fragment)
 
         def publish(text: str) -> None:
-            for channel, piece in splitter.feed(EVIDENCE_MARKER_RE.sub("", text)):
+            for channel, piece in splitter.feed(TOOL_MARKER_RE.sub("", EVIDENCE_MARKER_RE.sub("", text))):
                 _publish_piece(channel, piece)
 
         result = self._generate(*args, on_token=publish, **kwargs)
@@ -260,6 +269,13 @@ def _references_from_markers(text: str, context: ContextBundle) -> tuple[Evidenc
     return tuple(references)
 
 
+def _tool_labels_cited(text: str, tool_sources: tuple[ToolResult, ...]) -> tuple[str, ...]:
+    """The distinct ``T{k}`` labels the text cites, in order, that name a real source."""
+
+    labels = (f"T{raw}" for raw in TOOL_MARKER_RE.findall(text) if 1 <= int(raw) <= len(tool_sources))
+    return tuple(dict.fromkeys(labels))
+
+
 def _evidence_ids_for_refs(refs: tuple[EvidenceRef, ...], evidence: EvidenceBundle) -> tuple[str, ...]:
     keys = {(ref.document_id, ref.version, ref.page, ref.chunk_id, ref.image_id) for ref in refs}
     return tuple(
@@ -278,16 +294,23 @@ def _render_tool_results(tool_results: tuple[ToolResult, ...]) -> str:
     answer with no hint that the action they asked for had not happened.
     """
 
+    citable = citable_tool_results(tool_results)
+    label = {id(result): f"[T{index}]" for index, result in enumerate(citable, start=1)}
     lines = [
-        f"Tool {index} ({result.tool_id}) -> {result.status}: {summary}"
-        for index, result in enumerate(tool_results, start=1)
+        f"{label.get(id(result), 'Tool')} ({result.tool_id}) -> {result.status}: {summary}"
+        for result in tool_results
         if (summary := (result.summary.strip() or _default_tool_summary(result)))
     ]
     if not lines:
         return ""
+    # A result with a `[T{k}]` label is citable: a fact taken from it is cited
+    # with that marker, the way `[E{k}]` cites evidence. The others -- a failure,
+    # a pending approval, a specialist's own derivation -- are reported, never
+    # cited. See `citable_tool_results`.
     return (
-        "Governed tool results (report these to the user; an `approval_required` "
-        "action has NOT been performed yet):\n" + "\n".join(lines)
+        "Governed tool results (report these to the user; cite a fact taken from a "
+        "result with its [T{k}] marker; an `approval_required` action has NOT been "
+        "performed yet):\n" + "\n".join(lines)
     )
 
 
@@ -357,10 +380,12 @@ def _build_candidate_answer(
     text: str,
     generated: object,
     context: ContextBundle,
+    tool_sources: tuple[ToolResult, ...] = (),
 ) -> CandidateAnswer:
     references = _references_from_markers(text, context)
+    tool_citations = _tool_labels_cited(text, tool_sources)
     unresolved: list[str] = []
-    if context.evidence and not references:
+    if context.evidence and not references and not tool_citations:
         unresolved.append("missing_citations")
     if is_synthesis_fallback(text):
         unresolved.append("generation_fallback")
@@ -370,6 +395,8 @@ def _build_candidate_answer(
     return CandidateAnswer(
         text=text,
         citations=references,
+        tool_sources=tool_sources,
+        tool_citations=tool_citations,
         unresolved_items=tuple(dict.fromkeys(unresolved)),
         reasoning=str(reasoning) if reasoning else None,
         reasoning_duration_ms=int(reasoning_duration_ms) if reasoning_duration_ms else None,
