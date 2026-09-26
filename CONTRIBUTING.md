@@ -57,26 +57,34 @@ pip install -e ".[dev]"
 3. **Configure environment:**
 
 ```bash
-# Copy development config
-cp config/env/development.env.example .env
-
-# Edit .env with your API keys and settings
+# Render the development settings into .runtime/development.env
+make config-render ENV=development
 ```
 
-4. **Initialize database:**
+A root `.env` has no effect: the application reads `.runtime/{APP_ENV}.env`,
+generated from `config/env/` and `config/profiles/`, or real environment variables.
+Without either, every setting takes its default, including `MODEL_BACKEND=local`
+(an offline stand-in with no language model).
+
+4. **Initialize the databases:**
 
 ```bash
-python scripts/init_db.py
+python -m app.init_app
 ```
+
+This runs the versioned SQLite migrations and creates the first administrator if
+there is none (the generated password is printed once, to stderr). The API runs
+the same step on startup, so this is optional locally.
 
 5. **Verify installation:**
 
 ```bash
-# Run tests
-pytest -q
+# The suite as CI runs it: optional packages CI does not install are hidden,
+# and the developer's .runtime/ and data/ are not read.
+make test-ci
 
 # Check code style
-ruff check .
+make lint
 ```
 
 ---
@@ -114,8 +122,15 @@ git checkout -b fix/bug-description
 ### 3. Test Your Changes
 
 ```bash
-# Run all tests
-pytest -q
+# Run all tests, as CI runs them
+make test-ci
+
+# The multi-process suite needs a real Redis and Chroma server; without
+# QM_INTEGRATION_REDIS_URL / QM_INTEGRATION_CHROMA_URL it skips.
+make up
+QM_INTEGRATION_REDIS_URL=redis://:PASSWORD@127.0.0.1:6379/0 \
+QM_INTEGRATION_CHROMA_URL=http://127.0.0.1:8001 \
+pytest tests/integration/multiworker -q
 
 # Run with coverage
 pytest --cov=app tests/
@@ -353,7 +368,7 @@ Update clients to handle new format.
 ### Before Submitting
 
 - [ ] Code follows style guidelines
-- [ ] All tests pass (`pytest -q`)
+- [ ] All tests pass (`make test-ci`)
 - [ ] Added tests for new features
 - [ ] Documentation updated (if needed)
 - [ ] Commit messages follow guidelines

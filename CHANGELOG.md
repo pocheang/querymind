@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Upgrade guide, new settings and API changes: [docs/releases/unreleased-release-notes.md](docs/releases/unreleased-release-notes.md).
+
 ### 🧵 Multiple workers on one host (ARC-01)
 
 - **Shared state instead of per-process state**: rate limits, the query guard, OAuth state, execution events and answer drafts live in Redis; approval tokens, tool audit records and session history are SQLite transactions. With `STATE_BACKEND=shared` a Redis outage answers 503 rather than silently counting per worker.
