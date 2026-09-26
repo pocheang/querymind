@@ -349,6 +349,15 @@ _STRUCTURED_FIELD_RE = re.compile(
     re.MULTILINE | re.IGNORECASE,
 )
 
+# English keywords sit inside `\b`, and every pattern that *extracts a field* from
+# them carries `re.ASCII` (the comparison-intent pattern is the one exception, and
+# says why). Without it `\b` is a Unicode word boundary and CJK counts as
+# a word character, so `\bmysql\b` found nothing in "数据源是mysql数据" -- the way
+# Chinese is usually typed -- and the user was asked for a data source they had
+# just named. `re.ASCII` makes only [A-Za-z0-9_] continue a word, so "mysqlx" is
+# still not "mysql" and "redis_url" is still not "redis". The CJK alternatives
+# are literals and unaffected. (`_RAG_INTENT_KEYWORD_RE` always had the flag,
+# which is why RAG intent was detected while its fields were not.)
 _RAG_INTENT_KEYWORD_RE = re.compile(
     r"\brag\b|检索增强|知识库(?:系统)?|knowledge\s*base",
     re.IGNORECASE | re.ASCII,
@@ -356,17 +365,17 @@ _RAG_INTENT_KEYWORD_RE = re.compile(
 _RAG_INTENT_DESIGN_RE = re.compile(r"设计|搭建|构建|实现|架构|how\s+to\s+(?:build|design|implement)|architecture")
 
 _RAG_SCENARIO_PATTERNS = (
-    (re.compile(r"企业|公司|内部|\b(?:enterprise|internal)\b", re.IGNORECASE), "企业知识库"),
-    (re.compile(r"客服|客户服务|\b(?:customer\s*support|helpdesk)\b", re.IGNORECASE), "客服问答"),
-    (re.compile(r"代码|编程|\b(?:developer|code)\b", re.IGNORECASE), "代码知识库"),
-    (re.compile(r"数据分析|报表|\banalytics\b", re.IGNORECASE), "数据分析"),
+    (re.compile(r"企业|公司|内部|\b(?:enterprise|internal)\b", re.IGNORECASE | re.ASCII), "企业知识库"),
+    (re.compile(r"客服|客户服务|\b(?:customer\s*support|helpdesk)\b", re.IGNORECASE | re.ASCII), "客服问答"),
+    (re.compile(r"代码|编程|\b(?:developer|code)\b", re.IGNORECASE | re.ASCII), "代码知识库"),
+    (re.compile(r"数据分析|报表|\banalytics\b", re.IGNORECASE | re.ASCII), "数据分析"),
 )
 
 _RAG_SOURCE_PATTERNS = (
-    (re.compile(r"\b(?:pdf|word|pptx?|excel)\b|文档|文件", re.IGNORECASE), "PDF/Office 文档"),
-    (re.compile(r"数据库|\b(?:sql|mysql|postgres|database)\b", re.IGNORECASE), "数据库"),
-    (re.compile(r"\b(?:api|graphql)\b|接口", re.IGNORECASE), "API"),
-    (re.compile(r"网页|网站|爬取|\b(?:crawl|website)\b", re.IGNORECASE), "网页"),
+    (re.compile(r"\b(?:pdf|word|pptx?|excel)\b|文档|文件", re.IGNORECASE | re.ASCII), "PDF/Office 文档"),
+    (re.compile(r"数据库|\b(?:sql|mysql|postgres|database)\b", re.IGNORECASE | re.ASCII), "数据库"),
+    (re.compile(r"\b(?:api|graphql)\b|接口", re.IGNORECASE | re.ASCII), "API"),
+    (re.compile(r"网页|网站|爬取|\b(?:crawl|website)\b", re.IGNORECASE | re.ASCII), "网页"),
 )
 
 _RAG_SCALE_RE = re.compile(
@@ -376,28 +385,25 @@ _RAG_SCALE_RE = re.compile(
 _RAG_PERFORMANCE_KEYWORD_RE = re.compile(r"(?:响应|延迟|latency)[^，。;\n]{0,20}")
 _RAG_PERFORMANCE_THRESHOLD_RE = re.compile(r"[<≤]\s*\d+(?:\.\d+)?\s*(?:ms|毫秒|s|秒)")
 
+# Deliberately *without* re.ASCII, unlike the field patterns around it. This one
+# decides intent, and an English comparison word pressed against Chinese is more
+# often a mention than a request: with the flag, "介绍一下versus这个词" and
+# "解释一下difference-in-differences方法" became comparisons and were asked which
+# documents to compare. Chinese comparisons are caught by 比较/对比/差异/区别.
 _COMPARISON_INTENT_RE = re.compile(r"比较|对比|差异|区别|\bcompare\b|\bdifference\b|\bversus\b|\bvs\.?\b")
 _COMPARISON_QUOTED_RE = re.compile(r"[\"“‘']([^\"”’']{1,80})[\"”’']")
 _COMPARISON_VERSUS_RE = re.compile(
     r"([\w.\-/一-鿿]{2,60})\s*(?:与|和|及|vs\.?|versus)\s*([\w.\-/一-鿿]{2,60})", re.IGNORECASE
 )
 _COMPARISON_ASPECT_RE = re.compile(
-    r"功能|性能|成本|价格|时间|版本|安全|准确率|召回率|\b(?:feature|performance|cost|security)\b", re.IGNORECASE
+    r"功能|性能|成本|价格|时间|版本|安全|准确率|召回率|\b(?:feature|performance|cost|security)\b",
+    re.IGNORECASE | re.ASCII,
 )
-_COMPARISON_OUTPUT_FORMAT_RE = re.compile(r"表格|报告|总结|\b(?:table|report|summary)\b", re.IGNORECASE)
+_COMPARISON_OUTPUT_FORMAT_RE = re.compile(r"表格|报告|总结|\b(?:table|report|summary)\b", re.IGNORECASE | re.ASCII)
 _COMPARISON_TARGET_SUFFIX_RE = re.compile(r"的?(?:区别|差异|对比|优劣|异同)$")
 _COMPARISON_TARGET_NOISE_RE = re.compile(
     r"请|请问|帮我|麻烦|比较|对比|说明|分析|以及|还有|另外|compare|difference|versus", re.IGNORECASE
 )
-
-
-# A keyword boundary that only ASCII word characters can break. `\b` is a
-# Unicode word boundary and CJK counts as a word character, so `\bneo4j\b` found
-# nothing in "neo4j报错" -- the way Chinese is usually typed -- and the user was
-# asked what the error was about after naming it. The underscore stays a word
-# character so "redis_url" is still not "redis".
-_ASCII_WORD_START = r"(?<![A-Za-z0-9_])"
-_ASCII_WORD_END = r"(?![A-Za-z0-9_])"
 
 
 @dataclass(frozen=True)
@@ -454,17 +460,13 @@ _TROUBLESHOOTING_RULE = _VagueIntentRule(
     keyword_patterns=(
         # Technical error terms & status codes (<= 15 branches)
         re.compile(
-            _ASCII_WORD_START
-            + r"(?:timeout|404|500|connection refused|exception|traceback|oom|cuda|syntax|null|undefined|cors)"
-            + _ASCII_WORD_END,
-            re.IGNORECASE,
+            r"\b(?:timeout|404|500|connection refused|exception|traceback|oom|cuda|syntax|null|undefined|cors)\b",
+            re.IGNORECASE | re.ASCII,
         ),
         # Middleware & service components (<= 15 branches)
         re.compile(
-            _ASCII_WORD_START
-            + r"(?:milvus|neo4j|ollama|redis|nginx|docker|uvicorn|fastapi|chroma|langgraph|pydantic)"
-            + _ASCII_WORD_END,
-            re.IGNORECASE,
+            r"\b(?:milvus|neo4j|ollama|redis|nginx|docker|uvicorn|fastapi|chroma|langgraph|pydantic)\b",
+            re.IGNORECASE | re.ASCII,
         ),
         # Specific operational and fault keywords (<= 15 branches)
         re.compile(

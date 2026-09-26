@@ -170,6 +170,41 @@ def test_a_longer_ascii_word_is_still_not_a_component(question):
 
 
 @pytest.mark.parametrize(
+    ("question", "field", "value"),
+    [
+        ("数据源是mysql数据，帮我设计一个检索增强系统", "data_source", "数据库"),
+        ("设计一个检索增强系统，接入api数据", "data_source", "API"),
+        ("设计一个helpdesk问答的rag", "scenario", "客服问答"),
+        ("设计一个给developer用的rag", "scenario", "代码知识库"),
+        ("对比两份文档的cost差异", "comparison_aspect", "cost"),
+        ("对比两份文档，输出table格式", "output_format", "table"),
+    ],
+)
+def test_a_field_named_in_english_against_chinese_is_extracted(question, field, value):
+    """The same `\\b` defect in the field patterns: "mysql数据" named a data
+    source and the RAG design flow still asked for one."""
+    assert assess_completeness(question).extracted_info.get(field) == value
+
+
+def test_a_longer_ascii_word_still_names_no_data_source():
+    assessment = assess_completeness("设计一个检索增强系统，接入mysqlx")
+
+    assert assessment.intent == "rag_design"
+    assert "data_source" not in assessment.extracted_info
+
+
+@pytest.mark.parametrize(
+    "question",
+    ["介绍一下versus这个词", "解释一下difference-in-differences方法", "如何compare两个json文件"],
+)
+def test_an_english_comparison_word_against_chinese_is_not_a_comparison(question):
+    """The comparison-*intent* pattern keeps the Unicode boundary on purpose.
+    Giving it re.ASCII turned each of these into a comparison and asked which
+    documents to compare."""
+    assert assess_completeness(question).intent == "complete"
+
+
+@pytest.mark.parametrize(
     ("question", "intent", "field"),
     [
         ("如何配置", "environment_setup", "target_component"),
