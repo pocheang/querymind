@@ -124,15 +124,14 @@ class ToolAgentService:
 
         catalog = catalog_for_route(registry.catalog(actor), route)
         consulted = is_consulted(route)
-        if consulted and not catalog:
-            # Nothing this specialist may consult is available to this actor;
-            # asking the selector would spend a model call to learn that.
-            return ()
         results: list[ToolResult] = []
         observations: list[ToolObservation] = []
         attempted: set[tuple[str, tuple[tuple[str, str], ...]]] = set()
+        # With nothing this specialist may consult, no step runs: asking the
+        # selector would spend a model call to learn that.
+        steps = 0 if consulted and not catalog else self._max_steps
 
-        for _step in range(self._max_steps):
+        for _step in range(steps):
             selection: ToolSelection = await self._selector.select(
                 request.question,
                 request.conversation,
@@ -141,15 +140,15 @@ class ToolAgentService:
                 execution_id=execution_id,
             )
             if selection.call is None:
-                if results or consulted:
-                    break
-                return (
-                    ToolResult(
-                        tool_id=SELECTOR_TOOL_ID,
-                        status="skipped",
-                        summary=f"no action taken: {selection.reason}",
-                    ),
-                )
+                if not results and not consulted:
+                    results.append(
+                        ToolResult(
+                            tool_id=SELECTOR_TOOL_ID,
+                            status="skipped",
+                            summary=f"no action taken: {selection.reason}",
+                        )
+                    )
+                break
             fingerprint = (
                 selection.call.tool_id,
                 tuple((argument.name, argument.value) for argument in selection.call.arguments),
