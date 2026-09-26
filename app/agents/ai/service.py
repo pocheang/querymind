@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 
 from app.agents.base import BaseSpecialistAgent
+from app.agents.catalog import AgentClass
 from app.domain.contracts import ToolResult
 from app.tools.category import ToolCategory
 
@@ -80,7 +81,7 @@ class AIAgentService(BaseSpecialistAgent):
 
     @property
     def agent_class(self) -> str:
-        return "artificial_intelligence"
+        return AgentClass.ARTIFICIAL_INTELLIGENCE
 
     @property
     def supported_skills(self) -> tuple[str, ...]:
