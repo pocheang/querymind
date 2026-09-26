@@ -218,8 +218,9 @@ def test_a_question_with_no_search_left_fails_the_web_source_with_the_quota_type
     guard.allow_web_search("alice")
     guard.allow_web_search("alice")
 
+    search = adapters._retrieve_web(_plan(("q1",)), _scope())  # a coroutine: nothing runs yet
     with pytest.raises(WebQuotaExceededError) as refused:
-        asyncio.run(adapters._retrieve_web(_plan(("q1",)), _scope()))
+        asyncio.run(search)
 
     assert refused.value.retry_after >= 1
 

@@ -65,7 +65,8 @@ def test_append_returns_before_anything_is_written():
     release.set()
 
     assert log.flush()
-    assert written_on and written_on[0] != threading.get_ident()
+    assert written_on
+    assert written_on[0] != threading.get_ident()
 
 
 def test_a_record_reaches_audit_logs_with_names_but_never_argument_values(app_db):

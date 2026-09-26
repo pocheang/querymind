@@ -37,7 +37,7 @@ accesslog = "-"
 errorlog = "-"
 
 
-def on_starting(server):
+def on_starting(_server):
     """Start the metrics directory empty: files from a previous run are not this run's workers."""
 
     directory = os.environ.get("PROMETHEUS_MULTIPROC_DIR")
@@ -49,7 +49,7 @@ def on_starting(server):
     path.mkdir(parents=True, exist_ok=True)
 
 
-def child_exit(server, worker):
+def child_exit(_server, worker):
     """Drop a finished worker's live gauges, so a breaker it left open stops being reported."""
 
     if not os.environ.get("PROMETHEUS_MULTIPROC_DIR"):

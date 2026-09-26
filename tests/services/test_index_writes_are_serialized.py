@@ -86,8 +86,9 @@ def test_a_rewrite_that_fails_halfway_leaves_the_previous_file_whole(data):
         yield {"id": "new-2"}
         raise RuntimeError("disk full")
 
+    rows = rows_then_failure()  # a generator: nothing runs until it is consumed
     with pytest.raises(RuntimeError):
-        write_corpus_records(rows_then_failure())
+        write_corpus_records(rows)
 
     assert [row["id"] for row in read_corpus_records()] == ["old-1", "old-2"]
     assert not list((data / "chunks").glob(".chunks.jsonl.*")), "the temporary file was left behind"
@@ -218,8 +219,9 @@ def test_the_upload_route_lets_lock_busy_through_instead_of_a_500(data, monkeypa
         client = None
         headers: dict = {}
 
+    upload = route.upload_files(_Req(), files=[], visibility="private", user={"user_id": "u"})
     with pytest.raises(LockBusy):
-        asyncio.run(route.upload_files(_Req(), files=[], visibility="private", user={"user_id": "u"}))
+        asyncio.run(upload)
     assert loops == [False], "the pre-clean ran on the event loop"
 
 

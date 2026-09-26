@@ -57,8 +57,9 @@ def test_an_update_changes_only_what_it_names(service):
 
 
 def test_updating_or_tagging_unknown_metadata_is_a_key_error(service):
+    update = MetadataUpdate(tags=["x"])
     with pytest.raises(KeyError):
-        service.update_metadata("missing", MetadataUpdate(tags=["x"]))
+        service.update_metadata("missing", update)
     with pytest.raises(KeyError):
         service.extract_and_update_auto_tags("missing", [{"role": "user", "content": "hello"}])
 

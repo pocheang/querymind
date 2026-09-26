@@ -643,8 +643,10 @@ def connect_history_db(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path, timeout=timeout_s)
 
     # PRAGMA statements do not accept bind parameters.
-    # timeout_ms is strictly clamped to an integer in [1000, 3600000] by _busy_timeout_seconds.
-    assert isinstance(timeout_ms, int) and 1000 <= timeout_ms <= 3600000, "timeout_ms validation failed"
+    # timeout_ms is an int clamped to [1000, 3600000] by _busy_timeout_seconds; checked
+    # again with a raise rather than an assert, which `python -O` would strip.
+    if not 1000 <= timeout_ms <= 3_600_000:
+        raise ValueError(f"busy_timeout out of range: {timeout_ms}")
     conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
     # WAL is set once, by the migration (ensure_history_schema).
     return conn

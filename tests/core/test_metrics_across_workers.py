@@ -179,7 +179,8 @@ def test_the_breaker_publishes_when_it_opens_and_when_it_closes(monkeypatch):
     for _ in range(5):
         with pytest.raises(RuntimeError):
             resilience.call_with_circuit_breaker("probe-test", fail)
-    assert recorded and recorded[-1][1] > time.time()
+    assert recorded
+    assert recorded[-1][1] > time.time()
 
     resilience._BREAKERS["probe-test"].opened_until = time.time() - 1  # cooldown over
     assert resilience.call_with_circuit_breaker("probe-test", lambda: "ok") == "ok"

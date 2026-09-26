@@ -302,10 +302,10 @@ def test_an_unavailable_redis_is_a_refusal_not_a_per_process_count(monkeypatch, 
 
     monkeypatch.setattr(shared_state._CONNECTOR, "_client", None)
     monkeypatch.setattr(shared_state._CONNECTOR, "_unavailable_until", float("inf"))
-    limiter = RedisSlidingWindowLimiter(5, 60, name="login")
+    method = getattr(RedisSlidingWindowLimiter(5, 60, name="login"), call)
 
     with pytest.raises(shared_state.SharedStateUnavailable):
-        getattr(limiter, call)("k")
+        method("k")
 
 
 def test_an_empty_key_never_touches_redis(monkeypatch):

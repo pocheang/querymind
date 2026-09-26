@@ -155,7 +155,8 @@ def test_the_tracker_and_the_stores_mirror_into_redis_without_the_question(share
     assert 0 < shared.ttl(shared_execution.meta_key(execution_id)) <= shared_execution.FINISHED_TTL_S
 
     everything = " ".join(str(shared.dump(key)) for key in shared.keys("*"))
-    assert "4471" not in everything and "salary" not in everything
+    assert "4471" not in everything
+    assert "salary" not in everything
     assert "the full final answer" not in everything
 
 
@@ -195,7 +196,8 @@ def test_the_dashboard_counts_every_workers_stages_and_stores_no_error_text(shar
     assert stats["error_distribution"] == {"RetrievalFailureError": 1}
     with sqlite3.connect(tmp_path / "app.db") as conn:
         rows = conn.execute("SELECT * FROM execution_stage_stats").fetchall()
-    assert len(rows) == 2 and "4471" not in str(rows)
+    assert len(rows) == 2
+    assert "4471" not in str(rows)
 
 
 def test_clearing_the_dashboard_clears_what_every_worker_recorded(shared):
@@ -219,8 +221,9 @@ def test_waiting_subscriptions_are_capped_per_user():
     for subscription in held:
         subscription.__enter__()
     try:
+        one_too_many = orchestration_module._PendingSubscription(OWNER)
         with pytest.raises(HTTPException) as refused:
-            orchestration_module._PendingSubscription(OWNER).__enter__()
+            one_too_many.__enter__()
         assert refused.value.status_code == 429
         orchestration_module._PendingSubscription(STRANGER).__enter__()  # someone else is unaffected
         orchestration_module._PendingSubscription(STRANGER).__exit__(None, None, None)

@@ -157,7 +157,8 @@ def _gunicorn_environment_names() -> set[str]:
     import importlib.util
 
     spec = importlib.util.find_spec("gunicorn")
-    assert spec and spec.submodule_search_locations, "gunicorn is not installed"
+    assert spec, "gunicorn is not installed"
+    assert spec.submodule_search_locations, "gunicorn is not installed"
     return _environment_names_read_by((Path(spec.submodule_search_locations[0]) / "config.py").read_text("utf-8"))
 
 

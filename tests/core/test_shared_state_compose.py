@@ -173,7 +173,8 @@ def test_the_chroma_healthcheck_uses_a_tool_the_image_has():
     services = _services()
     chroma = services["chroma"]
     test = chroma["healthcheck"]["test"]
-    assert test[0] == "CMD" and test[1] in _CHROMA_IMAGE_TOOLS
+    assert test[0] == "CMD"
+    assert test[1] in _CHROMA_IMAGE_TOOLS
     assert not any(tool in " ".join(test) for tool in _CHROMA_IMAGE_LACKS)
     assert chroma["image"] == "chromadb/chroma:1.5.9", "re-measure _CHROMA_IMAGE_TOOLS for the new image"
     for name in ("backend", "ingest-worker", "init"):

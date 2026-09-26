@@ -135,8 +135,9 @@ def test_a_promotion_that_fails_halfway_changes_neither_payload(base, monkeypatc
         original(payload)
 
     monkeypatch.setattr(MemoryStore, "_recompute_long_term_ids", staticmethod(fail_on_the_session_payload))
+    prompt = _prompt("a", 2)
     with pytest.raises(RuntimeError):
-        store.add_candidate("s1", _prompt("a", 2), "ok")
+        store.add_candidate("s1", prompt, "ok")
     assert calls == [GLOBAL_MEMORY_SESSION_ID, "s1"], "the global payload was not written first"
 
     monkeypatch.setattr(MemoryStore, "_recompute_long_term_ids", staticmethod(original))

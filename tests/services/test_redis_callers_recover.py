@@ -170,7 +170,8 @@ def test_the_readiness_check_probes_the_whole_url(monkeypatch):
     result = health._check_redis_ready()
 
     assert seen == ["redis://:s3cret@cache:6380/2"]
-    assert result["ok"] is True and result["required"] is True
+    assert result["ok"] is True
+    assert result["required"] is True
     assert result["host"] == "cache:6380"
     assert "s3cret" not in str(result)
 
@@ -248,10 +249,11 @@ def test_the_rate_limiter_with_shared_state_refuses_rather_than_counting_per_pro
     _install_async(monkeypatch, [_BrokenAsyncClient()])
     limiter = RedisRateLimiter("redis://unit-test:6379/0", shared=True)
 
+    first, second = limiter.check_rate_limit_async("k", 5, 60), limiter.check_rate_limit_async("k", 5, 60)
     with pytest.raises(SharedStateUnavailable):
-        asyncio.run(limiter.check_rate_limit_async("k", 5, 60))
+        asyncio.run(first)
     with pytest.raises(SharedStateUnavailable):  # and inside the cooldown, without reconnecting
-        asyncio.run(limiter.check_rate_limit_async("k", 5, 60))
+        asyncio.run(second)
     assert limiter._memory_store == {}
 
 

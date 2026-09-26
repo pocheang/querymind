@@ -52,9 +52,12 @@ def test_a_token_raised_on_one_worker_is_approved_and_replayed_on_another(db):
     worker_b.approve(token, ALICE)
 
     replay = worker_a.approved_call(token, ALICE)
-    assert replay is not None and replay.arguments == CALL.arguments
+    assert replay is not None
+    assert replay.arguments == CALL.arguments
     consumed = worker_b.consume(_replay(token), ALICE)
-    assert consumed is not None and consumed.consumed and consumed.approved_by == "alice"
+    assert consumed is not None
+    assert consumed.consumed
+    assert consumed.approved_by == "alice"
 
 
 def test_a_pending_approval_survives_a_restart(db):
@@ -173,7 +176,8 @@ def test_long_expired_rows_are_pruned(db):
 
     with sqlite3.connect(db) as conn:
         remaining = [row[0] for row in conn.execute("SELECT token FROM tool_approvals")]
-    assert stale not in remaining and len(remaining) == 1
+    assert stale not in remaining
+    assert len(remaining) == 1
 
 
 def test_callers_on_the_event_loop_reach_the_store_through_a_thread():

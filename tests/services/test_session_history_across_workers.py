@@ -126,9 +126,13 @@ def test_a_change_that_raises_after_writing_is_rolled_back_and_releases_the_lock
     store = HistoryStore(base_dir=paths / "sessions" / "alice")
     store.append_message("s1", "user", "kept")
 
-    with pytest.raises(RuntimeError), store._unit("s1") as unit:
-        unit.save({**unit.data, "messages": []})
-        raise RuntimeError("boom")
+    def write_then_fail() -> None:
+        with store._unit("s1") as unit:
+            unit.save({**unit.data, "messages": []})
+            raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        write_then_fail()
 
     store.append_message("s1", "user", "after")  # would wait out the busy timeout if the lock leaked
     assert _messages(store, "s1") == ["kept", "after"]
@@ -258,18 +262,16 @@ def test_a_dry_run_writes_nothing(paths):
         assert conn.execute("SELECT COUNT(*) FROM sessions").fetchone() == (0,)
 
 
-def test_an_unreadable_file_is_reported_and_fails_the_script(paths, capsys):
+def test_an_unreadable_file_is_reported_and_fails_the_script(paths, capsys, monkeypatch):
     _file_estate(paths)
     (paths / "sessions" / "alice" / "broken.json").write_text("{not json", encoding="utf-8")
-    sys.path.insert(0, str(REPO_ROOT / "scripts"))
-    try:
-        import migrate_sessions_to_sqlite as script
-    finally:
-        sys.path.remove(str(REPO_ROOT / "scripts"))
+    monkeypatch.syspath_prepend(str(REPO_ROOT / "scripts"))
+    import migrate_sessions_to_sqlite as script
 
     assert script.main([]) == 1
     out = capsys.readouterr().out
-    assert "UNREADABLE" in out and "broken.json" in out
+    assert "UNREADABLE" in out
+    assert "broken.json" in out
     (paths / "sessions" / "alice" / "broken.json").unlink()
     assert script.main([]) == 0
 

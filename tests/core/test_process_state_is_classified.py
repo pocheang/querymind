@@ -14,7 +14,8 @@ from pathlib import Path
 
 _inventory_path = Path(__file__).parent / "process_state_inventory.py"
 _spec = importlib.util.spec_from_file_location("process_state_inventory", _inventory_path)
-assert _spec and _spec.loader is not None
+assert _spec is not None
+assert _spec.loader is not None
 _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
 INVENTORY = _mod.INVENTORY

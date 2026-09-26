@@ -21,7 +21,7 @@ _REDIS = RedisConnector(
 )
 
 
-def _mark_redis_unavailable(settings, exc: BaseException) -> None:  # noqa: ARG001 -- kept for its callers
+def _mark_redis_unavailable(exc: BaseException) -> None:
     """Discard a failed client so retrieval immediately falls back to memory."""
     _REDIS.drop(exc)
     logger.warning("Redis retrieval cache unavailable; using memory cache: %s", exc)
@@ -127,7 +127,7 @@ def _redis_lookup(settings, key: str):
     try:
         raw = client.get(key)
     except Exception as e:
-        _mark_redis_unavailable(settings, e)
+        _mark_redis_unavailable(e)
         logger.debug(f"Redis cache lookup failed: {type(e).__name__}")
         return None
     if not raw:
@@ -191,7 +191,7 @@ def _redis_store(settings, key: str, results: list, diagnostics: dict, ttl_secon
         logger.debug(f"Redis cache store failed (serialization): {e}")
         diagnostics["cache_backend"] = "memory" if _uses_memory_layer() else "none"
     except Exception as e:
-        _mark_redis_unavailable(settings, e)
+        _mark_redis_unavailable(e)
         logger.debug(f"Redis cache store failed: {e}")
         diagnostics["cache_backend"] = "memory" if _uses_memory_layer() else "none"
 

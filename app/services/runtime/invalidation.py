@@ -82,7 +82,11 @@ def _apply_log_levels() -> None:
 
 
 def _run_config_handlers() -> None:
-    for handler in list(_CONFIG_HANDLERS):
+    # A snapshot taken under the lock: `on_config_change` may register from
+    # another thread, and the handlers themselves run outside it.
+    with _LOCK:
+        handlers = tuple(_CONFIG_HANDLERS)
+    for handler in handlers:
         handler()
 
 

@@ -102,8 +102,9 @@ def test_a_failing_migration_leaves_the_database_where_it_was(tmp_path):
         conn.execute("CREATE TABLE half (x)")
         raise RuntimeError("migration 2 failed")
 
+    migrations = (*V1, Migration(2, "half", half_done))
     with pytest.raises(RuntimeError, match="migration 2 failed"):
-        ensure_schema(db, "demo", (*V1, Migration(2, "half", half_done)))
+        ensure_schema(db, "demo", migrations)
 
     assert schema_version(db, "demo") == 1
     with sqlite3.connect(db) as conn:

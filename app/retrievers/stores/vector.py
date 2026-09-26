@@ -388,7 +388,8 @@ def _upsert_in_batches(store: Chroma, ids: list, texts: list, metadatas: list, e
                 store._collection.delete(ids=written)  # noqa: SLF001
             except Exception:
                 logger.exception("vector_upsert_rollback_failed count=%d", len(written))
-        raise _as_dimension_mismatch(error) from error
+        # python:S112 -- the same rewrap as in `similarity_search`, for the reason given there.
+        raise _as_dimension_mismatch(error) from error  # NOSONAR
 
 
 def delete_where(collection_name: str, where: dict) -> None:

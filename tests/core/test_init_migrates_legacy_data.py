@@ -250,7 +250,8 @@ def test_memory_mode_moves_nothing(root, monkeypatch):
     _forbid(monkeypatch, "app.retrievers.stores.chroma_migration.copy_collections")
 
     assert init_app.migrate_legacy_data(Settings()) == []
-    assert not _sessions_marker(root).exists() and not _chroma_marker(root).exists()
+    assert not _sessions_marker(root).exists()
+    assert not _chroma_marker(root).exists()
 
 
 def test_a_fresh_installation_has_nothing_to_move(root, monkeypatch):

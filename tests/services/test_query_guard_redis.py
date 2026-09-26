@@ -118,9 +118,8 @@ def test_a_user_over_the_window_is_rate_limited_before_a_slot_is_taken(redis):
 
     _use(guard)
     _use(guard)
-    with pytest.raises(QueryRateLimitedError):
-        with guard.acquire("user-1"):
-            pytest.fail("admitted past the rate limit")
+    with pytest.raises(QueryRateLimitedError):  # admitted, `_use` returns and this fails
+        _use(guard)
 
     assert redis.zcard(INFLIGHT) == 0
 
@@ -130,8 +129,9 @@ def test_the_user_window_is_shared_and_the_key_carries_no_user_id(redis):
 
     _use(_guard(per_user_max_requests=2), "alice@example.com")
     _use(_guard(per_user_max_requests=2), "alice@example.com")
+    third_worker = _guard(per_user_max_requests=2)
     with pytest.raises(QueryRateLimitedError):
-        _use(_guard(per_user_max_requests=2), "alice@example.com")
+        _use(third_worker, "alice@example.com")
 
     assert not [key for key in redis.keys("*") if "alice" in key]
 
@@ -265,8 +265,9 @@ def test_shared_with_redis_failing_mid_acquire_is_a_503(redis, monkeypatch):
     failing = _Failing(redis, fail_eval_on=INFLIGHT)
     monkeypatch.setattr(guard_module, "_get_redis_client", lambda: failing)
 
+    guard = _guard(shared=True)
     with pytest.raises(SharedStateUnavailable):
-        _use(_guard(shared=True))
+        _use(guard)
 
 
 def test_shared_overrides_a_memory_preference(redis):
@@ -296,5 +297,6 @@ def test_a_script_error_is_a_bug_not_a_fallback(redis, monkeypatch):
 
     monkeypatch.setattr(guard_module, "_get_redis_client", lambda: _WrongScript())
 
+    guard = _guard()
     with pytest.raises(redis_exceptions.ResponseError):
-        _use(_guard())
+        _use(guard)

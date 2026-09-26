@@ -113,8 +113,8 @@ def connector_status() -> list[dict[str, Any]]:
     """
 
     with _REGISTRY_LOCK:
-        connectors = list(_REGISTRY.values())
-    return [connector.status() for connector in sorted(connectors, key=lambda c: c.name)]
+        connectors = sorted(_REGISTRY.values(), key=lambda c: c.name)
+    return [connector.status() for connector in connectors]
 
 
 class _ConnectorBase:
