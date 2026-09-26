@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from app.domain.contracts import EvidenceBundle, FinalAnswer, OrchestratedQualityReport, ValidationStatus
+from app.domain.contracts import EvidenceBundle, FinalAnswer, OrchestratedQualityReport, ToolResult, ValidationStatus
 from app.orchestration.policies import ExecutionPolicy
 from app.orchestration.request import OrchestrationRequest
 
@@ -25,7 +25,7 @@ class FinalizationService:
         candidate: FinalAnswer,
         policy: ExecutionPolicy,
     ) -> FinalAnswer:
-        grounded, grounding = _ground(candidate.answer, evidence)
+        grounded, grounding = _ground(candidate.answer, evidence, candidate.tool_results)
         safe, safety = _sanitize(grounded)
         # Reasoning is unredacted the moment it leaves the model (see
         # CandidateAnswer.reasoning) and reaches a reader through the live
@@ -128,10 +128,24 @@ async def _validate(query: str, answer: str, documents: list[dict[str, Any]], ci
     return await validate_answer(query, answer, documents, citations)
 
 
-def _ground(answer: str, evidence: EvidenceBundle) -> tuple[str, dict[str, Any]]:
+def _ground(
+    answer: str,
+    evidence: EvidenceBundle,
+    tool_results: tuple[ToolResult, ...] = (),
+) -> tuple[str, dict[str, Any]]:
+    """Hedge sentences nothing supports -- where support includes a citable tool result.
+
+    Measured before this: "CVE-2021-44228 的 CVSS 评分为 10.0" was hedged as
+    "基于当前可用证据，..." because only retrieved evidence counted, and the
+    score came from the CVE lookup. And an answer built from tools alone had
+    no evidence at all, so grounding switched itself off and checked nothing.
+    """
+    from app.agents.synthesizer.citations import citable_tool_results
     from app.services.retrieval.citation_grounding import apply_sentence_grounding
 
-    return apply_sentence_grounding(answer, [item.content for item in evidence.items])
+    support = [item.content for item in evidence.items]
+    support.extend(result.summary for result in citable_tool_results(tool_results))
+    return apply_sentence_grounding(answer, support)
 
 
 def _sanitize(answer: str) -> tuple[str, dict[str, Any]]:
