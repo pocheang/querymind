@@ -134,14 +134,14 @@ export function usePromptActions(params: UsePromptActionsParams) {
       // and `javascript:` here was no XSS defence and cut them out of prompts.
       const checkedTitle = String(res.title || title);
       const checkedContent = String(res.content || content);
-      const suggestions = (res.suggestions || []).filter(Boolean).map((s) => String(s));
+      const suggestions = (res.suggestions || []).filter(Boolean).map(String);
 
       const numberedSuggestions = suggestions.map((x, i) => `${i + 1}. ${x}`).join("\n");
       const suggestionBlock = suggestions.length
         ? `${t("components.workbench.suggestionsLabel")}${numberedSuggestions}`
         : "";
 
-      const issues = (res.issues || []).slice(0, 3).map((issue) => String(issue));
+      const issues = (res.issues || []).slice(0, 3).map(String);
 
       setPromptTitle(checkedTitle);
       setPromptContent(`${checkedContent.trim()}${suggestionBlock}`);

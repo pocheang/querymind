@@ -50,12 +50,33 @@ def test_detect_formula_uses_the_rewritten_pattern():
     assert found == ["F = - 0"]
 
 
-def test_equations_never_lose_a_match_the_old_pattern_made():
-    for text in _generated("EFab01 =+-*/^!,;._中", 40_000, seed=22, max_len=28):
-        old_spans = [m.span() for m in OLD_EQUATION.finditer(text)]
-        new_spans = [m.span() for m in EQUATION_PATTERN.finditer(text)]
-        for start, end in old_spans:
-            assert any(s <= start and e >= end for s, e in new_spans), text
+def test_every_old_equation_is_still_found_or_absorbed_by_a_longer_one():
+    """An old match is either inside a new one, or overlaps an earlier new match
+    that the one intended difference (an operator alone before whitespace) made
+    longer -- `finditer` does not return overlapping matches. Tabs are in the
+    alphabet on purpose: the first version of this test left them out and so
+    claimed more than it checked."""
+
+    for text in _generated("EFab01 \t=+-*/^!,;._中", 40_000, seed=22, max_len=28):
+        new_matches = list(EQUATION_PATTERN.finditer(text))
+        for old in OLD_EQUATION.finditer(text):
+            start, end = old.span()
+            if any(m.start() <= start and m.end() >= end for m in new_matches):
+                continue
+            absorbing = [m for m in new_matches if m.start() < end and start < m.end()]
+            assert absorbing, text
+            assert any(re.search(r"(?:^|\s)[+\-*/^]\s", m.group(2)) for m in absorbing), text
+
+
+def test_a_longer_new_match_can_absorb_a_later_old_one():
+    """Found by the generator with tabs in the alphabet; the random test above
+    rarely produces it, so it is pinned here. `F=^  E_*!F` is the new form reading
+    an operator alone before whitespace, and it runs into the `F` the old form
+    started its own match from."""
+
+    text = "F=^  E_*!F =\t\t0"
+    assert [m.group(0) for m in OLD_EQUATION.finditer(text)] == ["F =\t\t0"]
+    assert [m.group(0) for m in EQUATION_PATTERN.finditer(text)] == ["F=^  E_*!F"]
 
 
 def test_the_one_intended_difference_reads_a_unary_minus():

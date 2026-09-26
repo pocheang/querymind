@@ -9,11 +9,23 @@ import re
 # "!*" repeated it backtracked exponentially (CodeQL py/redos; 35 characters
 # took 23 ms, growing ~4.5x every 4). Uploaded documents reach this, so one
 # crafted PDF could stall the ingest worker. Each repetition now has to cross
-# whitespace, which is the only thing the old form added over one token.
-# Diffed over 200,000 generated inputs: no old match is lost or shortened; the
-# new form additionally accepts an operator standing alone before a space
-# (`F = - 0`, a unary minus the old form could not read).
-EQUATION_PATTERN = re.compile(r"\b([A-Z])\s*=\s*([^\s,;.]+(?:(?<=[+\-*/^])\s+[^\s,;.]+|\s+[+\-*/^]\s*[^\s,;.]+)*)\b")
+# whitespace, which is the only thing the old form added over one token, and
+# the two branches differ on their first character after it -- a non-operator
+# or an operator -- so a repetition has exactly one parse. (The first version
+# told them apart only by its lookbehind; CodeQL does not model lookbehinds and
+# flagged it, although it measured linear.)
+#
+# Diffed over 200,000 generated inputs, tabs included: every difference comes
+# from one shape the new form accepts and the old did not, an operator standing
+# alone before whitespace (`F = - 0`, a unary minus). In 2 of those inputs the
+# longer match that shape allows also overlaps a later match the old form found,
+# which `finditer` then no longer returns separately.
+_OPERATOR = r"[+\-*/^]"
+_TOKEN = r"[^\s,;.]+"  # an operator is a token character too
+_TOKEN_NOT_OPERATOR_FIRST = r"[^\s,;.+\-*/^][^\s,;.]*"
+_AFTER_A_TRAILING_OPERATOR = rf"(?<={_OPERATOR})\s+{_TOKEN_NOT_OPERATOR_FIRST}"
+_SPACED_OPERATOR = rf"\s+{_OPERATOR}\s*{_TOKEN}"
+EQUATION_PATTERN = re.compile(rf"\b([A-Z])\s*=\s*({_TOKEN}(?:{_AFTER_A_TRAILING_OPERATOR}|{_SPACED_OPERATOR})*)\b")
 
 
 def detect_formula(text: str) -> list[dict[str, str]]:
