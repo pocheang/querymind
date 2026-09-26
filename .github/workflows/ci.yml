@@ -245,12 +245,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 20 is canonical: it is what Dockerfile.frontend builds the shipped
-        # bundle with (node:20-alpine), so it is the one the linters, the
-        # coverage upload and the dead-class audit run on. 22 is the current LTS
-        # and the version a contributor's machine most likely has -- measured
-        # before adding it, the suite and the build both pass there.
-        node-version: ["20", "22"]
+        # 22 is canonical: it is what Dockerfile.frontend builds the shipped
+        # bundle with (node:22-alpine), so it is the one the linters, the
+        # coverage upload and the dead-class audit run on. 24 is the newer LTS.
+        # 20 was dropped when vitest 5 and jsdom 30 raised their floor to 22
+        # (jsdom: ^22.22.2) -- @testing-library/jest-dom 7 already asked for it.
+        node-version: ["22", "24"]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -270,11 +270,11 @@ jobs:
       # is stated, so this comment cannot drift out of date with it the way it
       # did while claiming 24. Lower it as the warnings are fixed; never raise it.
       - name: Lint
-        if: matrix.node-version == '20'
+        if: matrix.node-version == '22'
         run: npm run lint
 
       - name: Type check
-        if: matrix.node-version == '20'
+        if: matrix.node-version == '22'
         run: npm run type-check
 
       # Prettier, as the backend job runs `ruff format --check`. It was listed
@@ -282,7 +282,7 @@ jobs:
       # drifted in the meantime. `.prettierrc` uses `endOfLine: auto` so a
       # Windows checkout (core.autocrlf=true) reports the same thing this does.
       - name: Format check
-        if: matrix.node-version == '20'
+        if: matrix.node-version == '22'
         run: npm run format:check
 
       # Shape and depth scale, as a ratchet. The chat screen once carried eight
@@ -291,7 +291,7 @@ jobs:
       # file in scripts/design-scale-baseline.json -- a file may improve, never
       # regress, and a new file starts at zero.
       - name: Design scale
-        if: matrix.node-version == '20'
+        if: matrix.node-version == '22'
         run: npm run lint:design
 
       # Store-reset coverage: the Zustand stores live for the lifetime of the
@@ -310,7 +310,7 @@ jobs:
         # One report, from the canonical version, for the reason the backend
         # uploads only from 3.11: two legs racing for one artifact name is an
         # error in v4, and two numbers would not both be "the project's".
-        if: always() && matrix.node-version == '20'
+        if: always() && matrix.node-version == '22'
         with:
           name: frontend-coverage
           path: frontend/coverage/lcov.info
@@ -325,14 +325,14 @@ jobs:
       # rewrite and two contrast audits, because lint, tsc and the tests are all
       # blind to a class that matches nothing.
       - name: Dead classes
-        if: matrix.node-version == '20'
+        if: matrix.node-version == '22'
         run: npm run lint:classes
 
   # What the deployment installs, which until now nothing in CI ever built. The
   # backend image installs `requirements/runtime.txt` -- a different export of the
   # lock from the `ci.txt` every other job uses -- so a broken `make lock` could
   # go green here and fail at deploy, which is the worst place to find it. The
-  # frontend image repeats the npm build inside node:20-alpine against an
+  # frontend image repeats the npm build inside node:22-alpine against an
   # unprivileged nginx base, where a `listen` directive left at 80 fails to bind
   # in a way the build itself does not notice.
   #
@@ -475,7 +475,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -581,7 +581,7 @@ jobs:
         # the only one.
         if: env.SONAR_TOKEN != ''
         # v8.2.1
-        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "https://sonarcloud.io"

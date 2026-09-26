@@ -282,7 +282,7 @@ QueryMind Technology Stack
 └── Engineering & DevOps
     ├── Code Quality: Ruff (Linter & Formatter), Pre-commit (CI 内同样执行)
     ├── Testing: Pytest (后端 3,498 用例，含真实 Redis/Chroma 上的多进程组), Vitest (前端 232 用例), Prettier
-    ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 20+22 / images / analysis)
+    ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 22+24 / images / analysis)
     ├── Security: CodeQL (python + js-ts), pip-audit + npm audit 门禁, Trivy 镜像扫描（每周）
     ├── Static Analysis: SonarCloud Quality Gate, 认知复杂度本地门禁 (S3776, 0 超标)
     └── Observability: Prometheus Metrics (/metrics，多进程模式汇总所有 worker), Grafana Dashboard
@@ -361,7 +361,7 @@ make eval-full-pipeline
 | :--- | :--- |
 | `lint` | 敏感内容闸门 + ruff。**不装项目依赖**，所以一分钟内出结果——风格问题不会再把测试结果挡在后面。 |
 | `backend` | 按 lock 安装、pre-commit 全量、pytest + 覆盖率 + 覆盖率棘轮。**3.11 / 3.12 矩阵**；3.11 任务另起 Redis 与 Chroma 服务容器，跑多进程组（两个 API 进程 + init + ingest-worker）。 |
-| `frontend` | eslint、tsc、prettier、设计尺度棘轮、vitest + 覆盖率、build、死类名审计。**Node 20 / 22 矩阵**。 |
+| `frontend` | eslint、tsc、prettier、设计尺度棘轮、vitest + 覆盖率、build、死类名审计。**Node 22 / 24 矩阵**（下限 22.22.2）。 |
 | `images` | 校验九种环境×profile 配置组合，构建两个 Dockerfile，**然后真的把它们跑起来**：两个容器上同一个网络，对着它们发真实请求，再用无头 Chromium 打开页面。 |
 | `analysis` | 下载前后端两份覆盖率报告到同一个工作区，SonarCloud 扫描（当前休眠，等 `SONAR_TOKEN`）。 |
 
