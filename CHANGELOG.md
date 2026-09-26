@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### 🧵 Multiple workers on one host (ARC-01)
+
+- **Shared state instead of per-process state**: rate limits, the query guard, OAuth state, execution events and answer drafts live in Redis; approval tokens, tool audit records and session history are SQLite transactions. With `STATE_BACKEND=shared` a Redis outage answers 503 rather than silently counting per worker.
+- **Ingestion as a queue**: uploads and reindexing go through RQ and a single `ingest-worker`; Chroma runs as a server. Writes to the document index are serialized across processes.
+- **Caches follow other workers**: a change to the corpus, the configuration or the model settings on one worker reaches every other worker on its next request.
+- **One-time startup work**: versioned SQLite migrations and the first administrator run once, in an `init` service, instead of racing between workers.
+- **Observability across workers**: Prometheus multiprocess metrics, log levels applied to every worker, and per-worker admin views labelled with their process.
+- **Deployment**: gunicorn with several workers by default, and client addresses taken only from the trusted reverse proxy.
+- **Quotas**: the query and web-search quotas are counted once for all workers.
+
+### 🔧 Fixes and cleanup
+
+- Clarification now recognises a component, data source or scenario written in English directly next to Chinese text (for example `neo4j报错`, `数据源是mysql数据`) instead of asking for it again.
+- Session export no longer offers an "include context" option that always exported nothing.
+- Removed unused code: a second, uncalled streaming path, uncalled session import helpers, and the last unreachable functions.
+- Documentation site navigation is built without HTML string concatenation.
+
+### ⚠️ Upgrade notes
+
+- Run `docker compose down` (never with `-v`) before the first deploy: the network now has a fixed subnet.
+- `compose.yaml` defaults to `STATE_BACKEND=shared`, so Redis and the Chroma server are required. The `init` service migrates file-based sessions and the embedded vector store, verifies them, and keeps the backend down if verification fails.
+
 ## [0.7.0.3] - 2026-09-18
 
 ### 🤖 Dynamic Dual-Track Clarification Agent & Codex/Claude Code Interaction Standards
