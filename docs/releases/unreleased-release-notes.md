@@ -71,6 +71,12 @@ process. The production stack now runs several workers by default.
 - Session export no longer takes `include_context`, and import no longer returns
   `context_imported`: the option always exported nothing. Older clients that still
   send the field are ignored rather than refused, and older export files still import.
+- Answers are as long as their evidence supports: the answer prompt no longer asks for
+  long, multi-section answers regardless of how much evidence there is. Answers on thin
+  evidence are shorter and say what is missing.
+- Web search reads the pages behind up to three accepted results and uses the passages
+  that bear on the question, instead of only the search snippet. It asks the engine
+  for 20 results and keeps the first 5 that pass the unchanged source filter.
 - Unused code removed: a second, uncalled streaming path, uncalled session import
   helpers and the last unreachable functions.
 
@@ -110,6 +116,9 @@ docker compose -f deploy/compose/compose.yaml down
 | `QUOTA_*` | see above | per-minute query and web-search quotas |
 | `QUERYMIND_TRUSTED_PROXIES`, `QUERYMIND_SUBNET` | compose network | reverse-proxy trust |
 | `GUNICORN_TIMEOUT_SECONDS` | `60` | worker replacement on a stalled event loop |
+| `WEB_FETCH_PAGES_ENABLED` | `true` | read the pages a web search returned, not only their snippets; set `false` where the server must not request third-party pages |
+| `WEB_FETCH_MAX_PAGES` | `3` | accepted results per search whose page is read (1–5) |
+| `WEB_FETCH_TIMEOUT_SECONDS` | `4` | per page; pages are read in parallel |
 
 ### API changes
 
