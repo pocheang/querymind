@@ -1,4 +1,4 @@
-.PHONY: install up down api test lint eval-retrieval eval-crossdoc eval-full-pipeline lock fe-install fe-dev fe-build config-check config-render deploy deploy-dev deploy-monitoring
+.PHONY: install up down api test lint eval-retrieval eval-crossdoc eval-full-pipeline eval-routing eval-routing-llm lock fe-install fe-dev fe-build config-check config-render deploy deploy-dev deploy-monitoring
 
 install:
 	conda run -n rag-local pip install -e ".[dev]"
@@ -50,6 +50,16 @@ eval-crossdoc:
 # a run without them would publish a number describing the fallback.
 eval-full-pipeline:
 	conda run --no-capture-output -n rag-local python scripts/eval_full_pipeline.py
+
+# Which specialist answers each question in config/eval/specialist_routing.json.
+# The offline keyword rules; exits 1 when they drift from the recorded state.
+# `eval-routing-llm` measures the model router and refuses (exit 2) without a
+# real chat model.
+eval-routing:
+	conda run --no-capture-output -n rag-local python scripts/eval_specialist_routing.py
+
+eval-routing-llm:
+	conda run --no-capture-output -n rag-local python scripts/eval_specialist_routing.py --llm
 
 fe-install:
 	cd frontend && npm ci
