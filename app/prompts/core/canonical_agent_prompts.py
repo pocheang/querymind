@@ -19,6 +19,7 @@ Skills to choose from:
 - cyber_attack_analysis: Attack chain analysis
 - cyber_defense_hardening: Defense recommendations
 - incident_response_playbook: Incident handling
+- vulnerability_exposure_assessment: Whether a product/version is affected by a CVE, and what to patch first
 - ai_knowledge_assistant: General AI/ML questions
 - pdf_text_reader: Extract and read PDF content
 

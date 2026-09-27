@@ -200,12 +200,40 @@ Example structure:
 未包含在材料中的部分：<what is missing>
 """
 
+VULNERABILITY_EXPOSURE_TEMPLATE = """
+Answer template for "are we affected by this vulnerability, and what do we do":
+
+1. Verdict, in one line: affected / not affected / cannot tell -- and for which product and version
+2. Basis: the version range that decides it, the source that states the range, and the date
+   that source was synced or published, each cited ([T1] for a tool result, [E1] for a document)
+3. Priority, from what the sources give: listed in CISA KEV (and since when), EPSS probability,
+   CVSS score and severity -- in that order, because exploitation in the wild outranks severity
+4. What to do: the fixed version or the vendor's mitigation, cited; then what to check next
+
+Citation rules:
+- The verdict MUST rest on a cited version range. With no range for the version in use, the
+  verdict is "cannot tell", never "not affected"
+- A CVE that a lookup did not find is not a CVE that does not exist: say the source did not
+  hold it, and name what would settle it
+- Carry a source's own staleness warning into the answer; a KEV status from a stale copy is
+  weaker evidence than one from this morning
+- Do not add CVEs, versions or fixes that no tool result or document gives
+
+Example structure:
+结论：<product> <version> 受 <CVE> 影响 [T1]
+依据：受影响范围 <range>（NVD，本地副本同步于 <date>）[T1]
+优先级：已列入 CISA KEV（<date> 起）[T1]；EPSS <score> [T1]；CVSS <score> <severity> [T1]
+处置：升级到 <fixed version>（<advisory>）[T1]；升级前 <interim measure> [E1]
+待确认：<what the sources could not settle>
+"""
+
 SKILL_TEMPLATES: dict[str, str] = {
     "timeline_builder": TIMELINE_TEMPLATE,
     "web_fact_check": WEB_FACT_CHECK_TEMPLATE,
     "incident_response_playbook": INCIDENT_RESPONSE_TEMPLATE,
     "cyber_attack_analysis": ATTACK_ANALYSIS_TEMPLATE,
     "cyber_defense_hardening": DEFENSE_HARDENING_TEMPLATE,
+    "vulnerability_exposure_assessment": VULNERABILITY_EXPOSURE_TEMPLATE,
     "pdf_text_reader": PDF_EXTRACTION_TEMPLATE,
 }
 """Skills whose answer has a shape of its own."""
