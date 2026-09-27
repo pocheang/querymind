@@ -58,7 +58,7 @@ class WorkflowServices(Protocol):
     # No EvidenceBundle: the tool path must not be reachable from retrieved
     # content. See app/agents/tool/selector.py for the threat model.
     tool_runner: Callable[
-        [OrchestrationRequest, RouteDecision, TaskPlan],
+        [OrchestrationRequest, RouteDecision, TaskPlan | None],
         Awaitable[tuple[ToolResult, ...]],
     ]
     synthesizer: Callable[
@@ -279,7 +279,7 @@ class WorkflowNodeRuntime:
         )
         tool_results: tuple[ToolResult, ...] = ()
         trace = [strategy_event, event]
-        if plan is not None and self._policy.should_run_tools(route, plan):
+        if self._policy.should_run_tools(route, plan):
             tool_results, tool_event = await self._run_stage(
                 state,
                 event_stage="tool",
