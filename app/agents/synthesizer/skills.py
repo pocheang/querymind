@@ -299,6 +299,10 @@ Citation rules:
 - The current practice MUST be cited to the user's own document or taken from the question;
   a practice nobody described is 无法判断, not 缺失
 - Name the version or date of the regulation the evidence gives; laws are amended
+- The conclusion follows the table: when every clause is 无法判断, the conclusion is 无法判断
+  too, and it says which texts would settle it
+- Remediation answers a cited requirement. Do not add deadlines, amounts or procedures that
+  no source gives
 
 Example structure:
 结论：<practice> 部分满足 <regulation> [E1]

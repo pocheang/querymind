@@ -152,6 +152,28 @@ def purge_retired_user_model_settings() -> None:
         logger.info("Cleared retired per-user model settings from %d account(s)", cleared)
 
 
+def install_bundled_texts(settings: Settings) -> None:
+    """Copy the reference texts that ship with the application into the shared corpus.
+
+    Copies only what is missing -- an administrator's edited copy is kept -- and
+    indexes nothing: `scripts/index_bundled_corpus.py` does that when asked, since
+    it needs the embedding model (`app/services/documents/bundled_corpus.py`).
+    """
+
+    from app.services.documents.bundled_corpus import install_bundled_corpus
+
+    try:
+        report = install_bundled_corpus(Path(settings.docs_path))
+    except OSError as exc:
+        logger.exception("Could not place the bundled reference texts in the shared corpus: %s", exc)
+        return
+    if report.copied:
+        logger.info(
+            "Placed %d bundled reference text(s) in the shared corpus; index them with scripts/index_bundled_corpus.py",
+            len(report.copied),
+        )
+
+
 def run(settings: Settings | None = None) -> dict[str, int]:
     """Migrate every store, then run the once-only tasks under one cross-process lock."""
 
@@ -161,6 +183,7 @@ def run(settings: Settings | None = None) -> dict[str, int]:
     with held(lock_path, timeout=_STARTUP_LOCK_TIMEOUT_SECONDS):
         bootstrap_administrator()
         purge_retired_user_model_settings()
+        install_bundled_texts(settings)
     return versions
 
 

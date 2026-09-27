@@ -48,6 +48,7 @@ def _settings(tmp_path: Path) -> Settings:
         APP_DB_PATH=str(tmp_path / "app.db"),
         WIKI_DB_PATH=str(tmp_path / "wiki" / "wiki.db"),
         THREAT_INTEL_DB_PATH=str(tmp_path / "threat_intel.db"),
+        DATA_DIR=str(tmp_path / "docs"),
         HISTORY_BACKEND="sqlite",
         HISTORY_SQLITE_PATH=str(tmp_path / "history.db"),
         SESSION_METADATA_BACKEND="database",
@@ -204,6 +205,7 @@ def test_the_administrator_is_bootstrapped_while_the_startup_lock_is_held(tmp_pa
 
     monkeypatch.setattr(init_app, "bootstrap_administrator", lambda: observed.append(lock_is_taken_elsewhere()))
     monkeypatch.setattr(init_app, "purge_retired_user_model_settings", lambda: None)
+    monkeypatch.setattr(init_app, "install_bundled_texts", lambda _settings: None)
 
     init_app.run(settings)
 
@@ -220,6 +222,7 @@ def _child_env(tmp_path: Path, **extra: str) -> dict[str, str]:
         APP_DB_PATH=str(tmp_path / "app.db"),
         WIKI_DB_PATH=str(tmp_path / "wiki" / "wiki.db"),
         THREAT_INTEL_DB_PATH=str(tmp_path / "threat_intel.db"),
+        DATA_DIR=str(tmp_path / "docs"),
         HISTORY_BACKEND="sqlite",
         HISTORY_SQLITE_PATH=str(tmp_path / "history.db"),
         DATABASE_URL=f"sqlite:///{(tmp_path / 'querymind.db').as_posix()}",
