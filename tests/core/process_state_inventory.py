@@ -448,9 +448,9 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "Web 搜索提供者缓存互斥锁，多进程各持一份保护自身缓存构建",
     ),
-    "app/tools/web/providers/duckduckgo.py::_CLIENT_LOCK": (
+    "app/tools/web/providers/duckduckgo.py::_SEARCH_LOCK": (
         "D",
-        "DDGS 客户端并发实例化互斥锁，多进程各持一份保护自身客户端构造",
+        "DDGS 整次搜索互斥锁（构造 + text()，primp 客户端在 text() 内懒构造），多进程各持一份，只串行化本进程内的搜索",
     ),
     "app/services/security/quota.py::_GUARD": (
         "D",

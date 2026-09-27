@@ -13,8 +13,20 @@ from app.tools.web.base import BaseSearchProvider, WebSearchError, describe_sear
 
 logger = logging.getLogger(__name__)
 
-# Concurrent DDGS construction wedges the process without this lock
-_CLIENT_LOCK = threading.Lock()
+# Held for the WHOLE search -- construction and `text()` -- so one process runs
+# one DuckDuckGo search at a time. Concurrent searches wedge the process at zero
+# CPU: `primp.Client` (Rust) calls back into Python logging while it is built,
+# and two threads doing that at once deadlock with a third stuck in
+# `Thread.start()` -- which is the event loop, so `/health` stops answering too.
+#
+# This lock used to cover only `DDGS(...)`, and in ddgs 9.x that builds nothing:
+# the primp clients are built lazily inside `text()`, per engine, in
+# `_get_engines` -> `HttpClient.__init__`. Measured on 2026-09-27 (ddgs 9.12.0):
+# one question wedged the process with two threads at `ddgs.text()` -- one in
+# `http_client.py:53`, one in `logging.getLogger` -- and the loop in
+# `Thread.start()`. Serialising costs a second or two per extra query; the
+# alternative is a process that answers nothing.
+_SEARCH_LOCK = threading.Lock()
 
 
 def _resolve_ddgs_eagerly() -> None:
@@ -45,18 +57,16 @@ class DuckDuckGoSearchProvider(BaseSearchProvider):
         settings = self._get_active_settings()
         proxy = settings.web_proxy_url or None
         max_retries = max(0, settings.web_search_max_retries)
-        results: list[dict] = []
-
         last_err: Exception | None = None
         for attempt in range(max_retries + 1):
+            # Per attempt: a failed attempt's partial results used to stay in the
+            # list and be appended to again by the retry.
+            results: list[dict] = []
             try:
-                with _CLIENT_LOCK:
-                    client_kwargs: dict[str, Any] = {"timeout": timeout}
-                    if proxy:
-                        client_kwargs["proxy"] = proxy
-                    client = DDGS(**client_kwargs)
-
-                with client as ddgs:
+                client_kwargs: dict[str, Any] = {"timeout": timeout}
+                if proxy:
+                    client_kwargs["proxy"] = proxy
+                with _SEARCH_LOCK, DDGS(**client_kwargs) as ddgs:
                     for item in ddgs.text(query, max_results=max_results, region="wt-wt", safesearch="moderate"):
                         results.append(
                             {
