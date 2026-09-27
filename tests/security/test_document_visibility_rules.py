@@ -156,3 +156,40 @@ def test_an_actor_with_no_tenant_falls_back_to_their_own_id(roots: _Settings) ->
 
     assert _visible(actor, [_row(mine, tenant_id="alice")], roots) == [str(mine)]
     assert _visible(actor, [_row(mine, tenant_id="acme")], roots) == []
+
+
+# --- the shared corpus as ingest actually tags it ----------------------------------------
+#
+# Ingest writes a `data/docs/` document with no owner as tenant `shared`
+# (app/ingestion/loaders/dispatch.py). The test above builds its row with the
+# viewer's own tenant, which is why the tenant boundary could drop every real
+# shared-corpus row and nothing noticed: indexed, the whole shared corpus was
+# invisible to every ordinary user.
+
+
+def test_the_indexed_shared_corpus_is_visible_to_an_ordinary_user(roots: _Settings) -> None:
+    shared = roots.docs_path / "compliance" / "pipl.md"
+
+    assert _visible(_actor(), [_row(shared, tenant_id="shared", owner_user_id="")], roots) == [str(shared)]
+
+
+def test_the_shared_tenant_grants_nothing_by_itself(roots: _Settings) -> None:
+    """Past the tenant boundary, a row still needs a grant: outside data/docs/ and private, it stays hidden."""
+
+    elsewhere = roots.uploads_path / "bob" / "salaries.pdf"
+
+    assert _visible(_actor(), [_row(elsewhere, tenant_id="shared", owner_user_id="bob")], roots) == []
+
+
+def test_acl_still_applies_to_the_shared_corpus(roots: _Settings) -> None:
+    restricted = roots.docs_path / "board" / "minutes.md"
+    row = _row(restricted, tenant_id="shared", acl_tags=("board",))
+
+    assert _visible(_actor(), [row], roots) == []
+    assert _visible(_actor(acl_tags=("board",)), [row], roots) == [str(restricted)]
+
+
+def test_another_tenant_is_still_outside_the_boundary(roots: _Settings) -> None:
+    theirs = roots.docs_path / "handbook.pdf"
+
+    assert _visible(_actor(), [_row(theirs, tenant_id="globex")], roots) == []
