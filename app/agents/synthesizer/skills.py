@@ -227,6 +227,32 @@ Example structure:
 待确认：<what the sources could not settle>
 """
 
+AI_ENGINEERING_ESTIMATE_TEMPLATE = """
+Answer template for an AI engineering estimate (memory, compute, time):
+
+1. The number, in one line, with its unit and what it covers
+2. Formula and substitution: the formula, the values put into it, and the result -- cited to the
+   tool result that computed it ([T1]) or the document that states it ([E1])
+3. Assumptions: every value the question did not give, and what was assumed for it
+4. Error and limits: what the number leaves out (activations, framework overhead, KV cache
+   without an architecture) and how that moves the real figure
+
+Citation rules:
+- Every number MUST come from a tool result or a document, cited. Do not redo the arithmetic
+  in prose with different rounding, and do not supply an architecture detail (layers, heads,
+  head size) the user did not give
+- Do not go past what the tool computed: no GPU count, card model, price or cost the tool
+  result does not state. If the question asks one, say which input the tool needs for it
+- Keep units exactly as the source gives them: GiB and GB differ by 7%
+- When a part could not be computed for lack of an input, say which input would settle it
+
+Example structure:
+结论：约 <number> <unit>（<what it covers>）[T1]
+公式与代入：<formula> = <substitution> = <result> [T1]
+假设：<value assumed for what was not given> [T1]
+误差与局限：未计入 <what is excluded>；<how it changes the real figure> [T1]
+"""
+
 SKILL_TEMPLATES: dict[str, str] = {
     "timeline_builder": TIMELINE_TEMPLATE,
     "web_fact_check": WEB_FACT_CHECK_TEMPLATE,
@@ -234,6 +260,7 @@ SKILL_TEMPLATES: dict[str, str] = {
     "cyber_attack_analysis": ATTACK_ANALYSIS_TEMPLATE,
     "cyber_defense_hardening": DEFENSE_HARDENING_TEMPLATE,
     "vulnerability_exposure_assessment": VULNERABILITY_EXPOSURE_TEMPLATE,
+    "ai_engineering_estimate": AI_ENGINEERING_ESTIMATE_TEMPLATE,
     "pdf_text_reader": PDF_EXTRACTION_TEMPLATE,
 }
 """Skills whose answer has a shape of its own."""

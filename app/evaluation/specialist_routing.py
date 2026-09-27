@@ -77,6 +77,7 @@ KNOWN_MISROUTES: dict[str, tuple[tuple[str, str], str]] = {
     "sec-09": (("cybersecurity", "cyber_attack_analysis"), "a specialist never proposes a comparison"),
     "ai-02": (("artificial_intelligence", "ai_deep_dive"), "a specialist never proposes a comparison"),
     "ai-03": (("artificial_intelligence", "ai_deep_dive"), "a specialist never proposes a comparison"),
+    "ai-12": (("artificial_intelligence", "ai_deep_dive"), "a specialist never proposes a comparison"),
     "gen-06": (("general", "answer_with_citations"), "the timeline check matches 'timeline'/'history' only"),
 }
 

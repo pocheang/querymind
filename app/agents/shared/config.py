@@ -87,6 +87,7 @@ VALID_SKILLS: Final[frozenset[str]] = frozenset(
         "incident_response_playbook",
         "vulnerability_exposure_assessment",
         "ai_knowledge_assistant",
+        "ai_engineering_estimate",
         "pdf_text_reader",
     }
 )
