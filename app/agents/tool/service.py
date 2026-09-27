@@ -200,7 +200,7 @@ class ToolAgentService:
         self,
         request: OrchestrationRequest,
         route: RouteDecision,
-        plan: TaskPlan,
+        plan: TaskPlan | None,
     ) -> tuple[ToolResult, ...]:
         """Use the same governed boundary when called by the typed orchestration engine.
 

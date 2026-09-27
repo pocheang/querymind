@@ -43,7 +43,7 @@ Retriever = Callable[
 ]
 # No EvidenceBundle: the tool path must not be reachable from retrieved
 # content. See app/agents/tool/selector.py for the threat model.
-ToolRunner = Callable[[OrchestrationRequest, RouteDecision, TaskPlan], Awaitable[tuple[ToolResult, ...]]]
+ToolRunner = Callable[[OrchestrationRequest, RouteDecision, TaskPlan | None], Awaitable[tuple[ToolResult, ...]]]
 Synthesizer = Callable[
     [OrchestrationRequest, RouteDecision, TaskPlan | None, EvidenceBundle, tuple[ToolResult, ...]],
     Awaitable[FinalAnswer],

@@ -278,3 +278,89 @@ async def test_an_empty_consultation_spends_no_model_call() -> None:
 
     assert results == ()
     assert selector.catalogues == [], "the selector must not be asked when nothing may be consulted"
+
+
+# --- the knowledge node, as the graph runs it ---------------------------------
+#
+# The first version of this change was verified by calling the planner by hand,
+# which the graph does not do for a `vector` route: `requires_plan` is False
+# there, the planner stage is skipped, the plan stays None -- and the node
+# required a plan before running tools. So the capability reached every vector
+# route and the tools ran on none of them. These drive the node itself.
+
+
+def _node_runtime(tool_calls: list):
+    from app.domain.workflow import ContextBundle
+    from app.orchestration.langgraph.nodes import WorkflowNodeRuntime, _timed_out_strategy
+
+    async def knowledge_agent(request, *_args):
+        return _timed_out_strategy(request.question)
+
+    async def retriever(*_args):
+        return ContextBundle()
+
+    async def tool_runner(request, route, plan):
+        tool_calls.append((route.route, plan))
+        return ()
+
+    return WorkflowNodeRuntime(
+        services=SimpleNamespace(knowledge_agent=knowledge_agent, retriever=retriever, tool_runner=tool_runner),
+        policy=ExecutionPolicy(),
+        max_verifier_retries=1,
+        context_token_budget=2_000,
+    )
+
+
+def _node_state(route: RouteDecision, **extra) -> dict:
+    from app.domain.knowledge import AccessScope
+    from app.domain.workflow import RouterDecision
+    from app.orchestration.timeout_control import ExecutionBudget, TimeoutConfig
+    from app.services.security.access_scope import DEFAULT_CONTEXT_FIELDS
+
+    return {
+        "request": OrchestrationRequest(question="CVE-2021-44228 影响哪些版本", actor=_ACTOR),
+        "route": route,
+        "route_decision": RouterDecision(
+            intent=route.intent,
+            complexity="simple",
+            completeness="complete",
+            next_stage="knowledge",
+            confidence=0.9,
+            reason="test",
+        ),
+        "permission_scope": AccessScope(
+            tenant_id="acme",
+            user_id="alice",
+            role="viewer",
+            allowed_sources=frozenset({"a.pdf"}),
+            allowed_fields=DEFAULT_CONTEXT_FIELDS,
+        ),
+        "budget": ExecutionBudget(TimeoutConfig()),
+        "reporter": lambda _event: None,
+        **extra,
+    }
+
+
+@pytest.mark.asyncio
+async def test_a_vector_route_runs_its_specialists_tools_without_a_plan() -> None:
+    calls: list = []
+    await _node_runtime(calls).knowledge(_node_state(_route(AgentClass.CYBERSECURITY)))
+    assert calls == [("vector", None)]
+
+
+@pytest.mark.asyncio
+async def test_a_route_that_needed_a_plan_still_runs_no_tools_without_one() -> None:
+    """A planner timeout leaves the plan None, and that has always meant no tools."""
+
+    calls: list = []
+    route = _route(AgentClass.CYBERSECURITY, intent="tool_call")
+    assert route.requires_plan
+    await _node_runtime(calls).knowledge(_node_state(route))
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_a_route_without_the_capability_runs_no_tools() -> None:
+    calls: list = []
+    await _node_runtime(calls).knowledge(_node_state(_route(AgentClass.CYBERSECURITY, tool=False)))
+    assert calls == []
