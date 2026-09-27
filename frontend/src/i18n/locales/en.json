@@ -989,6 +989,8 @@
       "reindex": "Reindex",
       "deleteIndex": "Del Index",
       "deleteFile": "Del File",
+      "domainLabel": "Specialist domain for this document",
+      "relabelFailed": "Could not change the domain",
       "preparingUpload": "Preparing upload...",
       "uploadComplete": "Upload complete",
       "queuedForIndexing": "queued for indexing",

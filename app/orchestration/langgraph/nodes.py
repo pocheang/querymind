@@ -190,6 +190,7 @@ class WorkflowNodeRuntime:
             knowledge_hints=_knowledge_hints(route),
             confidence=route.confidence,
             reason=route.reason,
+            agent_class=route.agent_class,
         )
         return {"route": route, "route_decision": decision, "trace": (event,)}
 

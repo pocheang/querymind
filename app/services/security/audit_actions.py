@@ -50,6 +50,7 @@ class AuditAction(StrEnum):
     DOCUMENT_UPLOAD = "document.upload"
     DOCUMENT_REINDEX = "document.reindex"
     DOCUMENT_DELETE = "document.delete"
+    DOCUMENT_RELABEL = "document.relabel"
 
     # Query admission -- written only when a query is refused
     QUERY_LOAD_GUARD = "query.load_guard"

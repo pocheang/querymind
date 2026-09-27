@@ -4,6 +4,7 @@ import type {
   ClarificationCheckRequest,
   ClarificationContext,
   ClarificationResponse,
+  DocumentLabelResponse,
   FileIndexActionResponse,
   IndexHealthResponse,
   IndexedFileSummary,
@@ -309,6 +310,13 @@ export const documentApi = {
       : `/documents/${encodePathParam(filename)}/reindex?source=${encodeURIComponent(source)}`;
     const res = await authFetch(path, { method: "POST" });
     return parseOrThrow<FileIndexActionResponse>(res);
+  },
+
+  /** Change a document's specialist domain. No reindex: the label is read at query time. */
+  documentRelabel(documentId: string, agentClass: string) {
+    return buildPatchRequest<DocumentLabelResponse>(`/documents/by-id/${encodePathParam(documentId)}`, {
+      agent_class: agentClass,
+    });
   },
 
   indexHealth() {

@@ -74,6 +74,11 @@ EDITABLE: tuple[EditableField, ...] = (
     # not loaded.
     EditableField("ENABLE_RERANKER", "retrieval", "Rerank fused results with the cross-encoder."),
     EditableField(
+        "DOMAIN_LABEL_BOOST",
+        "retrieval",
+        "Added to the reranked score (0-1) of documents labelled with the routed specialist's domain. 0 turns it off.",
+    ),
+    EditableField(
         "RERANKER_MODEL_NAME",
         "retrieval",
         "Cross-encoder used for reranking. Must already be downloaded; retrieval falls back to lexical scoring if not.",

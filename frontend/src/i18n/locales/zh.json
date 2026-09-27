@@ -989,6 +989,8 @@
       "reindex": "重建索引",
       "deleteIndex": "删索引",
       "deleteFile": "删文件",
+      "domainLabel": "此文档所属的专家领域",
+      "relabelFailed": "领域修改失败",
       "preparingUpload": "准备上传...",
       "uploadComplete": "上传完成",
       "queuedForIndexing": "已加入索引队列",

@@ -1,9 +1,71 @@
 import type { IndexedFileSummary } from "@/types/api";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw, Trash2, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { appApi } from "@/lib/api";
+import { AGENT_MODES } from "@/pages/chat/constants";
+import { useAgentModeLabels } from "@/pages/chat/agentModeLabels";
+
+/**
+ * Which specialist a document belongs to, changeable in place.
+ *
+ * The label only orders what a specialist retrieves (the server boosts a
+ * labelled passage after reranking); it never decides who may read the
+ * document, and changing it needs no reindex. The options are the mode cards'
+ * own classes, so there is no second list of agent classes to drift.
+ */
+function DocumentDomainSelect({ documentId, initial }: Readonly<{ documentId: string; initial: string }>) {
+  const { t } = useTranslation();
+  const labelFor = useAgentModeLabels();
+  const [value, setValue] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const modes = AGENT_MODES.filter((mode) => mode.key);
+  const known = modes.some((mode) => mode.key === value);
+
+  const change = async (next: string) => {
+    const previous = value;
+    setValue(next);
+    setSaving(true);
+    setFailed(false);
+    try {
+      const res = await appApi.documentRelabel(documentId, next);
+      setValue(res.agent_class);
+    } catch {
+      setValue(previous);
+      setFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <select
+        value={value}
+        disabled={saving}
+        onChange={(e) => void change(e.target.value)}
+        aria-label={t("components.workbench.domainLabel")}
+        className="h-6 rounded-control border border-brand-border bg-surface px-1 text-xs text-ink focus-visible:border-brand-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] disabled:opacity-60"
+      >
+        {!known && <option value={value}>{value}</option>}
+        {modes.map((mode) => (
+          <option key={mode.key} value={mode.key}>
+            {labelFor(mode).title}
+          </option>
+        ))}
+      </select>
+      {failed && (
+        <span role="alert" className="text-xs font-medium text-danger">
+          {t("components.workbench.relabelFailed")}
+        </span>
+      )}
+    </span>
+  );
+}
 
 type Props = {
   doc: IndexedFileSummary;
@@ -72,6 +134,11 @@ export function DocumentItem({
             {doc.indexing_stage ? ` | stage=${doc.indexing_stage}` : ""}
           </p>
           {doc.indexing_error ? <p className="mt-0.5 text-xs font-medium text-danger">{doc.indexing_error}</p> : null}
+          {canManage && doc.document_id ? (
+            <div className="mt-1">
+              <DocumentDomainSelect documentId={doc.document_id} initial={doc.agent_class || "general"} />
+            </div>
+          ) : null}
         </div>
 
         {canManage && (

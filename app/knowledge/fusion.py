@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 
 from app.domain.contracts import EvidenceItem
 from app.knowledge.deduplication import evidence_dedup_key
@@ -154,4 +154,42 @@ def cross_modal_hybrid_resonance(
     return tuple(boosted_items), matched_pairs
 
 
-__all__ = ["reciprocal_rank_fuse", "rerank_evidence", "cross_modal_hybrid_resonance"]
+def prefer_domain(
+    items: Sequence[EvidenceItem],
+    domain: str,
+    *,
+    label_of: Callable[[EvidenceItem], str | None],
+    boost: float,
+) -> tuple[tuple[EvidenceItem, ...], int]:
+    """Raise items labelled with `domain` by `boost` on the reranked score, and re-sort.
+
+    Applied after reranking on purpose. The plan was to add a "labelled
+    documents" list into RRF, but the reranker re-scores every candidate and
+    sorts by its own score alone, so anything done before it is erased. Here the
+    cross-encoder's judgement stays the base and the label only breaks close
+    calls: a labelled passage the reranker scored 0.62 outranks an unlabelled
+    one at 0.70 when the boost is 0.1, and never one at 0.90.
+
+    Nothing is added or removed -- the same items come back, reordered -- so a
+    label can never widen what the caller may see. Returns the items and how
+    many were boosted. The sort is stable, so equal scores keep reranker order.
+
+    The boosted score is written onto the item, capped at 1.0 (the field's
+    bound): `ContextBuilder` orders by each item's own score, so an order
+    carried only in this function's return would be undone one stage later.
+    """
+
+    boosted = 0
+    scored: list[tuple[float, EvidenceItem]] = []
+    for item in items:
+        score = item.score or 0.0
+        if label_of(item) == domain:
+            score += boost
+            boosted += 1
+            item = item.model_copy(update={"score": min(1.0, score)})
+        scored.append((score, item))
+    ordered = sorted(scored, key=lambda pair: pair[0], reverse=True)
+    return tuple(item for _, item in ordered), boosted
+
+
+__all__ = ["reciprocal_rank_fuse", "rerank_evidence", "cross_modal_hybrid_resonance", "prefer_domain"]

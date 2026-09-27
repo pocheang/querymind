@@ -184,6 +184,11 @@ export type IndexedFileSummary = {
   parser_profile?: string;
 };
 
+export type DocumentLabelResponse = {
+  document_id: string;
+  agent_class: string;
+};
+
 export type FileIndexActionResponse = {
   ok: boolean;
   filename: string;

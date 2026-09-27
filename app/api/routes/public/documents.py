@@ -7,6 +7,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from app.agents.catalog import normalize_agent_class
 from app.api.dependencies import (
     _audit,
     settings,
@@ -20,6 +21,8 @@ from app.api.deps.documents import (
     _list_visible_documents_for_user,
 )
 from app.api.schemas import (
+    DocumentLabelResponse,
+    DocumentLabelUpdate,
     FileIndexActionResponse,
     IndexedFileSummary,
     IndexHealthResponse,
@@ -50,7 +53,11 @@ from app.services.documents.index_manager import (
     prepare_uploaded_document_indexes,
     should_skip_reindex,
 )
-from app.services.documents.registry import get_document_by_source, merge_visible_document_status
+from app.services.documents.registry import (
+    get_document_by_source,
+    merge_visible_document_status,
+    update_document_record,
+)
 from app.services.parser_profiles import choose_parser_profile
 from app.services.runtime.file_locks import LockBusy
 from app.services.runtime.ingest_queue import enqueue_reindex_job, register_and_enqueue_uploads
@@ -198,6 +205,40 @@ def delete_document_by_id(
     row = _resolve_manageable_document_by_id(document_id, user)
     filename = str((row or {}).get("filename", "") or "")
     return _perform_delete(row, filename, request, user, remove_file)
+
+
+@router.patch("/documents/by-id/{document_id}", response_model=DocumentLabelResponse)
+def relabel_document_by_id(
+    document_id: str,
+    body: DocumentLabelUpdate,
+    request: Request,
+    user: dict[str, Any] = Depends(_require_user),
+):
+    """Change which specialist domain a document belongs to.
+
+    Takes effect on the next question and needs no reindex: the label is read
+    from the registry at query time, never from chunk metadata. It only orders
+    what a caller may already see, so it carries the same permission as reindex.
+    """
+    _require_permission(user, Permission.DOCUMENT_MANAGE_OWN, request, "document", resource_id=document_id)
+    row = _resolve_manageable_document_by_id(document_id, user)
+    if row is None:
+        _deny_unresolved(AuditAction.DOCUMENT_RELABEL, request, user, document_id)
+    agent_class = normalize_agent_class(body.agent_class)
+    if agent_class is None:
+        raise bad_request(f"unknown agent_class: {body.agent_class}")
+    previous = str(row.get("agent_class", "") or "general")
+    update_document_record(document_id, {"agent_class": agent_class})
+    _audit(
+        request,
+        action=AuditAction.DOCUMENT_RELABEL,
+        resource_type="document",
+        result="success",
+        user=user,
+        resource_id=document_id,
+        detail=f"{_document_audit_detail(row)}; agent_class={previous}->{agent_class}",
+    )
+    return DocumentLabelResponse(document_id=document_id, agent_class=agent_class)
 
 
 @router.post("/documents/{filename}/reindex", response_model=FileIndexActionResponse)

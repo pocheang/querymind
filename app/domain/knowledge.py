@@ -76,6 +76,11 @@ class KnowledgeStrategy(ImmutableKnowledgeContract):
     rerank_top_n: int | None = Field(default=None, ge=1, le=100)
     visual_required: bool = False
     rationale: str = Field(min_length=1)
+    # Documents labelled with this specialist's domain are ranked a little higher
+    # after reranking. A preference, never a filter: it reorders results the
+    # caller is already authorized to see and removes none. None means no
+    # preference (the general route, or a label nothing carries).
+    preferred_domain: str | None = None
 
 
 class AccessScope(ImmutableKnowledgeContract):
