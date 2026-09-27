@@ -4,6 +4,7 @@ import { AdminOpsKpiCards } from "./AdminOpsKpiCards";
 import { AdminOpsDiagnostics } from "./AdminOpsDiagnostics";
 import { AdminOpsTrendCharts } from "./AdminOpsTrendCharts";
 import { AdminOpsDataTables } from "./AdminOpsDataTables";
+import { AdminThreatIntelPanel } from "./AdminThreatIntelPanel";
 import { Button } from "@/components/ui/button";
 import { AdminSkeleton, ControlsRow, FilterRow, Muted, RowActions, SectionHead } from "./components/AdminPrimitives";
 import { ADMIN_FIELD } from "./components/adminClasses";
@@ -123,6 +124,7 @@ export function AdminOpsOverview({
           <AdminOpsDataTables ops={ops} formatAuditTime={formatAuditTime} />
         </>
       )}
+      <AdminThreatIntelPanel />
     </main>
   );
 }

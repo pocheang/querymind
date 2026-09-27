@@ -184,6 +184,20 @@ export type IndexedFileSummary = {
   parser_profile?: string;
 };
 
+export type ThreatIntelSource = "nvd" | "kev" | "epss" | "attack";
+
+export type ThreatIntelSourceStatus = {
+  source: ThreatIntelSource;
+  records: number;
+  last_success: string;
+  age_days: number | null;
+  stale_after_days: number;
+  state: "empty" | "stale" | "current";
+  data_version: string;
+  last_attempt_status: string;
+  last_attempt_detail: string;
+};
+
 export type DocumentLabelResponse = {
   document_id: string;
   agent_class: string;
