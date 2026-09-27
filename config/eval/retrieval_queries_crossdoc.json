@@ -201,6 +201,34 @@
         "answering it -- and it counts toward complete@5 either way, which is the",
         "rule this file states once rather than per query. Ceiling 3/5 = 0.6."
       ]
+    },
+    {
+      "id": "x-09",
+      "query": "客户注销账户后保留个人信息十年，符合个人信息保护法对保存期限的要求吗",
+      "category": "zh_crossdoc_compliance",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/zhuxiao_baoliu.md": 3,
+        "eval://corpus/pipl_art19.md": 3
+      },
+      "_note": [
+        "A compliance gap question: the company's practice is in one document and the",
+        "legal requirement in another. Either alone answers nothing -- the practice",
+        "without the rule is not a verdict, the rule without the practice is not about us."
+      ]
+    },
+    {
+      "id": "x-10",
+      "query": "are application logs with customer identifiers kept longer than GDPR storage limitation allows",
+      "category": "en_crossdoc_compliance",
+      "difficulty": "hard",
+      "relevance": {
+        "eval://corpus/log_retention.md": 3,
+        "eval://corpus/gdpr_art5_storage.md": 3
+      },
+      "_note": [
+        "x-09 in English: an internal retention rule against a GDPR principle."
+      ]
     }
   ]
 }

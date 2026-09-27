@@ -17,7 +17,7 @@ from app.core.config import get_settings
 from app.domain.contracts import RouteDecision
 from app.domain.workflow import RouterDecision
 from app.orchestration.request import OrchestrationRequest
-from app.retrievers.bm25_retriever import TOKEN_PATTERN, tokenize_chinese_aware
+from app.retrievers.bm25_retriever import FUNCTION_WORDS, TOKEN_PATTERN, tokenize_chinese_aware
 
 # --- the tokenizer segments Chinese however much English is beside it ----------
 
@@ -35,9 +35,23 @@ def test_a_mixed_question_keeps_its_chinese_words(text: str, word: str):
 
 
 @pytest.mark.parametrize("text", ["how quickly is the on-call engineer paged", "VPN access for remote staff"])
-def test_english_text_tokenizes_exactly_as_before(text: str):
-    # Text with no CJK takes the path it always took.
-    assert tokenize_chinese_aware(text) == TOKEN_PATTERN.findall(text.lower())
+def test_english_text_tokenizes_as_before_less_its_function_words(text: str):
+    # Text with no CJK takes the path it always took; function words are the one difference.
+    expected = [token for token in TOKEN_PATTERN.findall(text.lower()) if token not in FUNCTION_WORDS]
+    assert tokenize_chinese_aware(text) == expected
+    assert "for" not in tokenize_chinese_aware(text) and "is" not in tokenize_chinese_aware(text)
+
+
+def test_a_function_word_alone_matches_nothing():
+    """Sharing "for" made any English document a candidate; see FUNCTION_WORDS."""
+
+    assert tokenize_chinese_aware("for the of") == []
+    assert tokenize_chinese_aware("年假 for the") == [token for token in tokenize_chinese_aware("年假") if token]
+
+
+@pytest.mark.parametrize("word", ["no", "not", "all", "none"])
+def test_a_word_somebody_might_search_for_is_kept(word: str):
+    assert word in tokenize_chinese_aware(f"{word} access")
 
 
 # --- the verifier's retry query --------------------------------------------------

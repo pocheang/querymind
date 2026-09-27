@@ -154,10 +154,10 @@ async def test_the_cross_document_set_is_where_every_metric_has_range(eval_corpu
     queries = load_queries(CROSSDOC_QUERY_PATH)
     score = await measure(queries, eval_scope(load_corpus_sources(TRACKED_CORPUS)))
 
-    assert score.complete_at_5 == pytest.approx(6 / 8), "six of eight questions are assemblable"
-    assert score.recall_at_5 == pytest.approx(0.8958, abs=1e-4)
-    assert score.ndcg_at_5 == pytest.approx(0.8459, abs=1e-4)
-    assert score.precision_ceiling_at_5 == pytest.approx(0.45)
+    assert score.complete_at_5 == pytest.approx(8 / 10), "eight of ten questions are assemblable"
+    assert score.recall_at_5 == pytest.approx(0.9167, abs=1e-4)
+    assert score.ndcg_at_5 == pytest.approx(0.9192, abs=1e-4)
+    assert score.precision_ceiling_at_5 == pytest.approx(0.44)
     assert score.precision_at_5 == pytest.approx(0.4)
     assert score.precision_at_5 < score.precision_ceiling_at_5, (
         "the headline claim of this set: P@5 finally reports something retrieval can change"
