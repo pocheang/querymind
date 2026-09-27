@@ -1,0 +1,1851 @@
+{
+ "type": "bundle",
+ "id": "bundle--6198013c-6f02-42a4-9713-38ea1301a1aa",
+ "objects": [
+  {
+   "modified": "2024-12-24T14:41:01.585Z",
+   "name": "Vulnerability Scanning",
+   "description": "Vulnerability scanning involves the automated or manual assessment of systems, applications, and networks to identify misconfigurations, unpatched software, or other security weaknesses. The process helps prioritize remediation efforts by classifying vulnerabilities based on risk and impact, reducing the likelihood of exploitation by adversaries. This mitigation can be implemented through the following measures: \n\nProactive Identification of Vulnerabilities\n\n- Implementation: Use tools like Nessus or OpenVAS to scan endpoints, servers, and applications for missing patches and configuration iss",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.2",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--15437c6d-b998-4a36-be41-4ace3d54d266",
+   "created": "2019-06-06T16:47:30.700Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1016",
+     "external_id": "M1016"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "modified": "2024-12-18T15:50:51.212Z",
+   "name": "Limit Access to Resource Over Network",
+   "description": "Restrict access to network resources, such as file shares, remote systems, and services, to only those users, accounts, or systems with a legitimate business requirement. This can include employing technologies like network concentrators, RDP gateways, and zero-trust network access (ZTNA) models, alongside hardening services and protocols. This mitigation can be implemented through the following measures:\n\nAudit and Restrict Access:\n\n- Regularly audit permissions for file shares, network services, and remote access tools.\n- Remove unnecessary access and enforce least privilege principles for u",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.1",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--1dcaeb21-9348-42ea-950a-f842aaf1ae1f",
+   "created": "2019-06-11T16:30:16.672Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1035",
+     "external_id": "M1035"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--20f6a9df-37c4-4e20-9e47-025983b1b39d",
+   "created": "2019-06-11T16:33:55.337Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1037",
+     "external_id": "M1037"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.730Z",
+   "name": "Filter Network Traffic",
+   "description": "Employ network appliances and endpoint software to filter ingress, egress, and lateral network traffic. This includes protocol-based filtering, enforcing firewall rules, and blocking or restricting traffic based on predefined conditions to limit adversary movement and data exfiltration. This mitigation can be implemented through the following measures:\n\nIngress Traffic Filtering:\n\n- Use Case: Configure network firewalls to allow traffic only from authorized IP addresses to public-facing servers.\n- Implementation: Limit SSH (port 22) and RDP (port 3389) traffic to specific IP ranges.\n\nEgress Tr",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.2",
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "modified": "2024-12-24T13:40:41.043Z",
+   "name": "Restrict Web-Based Content",
+   "description": "Restricting web-based content involves enforcing policies and technologies that limit access to potentially malicious websites, unsafe downloads, and unauthorized browser behaviors. This can include URL filtering, download restrictions, script blocking, and extension control to protect against exploitation, phishing, and malware delivery. This mitigation can be implemented through the following measures:\n\nDeploy Web Proxy Filtering:\n\n- Use solutions to filter web traffic based on categories, reputation, and content types.\n- Enforce policies that block unsafe websites or file types at the gatew",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.1",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--21da4fd4-27ad-4e9c-b93d-0b9b14d02c96",
+   "created": "2019-06-06T20:52:59.206Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1021",
+     "external_id": "M1021"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "modified": "2024-12-18T16:17:46.153Z",
+   "name": "Limit Software Installation",
+   "description": "Prevent users or groups from installing unauthorized or unapproved software to reduce the risk of introducing malicious or vulnerable applications. This can be achieved through allowlists, software restriction policies, endpoint management tools, and least privilege access principles. This mitigation can be implemented through the following measures:\n\nApplication Whitelisting\n\n- Implement Microsoft AppLocker or Windows Defender Application Control (WDAC) to create and enforce allowlists for approved software.\n- Whitelist applications based on file hash, path, or digital signatures.\n\nRestrict U",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.1",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--23843cff-f7b9-4659-a7b7-713ef347f547",
+   "created": "2019-06-11T16:26:52.202Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1033",
+     "external_id": "M1033"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--47e0e9fe-96ce-4f65-8bb1-8be1feacb5db",
+   "created": "2019-06-11T16:35:25.488Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1038",
+     "external_id": "M1038"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.730Z",
+   "name": "Execution Prevention",
+   "description": "Prevent the execution of unauthorized or malicious code on systems by implementing application control, script blocking, and other execution prevention mechanisms. This ensures that only trusted and authorized code is executed, reducing the risk of malware and unauthorized actions. This mitigation can be implemented through the following measures:\n\nApplication Control:\n\n- Use Case: Use tools like AppLocker or Windows Defender Application Control (WDAC) to create whitelists of authorized applications and block unauthorized ones. On Linux, use tools like SELinux or AppArmor to define mandatory a",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.3",
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "modified": "2024-12-10T18:52:40.747Z",
+   "name": "Code Signing",
+   "description": "Code Signing is a security process that ensures the authenticity and integrity of software by digitally signing executables, scripts, and other code artifacts. It prevents untrusted or malicious code from executing by verifying the digital signatures against trusted sources. Code signing protects against tampering, impersonation, and distribution of unauthorized or malicious software, forming a critical defense against supply chain and software exploitation attacks. This mitigation can be implemented through the following measures:\n\nEnforce Signed Code Execution:\n\n- Implementation: Configure o",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.2",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--590777b3-b475-4c7c-aaf8-f4a73b140312",
+   "created": "2019-06-11T17:01:25.405Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1045",
+     "external_id": "M1045"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--86598de0-b347-4928-9eb0-0acbfc21908c",
+   "created": "2019-06-10T20:41:03.271Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1030",
+     "external_id": "M1030"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.731Z",
+   "name": "Network Segmentation",
+   "description": "Network segmentation involves dividing a network into smaller, isolated segments to control and limit the flow of traffic between devices, systems, and applications. By segmenting networks, organizations can reduce the attack surface, restrict lateral movement by adversaries, and protect critical assets from compromise.\n\nEffective network segmentation leverages a combination of physical boundaries, logical separation through VLANs, and access control policies enforced by network appliances like firewalls, routers, and cloud-based configurations. This mitigation can be implemented through the f",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.2",
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "modified": "2024-12-10T16:29:44.429Z",
+   "name": "Behavior Prevention on Endpoint",
+   "description": "Behavior Prevention on Endpoint refers to the use of technologies and strategies to detect and block potentially malicious activities by analyzing the behavior of processes, files, API calls, and other endpoint events. Rather than relying solely on known signatures, this approach leverages heuristics, machine learning, and real-time monitoring to identify anomalous patterns indicative of an attack. This mitigation can be implemented through the following measures:\n\nSuspicious Process Behavior:\n\n- Implementation: Use Endpoint Detection and Response (EDR) tools to monitor and block processes exh",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.1",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--90f39ee1-d5a3-4aaa-9f28-3b42815b0d46",
+   "created": "2019-06-11T16:43:05.712Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1040",
+     "external_id": "M1040"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "modified": "2024-12-18T18:44:23.306Z",
+   "name": "Privileged Account Management",
+   "description": "Privileged Account Management focuses on implementing policies, controls, and tools to securely manage privileged accounts (e.g., SYSTEM, root, or administrative accounts). This includes restricting access, limiting the scope of permissions, monitoring privileged account usage, and ensuring accountability through logging and auditing.This mitigation can be implemented through the following measures:\n\nAccount Permissions and Roles:\n\n- Implement RBAC and least privilege principles to allocate permissions securely.\n- Use tools like Active Directory Group Policies to enforce access restrictions.\n\n",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.2",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--9bb9e696-bff8-4ae1-9454-961fc7d91d5f",
+   "created": "2019-06-06T21:09:47.115Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1026",
+     "external_id": "M1026"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "modified": "2024-12-10T15:58:23.136Z",
+   "name": "Antivirus/Antimalware",
+   "description": "Antivirus/Antimalware solutions utilize signatures, heuristics, and behavioral analysis to detect, block, and remediate malicious software, including viruses, trojans, ransomware, and spyware. These solutions continuously monitor endpoints and systems for known malicious patterns and suspicious behaviors that indicate compromise. Antivirus/Antimalware software should be deployed across all devices, with automated updates to ensure protection against the latest threats. This mitigation can be implemented through the following measures:\n\nSignature-Based Detection:\n\n- Implementation: Use predefin",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.2",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--a6a47a06-08fc-4ec4-bdc3-20373375ebb9",
+   "created": "2019-06-11T17:08:33.055Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1049",
+     "external_id": "M1049"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--b9f0c069-abbe-4a07-a245-2481219a1463",
+   "created": "2019-06-11T17:06:56.230Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1048",
+     "external_id": "M1048"
+    }
+   ],
+   "modified": "2025-05-09T16:23:40.086Z",
+   "name": "Application Isolation and Sandboxing",
+   "description": "Application Isolation and Sandboxing refers to the technique of restricting the execution of code to a controlled and isolated environment (e.g., a virtual environment, container, or sandbox). This method prevents potentially malicious code from affecting the rest of the system or network by limiting access to sensitive resources and critical operations. The goal is to contain threats and minimize their impact. This mitigation can be implemented through the following measures:\n\nBrowser Sandboxing:\n\n- Use Case: Implement browser sandboxing to isolate untrusted web content and prevent malicious ",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.3",
+   "x_mitre_attack_spec_version": "3.2.0"
+  },
+  {
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--cc2399fd-3cd3-4319-8d0a-fbd6420cdaf8",
+   "created": "2019-06-11T17:06:14.029Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1047",
+     "external_id": "M1047"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.731Z",
+   "name": "Audit",
+   "description": "Auditing is the process of recording activity and systematically reviewing and analyzing the activity and system configurations. The primary purpose of auditing is to detect anomalies and identify potential threats or weaknesses in the environment. Proper auditing configurations can also help to meet compliance requirements. The process of auditing encompasses regular analysis of user behaviors and system logs in support of proactive security measures.\n\nAuditing is applicable to all systems used within an organization, from the front door of a building to accessing a file on a fileserver. It i",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.3",
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "modified": "2024-12-11T19:22:37.296Z",
+   "name": "Exploit Protection",
+   "description": "Deploy capabilities that detect, block, and mitigate conditions indicative of software exploits. These capabilities aim to prevent exploitation by addressing vulnerabilities, monitoring anomalous behaviors, and applying exploit-mitigation techniques to harden systems and software.\n\nOperating System Exploit Protections:\n\n- Use Case: Enable built-in exploit protection features provided by modern operating systems, such as Microsoft's Exploit Protection, which includes techniques like Data Execution Prevention (DEP), Address Space Layout Randomization (ASLR), and Control Flow Guard (CFG).\n- Imple",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.2",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--d2a24649-9694-4c97-9c62-ce7b270bf6a3",
+   "created": "2019-06-11T17:10:57.070Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1050",
+     "external_id": "M1050"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "modified": "2024-12-24T14:20:09.399Z",
+   "name": "Update Software",
+   "description": "Software updates ensure systems are protected against known vulnerabilities by applying patches and upgrades provided by vendors. Regular updates reduce the attack surface and prevent adversaries from exploiting known security gaps. This includes patching operating systems, applications, drivers, and firmware. This mitigation can be implemented through the following measures:\n\nRegular Operating System Updates\n\n- Implementation: Apply the latest Windows security updates monthly using WSUS (Windows Server Update Services) or a similar patch management solution. Configure systems to check for upd",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.1",
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--e5d930e9-775a-40ad-9bdb-b941d8dfe86b",
+   "created": "2019-06-11T17:12:55.207Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1051",
+     "external_id": "M1051"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5"
+  },
+  {
+   "type": "course-of-action",
+   "spec_version": "2.1",
+   "id": "course-of-action--eb88d97c-32f1-40be-80f0-d61a4b0b4b31",
+   "created": "2019-06-11T16:45:19.740Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/mitigations/M1042",
+     "external_id": "M1042"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.731Z",
+   "name": "Disable or Remove Feature or Program",
+   "description": "Disable or remove unnecessary and potentially vulnerable software, features, or services to reduce the attack surface and prevent abuse by adversaries. This involves identifying software or features that are no longer needed or that could be exploited and ensuring they are either removed or properly disabled. This mitigation can be implemented through the following measures: \n\nRemove Legacy Software:\n\n- Use Case: Disable or remove older versions of software that no longer receive updates or security patches (e.g., legacy Java, Adobe Flash).\n- Implementation: A company removes Flash Player from",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.2",
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--00d0b012-8a03-410e-95de-5826bf542de6",
+   "created": "2017-05-31T21:30:54.176Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": true,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1066",
+     "external_id": "T1066"
+    }
+   ],
+   "modified": "2026-04-14T22:53:15.802Z",
+   "name": "Indicator Removal from Tools",
+   "description": "If a malicious tool is detected and quarantined or otherwise curtailed, an adversary may be able to determine why the malicious tool was detected (the indicator), modify the tool by removing the indicator, and use the updated version that is no longer detected by the target's defensive systems or subsequent targets that may use similar systems.\n\nA good example of this is when malware is detected with a file signature and quarantined by anti-virus software. An adversary who can determine that the malware was quarantined because of its file signature may use [Software Packing](https://attack.mit",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "stealth"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": false,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Linux",
+    "macOS",
+    "Windows"
+   ],
+   "x_mitre_version": "1.1"
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--0f4a0c76-ab2d-4cb0-85d3-3f0efb8cba0d",
+   "created": "2020-06-23T19:12:24.924Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/007",
+     "external_id": "T1059.007"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.620Z",
+   "name": "JavaScript",
+   "description": "Adversaries may abuse various implementations of JavaScript for execution. JavaScript (JS) is a platform-independent scripting language (compiled just-in-time at runtime) commonly associated with scripts in webpages, though JS can be executed in runtime environments outside the browser.(Citation: NodeJS)\n\nJScript is the Microsoft implementation of the same scripting standard. JScript is interpreted via the Windows Script engine and thus integrated with many components of Windows such as the [Component Object Model](https://attack.mitre.org/techniques/T1559/001) and Internet Explorer HTML Appli",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Linux",
+    "macOS",
+    "Windows"
+   ],
+   "x_mitre_version": "2.2",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--37b11151-1776-4f8f-b328-30939fbf2ceb",
+   "created": "2020-03-09T14:07:54.329Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/002",
+     "external_id": "T1059.002"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.626Z",
+   "name": "AppleScript",
+   "description": "Adversaries may abuse AppleScript for execution. AppleScript is a macOS scripting language designed to control applications and parts of the OS via inter-application messages called AppleEvents.(Citation: Apple AppleScript) These AppleEvent messages can be sent independently or easily scripted with AppleScript. These events can locate open windows, send keystrokes, and interact with almost any open application locally or remotely.\n\nScripts can be run from the command-line via <code>osascript /path/to/script</code> or <code>osascript -e \"script here\"</code>. Aside from the command line, scripts",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "macOS"
+   ],
+   "x_mitre_version": "1.3",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--3a32740a-11b0-4bcf-b0a9-3abd0f6d3cd5",
+   "created": "2024-03-29T18:07:04.743Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/010",
+     "external_id": "T1059.010"
+    }
+   ],
+   "modified": "2025-04-15T19:58:23.600Z",
+   "name": "AutoHotKey & AutoIT",
+   "description": "Adversaries may execute commands and perform malicious tasks using AutoIT and AutoHotKey automation scripts. AutoIT and AutoHotkey (AHK) are scripting languages that enable users to automate Windows tasks. These automation scripts can be used to perform a wide variety of actions, such as clicking on buttons, entering text, and opening and closing programs.(Citation: AutoIT)(Citation: AutoHotKey)\n\nAdversaries may use AHK (`.ahk`) and AutoIT (`.au3`) scripts to execute malicious code on a victim's system. For example, adversaries have used for AHK to execute payloads and other modular malware su",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Windows"
+   ],
+   "x_mitre_version": "1.1"
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "created": "2018-04-18T17:59:24.739Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1190",
+     "external_id": "T1190"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.628Z",
+   "name": "Exploit Public-Facing Application",
+   "description": "Adversaries may attempt to exploit a weakness in an Internet-facing host or system to initially access a network. The weakness in the system can be a software bug, a temporary glitch, or a misconfiguration.\n\nExploited applications are often websites/web servers, but can also include databases (like SQL), standard services (like SMB or SSH), network device administration and management protocols (like SNMP and Smart Install), and any other system with Internet-accessible open sockets.(Citation: NVD CVE-2016-6662)(Citation: CIS Multiple SMB Vulnerabilities)(Citation: US-CERT TA18-106A Network In",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "initial-access"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": false,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Containers",
+    "ESXi",
+    "IaaS",
+    "Linux",
+    "macOS",
+    "Network Devices",
+    "Windows"
+   ],
+   "x_mitre_version": "2.8"
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--55bb4471-ff1f-43b4-88c1-c9384ec47abf",
+   "created": "2022-03-17T13:28:24.989Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/009",
+     "external_id": "T1059.009"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.634Z",
+   "name": "Cloud API",
+   "description": "Adversaries may abuse cloud APIs to execute malicious commands. APIs available in cloud environments provide various functionalities and are a feature-rich method for programmatic access to nearly all aspects of a tenant. These APIs may be utilized through various methods such as command line interpreters (CLIs), in-browser Cloud Shells, [PowerShell](https://attack.mitre.org/techniques/T1059/001) modules like Azure for PowerShell(Citation: Microsoft - Azure PowerShell), or software developer kits (SDKs) available for languages such as [Python](https://attack.mitre.org/techniques/T1059/006).  \n",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "IaaS",
+    "Identity Provider",
+    "Office Suite",
+    "SaaS"
+   ],
+   "x_mitre_version": "1.2",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "created": "2017-05-31T21:30:49.546Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059",
+     "external_id": "T1059"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.641Z",
+   "name": "Command and Scripting Interpreter",
+   "description": "Adversaries may abuse command and script interpreters to execute commands, scripts, or binaries. These interfaces and languages provide ways of interacting with computer systems and are a common feature across many different platforms. Most systems come with some built-in command-line interface and scripting capabilities, for example, macOS and Linux distributions include some flavor of [Unix Shell](https://attack.mitre.org/techniques/T1059/004) while Windows installations include the [Windows Command Shell](https://attack.mitre.org/techniques/T1059/003) and [PowerShell](https://attack.mitre.o",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": false,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Containers",
+    "ESXi",
+    "IaaS",
+    "Identity Provider",
+    "Linux",
+    "macOS",
+    "Network Devices",
+    "Office Suite",
+    "SaaS",
+    "Windows"
+   ],
+   "x_mitre_version": "2.7",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--818302b2-d640-477b-bf88-873120ce85c4",
+   "created": "2020-10-20T00:09:33.072Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/008",
+     "external_id": "T1059.008"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.670Z",
+   "name": "Network Device CLI",
+   "description": "Adversaries may abuse scripting or built-in command line interpreters (CLI) on network devices to execute malicious command and payloads. The CLI is the primary means through which users and administrators interact with the device in order to view system information, modify device operations, or perform diagnostic and administrative functions. CLIs typically contain various permission levels required for different commands. \n\nScripting interpreters automate tasks and extend functionality beyond the command set included in the network OS. The CLI and scripting interpreter are accessible through",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Network Devices"
+   ],
+   "x_mitre_version": "1.2",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736",
+   "created": "2020-03-09T13:48:55.078Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/001",
+     "external_id": "T1059.001"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.706Z",
+   "name": "PowerShell",
+   "description": "Adversaries may abuse PowerShell commands and scripts for execution. PowerShell is a powerful interactive command-line interface and scripting environment included in the Windows operating system.(Citation: TechNet PowerShell) Adversaries can use PowerShell to perform a number of actions, including discovery of information and execution of code. Examples include the <code>Start-Process</code> cmdlet which can be used to run an executable and the <code>Invoke-Command</code> cmdlet which runs a command locally or on a remote computer (though administrator permissions are required to use PowerShe",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Windows"
+   ],
+   "x_mitre_version": "1.5",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--a9d4b653-6915-42af-98b2-5758c4ceee56",
+   "created": "2020-03-09T14:15:05.330Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/004",
+     "external_id": "T1059.004"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.707Z",
+   "name": "Unix Shell",
+   "description": "Adversaries may abuse Unix shell commands and scripts for execution. Unix shells are the primary command prompt on Linux, macOS, and ESXi systems, though many variations of the Unix shell exist (e.g. sh, ash, bash, zsh, etc.) depending on the specific OS or distribution.(Citation: DieNet Bash)(Citation: Apple ZShell) Unix shells can control every aspect of a system, with certain commands requiring elevated privileges.\n\nUnix shells also support scripts that enable sequential execution of commands as well as other typical programming operations such as conditionals and loops. Common uses of shel",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "ESXi",
+    "Linux",
+    "macOS",
+    "Network Devices"
+   ],
+   "x_mitre_version": "1.4",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--afddee82-3385-4682-ad90-eeced33f2d07",
+   "created": "2024-08-05T18:19:42.201Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/011",
+     "external_id": "T1059.011"
+    }
+   ],
+   "modified": "2025-04-15T19:58:57.854Z",
+   "name": "Lua",
+   "description": "Adversaries may abuse Lua commands and scripts for execution. Lua is a cross-platform scripting and programming language primarily designed for embedded use in applications. Lua can be executed on the command-line (through the stand-alone lua interpreter), via scripts (<code>.lua</code>), or from Lua-embedded programs (through the <code>struct lua_State</code>).(Citation: Lua main page)(Citation: Lua state)\n\nLua scripts may be executed by adversaries for malicious purposes. Adversaries may incorporate, abuse, or replace existing Lua interpreters to allow for malicious Lua command execution at ",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Linux",
+    "Network Devices",
+    "Windows",
+    "macOS"
+   ],
+   "x_mitre_version": "1.1",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--c283d88f-8c23-4318-9da5-3d50cecad756",
+   "created": "2025-06-15T21:41:27.262Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/013",
+     "external_id": "T1059.013"
+    }
+   ],
+   "modified": "2025-10-21T23:52:40.200Z",
+   "name": "Container CLI/API",
+   "description": "Adversaries may abuse built-in CLI tools or API calls to execute malicious commands in containerized environments.\n\nThe Docker CLI is used for managing containers via an exposed API point from the `dockerd` daemon. Some common examples of Docker CLI include Docker Desktop CLI and Docker Compose, but users are also able to use SDKs to interact with the API. For example, Docker SDK for Python can be used to run commands within a Python application.(Citation: Docker Desktop CLI)\n\nAdversaries may leverage the Docker CLI, API, or SDK to pull or build Docker images (i.e., [Ingress Tool Transfer](htt",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Containers"
+   ],
+   "x_mitre_version": "1.0",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--cc3502b5-30cc-4473-ad48-42d51a6ef6d1",
+   "created": "2020-03-09T14:38:24.334Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/006",
+     "external_id": "T1059.006"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.716Z",
+   "name": "Python",
+   "description": "Adversaries may abuse Python commands and scripts for execution. Python is a very popular scripting/programming language, with capabilities to perform many functions. Python can be executed interactively from the command-line (via the <code>python.exe</code> interpreter) or via scripts (.py) that can be written and distributed to different systems. Python code can also be compiled into binary executables.(Citation: Zscaler APT31 Covid-19 October 2020)\n\nPython comes with many built-in packages to interact with the underlying system, such as file operations and device I/O. Adversaries can use th",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "ESXi",
+    "Linux",
+    "macOS",
+    "Windows"
+   ],
+   "x_mitre_version": "1.1",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--d1fcf083-a721-4223-aedf-bf8960798d62",
+   "created": "2020-03-09T14:12:31.196Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/003",
+     "external_id": "T1059.003"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.717Z",
+   "name": "Windows Command Shell",
+   "description": "Adversaries may abuse the Windows command shell for execution. The Windows command shell ([cmd](https://attack.mitre.org/software/S0106)) is the primary command prompt on Windows systems. The Windows command prompt can be used to control almost any aspect of a system, with various permission levels required for different subsets of commands. The command prompt can be invoked remotely via [Remote Services](https://attack.mitre.org/techniques/T1021) such as [SSH](https://attack.mitre.org/techniques/T1021/004).(Citation: SSH in Windows)\n\nBatch files (ex: .bat or .cmd) also provide the shell with ",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Windows"
+   ],
+   "x_mitre_version": "1.5",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--d2d642da-61ff-4211-b4df-7923c9ca220c",
+   "created": "2025-03-26T20:01:13.412Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/012",
+     "external_id": "T1059.012"
+    }
+   ],
+   "modified": "2025-04-15T21:24:59.280Z",
+   "name": "Hypervisor CLI",
+   "description": "Adversaries may abuse hypervisor command line interpreters (CLIs) to execute malicious commands. Hypervisor CLIs typically enable a wide variety of functionality for managing both the hypervisor itself and the guest virtual machines it hosts. \n\nFor example, on ESXi systems, tools such as `esxcli` and `vim-cmd` allow administrators to configure firewall rules and log forwarding on the hypervisor, list virtual machines, start and stop virtual machines, and more.(Citation: Broadcom ESXCLI Reference)(Citation: Crowdstrike Hypervisor Jackpotting Pt 2 2021)(Citation: LOLESXi) Adversaries may be able",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "ESXi"
+   ],
+   "x_mitre_version": "1.0",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "attack-pattern",
+   "spec_version": "2.1",
+   "id": "attack-pattern--dfd7cc1d-e1d8-4394-a198-97c4cab8aa67",
+   "created": "2020-03-09T14:29:51.508Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/techniques/T1059/005",
+     "external_id": "T1059.005"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.722Z",
+   "name": "Visual Basic",
+   "description": "Adversaries may abuse Visual Basic (VB) for execution. VB is a programming language created by Microsoft with interoperability with many Windows technologies such as [Component Object Model](https://attack.mitre.org/techniques/T1559/001) and the [Native API](https://attack.mitre.org/techniques/T1106) through the Windows API. Although tagged as legacy with no planned future evolutions, VB is integrated and supported in the .NET Framework and cross-platform .NET Core.(Citation: VB .NET Mar 2020)(Citation: VB Microsoft)\n\nDerivative languages based on VB have also been created, such as Visual Basi",
+   "kill_chain_phases": [
+    {
+     "kill_chain_name": "mitre-attack",
+     "phase_name": "execution"
+    }
+   ],
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_is_subtechnique": true,
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_platforms": [
+    "Linux",
+    "macOS",
+    "Windows"
+   ],
+   "x_mitre_version": "1.5",
+   "x_mitre_remote_support": false
+  },
+  {
+   "type": "x-mitre-detection-strategy",
+   "spec_version": "2.1",
+   "id": "x-mitre-detection-strategy--72b209e2-8c65-4217-8532-fabd0cb54ae5",
+   "created": "2025-10-21T15:10:28.402Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/detectionstrategies/DET0455",
+     "external_id": "DET0455"
+    }
+   ],
+   "modified": "2026-05-12T16:34:50.681Z",
+   "name": "Abuse of PowerShell for Arbitrary Execution",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_version": "1.0",
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_analytic_refs": [
+    "x-mitre-analytic--78864416-9ea3-4285-aab4-ecf31c935253"
+   ]
+  },
+  {
+   "type": "x-mitre-detection-strategy",
+   "spec_version": "2.1",
+   "id": "x-mitre-detection-strategy--8582f5e6-44a5-4950-b7e8-a3e1b6d58d63",
+   "created": "2025-10-21T15:10:28.402Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/detectionstrategies/DET0516",
+     "external_id": "DET0516"
+    }
+   ],
+   "modified": "2026-05-12T16:34:50.683Z",
+   "name": "Behavioral Detection of Command and Scripting Interpreter Abuse",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_version": "1.0",
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_analytic_refs": [
+    "x-mitre-analytic--fee823fd-f31e-4898-820e-322e49574438",
+    "x-mitre-analytic--3b02d81a-8684-4fc8-8364-127f30359282",
+    "x-mitre-analytic--4a32d0e6-9486-4bbb-8807-7f913f96f448",
+    "x-mitre-analytic--533d13df-5317-45dd-a544-c26d0192d6b2",
+    "x-mitre-analytic--9e03886b-155c-4483-9d92-dad6a7d8543b"
+   ]
+  },
+  {
+   "type": "x-mitre-detection-strategy",
+   "spec_version": "2.1",
+   "id": "x-mitre-detection-strategy--dd8477c8-2aad-4db3-b810-fe0d2f605fa8",
+   "created": "2025-10-21T15:10:28.402Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/detectionstrategies/DET0080",
+     "external_id": "DET0080"
+    }
+   ],
+   "modified": "2026-05-12T16:34:50.695Z",
+   "name": "Exploit Public-Facing Application – multi-signal correlation (request → error → post-exploit process/egress)",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_version": "1.0",
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_analytic_refs": [
+    "x-mitre-analytic--17290910-5b25-477a-a0c0-c2661ff2585e",
+    "x-mitre-analytic--a4ce8f28-db09-4b0d-bb8d-a77ba3cef3c0",
+    "x-mitre-analytic--ddab6d30-7e37-462e-b183-39c7ceb2b986",
+    "x-mitre-analytic--a57ad75c-331e-4607-b358-61f4cddb8a5d",
+    "x-mitre-analytic--17f9487f-711d-4f28-9de8-209ae39d33d2",
+    "x-mitre-analytic--0668f39a-d319-427f-b29b-160399e6f79a",
+    "x-mitre-analytic--72298803-0644-477f-be89-01b173202577"
+   ]
+  },
+  {
+   "type": "x-mitre-collection",
+   "id": "x-mitre-collection--1f5f1533-f617-4ca8-9ab4-6a02367fa019",
+   "x_mitre_attack_spec_version": "3.3.0",
+   "name": "Enterprise ATT&CK",
+   "x_mitre_version": "19.2",
+   "description": "ATT&CK for Enterprise provides a knowledge base of real-world adversary behavior targeting traditional enterprise networks. ATT&CK for Enterprise covers the following platforms: Windows, macOS, Linux, PRE, Office 365, Google Workspace, IaaS, Network, and Containers.",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "created": "2018-01-17T12:56:55.080Z",
+   "modified": "2026-08-05T21:33:58.496Z",
+   "x_mitre_contents": [
+    {
+     "object_ref": "attack-pattern--0042a9f5-f053-4769-b3ef-9ad018dfa298",
+     "object_modified": "2026-05-12T15:12:00.617Z"
+    },
+    {
+     "object_ref": "attack-pattern--005a06c6-14bf-4118-afa0-ebcd8aebb0c9",
+     "object_modified": "2026-05-12T15:12:00.618Z"
+    },
+    {
+     "object_ref": "attack-pattern--005cc321-08ce-4d17-b1ea-cb5275926520",
+     "object_modified": "2026-05-12T15:12:00.619Z"
+    }
+   ],
+   "spec_version": "2.1"
+  },
+  {
+   "type": "x-mitre-tactic",
+   "spec_version": "2.1",
+   "id": "x-mitre-tactic--2558fd61-8c75-4730-94c4-11926db2a263",
+   "created": "2018-10-17T00:14:20.652Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/tactics/TA0006",
+     "external_id": "TA0006"
+    }
+   ],
+   "modified": "2025-04-25T14:45:32.408Z",
+   "name": "Credential Access",
+   "description": "The adversary is trying to steal account names and passwords.\n\nCredential Access consists of techniques for stealing credentials like account names and passwords. Techniques used to get credentials include keylogging or credential dumping. Using legitimate credentials can give adversaries access to systems, make them harder to detect, and provide the opportunity to create more accounts to help achieve their goals.",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.0",
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_shortname": "credential-access"
+  },
+  {
+   "type": "x-mitre-tactic",
+   "spec_version": "2.1",
+   "id": "x-mitre-tactic--43c49635-f2fa-44f2-92b9-0ee980bbf4ef",
+   "created": "2026-04-14T22:53:16.228Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/tactics/TA0112",
+     "external_id": "TA0112"
+    }
+   ],
+   "modified": "2026-05-12T15:12:00.780Z",
+   "name": "Defense Impairment",
+   "description": "The adversary is trying to break security mechanisms, pipelines, and tooling so defenders can’t see or trust what’s happening.\n\nDefense Impairment consists of techniques that degrade, disable, or undermine the effectiveness and trustworthiness of security controls and monitoring mechanisms. These techniques are characterized by direct interference with defensive systems. The goal is to reduce defenders’ ability to detect, interpret, or respond to adversary activity.",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.0",
+   "x_mitre_attack_spec_version": "3.3.0",
+   "x_mitre_shortname": "defense-impairment"
+  },
+  {
+   "type": "x-mitre-tactic",
+   "spec_version": "2.1",
+   "id": "x-mitre-tactic--4ca45d45-df4d-4613-8980-bac22d278fa5",
+   "created": "2018-10-17T00:14:20.652Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "external_references": [
+    {
+     "source_name": "mitre-attack",
+     "url": "https://attack.mitre.org/tactics/TA0002",
+     "external_id": "TA0002"
+    }
+   ],
+   "modified": "2025-04-25T14:45:32.769Z",
+   "name": "Execution",
+   "description": "The adversary is trying to run malicious code.\n\nExecution consists of techniques that result in adversary-controlled code running on a local or remote system. Techniques that run malicious code are often paired with techniques from all other tactics to achieve broader goals, like exploring a network or stealing data. For example, an adversary might use a remote access tool to run a PowerShell script that does Remote System Discovery. ",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_domains": [
+    "enterprise-attack"
+   ],
+   "x_mitre_version": "1.0",
+   "x_mitre_attack_spec_version": "3.2.0",
+   "x_mitre_shortname": "execution"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--4c308ec1-f0c6-4444-af7d-ff045204c326",
+   "created": "2019-07-17T21:07:56.528Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "OWASP Top 10",
+     "description": "OWASP. (2018, February 23). OWASP Top Ten Project. Retrieved April 3, 2018.",
+     "url": "https://www.owasp.org/index.php/Category:OWASP_Top_Ten_Project"
+    }
+   ],
+   "modified": "2026-04-29T14:23:06.029Z",
+   "description": "Regularly scan externally facing systems for vulnerabilities and establish procedures to rapidly patch systems when critical vulnerabilities are discovered through scanning and through public disclosure.(Citation: OWASP Top 10)",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--15437c6d-b998-4a36-be41-4ace3d54d266",
+   "target_ref": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--b7b6cc9f-50ac-4774-9dd4-3c14b408b99e",
+   "created": "2025-03-26T19:21:24.549Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.176Z",
+   "description": "Ensure that all publicly exposed services are actually intended to be so, and restrict access to any that should only be available internally. ",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--1dcaeb21-9348-42ea-950a-f842aaf1ae1f",
+   "target_ref": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--1c0c0c90-7974-48f4-9de0-15a8d9b00e0a",
+   "created": "2025-09-24T18:52:46.018Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:05.943Z",
+   "description": "Restrict outbound network traffic from public-facing servers to prevent unauthorized connections from initiating communications with attacker-controlled infrastructure. While this may not prevent the initial exploitation, it limits the attacker's ability to verify and control the compromised server post-exploit, reducing the overall impact of the attack.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--20f6a9df-37c4-4e20-9e47-025983b1b39d",
+   "target_ref": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--d4dbffc2-246d-4fd4-8c3c-0e7901aaef05",
+   "created": "2020-06-23T19:14:12.712Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.216Z",
+   "description": "Script blocking extensions can help prevent the execution of scripts and HTA files that may commonly be used during the exploitation process. For malicious code served up through ads, adblockers can help prevent that code from executing in the first place.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--21da4fd4-27ad-4e9c-b93d-0b9b14d02c96",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--292e29e8-79d9-4b15-930e-a7e26c27ca15",
+   "created": "2024-08-05T19:16:54.175Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:05.961Z",
+   "description": "Prevent user installation of unrequired command and scripting interpreters.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--23843cff-f7b9-4659-a7b7-713ef347f547",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--87fd0088-41da-47ac-bd69-a8ac151a0d39",
+   "created": "2019-06-24T18:00:41.676Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "Microsoft PowerShell CLM",
+     "description": "PowerShell Team. (2017, November 2). PowerShell Constrained Language Mode. Retrieved March 27, 2023.",
+     "url": "https://devblogs.microsoft.com/powershell/powershell-constrained-language-mode/"
+    }
+   ],
+   "modified": "2026-04-29T14:23:06.111Z",
+   "description": "Use application control where appropriate. For example, PowerShell Constrained Language mode can be used to restrict access to sensitive or otherwise dangerous language elements such as those used to execute arbitrary Windows APIs or files (e.g., `Add-Type`).(Citation: Microsoft PowerShell CLM)",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--47e0e9fe-96ce-4f65-8bb1-8be1feacb5db",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--fe42b5e6-06dd-4b08-8ef8-31323f8190d2",
+   "created": "2021-05-28T14:56:24.055Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "Microsoft PowerShell CLM",
+     "description": "PowerShell Team. (2017, November 2). PowerShell Constrained Language Mode. Retrieved March 27, 2023.",
+     "url": "https://devblogs.microsoft.com/powershell/powershell-constrained-language-mode/"
+    }
+   ],
+   "modified": "2026-04-29T14:23:06.270Z",
+   "description": "Use application control where appropriate. PowerShell Constrained Language mode can be used to restrict access to sensitive or otherwise dangerous language elements such as those used to execute arbitrary Windows APIs or files (e.g., `Add-Type`).(Citation: Microsoft PowerShell CLM)",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--47e0e9fe-96ce-4f65-8bb1-8be1feacb5db",
+   "target_ref": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--2cf7243f-d5d7-473b-9cb7-27c7186565d3",
+   "created": "2020-03-09T13:41:14.474Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:05.965Z",
+   "description": "Where possible, only permit execution of signed scripts.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--590777b3-b475-4c7c-aaf8-f4a73b140312",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--8fc79376-2f71-4ca1-8177-a96dea11f8c7",
+   "created": "2020-03-09T13:48:55.768Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.121Z",
+   "description": "Set PowerShell execution policy to execute only signed scripts.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--590777b3-b475-4c7c-aaf8-f4a73b140312",
+   "target_ref": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--3b726298-74dc-4f8a-b58d-f623bc645124",
+   "created": "2019-06-24T13:44:34.852Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.003Z",
+   "description": "Segment externally facing servers and services from the rest of the network with a DMZ or on separate hosting infrastructure.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--86598de0-b347-4928-9eb0-0acbfc21908c",
+   "target_ref": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--e93059c7-2f60-47f5-af11-bc0a6e7e6d25",
+   "created": "2021-07-20T02:42:50.494Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "win10_asr",
+     "description": "Microsoft. (2021, July 2). Use attack surface reduction rules to prevent malware infection. Retrieved June 24, 2021.",
+     "url": "https://docs.microsoft.com/microsoft-365/security/defender-endpoint/attack-surface-reduction"
+    }
+   ],
+   "modified": "2026-04-29T14:23:06.242Z",
+   "description": "On Windows 10, enable Attack Surface Reduction (ASR) rules to prevent [Visual Basic](https://attack.mitre.org/techniques/T1059/005) and [JavaScript](https://attack.mitre.org/techniques/T1059/007) scripts from executing potentially malicious downloaded content (Citation: win10_asr).",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--90f39ee1-d5a3-4aaa-9f28-3b42815b0d46",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--4d50a045-d85d-481f-ac7d-672065f1e348",
+   "created": "2019-06-24T13:44:34.838Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.030Z",
+   "description": "Use least privilege for service accounts will limit what permissions the exploited process gets on the rest of the system.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--9bb9e696-bff8-4ae1-9454-961fc7d91d5f",
+   "target_ref": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--ad32e902-6f48-4c8f-bc3d-2fc06f045eed",
+   "created": "2020-03-09T13:41:14.487Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "Microsoft PS JEA",
+     "description": "Microsoft. (2022, November 17). Just Enough Administration. Retrieved March 27, 2023.",
+     "url": "https://learn.microsoft.com/powershell/scripting/learn/remoting/jea/overview?view=powershell-7.3"
+    }
+   ],
+   "modified": "2026-04-29T14:23:06.161Z",
+   "description": "When PowerShell is necessary, consider restricting PowerShell execution policy to administrators. Be aware that there are methods of bypassing the PowerShell execution policy, depending on environment configuration.(Citation: Netspi PowerShell Execution Policy Bypass)\n\nPowerShell JEA (Just Enough Administration) may also be used to sandbox administration and limit what commands admins/users can execute through remote PowerShell sessions.(Citation: Microsoft PS JEA)",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--9bb9e696-bff8-4ae1-9454-961fc7d91d5f",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--e631d85f-e93c-475f-bd40-546544c99e90",
+   "created": "2020-03-09T13:48:55.799Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "external_references": [
+    {
+     "source_name": "Microsoft PS JEA",
+     "description": "Microsoft. (2022, November 17). Just Enough Administration. Retrieved March 27, 2023.",
+     "url": "https://learn.microsoft.com/powershell/scripting/learn/remoting/jea/overview?view=powershell-7.3"
+    }
+   ],
+   "modified": "2026-04-29T14:23:06.238Z",
+   "description": "When PowerShell is necessary, consider restricting PowerShell execution policy to administrators. Be aware that there are methods of bypassing the PowerShell execution policy, depending on environment configuration.(Citation: Netspi PowerShell Execution Policy Bypass)\n\nPowerShell JEA (Just Enough Administration) may also be used to sandbox administration and limit what commands admins/users can execute through remote PowerShell sessions.(Citation: Microsoft PS JEA)",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--9bb9e696-bff8-4ae1-9454-961fc7d91d5f",
+   "target_ref": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--758cbc32-6b33-4012-8622-cd7d218a799c",
+   "created": "2020-06-23T19:02:21.529Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.086Z",
+   "description": "Anti-virus can be used to automatically quarantine suspicious files. ",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--a6a47a06-08fc-4ec4-bdc3-20373375ebb9",
+   "target_ref": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--8d56622d-547a-4daa-89b8-1c555d1ac5b7",
+   "created": "2020-06-23T18:59:50.979Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.118Z",
+   "description": "Anti-virus can be used to automatically quarantine suspicious files. ",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--a6a47a06-08fc-4ec4-bdc3-20373375ebb9",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--0c8fdb59-a28f-4f8f-a788-9e3e8928c6d5",
+   "created": "2019-06-24T13:44:34.840Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:05.920Z",
+   "description": "Application isolation will limit what other processes and system features the exploited target can access.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--b9f0c069-abbe-4a07-a245-2481219a1463",
+   "target_ref": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--c8ff4bb6-92df-40ca-b975-6682d7c6ac82",
+   "created": "2024-08-05T19:17:26.983Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.200Z",
+   "description": "Inventory systems for unauthorized command and scripting interpreter installations.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--cc2399fd-3cd3-4319-8d0a-fbd6420cdaf8",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--53a95297-1cce-401c-99a3-34079e878fac",
+   "created": "2019-07-17T20:50:44.740Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.039Z",
+   "description": "Web Application Firewalls may be used to limit exposure of applications to prevent exploit traffic from reaching the application.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--d2a24649-9694-4c97-9c62-ce7b270bf6a3",
+   "target_ref": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--d373eebb-b578-4b59-9de1-2946bf837d96",
+   "created": "2019-06-24T13:44:34.822Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.214Z",
+   "description": "Update software regularly by employing patch management for externally exposed applications.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--e5d930e9-775a-40ad-9bdb-b941d8dfe86b",
+   "target_ref": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--5a580cd0-19f1-41d6-865b-786a41081a7e",
+   "created": "2020-03-09T13:48:55.802Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.048Z",
+   "description": "It may be possible to remove PowerShell from systems when not needed, but a review should be performed to assess the impact to an environment, since it could be in use for many legitimate purposes and administrative functions.\n\nDisable/restrict the WinRM Service to help prevent uses of PowerShell for remote execution.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--eb88d97c-32f1-40be-80f0-d61a4b0b4b31",
+   "target_ref": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--6abc6901-d152-4b5f-b27d-8b973ae567cb",
+   "created": "2020-03-09T13:41:14.499Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.070Z",
+   "description": "Disable or remove any unnecessary or unused shells or interpreters.",
+   "relationship_type": "mitigates",
+   "source_ref": "course-of-action--eb88d97c-32f1-40be-80f0-d61a4b0b4b31",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--f9867ca2-18a1-4e84-ad1d-61d7c85fe4b3",
+   "created": "2020-06-23T19:12:25.121Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.264Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--0f4a0c76-ab2d-4cb0-85d3-3f0efb8cba0d",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--20c01d16-fdd8-4f6b-ba0c-d81b70329440",
+   "created": "2020-03-09T14:07:54.891Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:05.949Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--37b11151-1776-4f8f-b328-30939fbf2ceb",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--6a2d3362-53f6-455b-bc1f-be9b85706a47",
+   "created": "2024-03-29T18:07:05.497Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.070Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--3a32740a-11b0-4bcf-b0a9-3abd0f6d3cd5",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--dc724053-6ac6-43c6-b24a-3e1234a973de",
+   "created": "2023-03-14T18:10:05.838Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.226Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--55bb4471-ff1f-43b4-88c1-c9384ec47abf",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--69e8d620-b9a1-4bfd-9bf0-62d2915f08ad",
+   "created": "2025-10-21T15:10:28.402Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "modified": "2025-10-21T15:10:28.402Z",
+   "relationship_type": "detects",
+   "source_ref": "x-mitre-detection-strategy--dd8477c8-2aad-4db3-b810-fe0d2f605fa8",
+   "target_ref": "attack-pattern--3f886f2a-874f-4333-b794-aa6075009b1c",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--74192d82-680f-412e-80df-27b86fdfa20c",
+   "created": "2020-10-20T00:09:33.144Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.084Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--818302b2-d640-477b-bf88-873120ce85c4",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--b7dc0db4-b1fb-4235-8b49-0792e7019377",
+   "created": "2020-03-09T13:48:55.816Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.176Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--5a67ece5-7409-4eb5-8c64-4a67e2f52776",
+   "created": "2020-03-09T14:15:05.754Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.049Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--a9d4b653-6915-42af-98b2-5758c4ceee56",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--f1c979e0-3bcd-418c-9ab5-f00e92461b4f",
+   "created": "2024-08-05T18:19:42.831Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.254Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--afddee82-3385-4682-ad90-eeced33f2d07",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--48890ae3-f271-4cb7-9dc2-9e51c7d16b78",
+   "created": "2025-06-15T21:41:27.637Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.024Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--c283d88f-8c23-4318-9da5-3d50cecad756",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--51b6dafa-da43-4f59-aea4-30caa3a10005",
+   "created": "2025-10-21T15:10:28.402Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "modified": "2025-10-21T15:10:28.402Z",
+   "relationship_type": "detects",
+   "source_ref": "x-mitre-detection-strategy--8582f5e6-44a5-4950-b7e8-a3e1b6d58d63",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--1313b6ce-f09b-4747-abd9-0220293d60f3",
+   "created": "2020-03-09T14:29:52.142Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:05.930Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--dfd7cc1d-e1d8-4394-a198-97c4cab8aa67",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--2bd00c10-dace-4747-931e-67915d9aab7d",
+   "created": "2020-03-09T14:12:31.550Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:05.964Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--d1fcf083-a721-4223-aedf-bf8960798d62",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--7f16fb67-a9d1-44ff-bfd0-3c2d7294747b",
+   "created": "2025-03-26T20:01:12.799Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.099Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--d2d642da-61ff-4211-b4df-7923c9ca220c",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--96575047-df79-4e74-9f88-44307a46bce0",
+   "created": "2020-03-09T14:38:24.631Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.130Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--cc3502b5-30cc-4473-ad48-42d51a6ef6d1",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--029c6872-0b48-4838-ab3b-3a7c0e637be9",
+   "created": "2025-10-21T15:10:28.402Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "modified": "2025-10-21T15:10:28.402Z",
+   "relationship_type": "detects",
+   "source_ref": "x-mitre-detection-strategy--72b209e2-8c65-4217-8532-fabd0cb54ae5",
+   "target_ref": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  },
+  {
+   "type": "relationship",
+   "spec_version": "2.1",
+   "id": "relationship--b7dc0db4-b1fb-4235-8b49-0792e7019377",
+   "created": "2020-03-09T13:48:55.816Z",
+   "created_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "revoked": false,
+   "modified": "2026-04-29T14:23:06.176Z",
+   "relationship_type": "subtechnique-of",
+   "source_ref": "attack-pattern--970a3432-3237-47ad-bcca-7d8cbb217736",
+   "target_ref": "attack-pattern--7385dfaf-6886-4229-9ecd-6fd678040830",
+   "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
+   "x_mitre_deprecated": false,
+   "x_mitre_attack_spec_version": "3.3.0"
+  }
+ ]
+}

@@ -73,6 +73,7 @@ def schema_targets(settings: Settings) -> list[SchemaTarget]:
     from app.services.sessions.history import HISTORY_MIGRATIONS
     from app.services.sessions.metadata_db import SESSION_METADATA_MIGRATIONS, SessionMetadataDB
     from app.services.tables.store import TABLE_STORE_MIGRATIONS
+    from app.services.threat_intel.store import THREAT_INTEL_MIGRATIONS
     from app.wiki.store import WIKI_MIGRATIONS
 
     app_db = Path(settings.app_db_path)
@@ -87,6 +88,7 @@ def schema_targets(settings: Settings) -> list[SchemaTarget]:
         SchemaTarget("structured_tables", app_db, TABLE_STORE_MIGRATIONS, True),
         SchemaTarget("router_calibration", app_db, CALIBRATION_MIGRATIONS, True),
         SchemaTarget("wiki", Path(settings.wiki_db_path).resolve(), WIKI_MIGRATIONS, False),
+        SchemaTarget("threat_intel", Path(settings.threat_intel_db_path), THREAT_INTEL_MIGRATIONS, True),
     ]
     if str(settings.history_backend).lower() == "sqlite":
         targets.append(SchemaTarget("history", Path(settings.history_sqlite_path), HISTORY_MIGRATIONS, True))
