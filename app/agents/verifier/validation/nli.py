@@ -42,9 +42,11 @@ import time
 from functools import lru_cache
 from typing import Any
 
+from app.agents.verifier.validation.claims_text import claims_text
 from app.agents.verifier.validation.models import CascadeLevel, CascadeResult, RuleBasisIssue, ValidationRequest
 from app.agents.verifier.validation.rules import extract_dates, extract_numbers, numbers_match
 from app.core.config import get_settings
+from app.services.retrieval.citation_grounding import split_sentences
 from app.services.runtime.resilience import call_with_circuit_breaker
 
 logger = logging.getLogger(__name__)
@@ -128,11 +130,14 @@ class NLIValidator:
         """Score sentences off the event loop, and say which scorer ran."""
 
         start_time = time.time()
-        sentences = [
-            sentence.strip()
-            for sentence in re.split(r"[。！？.!?]\s*", request.answer)
-            if sentence.strip() and len(sentence.strip()) > 10
-        ][: max(1, self.max_sentences)]
+        # The claims, split the way grounding splits them. `[。！？.!?]\s*` broke at
+        # every dot, so "CVSS v3.1 score of 9.8" became three fragments, and a
+        # fragment such as "1 score of 9" is not entailed by anything: three
+        # entailed English sentences came out as seven fragments, three of them
+        # "not entailed", and the answer was rejected.
+        sentences = [sentence for sentence in split_sentences(claims_text(request.answer)) if len(sentence) > 10][
+            : max(1, self.max_sentences)
+        ]
         if not sentences:
             return _result(start_time, confidence=1.0, backend="none", fallback_reason="no_sentences")
         source_text = " ".join(doc.content for doc in request.source_docs[:5])

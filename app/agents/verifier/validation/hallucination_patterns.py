@@ -14,6 +14,8 @@ import re
 
 from pydantic import BaseModel
 
+from app.agents.verifier.validation.claims_text import claims_text
+
 
 class HallucinationPattern(BaseModel):
     """Detected hallucination pattern"""
@@ -28,9 +30,6 @@ _CJK_ENTITY_RE = re.compile(r"[一-鿿]{2,4}")
 """Chinese entity candidates. One definition because two of its three uses
 compare an answer against its source: differently-tokenised sets would not
 be comparable, and nothing would say so."""
-
-_CITATION_MARKER_RE = re.compile(r"\[[ET]?\d+\]")
-"""An internal ``[E1]`` / ``[T1]`` or reader-facing ``[1]`` citation marker."""
 
 
 def _extract_dates(text: str) -> set[str]:
@@ -134,7 +133,10 @@ def _extract_entities(text: str) -> set[str]:
     entities = set()
 
     # English: Capitalized words (single or multi-word)
-    entities.update(re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", text))
+    # `[ \t]`, not `\s`: a run of capitalised words must stay on one line.
+    # With `\s` it crossed paragraph breaks, and "Versions\n\nThe" was reported
+    # as a name the sources lacked.
+    entities.update(re.findall(r"\b[A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)*\b", text))
 
     # Chinese: 2-4 character sequences (typical name/entity length)
     # Limit to avoid extracting full phrases
@@ -503,12 +505,10 @@ def detect_all_patterns(answer: str, source_text: str) -> list[HallucinationPatt
         List of all detected hallucination patterns
     """
     all_issues = []
-    # Citation markers are not claims. The number pattern has no word
-    # boundary, so `[E1]`, `[T1]` and `[1]` each read as the number 1, and an
-    # answer whose sources happened to contain no "1" was reported as
-    # hallucinating it -- once per marker. Measured on a tool-cited answer:
-    # three "Number 1.0 not found in sources" issues and a rejection.
-    answer = _CITATION_MARKER_RE.sub(" ", answer or "")
+    # The claims, not the markup: citation markers read as the number 1, list
+    # and heading ordinals as numbers, and Title Case headings as names. See
+    # `claims_text` for what was measured.
+    answer = claims_text(answer)
 
     # Run all detectors
     all_issues.extend(detect_date_hallucinations(answer, source_text))
