@@ -249,13 +249,19 @@ def decide_route(
                 # The model moved the question to another specialist and kept the
                 # skill that was suggested for the first one; suggest again.
                 skill = _skill_for(agent_class, question)
+        if forced:
+            method = "forced"
+        elif ask_for_class and llm_class:
+            method = "llm"
+        else:
+            method = "rule_based"
         logger.info(
             "Route decision: route=%s skill=%s agent_class=%s (suggested=%s, method=%s) route_confidence=%.2f",
             route,
             skill,
             agent_class,
             suggested_class,
-            "forced" if forced else ("llm" if ask_for_class and llm_class else "rule_based"),
+            method,
             route_confidence,
         )
     except Exception as e:
