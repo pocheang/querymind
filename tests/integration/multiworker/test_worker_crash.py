@@ -116,7 +116,8 @@ def _leases(stack) -> list[tuple[str, float]]:
 def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stack):
     a, b = stack.workers
     on_a, on_b = stack.login(a), stack.login(b)
-    assert on_b.post("/api/advanced-rag/query", json={"query": "warm up"}).status_code == 200
+    warm = on_b.post("/api/advanced-rag/query", json={"query": "warm up"})
+    assert _ran(warm), warm.text
     # A is deliberately NOT warmed up: its first graph lookup is the one that
     # hangs on the silent socket. Warming it was tried (2026-09-26) and the slow
     # question then answered 200 at once without holding the slot.
@@ -148,7 +149,7 @@ def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stac
     assert not a.alive()
 
     refused = on_b.post("/api/advanced-rag/query", json={"query": "anything"})
-    assert refused.status_code == 503, refused.text
+    assert refused.status_code == 503 and not _ran(refused), refused.text
     assert _leases(stack) == leases, "the dead worker's lease is still there"
 
     admitted_at = _first_admission(stack, on_b, timeout=LEASE_SECONDS + 20)
@@ -169,11 +170,24 @@ def _first_admission(stack, client: httpx.Client, *, timeout: float) -> float | 
     while time.monotonic() < deadline:
         sent_at = _redis_time(stack)
         response = client.post("/api/advanced-rag/query", json={"query": "anything"})
-        if response.status_code == 200:
+        if _ran(response):
             return sent_at
         assert response.status_code == 503, response.text
         time.sleep(0.5)
     return None
+
+
+# What a query that was admitted and ran answers when its only source -- the web,
+# through the silent proxy -- fails: 503 with this detail (app/api/routes/public/
+# query.py). The query guard's refusal is also a 503, so the two are told apart
+# by the body, not the status.
+_RETRIEVAL_FAILED = "No evidence could be retrieved"
+
+
+def _ran(response: httpx.Response) -> bool:
+    """Admitted and executed: answered, or ran and found no source that worked."""
+
+    return response.status_code == 200 or (response.status_code == 503 and _RETRIEVAL_FAILED in response.text)
 
 
 def _redis_time(stack) -> float:
