@@ -105,8 +105,9 @@ def test_a_retry_does_not_repeat_the_failed_attempts_results(fake_ddgs) -> None:
 
 def test_the_lock_is_released_after_a_failed_search(fake_ddgs) -> None:
     fake_ddgs.fail_first_after_one = True
+    provider = _provider(retries=0)
 
     with pytest.raises(duckduckgo.WebSearchError):
-        _provider(retries=0).search("q")
+        provider.search("q")
 
     assert not duckduckgo._SEARCH_LOCK.locked()
