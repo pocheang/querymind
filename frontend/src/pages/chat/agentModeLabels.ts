@@ -44,6 +44,11 @@ export function useAgentModeLabels() {
           title: t("agentModes.dataAnalysis.title", mode.title),
           desc: t("agentModes.dataAnalysis.desc", mode.desc),
         };
+      case "compliance":
+        return {
+          title: t("agentModes.compliance.title", mode.title),
+          desc: t("agentModes.compliance.desc", mode.desc),
+        };
       case "general":
         return {
           title: t("agentModes.general.title", mode.title),

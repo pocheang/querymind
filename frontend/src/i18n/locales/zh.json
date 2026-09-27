@@ -751,6 +751,14 @@
       "agentDataCap3": "只能查询你自己的表、公开表与共享语料",
       "agentDataCap4": "表头与单元格不会影响下一步工具选择",
       "agentDataAction": "进入数据分析",
+      "agentComplianceTitle": "合规审核专家",
+      "agentComplianceBadge": "逐条对照",
+      "agentComplianceDesc": "把你的制度和个人信息保护法、数据安全法、GDPR、等保等条款逐条对照，标出满足、部分满足、缺失和无法判断。",
+      "agentComplianceCap1": "条款对照表：要求、现状、状态各自附引用",
+      "agentComplianceCap2": "没有法规原文时标为无法判断，不凭记忆引条款",
+      "agentComplianceCap3": "整改建议按影响排序",
+      "agentComplianceCap4": "明确声明：分析所引文本，不构成法律意见",
+      "agentComplianceAction": "进入合规审核",
       "agentGeneralTitle": "General Analyst 综合分析",
       "agentGeneralBadge": "高管决策",
       "agentGeneralDesc": "跨领域信息提炼与管理决策报告，输出清晰的 5 点式 Executive Summary 与多维优劣矩阵。",
@@ -1629,6 +1637,10 @@
     "dataAnalysis": {
       "title": "数据分析",
       "desc": "对上传表格做汇总、分组与筛选，给出 SQL 口径。"
+    },
+    "compliance": {
+      "title": "合规审核",
+      "desc": "对照法规和标准逐条审查制度，给出差距与整改建议。"
     },
     "general": {
       "title": "综合分析",

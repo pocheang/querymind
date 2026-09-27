@@ -39,13 +39,20 @@ class AgentClass(StrEnum):
     ARTIFICIAL_INTELLIGENCE = "artificial_intelligence"
     PDF_TEXT = "pdf_text"
     DATA_ANALYSIS = "data_analysis"
-    # Assigned to uploads whose name reads like a policy document. No specialist
-    # answers it yet, so a question routed here gets the general synthesizer.
-    POLICY = "policy"
+    COMPLIANCE = "compliance"
 
 
 BUILTIN_AGENT_CLASSES: frozenset[str] = frozenset(AgentClass)
 """The shipped classes, as plain strings."""
+
+AGENT_CLASS_ALIASES: dict[str, str] = {"policy": AgentClass.COMPLIANCE}
+"""Names an earlier release wrote, and the class each means now.
+
+`policy` was assigned to uploads whose file name read like a policy document,
+before a compliance specialist existed to answer it. Registry rows and saved
+prompts written then still carry it, so it is read as `compliance` wherever a
+class is read rather than rewritten in place.
+"""
 
 
 def known_agent_classes() -> frozenset[str]:
@@ -76,12 +83,14 @@ def normalize_agent_class(value: str | None) -> str | None:
     name = normalize_string(value, lowercase=True)
     if not name:
         return None
+    name = AGENT_CLASS_ALIASES.get(name, name)
     if name in BUILTIN_AGENT_CLASSES or name in known_agent_classes():
         return name
     return None
 
 
 __all__ = [
+    "AGENT_CLASS_ALIASES",
     "BUILTIN_AGENT_CLASSES",
     "AgentClass",
     "known_agent_classes",

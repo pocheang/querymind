@@ -115,7 +115,7 @@ async def test_the_capability_changes_nothing_about_retrieval() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("agent_class", [AgentClass.GENERAL, AgentClass.PDF_TEXT, AgentClass.POLICY, "unknown"])
+@pytest.mark.parametrize("agent_class", [AgentClass.GENERAL, AgentClass.PDF_TEXT, AgentClass.COMPLIANCE, "unknown"])
 async def test_no_specialist_tools_no_capability(agent_class: str) -> None:
     decision = await _routed(agent_class)
     assert "tool" not in decision.allowed_capabilities

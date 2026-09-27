@@ -50,6 +50,13 @@
     {"id": "data-05", "question": "Which customers in the CSV placed more than 10 orders?", "agent_class": "data_analysis", "skill": "data_analysis_report"},
     {"id": "data-06", "question": "Rank the regions in my sales table by year-over-year growth.", "agent_class": "data_analysis", "skill": "data_analysis_report"},
 
+    {"id": "comp-01", "question": "个人信息保护法对敏感个人信息的处理有什么要求？", "agent_class": "compliance", "skill": "compliance_qa"},
+    {"id": "comp-02", "question": "我们的员工监控制度满足数据安全法的要求吗？", "agent_class": "compliance", "skill": "compliance_gap_analysis"},
+    {"id": "comp-03", "question": "等保三级对身份鉴别有哪些要求？", "agent_class": "compliance", "skill": "compliance_qa"},
+    {"id": "comp-04", "question": "What does GDPR Article 17 require?", "agent_class": "compliance", "skill": "compliance_qa"},
+    {"id": "comp-05", "question": "Is our five-year log retention compliant with GDPR storage limitation?", "agent_class": "compliance", "skill": "compliance_gap_analysis"},
+    {"id": "comp-06", "question": "What does PIPL require for cross-border data transfers?", "agent_class": "compliance", "skill": "compliance_qa"},
+
     {"id": "gen-01", "question": "公司年假有多少天？", "agent_class": "general", "skill": "answer_with_citations"},
     {"id": "gen-02", "question": "报销流程需要哪些审批？", "agent_class": "general", "skill": "answer_with_citations"},
     {"id": "gen-03", "question": "今天天气怎么样？", "agent_class": "general", "skill": "answer_with_citations"},
@@ -68,11 +75,12 @@
     {"id": "edge-05", "question": "用 AI 检测网络入侵有哪些方法？", "agent_class": "cybersecurity", "skill": "cyber_attack_analysis", "boundary": true, "why": "the goal is detecting intrusion; AI is the means"},
     {"id": "edge-06", "question": "What GPU memory does a 7B model need for LoRA fine-tuning?", "agent_class": "artificial_intelligence", "skill": "ai_engineering_estimate", "boundary": true, "why": "a model-engineering estimate with no security wording"},
     {"id": "edge-07", "question": "Please send an email to the team about the outage.", "agent_class": "general", "skill": "answer_with_citations", "boundary": true, "why": "\"ai\" must not match inside \"email\" (a recorded historical misroute)"},
-    {"id": "edge-08", "question": "我们的数据保留制度符合个人信息保护法吗？", "agent_class": "policy", "skill": "answer_with_citations", "boundary": true, "why": "compliance review; `policy` until the compliance specialist exists (plan PR 10)"},
-    {"id": "edge-09", "question": "Does our password policy meet GDPR requirements?", "agent_class": "policy", "skill": "answer_with_citations", "boundary": true, "why": "same edge as edge-08, in English; 'password' must not pull it into security"},
+    {"id": "edge-08", "question": "我们的数据保留制度符合个人信息保护法吗？", "agent_class": "compliance", "skill": "compliance_gap_analysis", "boundary": true, "why": "compliance review; the answer is a clause-by-clause gap analysis"},
+    {"id": "edge-09", "question": "Does our password policy meet GDPR requirements?", "agent_class": "compliance", "skill": "compliance_gap_analysis", "boundary": true, "why": "same edge as edge-08, in English; 'password' must not pull it into security"},
     {"id": "edge-10", "question": "把这份漏洞扫描报告 PDF 里的高危漏洞列出来", "agent_class": "cybersecurity", "skill": "cve_vulnerability_assessment", "boundary": true, "why": "a security question whose evidence is a PDF: the subject decides, not the file type"},
     {"id": "edge-11", "question": "图片里的木马样本哈希是什么？", "agent_class": "cybersecurity", "skill": "cyber_attack_analysis", "boundary": true, "why": "security subject in an image; same rule as edge-10"},
     {"id": "edge-12", "question": "大模型的训练数据被投毒了怎么办？", "agent_class": "cybersecurity", "skill": "cybersecurity_incident_response", "boundary": true, "why": "data poisoning is an attack on a model: plan section 5 assigns attacks on LLM systems to cybersecurity"},
-    {"id": "edge-13", "question": "客户数据泄露了，第一步应该做什么？", "agent_class": "cybersecurity", "skill": "cybersecurity_incident_response", "boundary": true, "why": "'数据' does not make a question data analysis: a breach is an incident"}
+    {"id": "edge-13", "question": "客户数据泄露了，第一步应该做什么？", "agent_class": "cybersecurity", "skill": "cybersecurity_incident_response", "boundary": true, "why": "'数据' does not make a question data analysis: a breach is an incident"},
+    {"id": "edge-14", "question": "等保要求的日志审计在 ELK 里具体怎么配置？", "agent_class": "cybersecurity", "skill": "cyber_defense_hardening", "boundary": true, "why": "naming a standard does not make it compliance: how to configure a control is a security question"}
   ]
 }

@@ -24,6 +24,7 @@ Skills to choose from:
 - ai_engineering_estimate: Work out a number for a model -- GPU memory, FLOPs, training time
 - pdf_text_reader: Extract and read PDF content
 - data_analysis_report: Compute over the user's tables -- totals, averages, group-bys, filters
+- compliance_gap_analysis: Whether a practice or policy meets a law or standard, clause by clause
 
 Agent classes -- which specialist should answer (choose exactly one):
 {agent_class_guide}
@@ -48,12 +49,12 @@ Query: {{question}}
 # route ceiling on every one of eight questions, so the route stage always
 # timed out and no specialist ever answered. One call now decides both.
 AGENT_CLASS_GUIDE = """1. cybersecurity（网络安全）
-   - 安全架构、安全策略、合规管理（Compliance）
+   - 安全架构、安全策略
    - 漏洞、攻击、防护、威胁情报、入侵检测
    - 身份认证、访问控制、权限管理、加密
    - 安全审计、日志分析、安全监控
    - 防火墙、WAF、IDS/IPS、安全设备
-   - 数据安全、隐私保护、GDPR、等保
+   - 数据安全与隐私保护的技术措施（加密、脱敏、访问控制怎么做）
    - 针对 AI 系统的攻击与防护：提示词注入、越狱、训练数据投毒、模型窃取（攻击是主题，AI 只是被攻击的对象）
 2. artificial_intelligence（人工智能）
    - AI、机器学习、深度学习、神经网络
@@ -68,11 +69,16 @@ AGENT_CLASS_GUIDE = """1. cybersecurity（网络安全）
    - 对用户上传的表格（Excel、CSV、文档里的表）做计算：合计、平均、分组、筛选、排名、占比
    - 问题要的是从表里算出来的数，归这里；文档里的表格也归这里，pdf_text 只能引用原文
    - 不含数据安全、数据泄露（归 cybersecurity），也不含模型训练数据（归 artificial_intelligence）
-5. general（通用知识）
-   - 不属于以上四个类别的其他问题
+5. compliance（合规审核）
+   - 法律法规与标准的要求：个人信息保护法、数据安全法、网络安全法、GDPR、等保（GB/T 22239）等
+   - 某项制度或做法是否符合某部法规或标准、差距在哪里；企业内部制度的条款问答
+   - 要的是"是否符合、条款怎么规定"归这里；要的是"某个技术控制怎么实现"归 cybersecurity
+6. general（通用知识）
+   - 不属于以上五个类别的其他问题
 Examples: "如何实现访问控制？" -> cybersecurity; "LLM 遭遇 prompt 注入怎么防护？" -> cybersecurity;
 "解释一下Transformer模型" -> artificial_intelligence; "OCR 这张照片上的文字" -> pdf_text;
 "分析这个PDF文档" -> pdf_text; "这份 pdf 里的表格合计是多少？" -> data_analysis;
+"我们的数据保留制度符合个人信息保护法吗？" -> compliance;
 "今天天气怎么样？" -> general"""
 
 

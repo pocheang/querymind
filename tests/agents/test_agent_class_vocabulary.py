@@ -30,14 +30,10 @@ _FRONTEND_MODES = _FRONTEND / "pages" / "chat" / "constants.ts"
 #: Classes the backend ships that the chat sidebar deliberately offers no card
 #: for, each with the reason. A class added to `AgentClass` without a card and
 #: without an entry here fails, so the omission is a decision, not an accident.
-CLASSES_WITHOUT_A_CARD: dict[str, str] = {
-    AgentClass.POLICY: "no specialist answers it yet; the card lands with the compliance agent",
-}
+CLASSES_WITHOUT_A_CARD: dict[str, str] = {}
 
 #: Classes the LLM intent classifier's prompt deliberately does not describe.
-CLASSES_THE_LLM_IS_NOT_OFFERED: dict[str, str] = {
-    AgentClass.POLICY: "assigned to uploads by filename only; no specialist answers it yet",
-}
+CLASSES_THE_LLM_IS_NOT_OFFERED: dict[str, str] = {}
 
 
 @pytest.fixture(autouse=True)
@@ -167,9 +163,9 @@ def test_a_class_an_extension_registers_is_known() -> None:
 
 
 def test_the_llm_classifier_accepts_policy() -> None:
-    """Its own set of four lacked `policy`; the unified rule does not."""
+    """Its own set of four lacked `policy`; the unified rule reads it as the compliance class it became."""
 
-    assert normalize_agent_class("policy") == AgentClass.POLICY
+    assert normalize_agent_class("policy") == AgentClass.COMPLIANCE
 
 
 def test_an_upload_label_is_always_a_known_class() -> None:

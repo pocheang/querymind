@@ -472,9 +472,9 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "Web 搜索提供者缓存互斥锁，多进程各持一份保护自身缓存构建",
     ),
-    "app/services/documents/domain_labels.py::_EMPTY": (
+    "app/services/documents/domain_labels.py::folder_label": (
         "D",
-        "无登记表时返回的空标签集合，只读常量，从不修改",
+        "共享语料目录名到领域标签的纯函数缓存；键是路径和共享语料根目录，结果只由路径决定，多进程各持一份结果相同",
     ),
     "app/services/documents/domain_labels.py::_cache": (
         "D",
