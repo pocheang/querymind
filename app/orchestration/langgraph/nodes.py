@@ -172,9 +172,9 @@ class WorkflowNodeRuntime:
             timeout_stage="route",
             operation=lambda: self._services.router(request),
             expected_type=RouteDecision,
-            # The same safe route the legacy router already picks when its own
-            # LLM call fails: local vector retrieval, no plan, no tools.
-            on_timeout=_timed_out_route,
+            # Safe retrieval (vector, no plan) chosen by keyword rules, so a slow
+            # model still leaves the question with its specialist.
+            on_timeout=lambda: _timed_out_route(request),
         )
         self._policy.validate_route(route)
         # Still reported as `completeness`, and `RouteDecision.clarification_fields`
@@ -795,8 +795,19 @@ def _record_routing_outcome(
         logger.debug("routing calibration feedback was not recorded", exc_info=True)
 
 
-def _timed_out_route() -> RouteDecision:
-    """The safe route: local retrieval only, no plan, no tools."""
+def _timed_out_route(request: OrchestrationRequest) -> RouteDecision:
+    """The route when the router did not answer in time.
+
+    Keyword rules choose the specialist (see `rule_based_route`); retrieval is
+    the safe local route either way. Should the rules themselves fail, the
+    fixed `general` route below is what this has always returned.
+    """
+    try:
+        from app.agents.router.service import rule_based_route
+
+        return rule_based_route(request)
+    except Exception:  # a broken extension registry must not fail the request
+        logger.warning("rule-based route fallback failed; using the fixed safe route", exc_info=True)
     return RouteDecision(
         intent="knowledge_retrieval",
         route="vector",

@@ -3,13 +3,15 @@
 Two defects, one symptom: ordinary questions were routed to a domain specialist.
 
 - All three keyword classifiers -- the domain registry, `classify_agent_class`
-  and the fallback behind the LLM intent classifier -- tested `keyword in text`,
+  and the fallback behind the LLM intent classifier (deleted since, with the
+  classifier: one routing call now decides the class) -- tested `keyword in text`,
   so `"ai"` matched "email", `"rag"` "storage", `"soc"` "social", `"log"`
   "blog". Measured before the fix, each of the first three was routed to a
   specialist.
-- `routing._classify` consulted the registry *before* the LLM classifier and
-  returned its hit at 0.95, so the LLM only ran when no keyword had matched and
-  could never correct one that had.
+- The router consulted the registry *before* the LLM classifier and returned
+  its hit at 0.95, so the LLM only ran when no keyword had matched and could
+  never correct one that had. The keyword rules are now only a suggestion in
+  the one routing call, and the model's answer outranks them.
 """
 
 from __future__ import annotations
@@ -18,10 +20,9 @@ import pytest
 
 from app.agents.registry import DomainAgentRegistry
 from app.agents.router import routing
+from app.agents.shared.cache import clear_router_decision_cache
 from app.services.agent_classifier import classify_agent_class
 from app.services.models.runtime import LocalEvidenceChatModel
-from app.services.query import intent_classifier
-from app.services.query.intent_classifier import _fallback_classification
 from app.services.query.keyword_match import contains_keyword
 
 # --- the matcher -------------------------------------------------------------
@@ -97,9 +98,11 @@ def test_the_rule_classifier_does_not_claim_an_ordinary_question(question: str):
         "The kids' club began in spring",
     ],
 )
-def test_the_llm_fallback_does_not_claim_an_ordinary_question(question: str):
+def test_the_rules_do_not_claim_these_either(question: str):
     # `ips`, `log`, `read`, `ids`, `gan` -- all substrings of these sentences.
-    assert _fallback_classification(question)["agent_class"] == "general"
+    # They were written for the LLM classifier's own keyword fallback, deleted
+    # with the classifier; the rules that remain must pass them too.
+    assert classify_agent_class(question) == "general"
 
 
 @pytest.mark.parametrize(
@@ -125,56 +128,58 @@ def test_the_pdf_rule_now_sees_pdf_written_against_chinese():
 # --- the router does not bypass the LLM --------------------------------------
 
 
-def _llm_says(agent_class: str, confidence: float = 0.8):
-    def classify(question: str) -> dict:
-        del question
-        return {"agent_class": agent_class, "confidence": confidence, "method": "llm"}
+class _RouteModel:
+    """Answers the one routing call with a fixed JSON reply."""
 
-    return classify
+    def __init__(self, reply: str | Exception) -> None:
+        self._reply = reply
+
+    def invoke(self, prompt):
+        del prompt
+        if isinstance(self._reply, Exception):
+            raise self._reply
+        return type("R", (), {"content": self._reply})()
 
 
-def test_a_keyword_hit_does_not_bypass_the_llm_classifier(monkeypatch: pytest.MonkeyPatch):
+@pytest.fixture
+def route_model(monkeypatch: pytest.MonkeyPatch):
+    clear_router_decision_cache()
+    monkeypatch.setattr(routing, "_get_calibrator", lambda: None)
+
+    def use(reply):
+        monkeypatch.setattr(routing, "get_chat_model", lambda **_: _RouteModel(reply))
+
+    yield use
+    clear_router_decision_cache()
+
+
+def test_a_keyword_hit_does_not_bypass_the_model(route_model):
     # "勒索" is a registry keyword. Before the fix the registry answered at 0.95
-    # and the LLM was never asked.
-    monkeypatch.setattr(routing, "classify_intent_with_llm", _llm_says("general", 0.9))
-
-    agent_class, confidence, method = routing._classify("如何防护勒索病毒", None, use_llm_intent=True)
-
-    assert (agent_class, confidence) == ("general", 0.9)
-    assert method.startswith("llm")
+    # and the model was never asked.
+    route_model('{"route": "vector", "agent_class": "general", "reason": "ok", "confidence": 0.9}')
+    assert routing.decide_route("如何防护勒索病毒").agent_class == "general"
 
 
-def test_the_registry_still_decides_when_the_llm_is_not_used():
-    agent_class, _, method = routing._classify("如何防护勒索病毒", None, use_llm_intent=False)
-
-    assert agent_class == "cybersecurity"
-    assert method == "rule_based"
+def test_the_registry_still_decides_when_the_llm_is_not_used(route_model):
+    route_model('{"route": "vector", "agent_class": "general", "reason": "ok", "confidence": 0.9}')
+    assert routing.decide_route("如何防护勒索病毒", use_llm_intent=False).agent_class == "cybersecurity"
 
 
-def test_the_registry_still_decides_when_the_llm_classifier_raises(monkeypatch: pytest.MonkeyPatch):
-    def broken(question: str) -> dict:
-        raise RuntimeError("provider down")
-
-    monkeypatch.setattr(routing, "classify_intent_with_llm", broken)
-
-    agent_class, _, method = routing._classify("如何防护勒索病毒", None, use_llm_intent=True)
-
-    assert (agent_class, method) == ("cybersecurity", "rule_fallback")
+def test_the_registry_still_decides_when_the_model_raises(route_model):
+    route_model(RuntimeError("provider down"))
+    assert routing.decide_route("如何防护勒索病毒").agent_class == "cybersecurity"
 
 
 def test_the_offline_backend_still_reaches_the_specialists(monkeypatch: pytest.MonkeyPatch):
-    """Removing the short-circuit must not switch the specialists off offline.
-
-    `MODEL_BACKEND=local` is what a fresh checkout runs. Its model answers the
-    intent prompt with no JSON, so the classifier falls back to the registry --
+    """`MODEL_BACKEND=local` is what a fresh checkout runs. Its model answers
+    the routing prompt without an agent class, so the keyword rules decide --
     driven here through the real `LocalEvidenceChatModel`, not a fake that
-    answers whatever it is asked.
-    """
+    answers whatever it is asked."""
 
-    monkeypatch.setattr(intent_classifier, "get_chat_model", lambda **_: LocalEvidenceChatModel())
-
-    agent_class, _, _ = routing._classify("如何防护勒索病毒", None, use_llm_intent=True)
-
-    # Only the class is asserted. `_classify` labels this `llm(...)` although the
-    # classifier fell back to the registry -- a pre-existing mislabel, not pinned.
-    assert agent_class == "cybersecurity"
+    clear_router_decision_cache()
+    monkeypatch.setattr(routing, "_get_calibrator", lambda: None)
+    monkeypatch.setattr(routing, "get_chat_model", lambda **_: LocalEvidenceChatModel())
+    try:
+        assert routing.decide_route("如何防护勒索病毒").agent_class == "cybersecurity"
+    finally:
+        clear_router_decision_cache()

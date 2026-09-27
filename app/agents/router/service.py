@@ -104,6 +104,33 @@ class RouterAgentService:
         return decide_route(*args, **kwargs)
 
 
+def rule_based_route(request: OrchestrationRequest) -> RouteDecision:
+    """The route when the router cannot answer in time: keyword rules, no model.
+
+    The route stage's timeout fallback used to be a fixed `general` route, and
+    with the configured model the router took 8.3-12.4s against an 8s ceiling
+    on every one of eight measured questions -- so every question lost its
+    specialist and its tools. Retrieval stays the safe `vector` route; only
+    the choice of who answers is recovered, from rules that take microseconds.
+    """
+
+    from app.agents.router.routing import rule_based_choice
+
+    agent_class, skill = rule_based_choice(request.question, request.source_scope.agent_class_hint)
+    return _with_specialist_tools(
+        RouteDecision(
+            intent="knowledge_retrieval",
+            route="vector",
+            confidence=0.0,
+            requires_plan=False,
+            allowed_capabilities=frozenset({"rag"}),
+            reason="route_timeout_rule_based",
+            agent_class=agent_class,
+            skill=skill,
+        )
+    )
+
+
 def _with_specialist_tools(decision: RouteDecision) -> RouteDecision:
     """Let the answering specialist consult its own read-only tools.
 
