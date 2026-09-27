@@ -83,7 +83,6 @@ def test_documents_widen_the_limits_when_they_are_good(monkeypatch, lookups):
     graph_module.run_graph_rag(
         "what drove q3 revenue?",
         ["a.pdf"],
-        None,
         [_STRUCTURED_DOC],
         None,
         owner=_OWNER,
@@ -123,7 +122,6 @@ def test_a_low_quality_corpus_skips_the_graph_and_falls_back(monkeypatch, lookup
     result = graph_module.run_graph_rag(
         "what drove q3 revenue?",
         ["a.pdf"],
-        None,
         [{"content": "scan artifact", "metadata": {}}],
         None,
         owner=_OWNER,

@@ -415,7 +415,6 @@ def run_graph_rag_with_pdf_context(
     question: str,
     retrieved_docs: list[dict] | None = None,
     allowed_sources: list[str] | None = None,
-    agent_class: str | None = None,
 ) -> dict:
     """
     Enhanced Graph RAG with PDF and table-aware optimizations.
@@ -429,16 +428,10 @@ def run_graph_rag_with_pdf_context(
         question: User query
         retrieved_docs: Retrieved documents (for quality analysis)
         allowed_sources: Optional source filter
-        agent_class: Agent class for document filtering
 
     Returns:
         Graph RAG results with enhanced accuracy
     """
-    from app.services.agent_document_filter import get_sources_by_agent_class
-
-    if allowed_sources is None and agent_class:
-        allowed_sources = get_sources_by_agent_class(agent_class)
-
     context, context_quality = _pdf_context_for_query(question, retrieved_docs)
     params = _adaptive_graph_params(context_quality)
 

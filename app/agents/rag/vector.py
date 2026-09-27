@@ -21,7 +21,6 @@ from app.retrievers.hybrid.retriever import hybrid_search_with_diagnostics
 from app.retrievers.parameter_tuning import apply_dynamic_parameters
 from app.retrievers.query_expansion import expand_query
 from app.retrievers.stores.vector import OwnerScope
-from app.services.agent_document_filter import get_sources_by_agent_class
 from app.services.observability.log_safety import question_ref
 
 logger = logging.getLogger(__name__)
@@ -55,15 +54,11 @@ class UnifiedVectorRAGAgent:
         self.settings = self._dependencies.get("settings", get_settings())
         self._hybrid_search = self._dependencies.get("hybrid_search_with_diagnostics", hybrid_search_with_diagnostics)
         self._expand_query = self._dependencies.get("expand_query", expand_query)
-        self._get_sources_by_agent_class = self._dependencies.get(
-            "get_sources_by_agent_class", get_sources_by_agent_class
-        )
 
     def execute(
         self,
         query: str,
         allowed_sources: list[str] | None = None,
-        agent_class: str | None = None,
         *,
         owner: OwnerScope | None,
         **kwargs,
@@ -74,7 +69,6 @@ class UnifiedVectorRAGAgent:
         Args:
             query: User query
             allowed_sources: Optional list of allowed document sources
-            agent_class: Agent class for automatic document filtering
             owner: Caller identity for the store's own metadata check; keyword-only
                 and defaultless so a caller cannot drop it by omission
             **kwargs: Additional parameters
@@ -88,13 +82,10 @@ class UnifiedVectorRAGAgent:
         # Step 2: Apply query expansion if enabled
         search_query = self._apply_query_expansion(query)
 
-        # Step 3: Apply agent class filtering
-        filtered_sources = self._apply_agent_filtering(allowed_sources, agent_class)
+        # Step 3: Execute retrieval
+        results, diagnostics = self._execute_retrieval(search_query, allowed_sources, dynamic_params, owner=owner)
 
-        # Step 4: Execute retrieval
-        results, diagnostics = self._execute_retrieval(search_query, filtered_sources, dynamic_params, owner=owner)
-
-        # Step 5: Process results
+        # Step 4: Process results
         citations = self._build_citations(results)
         context = self._build_context(results)
         effective_hits = self._count_effective_hits(results)
@@ -160,25 +151,6 @@ class UnifiedVectorRAGAgent:
             logger.warning(f"Query expansion failed: {e}", exc_info=True)
 
         return query
-
-    def _apply_agent_filtering(self, allowed_sources: list[str] | None, agent_class: str | None) -> list[str] | None:
-        """Apply agent class document filtering."""
-        if not agent_class:
-            return allowed_sources
-
-        try:
-            class_sources = self._get_sources_by_agent_class(agent_class)
-            if allowed_sources is None:
-                return class_sources
-            elif class_sources is not None:
-                allowed_set = set(class_sources)
-                filtered = [s for s in allowed_sources if s in allowed_set]
-                logger.debug(f"Agent filter for {agent_class}: {len(allowed_sources)} -> {len(filtered)} sources")
-                return filtered
-        except Exception as e:
-            logger.warning(f"Agent filtering failed: {e}", exc_info=True)
-
-        return allowed_sources
 
     def _execute_retrieval(
         self,
@@ -301,7 +273,6 @@ class UnifiedVectorRAGAgent:
 def run_vector_rag(
     question: str,
     allowed_sources: list[str] | None = None,
-    agent_class: str | None = None,
     *,
     owner: OwnerScope | None,
 ) -> dict[str, Any]:
@@ -314,7 +285,6 @@ def run_vector_rag(
     Args:
         question: User query
         allowed_sources: Optional list of allowed sources
-        agent_class: Agent class for filtering
         owner: Caller identity for the store's own metadata check.  Keyword-only
             and defaultless: this function is how the graph route reaches the
             vector store, and an owner defaulted to None there quietly removed
@@ -324,4 +294,4 @@ def run_vector_rag(
         Dictionary with retrieval results
     """
     agent = UnifiedVectorRAGAgent()
-    return agent.run(query=question, allowed_sources=allowed_sources, agent_class=agent_class, owner=owner)
+    return agent.run(query=question, allowed_sources=allowed_sources, owner=owner)
