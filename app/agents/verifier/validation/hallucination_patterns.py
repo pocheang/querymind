@@ -26,12 +26,6 @@ class HallucinationPattern(BaseModel):
     suggestion: str
 
 
-_CJK_ENTITY_RE = re.compile(r"[一-鿿]{2,4}")
-"""Chinese entity candidates. One definition because two of its three uses
-compare an answer against its source: differently-tokenised sets would not
-be comparable, and nothing would say so."""
-
-
 def _extract_dates(text: str) -> set[str]:
     """
     Extract dates from text (English and Chinese).
@@ -123,26 +117,21 @@ def _extract_entities(text: str) -> set[str]:
     """
     Extract named entities (proper nouns) from text.
 
-    Patterns:
-    - English: Capitalized words (John Smith, Acme Corp)
-    - Chinese: 2-4 character sequences (common name length)
+    Capitalised Latin words, single or in a run (John Smith, Acme Corp).
+
+    There is no Chinese candidate, on purpose. It used to take every two to four
+    character run, which is not how a name is shaped in running Chinese text --
+    replayed over thirty real answers it reported "以下是", "个层面" and "后再试"
+    as entities the sources lacked, and nothing it flagged was a name. Without a
+    Chinese NER model there is no honest candidate to offer.
 
     Returns:
         Set of entity strings
     """
-    entities = set()
-
-    # English: Capitalized words (single or multi-word)
     # `[ \t]`, not `\s`: a run of capitalised words must stay on one line.
     # With `\s` it crossed paragraph breaks, and "Versions\n\nThe" was reported
     # as a name the sources lacked.
-    entities.update(re.findall(r"\b[A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)*\b", text))
-
-    # Chinese: 2-4 character sequences (typical name/entity length)
-    # Limit to avoid extracting full phrases
-    entities.update(_CJK_ENTITY_RE.findall(text))
-
-    return entities
+    return set(re.findall(r"\b[A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)*\b", text))
 
 
 def _numbers_match(num1: float, num2: float, tolerance: float = 0.15) -> bool:
@@ -281,41 +270,9 @@ _COMMON_ENGLISH_ENTITIES = {
     "LLC",
 }
 
-_COMMON_CHINESE_ENTITIES = {
-    "首席执行",
-    "执行官",
-    "担任",
-    "公司",
-    "成立",
-    "实现",
-    "年成",
-    "月日",
-    "年月",
-    "融资",
-    "美元",
-    "收入",
-    "达到",
-    "增长",
-}
 
-_CJK_RUN_RE = re.compile(r"[\u4e00-\u9fff]+")
-_CHINESE_NAME_RE = re.compile(r"[\u4e00-\u9fff]{2}$")
-_CHINESE_PHRASE_RE = re.compile(r"[\u4e00-\u9fff]{3,4}$")
-
-
-def _entity_is_in_source(entity: str, source_text: str, source_entities: set[str]) -> bool:
-    """Is this entity present in the source, allowing for partial Chinese forms?
-
-    Chinese entities routinely appear as a substring of one another -- the
-    source says a name and the answer says the name plus a role -- so
-    containment counts in BOTH directions. English is matched word-wise
-    instead, because a multi-word name is grounded when all of its words are.
-    """
-
-    if _CJK_RUN_RE.match(entity):
-        if entity in source_text:
-            return True
-        return any(src in entity or entity in src for src in source_entities)
+def _entity_is_in_source(entity: str, source_text: str) -> bool:
+    """A multi-word name is grounded when all of its words are in the source."""
 
     if " " in entity:
         return all(word in source_text for word in entity.split())
@@ -323,18 +280,12 @@ def _entity_is_in_source(entity: str, source_text: str, source_entities: set[str
 
 
 def _likely_proper_noun(entity: str) -> bool:
-    """Narrow the miss list to what a reader would call a name.
+    """Narrow the miss list to what a reader would call a name: a run of words.
 
-    Two CJK characters is the shape of a personal name; three or four is only a
-    name when it is not one of the common phrases above. Anything else has to be
-    multi-word to qualify.
+    A single capitalised word is usually just the start of a sentence.
     """
 
-    if " " in entity:
-        return True
-    if _CHINESE_NAME_RE.match(entity):
-        return True
-    return bool(_CHINESE_PHRASE_RE.match(entity)) and entity not in _COMMON_CHINESE_ENTITIES
+    return " " in entity
 
 
 def detect_entity_hallucinations(answer: str, source_text: str) -> list[HallucinationPattern]:
@@ -358,20 +309,8 @@ def detect_entity_hallucinations(answer: str, source_text: str) -> list[Hallucin
         return []
     source_entities = _extract_entities(source_text)
 
-    mismatched = {
-        entity
-        for entity in answer_entities - source_entities
-        if entity not in _COMMON_ENGLISH_ENTITIES and entity not in _COMMON_CHINESE_ENTITIES
-    }
-    if not _CJK_RUN_RE.search(source_text):
-        # A Chinese phrase cannot be found in a source with no Chinese in it,
-        # so its absence there says nothing about whether it was invented.
-        # Measured: a Chinese answer over the CVE lookup's English summary
-        # reported "之前", "修复方式" and "评分为" as missing entities and was
-        # rejected. The same reasoning keeps the NLI cross-encoder to Latin
-        # text. Latin names are still checked against a Latin source.
-        mismatched = {entity for entity in mismatched if not _CJK_RUN_RE.match(entity)}
-    truly_missing = {e for e in mismatched if not _entity_is_in_source(e, source_text, source_entities)}
+    mismatched = {entity for entity in answer_entities - source_entities if entity not in _COMMON_ENGLISH_ENTITIES}
+    truly_missing = {e for e in mismatched if not _entity_is_in_source(e, source_text)}
     likely_names = {e for e in truly_missing if _likely_proper_noun(e)}
 
     if not likely_names:
@@ -406,6 +345,13 @@ _NEGATION_PATTERNS = [
 ]
 
 
+# Chinese content-word candidates for the negation check's overlap comparison.
+# Not entities: it takes every two to four character run, which is what made it
+# useless as an entity candidate (see `_extract_entities`), and is what an
+# overlap measure wants.
+_CJK_WORD_RE = re.compile(r"[一-鿿]{2,4}")
+
+
 def _has_negation(text: str) -> bool:
     return any(re.search(pattern, text, re.IGNORECASE) for pattern in _NEGATION_PATTERNS)
 
@@ -417,7 +363,7 @@ def _content_words(text: str) -> tuple[set[str], set[str]]:
     subset on its own for a Chinese-only overlap check.
     """
     words = set(re.findall(r"\b\w{3,}\b", text.lower()))
-    chinese = set(_CJK_ENTITY_RE.findall(text))
+    chinese = set(_CJK_WORD_RE.findall(text))
     words.update(chinese)
     return words, chinese
 

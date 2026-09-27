@@ -21,7 +21,12 @@ from app.agents.verifier.validation.cascade import ValidationCascade
 from app.agents.verifier.validation.citations import citation_completeness as _validate_citations
 from app.agents.verifier.validation.deep import deep_validation_score as _llm_deep_validation
 from app.agents.verifier.validation.fact_verification import AnswerVerificationResult
-from app.agents.verifier.validation.models import CascadeLevel, RuleBasisIssue, ValidationCascadeResult
+from app.agents.verifier.validation.models import (
+    HEURISTIC_ISSUE_TYPES,
+    CascadeLevel,
+    RuleBasisIssue,
+    ValidationCascadeResult,
+)
 from app.agents.verifier.validation.nli import load_nli_cross_encoder
 from app.agents.verifier.validation.rules import (
     assess_answer_quality as _assess_answer_quality,
@@ -174,6 +179,8 @@ def _to_answer_issue(issue: RuleBasisIssue) -> AnswerIssue:
         public_type = "safety"
     elif "citation" in issue_type:
         public_type = "missing_citation"
+    elif issue_type in HEURISTIC_ISSUE_TYPES:
+        public_type = "heuristic"
     elif any(token in issue_type for token in ("hallucination", "contradiction", "mismatch")):
         public_type = "hallucination"
     else:
@@ -202,7 +209,12 @@ def _validation_method(cascade: ValidationCascadeResult) -> str:
         return "deep"
     nli = by_level.get(CascadeLevel.NLI_BATCH)
     if nli is not None:
-        return "standard" if nli.backend == "cross_encoder" else "standard_lexical"
+        if nli.backend == "cross_encoder":
+            return "standard"
+        # `none`: the stage ran and checked nothing -- no sentences, no
+        # sources, or answer and sources in different scripts. Reporting
+        # `standard_lexical` there claimed a check that did not happen.
+        return "standard_lexical" if nli.backend == "lexical" else "standard_unchecked"
     return "fast_path"
 
 

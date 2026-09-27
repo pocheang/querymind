@@ -65,7 +65,9 @@ class AnswerValidationDetails(BaseModel):
 class AnswerIssue(BaseModel):
     """Individual answer issue"""
 
-    type: Literal["unsupported_claim", "missing_citation", "hallucination", "safety", "quality"]
+    # `heuristic`: a pattern check (a number, name or date not visibly in the
+    # sources) -- it degrades an answer and never rejects one on its own.
+    type: Literal["unsupported_claim", "missing_citation", "hallucination", "heuristic", "safety", "quality"]
     content: str
     severity: Literal["low", "medium", "high", "critical"]
     suggestion: str
@@ -86,7 +88,9 @@ class AnswerValidationResult(BaseModel):
     # was not in the language the configured model understands. Both are
     # ordinary, and reporting them as "standard" would claim an entailment check
     # that did not happen.
-    validation_method: Literal["fast_path", "standard", "standard_lexical", "deep"]
+    # `standard_unchecked`: the entailment stage ran and judged nothing -- no
+    # sentences, no sources, or answer and sources in different scripts.
+    validation_method: Literal["fast_path", "standard", "standard_lexical", "standard_unchecked", "deep"]
 
 
 # ============================================================================

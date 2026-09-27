@@ -67,9 +67,13 @@ def test_chinese_wording_is_not_checked_against_an_english_source() -> None:
     assert _entities(detect_all_patterns(answer, _ENGLISH_SOURCE)) == []
 
 
-def test_a_chinese_entity_is_still_checked_against_a_chinese_source() -> None:
-    issues = detect_entity_hallucinations("张伟负责该项目。", "李娜负责该项目的安全评估。")
-    assert _entities(issues) != []
+def test_chinese_wording_is_never_an_entity_candidate() -> None:
+    """Not even against a Chinese source: every two-to-four character run was a
+    candidate, and replayed over thirty real answers nothing it flagged was a
+    name ("以下是", "个层面", "后再试"). There is no Chinese NER here to do better."""
+
+    issues = detect_entity_hallucinations("张伟负责该项目，以下是个层面的说明。", "李娜负责该项目的安全评估。")
+    assert _entities(issues) == []
 
 
 def test_a_latin_name_is_still_checked_against_a_latin_source() -> None:

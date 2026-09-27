@@ -169,8 +169,11 @@ class VerifierAgentService:
                 conflicts=conflicts,
                 missing_aspects=missing_tuple,
             )
-        if action == "flag":
-            return VerificationDecision(status="degraded", conflicts=conflicts)
+        heuristics = _heuristic_findings(result)
+        if action == "flag" or heuristics:
+            # A heuristic finding is shown, and it stops the answer reading as
+            # verified -- but it neither rejects the answer nor retries it.
+            return VerificationDecision(status="degraded", conflicts=conflicts, unsupported_claims=heuristics)
         return VerificationDecision(status="approved", conflicts=conflicts)
 
     def _validation_unavailable(
@@ -217,6 +220,21 @@ def _citation_content(ref: EvidenceRef, context: ContextBundle) -> str:
         if (item.document_id, item.version, item.page, item.chunk_id, item.image_id) == key:
             return item.content
     return ""
+
+
+def _heuristic_findings(result: Any) -> tuple[str, ...]:
+    """What the pattern heuristics reported, which degrades but never rejects.
+
+    See `HEURISTIC_ISSUE_TYPES` for why.
+    """
+
+    return tuple(
+        dict.fromkeys(
+            str(getattr(issue, "content", "") or "heuristic finding")
+            for issue in tuple(getattr(result, "issues", ()) or ())
+            if str(getattr(issue, "type", "")).lower() == "heuristic"
+        )
+    )
 
 
 def _tool_document_id(index: int, result: ToolResult) -> str:
