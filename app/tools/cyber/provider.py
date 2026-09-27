@@ -9,8 +9,10 @@ from app.tools.category import ToolCategory
 from app.tools.cyber.cve_tools import (
     ATTACK_TOOL_DEFINITION,
     CVE_TOOL_DEFINITION,
+    PRODUCT_EXPOSURE_TOOL_DEFINITION,
     execute_cve_lookup,
     execute_mitre_attack_lookup,
+    execute_product_exposure,
 )
 
 if TYPE_CHECKING:
@@ -27,13 +29,15 @@ class CybersecurityToolProvider(BaseToolProvider):
 
     @property
     def tool_definitions(self) -> tuple[ToolDefinition, ...]:
-        return (CVE_TOOL_DEFINITION, ATTACK_TOOL_DEFINITION)
+        return (CVE_TOOL_DEFINITION, ATTACK_TOOL_DEFINITION, PRODUCT_EXPOSURE_TOOL_DEFINITION)
 
     def get_executor(self, tool_id: str) -> ToolExecutor | None:
         if tool_id == CVE_TOOL_DEFINITION.tool_id:
             return execute_cve_lookup
         if tool_id == ATTACK_TOOL_DEFINITION.tool_id:
             return execute_mitre_attack_lookup
+        if tool_id == PRODUCT_EXPOSURE_TOOL_DEFINITION.tool_id:
+            return execute_product_exposure
         return None
 
 

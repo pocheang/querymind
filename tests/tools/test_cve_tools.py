@@ -198,18 +198,20 @@ async def test_an_attack_technique_outside_the_curated_subset_is_reported_as_a_m
     [CVE_TOOL_DEFINITION, ATTACK_TOOL_DEFINITION],
     ids=["cve", "attack"],
 )
-def test_the_description_the_model_reads_says_the_source_is_a_curated_offline_set(definition) -> None:
+def test_the_description_the_model_reads_says_the_source_is_an_offline_copy(definition) -> None:
     """The description is the only thing the tool selector sees, so it is where
     the honesty has to live.
 
     The CVE tool's said it queried "authoritative CVE vulnerability
     intelligence" while holding a hand-maintained table of a dozen entries and
     no live feed. A model shown that will offer the answer with the confidence
-    the word "authoritative" buys it.
+    the word "authoritative" buys it. Since the synced store (plan PR 6/7) the
+    source is a local copy of the real feeds, and the description says it is a
+    copy: offline and not live.
     """
 
     text = definition.description.lower()
 
-    assert "curated" in text
     assert "offline" in text
+    assert "not live" in text or "local" in text
     assert "authoritative" not in text

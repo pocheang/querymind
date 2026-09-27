@@ -428,6 +428,10 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "网络攻击模式工具静态定义常量对象，不可变元数据，多进程可各自持有独立实例",
     ),
+    "app/tools/cyber/cve_tools.py::PRODUCT_EXPOSURE_TOOL_DEFINITION": (
+        "D",
+        "产品版本暴露面查询工具静态定义常量对象，不可变元数据，多进程可各自持有独立实例",
+    ),
     "app/tools/cyber/cve_tools.py::CVE_TOOL_DEFINITION": (
         "D",
         "CVE 漏洞查询工具静态定义常量对象，不可变元数据，多进程可各自持有独立实例",
