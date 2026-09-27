@@ -120,6 +120,13 @@ EDITABLE: tuple[EditableField, ...] = (
         "WEB_STRICT_ALLOWLIST", "web", "Strict allowlist mode: reject all domains not in WEB_DOMAIN_ALLOWLIST."
     ),
     EditableField("WEB_MIN_SOURCE_SCORE", "web", "Minimum source trust score threshold for web citations."),
+    EditableField(
+        "WEB_FETCH_PAGES_ENABLED",
+        "web",
+        "Read the pages a search returned, not only their snippets (allowed hosts only).",
+    ),
+    EditableField("WEB_FETCH_MAX_PAGES", "web", "How many accepted results per search have their page read (1-5)."),
+    EditableField("WEB_FETCH_TIMEOUT_SECONDS", "web", "Timeout in seconds for reading one page."),
     # --- answer --------------------------------------------------------------
     # --- images -------------------------------------------------------------
     # Captioning is what makes an image searchable when OCR cannot read it -- a

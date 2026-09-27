@@ -367,6 +367,18 @@ class Settings(BaseSettings):
     web_search_timeout_seconds: int = Field(default=15, ge=1, le=120, alias="WEB_SEARCH_TIMEOUT_SECONDS")
     web_search_max_retries: int = Field(default=2, ge=0, le=10, alias="WEB_SEARCH_MAX_RETRIES")
     web_strict_allowlist: bool = Field(default=True, alias="WEB_STRICT_ALLOWLIST")
+    web_fetch_pages_enabled: bool = Field(default=True, alias="WEB_FETCH_PAGES_ENABLED")
+    """Read the pages a web search returned, not only their snippets.
+
+    A snippet is 100-300 characters, which cannot support a paragraph; an answer
+    built on snippets alone either stays a sentence long or is filled from the
+    model's own knowledge. Fetching reaches only hosts that already passed the
+    source filter (see `app/tools/web/page_fetch.py` for the SSRF rules), and
+    sends nothing about the user. A switch because it is a policy: it makes the
+    server request third-party pages, and some deployments must not.
+    """
+    web_fetch_max_pages: int = Field(default=3, ge=1, le=5, alias="WEB_FETCH_MAX_PAGES")
+    web_fetch_timeout_seconds: float = Field(default=4.0, ge=1.0, le=15.0, alias="WEB_FETCH_TIMEOUT_SECONDS")
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
     bing_search_api_key: str | None = Field(default=None, alias="BING_SEARCH_API_KEY")
     searxng_base_url: str | None = Field(default=None, alias="SEARXNG_BASE_URL")
