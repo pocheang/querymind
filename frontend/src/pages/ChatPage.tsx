@@ -89,7 +89,10 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const modeParam = searchParams.get("mode");
-    if (modeParam && ["cybersecurity", "artificial_intelligence", "pdf_text", "general"].includes(modeParam)) {
+    if (
+      modeParam &&
+      ["cybersecurity", "artificial_intelligence", "pdf_text", "data_analysis", "general"].includes(modeParam)
+    ) {
       setAgentClassHint(modeParam as AgentClassHint);
     }
   }, [searchParams, setAgentClassHint]);

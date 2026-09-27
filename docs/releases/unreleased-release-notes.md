@@ -123,6 +123,7 @@ docker compose -f deploy/compose/compose.yaml down
 | `WEB_FETCH_PAGES_ENABLED` | `true` | read the pages a web search returned, not only their snippets; set `false` where the server must not request third-party pages |
 | `WEB_FETCH_MAX_PAGES` | `3` | accepted results per search whose page is read (1–5) |
 | `WEB_FETCH_TIMEOUT_SECONDS` | `4` | per page; pages are read in parallel |
+| `STAGE_TIMEOUT_TOOL_MS` | `30000` (was `10000`) | ceiling for the whole tool loop; a data-analysis question takes three model calls plus a SQL translation (14–22s measured). A deployment that pinned the old value keeps it |
 
 ### API changes
 

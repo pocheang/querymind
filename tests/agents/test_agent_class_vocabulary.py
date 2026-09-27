@@ -185,7 +185,8 @@ def test_an_upload_label_is_always_a_known_class() -> None:
 
 def _frontend_union() -> set[str]:
     source = _FRONTEND_TYPES.read_text(encoding="utf-8")
-    match = re.search(r"export type AgentClassHint = ([^;]+);", source)
+    # `\s*`, not a space: prettier breaks the union onto its own line once it is long.
+    match = re.search(r"export type AgentClassHint =\s*([^;]+);", source)
     assert match, f"{_FRONTEND_TYPES.name} no longer declares AgentClassHint"
     return set(re.findall(r'"([^"]*)"', match.group(1)))
 

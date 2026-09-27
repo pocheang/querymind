@@ -1,8 +1,8 @@
 """The offline routing rules, measured question by question against a labelled set.
 
 This is the first measurement behind "Router accuracy" in the quality table,
-which had none. Measured 2026-09-27 over 52 questions: the keyword rules pick
-the right specialist for 46 -- 46 of the 49 whose class has a specialist today.
+which had none. Measured 2026-09-27 over 59 questions: the keyword rules pick
+the right specialist for 51 -- 51 of the 57 whose class has a specialist today.
 Every miss is in `KNOWN_MISROUTES` with the exact wrong answer.
 
 Pinned per question, not as an aggregate, so a failure names the question, and
@@ -26,9 +26,9 @@ CASES = load_cases()
 REPORT = evaluate(CASES)
 OUTCOMES = {outcome.case.id: outcome for outcome in REPORT.outcomes}
 
-# Classes a label may name before a specialist exists for them, each with the
-# plan PR that adds it. Anything else must already be a known class.
-PENDING_CLASSES = {"data_analysis": "plan PR 9"}
+# Classes a label may name before a specialist answers them, each with the plan
+# PR that adds it. Anything else must already be a known class.
+PENDING_CLASSES = {"policy": "plan PR 10 (compliance)"}
 
 _CJK = re.compile(r"[㐀-鿿]")
 
@@ -109,6 +109,6 @@ def test_the_metric_can_fail() -> None:
 def test_the_measured_accuracy() -> None:
     """The headline numbers, derived from the per-question pins above; they move only when a pin does."""
 
-    assert REPORT.class_accuracy == pytest.approx(46 / 52)
+    assert REPORT.class_accuracy == pytest.approx(51 / 59)
     assert REPORT.per_class["general"] == (12, 12)
     assert REPORT.per_class["pdf_text"] == (6, 6)

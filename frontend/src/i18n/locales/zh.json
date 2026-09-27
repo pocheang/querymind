@@ -743,6 +743,14 @@
       "agentPdfCap3": "制度条款与规范表格提取",
       "agentPdfCap4": "私有解析 100% 零数据外传",
       "agentPdfAction": "进入文档研判",
+      "agentDataTitle": "数据分析专家",
+      "agentDataBadge": "SQL 口径可查",
+      "agentDataDesc": "对你上传的 Excel、CSV 和文档里的表格做合计、平均、分组与排名，每个数字都附上执行的 SQL。",
+      "agentDataCap1": "先列出可查询的表，再按问题生成只读 SQL",
+      "agentDataCap2": "结论、口径、结果表、注意事项四段式回答",
+      "agentDataCap3": "只能查询你自己的表、公开表与共享语料",
+      "agentDataCap4": "表头与单元格不会影响下一步工具选择",
+      "agentDataAction": "进入数据分析",
       "agentGeneralTitle": "General Analyst 综合分析",
       "agentGeneralBadge": "高管决策",
       "agentGeneralDesc": "跨领域信息提炼与管理决策报告，输出清晰的 5 点式 Executive Summary 与多维优劣矩阵。",
@@ -1617,6 +1625,10 @@
     "pdfText": {
       "title": "PDF 阅读",
       "desc": "文档问答，附证据抽取与引用。"
+    },
+    "dataAnalysis": {
+      "title": "数据分析",
+      "desc": "对上传表格做汇总、分组与筛选，给出 SQL 口径。"
     },
     "general": {
       "title": "综合分析",

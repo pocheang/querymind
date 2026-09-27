@@ -551,7 +551,12 @@ class Settings(BaseSettings):
     stage_timeout_route_ms: int = Field(default=8_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_ROUTE_MS")
     stage_timeout_plan_ms: int = Field(default=5_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_PLAN_MS")
     stage_timeout_retrieval_ms: int = Field(default=30_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_RETRIEVAL_MS")
-    stage_timeout_tool_ms: int = Field(default=10_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_TOOL_MS")
+    # The whole tool loop: up to TOOL_MAX_STEPS selections, each a model call
+    # (3.5-6.7s measured), plus what the tools themselves call. The data-analysis
+    # loop -- list, query with an NL->SQL model call, then a selection that stops
+    # -- measured 14.1s and 22.1s, so 10s cut every table question off before its
+    # answer. The stage ceilings still sum to 113s of the 120s total.
+    stage_timeout_tool_ms: int = Field(default=30_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_TOOL_MS")
     stage_timeout_synthesis_ms: int = Field(default=30_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_SYNTHESIS_MS")
     stage_timeout_finalization_ms: int = Field(default=8_000, ge=500, le=120_000, alias="STAGE_TIMEOUT_FINALIZATION_MS")
     stage_timeout_overhead_ms: int = Field(default=2_000, ge=0, le=60_000, alias="STAGE_TIMEOUT_OVERHEAD_MS")

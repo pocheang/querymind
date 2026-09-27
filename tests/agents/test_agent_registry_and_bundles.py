@@ -152,8 +152,10 @@ def test_domain_extension_bundle_registers_both_agent_and_tools():
     assert agent_reg.get_agent("data_analysis") is not None
     # 2. Verify tool provider registered
     tools = tool_reg.get_tools_by_category(ToolCategory.DATA_ANALYSIS)
-    assert len(tools) == 1
-    assert tools[0].tool_id == "querymind_data_sql_query"
+    tool_ids = {tool.tool_id for tool in tools}
+    assert "querymind_data_sql_query" in tool_ids
+    # An extension joins the category; it does not displace the built-in table tools.
+    assert {"querymind_table_list", "querymind_table_query"} <= tool_ids
 
     desc = bundle.describe()
     assert desc["domain_id"] == "data_analysis_suite"

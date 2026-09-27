@@ -23,6 +23,7 @@ Skills to choose from:
 - ai_knowledge_assistant: General AI/ML questions
 - ai_engineering_estimate: Work out a number for a model -- GPU memory, FLOPs, training time
 - pdf_text_reader: Extract and read PDF content
+- data_analysis_report: Compute over the user's tables -- totals, averages, group-bys, filters
 
 Agent classes -- which specialist should answer (choose exactly one):
 {agent_class_guide}
@@ -63,11 +64,16 @@ AGENT_CLASS_GUIDE = """1. cybersecurity（网络安全）
 3. pdf_text（文档与图片阅读）
    - 读取 PDF、图片、截图、扫描件里的原文：文本提取、OCR、按页或章节列出原文
    - 文件类型不决定归属：问题的主题属于其他类别时（例如漏洞扫描报告 PDF 里的漏洞），归那个类别
-4. general（通用知识）
-   - 不属于以上三个类别的其他问题
+4. data_analysis（数据分析）
+   - 对用户上传的表格（Excel、CSV、文档里的表）做计算：合计、平均、分组、筛选、排名、占比
+   - 问题要的是从表里算出来的数，归这里；文档里的表格也归这里，pdf_text 只能引用原文
+   - 不含数据安全、数据泄露（归 cybersecurity），也不含模型训练数据（归 artificial_intelligence）
+5. general（通用知识）
+   - 不属于以上四个类别的其他问题
 Examples: "如何实现访问控制？" -> cybersecurity; "LLM 遭遇 prompt 注入怎么防护？" -> cybersecurity;
 "解释一下Transformer模型" -> artificial_intelligence; "OCR 这张照片上的文字" -> pdf_text;
-"分析这个PDF文档" -> pdf_text; "今天天气怎么样？" -> general"""
+"分析这个PDF文档" -> pdf_text; "这份 pdf 里的表格合计是多少？" -> data_analysis;
+"今天天气怎么样？" -> general"""
 
 
 def build_router_prompt(few_shot_examples: str, agent_class_guide: str = AGENT_CLASS_GUIDE) -> str:

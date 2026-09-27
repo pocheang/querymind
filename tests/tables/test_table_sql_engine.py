@@ -347,8 +347,9 @@ def test_ingest_pipeline_registers_table_in_table_store(monkeypatch) -> None:
 @pytest.mark.usefixtures("_tool_stack")
 async def test_mcp_querymind_table_query_tool() -> None:
     from app.mcp.contracts import ToolArgument, ToolCall
-    from app.mcp.runtime import QUERY_TABLE_TOOL_ID, get_tool_stack
+    from app.mcp.runtime import get_tool_stack
     from app.orchestration.request import RequestActor
+    from app.tools.data_analysis.tables import TABLE_QUERY_TOOL_ID as QUERY_TABLE_TOOL_ID
 
     # Ensure table is in store
     store = get_table_store()
@@ -405,8 +406,9 @@ def test_nl2sql_prompt_injection_guardrail() -> None:
 @pytest.mark.usefixtures("_tool_stack")
 async def test_mcp_table_tool_blocks_prompt_injection() -> None:
     from app.mcp.contracts import ToolArgument, ToolCall
-    from app.mcp.runtime import QUERY_TABLE_TOOL_ID, get_tool_stack
+    from app.mcp.runtime import get_tool_stack
     from app.orchestration.request import RequestActor
+    from app.tools.data_analysis.tables import TABLE_QUERY_TOOL_ID as QUERY_TABLE_TOOL_ID
 
     get_table_store().save_table(
         "tenant_mcp",
@@ -440,8 +442,9 @@ async def test_mcp_table_tool_blocks_prompt_injection() -> None:
 @pytest.mark.usefixtures("_tool_stack")
 async def test_mcp_table_tool_reports_another_users_table_as_not_found() -> None:
     from app.mcp.contracts import ToolArgument, ToolCall
-    from app.mcp.runtime import QUERY_TABLE_TOOL_ID, get_tool_stack
+    from app.mcp.runtime import get_tool_stack
     from app.orchestration.request import RequestActor
+    from app.tools.data_analysis.tables import TABLE_QUERY_TOOL_ID as QUERY_TABLE_TOOL_ID
 
     get_table_store().save_table(
         "tenant_mcp",

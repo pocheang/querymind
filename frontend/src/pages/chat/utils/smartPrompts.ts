@@ -19,6 +19,15 @@ function getAgentPrompts(agentClass: string, isZh: boolean): string[] {
           "Compare alternative AI methodologies, pros, and trade-offs",
         ];
   }
+  if (agentClass === "data_analysis") {
+    return isZh
+      ? ["按其他维度再分组看一遍", "列出结果里的空值和异常值", "说明这个结果用了哪张表和哪条 SQL"]
+      : [
+          "Break the same figure down by another dimension",
+          "List the empty and outlying values in this result",
+          "State which table and which SQL produced this result",
+        ];
+  }
   if (agentClass === "pdf_text") {
     return isZh
       ? ["提取文档中的关键数据和证据", "总结文档的核心要点和结论", "分析文档中的风险点和建议"]

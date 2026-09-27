@@ -36,7 +36,7 @@ __all__ = [
 DEFAULT_PATH = Path(__file__).resolve().parents[2] / "config" / "eval" / "specialist_routing.json"
 
 # Question id -> ((agent_class, skill) the offline rules return today, why).
-# Each entry is a known gap, not an accepted answer. Measured 2026-09-27.
+# Each entry is a known gap, not an accepted answer. Measured 2026-09-27 (59 questions since the data-analysis specialist).
 #
 # The keyword-rule entries are deliberately left as they are rather than "fixed"
 # by adding the missing words: a keyword added to pass one question here is
@@ -44,10 +44,6 @@ DEFAULT_PATH = Path(__file__).resolve().parents[2] / "config" / "eval" / "specia
 # list change needs its own justification and a counter-example in this set.
 KNOWN_MISROUTES: dict[str, tuple[tuple[str, str], str]] = {
     # Classes that have no specialist yet. These close in the PR that adds one.
-    "edge-04": (
-        ("pdf_text", "pdf_text_reader"),
-        "no data_analysis specialist yet (plan PR 9); 'pdf' is the only matching keyword",
-    ),
     "edge-08": (("general", "answer_with_citations"), "no compliance specialist yet (plan PR 10)"),
     "edge-09": (("general", "answer_with_citations"), "no compliance specialist yet (plan PR 10)"),
     # Keyword-rule limits.
@@ -58,6 +54,18 @@ KNOWN_MISROUTES: dict[str, tuple[tuple[str, str], str]] = {
     "ai-10": (
         ("general", "answer_with_citations"),
         "'neural network' is only listed in Chinese (神经网络)",
+    ),
+    "data-01": (
+        ("general", "answer_with_citations"),
+        "'销售表' carries no data keyword: '表' alone is left out because it is inside 代表, 表示 and 发表",
+    ),
+    "data-06": (
+        ("general", "answer_with_citations"),
+        "'table' is not a data keyword: routing tables, hash tables and tables of contents are not data analysis",
+    ),
+    "edge-13": (
+        ("general", "answer_with_citations"),
+        "'泄露' is not a security keyword; the model router is needed",
     ),
     "edge-10": (
         ("cybersecurity", "cyber_attack_analysis"),

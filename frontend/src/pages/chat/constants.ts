@@ -28,6 +28,11 @@ export const AGENT_MODES: Array<{
   { key: "cybersecurity", title: "Cybersecurity", desc: "Threat analysis, incident response, and security hardening." },
   { key: "artificial_intelligence", title: "AI Research", desc: "LLM, RAG, and AI system design expertise." },
   { key: "pdf_text", title: "PDF Reader", desc: "Document Q&A with evidence extraction and citations." },
+  {
+    key: "data_analysis",
+    title: "Data Analysis",
+    desc: "Totals, group-bys and filters over your tables, with the SQL shown.",
+  },
   { key: "general", title: "General Analyst", desc: "Cross-domain analysis and executive summaries." },
 ];
 

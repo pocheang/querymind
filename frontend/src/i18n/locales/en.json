@@ -743,6 +743,14 @@
       "agentPdfCap3": "Regulatory tables & clause extraction",
       "agentPdfCap4": "Air-gapped 100% private document parsing",
       "agentPdfAction": "Try PDF Reader",
+      "agentDataTitle": "Data Analysis Specialist",
+      "agentDataBadge": "SQL shown",
+      "agentDataDesc": "Totals, averages, group-bys and rankings over your uploaded spreadsheets, CSVs and document tables -- every number comes with the SQL that produced it.",
+      "agentDataCap1": "Lists the tables you can query, then runs read-only SQL",
+      "agentDataCap2": "Conclusion, method, result table and caveats",
+      "agentDataCap3": "Only your own tables, public tables and the shared corpus",
+      "agentDataCap4": "Table headers and cells never steer the next tool choice",
+      "agentDataAction": "Try Data Analysis",
       "agentGeneralTitle": "Executive Analyst",
       "agentGeneralBadge": "Executive Synthesis",
       "agentGeneralDesc": "Cross-domain information synthesis delivering structured executive summaries, trade-off analysis, and roadmap advice.",
@@ -1617,6 +1625,10 @@
     "pdfText": {
       "title": "PDF Reader",
       "desc": "Document Q&A with evidence extraction and citations."
+    },
+    "dataAnalysis": {
+      "title": "Data Analysis",
+      "desc": "Totals, group-bys and filters over your tables, with the SQL shown."
     },
     "general": {
       "title": "General Analyst",

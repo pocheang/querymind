@@ -253,6 +253,34 @@ Example structure:
 误差与局限：未计入 <what is excluded>；<how it changes the real figure> [T1]
 """
 
+DATA_ANALYSIS_REPORT_TEMPLATE = """
+Answer template for a computation over the user's tables:
+
+1. Conclusion, in one line: the number or the ranking asked for, with its unit
+2. How it was computed: which table (its source file) and the SQL that produced it, cited to
+   the query result ([T1])
+3. Result: the rows that answer the question, as a small table copied from the query result
+4. Caveats: row count, empty or non-numeric values, a result cut off at the row limit, and
+   any column whose meaning the header does not settle
+
+Citation rules:
+- Every number MUST come from a query result, cited. Do not add, average or re-round the
+  rows yourself: a figure the SQL did not compute is not in the evidence
+- Name a column as the table names it; do not rename it to what it seems to mean. A
+  document that defines the column may settle it, cited as [E1]
+- If no table could be found or the query failed, say so and say what the user could upload
+  or ask instead -- never answer from general knowledge about similar data
+
+Example structure:
+结论：<number or ranking> [T2]
+口径：表 <source file>（<table_id>），SQL：<statement> [T2]
+结果：
+| <column> | <column> |
+|---|---|
+| <value> | <value> |
+注意事项：共 <n> 行；<empty values / truncation / ambiguous column> [T2]
+"""
+
 SKILL_TEMPLATES: dict[str, str] = {
     "timeline_builder": TIMELINE_TEMPLATE,
     "web_fact_check": WEB_FACT_CHECK_TEMPLATE,
@@ -261,6 +289,7 @@ SKILL_TEMPLATES: dict[str, str] = {
     "cyber_defense_hardening": DEFENSE_HARDENING_TEMPLATE,
     "vulnerability_exposure_assessment": VULNERABILITY_EXPOSURE_TEMPLATE,
     "ai_engineering_estimate": AI_ENGINEERING_ESTIMATE_TEMPLATE,
+    "data_analysis_report": DATA_ANALYSIS_REPORT_TEMPLATE,
     "pdf_text_reader": PDF_EXTRACTION_TEMPLATE,
 }
 """Skills whose answer has a shape of its own."""

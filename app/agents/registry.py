@@ -187,11 +187,18 @@ def _build_ai_agent() -> BaseSpecialistAgent:
     return AIAgentService()
 
 
+def _build_data_analysis_agent() -> BaseSpecialistAgent:
+    from app.agents.data_analysis.service import DataAnalysisAgentService
+
+    return DataAnalysisAgentService()
+
+
 #: Keyed by the agent class each factory builds, so a class an extension has
 #: already registered is skipped without building the built-in at all.
 _BUILTIN_AGENT_FACTORIES: dict[str, Callable[[], BaseSpecialistAgent]] = {
     AgentClass.CYBERSECURITY: _build_cybersecurity_agent,
     AgentClass.ARTIFICIAL_INTELLIGENCE: _build_ai_agent,
+    AgentClass.DATA_ANALYSIS: _build_data_analysis_agent,
 }
 
 _REGISTRY_LOCK = threading.Lock()
