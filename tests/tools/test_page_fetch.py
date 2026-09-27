@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import functools
 import socket
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -32,6 +33,16 @@ PUBLIC = "93.184.216.34"
 
 def _allow_all(_url: str) -> bool:
     return True
+
+
+def _only(host: str):
+    """A source filter allowing exactly one host, compared as a parsed hostname.
+
+    A substring test would let `docs.example.org.evil.com` through, which is the
+    mistake the real filter must not make either.
+    """
+
+    return lambda url: urlsplit(url).hostname == host
 
 
 @pytest.fixture(autouse=True)
@@ -108,7 +119,7 @@ def test_a_host_the_source_filter_rejects_is_refused(resolve):
     asked = resolve(PUBLIC)
 
     with pytest.raises(PageFetchRefused, match="not an allowed source"):
-        page_fetch._checked_host("https://blog.example.com/a", lambda url: "example.org" in url)
+        page_fetch._checked_host("https://blog.example.com/a", _only("example.org"))
     assert asked == []
 
 
@@ -203,9 +214,7 @@ def test_a_redirect_to_a_host_the_filter_rejects_is_not_followed(resolve, serve)
         )
     )
 
-    text = fetch_page_text(
-        "https://docs.example.org/", host_allowed=lambda url: "docs.example.org" in url, timeout_seconds=2
-    )
+    text = fetch_page_text("https://docs.example.org/", host_allowed=_only("docs.example.org"), timeout_seconds=2)
 
     assert text is None
     assert [request.headers["host"] for request in seen] == ["docs.example.org"]
