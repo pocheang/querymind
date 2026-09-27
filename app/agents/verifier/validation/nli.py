@@ -63,6 +63,22 @@ _SUPPORT_THRESHOLD = 0.25
 # Above this share of unsupported sentences the stage raises an issue.
 _UNSUPPORTED_SHARE = 0.3
 
+# Each claim is scored against short passages of the sources, not all of them
+# at once. The sources used to be joined into one premise, and that failed in
+# two ways, measured on 2026-09-27 against the configured MiniLM cross-encoder:
+# with read web pages the joined premise reached 3,810 tokens and the model
+# keeps 512, so a claim citing the third source was scored against text that
+# no longer contained it; and even a single 400-token source made the model
+# answer "neutral" -- a sentence copied word for word from it scored 0.08. NLI
+# models are trained on sentence-length premises. A premise is now a window of
+# about `_PREMISE_CHARS`, and each claim meets only the `_PREMISES_PER_CLAIM`
+# windows sharing the most words with it, so the batch stays claims x 2 short
+# pairs -- cheaper than the long pairs it replaced (0.15-0.76 s measured, inside
+# the 1.2 s stage budget; scoring every window took 10-23 s). A claim's score is
+# its best window's.
+_PREMISE_CHARS = 300
+_PREMISES_PER_CLAIM = 2
+
 
 def tokenize(text: str) -> set[str]:
     return set(_TOKEN_PATTERN.findall((text or "").lower()))
@@ -158,9 +174,10 @@ class NLIValidator:
             reason = "model_unavailable" if is_predominantly_latin(request.answer) else "non_latin_text"
             return _lexical(sentences, source_text, start_time, reason)
 
+        documents = [doc.content for doc in request.source_docs[:5] if doc.content]
         try:
             scores = await asyncio.wait_for(
-                asyncio.to_thread(_score_sentences, model, source_text, sentences),
+                asyncio.to_thread(_score_sentences, model, documents, sentences),
                 timeout=max(0.05, self.timeout_ms / 1000),
             )
         except TimeoutError:
@@ -217,12 +234,52 @@ def _softmax(row: Any) -> Any:
     return exponentiated / exponentiated.sum()
 
 
-def _score_sentences(model: Any, source_text: str, sentences: list[str]) -> list[float]:
+def premise_windows(documents: list[str]) -> list[str]:
+    """Short passages of the sources, each a few sentences, plus each adjacent pair.
+
+    Lines are split first: a read web page arrives one paragraph or table row
+    per line. The joined pairs let a claim that spans a window boundary meet
+    both halves at once.
+    """
+
+    windows: list[str] = []
+    for document in documents:
+        units = [unit for line in document.split("\n") for unit in split_sentences(line) if unit.strip()]
+        packed = _pack(units)
+        windows.extend(packed)
+        windows.extend(f"{first} {second}" for first, second in zip(packed, packed[1:], strict=False))
+    return windows
+
+
+def _pack(units: list[str]) -> list[str]:
+    packed: list[str] = []
+    current = ""
+    for unit in units:
+        if current and len(current) + len(unit) + 1 > _PREMISE_CHARS:
+            packed.append(current)
+            current = unit
+        else:
+            current = f"{current} {unit}".strip()
+    if current:
+        packed.append(current)
+    return packed
+
+
+def _closest_windows(sentence: str, windows: list[str]) -> list[str]:
+    tokens = tokenize(sentence)
+    if not tokens:
+        return windows[:_PREMISES_PER_CLAIM]
+    ranked = sorted(windows, key=lambda window: -len(tokens & tokenize(window)))
+    return ranked[:_PREMISES_PER_CLAIM]
+
+
+def _score_sentences(model: Any, documents: list[str], sentences: list[str]) -> list[float]:
     """The synchronous core. Knows nothing about asyncio, by design.
 
     Same shape as `rerank_with_diagnostics`: the blocking call is wrapped in the
     process-wide breaker, and the async layer above owns the thread hop and the
-    timeout.
+    timeout. One `predict` call for every (window, claim) pair; each claim keeps
+    its best window's score -- see `_PREMISE_CHARS` for why windows at all.
 
     `model.predict` returns raw logits, not probabilities. The old code clamped
     them into [0, 1], which made nearly every score exactly 0.0 or 1.0; softmax
@@ -232,14 +289,24 @@ def _score_sentences(model: Any, source_text: str, sentences: list[str]) -> list
 
     import numpy as np
 
-    raw = call_with_circuit_breaker(
-        "validation.nli.predict",
-        lambda: model.predict([(source_text, sentence) for sentence in sentences]),
-    )
-    if not isinstance(raw, np.ndarray) or raw.ndim < 2:
+    windows = premise_windows(documents)
+    pairs: list[tuple[str, str]] = []
+    owners: list[int] = []
+    for index, sentence in enumerate(sentences):
+        for window in _closest_windows(sentence, windows):
+            pairs.append((window, sentence))
+            owners.append(index)
+    if not pairs:
+        return [0.5] * len(sentences)
+
+    raw = call_with_circuit_breaker("validation.nli.predict", lambda: model.predict(pairs))
+    if not isinstance(raw, np.ndarray) or raw.ndim < 2 or len(raw) != len(pairs):
         return [0.5] * len(sentences)
     column = min(entailment_index(model), raw.shape[1] - 1)
-    return [float(_softmax(raw[index])[column]) for index in range(len(sentences))]
+    best = [0.0] * len(sentences)
+    for owner, row in zip(owners, raw, strict=True):
+        best[owner] = max(best[owner], float(_softmax(row)[column]))
+    return best
 
 
 def _lexical(sentences: list[str], source_text: str, start_time: float, reason: str) -> CascadeResult:
