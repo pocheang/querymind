@@ -8,6 +8,13 @@ allow-lists, so it always names an exact position in the evidence list.
 ``number_evidence_markers``, numbered by first appearance the way a paper's
 reference list is.  Nothing between synthesis and the output filter should have
 to know about the second form.
+
+``[T1]`` marks a fact taken from a governed tool result. It has its own label
+space on purpose: a tool result is not evidence -- it is not a retrieved
+document, carries no document id and is never masked as one -- so it must not
+borrow an ``[E{k}]`` number, and ``citation_labels_from_contexts`` is never
+given the tool section. The output filter renumbers ``[T{k}]`` by first
+appearance, like ``[E{k}]``, and lists the tools under their own heading.
 """
 
 from __future__ import annotations
@@ -16,7 +23,7 @@ import re
 from collections.abc import Collection, Sequence
 from pathlib import Path
 
-from app.domain.contracts import EvidenceItem
+from app.domain.contracts import EvidenceItem, ToolResult
 
 _CITATION_LABEL_PATTERN = r"[A-Za-z0-9_.-]+(?::[A-Za-z0-9_.-]+)?"
 _EVIDENCE_RECORD_RE = re.compile(rf"(?m)^\s*\[({_CITATION_LABEL_PATTERN})\][ \t]+\S")
@@ -26,7 +33,16 @@ _BRACKETED_MARKER_RE = re.compile(r"\[([^\]\r\n]+)\](?!\()")
 EVIDENCE_MARKER_RE = re.compile(r"\[E(\d+)\]")
 """The one place the internal evidence-marker shape is defined."""
 
+TOOL_MARKER_RE = re.compile(r"\[T(\d+)\]")
+"""The one place the tool-result marker shape is defined."""
+
+# A tool record in the prompt's tool section: `[T1] (tool_id) ...` at the
+# start of a line. Only the tool section is ever scanned with this.
+_TOOL_RECORD_RE = re.compile(r"(?m)^\[(T\d+)\][ \t]")
+
 _REFERENCE_HEADINGS = {"zh": "参考来源", "en": "References"}
+_TOOL_SOURCE_HEADINGS = {"zh": "工具来源", "en": "Tool sources"}
+_TOOL_SOURCE_SUMMARY_CHARS = 160
 
 # A whole run of spaces, plus the punctuation after it when there is one. The
 # optional group means a match cannot fail once it has started.
@@ -42,6 +58,79 @@ def citation_labels_from_contexts(*contexts: str) -> frozenset[str]:
     return frozenset(
         label.strip() for context in contexts for label in _EVIDENCE_RECORD_RE.findall(context or "") if label.strip()
     )
+
+
+def citable_tool_results(tool_results: Sequence[ToolResult]) -> tuple[ToolResult, ...]:
+    """The tool results an answer may cite, in ``[T1]``, ``[T2]``, ... order.
+
+    Only a tool that ran and said something: a failure or a pending approval
+    reports that an action did NOT happen, which is worth telling the reader
+    and is not a fact to attribute. A ``derived`` result -- a specialist's
+    regex over material the model already has -- is never citable: a citation
+    pointing at a derivation instead of a source is the thing
+    ``BaseSpecialistAgent.domain_findings`` exists to prevent.
+
+    The synthesizer numbers the prompt with this and the output filter
+    resolves markers with it, over the same tuple, so ``[T{k}]`` names the
+    same result at both ends.
+    """
+
+    return tuple(
+        result
+        for result in tool_results
+        if result.status == "succeeded" and result.summary.strip() and not result.derived
+    )
+
+
+def tool_citation_labels(tool_context: str) -> frozenset[str]:
+    """The ``T{k}`` labels the prompt's tool section offers."""
+
+    return frozenset(_TOOL_RECORD_RE.findall(tool_context or ""))
+
+
+def number_tool_markers(text: str, citable: Sequence[ToolResult]) -> tuple[str, tuple[ToolResult, ...]]:
+    """Rewrite ``[T{k}]`` by first appearance, dropping any that resolve to nothing.
+
+    The same rule ``number_evidence_markers`` applies to ``[E{k}]``: numbered
+    in reading order, and a marker past the end of the list removed rather
+    than left pointing at no entry. The same tool cited twice keeps one number.
+    """
+
+    cited: list[ToolResult] = []
+    numbers: dict[int, int] = {}
+
+    def renumber(match: re.Match[str]) -> str:
+        index = int(match.group(1))
+        if index < 1 or index > len(citable):
+            return ""
+        number = numbers.get(index)
+        if number is None:
+            number = len(cited) + 1
+            numbers[index] = number
+            cited.append(citable[index - 1])
+        return f"[T{number}]"
+
+    return _tidy_spacing(TOOL_MARKER_RE.sub(renumber, str(text or ""))), tuple(cited)
+
+
+def render_tool_source_list(cited: Sequence[ToolResult], language: str = "zh") -> str:
+    """The tool sources section, appended after the reference list.
+
+    Each line names the tool and the first line of what it returned, so a
+    reader can see where a number came from without opening the tool panel.
+    The caller runs output DLP over the result: the summary is tool output.
+    """
+
+    if not cited:
+        return ""
+    heading = _TOOL_SOURCE_HEADINGS.get(language, _TOOL_SOURCE_HEADINGS["zh"])
+    lines = [f"**{heading}**", ""]
+    for number, result in enumerate(cited, start=1):
+        first_line = result.summary.strip().splitlines()[0].strip()
+        if len(first_line) > _TOOL_SOURCE_SUMMARY_CHARS:
+            first_line = first_line[: _TOOL_SOURCE_SUMMARY_CHARS - 1].rstrip() + "…"
+        lines.append(f"- [T{number}] {result.tool_id}: {first_line}")
+    return "\n".join(lines)
 
 
 def normalize_answer_citations(text: str, allowed_labels: Collection[str]) -> str:
@@ -352,7 +441,12 @@ def _tidy_spacing(text: str) -> str:
 
 __all__ = [
     "EVIDENCE_MARKER_RE",
+    "TOOL_MARKER_RE",
+    "citable_tool_results",
     "citation_labels_from_contexts",
+    "number_tool_markers",
+    "render_tool_source_list",
+    "tool_citation_labels",
     "normalize_answer_citations",
     "number_evidence_markers",
     "reference_label",

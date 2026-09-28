@@ -72,6 +72,7 @@ def specification_tool_result(specs: dict[str, list[str]]) -> ToolResult | None:
     return ToolResult(
         tool_id=SPECIFICATIONS_TOOL_ID,
         status="succeeded",
+        derived=True,
         summary="Specifications extracted from the question and retrieved material -- " + "; ".join(lines),
     )
 

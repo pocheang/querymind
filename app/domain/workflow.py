@@ -14,6 +14,7 @@ from app.domain.contracts import (
     EvidenceItem,
     FinalAnswer,
     TaskPlan,
+    ToolResult,
 )
 from app.domain.events import ExecutionEvent
 from app.domain.knowledge import AccessScope, EvidenceRef, KnowledgeSource, KnowledgeStrategy, MemoryItem
@@ -72,6 +73,12 @@ class CandidateAnswer(ImmutableWorkflowContract):
 
     text: str
     citations: tuple[EvidenceRef, ...] = Field(default_factory=tuple)
+    # The tool results the answer was allowed to cite, in `[T1]`, `[T2]`, ...
+    # order, and the labels it actually cited. Carried so the verifier can
+    # count a tool-backed claim as supported: a CVSS score from the CVE lookup
+    # is a fact with a source, and was being hedged as one without.
+    tool_sources: tuple[ToolResult, ...] = Field(default_factory=tuple)
+    tool_citations: tuple[str, ...] = Field(default_factory=tuple)
     unresolved_items: tuple[str, ...] = Field(default_factory=tuple)
     # The model's own <think> block, only ever present when the caller opted
     # in (`use_reasoning=True`) -- see extract_reasoning_block

@@ -9,8 +9,11 @@ from typing import Any, Protocol
 
 from app.agents.shared.config import SKILL_DEFAULT
 from app.agents.synthesizer.citations import (
+    citable_tool_results,
     number_evidence_markers,
+    number_tool_markers,
     render_reference_list,
+    render_tool_source_list,
     strip_model_reference_list,
 )
 from app.domain.contracts import (
@@ -506,14 +509,18 @@ class WorkflowNodeRuntime:
             # Every string the rendered list carries (source, page) is already
             # returned verbatim in `citations`, so appending it after inspection
             # discloses nothing this same response did not already carry.
-            reference_list = render_reference_list(references, _reference_language(request, numbered))
+            language = _reference_language(request, numbered)
+            reference_list = render_reference_list(references, language)
+            numbered, tool_list, tool_redactions = _tool_sources(
+                self._services.privacy, numbered, answer.tool_results, language, scope
+            )
             # A model that wrote its own reference section gets it removed first.
             # This is the only place that knows which citations survived DLP and
             # what number each item got, so the model's copy is redundant by
             # construction -- and a real answer carried both headings, the model's
             # one listing `<URL_7>`.
             numbered = strip_model_reference_list(numbered)
-            final_text = f"{numbered}\n\n{reference_list}" if reference_list else numbered
+            final_text = "\n\n".join(part for part in (numbered, reference_list, tool_list) if part)
             labels = tuple(_citation_label(item.source, item.page) for item in references)
             # The full authorized set, not just what got cited. Narrowing
             # `evidence` to the citations made "retrieved context" and
@@ -545,7 +552,9 @@ class WorkflowNodeRuntime:
                     "safety": {
                         **dict(answer.safety),
                         "output_dlp": {
-                            "redactions": dlp.redaction_count + (reasoning_dlp.redaction_count if reasoning_dlp else 0),
+                            "redactions": dlp.redaction_count
+                            + (reasoning_dlp.redaction_count if reasoning_dlp else 0)
+                            + tool_redactions,
                             "dropped_citations": len(dlp.dropped_citation_ids),
                         },
                     },
@@ -721,6 +730,31 @@ def _knowledge_hints(route: RouteDecision) -> frozenset[str]:
     if actual == "hybrid":
         return frozenset({"vector", "bm25", "graph"})
     return frozenset({"vector", "bm25"})
+
+
+def _tool_sources(
+    privacy: Any,
+    answer_text: str,
+    tool_results: tuple[ToolResult, ...],
+    language: str,
+    scope: AccessScope,
+) -> tuple[str, str, int]:
+    """Number the answer's ``[T{k}]`` markers and render the tool-source list.
+
+    Numbered over the same citable results the synthesizer offered, and listed
+    under a heading of their own: a tool is not a document and must not take a
+    ``[n]``. The list quotes each tool's summary, which is tool output, so it
+    gets the same mandatory output-DLP pass as the answer before it is shown.
+
+    Returns the renumbered text, the list (empty when no tool was cited), and
+    how many redactions the list needed.
+    """
+
+    numbered, cited = number_tool_markers(answer_text, citable_tool_results(tool_results))
+    if not cited:
+        return numbered, "", 0
+    dlp = privacy.filter_output(render_tool_source_list(cited, language), (), scope)
+    return numbered, dlp.answer, dlp.redaction_count
 
 
 def _citation_label(source: str, page: int | None) -> str:

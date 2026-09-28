@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
 from app.core.config import Settings, get_settings
+from app.domain.contracts import ToolResult
 from app.domain.knowledge import EvidenceRef
 from app.domain.workflow import CandidateAnswer, ContextBundle, VerificationDecision
 from app.orchestration.request import OrchestrationRequest
@@ -41,9 +42,12 @@ class VerifierAgentService:
         citation_errors = _citation_errors(candidate.citations, context)
         conflicts = _conflicts(context)
         missing_aspects = list(candidate.unresolved_items)
-        if context.evidence and not candidate.citations:
+        if context.evidence and not candidate.citations and not candidate.tool_citations:
             missing_aspects.append("answer has no attributable citation")
-        if not context.evidence:
+        # A citable tool result is a source: an answer built from the CVE lookup
+        # alone has something to attribute to. Treating it as evidence-less sent
+        # it round a retry that re-ran retrieval and the tools for nothing.
+        if not context.evidence and not candidate.tool_sources:
             missing_aspects.append("no authorized evidence retrieved")
 
         documents = [
@@ -58,6 +62,11 @@ class VerifierAgentService:
             }
             for item in context.evidence
         ]
+        # Citable tool results are offered as support too, each as a document
+        # of its own, so a sentence taken from a tool result is checked against
+        # the result rather than scored unsupported against evidence that never
+        # contained it.
+        documents.extend(_tool_documents(candidate.tool_sources))
         citations = [
             {
                 "doc_id": ref.document_id,
@@ -68,6 +77,7 @@ class VerifierAgentService:
             }
             for ref in candidate.citations
         ]
+        citations.extend(_tool_citation_records(candidate))
         try:
             result = await self._validator(request.question, candidate.text, documents, citations)
         except asyncio.CancelledError:
@@ -207,6 +217,45 @@ def _citation_content(ref: EvidenceRef, context: ContextBundle) -> str:
         if (item.document_id, item.version, item.page, item.chunk_id, item.image_id) == key:
             return item.content
     return ""
+
+
+def _tool_document_id(index: int, result: ToolResult) -> str:
+    return f"tool:T{index}:{result.tool_id}"
+
+
+def _tool_documents(tool_sources: Sequence[ToolResult]) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": _tool_document_id(index, result),
+            "doc_id": _tool_document_id(index, result),
+            "content": result.summary,
+            "source": f"tool:{result.tool_id}",
+            "page": None,
+            "chunk_id": None,
+            "image_id": None,
+        }
+        for index, result in enumerate(tool_sources, start=1)
+    ]
+
+
+def _tool_citation_records(candidate: CandidateAnswer) -> list[dict[str, Any]]:
+    """One citation record per ``[T{k}]`` the answer used, resolving to its tool result."""
+
+    records = []
+    for label in candidate.tool_citations:
+        index = int(label[1:])
+        if 1 <= index <= len(candidate.tool_sources):
+            result = candidate.tool_sources[index - 1]
+            records.append(
+                {
+                    "doc_id": _tool_document_id(index, result),
+                    "content": result.summary,
+                    "page": None,
+                    "chunk_id": None,
+                    "image_id": None,
+                }
+            )
+    return records
 
 
 def _conflicts(context: ContextBundle) -> tuple[str, ...]:

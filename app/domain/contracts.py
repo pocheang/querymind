@@ -226,6 +226,12 @@ class ToolResult(ImmutableContract):
     approval_token: str | None = Field(default=None, min_length=24, max_length=256)
     summary: str = ""
     evidence_ids: tuple[str, ...] = Field(default_factory=tuple)
+    # True for a finding a specialist computed from material the model already
+    # has (a regex over the question and the evidence), as opposed to a tool
+    # that went and looked something up. Derived findings reach the model as
+    # tool output and are never citable as a source -- see
+    # app/agents/synthesizer/citations.py::citable_tool_results.
+    derived: bool = False
 
 
 class FinalAnswer(ImmutableContract):

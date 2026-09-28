@@ -139,6 +139,7 @@ def test_the_output_filter_strips_before_it_appends():
 
     source = inspect.getsource(nodes)
     strip_at = source.index("numbered = strip_model_reference_list(numbered)")
-    append_at = source.index('final_text = f"{numbered}')
+    # The assignment that appends the reference and tool-source lists.
+    append_at = source.index("final_text = ")
 
     assert strip_at < append_at, "the model's list is stripped after the real one is appended"

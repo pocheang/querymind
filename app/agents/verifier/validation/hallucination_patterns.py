@@ -29,6 +29,9 @@ _CJK_ENTITY_RE = re.compile(r"[一-鿿]{2,4}")
 compare an answer against its source: differently-tokenised sets would not
 be comparable, and nothing would say so."""
 
+_CITATION_MARKER_RE = re.compile(r"\[[ET]?\d+\]")
+"""An internal ``[E1]`` / ``[T1]`` or reader-facing ``[1]`` citation marker."""
+
 
 def _extract_dates(text: str) -> set[str]:
     """
@@ -358,6 +361,14 @@ def detect_entity_hallucinations(answer: str, source_text: str) -> list[Hallucin
         for entity in answer_entities - source_entities
         if entity not in _COMMON_ENGLISH_ENTITIES and entity not in _COMMON_CHINESE_ENTITIES
     }
+    if not _CJK_RUN_RE.search(source_text):
+        # A Chinese phrase cannot be found in a source with no Chinese in it,
+        # so its absence there says nothing about whether it was invented.
+        # Measured: a Chinese answer over the CVE lookup's English summary
+        # reported "之前", "修复方式" and "评分为" as missing entities and was
+        # rejected. The same reasoning keeps the NLI cross-encoder to Latin
+        # text. Latin names are still checked against a Latin source.
+        mismatched = {entity for entity in mismatched if not _CJK_RUN_RE.match(entity)}
     truly_missing = {e for e in mismatched if not _entity_is_in_source(e, source_text, source_entities)}
     likely_names = {e for e in truly_missing if _likely_proper_noun(e)}
 
@@ -492,6 +503,12 @@ def detect_all_patterns(answer: str, source_text: str) -> list[HallucinationPatt
         List of all detected hallucination patterns
     """
     all_issues = []
+    # Citation markers are not claims. The number pattern has no word
+    # boundary, so `[E1]`, `[T1]` and `[1]` each read as the number 1, and an
+    # answer whose sources happened to contain no "1" was reported as
+    # hallucinating it -- once per marker. Measured on a tool-cited answer:
+    # three "Number 1.0 not found in sources" issues and a rejection.
+    answer = _CITATION_MARKER_RE.sub(" ", answer or "")
 
     # Run all detectors
     all_issues.extend(detect_date_hallucinations(answer, source_text))
