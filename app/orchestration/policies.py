@@ -45,5 +45,17 @@ class ExecutionPolicy:
         return self.allow_planning and route.requires_plan
 
     def should_run_tools(self, route: RouteDecision, plan: TaskPlan | None) -> bool:
-        """Run tools only for an explicitly tool-enabled route and plan."""
-        return plan is not None and plan.requires_tools and "tool" in route.allowed_capabilities
+        """Run tools only for a tool-enabled route, and only as its plan allows.
+
+        A route that asked for a plan still needs one that requires tools: when
+        the planner times out the plan is None, and that has always meant tools
+        stay off. A route that never asked for a plan -- a `vector` route whose
+        specialist may consult its own read-only tools -- has no plan to wait
+        for, and requiring one made those tools unreachable on every vector
+        route: the planner is skipped, the plan stays None, the tools never run.
+        """
+        if "tool" not in route.allowed_capabilities:
+            return False
+        if route.requires_plan:
+            return plan is not None and plan.requires_tools
+        return True

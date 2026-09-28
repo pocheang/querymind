@@ -173,6 +173,11 @@ EDITABLE: tuple[EditableField, ...] = (
     EditableField("KNOWLEDGE_SOURCE_TIMEOUT_MS", "budgets", "Ceiling for one retrieval source."),
     EditableField("LLM_REQUEST_TIMEOUT_SECONDS", "budgets", "Ceiling for one model call."),
     EditableField("TOOL_MAX_STEPS", "budgets", "Select-invoke-observe rounds per request."),
+    EditableField(
+        "SPECIALIST_TOOLS_ENABLED",
+        "budgets",
+        "Let a specialist consult its own read-only tools. Costs one model call per specialist question.",
+    ),
     # --- security ------------------------------------------------------------
     EditableField(
         "STRICT_CSP",

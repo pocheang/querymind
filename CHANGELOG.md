@@ -20,6 +20,8 @@ Upgrade guide, new settings and API changes: [docs/releases/unreleased-release-n
 
 - Clarification now recognises a component, data source or scenario written in English directly next to Chinese text (for example `neo4j报错`, `数据源是mysql数据`) instead of asking for it again.
 - Session export no longer offers an "include context" option that always exported nothing.
+- The security and AI specialists now consult their own read-only tools (CVE lookup, ATT&CK lookup, calculator) on ordinary questions; before, those tools ran only when a question was routed as a multi-step task. A tool the user did not ask for can only read. `SPECIALIST_TOOLS_ENABLED` turns this off; it costs one tool-selection model call per specialist question.
+- The AI calculator's description now states each helper's arguments and units. It named none, and `param_gb` takes bits per parameter, so "2 bytes per parameter" was computed as 2 bits.
 - The router, the API and the intent classifier now share one list of agent classes, so a mode hint is honoured the same way everywhere, including a hint written in mixed case and a class that an extension registers.
 - Removed unused code: a second, uncalled streaming path, uncalled session import helpers, and the last unreachable functions.
 - Documentation site navigation is built without HTML string concatenation.

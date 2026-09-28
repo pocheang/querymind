@@ -7,6 +7,7 @@ import re
 from collections.abc import Callable
 
 from app.agents.clarification.rules import assess_completeness, missing_fields
+from app.core.config import get_settings
 from app.domain.contracts import RouteDecision
 from app.orchestration.request import OrchestrationRequest
 
@@ -75,13 +76,15 @@ class RouterAgentService:
                 f"Expected object with 'route', 'confidence', and 'reason' attributes."
             ) from exc
 
-        decision = _to_domain_route(
-            route,
-            confidence,
-            reason,
-            raw_confidence,
-            agent_class=agent_class,
-            skill=skill,
+        decision = _with_specialist_tools(
+            _to_domain_route(
+                route,
+                confidence,
+                reason,
+                raw_confidence,
+                agent_class=agent_class,
+                skill=skill,
+            )
         )
         if not missing:
             return decision
@@ -99,6 +102,36 @@ class RouterAgentService:
         from app.agents.router.routing import decide_route
 
         return decide_route(*args, **kwargs)
+
+
+def _with_specialist_tools(decision: RouteDecision) -> RouteDecision:
+    """Let the answering specialist consult its own read-only tools.
+
+    Only ``react`` carried the ``tool`` capability, and the router's prompt
+    reserves ``react`` for multi-step reasoning -- so a question such as
+    "look up the CVSS score of CVE-2022-22965" never reached the CVE lookup.
+    The route itself is left as chosen: retrieval still follows it, and
+    ``intent`` stays what it was, which is how the tool stage tells a
+    specialist consulting its tools from a user asking for an action (see
+    ``app/agents/tool/catalog.py``).
+
+    Greetings are left alone: they need no retrieval, and no tool either.
+    """
+
+    if "tool" in decision.allowed_capabilities or "smalltalk_local_only" in decision.reason:
+        return decision
+    if not get_settings().specialist_tools_enabled:
+        return decision
+    from app.agents.tool.catalog import specialist_offers_read_tools
+
+    if not specialist_offers_read_tools(decision.agent_class):
+        return decision
+    return decision.model_copy(
+        update={
+            "allowed_capabilities": decision.allowed_capabilities | {"tool"},
+            "reason": f"{decision.reason}|specialist_tools:{decision.agent_class}",
+        }
+    )
 
 
 def _to_domain_route(

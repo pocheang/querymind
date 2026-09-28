@@ -493,6 +493,12 @@ class Settings(BaseSettings):
     # governed invocation, and the whole loop shares one STAGE_TIMEOUT_TOOL_MS
     # ceiling, so this bounds cost rather than latency.
     tool_max_steps: int = Field(default=3, ge=1, le=8, alias="TOOL_MAX_STEPS")
+    # Whether a specialist may consult its own read-only tools on questions the
+    # router did not route to `react`. Without it those tools are reachable only
+    # when the router judges a question multi-step, which measured, on a real
+    # model, was none of six questions naming a CVE, a technique or a model
+    # size. On costs one tool-selection model call per specialist question.
+    specialist_tools_enabled: bool = Field(default=True, alias="SPECIALIST_TOOLS_ENABLED")
     # How much of retrieval has to succeed before an answer is worth attempting.
     # 1 keeps the default "any source is enough"; a higher number, or a list of
     # sources that must not fail, selects the stricter policies in
