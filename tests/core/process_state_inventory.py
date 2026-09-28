@@ -460,4 +460,12 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "只保护配额守卫单例的惰性构建，不持有任何状态",
     ),
+    "app/services/models/warmup.py::_state": (
+        "D",
+        "本进程模型预热的状态；每个 worker 各自加载自己的模型，状态也只描述本进程",
+    ),
+    "app/services/models/warmup.py::_lock": (
+        "D",
+        "保护本进程预热状态的互斥锁",
+    ),
 }

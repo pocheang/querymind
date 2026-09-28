@@ -58,6 +58,9 @@ ALLOWED: dict[str, str] = {
     "app/api/application/lifespan.py::_recover_unfinished_ingests": "test-run detection",
     # A test run must not persist structured tables into the developer's APP_DB_PATH.
     "app/services/tables/store.py::_default_db_path": "test-run detection",
+    # Starting an app or reloading configuration in a test must not load gigabytes
+    # of models in a background thread.
+    "app/services/models/warmup.py::start_model_warmup": "test-run detection",
     # A bootstrap credential must not become a Settings field, for the same
     # reason NACOS_PASSWORD is not one: a field can reach a config endpoint.
     "app/services/auth/bootstrap.py::ensure_admin_account": "first-run admin credential",

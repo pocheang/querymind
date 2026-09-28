@@ -18,6 +18,7 @@ Upgrade guide, new settings and API changes: [docs/releases/unreleased-release-n
 
 ### 🔧 Fixes and cleanup
 
+- The first question after a restart is answered from your documents. Each process used to load its embedding model (about 20 s) and reranker (5-8 s) inside the first request, past the 10 s retrieval limit, so the first question answered "no material found" and the same question worked seconds later. The models now load in the background when the process starts and again after a configuration reload; `/ready` answers 503 `warming` until they are loaded, and no longer loads a model itself or calls a remote embedding provider.
 - Clarification now recognises a component, data source or scenario written in English directly next to Chinese text (for example `neo4j报错`, `数据源是mysql数据`) instead of asking for it again.
 - Session export no longer offers an "include context" option that always exported nothing.
 - Removed unused code: a second, uncalled streaming path, uncalled session import helpers, and the last unreachable functions.
