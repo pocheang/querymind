@@ -1208,7 +1208,7 @@
       "analyzing": "分析中...",
       "startAnalysis": "开始分析",
       "modeHint": {
-        "advancedReasoning": "高级 RAG 推理已开启，查询分解与 Self-RAG。"
+        "advancedReasoning": "高级 RAG 推理已开启：查询分解。"
       },
       "stop": "停止",
       "clear": "清空",

@@ -1208,7 +1208,7 @@
       "analyzing": "Analyzing...",
       "startAnalysis": "Start analysis",
       "modeHint": {
-        "advancedReasoning": "Advanced RAG reasoning with query decomposition and Self-RAG."
+        "advancedReasoning": "Advanced RAG reasoning with query decomposition."
       },
       "stop": "Stop",
       "clear": "Clear",
