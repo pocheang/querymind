@@ -281,6 +281,38 @@ Example structure:
 注意事项：共 <n> 行；<empty values / truncation / ambiguous column> [T2]
 """
 
+COMPLIANCE_GAP_ANALYSIS_TEMPLATE = """
+Answer template for "does this practice or policy meet this regulation or standard":
+
+1. Conclusion, in one line: meets / partly meets / does not meet / cannot tell -- and against
+   which regulation or standard
+2. Clause by clause, as a table: the requirement (the clause, cited [E1]), the current practice
+   (from the user's own policy or description, cited [E2]), and a status: 满足 / 部分满足 / 缺失 /
+   无法判断
+3. Remediation: what to change for each clause that is not met, most consequential first
+4. Statement: this is an analysis of the cited texts, not legal advice
+
+Citation rules:
+- A requirement MUST be cited to the text of the regulation or standard. With no such text in
+  the evidence, say which text is missing and mark the clause 无法判断 -- never quote a clause
+  from memory
+- The current practice MUST be cited to the user's own document or taken from the question;
+  a practice nobody described is 无法判断, not 缺失
+- Name the version or date of the regulation the evidence gives; laws are amended
+- The conclusion follows the table: when every clause is 无法判断, the conclusion is 无法判断
+  too, and it says which texts would settle it
+- Remediation answers a cited requirement. Do not add deadlines, amounts or procedures that
+  no source gives
+
+Example structure:
+结论：<practice> 部分满足 <regulation> [E1]
+| 要求 | 现状 | 状态 |
+|---|---|---|
+| <clause and what it requires> [E1] | <what the policy says> [E2] | 部分满足 |
+整改建议：<change> ...
+声明：以上是对所引文本的分析，不构成法律意见。
+"""
+
 SKILL_TEMPLATES: dict[str, str] = {
     "timeline_builder": TIMELINE_TEMPLATE,
     "web_fact_check": WEB_FACT_CHECK_TEMPLATE,
@@ -290,6 +322,7 @@ SKILL_TEMPLATES: dict[str, str] = {
     "vulnerability_exposure_assessment": VULNERABILITY_EXPOSURE_TEMPLATE,
     "ai_engineering_estimate": AI_ENGINEERING_ESTIMATE_TEMPLATE,
     "data_analysis_report": DATA_ANALYSIS_REPORT_TEMPLATE,
+    "compliance_gap_analysis": COMPLIANCE_GAP_ANALYSIS_TEMPLATE,
     "pdf_text_reader": PDF_EXTRACTION_TEMPLATE,
 }
 """Skills whose answer has a shape of its own."""

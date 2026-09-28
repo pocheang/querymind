@@ -10,7 +10,7 @@ import type { AuthUser, Citation, IndexedFileSummary, PromptTemplate, SessionMes
  * backend's `AgentClass`.
  */
 export type AgentClassHint =
-  "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text" | "data_analysis";
+  "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text" | "data_analysis" | "compliance";
 
 export type AgentMode = {
   key: AgentClassHint;

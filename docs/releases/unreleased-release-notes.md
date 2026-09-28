@@ -124,6 +124,7 @@ docker compose -f deploy/compose/compose.yaml down
 | `WEB_FETCH_MAX_PAGES` | `3` | accepted results per search whose page is read (1–5) |
 | `WEB_FETCH_TIMEOUT_SECONDS` | `4` | per page; pages are read in parallel |
 | `STAGE_TIMEOUT_TOOL_MS` | `30000` (was `10000`) | ceiling for the whole tool loop; a data-analysis question takes three model calls plus a SQL translation (14–22s measured). A deployment that pinned the old value keeps it |
+| (no setting) `scripts/index_bundled_corpus.py` | -- | indexes the regulations in `config/corpus/compliance/`, which init copies into `data/docs/compliance/`; run once after deploying: `docker compose exec backend python scripts/index_bundled_corpus.py` |
 
 ### API changes
 

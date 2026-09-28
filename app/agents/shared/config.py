@@ -90,6 +90,7 @@ VALID_SKILLS: Final[frozenset[str]] = frozenset(
         "ai_engineering_estimate",
         "pdf_text_reader",
         "data_analysis_report",
+        "compliance_gap_analysis",
     }
 )
 """Supported synthesis skills for answer generation."""

@@ -36,16 +36,13 @@ __all__ = [
 DEFAULT_PATH = Path(__file__).resolve().parents[2] / "config" / "eval" / "specialist_routing.json"
 
 # Question id -> ((agent_class, skill) the offline rules return today, why).
-# Each entry is a known gap, not an accepted answer. Measured 2026-09-27 (59 questions since the data-analysis specialist).
+# Each entry is a known gap, not an accepted answer. Measured 2026-09-27 (66 questions since the compliance specialist).
 #
 # The keyword-rule entries are deliberately left as they are rather than "fixed"
 # by adding the missing words: a keyword added to pass one question here is
 # tuned to the test set, and the set then stops measuring anything. A keyword
 # list change needs its own justification and a counter-example in this set.
 KNOWN_MISROUTES: dict[str, tuple[tuple[str, str], str]] = {
-    # Classes that have no specialist yet. These close in the PR that adds one.
-    "edge-08": (("general", "answer_with_citations"), "no compliance specialist yet (plan PR 10)"),
-    "edge-09": (("general", "answer_with_citations"), "no compliance specialist yet (plan PR 10)"),
     # Keyword-rule limits.
     "sec-10": (
         ("general", "answer_with_citations"),
@@ -62,6 +59,14 @@ KNOWN_MISROUTES: dict[str, tuple[tuple[str, str], str]] = {
     "data-06": (
         ("general", "answer_with_citations"),
         "'table' is not a data keyword: routing tables, hash tables and tables of contents are not data analysis",
+    ),
+    "comp-06": (
+        ("general", "answer_with_citations"),
+        "'PIPL' is not a keyword; the compliance specialist knows the law by its Chinese names",
+    ),
+    "edge-14": (
+        ("compliance", "compliance_qa"),
+        "'等保' is a compliance keyword and nothing in the rules reads 'how do I configure'",
     ),
     "edge-13": (
         ("general", "answer_with_citations"),

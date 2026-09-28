@@ -61,6 +61,9 @@ docs/
 *.md
 !README.md
 !DOCKER_DEPLOYMENT.md
+# The bundled reference texts are Markdown and ship in the backend image
+# (app/services/documents/bundled_corpus.py).
+!config/corpus/**
 
 # Tests
 tests/

@@ -751,6 +751,14 @@
       "agentDataCap3": "Only your own tables, public tables and the shared corpus",
       "agentDataCap4": "Table headers and cells never steer the next tool choice",
       "agentDataAction": "Try Data Analysis",
+      "agentComplianceTitle": "Compliance Specialist",
+      "agentComplianceBadge": "Clause by clause",
+      "agentComplianceDesc": "Compares your policies with PIPL, the Data Security Law, GDPR, MLPS and other texts clause by clause: met, partly met, missing, or cannot tell.",
+      "agentComplianceCap1": "A requirement / current practice / status table, each cited",
+      "agentComplianceCap2": "No regulation text, no verdict: never quotes a clause from memory",
+      "agentComplianceCap3": "Remediation ordered by consequence",
+      "agentComplianceCap4": "States plainly that it is analysis, not legal advice",
+      "agentComplianceAction": "Try Compliance Review",
       "agentGeneralTitle": "Executive Analyst",
       "agentGeneralBadge": "Executive Synthesis",
       "agentGeneralDesc": "Cross-domain information synthesis delivering structured executive summaries, trade-off analysis, and roadmap advice.",
@@ -1629,6 +1637,10 @@
     "dataAnalysis": {
       "title": "Data Analysis",
       "desc": "Totals, group-bys and filters over your tables, with the SQL shown."
+    },
+    "compliance": {
+      "title": "Compliance Review",
+      "desc": "Checks a policy clause by clause against a law or standard."
     },
     "general": {
       "title": "General Analyst",

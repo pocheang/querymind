@@ -1,8 +1,8 @@
 """The offline routing rules, measured question by question against a labelled set.
 
 This is the first measurement behind "Router accuracy" in the quality table,
-which had none. Measured 2026-09-27 over 59 questions: the keyword rules pick
-the right specialist for 51 -- 51 of the 57 whose class has a specialist today.
+which had none. Measured 2026-09-27 over 66 questions: the keyword rules pick
+the right specialist for 58.
 Every miss is in `KNOWN_MISROUTES` with the exact wrong answer.
 
 Pinned per question, not as an aggregate, so a failure names the question, and
@@ -26,9 +26,6 @@ CASES = load_cases()
 REPORT = evaluate(CASES)
 OUTCOMES = {outcome.case.id: outcome for outcome in REPORT.outcomes}
 
-# Classes a label may name before a specialist answers them, each with the plan
-# PR that adds it. Anything else must already be a known class.
-PENDING_CLASSES = {"policy": "plan PR 10 (compliance)"}
 
 _CJK = re.compile(r"[㐀-鿿]")
 
@@ -50,20 +47,12 @@ def test_every_recorded_misroute_names_a_question_in_the_set() -> None:
     assert set(KNOWN_MISROUTES) <= set(OUTCOMES)
 
 
-def test_a_pending_class_is_only_ever_a_recorded_misroute() -> None:
-    """A label naming a class with no specialist cannot pass; it has to be on the record."""
-
-    pending = {case.id for case in CASES if case.agent_class in PENDING_CLASSES}
-    assert pending
-    assert pending <= set(KNOWN_MISROUTES)
-
-
 def test_every_label_names_a_class_and_skill_that_exist() -> None:
     """A mistyped label scores as a miss forever and reads as a broken router."""
 
     registry = get_domain_agent_registry()
     for case in CASES:
-        assert case.agent_class in BUILTIN_AGENT_CLASSES | set(PENDING_CLASSES), case.id
+        assert case.agent_class in BUILTIN_AGENT_CLASSES, case.id
         specialist = registry.get_agent(case.agent_class)
         own_skills = set(specialist.supported_skills) if specialist else set()
         assert case.skill in own_skills | VALID_SKILLS, f"{case.id}: {case.skill} is not a skill anything offers"
@@ -109,6 +98,6 @@ def test_the_metric_can_fail() -> None:
 def test_the_measured_accuracy() -> None:
     """The headline numbers, derived from the per-question pins above; they move only when a pin does."""
 
-    assert REPORT.class_accuracy == pytest.approx(51 / 59)
+    assert REPORT.class_accuracy == pytest.approx(58 / 66)
     assert REPORT.per_class["general"] == (12, 12)
     assert REPORT.per_class["pdf_text"] == (6, 6)

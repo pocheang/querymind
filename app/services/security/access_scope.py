@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.core.config import Settings, get_settings
 from app.domain.knowledge import AccessScope
+from app.retrievers.stores.vector import SHARED_CORPUS_TENANT
 from app.services.documents.index_manager import list_indexed_files
 from app.services.runtime.rag_runtime_scope import is_under_path
 from app.services.security.rbac import Permission, can
@@ -111,7 +112,12 @@ def _within_reach(row: Mapping[str, Any], viewer: _Viewer) -> bool:
     if viewer.cross_tenant:
         return True
     row_tenant = str(row.get("tenant_id", "") or "").strip()
-    if row_tenant and row_tenant != viewer.tenant_id:
+    # The shared corpus is the one tenant every viewer is inside: ingest tags a
+    # `data/docs/` document with no owner as `shared`, and rejecting that tag
+    # here locked every ordinary user out of the shared corpus the moment it
+    # was indexed. Passing the boundary grants nothing by itself -- the row
+    # still needs one of the grants in `_is_visible_to`, and ACL still applies.
+    if row_tenant and row_tenant not in (viewer.tenant_id, SHARED_CORPUS_TENANT):
         return False
     row_acl = frozenset(str(value) for value in row.get("acl_tags", ()) or ())
     return not row_acl or bool(row_acl.intersection(viewer.acl_tags))

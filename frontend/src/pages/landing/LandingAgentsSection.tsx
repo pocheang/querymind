@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Brain, Check, Compass, Cpu, FileText, ShieldCheck, Sparkles, Table2 } from "lucide-react";
+import { ArrowRight, Brain, Check, Compass, Cpu, FileText, ShieldCheck, Scale, Sparkles, Table2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +97,23 @@ export function LandingAgentsSection() {
       ],
       link: "/app?mode=data_analysis",
       actionText: t("pages.landing.agentDataAction"),
+    },
+    {
+      key: "compliance",
+      icon: Scale,
+      title: t("pages.landing.agentComplianceTitle"),
+      desc: t("pages.landing.agentComplianceDesc"),
+      badge: t("pages.landing.agentComplianceBadge"),
+      featured: false,
+      accent: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+      capabilities: [
+        t("pages.landing.agentComplianceCap1"),
+        t("pages.landing.agentComplianceCap2"),
+        t("pages.landing.agentComplianceCap3"),
+        t("pages.landing.agentComplianceCap4"),
+      ],
+      link: "/app?mode=compliance",
+      actionText: t("pages.landing.agentComplianceAction"),
     },
     {
       key: "general",

@@ -33,6 +33,11 @@ export const AGENT_MODES: Array<{
     title: "Data Analysis",
     desc: "Totals, group-bys and filters over your tables, with the SQL shown.",
   },
+  {
+    key: "compliance",
+    title: "Compliance Review",
+    desc: "Checks a policy clause by clause against a law or standard.",
+  },
   { key: "general", title: "General Analyst", desc: "Cross-domain analysis and executive summaries." },
 ];
 

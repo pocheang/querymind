@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from app.agents.catalog import AgentClass, normalize_agent_class
 from app.ingestion.loaders import IMAGE_EXTENSIONS
 
 
@@ -22,7 +23,7 @@ def choose_parser_profile(path: Path, agent_class: str = "general") -> dict[str,
             "enable_graph": False,
             "graph_min_confidence": 0.75,
         }
-    if agent_class == "policy" or "policy" in path.stem.lower():
+    if normalize_agent_class(agent_class) == AgentClass.COMPLIANCE or "policy" in path.stem.lower():
         return {
             "name": "policy",
             "loader_hint": "text",

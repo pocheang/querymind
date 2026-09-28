@@ -28,6 +28,15 @@ function getAgentPrompts(agentClass: string, isZh: boolean): string[] {
           "State which table and which SQL produced this result",
         ];
   }
+  if (agentClass === "compliance") {
+    return isZh
+      ? ["列出仍无法判断的条款和需要补充的材料", "按整改优先级给出行动计划", "对照另一部法规再审查一遍"]
+      : [
+          "List the clauses that still cannot be judged and what material would settle them",
+          "Turn the remediation into a prioritised action plan",
+          "Review the same policy against another regulation",
+        ];
+  }
   if (agentClass === "pdf_text") {
     return isZh
       ? ["提取文档中的关键数据和证据", "总结文档的核心要点和结论", "分析文档中的风险点和建议"]

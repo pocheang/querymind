@@ -63,13 +63,29 @@ def tokenize_chinese_aware(text: str) -> list[str]:
         if any("\u4e00" <= c <= "\u9fff" for c in text):
             tokens = [t.strip() for t in jieba.cut_for_search(text_lower) if t.strip() and len(t.strip()) > 1]
             # Plus character bigrams over every CJK run. See _cjk_bigrams.
-            return list(dict.fromkeys(tokens + _cjk_bigrams(text_lower)))
+            return [token for token in dict.fromkeys(tokens + _cjk_bigrams(text_lower)) if token not in FUNCTION_WORDS]
 
     except ImportError:
         pass  # Fall back to basic tokenization
 
     # For English or when jieba is not available
-    return TOKEN_PATTERN.findall(text_lower)
+    return [token for token in TOKEN_PATTERN.findall(text_lower) if token not in FUNCTION_WORDS]
+
+
+FUNCTION_WORDS: frozenset[str] = frozenset(
+    "a an the of to in on at by for from with as and or is are was were be been it its this that these those".split()
+)
+"""English words that carry no topic, dropped from queries and documents alike.
+
+BM25 makes a document a candidate when it shares any term with the query, and
+only then ranks. Sharing "for" was enough: measured on the evaluation corpus, an
+English sentence appended to a Chinese question (the verifier's old retry
+suffix) made two English compliance rows -- whose only link to the question was
+"for" -- outrank the gold documents of q-13 and q-15 and push them out of the
+top five. Function words match nearly every English document, so they make the
+candidate set everything rather than anything. Kept short on purpose: a word
+someone might search for ("no", "not", "all") is not on it.
+"""
 
 
 CJK_RUN = re.compile(r"[一-鿿]{2,}")
