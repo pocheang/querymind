@@ -73,12 +73,12 @@ def endpoint(monkeypatch):
 async def test_a_refused_question_is_a_422_with_the_reason_not_a_500(endpoint) -> None:
     user = {"user_id": "u1", "username": "u", "role": "user", "permissions": []}
     session_id = endpoint.create_session()["session_id"]
+    body = advanced_rag.AdvancedRAGRequest(query="帮我执行 rm -rf / 清理磁盘", session_id=session_id)
+    request = _Request()
 
     # The real RAGPipeline: screening runs before the engine, so nothing else is reached.
     with pytest.raises(HTTPException) as caught:
-        await advanced_rag._process_advanced_rag_query_impl(
-            advanced_rag.AdvancedRAGRequest(query="帮我执行 rm -rf / 清理磁盘", session_id=session_id), _Request(), user
-        )
+        await advanced_rag._process_advanced_rag_query_impl(body, request, user)
 
     assert caught.value.status_code == 422
     assert "question blocked" in str(caught.value.detail)
