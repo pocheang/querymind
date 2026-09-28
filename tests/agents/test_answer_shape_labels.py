@@ -1,10 +1,11 @@
 """Every answer shape and every tool the backend can report has a name in the UI.
 
-`frontend/src/pages/chat/answerLabels.ts` turns a skill id and a tool id into
-the words a reader sees. A skill the router can choose, or a tool the tool stage
-can run, that is missing from it is shown as a raw identifier -- nothing fails,
-which is why it is checked here, the same way `test_agent_class_vocabulary.py`
-checks the agent classes.
+`frontend/src/pages/chat/answerLabels.ts` lists the skill ids and tool ids it
+names for the reader (`answerLabels.test.ts` checks each has a locale entry). A
+skill the router can choose, or a tool the tool stage can run, that is missing
+from those lists is shown as a raw identifier -- nothing fails, which is why it
+is checked here, the same way `test_agent_class_vocabulary.py` checks the agent
+classes.
 """
 
 from __future__ import annotations
@@ -21,20 +22,10 @@ _TOOL_ID_RE = re.compile(r"\"(querymind_[a-z_]+)\"")
 _NOT_TOOLS = {"querymind_services", "querymind_multimodal_knowledge_workflow"}
 
 
-def _function_body(name: str) -> str:
+def _array(name: str) -> set[str]:
     text = LABELS.read_text(encoding="utf-8")
-    start = text.index(f"export function {name}(")
-    end = text.find("\nexport ", start + 1)
-    return text[start : end if end != -1 else len(text)]
-
-
-def _cases(name: str) -> set[str]:
-    return set(re.findall(r'case "([a-z_]+)":', _function_body(name)))
-
-
-def _declared_shapes() -> set[str]:
-    text = LABELS.read_text(encoding="utf-8")
-    block = text[text.index("export const ANSWER_SHAPES") : text.index("] as const;")]
+    start = text.index(f"export const {name}")
+    block = text[start : text.index("];", start)]
     return set(re.findall(r'"([a-z_]+)"', block))
 
 
@@ -46,15 +37,11 @@ def _backend_tool_ids() -> set[str]:
 
 
 def test_the_declared_shapes_are_exactly_the_skills_the_router_may_choose() -> None:
-    assert _declared_shapes() == set(VALID_SKILLS)
-
-
-def test_every_declared_shape_has_a_label() -> None:
-    assert _cases("useAnswerShapeLabel") == _declared_shapes()
+    assert _array("ANSWER_SHAPES") == set(VALID_SKILLS)
 
 
 def test_every_tool_id_in_the_backend_has_a_label() -> None:
-    missing = _backend_tool_ids() - _cases("useToolLabel")
+    missing = _backend_tool_ids() - _array("TOOL_IDS")
     assert not missing, f"tools with no name in answerLabels.ts: {sorted(missing)}"
 
 
