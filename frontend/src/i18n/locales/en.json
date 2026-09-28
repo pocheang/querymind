@@ -648,17 +648,17 @@
       "feature6Mechanism": "Pluggable connector framework supporting external PostgreSQL, MySQL, and REST APIs. Features incremental delta-sync schedulers and content hashing to ensure continuous synchronization without duplicate processing.",
       "feature6Spec1": "Modular connector architecture for relational databases and REST endpoints",
       "feature6Spec2": "Scheduled delta sync engine with cryptographic content deduplication",
-      "feature6Spec3": "Credentials protected via AES-256 symmetric encryption",
+      "feature6Spec3": "Credentials encrypted with AES-256, and destroyed first when a connector is deleted",
       "feature7Flow": "Raw Evidence ➔ Token Budgeting ➔ Sliding Window Truncation ➔ Summary Compression ➔ Prompt",
       "feature7Mechanism": "Enforces rigorous token budgeting before model invocation. Dynamically calculates token usage, applies sliding-window truncation, generates semantic summaries of prior chat turns, and packs high-value evidence to prevent overflow.",
       "feature7Spec1": "Real-time token consumption tracking with hard model boundary guards",
       "feature7Spec2": "Semantic conversation summarization preserving key contextual facts",
       "feature7Spec3": "Relevance-weighted evidence packing maximizing prompt density",
-      "feature8Flow": "Agent Invocation ➔ MCP Protocol Validation ➔ Risk Assessment ➔ Approval Token ➔ Sandboxed Run",
+      "feature8Flow": "Specialist Chooses a Tool ➔ Domain Read-only Catalog ➔ Write Detection ➔ Approval Token ➔ Audited Run",
       "feature8Mechanism": "Implements Anthropic Model Context Protocol (MCP) for tool interoperability. Intercepts sensitive or destructive actions, requiring human-in-the-loop approval tokens through the UI before execution proceeds.",
       "feature8Spec1": "Native Anthropic MCP JSON-RPC protocol compliance",
       "feature8Spec2": "Human-in-the-loop (HITL) authorization token flow for high-risk tools",
-      "feature8Spec3": "Strict parameter validation, sandbox containment, and audit logging",
+      "feature8Spec3": "Strict parameter validation, per-domain tool catalogs, and audit logging",
       "feature9Flow": "Chat Exchange ➔ Fact Extraction ➔ Long-Term Vector Store ➔ Decay Weighting ➔ Context Injection",
       "feature9Mechanism": "Transcends single-session limits by extracting user preferences and factual assertions into persistent vector storage. Re-injects relevant episodic memories into future conversations, weighted by semantic relevance and temporal decay.",
       "feature9Spec1": "Cross-session episodic fact and user preference persistence",
@@ -674,7 +674,7 @@
       "feature11Spec1": "Industrial 3-state Circuit Breaker protecting external and internal dependencies",
       "feature11Spec2": "Offline query replay pipeline for systematic prompt and retrieval tuning",
       "feature11Spec3": "Native Prometheus /metrics export and Kubernetes /health & /ready probes",
-      "feature12Flow": "Inbound Request ➔ RBAC Auth ➔ Constant-Time Token Guard ➔ Sandbox DB ➔ DLP Masking",
+      "feature12Flow": "Inbound Request ➔ RBAC Auth ➔ Constant-Time Token Guard ➔ Scope Locked Before Retrieval ➔ DLP Masking",
       "feature12Mechanism": "Zero-trust architecture with granular RBAC permissions. API keys are encrypted at rest with AES-256. A real-time Data Loss Prevention (DLP) engine inspects chunks to sanitize personally identifiable information (PII).",
       "feature12Spec1": "Granular RBAC permissions with constant-time token comparison against timing attacks",
       "feature12Spec2": "User-scoped session databases preventing cross-tenant data leakage",
@@ -735,14 +735,14 @@
       "agentAiCap3": "Self-RAG hallucination mitigation",
       "agentAiCap4": "Prompt engineering & trace audits",
       "agentAiAction": "Try AI Research",
-      "agentPdfTitle": "PDF Evidence Reader",
-      "agentPdfBadge": "Page Grounding",
-      "agentPdfDesc": "In-depth document analysis with sentence-level page citations, regulatory clause extraction, and zero-hallucination verification.",
-      "agentPdfCap1": "Sentence-level page citation tags",
-      "agentPdfCap2": "Interactive PDF workbench side-by-side",
-      "agentPdfCap3": "Regulatory tables & clause extraction",
-      "agentPdfCap4": "Air-gapped 100% private document parsing",
-      "agentPdfAction": "Try PDF Reader",
+      "agentPdfTitle": "Document Reading",
+      "agentPdfBadge": "Page & Section",
+      "agentPdfDesc": "Quotes what a part of your document says, with the page and section it came from; numbered Chinese headings are recognised too.",
+      "agentPdfCap1": "Quotes the passage rather than paraphrasing",
+      "agentPdfCap2": "Names the page and section it came from",
+      "agentPdfCap3": "Recognises numbered Chinese headings (第X章, 一、)",
+      "agentPdfCap4": "Reads only documents you may access",
+      "agentPdfAction": "Try Document Reading",
       "agentDataTitle": "Data Analysis Specialist",
       "agentDataBadge": "SQL shown",
       "agentDataDesc": "Totals, averages, group-bys and rankings over your uploaded spreadsheets, CSVs and document tables -- every number comes with the SQL that produced it.",
@@ -1246,8 +1246,8 @@
     },
     "kpi": {
       "accuracy": "5",
-      "accuracyLabel": "Retrieval Routes",
-      "accuracyDesc": "Vector, graph, hybrid, web and tool (ReAct), chosen per question by the router",
+      "accuracyLabel": "Domain specialists",
+      "accuracyDesc": "Security, AI, data analysis, compliance review and document reading, chosen by the router",
       "hallucination": "3",
       "hallucinationLabel": "Answer Checks",
       "hallucinationDesc": "Citation targets, sentence grounding and NLI entailment (a lexical scorer for Chinese), with one bounded retry",
@@ -1260,7 +1260,7 @@
       "memory": "7",
       "memoryLabel": "Pipeline Stages",
       "memoryDesc": "Privacy check, router, planner, knowledge, synthesizer, verifier and output filter",
-      "coverage": "157",
+      "coverage": "160",
       "coverageLabel": "API Operations",
       "coverageDesc": "Pinned exactly by an endpoint census test, so a dropped router fails CI"
     },
@@ -1310,11 +1310,11 @@
           "citation": "Source: [1] Corporate Travel Policy Guidelines (2026 Edition), Page 14 Appendix A"
         },
         "react": {
-          "title": "Calculation: Complex Data Analysis",
-          "tag": "Multi-Step Tool Execution",
-          "query": "Calculate East Region monthly revenue and compute the month-over-month growth percentage.",
-          "answer": "System verified: East Region sales reached 2.458M RMB last month vs 2.100M RMB the prior month, reflecting a net MoM growth of +17.05%, driven by clean energy orders.",
-          "citation": "Tools Invoked: [Data Warehouse Query Engine] + [Sandboxed Calculator Engine]"
+          "title": "Data Analysis Specialist: Querying My Table",
+          "tag": "Specialist Tools · Table SQL",
+          "query": "In the sales table I uploaded, what were East Region's sales last month, and how much did they grow?",
+          "answer": "East Region sold 2.458M RMB last month against 2.100M RMB the month before, a 17.05% increase [T1]. Basis: the sales table, totalled by region and month.",
+          "citation": "Tool sources: [T1] Table query (SQL) -- the table list found the table, then a read-only SQL ran"
         },
         "graph": {
           "title": "Reasoning: Organizational Relationships",
@@ -1326,46 +1326,46 @@
       },
       "stages": {
         "step1": {
-          "role": "Defense Gate · Security Sentinel",
-          "techTitle": "Client Ingress & Security Gate",
-          "storyDesc": "Verifies your login token, checks knowledge base ACL permissions, and blocks malicious injection attacks.",
-          "techDesc": "JWT HttpOnly Strict authentication, RBAC role validation, 1-5 req/h rate limits, SQLi and prompt injection filters.",
-          "badge": "Instant Access"
+          "role": "First Gate · Permission & Privacy",
+          "techTitle": "Access Scope & Input Redaction",
+          "storyDesc": "Works out which documents you may read, and swaps phone numbers, ID numbers and other sensitive values in your question for placeholders, before anything is searched.",
+          "techDesc": "The access scope is resolved and rewrites the search scope before retrieval; PII in the question becomes stable tokens; injection screening judges intent. Sign-in and rate limits run in the API layer, before the pipeline.",
+          "badge": "Scope First"
         },
         "step2": {
-          "role": "Command Dispatcher · Intent Router",
-          "techTitle": "Chinese NLP & Agent Router",
-          "storyDesc": "Analyzes the query to identify it as a policy query, dispatching to specialized RAG search instead of raw web browsing.",
-          "techDesc": "The router chooses among vector, graph, hybrid, web and tool routes, and re-asks with the reasoning model when its confidence is low.",
-          "badge": "Smart Route"
+          "role": "Dispatcher · Route & Specialist",
+          "techTitle": "One Call: Route, Specialist, Answer Shape",
+          "storyDesc": "Works out which domain your question belongs to and picks the specialist (security, AI, data analysis, compliance review, document reading) and the way to search.",
+          "techDesc": "One structured model call returns the retrieval route, the specialist, the answer shape and a reason; on timeout the keyword rules still pick the specialist; a specialist chosen in the sidebar applies directly.",
+          "badge": "Right Specialist"
         },
         "step3": {
           "role": "Head Librarian · Hybrid Retrieval",
-          "techTitle": "Multi-Modal Hybrid Recall & Reranking",
-          "storyDesc": "Scans tens of thousands of PDF pages using both keyword and semantic search, selecting the top 3 relevant passages.",
-          "techDesc": "ChromaDB BGE-M3 dense vector + BM25 inverted index, Reciprocal Rank Fusion (RRF), BGE-Reranker-V2 cross-scoring.",
+          "techTitle": "Hybrid Recall & Reranking",
+          "storyDesc": "Searches only documents you may read, by keyword and by meaning, and ranks the specialist's own domain a little higher.",
+          "techDesc": "Vector + BM25 + knowledge graph + web, fused by RRF per (source, query), cross-encoder reranking; documents labelled with the specialist's domain get a boost after reranking, which reorders and never widens.",
           "badge": "Precision Recall"
         },
         "step4": {
-          "role": "Specialist Assistant · Tool Chamber",
-          "techTitle": "Governed ReAct Tool Execution",
-          "storyDesc": "When calculations, live weather or external enterprise APIs are needed, executes inside safe sandbox with approval tokens.",
-          "techDesc": "Think-Act-Observe loops (up to 5 rounds), single-use signed approval tokens, dynamic Web Research fallback.",
-          "badge": "On Demand · Sandboxed"
+          "role": "Assistant · Specialist Tools",
+          "techTitle": "Governed Tools: the Domain's Read-only Tools",
+          "storyDesc": "The security specialist looks up CVEs and version exposure, the AI specialist works out GPU memory, the data specialist queries tables. Read-only tools just run; anything that changes something asks you first.",
+          "techDesc": "A routed specialist gets only its domain's read-only tools, up to 3 steps, and the tool choice never sees retrieved text; a write returns approval_required and needs a single-use approval token.",
+          "badge": "Read-only · 3 Steps"
         },
         "step5": {
-          "role": "Lead Writer · Citation Synthesizer",
-          "techTitle": "Citation-First Synthesis & SSE Stream",
-          "storyDesc": "Composes answer grounded on retrieved text, appending citation footnote [1] to every statement like an academic paper.",
-          "techDesc": "Inline citations [1], [2] tied to source docs and page snapshots, with SSE typewriter streaming.",
+          "role": "Lead Writer · Cited Synthesis",
+          "techTitle": "Specialist Shape, Evidence and Tools Cited Apart",
+          "storyDesc": "Writes in the specialist's answer shape: document evidence marked [1], tool facts marked [T1], and only as much as the evidence supports.",
+          "techDesc": "Specialist templates; evidence markers [E{k}] and tool markers [T{k}]; length follows the evidence; the draft streams over SSE.",
           "badge": "Streamed"
         },
         "step6": {
-          "role": "Chief Inspector · Hallucination & DLP",
-          "techTitle": "Sentence Grounding & Output DLP",
-          "storyDesc": "Checks every sentence to ensure AI didn't invent facts, redacting personal IDs, passwords or secrets before output.",
-          "techDesc": "NLI entailment check (English; a lexical scorer for Chinese) and streaming chunk DLP redaction.",
-          "badge": "Grounded · DLP Redacted"
+          "role": "Chief Inspector · Verify & Redact",
+          "techTitle": "Verification, Bounded Retry & Output DLP",
+          "storyDesc": "Checks each sentence has support, and each tool fact against the tool's output; searches again once if it falls short; then redacts sensitive values and settles the citation numbers.",
+          "techDesc": "Citation support, NLI entailment (abstaining across scripts) and sentence grounding; one retry of retrieval and synthesis when it falls short and the budget allows; output DLP, [E] renumbered [1][2], [T] listed under Tool sources.",
+          "badge": "Verified · Redacted"
         }
       },
       "blueprintStage1Desc": "The access scope is resolved before anything is retrieved and PII in the question becomes tokens; one model call then picks the route, the specialist and the answer shape.",
@@ -1507,7 +1507,7 @@
       "description": "Description",
       "totalEndpoints": "{{count}} core API endpoints available"
     },
-    "apiEndpoints": "# Authentication & Access\nPOST /auth/register - User registration (PBKDF2 strong hash)\nPOST /auth/login - User login (JWT + HttpOnly Cookie)\nPOST /auth/logout - Secure sign-out and cookie invalidation\nGET  /auth/me - Retrieve current authenticated user profile\nPUT  /auth/profile - Update user profile information\nPOST /auth/change-password - Change account credentials\nGET  /auth/google/login - Google OAuth2 federated sign-in\n\n# Query & LangGraph Pipeline\nPOST /query - Standard synchronous pipeline execution\nPOST /query/stream - Real-time SSE streaming agent synthesis with citations\nPOST /api/v1/enhanced/query - Multi-agent enhanced querying\nPOST /api/advanced-rag/query - Advanced hybrid RAG retrieval pipeline\n\n# Sessions & Cross-Session Memory\nGET  /sessions - List user conversation sessions\nPOST /sessions - Create a new session\nGET  /sessions/{session_id} - Fetch session messages and context snapshot\nDELETE /sessions/{session_id} - Delete session and related working state\nGET  /sessions/{session_id}/strategy-lock - View session-locked retrieval profile\nPOST /sessions/{session_id}/strategy-lock - Lock current session to a specific strategy\nGET  /sessions/{session_id}/memories/long - Fetch cross-session long-term memories\nDELETE /sessions/{session_id}/memories/long/{memory_id} - Remove specific persistent memory\nPATCH /sessions/{session_id}/messages/{message_id} - Edit or tag message record\nDELETE /sessions/{session_id}/messages/{message_id} - Remove message from history\n\n# Documents & External Connectors\nGET  /documents - List accessible knowledge base documents\nPOST /upload - Streaming upload and parsing (PDF/Markdown/TXT/DOCX)\nPOST /documents/{filename}/reindex - Trigger chunking and vector re-indexing for file\nDELETE /documents/{filename} - Delete document and purge vector/graph nodes\nGET  /api/connectors - List configured data source connectors\nPOST /api/connectors/{connector_id}/sync - Trigger incremental connector sync\nPOST /api/connectors/{connector_id}/test - Validate connector credentials and reachability\n\n# Clarification & Prompt Management\nPOST /api/clarification/respond - Provide answers to interactive clarification questions\nPOST /api/clarification/skip - Skip clarification and proceed with default intent\nGET  /prompts - List prompt templates and version history\nPOST /prompts - Create new prompt template\nPOST /prompts/check - Perform safety guardrail and syntax check on prompt\nPATCH /prompts/{prompt_id} - Deploy updated prompt version\nDELETE /prompts/{prompt_id} - Archive or delete prompt template\n\n# Administration, Config & Models\nGET  /admin/ops/runtime - Inspect runtime environment and config layer sources\nGET  /admin/ops/overview - System overview dashboard and operational KPIs\nGET  /admin/ops/retrieval-profile - Retrieve current active profile (fast/balanced/deep)\nPOST /admin/ops/retrieval-profile - Dynamically switch retrieval profile preset\nPOST /admin/ops/canary - Configure canary traffic split and A/B testing\nPOST /admin/ops/benchmark/run - Trigger automated end-to-end benchmark run\nGET  /admin/model-settings - View active model provider configurations\nPOST /admin/model-settings - Hot-reload model providers and hyper-parameters\nGET  /admin/config - Check canonical configuration source status\nGET  /admin/web-activity - Audit and analyze external web research activity\nGET  /admin/agent-quality/metrics - Agent quality health and evaluation metrics\nGET  /user/api-settings - Fetch user personal API settings\nPOST /user/api-settings - Save and AES-encrypt personal API credentials\n\n# Agent Tracking, Observability & Health\nGET  /agent-tracking/trace/{execution_id} - Inspect detailed agent execution span tree\nGET  /agent-tracking/stream/{execution_id} - Stream real-time agent lifecycle SSE events\nGET  /agent-tracking/history - Retrieve execution history logs\nGET  /health - Kubernetes Liveness Probe\nGET  /ready - Comprehensive 8-service Readiness Probe\nGET  /metrics - Prometheus standard metrics endpoint\nGET  /circuit-breakers - Monitor circuit breaker states and tripped thresholds"
+    "apiEndpoints": "# Asking & Streaming (Asking)\nPOST /api/advanced-rag/query - The one question endpoint; answer, citations, tool runs with their [T] numbers, specialist and answer shape\nGET  /api/v1/orchestration/executions/{execution_id}/events - SSE: stage events and the answer draft\nPOST /api/v1/clarification/check - Resumable multi-round clarification\nGET  /user/active-model - The model answering questions (read-only)\n\n# Sessions & Memory\nGET  /sessions - List my sessions\nPOST /sessions - Create a session\nGET  /sessions/{session_id} - Read a session's messages\nPATCH /sessions/{session_id} - Rename or pin a session\nDELETE /sessions/{session_id} - Delete a session and its history\nPATCH /sessions/{session_id}/messages/{message_id} - Edit one message (optionally re-run)\nPOST /api/v1/sessions/search - Search session metadata (tags, description, category)\nPOST /api/v1/sessions/{session_id}/export - Export a session (json / zip)\nPOST /api/v1/sessions/import - Import a session\nGET  /api/v1/memories - Everything the system remembers about me\nDELETE /api/v1/memories/{memory_id} - Forget one long-term memory\nDELETE /api/v1/memories - Forget all long-term memories\n\n# Documents & Domain Labels\nPOST /upload - Upload and parse documents (queued ingestion)\nGET  /documents - List documents I can access\nPATCH /documents/by-id/{document_id} - Change a document's domain label (no reindex)\nPOST /documents/by-id/{document_id}/reindex - Reindex (202, queued)\nDELETE /documents/by-id/{document_id} - Delete a document and its index\nGET  /documents/index-health - Index health\n\n# Connectors & Governed Tools\nGET  /api/v1/connectors - List my connectors\nPOST /api/v1/connectors - Create a connector\nPOST /api/v1/connectors/{connector_id}/disable - Disable a connector\nDELETE /api/v1/connectors/{connector_id} - Delete a connector (credential destroyed first)\nPOST /api/v1/connectors/approvals/{token} - Confirm a write action awaiting approval\n\n# Prompt Templates\nGET  /prompts - List prompt templates\nPOST /prompts - Create a template\nPOST /prompts/check - Safety pre-check for a prompt\nGET  /prompts/{prompt_id}/versions - Version history\nPOST /prompts/{prompt_id}/versions/{version_id}/rollback - Roll back to a version\n\n# Administration & Operations\nGET  /admin/model-settings - The administrator's model configuration\nGET  /admin/model-settings/effective - What the next question will actually use, per component\nGET  /admin/config/schema - Console-editable settings and the layer each came from\nPOST /admin/config/values - Write to the configuration centre and reload\nGET  /admin/threat-intel/status - Each threat-intel source's sync time and staleness\nPOST /admin/threat-intel/sync - Start a threat-intel sync (202)\nGET  /admin/ops/overview - Operations overview and alerts\nPOST /admin/ops/benchmark/run - Run the benchmark\nGET  /admin/users - User management\nGET  /admin/audit-logs - Audit logs\n\n# Health & Observability\nGET  /health - Liveness probe\nGET  /ready - Readiness probe (503 warming while models load)\nGET  /ready/dependencies - Dependency probes: Redis, Neo4j, Chroma, models, embeddings (admin)\nGET  /metrics - Prometheus metrics, summed across workers\nGET  /api/analytics/overview - Latency percentiles and retrieval success rate\nGET  /circuit-breakers - Circuit breaker status"
   },
   "toast": {
     "close": "Close notification"

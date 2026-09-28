@@ -21,6 +21,7 @@ import {
 } from "recharts";
 import type { AuthUser } from "@/types/api";
 import { analyticsApi, type AgentStats, type AnalyticsOverview, type DocumentStats } from "@/services/api/app";
+import { useAgentClassName } from "@/pages/chat/agentModeLabels";
 
 type Props = {
   user: AuthUser | null;
@@ -47,6 +48,7 @@ const LEGEND_STYLE = { fontSize: "12px" } as const;
 
 export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
   const { t } = useTranslation();
+  const agentClassName = useAgentClassName();
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [agents, setAgents] = useState<AgentStats[]>([]);
   const [documents, setDocuments] = useState<DocumentStats[]>([]);
@@ -96,13 +98,13 @@ export function AnalyticsPage({ user, onLogout }: Readonly<Props>) {
 
   const agentDistributionData = overview?.agent_distribution
     ? Object.entries(overview.agent_distribution).map(([name, value]) => ({
-        name,
+        name: agentClassName(name),
         value,
       }))
     : [];
 
   const agentPerformanceData = agents.map((agent) => ({
-    name: agent.agent_class,
+    name: agentClassName(agent.agent_class),
     queries: agent.query_count,
     success_rate: agent.success_rate,
     avg_time: agent.avg_retrieval_time_ms,

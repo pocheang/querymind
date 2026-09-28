@@ -2,8 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
 import { useAnswerShapeLabel } from "@/pages/chat/answerLabels";
-import { useAgentModeLabels } from "@/pages/chat/agentModeLabels";
-import { AGENT_MODES } from "@/pages/chat/constants";
+import { useAgentClassName } from "@/pages/chat/agentModeLabels";
 
 import type { RetrievalSourceOutcome, SessionMessageMetadata } from "@/types/api";
 
@@ -49,14 +48,13 @@ function sourceChips(metadata: SessionMessageMetadata) {
  * shape is the unremarkable case and gets no badge.
  */
 function useSpecialistBadge(metadata: SessionMessageMetadata): string {
-  const modeLabel = useAgentModeLabels();
+  const className = useAgentClassName();
   const shapeLabel = useAnswerShapeLabel();
   const agentClass = metadata.agent_class || "";
   const skill = metadata.skill || "";
   if (!agentClass && !skill) return "";
   if (agentClass === "general" && (!skill || skill === "answer_with_citations")) return "";
-  const mode = AGENT_MODES.find((candidate) => candidate.key === agentClass);
-  const who = mode ? modeLabel(mode).title : agentClass;
+  const who = className(agentClass);
   const shape = skill ? shapeLabel(skill) : "";
   return [who, shape].filter(Boolean).join(" · ");
 }

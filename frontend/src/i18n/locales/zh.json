@@ -648,13 +648,13 @@
       "feature6Mechanism": "提供企业级数据接入框架，支持快速接入外部 PostgreSQL、MySQL、知识库 API 等异构数据源；支持增量同步（Delta Sync）调度策略与数据哈希校验，保障企业数据实时一致性。",
       "feature6Spec1": "模块化 Connector 插件架构，适配主流关系型数据库与 API",
       "feature6Spec2": "定时增量同步调度引擎与数据指纹去重比对",
-      "feature6Spec3": "连接凭据采用 AES-256 对称加密安全沙箱隔离存储",
+      "feature6Spec3": "连接凭据以 AES-256 加密存储，删除连接器时先销毁凭据",
       "feature7Flow": "原始证据集 ➔ Token 窗口精细预算 ➔ 滑动窗口裁剪 ➔ 语义摘要压缩 ➔ 紧凑 Prompt",
       "feature7Mechanism": "在大模型推理前实施严格的 Token 预算管理，依据底层模型的物理上下文窗口限制，智能执行滑动窗口截断、历史对话语义摘要压缩与高权重分块重排序，兼顾完整性与成本。",
       "feature7Spec1": "实时精确 Token 计数与模型上下文硬限制预算防护",
       "feature7Spec2": "长对话历史无损语义摘要压缩与关键偏好提取",
       "feature7Spec3": "基于相关度得分的高价值检索证据动态重排序与填充",
-      "feature8Flow": "Agent 工具调用 ➔ MCP 协议校验 ➔ 高危行为判定 ➔ 人工审批令牌 (HITL) ➔ 沙箱执行",
+      "feature8Flow": "专家选择工具 ➔ 只提供本领域只读工具 ➔ 写操作判定 ➔ 人工审批令牌 (HITL) ➔ 执行并审计",
       "feature8Mechanism": "严格基于 Anthropic Model Context Protocol (MCP) 开放标准，支持动态注册与调用外部 MCP 工具服务；内置高危操作审批令牌机制（Approval Token），敏感操作必须经用户在界面确认后方可执行。",
       "feature8Spec1": "原生支持 Anthropic MCP 标准规范（JSON-RPC 通信协议）",
       "feature8Spec2": "人工介入审批机制（Human-in-the-Loop Approval Token）",
@@ -674,7 +674,7 @@
       "feature11Spec1": "工业级熔断器状态机（Circuit Breaker）自适应故障降级",
       "feature11Spec2": "历史线上真实查询无副作用批量重放与参数调优引擎",
       "feature11Spec3": "原生 Prometheus 指标采集端点（/metrics）与 K8s 健康就绪探针",
-      "feature12Flow": "进站请求 ➔ RBAC 身份鉴权 ➔ 恒定时间令牌校验 ➔ 隔离会话库 ➔ DLP 实时数据脱敏",
+      "feature12Flow": "进站请求 ➔ RBAC 身份鉴权 ➔ 恒定时间令牌校验 ➔ 检索前锁定访问范围 ➔ DLP 实时数据脱敏",
       "feature12Mechanism": "践行零信任安全原则，实施 Admin / User 细粒度 RBAC 权限控制；API 凭证使用 AES-256 算法加密存储；通过高性能 DLP 引擎实时识别并遮罩手机号、身份证、邮箱等敏感隐私信息（PII）。",
       "feature12Spec1": "细粒度 RBAC 权限体系与恒定时间 Token 比对（防时序攻击）",
       "feature12Spec2": "用户级隔离数据库架构，物理级切断跨租户数据串扰",
@@ -735,14 +735,14 @@
       "agentAiCap3": "Self-RAG 幻觉过滤评估",
       "agentAiCap4": "Prompt 工程与链路追踪审计",
       "agentAiAction": "进入 AI 研发模式",
-      "agentPdfTitle": "PDF Reader 证据研判",
-      "agentPdfBadge": "页码级溯源",
-      "agentPdfDesc": "深度分析研报、政策合规与规章制度，严格按页码归因证据，杜绝大模型无中生有。",
-      "agentPdfCap1": "逐句证据页码精准标注",
-      "agentPdfCap2": "PDF 工作台可视化对照阅读",
-      "agentPdfCap3": "制度条款与规范表格提取",
-      "agentPdfCap4": "私有解析 100% 零数据外传",
-      "agentPdfAction": "进入文档研判",
+      "agentPdfTitle": "文档阅读专家",
+      "agentPdfBadge": "页码与章节",
+      "agentPdfDesc": "复述文档某一部分的原文，并给出它来自哪一页、哪个章节；中文带编号的章节标题也能识别。",
+      "agentPdfCap1": "逐字复述原文，不改写",
+      "agentPdfCap2": "注明出处的页码与章节",
+      "agentPdfCap3": "识别第X章、一、、（一）等中文编号标题",
+      "agentPdfCap4": "只读取您有权限的文档",
+      "agentPdfAction": "试试文档阅读",
       "agentDataTitle": "数据分析专家",
       "agentDataBadge": "SQL 口径可查",
       "agentDataDesc": "对你上传的 Excel、CSV 和文档里的表格做合计、平均、分组与排名，每个数字都附上执行的 SQL。",
@@ -1246,8 +1246,8 @@
     },
     "kpi": {
       "accuracy": "5",
-      "accuracyLabel": "检索路由",
-      "accuracyDesc": "向量、图谱、混合、联网与工具（ReAct），由路由按问题选择",
+      "accuracyLabel": "领域专家",
+      "accuracyDesc": "网络安全、AI、数据分析、合规审核、文档阅读，由路由按问题选择",
       "hallucination": "3",
       "hallucinationLabel": "答案校验层",
       "hallucinationDesc": "引用目标校验、句子级 Grounding 与 NLI 蕴含（中文使用词汇评分），失败时最多重试一次",
@@ -1260,7 +1260,7 @@
       "memory": "7",
       "memoryLabel": "管线阶段",
       "memoryDesc": "权限校验、路由、规划、检索、生成、校验与输出过滤",
-      "coverage": "157",
+      "coverage": "160",
       "coverageLabel": "API 接口数",
       "coverageDesc": "由接口普查测试精确锁定，任何路由丢失都会使 CI 失败"
     },
@@ -1310,11 +1310,11 @@
           "citation": "数据来源：[1] 《公司员工差旅管理细则(2026版)》 第14页 附表一"
         },
         "react": {
-          "title": "计算：复杂数据分析",
-          "tag": "多步工具调用",
-          "query": "统计华东区上月总销售额，并对比前一月计算增长百分比",
-          "answer": "经系统统计，华东区上月销售总额为 245.8 万元，前一月为 210.0 万元，环比净增长 +17.05%，主要受新能源行业订单拉动。",
-          "citation": "调用工具：[数据仓库查询引擎] + [精确数值计算沙箱]"
+          "title": "数据分析专家：查询我的表格",
+          "tag": "专家工具 · 表格 SQL",
+          "query": "我上传的销售表里，华东区上月销售额是多少？比前一月增长多少？",
+          "answer": "华东区上月销售额 245.8 万元，前一月 210.0 万元，环比增长 17.05% [T1]。口径：销售表，按区域与月份汇总。",
+          "citation": "工具来源：[T1] 表格查询（SQL）——先用“表格列表”找到表，再执行只读 SQL"
         },
         "graph": {
           "title": "推导：人员组织关系",
@@ -1326,46 +1326,46 @@
       },
       "stages": {
         "step1": {
-          "role": "第一道防线 · 安全门禁",
-          "techTitle": "客户端接入与安全准入",
-          "storyDesc": "核对您的员工登录令牌，确认您是否有权访问对应知识库，并拦截一切恶意注入代码。",
-          "techDesc": "JWT HttpOnly Strict 鉴权，RBAC 角色权限前置校验，1-5 req/h 频率限制，SQL 注入过滤。",
-          "badge": "准入校验"
+          "role": "第一道防线 · 权限与隐私",
+          "techTitle": "访问范围解析与输入脱敏",
+          "storyDesc": "先确认您能看哪些文档，再把问题里的手机号、身份证等敏感信息换成占位符，然后才开始检索。",
+          "techDesc": "检索前解析访问范围并改写检索范围；问题中的敏感信息替换为稳定占位符；注入筛查按意图判断。登录鉴权与限流在进入流水线之前由 API 层完成。",
+          "badge": "范围先定"
         },
         "step2": {
-          "role": "调度指挥官 · 意图路由",
-          "techTitle": "中文 NLP 与智能体路由",
-          "storyDesc": "分析您的中文问题，发现您是在‘查政策’，决定调派专门的知识库检索大脑，而不是上网随便搜。",
-          "techDesc": "路由在向量、图谱、混合、联网与工具路由中选择；置信度低时改用推理模型重新判定。",
-          "badge": "智能决策"
+          "role": "调度指挥官 · 路由与选专家",
+          "techTitle": "一次调用：路由 + 专家 + 回答形态",
+          "storyDesc": "看懂您的问题属于哪个领域，选出最合适的专家（网络安全、AI、数据分析、合规审核、文档阅读）和检索方式。",
+          "techDesc": "一次结构化模型调用同时给出检索路由、领域专家、回答形态和理由；超时时由关键词规则选专家；侧栏指定的专家直接生效。",
+          "badge": "选对专家"
         },
         "step3": {
           "role": "金牌图书员 · 混合检索",
           "techTitle": "多路混合检索与重排",
-          "storyDesc": "从公司几万页 PDF 文档里，同时通过‘关键词’和‘深层语义’挑出最贴切的 3 段制度原文。",
-          "techDesc": "ChromaDB BGE-M3 向量检索 + BM25 倒排索引，RRF 互惠排名融合，BGE-Reranker-V2 交叉打分截断。",
+          "storyDesc": "只在您有权限的文档里，同时按关键词和语义找出最贴切的原文；本领域的文档排得更靠前。",
+          "techDesc": "向量 + BM25 + 知识图谱 + Web，按（来源, 查询）做 RRF 融合，交叉编码器重排；专家领域的文档在重排后加分，只重排、不扩大范围。",
           "badge": "精准召回"
         },
         "step4": {
-          "role": "特约助手 · 工具箱",
-          "techTitle": "受控 ReAct 工具执行",
-          "storyDesc": "如果遇到计算、查实时天气或调用外部系统，启动受严格监管的安全工具沙箱执行。",
-          "techDesc": "Think-Act-Observe 思考-行动循环 (最多5轮)，单次有效签名审批令牌，Web 调研动态兜底。",
-          "badge": "按需触发 · 安全隔离"
+          "role": "特约助手 · 专家工具",
+          "techTitle": "受控工具：本领域只读工具",
+          "storyDesc": "安全专家查 CVE 和版本暴露面，AI 专家算显存，数据专家查表格；只读工具直接用，改动类操作要您确认。",
+          "techDesc": "路由到的专家只拿到本领域的只读工具，最多 3 步，选择工具时看不到检索内容；写操作返回待审批，需单次有效的审批令牌。",
+          "badge": "只读 · 最多 3 步"
         },
         "step5": {
           "role": "主笔撰稿人 · 引用生成",
-          "techTitle": "引用优先合成与 SSE 流式",
-          "storyDesc": "根据找到的制度原文逐字撰写回答，并在每句话后标出引文角标 [1]，就像论文一样严谨可信。",
-          "techDesc": "端到端生成即植入 [1], [2] 引用标记，绑定文档/页码快照，SSE 逐字打字机流式输出。",
+          "techTitle": "按专家形态生成，证据与工具分别引用",
+          "storyDesc": "按专家的回答形态写答案：文档依据标 [1]，工具结论标 [T1]；证据有多少就写多少。",
+          "techDesc": "专家模板生成，证据标记 [E{k}]、工具标记 [T{k}]；篇幅随证据；草稿经 SSE 流式展示。",
           "badge": "逐字流式"
         },
         "step6": {
-          "role": "终审质检员 · 幻觉与脱敏",
-          "techTitle": "句子级 Grounding 与 Output DLP",
-          "storyDesc": "逐字审核 AI 有没有自己瞎编胡说，并自动涂黑员工身份证、密码等敏感信息，确认绝对安全后呈现在屏幕上。",
-          "techDesc": "NLI 蕴含验证（中文使用词汇评分）与流式 Chunk 实时输出 DLP 脱敏。",
-          "badge": "事实校验 · DLP 脱敏"
+          "role": "终审质检员 · 核验与脱敏",
+          "techTitle": "核验、有界重试与输出脱敏",
+          "storyDesc": "逐句检查有没有依据，工具结论按工具输出核对；不达标就再检索一次；最后涂掉敏感信息、整理引用编号。",
+          "techDesc": "引用支持、NLI 蕴含（跨文字时弃权）与句子依据核验；不达标且预算允许时重试一次检索与生成；输出 DLP，[E] 改为 [1][2]，[T] 列入工具来源。",
+          "badge": "核验 · 脱敏"
         }
       },
       "blueprintStage1Desc": "检索之前先解析访问范围，问题中的敏感信息替换为占位符；随后一次模型调用选定路由、领域专家和回答形态。",
@@ -1507,7 +1507,7 @@
       "description": "说明",
       "totalEndpoints": "共 {{count}} 个核心 API 接口"
     },
-    "apiEndpoints": "# 认证与权限 (Authentication)\nPOST /auth/register - 用户注册 (PBKDF2 强哈希)\nPOST /auth/login - 用户登录 (JWT + HttpOnly Cookie)\nPOST /auth/logout - 安全登出并销毁 Cookie\nGET  /auth/me - 获取当前登录用户信息\nPUT  /auth/profile - 更新用户个人资料\nPOST /auth/change-password - 修改账户密码\nGET  /auth/google/login - Google OAuth2 快捷登录\n\n# 核心查询与管线 (Query & LangGraph Pipeline)\nPOST /query - 基础同步查询接口\nPOST /query/stream - 实时 SSE 流式智能体推理与引用输出\nPOST /api/v1/enhanced/query - 多智能体增强问答接口\nPOST /api/advanced-rag/query - 高级 RAG 混合检索接口\n\n# 会话与跨会话记忆 (Sessions & Memory)\nGET  /sessions - 获取用户全部历史会话列表\nPOST /sessions - 创建新对话会话\nGET  /sessions/{session_id} - 获取指定会话消息及上下文\nDELETE /sessions/{session_id} - 删除指定会话及关联数据\nGET  /sessions/{session_id}/strategy-lock - 查看会话检索策略锁定配置\nPOST /sessions/{session_id}/strategy-lock - 设置会话专用检索策略锁定\nGET  /sessions/{session_id}/memories/long - 读取跨会话持久化长期记忆\nDELETE /sessions/{session_id}/memories/long/{memory_id} - 删除特定长期记忆\nPATCH /sessions/{session_id}/messages/{message_id} - 标记/编辑特定历史消息\nDELETE /sessions/{session_id}/messages/{message_id} - 删除单条消息记录\n\n# 知识库文档与外部连接器 (Documents & Ingestion)\nGET  /documents - 列出当前用户可访问的文档 (私有/公开)\nPOST /upload - 流式上传并解析文档 (PDF/Markdown/TXT/DOCX)\nPOST /documents/{filename}/reindex - 对指定文档重新分块并重构向量索引\nDELETE /documents/{filename} - 删除指定文档及所有关联索引块\nGET  /api/connectors - 获取配置的数据源外部连接器列表\nPOST /api/connectors/{connector_id}/sync - 立即触发连接器数据增量同步\nPOST /api/connectors/{connector_id}/test - 测试外部连接器连通性与权限\n\n# 主动澄清与 Prompt 管理 (Clarification & Prompts)\nPOST /api/clarification/respond - 提交对多轮歧义问题的澄清反馈\nPOST /api/clarification/skip - 跳过当前澄清环节直接使用默认策略\nGET  /prompts - 获取提示词模板列表及版本链\nPOST /prompts - 创建新业务提示词模板\nPOST /prompts/check - 提示词语法与安全防护规则预检\nPATCH /prompts/{prompt_id} - 升级提示词模板新版本\nDELETE /prompts/{prompt_id} - 归档/删除指定提示词模板\n\n# 管理运维、配置中心与模型 (Admin & Operations)\nGET  /admin/ops/runtime - 查看运行时环境变量与层级生效配置\nGET  /admin/ops/overview - 系统运行全景看板与核心 KPI\nGET  /admin/ops/retrieval-profile - 获取检索预设配置 (fast/balanced/deep)\nPOST /admin/ops/retrieval-profile - 动态更新当前生效的检索预设\nPOST /admin/ops/canary - 配置金丝雀灰度分流策略\nPOST /admin/ops/benchmark/run - 执行端到端性能基准自动化测试\nGET  /admin/model-settings - 获取当前生效的大模型后端配置\nPOST /admin/model-settings - 动态热更新大模型后端提供商与参数\nGET  /admin/config - 查看单一配置中心规范源解析状态\nGET  /admin/web-activity - 外部网络检索行为审计与统计\nGET  /admin/agent-quality/metrics - 智能体质量多维健康度评分\nGET  /user/api-settings - 读取当前用户个人 API Key 配置\nPOST /user/api-settings - 保存并 AES 加密用户 API Key\n\n# 智能体追踪、可观测性与健康 (Tracing & Observability)\nGET  /agent-tracking/trace/{execution_id} - 查询单次请求的智能体拓扑链路详情\nGET  /agent-tracking/stream/{execution_id} - SSE 流式订阅智能体执行全生命周期事件\nGET  /agent-tracking/history - 获取智能体执行历史记录\nGET  /health - Kubernetes 存活探针 (Liveness Probe)\nGET  /ready - 8 项关键依赖深度就绪探针 (Readiness Probe)\nGET  /metrics - Prometheus 标准格式度量指标导出端点\nGET  /circuit-breakers - 查看全链路熔断器状态与降级指标"
+    "apiEndpoints": "# 提问与流式轨迹 (Asking)\nPOST /api/advanced-rag/query - 唯一的提问接口；返回答案、引用、工具运行（含 [T] 编号）、专家与回答形态\nGET  /api/v1/orchestration/executions/{execution_id}/events - SSE 订阅：阶段事件与答案草稿\nPOST /api/v1/clarification/check - 多轮澄清（可续接）\nGET  /user/active-model - 当前回答问题使用的模型（只读）\n\n# 会话与长期记忆 (Sessions & Memory)\nGET  /sessions - 列出我的会话\nPOST /sessions - 新建会话\nGET  /sessions/{session_id} - 读取会话消息\nPATCH /sessions/{session_id} - 重命名或置顶会话\nDELETE /sessions/{session_id} - 删除会话及其历史\nPATCH /sessions/{session_id}/messages/{message_id} - 编辑单条消息（可重跑）\nPOST /api/v1/sessions/search - 按标签、描述、分类搜索会话元数据\nPOST /api/v1/sessions/{session_id}/export - 导出会话（json / zip）\nPOST /api/v1/sessions/import - 导入会话\nGET  /api/v1/memories - 查看系统记住的关于我的全部内容\nDELETE /api/v1/memories/{memory_id} - 删除一条长期记忆\nDELETE /api/v1/memories - 删除全部长期记忆\n\n# 文档与领域标签 (Documents)\nPOST /upload - 上传并解析文档（排队摄取）\nGET  /documents - 列出我可访问的文档\nPATCH /documents/by-id/{document_id} - 修改文档的领域标签（无需重建索引）\nPOST /documents/by-id/{document_id}/reindex - 重新索引（202，排队执行）\nDELETE /documents/by-id/{document_id} - 删除文档及其索引\nGET  /documents/index-health - 索引健康状况\n\n# 连接器与受控工具 (Connectors & Tools)\nGET  /api/v1/connectors - 列出我的连接器\nPOST /api/v1/connectors - 创建连接器\nPOST /api/v1/connectors/{connector_id}/disable - 停用连接器\nDELETE /api/v1/connectors/{connector_id} - 删除连接器（先销毁凭据）\nPOST /api/v1/connectors/approvals/{token} - 确认一次待审批的写操作\n\n# 提示词模板 (Prompts)\nGET  /prompts - 提示词模板列表\nPOST /prompts - 新建模板\nPOST /prompts/check - 提示词安全预检\nGET  /prompts/{prompt_id}/versions - 版本历史\nPOST /prompts/{prompt_id}/versions/{version_id}/rollback - 回滚到指定版本\n\n# 管理与运维 (Admin & Operations)\nGET  /admin/model-settings - 管理员的模型配置\nGET  /admin/model-settings/effective - 下一个问题实际会用到的组件与状态\nGET  /admin/config/schema - 可在控制台修改的配置项及其来源层\nPOST /admin/config/values - 写入配置中心并热加载\nGET  /admin/threat-intel/status - 威胁情报各数据源的同步时间与是否过期\nPOST /admin/threat-intel/sync - 启动威胁情报同步（202）\nGET  /admin/ops/overview - 运维总览与告警\nPOST /admin/ops/benchmark/run - 运行基准测试\nGET  /admin/users - 用户管理\nGET  /admin/audit-logs - 审计日志\n\n# 健康与可观测性 (Health & Observability)\nGET  /health - 存活探针\nGET  /ready - 就绪探针（模型预热期间返回 503 warming）\nGET  /ready/dependencies - 依赖探测：Redis、Neo4j、Chroma、模型与嵌入（管理员）\nGET  /metrics - Prometheus 指标（多 worker 汇总）\nGET  /api/analytics/overview - 延迟分位数与检索成功率\nGET  /circuit-breakers - 熔断器状态"
   },
   "toast": {
     "close": "关闭通知"
