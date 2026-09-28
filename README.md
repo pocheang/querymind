@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.0.3-brightgreen.svg?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/pocheang/querymind/releases"><img src="https://img.shields.io/badge/Release-v0.7.1-brightgreen.svg?style=flat-square" alt="Release"></a>
   <a href="https://sonarcloud.io/summary/new_code?id=pocheang_querymind"><img src="https://sonarcloud.io/api/project_badges/measure?project=pocheang_querymind&metric=alert_status" alt="Quality Gate Status"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.138+-009688.svg?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
@@ -42,6 +42,7 @@
 - 🛡️ **严格的数据安全与多租户隔离**：数据范围在检索执行**之前（Preflight）**即完成强制绑定，杜绝“全量检索后再做过滤”导致的高危数据越权。
 - 🔍 **双路融合检索 + 知识图谱多跳推理**：密集向量与 BM25 稀疏分词检索经 RRF（Reciprocal Rank Fusion）融合，配合 BGE-Reranker-V2-M3 重排及 Neo4j 拓扑推理。融合发生在**每个 (来源, 查询) 对**的独立排名列表上，而不是先拼成一张表——后者会让第二个查询的最佳命中被罚到 `top_k + 1` 名。
 - 📝 **独创引用优先与 NLI 蕴含校验**：生成的每一个论据携带实时引用锚点 `[1]`, `[2]`，结合 NLI 逻辑蕴含算法过滤幻觉，未获证据支撑的论述自动进行审慎降级对齐。
+- 🧠 **五个领域专家智能体**：网络安全、AI、数据分析、合规审核、文档阅读，各自带只读工具（CVE / ATT&CK / 产品暴露面查询、显存与算力估算、表格 SQL）和回答模板；工具结论以 `[T1]` 标注并按工具输出核对。专家仍走同一条管线，只收窄工具目录、给本领域文档加分，从不扩大检索范围。
 - ⚡ **按路由代码分割与全景可观测性**：基于 Vite 6 + Tailwind v4 + Zustand 切片精准订阅；入口 chunk **151.5 KB（gzip）** + 主样式 38.6 KB，其余 40 个 chunk 按路由懒加载。配套 5 维交互式架构流转图与实时 SSE 执行链路追踪面板。
 
 ---
@@ -100,6 +101,7 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 | **Planner** | 复杂多步任务拆解 | 针对多实体对比或复合统计问题构建有向无环图（DAG），设定明确的任务预算上限。 |
 | **Retriever** | 混合多模态与图谱检索 | 向量 + BM25 并行查询，RRF 融合后 Cross-Encoder 重排。每个来源按 `owner` **关键字参数且无默认值**接收调用者身份——漏传是 `TypeError` 而不是悄悄放宽检索范围。 |
 | **Tool Runner** | 受控工具调用与环境交互 | 工具选择对检索文档盲调用（Prompt Injection 防御），具备调用频次与超时熔断。 |
+| **Specialists** | 领域专家（安全 / AI / 数据分析 / 合规 / 文档） | 路由选中专家后，工具阶段只提供该领域的**只读**工具，selector 可以选择不调用；回答套用该领域模板；带本领域标签的文档在重排后加 `DOMAIN_LABEL_BOOST`（只重排已授权结果）。 |
 | **Table SQL** | 结构化表格精确分析 | 按文档属主隔离、一表一引擎；DuckDB 关闭外部文件/网络访问，只读 SQL 校验；表格持久化到 SQLite，重启与多 worker 一致。 |
 | **Synthesizer** | 引用优先文本生成 | 生成时注入 `[E1]`, `[E2]` 证据标记，并在流式传输过程中动态解析为前端锚点。 |
 | **Verifier** | 抗幻觉与事实一致性校验 | 基于自然语言推理（NLI）对比生成的陈述与召回切片，证据不足时自动增加对齐免责提示。 |
@@ -136,6 +138,14 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 - **LangGraph SSE 实时执行树面板**：在问答控制台可一键展开实时执行树，直观看到当前请求经过了哪个 Agent、消耗了多少 Token、命中了几篇切片、各阶段耗时毫秒数。
 - **前端构建与样式体系**：Tailwind CSS v4（CSS-first，无配置文件）+ 精准 Zustand 切片订阅，消除流式响应下的重绘卡顿。层叠顺序在 `styles/main.css` 里**声明一次**（theme / legacy / components / design / utilities），因为未分层的规则无视特异性压过所有层。构建产物按路由分割成 40 个 chunk，入口 151.5 KB gzip。
 
+### 4. 🧠 领域专家智能体 (Domain Specialists, v0.7.1)
+- **网络安全**：`querymind_cyber_cve_lookup`、`querymind_cyber_mitre_attack`、`querymind_cyber_product_exposure` 读取本地离线威胁情报库（NVD / CISA KEV / FIRST EPSS / MITRE ATT&CK，`scripts/sync_threat_intel.py` 同步，请求路径不出网）。「我们受影响吗」类问题按「结论 / 版本范围依据 / 优先级 / 处置」作答，版本范围判定不了时写「无法判断」，绝不写「不受影响」。
+- **AI**：`querymind_ai_memory_estimate` / `querymind_ai_compute_estimate` 只用问题里给出的数值计算，写出公式、代入、假设和未计入项，不编造模型结构。
+- **数据分析**：`querymind_table_list` → `querymind_table_query` 两步查询用户可见的表格；列表只给 id、文件名和行列数，不把表头交给下一次工具选择。
+- **合规审核**：内置网络安全法、数据安全法、个人信息保护法与 GDPR；逐条款对照（满足 / 部分 / 缺失 / 无法判断）并附「非法律意见」声明。仅在差距分析时，提问人**本人上传**的制度条文会作为二次检索的查询。
+- **文档阅读**：复述「第 N 章讲了什么」，并从摄取时记录的元数据里给出页码和章节；中文带编号标题（第X章、一、）可识别。
+- **路由可测量**：`config/eval/specialist_routing.json` 68 道中英文标注题，模型路由类别全对，关键词兜底 58/68（`make eval-routing`、`make eval-routing-llm`）。
+
 ---
 
 ## 📊 What Is Measured, and What Is Not (指标与其测量方式)
@@ -149,12 +159,12 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 | **跨文档 complete@5** | **0.7500** | `make eval-crossdoc`：8 个「单篇文档答不了」的问题。complete@5 问的是**所有必需文档是否都进了前五**——半份证据不是半个答案，是一个自信的错答。八题里两题组装不起来，`KNOWN_INCOMPLETE_CROSSDOC` 记录的是**缺了哪一篇**。 |
 | **跨文档 P@5** | **0.4000（上限 0.4500）** | 同上，也是全项目**唯一一个 P@5 低于自身上限**的地方——即它终于在测检索，而不是在测标注。 |
 | **全链路检索质量** | **未测量（会拒绝）** | `make eval-full-pipeline` 测向量 + BM25 + 交叉编码器重排，但在本机**退出码 2、一个数字都不输出**：两个模型都以 `local_files_only=True` 加载，缺失时静默降级成词面回退和哈希嵌入。一个测错东西的绿色数字比没有数字更糟。 |
-| **端点数量** | **157** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
-| **后端行覆盖率** | **69.8%**（基线 68.6%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。数字取自 CI 的 Python 3.11 任务。 |
+| **端点数量** | **160** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
+| **后端行覆盖率** | **73.4%**（基线 72.4%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。数字取自 CI 的 Python 3.11 任务。 |
 | **认知复杂度** | **0 个函数 > 15** | `tests/core/test_cognitive_complexity_is_bounded.py`，覆盖 `app/` 与 `scripts/` 的硬门禁。`scripts/audit/cognitive_complexity.py` 本地实现了 Sonar 的评分规则，`--validate` 能逐条复现项目全部 75 条历史 S3776 发现。 |
-| **测试数量** | **3,498 后端 / 232 前端** | CI 的 Python 3.11 任务（Linux，带 Redis 与 Chroma 服务容器）报告 3,498 passed、0 skipped；Windows 本机 `make test-ci` 报告 3,483 passed / 15 skipped——5 个是 Windows 上跑不了的用例，10 个是没配 Redis/Chroma 时的多进程组。`vitest` 报告 232 passed（35 文件）。没有 xfail。写运行时真正打印的数字，而不是单一总数。 |
+| **测试数量** | **4,628 后端 / 244 前端** | CI 的 Python 3.11 任务（Linux，带 Redis 与 Chroma 服务容器）报告 4,628 passed、0 skipped；3.12 任务不起服务容器，多进程组整组跳过。`vitest` 报告 244 passed（38 文件）。没有 xfail。写运行时真正打印的数字，而不是单一总数。 |
 | **入口包体积** | **151.5 KB gzip** | `npm run build` 实测：入口 chunk 441 KB 原始 / 151.5 KB gzip，主样式 142 KB / 38.6 KB gzip，其余按路由拆成 40 个懒加载 chunk。 |
-| **Router 意图准确率** | **没有测量** | 项目里**不存在**标注过的路由测试集。此处曾写 99.1%，那个数字没有任何东西在测。 |
+| **专家路由准确率** | **模型 68/68，关键词兜底 58/68**（按类别） | `config/eval/specialist_routing.json`：68 道中英文题，标注的是**正确的路由应当给出什么**，含 prompt 注入 vs 依赖注入、PDF 里的表格等边界题。`make eval-routing` 离线跑关键词规则（模型路由超时时就是它在回答），每条偏离都记录原因；`make eval-routing-llm` 跑真实模型，没有真实聊天模型时拒绝运行。这是单次运行的数字，不是统计置信区间。此处曾写「没有测量」，更早曾写 99.1%，那个数字没有任何东西在测。 |
 | **引用完整性** | **没有聚合测量** | 每个回答由校验级联的引用阶段**逐条强制执行**，但从未在一个查询集上打过总分。 |
 | **回答接地率 / 延迟 P95** | **按请求记录，无历史聚合** | `build_ops_alerts` 读中间件写入的 `request_rows` 环形缓冲。**进程本地**：重启即空，多 worker 各看各的。跨越这个边界是时序数据库的决策，不是改这五行代码。 |
 
@@ -281,7 +291,7 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (Linter & Formatter), Pre-commit (CI 内同样执行)
-    ├── Testing: Pytest (后端 3,498 用例，含真实 Redis/Chroma 上的多进程组), Vitest (前端 232 用例), Prettier
+    ├── Testing: Pytest (后端 4,628 用例，含真实 Redis/Chroma 上的多进程组), Vitest (前端 244 用例), Prettier
     ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 22+24 / images / analysis)
     ├── Security: CodeQL (python + js-ts), pip-audit + npm audit 门禁, Trivy 镜像扫描（每周）
     ├── Static Analysis: SonarCloud Quality Gate, 认知复杂度本地门禁 (S3776, 0 超标)
@@ -329,14 +339,14 @@ multi_agent_rag_local_v4/
 
 ```bash
 # 后端，推送前用这个：屏蔽 CI 不安装的可选包、不读本机 .runtime/ 与 data/，结果可复现
-# Windows 本机：3,483 passed / 15 skipped；CI（Linux + Redis + Chroma）：3,498 passed
+# CI（Linux + Redis + Chroma）：4,628 passed
 make test-ci
 
 # 多进程组：两个 API 进程 + init + ingest-worker，需要真实的 Redis 和 Chroma 服务端（没配置时整组跳过）
 make up
 QM_INTEGRATION_REDIS_URL=redis://:PASSWORD@127.0.0.1:6379/0 QM_INTEGRATION_CHROMA_URL=http://127.0.0.1:8001 pytest tests/integration/multiworker -q
 
-# 前端：232 项用例，35 个文件
+# 前端：244 项用例，38 个文件
 cd frontend && npm test -- --run
 
 # 静态检查
@@ -347,6 +357,7 @@ npm run build && npm run lint:classes   # 这两项必须在 build 之后：它�
 # 离线检索质量评估（无需模型、无需 Chroma / Neo4j / LLM，全新 checkout 即可跑）
 make eval-retrieval        # 主集合：单篇文档能答的问题，MRR / nDCG 是它的指标
 make eval-crossdoc         # 跨文档：单篇答不了的问题，complete@5 是它的指标
+make eval-routing          # 专家路由：68 道标注题上的关键词规则（离线）
 
 # 全链路（向量 + BM25 + 重排）。缺模型时**拒绝运行并退出 2**，而不是降级后报一个
 # 描述回退路径的数字——那种绿色数字比没有数字更糟。
@@ -379,7 +390,8 @@ make eval-full-pipeline
 
 ## 📜 Documentation Index (文档索引)
 
-- 📝 **[v0.7.0.3 发布说明](docs/releases/v0.7.0.3-release-notes.md)**：最新版本——动态双轨制澄清 Agent（静态规则快速通道 + LLM 真实智能反问）、交互提问规范对标 Codex/Claude Code、SonarQube 质量门禁 100% 满分通过
+- 📝 **[v0.7.1 发布说明](docs/releases/v0.7.1-release-notes.md)**：最新版本——五个领域专家智能体、离线威胁情报库、工具引用 `[T{k}]`、模型后台预热、单机多 worker，以及升级步骤
+- 📝 **[v0.7.0.3 发布说明](docs/releases/v0.7.0.3-release-notes.md)**：动态双轨制澄清 Agent（静态规则快速通道 + LLM 真实智能反问）、交互提问规范对标 Codex/Claude Code、SonarQube 质量门禁 100% 满分通过
 - 📝 **[v0.7.0.2 发布说明](docs/releases/v0.7.0.2-release-notes.md)**：SonarQube 质量门禁全量通过（安全漏洞/缺陷/代码异味 100% 清零）、重复代码彻底归零（0 块 / 0.0% 重复率）、前端可视化拓扑与管理状态解耦重构
 - 📝 **[v0.7.0.1 发布说明](docs/releases/v0.7.0.1-release-notes.md)**：表格与 Excel/CSV、表格 SQL 分析、图谱社区、多搜索源、提示词注入防护及升级说明
 - 📝 **[v0.7.0 发布说明](docs/releases/v0.7.0-release-notes.md)**：v0.7.0 LangGraph 重构与可观测性详细清单
