@@ -51,17 +51,20 @@ AGENT_CLASS_GUIDE = """1. cybersecurity（网络安全）
    - 安全审计、日志分析、安全监控
    - 防火墙、WAF、IDS/IPS、安全设备
    - 数据安全、隐私保护、GDPR、等保
+   - 针对 AI 系统的攻击与防护：提示词注入、越狱、训练数据投毒、模型窃取（攻击是主题，AI 只是被攻击的对象）
 2. artificial_intelligence（人工智能）
    - AI、机器学习、深度学习、神经网络
    - 模型训练、推理、优化、调参、显存与算力估算
    - NLP、CV、语音识别、推荐系统
    - Transformer、LLM、GPT、BERT
-3. pdf_text（PDF文档）
-   - PDF文档阅读、文本提取、文档分析
-   - 仅当用户明确提到PDF或要求分析文档时使用
+   - 不含针对模型或 AI 应用的攻击，那些归 cybersecurity
+3. pdf_text（文档与图片阅读）
+   - 读取 PDF、图片、截图、扫描件里的原文：文本提取、OCR、按页或章节列出原文
+   - 文件类型不决定归属：问题的主题属于其他类别时（例如漏洞扫描报告 PDF 里的漏洞），归那个类别
 4. general（通用知识）
    - 不属于以上三个类别的其他问题
-Examples: "如何实现访问控制？" -> cybersecurity; "解释一下Transformer模型" -> artificial_intelligence;
+Examples: "如何实现访问控制？" -> cybersecurity; "LLM 遭遇 prompt 注入怎么防护？" -> cybersecurity;
+"解释一下Transformer模型" -> artificial_intelligence; "OCR 这张照片上的文字" -> pdf_text;
 "分析这个PDF文档" -> pdf_text; "今天天气怎么样？" -> general"""
 
 
