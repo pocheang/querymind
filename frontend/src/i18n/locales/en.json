@@ -377,6 +377,28 @@
       "badge": "This worker · pid {{pid}}",
       "hint": "These figures come from the worker process on {{host}} that answered this request; with several workers, each keeps its own.",
       "overviewNote": "Request counts and error rate come from the worker that answered; audit, user and session figures cover the whole deployment."
+    },
+    "threatIntel": {
+      "title": "Threat intelligence",
+      "description": "Offline copies of NVD, CISA KEV, FIRST EPSS and MITRE ATT&CK that the security tools read. Synced manually or by a scheduled CLI run.",
+      "source": "Source",
+      "state": "State",
+      "records": "Records",
+      "lastSync": "Last sync",
+      "version": "Version",
+      "lastAttempt": "Last attempt",
+      "sync": "Sync",
+      "syncAll": "Sync all",
+      "queued": "Sync queued. Refresh in a few minutes; the first NVD sync takes hours without an API key, use the CLI for it.",
+      "syncFailed": "Could not queue the sync.",
+      "loadFailed": "Could not load threat intelligence status.",
+      "never": "never",
+      "ageDays": "{{days}} days ago (stale after {{limit}})",
+      "states": {
+        "current": "Current",
+        "stale": "Stale",
+        "empty": "Empty"
+      }
     }
   },
   "common": {

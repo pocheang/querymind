@@ -11,6 +11,8 @@ import type {
   ModelCatalogResponse,
   OpsOverview,
   SystemLogEntry,
+  ThreatIntelSource,
+  ThreatIntelSourceStatus,
   WorkerScope,
 } from "@/types/api";
 import { request, ApiError, safeParsePayload, authFetch, parseOrThrow } from "@/services/http/client";
@@ -145,6 +147,15 @@ export const adminOpsApi = {
   adminRunBenchmark(input: { maxQueries?: number } = {}) {
     return buildPostRequest<{ ok: boolean; status: string; max_queries: number }>("/admin/ops/benchmark/run", {
       max_queries: input.maxQueries ?? 20,
+    });
+  },
+  adminThreatIntelStatus() {
+    return buildGetRequest<{ sources: ThreatIntelSourceStatus[] }>("/admin/threat-intel/status", {});
+  },
+  /** Queues a sync; 202 at once. NVD's first full sync takes hours without an API key -- use the CLI for that. */
+  adminThreatIntelSync(source: ThreatIntelSource | "all") {
+    return buildPostRequest<{ ok: boolean; status: string; sources: ThreatIntelSource[] }>("/admin/threat-intel/sync", {
+      source,
     });
   },
 };

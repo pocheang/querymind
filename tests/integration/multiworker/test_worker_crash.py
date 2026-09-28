@@ -7,12 +7,19 @@ wide; worker A takes it and is killed without running any handler; worker B is
 refused while the lease is live and admitted once it has expired -- not before,
 and not much after.
 
-To have something to kill, A's query must still be running. Graph retrieval is
-pointed at a socket that accepts a connection and never answers, and a question
-about relationships routes to it (the offline router sends 关系/依赖 to hybrid),
-so the slot is held until the retrieval stage times out. The lease is the
-stage budget plus 30 seconds (app/api/dependencies.py), so a small budget keeps
-the wait short.
+To have something to kill, A's query must still be running. Web search is sent
+through a proxy that accepts a connection and never answers, so the slot is held
+until the web source's timeout. The lease is the stage budget plus 30 seconds
+(app/api/dependencies.py), so a small budget keeps the wait short.
+
+It used to be graph retrieval pointed at the silent socket, and that could never
+have held the slot: the caller here has no documents, and the orchestrator skips
+every document-backed source -- graph included -- for an empty scope before any
+connection is made. What held the slot was A's cold start, which is why warming
+A up made the question answer at once, and why the test failed whenever a runner
+started A quickly: the lease lived for less than one 50 ms poll (CI, 2026-09-26
+and three times on 2026-09-27). Web search is the one source that runs on an
+empty scope, and a silent proxy makes its duration the configured timeout.
 """
 
 from __future__ import annotations
@@ -92,6 +99,13 @@ def stack(tmp_path_factory, silent_graph):
         STAGE_TIMEOUT_TOTAL_MS=str(TOTAL_BUDGET_MS),
         **_STAGES,
         NEO4J_URI=f"bolt://127.0.0.1:{silent_graph.port}",
+        # The slot holder: web search through a proxy that never answers. Never
+        # leaves the machine -- the proxy is the silent socket.
+        WEB_SEARCH_ON_EMPTY_CORPUS="true",
+        WEB_PROXY_URL=f"http://127.0.0.1:{silent_graph.port}",
+        WEB_SEARCH_TIMEOUT_SECONDS="3",
+        WEB_SEARCH_MAX_RETRIES="0",
+        WEB_FETCH_PAGES_ENABLED="false",
     )
 
 
@@ -102,7 +116,8 @@ def _leases(stack) -> list[tuple[str, float]]:
 def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stack):
     a, b = stack.workers
     on_a, on_b = stack.login(a), stack.login(b)
-    assert on_b.post("/api/advanced-rag/query", json={"query": "warm up"}).status_code == 200
+    warm = on_b.post("/api/advanced-rag/query", json={"query": "warm up"})
+    assert _ran(warm), warm.text
     # A is deliberately NOT warmed up: its first graph lookup is the one that
     # hangs on the silent socket. Warming it was tried (2026-09-26) and the slow
     # question then answered 200 at once without holding the slot.
@@ -112,10 +127,12 @@ def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stac
     outcome: dict[str, object] = {}
 
     def slow_query() -> None:
+        started = time.monotonic()
         try:
             outcome["status"] = on_a.post("/api/advanced-rag/query", json={"query": SLOW_QUESTION}).status_code
         except httpx.HTTPError as exc:  # the worker serving it is killed mid-request
             outcome["error"] = type(exc).__name__
+        outcome["seconds"] = round(time.monotonic() - started, 2)
 
     threading.Thread(target=slow_query, daemon=True).start()
     # Generous on purpose: A's first query also pays A's cold start, and a shared
@@ -132,25 +149,45 @@ def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stac
     assert not a.alive()
 
     refused = on_b.post("/api/advanced-rag/query", json={"query": "anything"})
-    assert refused.status_code == 503, refused.text
+    assert refused.status_code == 503 and not _ran(refused), refused.text
     assert _leases(stack) == leases, "the dead worker's lease is still there"
 
-    admitted_at = _first_admission(on_b, timeout=LEASE_SECONDS + 20)
-    redis_now = _redis_time(stack)
+    admitted_at = _first_admission(stack, on_b, timeout=LEASE_SECONDS + 20)
     assert admitted_at is not None, f"B never admitted a query after {LEASE_SECONDS + 20}s"
-    assert redis_now >= expires_at - 1.0, "admitted before the dead worker's lease expired"
-    assert redis_now <= expires_at + 5.0, "the slot came back long after its lease expired"
+    assert admitted_at >= expires_at - 1.0, "admitted before the dead worker's lease expired"
+    assert admitted_at <= expires_at + 5.0, "the slot came back long after its lease expired"
 
 
-def _first_admission(client: httpx.Client, *, timeout: float) -> float | None:
+def _first_admission(stack, client: httpx.Client, *, timeout: float) -> float | None:
+    """Redis's clock when the first admitted request was SENT.
+
+    Taken at the start of the request, not after it: an admitted query runs to
+    completion -- here, through the silent web proxy -- and timing its end would
+    charge the query's own duration to the lease.
+    """
+
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
+        sent_at = _redis_time(stack)
         response = client.post("/api/advanced-rag/query", json={"query": "anything"})
-        if response.status_code == 200:
-            return time.monotonic()
+        if _ran(response):
+            return sent_at
         assert response.status_code == 503, response.text
         time.sleep(0.5)
     return None
+
+
+# What a query that was admitted and ran answers when its only source -- the web,
+# through the silent proxy -- fails: 503 with this detail (app/api/routes/public/
+# query.py). The query guard's refusal is also a 503, so the two are told apart
+# by the body, not the status.
+_RETRIEVAL_FAILED = "No evidence could be retrieved"
+
+
+def _ran(response: httpx.Response) -> bool:
+    """Admitted and executed: answered, or ran and found no source that worked."""
+
+    return response.status_code == 200 or (response.status_code == 503 and _RETRIEVAL_FAILED in response.text)
 
 
 def _redis_time(stack) -> float:

@@ -116,6 +116,9 @@ docker compose -f deploy/compose/compose.yaml down
 | `QUOTA_*` | see above | per-minute query and web-search quotas |
 | `QUERYMIND_TRUSTED_PROXIES`, `QUERYMIND_SUBNET` | compose network | reverse-proxy trust |
 | `GUNICORN_TIMEOUT_SECONDS` | `60` | worker replacement on a stalled event loop |
+| `THREAT_INTEL_DB_PATH` | `./data/threat_intel.db` | the offline threat-intelligence store |
+| `THREAT_INTEL_STALE_DAYS_NVD` / `_KEV` / `_EPSS` / `_ATTACK` | `7` / `7` / `7` / `200` | how old each source may get before it is reported stale |
+| `NVD_API_KEY` | unset | real environment variable only, never a setting; raises NVD's rate limit |
 | `DOMAIN_LABEL_BOOST` | `0.1` | added to the reranked score (0–1) of documents labelled with the routed specialist's domain; `0` turns it off |
 | `WEB_FETCH_PAGES_ENABLED` | `true` | read the pages a web search returned, not only their snippets; set `false` where the server must not request third-party pages |
 | `WEB_FETCH_MAX_PAGES` | `3` | accepted results per search whose page is read (1–5) |
@@ -130,6 +133,8 @@ docker compose -f deploy/compose/compose.yaml down
 - An exhausted query quota answers **429**.
 - `POST /api/v1/sessions/{id}/export` ignores `include_context`; the import response
   has no `context_imported`.
+- New: `GET /admin/threat-intel/status` and `POST /admin/threat-intel/sync` (202,
+  `{"source": "all" | "nvd" | "kev" | "epss" | "attack"}`), both admin-only.
 - New: `PATCH /documents/by-id/{document_id}` with `{"agent_class": "..."}` changes a
   document's specialist domain (same permission as reindex; 404 for a document the
   caller cannot manage, 400 for an unknown class). No reindex is needed.

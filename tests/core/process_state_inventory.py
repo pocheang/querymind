@@ -460,6 +460,10 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "文档领域标签缓存互斥锁，多进程各持一份，只保护本进程内的缓存",
     ),
+    "app/services/threat_intel/status.py::_store_for": (
+        "D",
+        "每个路径一个威胁情报 store 句柄（首次打开时完成迁移）；数据全在 SQLite 文件里，任一 worker 的写入其他 worker 下次读取即可见",
+    ),
     "app/tools/web/page_fetch.py::_cache": (
         "D",
         "公开网页正文的短期缓存（成功 10 分钟、失败 2 分钟），只为同一问题的多个改写查询去重，各 worker 各自保留，无一致性影响",

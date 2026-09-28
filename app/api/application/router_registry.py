@@ -13,6 +13,7 @@ from app.api.routes.admin import graph_rag as admin_graph_rag
 from app.api.routes.admin import language_stats as admin_language_stats
 from app.api.routes.admin import ops as admin_ops
 from app.api.routes.admin import settings as admin_settings
+from app.api.routes.admin import threat_intel as admin_threat_intel
 from app.api.routes.admin import users as admin_users
 from app.api.routes.admin import web_activity as web_activity_admin
 from app.api.routes.operations import agent_health, agent_tracking, analytics, evaluation, health
@@ -45,6 +46,7 @@ ROUTER_MODULES = (
     advanced_rag,
     analytics,
     admin_graph_rag,
+    admin_threat_intel,
     orchestration,
     web_activity_admin,
     optimization_performance,

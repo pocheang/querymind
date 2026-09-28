@@ -90,6 +90,7 @@ class AuditAction(StrEnum):
     ADMIN_LOGGING_SET_LEVEL = "admin.logging.set_level"
     ADMIN_LOGGING_RESET = "admin.logging.reset"
     ADMIN_OPS_BENCHMARK_RUN = "admin.ops.benchmark.run"
+    ADMIN_THREAT_INTEL_SYNC = "admin.threat_intel.sync"
     ADMIN_OPS_REPLAY_RUN = "admin.ops.replay.run"
     ADMIN_OPS_AUTOTUNE = "admin.ops.autotune"
 

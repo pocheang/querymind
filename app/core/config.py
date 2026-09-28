@@ -447,6 +447,14 @@ class Settings(BaseSettings):
     auth_cookie_secure: bool = Field(default=True, alias="AUTH_COOKIE_SECURE")
     auth_cookie_samesite: _choice("strict", "lax", "none") = Field(default="strict", alias="AUTH_COOKIE_SAMESITE")
     app_db_path_str: str = Field(default="./data/app.db", alias="APP_DB_PATH")
+    threat_intel_db_path_str: str = Field(default="./data/threat_intel.db", alias="THREAT_INTEL_DB_PATH")
+    # How old each source may get before the admin page and every answer built on
+    # it say so. Per source because they change at different speeds: KEV and EPSS
+    # daily, NVD continuously, ATT&CK twice a year.
+    threat_intel_stale_days_nvd: int = Field(default=7, ge=1, le=365, alias="THREAT_INTEL_STALE_DAYS_NVD")
+    threat_intel_stale_days_kev: int = Field(default=7, ge=1, le=365, alias="THREAT_INTEL_STALE_DAYS_KEV")
+    threat_intel_stale_days_epss: int = Field(default=7, ge=1, le=365, alias="THREAT_INTEL_STALE_DAYS_EPSS")
+    threat_intel_stale_days_attack: int = Field(default=200, ge=1, le=730, alias="THREAT_INTEL_STALE_DAYS_ATTACK")
 
     auth_login_max_failures: int = Field(default=8, alias="AUTH_LOGIN_MAX_FAILURES")
     auth_login_window_seconds: int = Field(default=300, alias="AUTH_LOGIN_WINDOW_SECONDS")
@@ -674,6 +682,20 @@ class Settings(BaseSettings):
     @property
     def wiki_db_path(self) -> Path:
         return Path(self.wiki_db_path_str)
+
+    @property
+    def threat_intel_db_path(self) -> Path:
+        return Path(self.threat_intel_db_path_str)
+
+    def threat_intel_stale_days(self, source: str) -> int:
+        # Spelled out rather than getattr(f"..._{source}"): the settings-reader
+        # guard finds readers by attribute access, and a formatted name hides all four.
+        return {
+            "nvd": self.threat_intel_stale_days_nvd,
+            "kev": self.threat_intel_stale_days_kev,
+            "epss": self.threat_intel_stale_days_epss,
+            "attack": self.threat_intel_stale_days_attack,
+        }[source]
 
     @property
     def sessions_path(self) -> Path:

@@ -106,6 +106,8 @@ def _neutralise_local_state() -> list[str]:
         "RUNTIME_ENV_FILE": empty_env,
         "CHROMA_PERSIST_DIR": root / "chroma",
         "APP_DB_PATH": root / "app.db",
+        # A synced threat-intel store would answer tool lookups CI cannot.
+        "THREAT_INTEL_DB_PATH": root / "threat_intel.db",
     }
     changed: list[str] = []
     for key, value in replacements.items():

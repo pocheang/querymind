@@ -61,6 +61,9 @@ ALLOWED: dict[str, str] = {
     # A bootstrap credential must not become a Settings field, for the same
     # reason NACOS_PASSWORD is not one: a field can reach a config endpoint.
     "app/services/auth/bootstrap.py::ensure_admin_account": "first-run admin credential",
+    # NVD's API key is a credential for the same reason: a field can reach a
+    # config endpoint, and a leaked key is someone else's rate limit.
+    "app/services/threat_intel/download.py::nvd_api_key": "third-party API credential",
     # Which peers may name the client's address (SEC-02). gunicorn builds each
     # uvicorn worker's config before the application -- and so before any
     # Settings -- exists (app/gunicorn_worker.py). A Settings field would
