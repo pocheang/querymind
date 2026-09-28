@@ -20,16 +20,16 @@ export function PipelineBlueprintView({ isZh }: Readonly<{ isZh: boolean }>) {
           </div>
           <p className="text-xs sm:text-sm text-ink-muted leading-relaxed">
             {isZh
-              ? "涵盖客户端接入、安全门禁限流、智能体意图路由、向量与知识图谱混合检索、ReAct沙箱工具、引用优先合成与安全出境DLP全流程高清架构图。"
-              : "Comprehensive architectural blueprint illustrating Client Ingress, Security Sentinel, Multi-Agent Router, Hybrid Vector/Graph Store, ReAct Sandbox, Synthesis, and Output DLP."}
+              ? "一次提问经过的 7 个 LangGraph 节点：权限与隐私、路由（同时选定领域专家）、按需规划、混合检索与受控工具、带引用生成、核验与有界重试、输出脱敏；以及五个领域专家和各 worker 共享的状态层。"
+              : "The seven LangGraph nodes a question passes: privacy and permission, the router (which also picks the domain specialist), the optional planner, hybrid retrieval with governed tools, cited synthesis, verification with a bounded retry, and the output filter; plus the five domain specialists and the state every worker shares."}
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <Badge variant="brand" size="sm" mono className="text-xs py-1 px-2.5 font-bold">
-            1080p Ultra-HD
+            SVG · v0.7.1
           </Badge>
           <Button asChild variant="outline" size="sm" className="text-xs">
-            <a href="/architecture_flow_diagram.jpg" target="_blank" rel="noopener noreferrer">
+            <a href="/architecture_flow_diagram.svg" target="_blank" rel="noopener noreferrer">
               <ExternalLink className="size-3.5 mr-1.5" />
               {isZh ? "在新窗口打开原图" : "Open Full Image"}
             </a>
@@ -39,8 +39,8 @@ export function PipelineBlueprintView({ isZh }: Readonly<{ isZh: boolean }>) {
 
       <div className="relative overflow-hidden rounded-card border border-line bg-surface-muted/30 p-2 sm:p-4 shadow-elev-2 flex items-center justify-center">
         <img
-          src="/architecture_flow_diagram.jpg"
-          alt="QueryMind RAG System Architecture Diagram"
+          src="/architecture_flow_diagram.svg"
+          alt="QueryMind v0.7.1 architecture: seven LangGraph nodes, five domain specialists and the shared state layer"
           className="w-full max-h-[760px] object-contain rounded-control transition-all duration-300 hover:scale-[1.01]"
           loading="lazy"
         />
@@ -48,19 +48,19 @@ export function PipelineBlueprintView({ isZh }: Readonly<{ isZh: boolean }>) {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
-          <span className="font-bold text-blue-600 dark:text-blue-400">1. Client & Security Sentinel</span>
+          <span className="font-bold text-blue-600 dark:text-blue-400">1. Permission & Routing</span>
           <p className="text-ink-muted">{t("architecture.flow.blueprintStage1Desc")}</p>
         </div>
         <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
-          <span className="font-bold text-cyan-600 dark:text-cyan-400">2. Intent Router & Multi-Store</span>
+          <span className="font-bold text-cyan-600 dark:text-cyan-400">2. Hybrid Retrieval & Tools</span>
           <p className="text-ink-muted">{t("architecture.flow.blueprintStage2Desc")}</p>
         </div>
         <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
-          <span className="font-bold text-amber-600 dark:text-amber-400">3. ReAct Governed Sandbox</span>
+          <span className="font-bold text-amber-600 dark:text-amber-400">3. Domain Specialists</span>
           <p className="text-ink-muted">{t("architecture.flow.blueprintStage3Desc")}</p>
         </div>
         <div className="p-3.5 rounded-control border border-line bg-surface text-xs space-y-1">
-          <span className="font-bold text-rose-600 dark:text-rose-400">4. Synthesis & Output DLP</span>
+          <span className="font-bold text-rose-600 dark:text-rose-400">4. Synthesis, Verification & DLP</span>
           <p className="text-ink-muted">{t("architecture.flow.blueprintStage4Desc")}</p>
         </div>
       </div>

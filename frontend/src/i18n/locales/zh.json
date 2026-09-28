@@ -1364,10 +1364,10 @@
           "badge": "事实校验 · DLP 脱敏"
         }
       },
-      "blueprintStage1Desc": "JWT HttpOnly + RBAC 租户隔离，SQLi 与提示词越狱防御，毫秒放行。",
-      "blueprintStage2Desc": "Jieba 分词 + LLM 路由选择，ChromaDB 向量与 Neo4j 图谱双轨混合检索。",
-      "blueprintStage3Desc": "思考-行动-观察循环，单次有效签名审批令牌，防范高风险越权调用。",
-      "blueprintStage4Desc": "行内角标 [1][2] 原文锚定，SSE 逐字流式推流，NLI 事实一致性核对与脱敏。"
+      "blueprintStage1Desc": "检索之前先解析访问范围，问题中的敏感信息替换为占位符；随后一次模型调用选定路由、领域专家和回答形态。",
+      "blueprintStage2Desc": "向量、BM25、知识图谱与 Web 结果经 RRF 融合并重排；专家的只读工具与检索并行，选择工具时看不到任何检索内容。",
+      "blueprintStage3Desc": "网络安全、AI、数据分析、合规审核、文档阅读：各自收窄工具目录、设定回答形态，从不扩大调用者可见的范围。",
+      "blueprintStage4Desc": "证据以 [1][2] 引用，工具结论列入“工具来源”；引用、蕴含与句子依据经核验并可有界重试，最后做输出脱敏。"
     },
     "sections": {
       "dataFlow": "1. 全链路数据流 (Data Flow)",

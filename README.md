@@ -1,7 +1,7 @@
 # QueryMind（智询）
 
 <p align="center">
-  <img src="frontend/public/architecture_flow_diagram.jpg" alt="QueryMind System Architecture" width="800" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" />
+  <img src="frontend/public/architecture_flow_diagram.svg" alt="QueryMind v0.7.1 architecture: seven LangGraph nodes, five domain specialists and the shared state layer" width="800" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" />
 </p>
 
 <p align="center">

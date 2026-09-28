@@ -1364,10 +1364,10 @@
           "badge": "Grounded · DLP Redacted"
         }
       },
-      "blueprintStage1Desc": "JWT HttpOnly + RBAC tenant isolation, SQLi and jailbreak defense, sub-millisecond pass-through.",
-      "blueprintStage2Desc": "Jieba tokenization + LLM route selection, ChromaDB vector & Neo4j graph hybrid retrieval.",
-      "blueprintStage3Desc": "Think-Act-Observe loop with single-use signed approval tokens against unauthorized actions.",
-      "blueprintStage4Desc": "Inline citations [1][2] anchored to source chunks, SSE word streaming, NLI consistency check and DLP redaction."
+      "blueprintStage1Desc": "The access scope is resolved before anything is retrieved and PII in the question becomes tokens; one model call then picks the route, the specialist and the answer shape.",
+      "blueprintStage2Desc": "Vector, BM25, knowledge graph and web results fused by RRF and reranked; the specialist's read-only tools run beside retrieval, chosen without seeing any retrieved text.",
+      "blueprintStage3Desc": "Security, AI, data analysis, compliance review and document reading: each narrows the tool catalog and sets the answer shape, and never widens what the caller can see.",
+      "blueprintStage4Desc": "Evidence cited [1][2] and tool facts under Tool sources; citations, entailment and grounding are checked, with a bounded retry, before DLP redaction."
     },
     "sections": {
       "dataFlow": "1. End-to-End Data Flow",
