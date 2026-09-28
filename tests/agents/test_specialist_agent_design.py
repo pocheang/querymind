@@ -116,18 +116,33 @@ def test_no_specialist_exports_a_prompt_nothing_reads(module, name: str):
     assert not hasattr(module.service, name)
 
 
-# --- 5: one AI skill, because there is one AI answer shape ---------------------
+# --- 5: two AI skills, because there are now two AI answer shapes -------------
+#
+# This used to pin exactly one skill: four skill names had all mapped onto one
+# template, so the choice changed a label and nothing else. The estimate skill
+# has a template of its own (plan section 5), so the distinction is now one the
+# answer makes -- and the traps the old substring tests fell into stay pinned.
 
 
 @pytest.mark.parametrize(
-    "question",
-    ["训练 7B 模型需要多少 FLOPs", "这个模型有多少 layer", "multiplayer 游戏的推荐算法", "显存 80 GB 够不够"],
+    ("question", "skill"),
+    [
+        ("训练 7B 模型需要多少 FLOPs", "ai_engineering_estimate"),
+        ("显存 80 GB 够不够", "ai_engineering_estimate"),
+        ("70B model at FP16 with a 32k context: how much GPU memory?", "ai_engineering_estimate"),
+        # No number: a concept, however much it mentions memory.
+        ("显存是什么，为什么大模型这么吃显存", "ai_deep_dive"),
+        ("这个模型有多少 layer", "ai_deep_dive"),
+        # The substring traps: "multiplayer" is not "layer", and a number alone is not an estimate.
+        ("multiplayer 游戏的推荐算法", "ai_deep_dive"),
+        ("Transformer 在 2017 年提出的 attention 机制", "ai_deep_dive"),
+    ],
 )
-def test_the_ai_specialist_has_one_skill(question: str):
+def test_the_ai_specialist_estimates_only_a_quantity_the_question_gives_numbers_for(question: str, skill: str):
     agent = AIAgentService(synthesizer=object())  # type: ignore[arg-type]
 
-    assert agent.supported_skills == ("ai_deep_dive",)
-    assert agent.pick_skill(question) == "ai_deep_dive"
+    assert agent.supported_skills == ("ai_deep_dive", "ai_engineering_estimate")
+    assert agent.pick_skill(question) == skill
 
 
 @pytest.mark.parametrize(

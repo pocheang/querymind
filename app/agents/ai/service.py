@@ -13,6 +13,7 @@ import re
 from app.agents.base import BaseSpecialistAgent
 from app.agents.catalog import AgentClass
 from app.domain.contracts import ToolResult
+from app.services.query.keyword_match import any_keyword
 from app.tools.category import ToolCategory
 
 # There is no domain system prompt here. One was written and exported and nothing
@@ -42,16 +43,38 @@ def extract_ai_specifications(text: str) -> dict[str, list[str]]:
     }
 
 
-# One skill, because there is one answer shape. There used to be four --
-# compute_estimation, model_scaling_analysis, llm_architecture_reasoning,
+# Two skills, because there are now two answer shapes. There used to be four
+# -- compute_estimation, model_scaling_analysis, llm_architecture_reasoning,
 # ai_deep_dive -- chosen by substring tests (`"layer"` matched "multiplayer",
 # `"mb"` matched almost anything), and all four mapped onto the same
 # `ai_knowledge_assistant`, so the choice changed a label and nothing else.
-# An AI-specific answer template would be a separate, authorable change; until
-# one exists a second skill name is a distinction the answer does not make.
+# `ai_engineering_estimate` has a template of its own (conclusion, formula and
+# substitution, assumptions, error and limits), so this distinction is one the
+# answer makes (plan section 5).
 PIPELINE_SKILLS: dict[str, str] = {
     "ai_deep_dive": "ai_knowledge_assistant",
+    "ai_engineering_estimate": "ai_engineering_estimate",
 }
+
+# A quantity the question asks to be worked out. Matched as words, and only
+# together with a digit: "显存是什么" is a concept, "70B 需要多少显存" an estimate.
+_ESTIMATE_KEYWORDS = (
+    "显存",
+    "内存",
+    "算力",
+    "参数量",
+    "吞吐",
+    "上下文",
+    "训练成本",
+    "推理成本",
+    "flops",
+    "vram",
+    "memory",
+    "throughput",
+    "context",
+    "tokens",
+    "gpu",
+)
 
 SPECIFICATIONS_TOOL_ID = "querymind_ai_specification_extract"
 
@@ -86,7 +109,14 @@ class AIAgentService(BaseSpecialistAgent):
 
     @property
     def supported_skills(self) -> tuple[str, ...]:
-        return ("ai_deep_dive",)
+        return ("ai_deep_dive", "ai_engineering_estimate")
+
+    def pick_skill(self, question: str) -> str:
+        """An estimate when the question gives numbers and asks for a quantity; the deep dive otherwise."""
+
+        if any(char.isdigit() for char in question) and any_keyword(question, _ESTIMATE_KEYWORDS):
+            return "ai_engineering_estimate"
+        return "ai_deep_dive"
 
     @property
     def default_tool_category(self) -> ToolCategory:
