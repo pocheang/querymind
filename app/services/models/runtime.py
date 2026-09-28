@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.domain.text import normalize_string
 from app.services.models.catalog import provider_supports_embeddings
 from app.services.models.config_store import get_global_model_settings
+from app.services.models.single_flight import single_flight
 from app.services.runtime.request_context import request_context
 from app.services.security.network import validate_api_base_url_for_provider
 from app.services.security.outbound_redaction import (
@@ -138,6 +139,7 @@ def _local_model_location(name: str) -> str:
     return name
 
 
+@single_flight
 @lru_cache(maxsize=1)
 def _load_local_embedder():
     """The local semantic embedding model, or None if it is not on this machine.

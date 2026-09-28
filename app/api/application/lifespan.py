@@ -275,6 +275,11 @@ async def lifespan(app: FastAPI):
     _cache_initialized = _init_cache_manager(settings)
     await asyncio.to_thread(_recover_unfinished_ingests, settings)
     _start_auto_ingest_thread(settings)
+    # In the background: startup is not delayed, and /ready reports `warming`
+    # until the models are loaded (app/services/models/warmup.py).
+    from app.services.models.warmup import start_model_warmup
+
+    start_model_warmup()
 
     try:
         yield

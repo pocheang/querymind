@@ -46,6 +46,7 @@ from app.agents.verifier.validation.claims_text import claims_text
 from app.agents.verifier.validation.models import CascadeLevel, CascadeResult, RuleBasisIssue, ValidationRequest
 from app.agents.verifier.validation.rules import extract_dates, extract_numbers, numbers_match
 from app.core.config import get_settings
+from app.services.models.single_flight import single_flight
 from app.services.retrieval.citation_grounding import split_sentences
 from app.services.runtime.resilience import call_with_circuit_breaker
 
@@ -92,6 +93,7 @@ def is_predominantly_latin(text: str) -> bool:
     return latin > cjk
 
 
+@single_flight
 @lru_cache(maxsize=1)
 def load_nli_cross_encoder() -> Any | None:
     """Process-wide lazy loader, shaped exactly like `_load_cross_encoder`.

@@ -76,6 +76,11 @@ def apply_config_reload() -> Settings:
     reset_quota_guard()
     Neo4jClient.close_shared_driver()
     reset_bulkheads()
+    # The reranker and NLI caches were just dropped, so the next question would
+    # pay their load inside its own budget; load them again now, off the request.
+    from app.services.models.warmup import start_model_warmup
+
+    start_model_warmup()
     return new_settings
 
 
