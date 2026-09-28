@@ -448,6 +448,18 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "Web 搜索提供者缓存互斥锁，多进程各持一份保护自身缓存构建",
     ),
+    "app/services/documents/domain_labels.py::_EMPTY": (
+        "D",
+        "无登记表时返回的空标签集合，只读常量，从不修改",
+    ),
+    "app/services/documents/domain_labels.py::_cache": (
+        "D",
+        "文档领域标签缓存，以登记表文件的 mtime 与大小为键；登记表原子替换，任一 worker 改标签后其他 worker 下次请求即重读，无需跨进程失效",
+    ),
+    "app/services/documents/domain_labels.py::_cache_lock": (
+        "D",
+        "文档领域标签缓存互斥锁，多进程各持一份，只保护本进程内的缓存",
+    ),
     "app/tools/web/page_fetch.py::_cache": (
         "D",
         "公开网页正文的短期缓存（成功 10 分钟、失败 2 分钟），只为同一问题的多个改写查询去重，各 worker 各自保留，无一致性影响",

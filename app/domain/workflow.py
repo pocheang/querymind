@@ -40,6 +40,9 @@ class RouterDecision(ImmutableWorkflowContract):
     knowledge_hints: frozenset[KnowledgeSource] = Field(default_factory=frozenset)
     confidence: float = Field(ge=0, le=1)
     reason: str = Field(min_length=1)
+    # The specialist the router chose. Retrieval uses it only to *order* what the
+    # caller may already see (see `KnowledgeStrategy.preferred_domain`).
+    agent_class: str = "general"
 
 
 class ClarificationResult(ImmutableWorkflowContract):

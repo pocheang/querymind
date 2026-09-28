@@ -265,6 +265,17 @@ class IndexedFileSummary(BaseModel):
     parser_profile: str = ""
 
 
+class DocumentLabelUpdate(BaseModel):
+    """A document's specialist domain. Changing it needs no reindex: it is looked up at query time."""
+
+    agent_class: str = Field(min_length=1, max_length=64)
+
+
+class DocumentLabelResponse(BaseModel):
+    document_id: str
+    agent_class: str
+
+
 class FileIndexActionResponse(BaseModel):
     ok: bool = True
     filename: str

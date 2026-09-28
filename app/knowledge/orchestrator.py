@@ -15,9 +15,10 @@ from app.domain.workflow import ContextBundle
 from app.knowledge.adapters import KnowledgeAdapter, build_default_adapters, flatten_ranked_groups
 from app.knowledge.context import ContextBuilder
 from app.knowledge.deduplication import deduplicate_evidence
-from app.knowledge.fusion import cross_modal_hybrid_resonance, reciprocal_rank_fuse, rerank_evidence
+from app.knowledge.fusion import cross_modal_hybrid_resonance, prefer_domain, reciprocal_rank_fuse, rerank_evidence
 from app.knowledge.queries import unique_queries as _unique_queries
 from app.privacy.dlp import mask_evidence
+from app.services.documents.domain_labels import load_domain_labels
 from app.services.query.rule_rewrite import build_rewrite_queries
 
 TraceReporter = Callable[[ExecutionEvent], None]
@@ -54,6 +55,7 @@ class KnowledgeOrchestrator:
         self._reranker_top_n = active.reranker_top_n
         self._reranker_timeout_ms = active.knowledge_reranker_timeout_ms
         self._reranker_enabled = active.enable_reranker
+        self._domain_boost = active.domain_label_boost
         self._retrieval_budget_ms = active.stage_timeout_retrieval_ms
         self._context_builder = ContextBuilder(token_budget=active.knowledge_context_token_budget)
         self._rewrite = rewriter or (
@@ -111,14 +113,25 @@ class KnowledgeOrchestrator:
         # The Knowledge Agent sizes the answer set together with the search that
         # produces it; the setting is the default when it has no opinion.
         rerank_top_n = strategy.rerank_top_n or self._reranker_top_n
+        # Only a reranked list has scores on the 0-1 scale the boost is sized
+        # for; an unreranked one carries RRF scores near 0.016, where 0.1 would
+        # be an override rather than a preference.
+        domain = strategy.preferred_domain if strategy.rerank and self._domain_boost > 0 else None
+        domain_boosted = 0
         if strategy.rerank:
             reranked, reranker_diagnostics = await rerank_evidence(
                 primary_query,
                 resonated,
-                top_n=rerank_top_n,
+                # With a preference, every candidate is kept through reranking and
+                # cut after the boost: cut first, and a labelled passage just
+                # below the cut could never benefit.
+                top_n=len(resonated) if domain else rerank_top_n,
                 timeout_ms=self._reranker_timeout_ms,
                 enabled=self._reranker_enabled,
             )
+            if domain:
+                reranked, domain_boosted = await self._prefer_domain(reranked, domain)
+                reranked = reranked[:rerank_top_n]
         else:
             reranked = resonated[:rerank_top_n]
             reranker_diagnostics = {
@@ -156,10 +169,24 @@ class KnowledgeOrchestrator:
             "rrf_k": self._rrf_k,
             **reranker_diagnostics,
             "rerank_top_n": rerank_top_n,
+            "preferred_domain": domain,
+            "domain_boosted_count": domain_boosted,
             "post_rerank_count": len(reranked),
             "knowledge_duration_ms": int((time.perf_counter() - started) * 1000),
         }
         return self._context_builder.build(reranked, scope, diagnostics=diagnostics)
+
+    async def _prefer_domain(
+        self, items: tuple[EvidenceItem, ...], domain: str
+    ) -> tuple[tuple[EvidenceItem, ...], int]:
+        # The registry is a file; reading it stays off the event loop.
+        labels = await asyncio.to_thread(load_domain_labels)
+        return prefer_domain(
+            items,
+            domain,
+            label_of=lambda item: labels.label_of(item.document_id, item.source),
+            boost=self._domain_boost,
+        )
 
     async def _retrieve_in_phases(
         self,

@@ -7,6 +7,7 @@ import re
 from collections.abc import Awaitable, Callable, Iterable
 from functools import lru_cache
 
+from app.agents.catalog import AgentClass, normalize_agent_class
 from app.core.config import Settings, get_settings
 from app.domain.contracts import TaskPlan
 from app.domain.knowledge import AccessScope, KnowledgeSource, KnowledgeSourcePlan, KnowledgeStrategy
@@ -73,6 +74,16 @@ class KnowledgeAgentService:
         plan: TaskPlan | None,
         retry_feedback: VerificationDecision | None = None,
         scope: AccessScope | None = None,
+    ) -> KnowledgeStrategy:
+        return _with_preferred_domain(await self._strategy(request, route, plan, retry_feedback, scope), route)
+
+    async def _strategy(
+        self,
+        request: OrchestrationRequest,
+        route: RouterDecision,
+        plan: TaskPlan | None,
+        retry_feedback: VerificationDecision | None,
+        scope: AccessScope | None,
     ) -> KnowledgeStrategy:
         if self._decider is not None:
             try:
@@ -396,6 +407,18 @@ def _keep_within(
     ranked = sorted(range(len(sources)), key=lambda i: (priority(sources[i]), i))
     kept = set(ranked[:ceiling])
     return tuple(source for index, source in enumerate(sources) if index in kept)
+
+
+def _with_preferred_domain(strategy: KnowledgeStrategy, route: RouterDecision) -> KnowledgeStrategy:
+    """Carry the router's specialist onto the strategy, whichever path built it.
+
+    Set here rather than inside either path: a decider's strategy is untrusted
+    input, and the domain comes from the route, not from it.
+    """
+
+    domain = normalize_agent_class(route.agent_class)
+    preferred = None if domain in (None, AgentClass.GENERAL) else domain
+    return strategy.model_copy(update={"preferred_domain": preferred})
 
 
 def _has_no_documents(scope: AccessScope | None) -> bool:

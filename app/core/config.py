@@ -388,6 +388,13 @@ class Settings(BaseSettings):
     prompt_injection_risk_threshold: float = Field(default=0.7, alias="PROMPT_INJECTION_RISK_THRESHOLD")
 
     enable_reranker: bool = Field(default=True, alias="ENABLE_RERANKER")
+    domain_label_boost: float = Field(default=0.1, ge=0.0, le=1.0, alias="DOMAIN_LABEL_BOOST")
+    """Added to the reranked score of a document labelled with the routed specialist's domain.
+
+    The reranker's score is 0-1, so 0.1 lets a labelled passage win close calls
+    and never a clear one. 0 turns the preference off. It only reorders results
+    the caller may already see.
+    """
     reranker_model_name: str = Field(default="BAAI/bge-reranker-v2-m3", alias="RERANKER_MODEL_NAME")
     # The local semantic embedding model, used when MODEL_BACKEND is `local` and
     # no administrator configuration supplies an embedding provider. Loaded with

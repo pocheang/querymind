@@ -29,7 +29,7 @@ import pytest
 _METHODS = frozenset({"get", "post", "put", "patch", "delete"})
 
 # Update in the same commit that changes the surface, and say why in the message.
-EXPECTED_OPERATIONS = 157
+EXPECTED_OPERATIONS = 158
 
 
 def _operations() -> dict[str, list[str]]:

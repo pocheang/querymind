@@ -11,7 +11,6 @@ import logging
 
 from app.core.config import get_settings
 from app.retrievers.stores.vector import OwnerScope
-from app.services.agent_document_filter import get_sources_by_agent_class
 from app.services.observability.log_safety import question_ref
 
 logger = logging.getLogger(__name__)
@@ -23,7 +22,6 @@ __all__ = ["run_graph_rag"]
 def _run_graph_rag_impl(
     question: str,
     allowed_sources: list[str] | None = None,
-    agent_class: str | None = None,
     retrieved_docs: list[dict] | None = None,
     enable_enhancements: bool | None = None,
     *,
@@ -35,7 +33,6 @@ def _run_graph_rag_impl(
     Args:
         question: User query
         allowed_sources: Optional list of allowed document sources
-        agent_class: Agent class for automatic document filtering
         retrieved_docs: Retrieved documents for quality analysis (enables enhancements)
         enable_enhancements: Force enable/disable enhancements (default: auto based on config)
         owner: Caller identity for the vector fallback's store-side metadata check.
@@ -53,15 +50,6 @@ def _run_graph_rag_impl(
         - pdf_context: PDF analysis results if enhanced
     """
     settings = get_settings()
-
-    # Always honor agent-class filtering, intersecting it with any explicit source scope.
-    if agent_class:
-        class_sources = get_sources_by_agent_class(agent_class)
-        if allowed_sources is None:
-            allowed_sources = class_sources
-        elif class_sources is not None:
-            allowed_set = set(class_sources)
-            allowed_sources = [src for src in allowed_sources if src in allowed_set]
 
     # Determine whether to use enhancements
     should_enhance = enable_enhancements if enable_enhancements is not None else settings.graph_rag_enhanced
@@ -351,7 +339,6 @@ class GraphRetrievalService:
         question: str,
         *,
         allowed_sources: list[str] | None = None,
-        agent_class: str | None = None,
         retrieved_docs: list[dict] | None = None,
         enable_enhancements: bool | None = None,
         owner: OwnerScope | None,
@@ -359,7 +346,6 @@ class GraphRetrievalService:
         result = _run_graph_rag_impl(
             question,
             allowed_sources=allowed_sources,
-            agent_class=agent_class,
             retrieved_docs=retrieved_docs,
             enable_enhancements=enable_enhancements,
             owner=owner,
@@ -411,7 +397,6 @@ class GraphRetrievalService:
 def run_graph_rag(
     question: str,
     allowed_sources: list[str] | None = None,
-    agent_class: str | None = None,
     retrieved_docs: list[dict] | None = None,
     enable_enhancements: bool | None = None,
     *,
@@ -421,7 +406,6 @@ def run_graph_rag(
     return GraphRetrievalService().retrieve(
         question,
         allowed_sources=allowed_sources,
-        agent_class=agent_class,
         owner=owner,
         retrieved_docs=retrieved_docs,
         enable_enhancements=enable_enhancements,
