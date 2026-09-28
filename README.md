@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Enterprise-Grade Agentic RAG on a Canonical LangGraph State Machine</b><br>
-  <i>面向企业私有知识库与合规审核场景 · 混合检索（向量 + BM25 + 知识图谱 + Web，RRF 融合） · 带引用的生成与多层答案校验 · 本地优先 · 中英双语</i>
+  <i>面向企业私有知识库与合规审核场景的 Agentic RAG 系统：LangGraph 状态机编排；五个领域专家（网络安全、AI、数据分析、合规审核、文档），各有只读工具与回答模板；混合检索（向量 + BM25 + 知识图谱 + Web，RRF 融合），带引用的生成与多层答案校验。FastAPI + React 18 + TypeScript，中英双语。</i>
 </p>
 
 <p align="center">
