@@ -22,24 +22,52 @@ Skills to choose from:
 - ai_knowledge_assistant: General AI/ML questions
 - pdf_text_reader: Extract and read PDF content
 
+Agent classes -- which specialist should answer (choose exactly one):
+{agent_class_guide}
+
 {few_shot_examples}
 
-IMPORTANT: Think step-by-step before deciding:
+Before answering, decide -- without writing your reasoning out:
 1. What is the user asking for? (concept, relationship, comparison, multi-step task?)
 2. What information sources are needed? (text docs, entity relationships, both, web?)
-3. Which route best matches the query pattern?
+3. Which route best matches the query pattern, and which agent class owns the question?
 4. How confident are you in this decision? (0.0-1.0)
 
-Output JSON only:
-{{"route":"vector|graph|hybrid|react","reason":"your step-by-step reasoning here","skill":"chosen_skill","confidence":0.0-1.0}}
+Output JSON only. "reason" is one short sentence of at most 25 words:
+{{"route":"vector|graph|hybrid|react","agent_class":"one agent class above","skill":"chosen_skill","confidence":0.0-1.0,"reason":"one short sentence"}}
 
 Query: {{question}}
 """
 
+# Which specialist owns a question. It used to be a prompt of its own, sent to
+# the model as a separate call ahead of the route decision; measured on the
+# configured model, the two sequential calls took 8.3-12.4s against an 8s
+# route ceiling on every one of eight questions, so the route stage always
+# timed out and no specialist ever answered. One call now decides both.
+AGENT_CLASS_GUIDE = """1. cybersecurity（网络安全）
+   - 安全架构、安全策略、合规管理（Compliance）
+   - 漏洞、攻击、防护、威胁情报、入侵检测
+   - 身份认证、访问控制、权限管理、加密
+   - 安全审计、日志分析、安全监控
+   - 防火墙、WAF、IDS/IPS、安全设备
+   - 数据安全、隐私保护、GDPR、等保
+2. artificial_intelligence（人工智能）
+   - AI、机器学习、深度学习、神经网络
+   - 模型训练、推理、优化、调参、显存与算力估算
+   - NLP、CV、语音识别、推荐系统
+   - Transformer、LLM、GPT、BERT
+3. pdf_text（PDF文档）
+   - PDF文档阅读、文本提取、文档分析
+   - 仅当用户明确提到PDF或要求分析文档时使用
+4. general（通用知识）
+   - 不属于以上三个类别的其他问题
+Examples: "如何实现访问控制？" -> cybersecurity; "解释一下Transformer模型" -> artificial_intelligence;
+"分析这个PDF文档" -> pdf_text; "今天天气怎么样？" -> general"""
 
-def build_router_prompt(few_shot_examples: str) -> str:
-    """Interpolate the existing few-shot examples without changing the prompt."""
-    return ROUTER_PROMPT_TEMPLATE.format(few_shot_examples=few_shot_examples)
+
+def build_router_prompt(few_shot_examples: str, agent_class_guide: str = AGENT_CLASS_GUIDE) -> str:
+    """Interpolate the few-shot examples and the agent-class guide."""
+    return ROUTER_PROMPT_TEMPLATE.format(few_shot_examples=few_shot_examples, agent_class_guide=agent_class_guide)
 
 
 REACT_SYSTEM_PROMPT = """你是一个使用ReAct模式（Reasoning + Acting）的智能助手。

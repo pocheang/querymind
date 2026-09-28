@@ -65,6 +65,6 @@ def test_the_router_is_handed_the_hint(monkeypatch: pytest.MonkeyPatch):
 
 def test_a_forced_class_skips_classification():
     # What the hint buys once it arrives: the class is taken, not guessed.
-    agent_class, confidence, method = routing._classify("任何问题", "cybersecurity", use_llm_intent=True)
+    agent_class, _skill = routing.rule_based_choice("任何问题", "cybersecurity")
 
-    assert (agent_class, confidence, method) == ("cybersecurity", 1.0, "forced")
+    assert agent_class == "cybersecurity"

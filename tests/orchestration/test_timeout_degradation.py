@@ -156,9 +156,60 @@ async def test_a_router_timeout_falls_back_to_the_safe_local_route():
     result = await runtime.router(_state())
 
     assert result["route"].effective_route == "vector"
-    assert result["route"].reason == "route_timeout_safe_default"
+    assert result["route"].reason == "route_timeout_rule_based"
+    assert result["route"].agent_class == "general"
     assert result["route"].requires_plan is False
     assert result["route_decision"].next_stage == "knowledge"
+
+
+# The router took 8.3-12.4s against an 8s ceiling on every one of eight real
+# questions, and the fallback was a fixed `general` route -- so no specialist
+# ever answered. The fallback keeps the safe retrieval route and lets the
+# keyword rules choose who answers.
+
+
+@pytest.mark.asyncio
+async def test_a_router_timeout_keeps_the_specialist_the_rules_choose():
+    runtime = _runtime(router=_hang)
+    request = OrchestrationRequest(question="如何防护勒索病毒攻击？")
+
+    route = (await runtime.router(_state(request=request)))["route"]
+
+    assert route.agent_class == "cybersecurity"
+    assert route.effective_route == "vector"
+    assert "tool" in route.allowed_capabilities
+    assert route.reason.startswith("route_timeout_rule_based")
+
+
+@pytest.mark.asyncio
+async def test_a_router_timeout_still_honours_the_callers_hint():
+    from app.orchestration.request import RequestScope
+
+    runtime = _runtime(router=_hang)
+    request = OrchestrationRequest(
+        question="what is in the report?", source_scope=RequestScope(agent_class_hint="artificial_intelligence")
+    )
+
+    route = (await runtime.router(_state(request=request)))["route"]
+
+    assert route.agent_class == "artificial_intelligence"
+
+
+@pytest.mark.asyncio
+async def test_a_router_timeout_with_broken_rules_takes_the_fixed_safe_route(monkeypatch):
+    from app.agents.router import service as router_service
+
+    def broken(_request):
+        raise RuntimeError("registry down")
+
+    monkeypatch.setattr(router_service, "rule_based_route", broken)
+    runtime = _runtime(router=_hang)
+
+    route = (await runtime.router(_state()))["route"]
+
+    assert route.reason == "route_timeout_safe_default"
+    assert route.agent_class == "general"
+    assert route.allowed_capabilities == frozenset({"rag"})
 
 
 @pytest.mark.asyncio

@@ -32,7 +32,6 @@ from app.core.config import get_settings
 from app.domain.text import normalize_string
 from app.prompts import build_router_prompt
 from app.services.agent_classifier import classify_agent_class
-from app.services.llm_intent_classifier import classify_intent_with_llm
 from app.services.models.runtime import get_chat_model, get_reasoning_model
 from app.services.query.intent import is_smalltalk_query
 
@@ -227,18 +226,43 @@ def decide_route(
     if is_smalltalk_query(question):
         return _smalltalk_decision(forced)
 
-    agent_class, intent_confidence, classification_method = _classify(question, forced, use_llm_intent)
-    skill = _skill_for(agent_class, question)
+    # The keyword rules give a suggestion; the model, which reads the whole
+    # question, decides. The suggestion must never outrank the model: a keyword
+    # hit used to return ahead of it, and one was `"ai" in "email"`.
+    suggested_class, suggested_skill = rule_based_choice(question, forced)
     forced_reason = f"forced_agent_class={forced}" if forced else ""
+    ask_for_class = use_llm_intent and not forced
 
+    agent_class, skill = suggested_class, suggested_skill
     try:
-        route, reason, skill, route_confidence = _llm_route(
-            question, agent_class, skill, use_reasoning=use_reasoning, forced_reason=forced_reason
+        route, reason, skill, route_confidence, llm_class = _llm_route(
+            question,
+            suggested_class,
+            suggested_skill,
+            use_reasoning=use_reasoning,
+            forced_reason=forced_reason,
+            class_is_fixed=not ask_for_class,
         )
+        if ask_for_class and llm_class and llm_class != suggested_class:
+            agent_class = llm_class
+            if skill == suggested_skill:
+                # The model moved the question to another specialist and kept the
+                # skill that was suggested for the first one; suggest again.
+                skill = _skill_for(agent_class, question)
+        if forced:
+            method = "forced"
+        elif ask_for_class and llm_class:
+            method = "llm"
+        else:
+            method = "rule_based"
         logger.info(
-            f"Route decision: route={route}, skill={skill}, "
-            f"agent_class={agent_class}, method={classification_method}, "
-            f"intent_confidence={intent_confidence:.2f}, route_confidence={route_confidence:.2f}"
+            "Route decision: route=%s skill=%s agent_class=%s (suggested=%s, method=%s) route_confidence=%.2f",
+            route,
+            skill,
+            agent_class,
+            suggested_class,
+            method,
+            route_confidence,
         )
     except Exception as e:
         logger.exception(f"Router LLM call failed: {e}")
@@ -271,32 +295,15 @@ def _smalltalk_decision(forced: str | None) -> LegacyRouteDecision:
     )
 
 
-def _classify(question: str, forced: str | None, use_llm_intent: bool) -> tuple[str, float, str]:
-    """Which agent class this question belongs to, and how that was decided.
+def rule_based_choice(question: str, agent_class_hint: str | None = None) -> tuple[str, str]:
+    """The agent class and skill the keyword rules give, with no model call.
 
-    Three ways in, and the caller's hint outranks both classifiers.
+    The suggestion shown to the model, and the whole answer when the model
+    cannot be asked in time: the route stage's timeout fallback uses this so a
+    slow model still leaves the question with its specialist.
     """
-
-    if forced:
-        return forced, 1.0, "forced"
-
-    # The domain registry's keyword match is NOT consulted here, and must not be
-    # put back ahead of the LLM. It used to be, returning at 0.95 confidence, so
-    # the LLM classifier ran only when no keyword hit -- and a keyword hit was
-    # `"ai" in "email"`. The registry still decides whenever a rule decides:
-    # `classify_agent_class` and the LLM classifier's own fallback both consult
-    # it first, which on the offline `local` backend is every question.
-    if not use_llm_intent:
-        return classify_agent_class(question), 0.5, "rule_based"
-    try:
-        intent_result = classify_intent_with_llm(question)
-        agent_class = intent_result["agent_class"]
-        confidence = intent_result.get("confidence", 0.5)
-        logger.info(f"LLM intent classification: {agent_class} (confidence={confidence:.2f})")
-        return agent_class, confidence, f"llm(confidence={confidence:.2f})"
-    except Exception as e:
-        logger.warning(f"LLM intent classification failed, fallback to rule-based: {e}")
-        return classify_agent_class(question), 0.5, "rule_fallback"
+    agent_class = _normalize_agent_class_hint(agent_class_hint) or classify_agent_class(question)
+    return agent_class, _skill_for(agent_class, question)
 
 
 def _skill_for(agent_class: str, question: str) -> str:
@@ -322,19 +329,35 @@ def _skill_for(agent_class: str, question: str) -> str:
 
 
 def _llm_route(
-    question: str, agent_class: str, skill: str, *, use_reasoning: bool, forced_reason: str
-) -> tuple[str, str, str, float]:
-    """Ask the model for a route, and trust none of what comes back unchecked."""
+    question: str,
+    agent_class: str,
+    skill: str,
+    *,
+    use_reasoning: bool,
+    forced_reason: str,
+    class_is_fixed: bool = False,
+) -> tuple[str, str, str, float, str | None]:
+    """Ask the model for a route and an agent class, and trust none of it unchecked.
+
+    One call decides both. The fifth value is the agent class the model chose,
+    or None when it named none that exists -- the caller keeps its suggestion.
+    """
 
     model = get_reasoning_model() if use_reasoning else get_chat_model()
+    class_line = (
+        f"Agent class (fixed by the user; return it unchanged): {agent_class}"
+        if class_is_fixed
+        else f"Agent class suggested by keyword rules (often wrong; decide yourself): {agent_class}"
+    )
     prompt = f"""{ROUTER_PROMPT}
 
 Question: {question}
-Agent class: {agent_class}
+{class_line}
 Suggested skill: {skill}"""
     response = model.invoke(prompt)
     response_text = response.content if hasattr(response, "content") else str(response)
     route_data = _extract_json(response_text)
+    llm_class = normalize_agent_class(str(route_data.get("agent_class") or ""))
 
     route, reason = _validated_route(route_data)
     skill, reason = _validated_skill(route_data, skill, reason)
@@ -355,7 +378,7 @@ Suggested skill: {skill}"""
         route, reason, route_confidence = _recover_low_confidence(
             question, agent_class, skill, route, reason, route_confidence, forced_reason
         )
-    return route, reason, skill, route_confidence
+    return route, reason, skill, route_confidence, llm_class
 
 
 def _validated_route(route_data: dict) -> tuple[str, str]:

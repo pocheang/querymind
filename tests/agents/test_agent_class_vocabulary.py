@@ -125,12 +125,23 @@ def _api_rule(value: str | None) -> str | None:
 
 
 def _llm_rule(value: str | None, monkeypatch: pytest.MonkeyPatch) -> str:
-    from app.services.query import intent_classifier
+    """The agent class the one routing call ends up with when the model names `value`."""
 
-    payload = '{"agent_class": %s, "confidence": 0.9, "reason": "stub"}' % ("null" if value is None else f'"{value}"')
-    model = SimpleNamespace(invoke=lambda messages: SimpleNamespace(content=payload))
-    monkeypatch.setattr(intent_classifier, "get_chat_model", lambda **kwargs: model)
-    return intent_classifier.classify_intent_with_llm("q")["agent_class"]
+    from app.agents.router import routing
+    from app.agents.shared.cache import clear_router_decision_cache
+
+    payload = '{"route": "vector", "agent_class": %s, "confidence": 0.9, "reason": "stub"}' % (
+        "null" if value is None else f'"{value}"'
+    )
+    model = SimpleNamespace(invoke=lambda prompt: SimpleNamespace(content=payload))
+    monkeypatch.setattr(routing, "get_chat_model", lambda **kwargs: model)
+    monkeypatch.setattr(routing, "_get_calibrator", lambda: None)
+    monkeypatch.setattr(routing, "classify_agent_class", lambda question: AgentClass.GENERAL)
+    clear_router_decision_cache()
+    try:
+        return routing.decide_route(f"what does the report say ({value!r})").agent_class
+    finally:
+        clear_router_decision_cache()
 
 
 _INPUTS = [*sorted(BUILTIN_AGENT_CLASSES), "  CyberSecurity ", "finance", "not_a_class", "", None]
@@ -215,8 +226,10 @@ def test_every_mode_card_names_a_class_in_the_union() -> None:
 def test_the_llm_prompt_describes_every_class_it_may_choose() -> None:
     """A class the prompt never names is one the model will never return."""
 
-    from app.services.query.intent_classifier import INTENT_CLASSIFICATION_PROMPT
+    from app.agents.router.routing import ROUTER_PROMPT
+    from app.prompts.core.canonical_agent_prompts import AGENT_CLASS_GUIDE
 
-    described = set(re.findall(r"^\d+\. ([a-z_]+)（", INTENT_CLASSIFICATION_PROMPT, re.MULTILINE))
+    assert AGENT_CLASS_GUIDE in ROUTER_PROMPT, "the routing call is not shown the agent classes"
+    described = set(re.findall(r"^\d+\. ([a-z_]+)（", AGENT_CLASS_GUIDE, re.MULTILINE))
     expected = BUILTIN_AGENT_CLASSES - set(CLASSES_THE_LLM_IS_NOT_OFFERED)
     assert described == expected
