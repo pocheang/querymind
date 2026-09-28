@@ -1,8 +1,26 @@
 import { useTranslation } from "react-i18next";
-import { ArrowUpRight, Boxes, FileText, Globe, Images, Layers, Plus, Route, Zap } from "lucide-react";
+import {
+  ArrowUpRight,
+  BadgeCheck,
+  Boxes,
+  FileText,
+  Globe,
+  Images,
+  Layers,
+  Plus,
+  Route,
+  Users,
+  Zap,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/layout/BrandMark";
+import { AGENT_MODES } from "@/pages/chat/constants";
+
+// Counted from the mode list rather than written down: this read "4" while the
+// sidebar offered five specialists. Auto Router and the general analyst are
+// modes, not specialists.
+const SPECIALIST_COUNT = AGENT_MODES.filter((mode) => mode.key !== "" && mode.key !== "general").length;
 
 type Props = {
   documentsCount?: number;
@@ -22,10 +40,12 @@ export function WelcomeScreen({
   const stats = [
     { icon: FileText, value: documentsCount, label: t("components.chat.knowledgeDocs") },
     { icon: Layers, value: sessionsCount, label: t("components.chat.historySessions") },
-    { icon: Boxes, value: 4, label: t("components.chat.agentModes") },
+    { icon: Users, value: SPECIALIST_COUNT, label: t("components.chat.domainSpecialists") },
   ];
 
   const features = [
+    { icon: Users, title: t("components.chat.specialistsTile"), desc: t("components.chat.specialistsTileDesc") },
+    { icon: BadgeCheck, title: t("components.chat.toolCitations"), desc: t("components.chat.toolCitationsDesc") },
     { icon: Zap, title: t("components.chat.smartRetrieval"), desc: t("components.chat.smartRetrievalDesc") },
     { icon: Globe, title: t("components.chat.webResearch"), desc: t("components.chat.webResearchDesc") },
     { icon: Images, title: t("components.chat.multimodal"), desc: t("components.chat.multimodalDesc") },

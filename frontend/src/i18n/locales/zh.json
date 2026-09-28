@@ -1175,10 +1175,9 @@
       "userFallback": "用户",
       "welcomeBadge": "控制台就绪",
       "welcomeTitle": "QueryMind 智询",
-      "welcomeSubtitle": "基于证据链的智能问答引擎，支持多模态文档处理、知识图谱检索和 Web 研究。",
+      "welcomeSubtitle": "基于证据的文档问答，配有网络安全、AI、数据分析、合规审核、文档阅读五个领域专家。",
       "knowledgeDocs": "知识库文档",
       "historySessions": "历史会话",
-      "agentModes": "智能体模式",
       "startConversation": "开始新对话",
       "smartRetrieval": "智能检索",
       "smartRetrievalDesc": "向量检索、图谱检索、BM25 混合检索，多策略融合。",
@@ -1190,7 +1189,7 @@
       "evidenceTraceDesc": "完整展示路由决策、检索来源和推理过程。",
       "tipSend": "使用 Ctrl+Enter 快速发送消息",
       "tipUpload": "拖拽文件到输入框或侧边栏快速上传",
-      "tipAgent": "选择不同的 Agent 模式以获得最佳回答",
+      "tipAgent": "在侧栏选择一位专家，或交给自动路由",
       "composerLabel": "输入问题，或拖拽 / 粘贴文档到这里",
       "composerDropHint": "支持 PDF / 图片 / 文本",
       "composerPlaceholder": "例如：总结最新上传 PDF 的安全风险，并给出证据来源...",
@@ -1215,7 +1214,12 @@
       "showSections": "显示输入区域",
       "hideSections": "隐藏输入区域",
       "moreOptions": "更多选项",
-      "sessionManagementMenu": "会话管理"
+      "sessionManagementMenu": "会话管理",
+      "domainSpecialists": "领域专家",
+      "specialistsTile": "领域专家",
+      "specialistsTileDesc": "路由自动选出专家；专家调用自己的只读工具，并按本领域的回答形态作答。",
+      "toolCitations": "工具结论可追溯",
+      "toolCitationsDesc": "来自工具的事实标注为 [T1]，列在“工具来源”中，并按工具输出核对。"
     },
     "commandPalette": {
       "title": "命令面板",
@@ -1624,15 +1628,15 @@
     },
     "cybersecurity": {
       "title": "网络安全",
-      "desc": "威胁分析、应急响应与安全加固。"
+      "desc": "CVE / ATT&CK 查询，按版本判断是否受影响（本地威胁情报库），应急处置。"
     },
     "artificialIntelligence": {
       "title": "AI 研究",
-      "desc": "大模型、RAG 与 AI 系统设计。"
+      "desc": "解释 AI 概念；按你给出的数值估算显存与算力。"
     },
     "pdfText": {
-      "title": "PDF 阅读",
-      "desc": "文档问答，附证据抽取与引用。"
+      "title": "文档阅读",
+      "desc": "复述文档某一部分的原文，并注明页码和章节。"
     },
     "dataAnalysis": {
       "title": "数据分析",

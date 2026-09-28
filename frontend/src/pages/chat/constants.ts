@@ -1,12 +1,5 @@
 import type { AgentClassHint, ChatMetadata } from "@/pages/chat/types";
 
-export const QUICK_PROMPTS = [
-  "对这次告警做攻击链复盘，并按 P0/P1/P2 给出处置优先级",
-  "切换到 pdf_text 模式：总结这份 PDF 的关键信息、风险和证据页码",
-  "切换到 cybersecurity 模式：给互联网暴露服务输出分层加固清单",
-  "用 general 模式做管理摘要：用 5 条要点汇报当前风险状态",
-];
-
 // `SUPPORTED_DOC_RE` and `SUPPORTED_CHAT_RE` lived here and were a third and
 // fourth copy of the upload format list, both narrower than the server and than
 // the pickers -- see `lib/uploadFormats.ts`, which now derives every accept
@@ -25,9 +18,21 @@ export const AGENT_MODES: Array<{
   desc: string;
 }> = [
   { key: "", title: "Auto Router", desc: "Intelligent routing based on query intent and context." },
-  { key: "cybersecurity", title: "Cybersecurity", desc: "Threat analysis, incident response, and security hardening." },
-  { key: "artificial_intelligence", title: "AI Research", desc: "LLM, RAG, and AI system design expertise." },
-  { key: "pdf_text", title: "PDF Reader", desc: "Document Q&A with evidence extraction and citations." },
+  {
+    key: "cybersecurity",
+    title: "Cybersecurity",
+    desc: "CVE and ATT&CK lookups, whether your version is affected (local threat-intel store), and incident response.",
+  },
+  {
+    key: "artificial_intelligence",
+    title: "AI Research",
+    desc: "Explains AI concepts, and works out GPU memory and compute from the numbers you give.",
+  },
+  {
+    key: "pdf_text",
+    title: "Document Reading",
+    desc: "Quotes what a part of your document says, with its page and section.",
+  },
   {
     key: "data_analysis",
     title: "Data Analysis",

@@ -276,9 +276,10 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
   const { i18n } = useTranslation();
   const isZh = Boolean(i18n.language?.startsWith("zh"));
 
+  const agentClassHint = useChatStore((s) => s.agentClassHint);
   const smartQuickPrompts = useMemo(() => {
-    return generateSmartPrompts(messages, isZh);
-  }, [messages, isZh]);
+    return generateSmartPrompts(messages, isZh, agentClassHint);
+  }, [messages, isZh, agentClassHint]);
 
   return (
     <AppShell

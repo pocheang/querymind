@@ -1175,10 +1175,9 @@
       "userFallback": "User",
       "welcomeBadge": "Console Ready",
       "welcomeTitle": "QueryMind",
-      "welcomeSubtitle": "Evidence-based intelligent Q&A engine with multimodal document processing, knowledge graph retrieval, and web research.",
+      "welcomeSubtitle": "Evidence-based Q&A over your documents, with domain specialists for security, AI, data analysis, compliance review and document reading.",
       "knowledgeDocs": "Knowledge docs",
       "historySessions": "History sessions",
-      "agentModes": "Agent modes",
       "startConversation": "Start new conversation",
       "smartRetrieval": "Smart retrieval",
       "smartRetrievalDesc": "Vector, graph, and BM25 hybrid retrieval with multi-strategy fusion.",
@@ -1190,7 +1189,7 @@
       "evidenceTraceDesc": "Shows routing decisions, retrieval sources, and reasoning process.",
       "tipSend": "Use Ctrl+Enter to send quickly",
       "tipUpload": "Drag files into the composer or sidebar to upload quickly",
-      "tipAgent": "Choose different Agent modes for the best answer",
+      "tipAgent": "Pick a specialist in the sidebar, or let Auto Router choose",
       "composerLabel": "Enter a question, or drag / paste documents here",
       "composerDropHint": "Supports PDF / images / text",
       "composerPlaceholder": "Example: Summarize the security risks in the latest uploaded PDF and cite evidence...",
@@ -1215,7 +1214,12 @@
       "showSections": "Show Input Area",
       "hideSections": "Hide Input Area",
       "moreOptions": "More Options",
-      "sessionManagementMenu": "Session Management"
+      "sessionManagementMenu": "Session Management",
+      "domainSpecialists": "Domain specialists",
+      "specialistsTile": "Domain specialists",
+      "specialistsTileDesc": "The router picks a specialist; it consults its own read-only tools and answers in its own shape.",
+      "toolCitations": "Cited tool results",
+      "toolCitationsDesc": "Facts from a tool are marked [T1] and listed under Tool sources, checked against the tool's output."
     },
     "commandPalette": {
       "title": "Command palette",
@@ -1624,15 +1628,15 @@
     },
     "cybersecurity": {
       "title": "Cybersecurity",
-      "desc": "Threat analysis, incident response, and security hardening."
+      "desc": "CVE and ATT&CK lookups, whether your version is affected (local threat-intel store), and incident response."
     },
     "artificialIntelligence": {
       "title": "AI Research",
-      "desc": "LLM, RAG, and AI system design expertise."
+      "desc": "Explains AI concepts, and works out GPU memory and compute from the numbers you give."
     },
     "pdfText": {
-      "title": "PDF Reader",
-      "desc": "Document Q&A with evidence extraction and citations."
+      "title": "Document Reading",
+      "desc": "Quotes what a part of your document says, with its page and section."
     },
     "dataAnalysis": {
       "title": "Data Analysis",
