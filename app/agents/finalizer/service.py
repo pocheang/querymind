@@ -143,9 +143,11 @@ def _ground(
     from app.agents.synthesizer.citations import citable_tool_results
     from app.services.retrieval.citation_grounding import apply_sentence_grounding
 
+    tools = [result.summary for result in citable_tool_results(tool_results)]
     support = [item.content for item in evidence.items]
-    support.extend(result.summary for result in citable_tool_results(tool_results))
-    return apply_sentence_grounding(answer, support)
+    support.extend(tools)
+    # In `[T{k}]` order, so a sentence citing a tool is also judged against it alone.
+    return apply_sentence_grounding(answer, support, tool_texts=tools)
 
 
 def _sanitize(answer: str) -> tuple[str, dict[str, Any]]:

@@ -7,10 +7,12 @@ the retrieved excerpts come from. That finding is built from evidence METADATA
 from the text, so it is something the pipeline recorded rather than something a
 document says about itself.
 
-Its known limit is stated rather than hidden: section headings are recognised in
-Markdown and Latin script only (`app/ingestion/processing/structure.py`), so a
-Chinese document without `#` headings reaches this finding with pages and no
-sections, and the finding says so.
+Its known limit is stated rather than hidden: a section heading is recognised
+from Markdown `#`, a Latin-script title, or a numbered Chinese title (第X章, 第X节,
+第X条, 一、, （一）) -- see `app/ingestion/processing/structure.py`. A title with no
+numbering is indistinguishable from a short sentence and is not recognised, so a
+document titled that way reaches this finding with pages and no sections, and the
+finding says so.
 """
 
 from __future__ import annotations
@@ -32,8 +34,9 @@ _MAX_PAGES = 12
 _MAX_SECTIONS = 8
 
 NO_HEADINGS_NOTE = (
-    "no section headings were recognised -- headings are recognised in Markdown and Latin script only, "
-    "so a document with Chinese headings has pages here but no sections"
+    "no section headings were recognised -- headings are recognised from Markdown, Latin-script titles and "
+    "numbered Chinese titles (第X章/节/条, 一、, （一）), so a document whose titles carry no numbering has "
+    "pages here but no sections"
 )
 
 

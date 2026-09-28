@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 
 from app.services.language.detector import detect_language
 
@@ -204,18 +205,30 @@ def split_sentences(text: str) -> list[str]:
     return [sentence for _, _, sentence in _sentence_spans(text)]
 
 
+# A line that is only a bold label -- `**假设：**`, `**Assumptions:**`. It names
+# what follows, like a Markdown heading, and merged with the line under it the
+# hedge landed inside it: `**基于当前可用证据，假设：**` (measured 2026-09-28).
+_BOLD_LABEL_RE = re.compile(r"^\*\*[^*\n]{1,40}\*\*[:：]?[ \t]{0,4}$")
+# A short line that introduces a list -- `此估算**未计入** [T1]：` -- merged with the
+# numbered items under it the same way, and the items' ordinals then read as
+# figures the tool never produced.
+_LIST_INTRO_RE = re.compile(r"^[^\n]{1,40}[:：]$")
+
+
+def _is_heading_line(line: str) -> bool:
+    return line.startswith("#") or _BOLD_LABEL_RE.match(line) is not None or _LIST_INTRO_RE.match(line) is not None
+
+
 def _split_heading(start: int, text: str) -> list[tuple[int, int, str]]:
     """A heading line is a span of its own, however the lines around it end.
 
     The span pattern only breaks at a blank line, so a heading followed by a
     single newline merged with the paragraph under it, and the merged fragment
     -- long enough to count as a claim -- had the hedge put in front of the
-    heading text.
+    heading text. A bold label line is treated the same way.
     """
-    if not text.startswith("#"):
-        return [(start, start + len(text), text)]
     newline = text.find("\n")
-    if newline == -1:
+    if newline == -1 or not _is_heading_line(text[:newline].rstrip()):
         return [(start, start + len(text), text)]
     rest = text[newline + 1 :]
     rest_start = start + newline + 1 + (len(rest) - len(rest.lstrip()))
@@ -297,11 +310,53 @@ def _rewrite_low_support_sentence(sentence: str, prefix: str) -> str:
     return f"{sentence[:cut]}{prefix}{sentence[cut:]}"
 
 
+_TOOL_MARKER_RE = re.compile(r"\[T(\d{1,3})\]")
+_LIST_ORDINAL_RE = re.compile(r"(?m)^[ \t]{0,8}\d{1,3}[.)、][ \t]")
+_NUMBER_RE = re.compile(r"\d+(?:\.\d+)?")
+_CJK_CHAR_RE = re.compile(r"[一-鿿]")
+_LATIN_CHAR_RE = re.compile(r"[A-Za-z]")
+
+
+def _script(text: str) -> str:
+    return "cjk" if len(_CJK_CHAR_RE.findall(text)) > len(_LATIN_CHAR_RE.findall(text)) else "latin"
+
+
+def _mentions_number(source: str, number: str) -> bool:
+    """`number` stands in `source` as a number of its own, not inside a longer one."""
+    return re.search(rf"(?<![\d.]){re.escape(number)}(?![\d])", source) is not None
+
+
+def _tool_attributed(sentence: str, tool_texts: Sequence[str]) -> bool:
+    """Whether a sentence citing `[T{k}]` is borne out by that tool's own output.
+
+    Token overlap cannot judge a Chinese sentence against an English tool
+    summary: "计算仅包含模型权重本身 [T1]" shares nothing lexical with
+    "Weights = params x bytes per parameter", so every correctly attributed
+    sentence of an AI estimate was hedged (measured 2026-09-28). What does
+    carry across scripts is a number, so: every number in the sentence must stand
+    in the cited output -- a figure the tool did not produce is still hedged. A
+    sentence with no number, in a different script from its tool, is taken as
+    attributed; overlap has nothing to measure there, and the reader sees that
+    tool's output in the source list.
+    """
+    cited = [tool_texts[int(k) - 1] for k in _TOOL_MARKER_RE.findall(sentence) if 0 < int(k) <= len(tool_texts)]
+    if not cited:
+        return False
+    source = "\n".join(cited).replace(",", "")
+    # List numbering ("1. ", "2) ", "3、") is layout, not a figure.
+    claim = _LIST_ORDINAL_RE.sub("", _TOOL_MARKER_RE.sub("", sentence)).replace(",", "")
+    numbers = _NUMBER_RE.findall(claim)
+    if numbers:
+        return all(_mentions_number(source, number) for number in numbers)
+    return _script(claim) != _script(source)
+
+
 def apply_sentence_grounding(
     answer: str,
     evidence_texts: list[str],
     threshold: float = 0.22,
     language: str | None = None,
+    tool_texts: Sequence[str] = (),
 ) -> tuple[str, dict]:
     """Hedge low-support sentences, in the answer's own language.
 
@@ -310,6 +365,9 @@ def apply_sentence_grounding(
     from ``answer`` itself, which is the more robust default -- a hedge has
     to match the text it is spliced into, not what the caller intended to
     write.
+
+    ``tool_texts`` are the citable tool results in `[T{k}]` order; a sentence
+    citing one is also judged against that tool alone (`_tool_attributed`).
     """
     spans = _sentence_spans(answer)
     evid_tokens = _tokenize("\n".join([x for x in evidence_texts if x]))
@@ -324,6 +382,7 @@ def apply_sentence_grounding(
     supported = 0
     rewritten = 0
     claimless = 0
+    tool_attributed = 0
     low_support_examples: list[str] = []
     edits: list[tuple[int, int, str]] = []
 
@@ -334,6 +393,10 @@ def apply_sentence_grounding(
         score = _support_score(sent, evid_tokens)
         if score >= threshold or _has_hedge(sent):
             supported += 1
+            continue
+        if _tool_attributed(sent, tool_texts):
+            supported += 1
+            tool_attributed += 1
             continue
 
         rewritten += 1
@@ -353,6 +416,7 @@ def apply_sentence_grounding(
         "support_ratio": (supported / len(sentences)) if sentences else 0.0,
         "rewritten_sentences": rewritten,
         "claimless_fragments": claimless,
+        "tool_attributed_sentences": tool_attributed,
         "low_support_examples": low_support_examples[:3],
     }
     return grounded_answer, report

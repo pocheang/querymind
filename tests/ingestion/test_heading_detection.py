@@ -83,13 +83,58 @@ def test_section_headings_returns_them_in_document_order():
     assert section_headings("") == []
 
 
-def test_a_chinese_heading_is_not_detected():
-    """A known limit, recorded rather than implied.
+def test_a_bare_chinese_title_is_still_not_detected():
+    """A title with no numbering is indistinguishable from a short sentence.
 
-    Every rule is written for Latin script: markdown still works, but a bare
-    Chinese section title matches none of them, so a Chinese document without `#`
-    markers gets no headings on its chunks. This system is bilingual and this part
-    is not.
+    Marking every short line a heading would label chunks with the wrong
+    section, which is worse than labelling them with none. Markdown still works.
     """
     assert detect_heading_level("备份保留策略") is None
     assert detect_heading_level("## 备份保留策略") == 2
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("第三章 付款与结算", 1),
+        ("第一章　总　　则", 1),
+        ("第三章", 1),
+        ("第3章 概述", 1),
+        ("第二节 一般规定", 2),
+        # How the PIPL page separates this one: two en spaces (U+2002).
+        ("第二节\u2002\u2002敏感个人信息的处理规则", 2),
+        ("第十九条", 3),
+        ("一、总则", 2),
+        ("十二、附则", 2),
+        ("（一）适用范围", 3),
+        ("(二) 例外情形", 3),
+    ],
+)
+def test_a_numbered_chinese_heading_is_detected(line, expected):
+    """Measured over the three Chinese laws' text: every line this flagged was a real
+    chapter, section or article heading, and over the developer corpus it flagged none."""
+
+    assert detect_heading_level(line) == expected
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        # An article with its text on the same line is a paragraph, not a heading.
+        "第十九条　除法律、行政法规另有规定外，个人信息的保存期限应当为实现处理目的所必要的最短时间。",
+        "第三章讲的是付款",
+        "一、二、三",
+        "一、",
+        "乙方负责系统部署。",
+        "一、双方应当在签约后十个工作日内完成首期付款，逾期按未付金额的万分之五支付违约金",
+        "（一）适用范围：",
+    ],
+)
+def test_prose_that_starts_like_a_heading_is_not_one(line):
+    assert detect_heading_level(line) is None
+
+
+def test_a_chinese_document_gets_its_sections():
+    text = "# 软件服务合同\n\n第一章 总则\n\n甲方委托乙方提供服务。\n\n第三章 付款与结算\n\n合同总价为四十八万元。"
+
+    assert section_headings(text) == ["# 软件服务合同", "第一章 总则", "第三章 付款与结算"]
