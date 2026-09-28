@@ -45,7 +45,13 @@ QueryType = Literal["concept", "comparison", "relationship", "procedural", "gene
 # ============================================================================
 
 CONCEPT_TEMPLATE = """
-Answer template for comprehensive concept explanation (长文本详尽阐述):
+Answer template for concept explanation:
+
+Scale to the evidence:
+- The numbered parts and the example below are the most an answer may contain, not what it must contain.
+- Include a part only when the evidence or a tool result supports it; leave out a part the evidence does not
+  cover instead of filling it from general knowledge, and say in one sentence what is missing.
+- A single cited paragraph is a complete answer when that is all the evidence supports.
 
 1. Core definition and background context with citations [E1]
 2. Architecture, key components, and working mechanisms (each mechanism detailed with citations)
@@ -59,7 +65,6 @@ Citation rules:
 
 Structure guidelines:
 - Use clear Markdown headings (e.g., ### 1. 核心定义与背景, ### 2. 核心架构与原理解析, ### 3. 主要特征与应用场景, ### 4. 边界与注意事项)
-- Elaborate in depth across multiple well-developed paragraphs; avoid one-line summaries.
 
 Example structure:
 ### 1. 核心概念与背景定义
@@ -79,12 +84,18 @@ Example structure:
 """
 
 COMPARISON_TEMPLATE = """
-Answer template for comprehensive comparison questions (多维度长文本对比分析):
+Answer template for comparison questions:
 
-1. Comprehensive introduction of both subjects with contextual background and citations [E1][E2]
+Scale to the evidence:
+- The numbered parts and the example below are the most an answer may contain, not what it must contain.
+- Include a part only when the evidence or a tool result supports it; leave out a part the evidence does not
+  cover instead of filling it from general knowledge, and say in one sentence what is missing.
+- A single cited paragraph is a complete answer when that is all the evidence supports.
+
+1. Introduction of both subjects with citations [E1][E2]
 2. Multi-dimensional comparative analysis:
    - Structured comparison table summarizing key dimensions (features, architecture, performance, scenarios, limitations)
-   - In-depth point-by-point narrative analysis expanding on each dimension in detail
+   - Point-by-point analysis of the dimensions the evidence covers
 3. Summary of key trade-offs, practical pros & cons, and selection guidelines with citations
 
 Citation rules:
@@ -93,8 +104,7 @@ Citation rules:
 - Avoid subjective preference without citation
 
 Structure guidelines:
-- Organize with clear Markdown headings and structured tables followed by thorough explanatory paragraphs.
-- Provide comprehensive long-text analysis detailing the technical nuances of each side.
+- Organize with Markdown headings and a table when the evidence covers several dimensions.
 
 Example structure:
 ### 1. 对比概述与背景
@@ -115,10 +125,16 @@ Example structure:
 """
 
 RELATIONSHIP_TEMPLATE = """
-Answer template for relationship and interaction analysis (关系与因果机制长文本深析):
+Answer template for relationship and interaction analysis:
+
+Scale to the evidence:
+- The numbered parts and the example below are the most an answer may contain, not what it must contain.
+- Include a part only when the evidence or a tool result supports it; leave out a part the evidence does not
+  cover instead of filling it from general knowledge, and say in one sentence what is missing.
+- A single cited paragraph is a complete answer when that is all the evidence supports.
 
 1. Establish background context for both entities/concepts with citations [E1][E2]
-2. Direct relationship and structural connection mechanisms (detailed analysis with citations)
+2. Direct relationship and connection mechanisms (with citations)
 3. Step-by-step interaction workflow, cause-and-effect chain, and practical manifestations (cited)
 4. Influence, dependencies, boundaries, and scope limitations
 
@@ -128,7 +144,7 @@ Citation rules:
 - If relationship is inferred, use hedging: "根据提供的信息，X和Y可能存在关联" (based on provided information, X and Y may be related)
 
 Structure guidelines:
-- Provide multi-paragraph in-depth narrative with Markdown headings and bulleted mechanistic breakdowns.
+- Use Markdown headings and bullets when the evidence describes several mechanisms.
 
 Example structure:
 ### 1. 实体背景与上下文定位
@@ -147,11 +163,17 @@ Example structure:
 """
 
 PROCEDURAL_TEMPLATE = """
-Answer template for procedural/how-to questions (长文本流程与步骤操作详析):
+Answer template for procedural/how-to questions:
+
+Scale to the evidence:
+- The numbered parts and the example below are the most an answer may contain, not what it must contain.
+- Include a part only when the evidence or a tool result supports it; leave out a part the evidence does not
+  cover instead of filling it from general knowledge, and say in one sentence what is missing.
+- A single cited paragraph is a complete answer when that is all the evidence supports.
 
 1. Overview of the process, target outcome, and environment/prerequisites (each cited) [E1]
-2. In-depth step-by-step breakdown:
-   - Step objectives, operational commands/configurations, technical rationale, and detailed actions (cited)
+2. Step-by-step breakdown of the steps the evidence gives:
+   - Step objectives, commands/configurations and rationale, as far as the evidence gives them (cited)
 3. Verification and validation methods (how to confirm success) [E2]
 4. Important precautions, error handling, rollback, or edge cases (cited)
 
@@ -188,12 +210,18 @@ Example structure:
 """
 
 GENERAL_TEMPLATE = """
-Answer template for general questions (全面详尽长文本解答):
+Answer template for general questions:
 
-1. Comprehensive direct answer and contextual overview with citation [E1]
-2. In-depth breakdown and systematic multi-dimensional analysis (each point fully detailed and cited)
+Scale to the evidence:
+- The numbered parts and the example below are the most an answer may contain, not what it must contain.
+- Include a part only when the evidence or a tool result supports it; leave out a part the evidence does not
+  cover instead of filling it from general knowledge, and say in one sentence what is missing.
+- A single cited paragraph is a complete answer when that is all the evidence supports.
+
+1. Direct answer with citation [E1]
+2. Breakdown of the points the evidence supports (each point cited)
 3. Practical context, key factors, concrete examples, or technical details (cited)
-4. Comprehensive summary and scope qualifications if needed (cited)
+4. Summary and scope qualifications if needed (cited)
 
 Citation rules:
 - EVERY factual claim MUST have an evidence-marker citation, e.g. [E1]
@@ -201,7 +229,7 @@ Citation rules:
 - For broad questions with narrow context, scope the answer: "根据提供的信息，<scoped_answer>"
 
 Structure guidelines:
-- Use clear Markdown headings and structured paragraphs to elaborate in depth.
+- Use Markdown headings only when the evidence supports more than one section.
 
 Example structure:
 ### 1. 核心解答与概述
@@ -210,7 +238,7 @@ Example structure:
 ### 2. 深度剖析与关键要点
 - **核心要点一**：<detailed elaboration and explanation> [E1]
 - **核心要点二**：<detailed elaboration and technical mechanism> [E2]
-- **影响要素与关键细节**：<in-depth analysis of factors> [E2]
+- **影响要素与关键细节**：<analysis of factors> [E2]
 
 ### 3. 实际应用与扩展分析
 在具体实践中，<application or extended scenario> [E1]。同时需要关注 <related considerations> [E3]。
@@ -360,8 +388,8 @@ Before writing your reply, think through the following privately:
    - What hedging language is needed for uncertain areas?
 
 None of this analysis belongs in your reply. Respond with only the final
-answer, following the template for the query type with structured long-form
-text and clear Markdown headings -- no headings repeating these thinking steps,
+answer, following the template for the query type and scaled to the evidence
+-- no headings repeating these thinking steps,
 no restating these steps, and no mention of "chain of thought" or "analysis".
 If you find yourself writing the steps above out anyway, put a line
 containing only "Answer:" immediately before the real answer, so a reader
@@ -408,9 +436,8 @@ Required shape, exactly:
 <think>
 (your reasoning through the four steps above, as prose)
 </think>
-(the final answer, following the template for the query type with structured
-long-form text and clear Markdown headings -- no headings repeating the steps
-above, no mention of "chain of thought", and no second <think> block)
+(the final answer, following the template for the query type and scaled to
+the evidence -- no headings repeating the steps above, no mention of "chain of thought", and no second <think> block)
 
 The opening <think> must be the very first thing you write, and the tag must
 appear nowhere else in your reply -- not around the answer, not inside it.

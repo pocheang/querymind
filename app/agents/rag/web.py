@@ -1,13 +1,23 @@
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, wait
 from urllib.parse import urlparse
 
 from app.core.config import get_settings
 from app.privacy.text import INPUT_KINDS, inspect_text
 from app.services.observability.log_safety import question_ref
+from app.tools.web.page_fetch import fetch_page_text, relevant_passages
 from app.tools.web.search import search_web
 
 logger = logging.getLogger(__name__)
+
+# Ask the engine for more than is kept. The source filter runs after the search,
+# so with five raw results a strict allowlist routinely kept none: measured over
+# eight real questions, 5 raw -> 2/0/0/1/0/0/1/0 accepted, 20 raw -> 3/0/0/5/0/1/1/0.
+# The trust policy is unchanged; only the candidates it chooses from grew.
+_RAW_RESULTS = 20
+_KEPT_RESULTS = 5
+_PASSAGE_CHARS = 1500
 
 
 __all__ = ["run_web_research"]
@@ -182,7 +192,7 @@ def run_web_research(
     search_start = time.time()
     try:
         logger.info("Starting web search for %s", question_ref(question))
-        results = search_web(question, max_results=5)
+        results = search_web(question, max_results=_RAW_RESULTS)
         metrics["search_time"] = time.time() - search_start
         metrics["total_results"] = len(results)
         logger.info(f"Web search returned {len(results)} raw results in {metrics['search_time']:.2f}s")
@@ -200,6 +210,10 @@ def run_web_research(
     # Filter and format results
     filter_start = time.time()
     lines, citations, filtered_count, rejected_hosts = _filter_and_format_results(results, allowlist, min_score)
+    citations = citations[:_KEPT_RESULTS]
+    if citations and getattr(settings, "web_fetch_pages_enabled", False):
+        metrics["pages_read"] = _read_pages(citations, question, allowlist, min_score, settings)
+    lines = [_format_line(citation) for citation in citations]
 
     metrics["filter_time"] = time.time() - filter_start
     metrics["filtered_results"] = filtered_count
@@ -306,3 +320,56 @@ def _log_search_activity(user_id, session_id, question, metrics, result, ip_addr
         )
     except Exception as e:
         logger.debug(f"Failed to log activity: {e}")
+
+
+def _format_line(citation: dict) -> str:
+    title = citation.get("metadata", {}).get("title", "")
+    return f"[WEB] {title}\nURL: {citation.get('source', '')}\n{citation.get('content', '')}"
+
+
+def _read_pages(citations: list[dict], question: str, allowlist: list[str], min_score: float, settings) -> int:
+    """Replace each of the first few snippets with the passages of its page that bear on the question.
+
+    A snippet is what the engine chose to show, 100-300 characters; the page is
+    what it summarises. Only the passages sharing terms with the question are
+    kept (`relevant_passages`), so one long page cannot take the whole context
+    budget. A page that cannot be read, or shares nothing with the question,
+    keeps its snippet -- the fetch can only add evidence, never remove it.
+
+    Pages are read in parallel and the wait is bounded, so a slow host costs at
+    most one fetch timeout, not one per page. Every hop is checked against the
+    same source filter the search result passed.
+    """
+
+    max_pages = max(1, int(getattr(settings, "web_fetch_max_pages", 3)))
+    timeout = float(getattr(settings, "web_fetch_timeout_seconds", 4.0))
+    proxy = getattr(settings, "web_proxy_url", None) or None
+
+    def host_allowed(url: str) -> bool:
+        return _source_score(url, allowlist=allowlist) >= min_score
+
+    targets = citations[:max_pages]
+    executor = ThreadPoolExecutor(max_workers=len(targets), thread_name_prefix="web-page")
+    try:
+        futures = {
+            executor.submit(
+                fetch_page_text, citation["source"], host_allowed=host_allowed, timeout_seconds=timeout, proxy=proxy
+            ): citation
+            for citation in targets
+        }
+        done, _ = wait(futures, timeout=timeout + 1.0)
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
+
+    read = 0
+    for future in done:
+        citation = futures[future]
+        page = future.result()
+        passages = relevant_passages(page, question, max_chars=_PASSAGE_CHARS) if page else ""
+        if not passages:
+            continue
+        snippet = citation.get("content", "")
+        citation["content"] = passages if not snippet or snippet in passages else f"{snippet}\n{passages}"
+        citation["metadata"] = {**citation.get("metadata", {}), "page_read": True}
+        read += 1
+    return read

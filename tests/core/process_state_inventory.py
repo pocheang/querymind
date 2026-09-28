@@ -448,6 +448,14 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "Web 搜索提供者缓存互斥锁，多进程各持一份保护自身缓存构建",
     ),
+    "app/tools/web/page_fetch.py::_cache": (
+        "D",
+        "公开网页正文的短期缓存（成功 10 分钟、失败 2 分钟），只为同一问题的多个改写查询去重，各 worker 各自保留，无一致性影响",
+    ),
+    "app/tools/web/page_fetch.py::_cache_lock": (
+        "D",
+        "网页正文缓存互斥锁，多进程各持一份，只保护本进程内的缓存",
+    ),
     "app/tools/web/providers/duckduckgo.py::_SEARCH_LOCK": (
         "D",
         "DDGS 整次搜索互斥锁（构造 + text()，primp 客户端在 text() 内懒构造），多进程各持一份，只串行化本进程内的搜索",
