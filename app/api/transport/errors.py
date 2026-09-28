@@ -48,6 +48,11 @@ def bad_request(detail: str) -> HTTPException:
     return HTTPException(status_code=400, detail=detail)
 
 
+def unprocessable(detail: str) -> HTTPException:
+    """Return a 422: the request is well-formed and this service refuses its content."""
+    return HTTPException(status_code=422, detail=detail)
+
+
 def unauthorized(detail: str = "Unauthorized") -> HTTPException:
     """Return a 401 Unauthorized error."""
     return HTTPException(status_code=401, detail=detail)
