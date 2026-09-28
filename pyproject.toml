@@ -33,6 +33,8 @@ dependencies = [
   "python-dotenv>=1.2.0,<2.0",
   "ddgs>=8.0.0",
   "httpx>=0.28.0,<1.0",
+  # Version comparison for CPE ranges in the product-exposure tool.
+  "packaging>=24.0",
   "orjson>=3.10.0",
   "tenacity>=9.0.0",
   "rank-bm25>=0.2.2",

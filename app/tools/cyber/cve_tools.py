@@ -16,6 +16,7 @@ from app.domain.contracts import ToolResult
 from app.mcp.contracts import ToolCall, ToolDefinition, ToolParameter
 from app.orchestration.request import RequestActor
 from app.tools.base import extract_call_argument
+from app.tools.cyber import intel
 
 logger = logging.getLogger(__name__)
 
@@ -374,10 +375,11 @@ CVE_TOOL_DEFINITION = ToolDefinition(
     risk="read_only",
     category="cybersecurity",
     description=(
-        "Look up a CVE in QueryMind's CURATED OFFLINE vulnerability set "
-        "(a small hand-maintained table, not a live NVD feed). Returns CVSS score, affected "
-        "versions and mitigation for the entries it holds, and reports 'not in the set' for "
-        "everything else -- absence here is NOT evidence that a CVE is unknown or harmless."
+        "Look up a CVE in QueryMind's LOCAL, OFFLINE copies of NVD, CISA KEV and FIRST EPSS (synced "
+        "out of band, not live; the result says when). Returns NVD's CVSS score and source, CWE, "
+        "affected version ranges, whether CISA lists it as exploited, and its EPSS probability. "
+        "A CVE the local copy does not hold is reported as such -- absence here is NOT evidence that "
+        "a CVE is unknown or harmless."
     ),
     parameters=(
         ToolParameter(
@@ -395,9 +397,9 @@ ATTACK_TOOL_DEFINITION = ToolDefinition(
     risk="read_only",
     category="cybersecurity",
     description=(
-        "Map a MITRE ATT&CK technique ID to tactic phase, detection logic and mitigations, from "
-        "QueryMind's CURATED OFFLINE subset of the matrix (not the full published taxonomy). "
-        "Reports 'not in the subset' for techniques it does not hold."
+        "Look up a MITRE ATT&CK technique (ID such as 'T1190', or name) or a tactic (such as "
+        "'initial-access') in QueryMind's LOCAL, OFFLINE copy of the Enterprise matrix: tactics, "
+        "detection strategies, mitigations and sub-techniques, with the ATT&CK version and sync date."
     ),
     parameters=(
         ToolParameter(
@@ -405,6 +407,40 @@ ATTACK_TOOL_DEFINITION = ToolDefinition(
             description="The MITRE ATT&CK technique ID (e.g. 'T1190') or technique keyword (e.g. 'Phishing').",
             required=True,
             max_length=64,
+        ),
+    ),
+)
+
+
+PRODUCT_EXPOSURE_TOOL_DEFINITION = ToolDefinition(
+    tool_id="querymind_cyber_product_exposure",
+    operation="read",
+    risk="read_only",
+    category="cybersecurity",
+    description=(
+        "List the CVEs that affect a product version, from QueryMind's LOCAL, OFFLINE copy of NVD's CPE "
+        "version ranges, ordered by CISA KEV listing, then EPSS, then CVSS. Use for 'is version X of "
+        "product Y affected / what should we patch first'. Products are named as NVD does "
+        "(e.g. 'log4j', 'spring_framework', 'http_server'). Absence is NOT evidence the product is safe."
+    ),
+    parameters=(
+        ToolParameter(
+            name="product",
+            description="The product, as NVD's CPE names it (e.g. 'log4j', 'spring_framework').",
+            required=True,
+            max_length=120,
+        ),
+        ToolParameter(
+            name="version",
+            description="The exact version in use, e.g. '2.14.1'. Omit to list every CVE naming the product.",
+            required=False,
+            max_length=60,
+        ),
+        ToolParameter(
+            name="vendor",
+            description="The CPE vendor (e.g. 'apache'), when a product name is shared by several vendors.",
+            required=False,
+            max_length=120,
         ),
     ),
 )
@@ -455,6 +491,14 @@ async def execute_cve_lookup(call: ToolCall, actor: RequestActor) -> ToolResult:
 
     norm_id = resolved_id.lower()
     found = _CURATED_CVE_DB.get(norm_id)
+    local = await asyncio.to_thread(intel.cve_intel, norm_id)
+    if local:
+        # The local store answers for score, KEV, EPSS and ranges; the curated
+        # table's vendor-advisory mitigation is kept beside it, because nothing
+        # synced carries remediation text a reader can act on.
+        advisory = f" Mitigation ({found['mitigation_source']}): {found['mitigation']}" if found else ""
+        name = f"{found['name']}: " if found else ""
+        return ToolResult(tool_id=call.tool_id, status="succeeded", summary=f"{name}{local}{advisory}")
     if found:
         summary_text = (
             f"[{found['cve_id']}] {found['name']} (CVSS {found['cvss']} {found['severity']}, "
@@ -473,12 +517,17 @@ async def execute_cve_lookup(call: ToolCall, actor: RequestActor) -> ToolResult:
     # nothing downstream could tell a real hit from a fabricated one -- in a tool
     # whose own description promised authoritative intelligence. Reporting a
     # vulnerability that does not exist is worse than having no tool at all.
+    synced = not await asyncio.to_thread(intel.store_is_empty, "nvd")
+    where = (
+        "QueryMind's local NVD copy"
+        if synced
+        else f"QueryMind's curated offline CVE set ({len(_CURATED_CVE_DB)} entries; the local NVD copy has not been synced)"
+    )
     return ToolResult(
         tool_id=call.tool_id,
         status="failed",
         summary=(
-            f"{norm_id.upper()} is not in QueryMind's curated offline CVE set "
-            f"({len(_CURATED_CVE_DB)} entries). No severity, affected-version or mitigation data is "
+            f"{norm_id.upper()} is not in {where}. No severity, affected-version or mitigation data is "
             "available here, and this says nothing about whether the CVE exists or how severe it is -- "
             "consult NVD or the vendor advisory."
         ),
@@ -553,6 +602,8 @@ async def execute_mitre_attack_lookup(call: ToolCall, actor: RequestActor) -> To
     tech_raw = _get_call_arg(call, "technique_id", "technique", "id", "query", "tactic", "name").strip().lower()
     if not tech_raw:
         return _attack_invalid(call.tool_id, tech_raw)
+    if not await asyncio.to_thread(intel.store_is_empty, "attack"):
+        return await _attack_from_store(call.tool_id, tech_raw)
 
     tactic_members = _techniques_in_tactic(tech_raw)
     if tactic_members:
@@ -592,8 +643,77 @@ async def execute_mitre_attack_lookup(call: ToolCall, actor: RequestActor) -> To
     )
 
 
+async def _attack_from_store(tool_id: str, tech_raw: str) -> ToolResult:
+    """The full matrix: a tactic, then a Chinese or English alias, then a name, then an id."""
+
+    tactic = await asyncio.to_thread(intel.tactic_intel, tech_raw)
+    if tactic is not None:
+        return ToolResult(tool_id=tool_id, status=tactic.status, summary=tactic.summary)
+    resolved = _ATTACK_NAME_ALIAS_MAP.get(tech_raw) or await asyncio.to_thread(intel.technique_id_by_name, tech_raw)
+    if not resolved:
+        match = _TECHNIQUE_ID_RE.search(tech_raw)
+        if match is None:
+            return _attack_invalid(tool_id, tech_raw)
+        resolved = match.group(0)
+    answer = await asyncio.to_thread(intel.technique_intel, resolved)
+    if answer is None:
+        return ToolResult(
+            tool_id=tool_id,
+            status="failed",
+            summary=f"{resolved.upper()} is not a technique in QueryMind's local copy of MITRE ATT&CK -- check the id.",
+        )
+    return ToolResult(tool_id=tool_id, status=answer.status, summary=answer.summary)
+
+
+async def execute_product_exposure(call: ToolCall, actor: RequestActor) -> ToolResult:
+    """Which CVEs reach a product version, from NVD's CPE ranges in the local store."""
+
+    del actor
+    product = _get_call_arg(call, "product", "name", "query")
+    if not product:
+        return ToolResult(tool_id=call.tool_id, status="failed", summary="A product name is required, e.g. 'log4j'.")
+    answer = await asyncio.to_thread(
+        intel.product_exposure, product, _get_call_arg(call, "version"), _get_call_arg(call, "vendor")
+    )
+    if answer.empty_store:
+        curated = _curated_product_exposure(call.tool_id, product)
+        if curated is not None:
+            return curated
+    return ToolResult(tool_id=call.tool_id, status=answer.status, summary=answer.summary)
+
+
+def _curated_product_exposure(tool_id: str, product: str) -> ToolResult | None:
+    """Before any sync, what the curated table holds for the product -- and what it cannot do.
+
+    The table stores affected versions as text, so no version is compared here;
+    the summary says so rather than implying a verdict (plan acceptance A3).
+    """
+
+    keys = _PRODUCT_NAMES.get(product.strip().lower())
+    if not keys:
+        return None
+    entries = "; ".join(
+        f"{_CURATED_CVE_DB[key]['cve_id']} ({_CURATED_CVE_DB[key]['name']}, CVSS {_CURATED_CVE_DB[key]['cvss']} "
+        f"{_CURATED_CVE_DB[key]['severity']}): affects {_CURATED_CVE_DB[key]['affected']} "
+        f"({_CURATED_CVE_DB[key]['affected_source']}); mitigation ({_CURATED_CVE_DB[key]['mitigation_source']}): "
+        f"{_CURATED_CVE_DB[key]['mitigation']}"
+        for key in keys
+    )
+    return ToolResult(
+        tool_id=tool_id,
+        status="succeeded",
+        summary=(
+            f"The local NVD copy has not been synced, so this comes from QueryMind's small curated table, "
+            f"which is NOT a complete list of the product's CVEs and does not compare versions: {entries}. "
+            "Compare the version in use with each range yourself; no KEV or EPSS data is available."
+        ),
+    )
+
+
 __all__ = [
     "ATTACK_TOOL_DEFINITION",
+    "PRODUCT_EXPOSURE_TOOL_DEFINITION",
+    "execute_product_exposure",
     "CVE_TOOL_DEFINITION",
     "execute_cve_lookup",
     "execute_mitre_attack_lookup",

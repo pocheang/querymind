@@ -21,7 +21,12 @@ from app.agents.verifier.validation.models import (
 
 def extract_numbers(text: str) -> list[float]:
     """Extract normalized numeric values from English and Chinese text."""
-    pattern = r"\$?\d+(?:,\d{3})*(?:\.\d+)?(?:\s*(?:million|billion|M|B|K|thousand))?"
+    # A unit counts only as a whole word. Without the lookahead the unit matched
+    # the first letter of whatever word followed -- case-insensitively -- so
+    # "CVSS 5.9 MEDIUM" read as 5.9 million, and so did "10 minutes" and
+    # "3 known"; a faithful answer then failed the number check against the
+    # very source it quoted.
+    pattern = r"\$?\d+(?:,\d{3})*(?:\.\d+)?(?:\s*(?:million|billion|thousand|M|B|K)(?![A-Za-z]))?"
     numbers: list[float] = []
     for match in re.findall(pattern, text, re.IGNORECASE):
         cleaned = re.sub(r"[,$\s]", "", match)

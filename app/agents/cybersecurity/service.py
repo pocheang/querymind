@@ -54,7 +54,7 @@ def extract_security_indicators(text: str) -> dict[str, list[str]]:
 # prompt is worse than either. Every value here is in `VALID_SKILLS`.
 PIPELINE_SKILLS: dict[str, str] = {
     "cybersecurity_incident_response": "incident_response_playbook",
-    "cve_vulnerability_assessment": "cyber_defense_hardening",
+    "cve_vulnerability_assessment": "vulnerability_exposure_assessment",
     "threat_intelligence_correlation": "cyber_attack_analysis",
     "cyber_attack_analysis": "cyber_attack_analysis",
 }

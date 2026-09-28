@@ -313,6 +313,24 @@ class ThreatIntelStore:
             "subtechniques": [dict(s) for s in subtechniques],
         }
 
+    def techniques_in_tactic(self, tactic: str, limit: int = 60) -> list[dict]:
+        """Current parent techniques under a tactic, by ATT&CK's phase name ("initial-access")."""
+
+        # Letters and hyphens only: this goes into a LIKE pattern, where % and _ are wildcards.
+        phase = "".join(
+            ch for ch in "-".join(tactic.strip().lower().replace("_", " ").split()) if ch.isalpha() or ch == "-"
+        )
+        if not phase:
+            return []
+        with self._connect() as conn:
+            rows = conn.execute(
+                """SELECT technique_id, name FROM attack_technique
+                   WHERE revoked=0 AND deprecated=0 AND is_subtechnique=0
+                     AND (',' || tactics || ',') LIKE ? ORDER BY technique_id LIMIT ?""",
+                (f"%,{phase},%", limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
     def technique_by_name(self, name: str) -> str | None:
         with self._connect() as conn:
             row = conn.execute(
