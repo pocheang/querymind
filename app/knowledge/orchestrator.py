@@ -7,6 +7,7 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
+from app.agents.catalog import AgentClass
 from app.core.config import Settings, get_settings
 from app.domain.contracts import EvidenceItem
 from app.domain.events import EventMetadata, ExecutionEvent
@@ -16,6 +17,7 @@ from app.knowledge.adapters import KnowledgeAdapter, build_default_adapters, fla
 from app.knowledge.context import ContextBuilder
 from app.knowledge.deduplication import deduplicate_evidence
 from app.knowledge.fusion import cross_modal_hybrid_resonance, prefer_domain, reciprocal_rank_fuse, rerank_evidence
+from app.knowledge.owned_policy import MAX_POLICY_QUERIES, owned_policy_queries
 from app.knowledge.queries import unique_queries as _unique_queries
 from app.privacy.dlp import mask_evidence
 from app.services.documents.domain_labels import load_domain_labels
@@ -139,6 +141,11 @@ class KnowledgeOrchestrator:
                 "reranker_fallback_reason": "strategy_disabled",
             }
 
+        followup, followup_diagnostics = await self._owned_policy_followup(
+            strategy, source_plans, deduplicated, scope, started
+        )
+        reranked = _append_new(reranked, followup)
+
         failed = tuple(outcome.source for outcome in outcomes if outcome.status != "completed")
         required_failures = tuple(
             plan.source
@@ -172,9 +179,46 @@ class KnowledgeOrchestrator:
             "preferred_domain": domain,
             "domain_boosted_count": domain_boosted,
             "post_rerank_count": len(reranked),
+            **followup_diagnostics,
             "knowledge_duration_ms": int((time.perf_counter() - started) * 1000),
         }
         return self._context_builder.build(reranked, scope, diagnostics=diagnostics)
+
+    async def _owned_policy_followup(
+        self,
+        strategy: KnowledgeStrategy,
+        source_plans: tuple[KnowledgeSourcePlan, ...],
+        candidates: tuple[EvidenceItem, ...],
+        scope: AccessScope,
+        started: float,
+    ) -> tuple[tuple[EvidenceItem, ...], dict[str, object]]:
+        """Search regulation text with the asker's own policy clauses (app/knowledge/owned_policy.py).
+
+        Same scope as the first search, and only `compliance`-labelled results are
+        kept: it can add what the asker could already read, never more.
+        """
+
+        if not strategy.owned_policy_followup:
+            return (), {}
+        labels = await asyncio.to_thread(load_domain_labels)
+        queries = owned_policy_queries(
+            candidates, owner_user_id=scope.user_id, owner_of=labels.owner_of, label_of=labels.label_of
+        )
+        plans = tuple(
+            plan.model_copy(update={"queries": queries}) for plan in source_plans if plan.source in {"vector", "bm25"}
+        )
+        if not queries or not plans:
+            return (), {"owned_policy_queries": len(queries), "owned_policy_added": 0}
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        outcomes = await asyncio.gather(
+            *(self._retrieve_source(self._within_remaining_budget(plan, elapsed_ms), scope) for plan in plans)
+        )
+        groups = tuple(group for outcome in outcomes if outcome.status == "completed" for group in outcome.groups)
+        fused = deduplicate_evidence(reciprocal_rank_fuse(groups, rrf_k=self._rrf_k))
+        regulation = tuple(
+            item for item in fused if labels.label_of(item.document_id, item.source) == AgentClass.COMPLIANCE
+        )[: 2 * MAX_POLICY_QUERIES]
+        return regulation, {"owned_policy_queries": len(queries), "owned_policy_added": len(regulation)}
 
     async def _prefer_domain(
         self, items: tuple[EvidenceItem, ...], domain: str
@@ -374,6 +418,13 @@ class KnowledgeOrchestrator:
 def _flatten_items(outcomes: Sequence[_SourceOutcome]) -> tuple[EvidenceItem, ...]:
     """Only completed sources: a timed-out source has no results, not zero results."""
     return tuple(item for outcome in outcomes if outcome.status == "completed" for item in outcome.items)
+
+
+def _append_new(items: tuple[EvidenceItem, ...], extra: tuple[EvidenceItem, ...]) -> tuple[EvidenceItem, ...]:
+    """`items`, then whatever in `extra` is not already among them."""
+
+    held = {(item.document_id, item.chunk_id, item.content) for item in items}
+    return (*items, *(item for item in extra if (item.document_id, item.chunk_id, item.content) not in held))
 
 
 def _outcome_event(outcome: _SourceOutcome) -> ExecutionEvent:

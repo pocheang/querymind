@@ -81,6 +81,10 @@ class KnowledgeStrategy(ImmutableKnowledgeContract):
     # caller is already authorized to see and removes none. None means no
     # preference (the general route, or a label nothing carries).
     preferred_domain: str | None = None
+    # A compliance gap analysis: after the first search, the asker's OWN policy
+    # clauses become queries for regulation text. Set from the route, never by a
+    # decider; see app/knowledge/owned_policy.py for why this is bounded.
+    owned_policy_followup: bool = False
 
 
 class AccessScope(ImmutableKnowledgeContract):

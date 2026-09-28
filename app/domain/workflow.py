@@ -43,6 +43,9 @@ class RouterDecision(ImmutableWorkflowContract):
     # The specialist the router chose. Retrieval uses it only to *order* what the
     # caller may already see (see `KnowledgeStrategy.preferred_domain`).
     agent_class: str = "general"
+    # The answer shape the router chose, which a compliance gap analysis needs to
+    # reach retrieval (`KnowledgeStrategy.owned_policy_followup`).
+    skill: str = ""
 
 
 class ClarificationResult(ImmutableWorkflowContract):

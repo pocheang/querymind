@@ -12,6 +12,7 @@ from app.core.config import Settings, get_settings
 from app.domain.contracts import TaskPlan
 from app.domain.knowledge import AccessScope, KnowledgeSource, KnowledgeSourcePlan, KnowledgeStrategy
 from app.domain.workflow import RouterDecision, VerificationDecision
+from app.knowledge.owned_policy import wants_owned_policy_followup
 from app.knowledge.queries import unique_queries
 from app.knowledge.width import MAX_SCALE, query_complexity, widen
 from app.orchestration.request import OrchestrationRequest
@@ -418,7 +419,12 @@ def _with_preferred_domain(strategy: KnowledgeStrategy, route: RouterDecision) -
 
     domain = normalize_agent_class(route.agent_class)
     preferred = None if domain in (None, AgentClass.GENERAL) else domain
-    return strategy.model_copy(update={"preferred_domain": preferred})
+    return strategy.model_copy(
+        update={
+            "preferred_domain": preferred,
+            "owned_policy_followup": wants_owned_policy_followup(domain, route.skill),
+        }
+    )
 
 
 def _has_no_documents(scope: AccessScope | None) -> bool:
