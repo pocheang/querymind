@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from app.agents.catalog import AgentClass, normalize_agent_class
 from app.core.config import get_settings
 from app.ingestion.loaders import IMAGE_EXTENSIONS
 from app.services.agent_classifier import classify_agent_class
@@ -70,13 +71,8 @@ def _guess_agent_class_for_upload(filename: str) -> str:
     """Guess the agent class for an uploaded file."""
     suffix = Path(filename).suffix.lower()
     if suffix in {".pdf", *IMAGE_EXTENSIONS}:
-        return "pdf_text"
-    guessed = classify_agent_class(Path(filename).stem)
-    return (
-        guessed
-        if guessed in {"general", "cybersecurity", "artificial_intelligence", "pdf_text", "policy"}
-        else "general"
-    )
+        return AgentClass.PDF_TEXT
+    return normalize_agent_class(classify_agent_class(Path(filename).stem)) or AgentClass.GENERAL
 
 
 def _is_probably_valid_upload_signature(suffix: str, head: bytes) -> bool:

@@ -15,6 +15,7 @@ import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.agents.catalog import AgentClass, normalize_agent_class
 from app.agents.router.calibration import ConfidenceCalibrator
 from app.agents.router.examples import get_mixed_examples
 from app.agents.shared.cache import cached_router_decision
@@ -24,7 +25,6 @@ from app.agents.shared.config import (
     ROUTE_WEB,
     ROUTER_LOW_CONFIDENCE_THRESHOLD,
     SKILL_DEFAULT,
-    VALID_AGENT_CLASSES,
     VALID_ROUTES,
     VALID_SKILLS,
 )
@@ -131,19 +131,10 @@ def _domain_registry() -> "DomainAgentRegistry | None":
 
 def _normalize_agent_class_hint(agent_class_hint: str | None) -> str | None:
     """Normalize and validate agent class hint."""
-    if not agent_class_hint:
-        return None
-
-    hint = normalize_string(agent_class_hint, lowercase=True)
-    if hint in VALID_AGENT_CLASSES:
-        return hint
-
-    registry = _domain_registry()
-    if registry is not None and hint in registry.list_agent_classes():
-        return hint
-
-    logger.debug(f"Invalid agent class hint: {agent_class_hint}")
-    return None
+    hint = normalize_agent_class(agent_class_hint)
+    if hint is None and normalize_string(agent_class_hint):
+        logger.debug("Invalid agent class hint ignored")
+    return hint
 
 
 def _append_reason(base_reason: str, *tags: str) -> str:
@@ -320,7 +311,7 @@ def _skill_for(agent_class: str, question: str) -> str:
         if specialist_skill:
             return specialist_skill
 
-    if agent_class == "pdf_text":
+    if agent_class == AgentClass.PDF_TEXT:
         return "pdf_text_reader"
     lowered = question.lower()
     if "compare" in lowered or "difference" in lowered:

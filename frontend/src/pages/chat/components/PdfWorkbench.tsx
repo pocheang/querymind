@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import type { AgentClassHint } from "@/pages/chat/types";
 import type { IndexedFileSummary } from "@/types/api";
-
-type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 
 type Props = {
   pdfDocuments: IndexedFileSummary[];

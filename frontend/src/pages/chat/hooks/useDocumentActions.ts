@@ -2,9 +2,9 @@ import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { appApi } from "@/lib/api";
 import type { FileIndexActionResponse, IndexedFileSummary, UploadResponse } from "@/types/api";
+import type { AgentClassHint } from "@/pages/chat/types";
 import { waitForReindex, type ReindexOutcome } from "./reindexPolling";
 
-type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
 type TFn = ReturnType<typeof useTranslation>["t"];
 
 function reindexOutcomeMessage(

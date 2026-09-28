@@ -20,6 +20,7 @@ Upgrade guide, new settings and API changes: [docs/releases/unreleased-release-n
 
 - Clarification now recognises a component, data source or scenario written in English directly next to Chinese text (for example `neo4j报错`, `数据源是mysql数据`) instead of asking for it again.
 - Session export no longer offers an "include context" option that always exported nothing.
+- The router, the API and the intent classifier now share one list of agent classes, so a mode hint is honoured the same way everywhere, including a hint written in mixed case and a class that an extension registers.
 - Removed unused code: a second, uncalled streaming path, uncalled session import helpers, and the last unreachable functions.
 - Documentation site navigation is built without HTML string concatenation.
 

@@ -1,4 +1,4 @@
-import type { ChatMetadata } from "@/pages/chat/types";
+import type { AgentClassHint, ChatMetadata } from "@/pages/chat/types";
 
 export const QUICK_PROMPTS = [
   "对这次告警做攻击链复盘，并按 P0/P1/P2 给出处置优先级",
@@ -17,7 +17,7 @@ export const QUICK_PROMPTS = [
 // document is read rather than whether it is allowed.
 export const PDF_FILE_RE = /\.(pdf|png|jpe?g|bmp|tiff?|webp)$/i;
 
-export type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
+export type { AgentClassHint } from "@/pages/chat/types";
 
 export const AGENT_MODES: Array<{
   key: AgentClassHint;
