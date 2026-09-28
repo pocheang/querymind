@@ -10,6 +10,7 @@ from typing import Any
 from app.agents.verifier.validation.claims_text import claims_text
 from app.agents.verifier.validation.hallucination_patterns import detect_all_patterns
 from app.agents.verifier.validation.models import (
+    HEURISTIC_ISSUE_TYPES,
     CascadeLevel,
     CascadeResult,
     RuleBasisIssue,
@@ -167,7 +168,15 @@ class RuleValidator:
                     suggestion="Verify dates against source documents",
                 )
             )
-        penalty = sum(0.4 if issue.severity in {"high", "critical"} else 0.2 for issue in issues)
+        # Heuristic issues are reported, not scored: they lowered this stage's
+        # confidence by 0.4 each, which pushed factuality under the verifier's
+        # 0.7 floor, so a number the sources did not visibly contain rejected
+        # the answer anyway. See HEURISTIC_ISSUE_TYPES.
+        penalty = sum(
+            0.4 if issue.severity in {"high", "critical"} else 0.2
+            for issue in issues
+            if issue.issue_type not in HEURISTIC_ISSUE_TYPES
+        )
         confidence = max(0.0, 1.0 - penalty)
         return _result(start_time, issues, confidence=confidence, should_continue=True)
 

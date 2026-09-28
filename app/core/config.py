@@ -274,7 +274,12 @@ class Settings(BaseSettings):
     cascade_enable_rules: bool = Field(default=True, alias="CASCADE_ENABLE_RULES")
     cascade_enable_nli: bool = Field(default=True, alias="CASCADE_ENABLE_NLI")
     cascade_enable_citations: bool = Field(default=True, alias="CASCADE_ENABLE_CITATIONS")
-    cascade_enable_deep: bool = Field(default=True, alias="CASCADE_ENABLE_DEEP")
+    # Off by default since 2026-09-27. Replayed over thirty real answers: at
+    # its 3s timeout it timed out 12 times in 14 (a minimal call on the
+    # configured model costs ~2.5s); given 10s it finished, took 7-10s, and
+    # reported "Factual inconsistency detected" on every answer it saw without
+    # changing one verdict. Latency with no signal. Still editable.
+    cascade_enable_deep: bool = Field(default=False, alias="CASCADE_ENABLE_DEEP")
     cascade_nli_timeout_ms: int = Field(default=1200, ge=100, le=60_000, alias="CASCADE_NLI_TIMEOUT_MS")
     cascade_deep_timeout_ms: int = Field(default=3000, ge=100, le=60_000, alias="CASCADE_DEEP_TIMEOUT_MS")
     retrieval_cache_enabled: bool = Field(default=True, alias="RETRIEVAL_CACHE_ENABLED")

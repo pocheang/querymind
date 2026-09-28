@@ -23,6 +23,16 @@ class CascadeLevel(StrEnum):
     DEEP_LLM = "deep_llm"
 
 
+HEURISTIC_ISSUE_TYPES: frozenset[str] = frozenset({"number_mismatch", "entity_mismatch", "date_mismatch"})
+"""Issues from pattern heuristics: a number, a name or a date the sources do not
+visibly contain. They are reported and they degrade an answer, but they never
+reject one or send it round a retry on their own. Replayed over thirty real
+answers, these heuristics raised the bulk of the issues and approved none of
+them -- including answers that were right, such as "FP16 is 2 bytes per
+parameter" beside a tool result that only gives the total. Entailment,
+citations and safety still decide."""
+
+
 class RuleBasisIssue(BaseModel):
     """One issue found by a validation stage."""
 
@@ -130,6 +140,7 @@ class ValidationRequest:
 
 
 __all__ = [
+    "HEURISTIC_ISSUE_TYPES",
     "CascadeLevel",
     "CascadeResult",
     "RuleBasisIssue",

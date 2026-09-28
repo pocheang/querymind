@@ -143,6 +143,15 @@ class NLIValidator:
         source_text = " ".join(doc.content for doc in request.source_docs[:5])
         if not source_text:
             return _result(start_time, confidence=0.5, backend="none", fallback_reason="no_sources")
+        if is_predominantly_latin(request.answer) != is_predominantly_latin(source_text):
+            # A Chinese answer against English sources -- a tool result, an
+            # English web page -- shares almost no tokens with them, so the
+            # lexical path called every sentence unsupported; the English
+            # cross-encoder is noise on Chinese either way round. Nothing here
+            # can judge entailment across the two, so the stage abstains: no
+            # issue, and `backend="none"` so the method reports that entailment
+            # was not checked rather than implying it passed.
+            return _result(start_time, confidence=1.0, backend="none", fallback_reason="cross_lingual")
 
         model = self.get_model() if is_predominantly_latin(request.answer) else None
         if model is None:
