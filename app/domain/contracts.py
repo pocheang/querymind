@@ -172,6 +172,10 @@ class EvidenceItem(ImmutableContract):
     version: int | None = Field(default=None, ge=1)
     page: int | None = Field(default=None, ge=1)
     chunk_id: str | None = None
+    # The section the chunk came from, as the chunker carried it (`metadata["heading"]`).
+    # A hint, not a key: see `app/ingestion/processing/structure.py::section_headings`.
+    # Document text, so `mask_evidence` redacts it exactly as it redacts `content`.
+    heading: str | None = Field(default=None, max_length=200)
     image_id: str | None = None
     artifact_uri: str | None = None
     modality: Modality = "text"

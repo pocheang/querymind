@@ -16,7 +16,6 @@ from app.agents.tool.service import ToolAgentService
 from app.agents.verifier.service import VerifierAgentService
 from app.orchestration.engine import OrchestrationServices
 from app.privacy.service import PrivacyService
-from app.services.security.access_scope import AccessScopeResolver
 
 
 @dataclass
@@ -35,7 +34,11 @@ class CoreCapabilities:
     typed_verifier: VerifierAgentService = field(default_factory=VerifierAgentService)
     typed_finalizer: FinalizationService = field(default_factory=FinalizationService)
     privacy: PrivacyService = field(default_factory=PrivacyService)
-    access_scope_resolver: AccessScopeResolver = field(default_factory=AccessScopeResolver)
+    # Scope resolution and injection screening, injectable as one piece. There
+    # used to be an `access_scope_resolver` field here that nothing read -- the
+    # guardrail owns the resolver -- so a test injecting a resolver through it
+    # silently got the default one. None builds the production guardrail.
+    security_guardrail: Any = None
     context: Any = None  # Legacy context object, type varies by implementation
 
     def orchestration_services(self) -> OrchestrationServices:
@@ -57,6 +60,7 @@ class CoreCapabilities:
             knowledge_agent=self.typed_knowledge.decide,
             privacy=self.privacy,
             event_reporter_binder=self.typed_rag.set_degradation_reporter,
+            security_guardrail=self.security_guardrail,
         )
 
 

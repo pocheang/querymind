@@ -50,11 +50,15 @@ def mask_evidence(item: EvidenceItem, scope: AccessScope) -> EvidenceItem | None
         return None
     allowed_fields = scope.allowed_fields.intersection(_CONTENT_FIELDS)
     content = "[REDACTED_FIELD]"
+    heading = None
     if "content" in allowed_fields:
         content = inspect_text(item.content, kinds=OUTPUT_KINDS).text
+        # A heading is document text too; it is shown only where content is.
+        heading = inspect_text(item.heading, kinds=OUTPUT_KINDS).text if item.heading else None
     return item.model_copy(
         update={
             "content": content,
+            "heading": heading,
             "artifact_uri": item.artifact_uri if "artifact_uri" in allowed_fields else None,
         }
     )

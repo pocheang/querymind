@@ -42,6 +42,8 @@
     {"id": "pdf-04", "question": "OCR 这张照片上的发票号码", "agent_class": "pdf_text", "skill": "pdf_text_reader"},
     {"id": "pdf-05", "question": "Extract the text of section 4 from the uploaded PDF.", "agent_class": "pdf_text", "skill": "pdf_text_reader"},
     {"id": "pdf-06", "question": "What does the image I uploaded say?", "agent_class": "pdf_text", "skill": "pdf_text_reader"},
+    {"id": "pdf-07", "question": "这份合同第 3 章讲了什么？", "agent_class": "pdf_text", "skill": "pdf_text_reader"},
+    {"id": "pdf-08", "question": "What does section 4 of the policy I uploaded say?", "agent_class": "pdf_text", "skill": "pdf_text_reader"},
 
     {"id": "data-01", "question": "我上传的销售表里，各区域第三季度的销售额是多少？", "agent_class": "data_analysis", "skill": "data_analysis_report"},
     {"id": "data-02", "question": "这个 Excel 里哪个产品的平均单价最高？", "agent_class": "data_analysis", "skill": "data_analysis_report"},
