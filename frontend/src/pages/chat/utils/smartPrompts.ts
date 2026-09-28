@@ -1,52 +1,55 @@
 import type { SessionMessage } from "@/types/api";
 
+/**
+ * What to ask next, by the specialist that answered. A table rather than a
+ * chain of `if` blocks with the same shape, which SonarCloud counted as
+ * duplicated code.
+ */
+const FOLLOW_UPS: Record<string, { zh: string[]; en: string[] }> = {
+  cybersecurity: {
+    zh: ["这个漏洞在 CISA KEV 里吗？EPSS 概率是多少？", "对应的 ATT&CK 技术怎么检测和缓解？", "按优先级给出处置步骤"],
+    en: [
+      "Is this vulnerability in CISA KEV, and what is its EPSS probability?",
+      "How is the matching ATT&CK technique detected and mitigated?",
+      "Turn this into prioritised remediation steps",
+    ],
+  },
+  artificial_intelligence: {
+    zh: ["换成 INT4 量化再估算一次显存", "按 6ND 估算训练需要的算力和 GPU 时长", "说明这个估算没有计入哪些开销"],
+    en: [
+      "Estimate the memory again with INT4 quantization",
+      "Estimate the training compute and GPU time with 6ND",
+      "What does this estimate leave out?",
+    ],
+  },
+  data_analysis: {
+    zh: ["按其他维度再分组看一遍", "列出结果里的空值和异常值", "说明这个结果用了哪张表和哪条 SQL"],
+    en: [
+      "Break the same figure down by another dimension",
+      "List the empty and outlying values in this result",
+      "State which table and which SQL produced this result",
+    ],
+  },
+  compliance: {
+    zh: ["列出仍无法判断的条款和需要补充的材料", "按整改优先级给出行动计划", "对照另一部法规再审查一遍"],
+    en: [
+      "List the clauses that still cannot be judged and what material would settle them",
+      "Turn the remediation into a prioritised action plan",
+      "Review the same policy against another regulation",
+    ],
+  },
+  pdf_text: {
+    zh: ["这段内容在第几页、哪个章节？", "下一章讲了什么？", "把这一章的原文要点逐条列出"],
+    en: [
+      "Which page and section is this passage from?",
+      "What does the next chapter say?",
+      "List this chapter's points as they are written",
+    ],
+  },
+};
+
 function getAgentPrompts(agentClass: string, isZh: boolean): string[] {
-  if (agentClass === "cybersecurity") {
-    return isZh
-      ? ["这个漏洞在 CISA KEV 里吗？EPSS 概率是多少？", "对应的 ATT&CK 技术怎么检测和缓解？", "按优先级给出处置步骤"]
-      : [
-          "Is this vulnerability in CISA KEV, and what is its EPSS probability?",
-          "How is the matching ATT&CK technique detected and mitigated?",
-          "Turn this into prioritised remediation steps",
-        ];
-  }
-  if (agentClass === "artificial_intelligence") {
-    return isZh
-      ? ["换成 INT4 量化再估算一次显存", "按 6ND 估算训练需要的算力和 GPU 时长", "说明这个估算没有计入哪些开销"]
-      : [
-          "Estimate the memory again with INT4 quantization",
-          "Estimate the training compute and GPU time with 6ND",
-          "What does this estimate leave out?",
-        ];
-  }
-  if (agentClass === "data_analysis") {
-    return isZh
-      ? ["按其他维度再分组看一遍", "列出结果里的空值和异常值", "说明这个结果用了哪张表和哪条 SQL"]
-      : [
-          "Break the same figure down by another dimension",
-          "List the empty and outlying values in this result",
-          "State which table and which SQL produced this result",
-        ];
-  }
-  if (agentClass === "compliance") {
-    return isZh
-      ? ["列出仍无法判断的条款和需要补充的材料", "按整改优先级给出行动计划", "对照另一部法规再审查一遍"]
-      : [
-          "List the clauses that still cannot be judged and what material would settle them",
-          "Turn the remediation into a prioritised action plan",
-          "Review the same policy against another regulation",
-        ];
-  }
-  if (agentClass === "pdf_text") {
-    return isZh
-      ? ["这段内容在第几页、哪个章节？", "下一章讲了什么？", "把这一章的原文要点逐条列出"]
-      : [
-          "Which page and section is this passage from?",
-          "What does the next chapter say?",
-          "List this chapter's points as they are written",
-        ];
-  }
-  return [];
+  return FOLLOW_UPS[agentClass]?.[isZh ? "zh" : "en"] ?? [];
 }
 
 function getQuestionTypePrompts(userQuestion: string, isZh: boolean): string[] {

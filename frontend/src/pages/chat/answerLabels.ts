@@ -4,18 +4,20 @@ import { useTranslation } from "react-i18next";
  * Reader-facing names for the two things an answer's metadata reports by id:
  * the shape it was written in (the pipeline skill) and the tools it ran.
  *
- * Both are switches of literal `t()` keys for the reason `useAgentModeLabels`
- * gives: `i18n/locales.test.ts` only sees literal calls, and an interpolated key
- * missing from one locale renders the fallback forever with nothing reporting
- * it. An id this table does not know falls back to the id itself, which is
- * still true, just not friendly.
+ * The locale key is derived from the id -- `answer_with_citations` is
+ * `answerShapes.answerWithCitations`, `querymind_cyber_cve_lookup` is
+ * `toolNames.cyberCveLookup` -- so there is no second table to keep in step.
+ * A derived key is invisible to `i18n/locales.test.ts`, which only sees literal
+ * `t("...")` calls, so `answerLabels.test.ts` does its job here: every id listed
+ * below must resolve in both locales. An id not listed keeps its identifier,
+ * which is still true, just not friendly.
  *
- * `ANSWER_SHAPES` is checked against the backend's `VALID_SKILLS` by
- * `tests/agents/test_answer_shape_labels.py`, so a skill added to the router
- * without a name here fails the suite rather than showing an identifier.
+ * `ANSWER_SHAPES` is checked against the backend's `VALID_SKILLS`, and
+ * `TOOL_IDS` against every tool id in `app/`, by
+ * `tests/agents/test_answer_shape_labels.py`.
  */
 
-export const ANSWER_SHAPES = [
+export const ANSWER_SHAPES: readonly string[] = [
   "answer_with_citations",
   "compare_entities",
   "timeline_builder",
@@ -29,80 +31,44 @@ export const ANSWER_SHAPES = [
   "pdf_text_reader",
   "data_analysis_report",
   "compliance_gap_analysis",
-] as const;
+];
+
+export const TOOL_IDS: readonly string[] = [
+  "querymind_cyber_cve_lookup",
+  "querymind_cyber_mitre_attack",
+  "querymind_cyber_product_exposure",
+  "querymind_cyber_indicator_extract",
+  "querymind_ai_memory_estimate",
+  "querymind_ai_compute_estimate",
+  "querymind_ai_math_eval",
+  "querymind_ai_specification_extract",
+  "querymind_table_list",
+  "querymind_table_query",
+  "querymind_compliance_citation_extract",
+  "querymind_document_locations",
+  "querymind_connector_list_owned",
+  "querymind_connector_disable_owned",
+  "querymind_tool_selector",
+];
+
+function camelCase(id: string): string {
+  return id.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
+}
+
+export function answerShapeKey(skill: string): string {
+  return `answerShapes.${camelCase(skill)}`;
+}
+
+export function toolNameKey(toolId: string): string {
+  return `toolNames.${camelCase(toolId.replace(/^querymind_/, ""))}`;
+}
 
 export function useAnswerShapeLabel() {
   const { t } = useTranslation();
-  return (skill: string): string => {
-    switch (skill) {
-      case "answer_with_citations":
-        return t("answerShapes.answerWithCitations");
-      case "compare_entities":
-        return t("answerShapes.compareEntities");
-      case "timeline_builder":
-        return t("answerShapes.timelineBuilder");
-      case "web_fact_check":
-        return t("answerShapes.webFactCheck");
-      case "cyber_attack_analysis":
-        return t("answerShapes.cyberAttackAnalysis");
-      case "cyber_defense_hardening":
-        return t("answerShapes.cyberDefenseHardening");
-      case "incident_response_playbook":
-        return t("answerShapes.incidentResponsePlaybook");
-      case "vulnerability_exposure_assessment":
-        return t("answerShapes.vulnerabilityExposureAssessment");
-      case "ai_knowledge_assistant":
-        return t("answerShapes.aiKnowledgeAssistant");
-      case "ai_engineering_estimate":
-        return t("answerShapes.aiEngineeringEstimate");
-      case "pdf_text_reader":
-        return t("answerShapes.pdfTextReader");
-      case "data_analysis_report":
-        return t("answerShapes.dataAnalysisReport");
-      case "compliance_gap_analysis":
-        return t("answerShapes.complianceGapAnalysis");
-      default:
-        return skill;
-    }
-  };
+  return (skill: string): string => (ANSWER_SHAPES.includes(skill) ? t(answerShapeKey(skill)) : skill);
 }
 
 export function useToolLabel() {
   const { t } = useTranslation();
-  return (toolId: string): string => {
-    switch (toolId) {
-      case "querymind_cyber_cve_lookup":
-        return t("toolNames.cveLookup");
-      case "querymind_cyber_mitre_attack":
-        return t("toolNames.mitreAttack");
-      case "querymind_cyber_product_exposure":
-        return t("toolNames.productExposure");
-      case "querymind_cyber_indicator_extract":
-        return t("toolNames.indicatorExtract");
-      case "querymind_ai_memory_estimate":
-        return t("toolNames.memoryEstimate");
-      case "querymind_ai_compute_estimate":
-        return t("toolNames.computeEstimate");
-      case "querymind_ai_math_eval":
-        return t("toolNames.mathEval");
-      case "querymind_ai_specification_extract":
-        return t("toolNames.specificationExtract");
-      case "querymind_table_list":
-        return t("toolNames.tableList");
-      case "querymind_table_query":
-        return t("toolNames.tableQuery");
-      case "querymind_compliance_citation_extract":
-        return t("toolNames.complianceCitationExtract");
-      case "querymind_document_locations":
-        return t("toolNames.documentLocations");
-      case "querymind_connector_list_owned":
-        return t("toolNames.connectorListOwned");
-      case "querymind_connector_disable_owned":
-        return t("toolNames.connectorDisableOwned");
-      case "querymind_tool_selector":
-        return t("toolNames.toolSelector");
-      default:
-        return toolId;
-    }
-  };
+  return (toolId: string): string => (TOOL_IDS.includes(toolId) ? t(toolNameKey(toolId)) : toolId);
 }
