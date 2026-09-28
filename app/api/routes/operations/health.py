@@ -270,16 +270,32 @@ async def ready():
     Deliberately cheap and side-effect free: this endpoint is unauthenticated,
     so it must not be usable to drive traffic to (or bill) external providers.
     The full external-dependency probe lives at /ready/dependencies.
+
+    The models are reported from the startup warm-up rather than probed. Probing
+    meant embedding a string: on a cold process that loaded the embedding model
+    inside the probe (about 20 s), and with a remote embedding backend it called
+    the provider -- from an unauthenticated endpoint documented as never doing so.
+    While the warm-up runs the answer is 503 `warming`: this process would answer
+    its first questions without evidence.
     """
-    checks = await _gather_checks(
-        (
-            ("chroma", _check_chroma_ready),
-            ("embedding_model", _check_embedding_model_ready),
-        )
-    )
-    checks = {"api": {"ok": True, "required": True, "latency_ms": 0}, **checks}
+    checks = await _gather_checks((("chroma", _check_chroma_ready),))
+    checks = {"api": {"ok": True, "required": True, "latency_ms": 0}, **checks, "models": _models_readiness()}
     payload, code = _readiness_payload(checks)
+    if checks["models"]["warming"]:
+        payload["status"], code = "warming", 503
     return JSONResponse(content=payload, status_code=code)
+
+
+def _models_readiness() -> dict[str, Any]:
+    """The warm-up's state as a readiness check. A failed load is reported, not blocking: each model degrades."""
+
+    from app.services.models.warmup import model_warmup_status
+
+    state = str(model_warmup_status()["status"])
+    warming = state == "warming"
+    # Only the state word is public (`_public_readiness_detail`): which models
+    # loaded, and how, is topology this unauthenticated endpoint does not share.
+    return {"ok": not warming, "required": False, "latency_ms": 0, "status": state, "warming": warming}
 
 
 @router.get("/ready/dependencies", dependencies=[Depends(require_admin)])

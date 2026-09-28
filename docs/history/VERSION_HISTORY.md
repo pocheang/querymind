@@ -1,7 +1,7 @@
 # Version History
 
 **Status**: Public  
-**Last Updated**: 2026-09-26  
+**Last Updated**: 2026-09-28  
 **Audience**: Users, operators, contributors, maintainers  
 
 This file is the public version timeline for QueryMind（智询）. It keeps a
@@ -15,7 +15,7 @@ For current release notes, also see [../../CHANGELOG.md](../../CHANGELOG.md).
 
 | Version | Date | Type | Public Summary |
 | --- | --- | --- | --- |
-| Unreleased | — | Feature / Deployment | Multiple workers on one host: shared state in Redis and SQLite, queued ingestion with a Chroma server, cross-worker cache invalidation, one-time `init` service, per-worker observability, quotas counted once for all workers; clarification fix for English terms next to Chinese; dead-code cleanup |
+| v0.7.1 | 2026-09-28 | Feature / Deployment | Five domain specialists (security, AI, data analysis, compliance review, document reading) with read-only tools and answer shapes, offline threat-intelligence store (NVD / KEV / EPSS / ATT&CK), four bundled regulations, tool facts cited as `[T{k}]`, evidence-bound answer length and web page reading, background model warm-up; multiple workers on one host: shared state in Redis and SQLite, queued ingestion with a Chroma server, cross-worker cache invalidation, one-time `init` service, quotas counted once for all workers |
 | v0.7.0.3 | 2026-09-18 | Feature / Quality & Standards | Dynamic dual-track clarification agent (fast-path deterministic rules + intelligent LLM questioning), Codex/Claude Code structured interaction standards (recommended options, user write-in fallback), SonarCloud 100% quality gate mastery (0 bugs/vulns/smells) |
 | v0.7.0.2 | 2026-09-16 | Patch / Quality & Security | Full SonarQube quality gate remediation (0 vulnerabilities, 0 bugs, 0 code smells), 100% duplication elimination (0 lines / 0 blocks, 0.0% density), frontend topology & admin state decoupling |
 | v0.7.0.1 | 2026-09-14 | Patch / Feature / Security | Table & Excel pipeline fixes, CSV/TSV ingestion, header-preserving table chunking, owner-scoped table SQL, rich graph with per-source communities, web-search providers, prompt-injection screening |

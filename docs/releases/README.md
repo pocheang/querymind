@@ -2,26 +2,21 @@
 
 Official release notes for QueryMind（智询）.
 
-## Upcoming (draft)
-
-**[Unreleased](unreleased-release-notes.md)** - multiple workers on one host
-- Shared state in Redis and SQLite; queued ingestion with a single `ingest-worker` and a Chroma server
-- Quotas counted once across workers; clarification fix for English terms next to Chinese
-- **Upgrade**: `docker compose down` (never `-v`) first; Redis and the Chroma server become required
-
 ## Latest Release
 
-**[v0.7.0.3](v0.7.0.3-release-notes.md)** - 2026-09-18
-- Dynamic Dual-Track Clarification Agent: Deterministic fast-path completeness rules + real LLM intelligent questioning
-- Structured interaction standards aligned with Codex / Claude Code (Recommended option first, direct action phrasing, detailed rationale)
-- Custom user write-in option fallback across frontend and backend
-- SonarQube / SonarCloud Quality Gate 100% Passed (0 Bugs, 0 Vulnerabilities, 0 Code Smells)
-- Full-suite regression tests: 69 new clarification agent tests, 6 frontend component tests
+**[v0.7.1](v0.7.1-release-notes.md)** - 2026-09-28
+- Five domain specialists (security, AI, data analysis, compliance review, document reading), each with its own read-only tools and answer shape
+- Offline threat-intelligence store (NVD, CISA KEV, FIRST EPSS, MITRE ATT&CK) and four bundled regulations
+- Tool facts cited as `[T1]` and checked against the tool's output; answers only as long as their evidence
+- Models load in the background, so the first question after a restart finds evidence
+- Multiple workers on one host: shared state in Redis and SQLite, queued ingestion, quotas counted once
+- **Upgrade**: `docker compose down` (never `-v`) first; Redis and the Chroma server become required
 
 ## Recent Releases
 
 | Version | Date | Type | Summary |
 |---------|------|------|---------|
+| [v0.7.1](v0.7.1-release-notes.md) | 2026-09-28 | Feature / Deployment | Five domain specialists with their own tools, offline threat intelligence, tool citations, background model warm-up, multiple workers on one host |
 | [v0.7.0.3](v0.7.0.3-release-notes.md) | 2026-09-18 | Feature / Quality & Standards | Dynamic dual-track clarification agent, Codex-style prompt specifications, SonarCloud quality gate mastery |
 | [v0.7.0.2](v0.7.0.2-release-notes.md) | 2026-09-16 | Patch / Quality & Security | Full SonarQube quality gate remediation (0 bugs/vulns/smells), 100% duplication elimination (0 lines / 0.0%), topology & admin state decoupling |
 | [v0.7.0.1](v0.7.0.1-release-notes.md) | 2026-09-14 | Patch / Feature / Security | Table & Excel pipeline, CSV support, header retention chunking, owner-scoped table SQL, injection screening |
@@ -55,9 +50,9 @@ See [Version History](../history/VERSION_HISTORY.md) for public timeline.
 
 ## Support
 
-- **Current**: v0.6.x (full support)
-- **Limited**: v0.5.x (security updates only)
-- **Unsupported**: < v0.5.0
+- **Current**: v0.7.x (full support)
+- **Limited**: v0.6.x (security updates only)
+- **Unsupported**: < v0.6.0
 
 ## Resources
 
