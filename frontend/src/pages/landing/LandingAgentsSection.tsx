@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Brain, Check, Compass, Cpu, FileText, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Brain, Check, Compass, Cpu, FileText, ShieldCheck, Sparkles, Table2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +80,23 @@ export function LandingAgentsSection() {
       ],
       link: "/app?mode=pdf_text",
       actionText: t("pages.landing.agentPdfAction"),
+    },
+    {
+      key: "data_analysis",
+      icon: Table2,
+      title: t("pages.landing.agentDataTitle"),
+      desc: t("pages.landing.agentDataDesc"),
+      badge: t("pages.landing.agentDataBadge"),
+      featured: false,
+      accent: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+      capabilities: [
+        t("pages.landing.agentDataCap1"),
+        t("pages.landing.agentDataCap2"),
+        t("pages.landing.agentDataCap3"),
+        t("pages.landing.agentDataCap4"),
+      ],
+      link: "/app?mode=data_analysis",
+      actionText: t("pages.landing.agentDataAction"),
     },
     {
       key: "general",

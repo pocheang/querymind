@@ -43,6 +43,18 @@ class _Record:
 
 
 @dataclass(frozen=True)
+class TableSummary:
+    """A table's id, where it came from and its size -- never its contents."""
+
+    table_id: str
+    source: str
+    rows: int
+    columns: int
+    owned: bool
+    shared_corpus: bool
+
+
+@dataclass(frozen=True)
 class _Loaded:
     record: _Record
     content: TableContent
@@ -325,6 +337,31 @@ class TableStore:
             loaded = self._readable(tenant_id, table_id, user_id)
             if loaded and (doc_id is None or loaded.content.doc_id == doc_id):
                 results.append(loaded.content)
+        return results
+
+    def summaries(self, tenant_id: str, *, user_id: str | None) -> list[TableSummary]:
+        """Every table the reader may query, described by shape and origin only.
+
+        No headers and no cells: this is what the data-analysis specialist's
+        `table_list` tool reports, and that summary is read back by the next tool
+        selection. A public table's headers are written by whoever uploaded it.
+        """
+        results: list[TableSummary] = []
+        for table_id in sorted({record.table_id for record in self._backend.all_records()}):
+            loaded = self._readable(tenant_id, table_id, user_id)
+            if loaded is None:
+                continue
+            record = loaded.record
+            results.append(
+                TableSummary(
+                    table_id=record.table_id,
+                    source=record.source,
+                    rows=len(loaded.content.rows),
+                    columns=len(loaded.content.headers),
+                    owned=record.owner_user_id == user_id,
+                    shared_corpus=record.tenant_id == SHARED_CORPUS_TENANT,
+                )
+            )
         return results
 
     def delete_by_sources(self, sources: Iterable[str]) -> int:

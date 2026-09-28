@@ -43,6 +43,13 @@
     {"id": "pdf-05", "question": "Extract the text of section 4 from the uploaded PDF.", "agent_class": "pdf_text", "skill": "pdf_text_reader"},
     {"id": "pdf-06", "question": "What does the image I uploaded say?", "agent_class": "pdf_text", "skill": "pdf_text_reader"},
 
+    {"id": "data-01", "question": "我上传的销售表里，各区域第三季度的销售额是多少？", "agent_class": "data_analysis", "skill": "data_analysis_report"},
+    {"id": "data-02", "question": "这个 Excel 里哪个产品的平均单价最高？", "agent_class": "data_analysis", "skill": "data_analysis_report"},
+    {"id": "data-03", "question": "统计一下报表里每个部门的人数和占比", "agent_class": "data_analysis", "skill": "data_analysis_report"},
+    {"id": "data-04", "question": "What is the total revenue by month in my uploaded spreadsheet?", "agent_class": "data_analysis", "skill": "data_analysis_report"},
+    {"id": "data-05", "question": "Which customers in the CSV placed more than 10 orders?", "agent_class": "data_analysis", "skill": "data_analysis_report"},
+    {"id": "data-06", "question": "Rank the regions in my sales table by year-over-year growth.", "agent_class": "data_analysis", "skill": "data_analysis_report"},
+
     {"id": "gen-01", "question": "公司年假有多少天？", "agent_class": "general", "skill": "answer_with_citations"},
     {"id": "gen-02", "question": "报销流程需要哪些审批？", "agent_class": "general", "skill": "answer_with_citations"},
     {"id": "gen-03", "question": "今天天气怎么样？", "agent_class": "general", "skill": "answer_with_citations"},
@@ -57,7 +64,7 @@
     {"id": "edge-01", "question": "LLM 遭遇 prompt 注入攻击怎么防护？", "agent_class": "cybersecurity", "skill": "cyber_defense_hardening", "boundary": true, "why": "an attack on an AI application is a security question, not a model question"},
     {"id": "edge-02", "question": "How do I defend our chatbot against prompt injection?", "agent_class": "cybersecurity", "skill": "cyber_defense_hardening", "boundary": true, "why": "same edge as edge-01, in English"},
     {"id": "edge-03", "question": "Spring 的依赖注入是怎么实现的？", "agent_class": "general", "skill": "answer_with_citations", "boundary": true, "why": "注入 in a software-design sense; must not be read as an attack"},
-    {"id": "edge-04", "question": "这份 pdf 里的表格合计是多少？", "agent_class": "data_analysis", "skill": "answer_with_citations", "boundary": true, "why": "Q3 (2026-09-27): a question needing a calculation over a table goes to data_analysis, which has table tools; pdf_text can only quote"},
+    {"id": "edge-04", "question": "这份 pdf 里的表格合计是多少？", "agent_class": "data_analysis", "skill": "data_analysis_report", "boundary": true, "why": "Q3 (2026-09-27): a question needing a calculation over a table goes to data_analysis, which has table tools; pdf_text can only quote"},
     {"id": "edge-05", "question": "用 AI 检测网络入侵有哪些方法？", "agent_class": "cybersecurity", "skill": "cyber_attack_analysis", "boundary": true, "why": "the goal is detecting intrusion; AI is the means"},
     {"id": "edge-06", "question": "What GPU memory does a 7B model need for LoRA fine-tuning?", "agent_class": "artificial_intelligence", "skill": "ai_engineering_estimate", "boundary": true, "why": "a model-engineering estimate with no security wording"},
     {"id": "edge-07", "question": "Please send an email to the team about the outage.", "agent_class": "general", "skill": "answer_with_citations", "boundary": true, "why": "\"ai\" must not match inside \"email\" (a recorded historical misroute)"},
@@ -65,6 +72,7 @@
     {"id": "edge-09", "question": "Does our password policy meet GDPR requirements?", "agent_class": "policy", "skill": "answer_with_citations", "boundary": true, "why": "same edge as edge-08, in English; 'password' must not pull it into security"},
     {"id": "edge-10", "question": "把这份漏洞扫描报告 PDF 里的高危漏洞列出来", "agent_class": "cybersecurity", "skill": "cve_vulnerability_assessment", "boundary": true, "why": "a security question whose evidence is a PDF: the subject decides, not the file type"},
     {"id": "edge-11", "question": "图片里的木马样本哈希是什么？", "agent_class": "cybersecurity", "skill": "cyber_attack_analysis", "boundary": true, "why": "security subject in an image; same rule as edge-10"},
-    {"id": "edge-12", "question": "大模型的训练数据被投毒了怎么办？", "agent_class": "cybersecurity", "skill": "cybersecurity_incident_response", "boundary": true, "why": "data poisoning is an attack on a model: plan section 5 assigns attacks on LLM systems to cybersecurity"}
+    {"id": "edge-12", "question": "大模型的训练数据被投毒了怎么办？", "agent_class": "cybersecurity", "skill": "cybersecurity_incident_response", "boundary": true, "why": "data poisoning is an attack on a model: plan section 5 assigns attacks on LLM systems to cybersecurity"},
+    {"id": "edge-13", "question": "客户数据泄露了，第一步应该做什么？", "agent_class": "cybersecurity", "skill": "cybersecurity_incident_response", "boundary": true, "why": "'数据' does not make a question data analysis: a breach is an incident"}
   ]
 }

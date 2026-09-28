@@ -38,6 +38,7 @@ class AgentClass(StrEnum):
     CYBERSECURITY = "cybersecurity"
     ARTIFICIAL_INTELLIGENCE = "artificial_intelligence"
     PDF_TEXT = "pdf_text"
+    DATA_ANALYSIS = "data_analysis"
     # Assigned to uploads whose name reads like a policy document. No specialist
     # answers it yet, so a question routed here gets the general synthesizer.
     POLICY = "policy"

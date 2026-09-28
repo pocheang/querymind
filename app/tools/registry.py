@@ -143,9 +143,10 @@ class DomainToolRegistry:
             # is not added twice.
             from app.tools.ai.provider import AIToolProvider
             from app.tools.cyber.provider import CybersecurityToolProvider
+            from app.tools.data_analysis.provider import DataAnalysisToolProvider
 
             defaults: list[BaseToolProvider] = []
-            for provider in (CybersecurityToolProvider(), AIToolProvider()):
+            for provider in (CybersecurityToolProvider(), AIToolProvider(), DataAnalysisToolProvider()):
                 cat_list = self._providers.setdefault(provider.category, [])
                 if not any(p.__class__ == provider.__class__ for p in cat_list):
                     cat_list.insert(0, provider)

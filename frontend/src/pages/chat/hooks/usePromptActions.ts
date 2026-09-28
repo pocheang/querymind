@@ -13,6 +13,7 @@ const VALID_AGENT_CLASSES: ReadonlySet<AgentClassHint> = new Set([
   "cybersecurity",
   "artificial_intelligence",
   "pdf_text",
+  "data_analysis",
 ]);
 
 // Validate agent class hint

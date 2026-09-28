@@ -39,6 +39,11 @@ export function useAgentModeLabels() {
           title: t("agentModes.pdfText.title", mode.title),
           desc: t("agentModes.pdfText.desc", mode.desc),
         };
+      case "data_analysis":
+        return {
+          title: t("agentModes.dataAnalysis.title", mode.title),
+          desc: t("agentModes.dataAnalysis.desc", mode.desc),
+        };
       case "general":
         return {
           title: t("agentModes.general.title", mode.title),

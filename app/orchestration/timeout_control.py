@@ -58,7 +58,7 @@ class TimeoutConfig:
     false is worse than none. `test_timeout_defaults_mirror_settings` now checks
     every one of them."""
 
-    tool_timeout_ms: int = 10_000
+    tool_timeout_ms: int = 30_000
     """Tool execution timeout.
     WHY: External tool calls may be slow (web search, API calls)."""
 

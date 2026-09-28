@@ -436,6 +436,14 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "算力估算工具静态定义常量对象，不可变元数据，多进程可各自持有独立实例",
     ),
+    "app/tools/data_analysis/tables.py::TABLE_LIST_TOOL_DEFINITION": (
+        "D",
+        "表格列表工具静态定义常量对象，不可变元数据，多进程可各自持有独立实例",
+    ),
+    "app/tools/data_analysis/tables.py::TABLE_QUERY_TOOL_DEFINITION": (
+        "D",
+        "表格查询工具静态定义常量对象，不可变元数据，多进程可各自持有独立实例",
+    ),
     "app/tools/ai/estimates.py::_PARAMS": (
         "D",
         "两个估算工具共用的参数定义常量，不可变元数据",

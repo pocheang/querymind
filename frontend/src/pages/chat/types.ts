@@ -9,7 +9,8 @@ import type { AuthUser, Citation, IndexedFileSummary, PromptTemplate, SessionMes
  * `tests/agents/test_agent_class_vocabulary.py` checks this union against the
  * backend's `AgentClass`.
  */
-export type AgentClassHint = "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text";
+export type AgentClassHint =
+  "" | "general" | "cybersecurity" | "artificial_intelligence" | "pdf_text" | "data_analysis";
 
 export type AgentMode = {
   key: AgentClassHint;

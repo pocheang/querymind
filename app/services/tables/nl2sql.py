@@ -18,6 +18,11 @@ Rules:
 3. The query MUST be a read-only SELECT or WITH statement. Never use DROP, DELETE, INSERT, UPDATE, ALTER, or PRAGMA.
 4. If the question asks for aggregations (sum, average, count, max, min), use the corresponding SQL aggregate functions.
 5. If the question asks for sorting or ranking, use ORDER BY ... DESC/ASC and LIMIT.
+6. Filter on values exactly as the data writes them. The "Values in" lines list what a text column
+   actually holds: a question saying "第三季度" over a column holding "Q3" filters on 'Q3'.
+7. When the question asks for a figure per category ("各区域", "每个部门", "by region"), GROUP BY
+   that category and aggregate the figure with SUM (or the aggregate the question names): a
+   category can occur on several rows.
 """
 
 
@@ -37,8 +42,44 @@ def format_table_schema_for_prompt(schema: TableSchema, sample_rows: list[list[A
         lines.append("\nSample Data (first 3 rows):")
         for r in sample_rows[:3]:
             lines.append("  " + " | ".join(str(c if c is not None else "") for c in r))
+        lines.extend(_value_hints(schema, sample_rows))
 
     return "\n".join(lines)
+
+
+# How many rows are scanned for a text column's values, how many distinct values
+# are shown, and how long each may be. A filter written against the wrong
+# spelling of a value returns nothing and reads as "no data".
+_HINT_SCAN_ROWS = 500
+_HINT_MAX_VALUES = 8
+_HINT_MAX_CHARS = 40
+
+
+def _distinct_values(rows: list[list[Any]], index: int) -> list[str]:
+    seen: list[str] = []
+    for row in rows[:_HINT_SCAN_ROWS]:
+        value = str(row[index]).strip() if index < len(row) and row[index] is not None else ""
+        if value and value not in seen:
+            seen.append(value)
+            if len(seen) > _HINT_MAX_VALUES:
+                break
+    return seen
+
+
+def _value_hints(schema: TableSchema, rows: list[list[Any]]) -> list[str]:
+    """One line per text column: the distinct values it holds, so a filter uses their spelling."""
+
+    hints: list[str] = []
+    for index, sql_col in enumerate(schema.sql_columns):
+        if schema.column_types.get(sql_col, "TEXT") in ("INTEGER", "REAL"):
+            continue
+        seen = _distinct_values(rows, index)
+        if not seen:
+            continue
+        shown = ", ".join(repr(value[:_HINT_MAX_CHARS]) for value in seen[:_HINT_MAX_VALUES])
+        more = ", ..." if len(seen) > _HINT_MAX_VALUES else ""
+        hints.append(f"Values in {sql_col}: {shown}{more}")
+    return hints
 
 
 _SYNONYMS: dict[str, tuple[str, ...]] = {
