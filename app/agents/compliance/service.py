@@ -35,11 +35,19 @@ PIPELINE_SKILLS: dict[str, str] = {
 # linear in the text however it is shaped (tests/agents/test_compliance_agent.py
 # asserts the bounds on these compiled objects).
 _BOOK_TITLE = re.compile(r"《([^《》\n]{1,40})》(?:第([一二三四五六七八九十百零〇\d]{1,8})条)?")
+# The same citation written without book-title marks, as the bundled texts' article
+# headings and most prose write it ("个人信息保护法 第十九条"). Named laws only: a
+# pattern for "any run of characters ending in 法" also takes the words before the
+# name ("依据个人信息保护法"), and Chinese has no word boundary to stop it.
+_NAMED_ARTICLE = re.compile(
+    r"(中华人民共和国个人信息保护法|中华人民共和国数据安全法|中华人民共和国网络安全法|个人信息保护法|数据安全法|网络安全法|个保法)"
+    r"[ \t]{0,2}第([一二三四五六七八九十百零〇\d]{1,8})条"
+)
 _STANDARD = re.compile(r"(?<![A-Za-z])(GB(?:/[TZ])?)[ \t]{0,2}(\d{4,5}(?:\.\d{1,2})?(?:-\d{4})?)")
 # A paragraph is numbered and a point lettered: Article 17(1)(a).
 _ARTICLE = re.compile(r"(?<![A-Za-z])Art(?:icle|\.)[ \t]{0,2}(\d{1,3})((?:\((?:\d{1,2}|[a-z])\)){0,2})")
 
-CITATION_PATTERNS: tuple[re.Pattern[str], ...] = (_BOOK_TITLE, _STANDARD, _ARTICLE)
+CITATION_PATTERNS: tuple[re.Pattern[str], ...] = (_BOOK_TITLE, _NAMED_ARTICLE, _STANDARD, _ARTICLE)
 
 _MAX_PER_KIND = 12
 
@@ -77,6 +85,7 @@ def extract_regulation_citations(text: str) -> dict[str, list[str]]:
     """The laws, standards and GDPR articles a text cites, in order of appearance."""
 
     laws = [f"《{m.group(1)}》" + (f"第{m.group(2)}条" if m.group(2) else "") for m in _BOOK_TITLE.finditer(text)]
+    laws += [f"《{m.group(1).removeprefix('中华人民共和国')}》第{m.group(2)}条" for m in _NAMED_ARTICLE.finditer(text)]
     standards = [f"{m.group(1)} {m.group(2)}" for m in _STANDARD.finditer(text)]
     articles = [f"Article {m.group(1)}{m.group(2)}" for m in _ARTICLE.finditer(text)]
     return {

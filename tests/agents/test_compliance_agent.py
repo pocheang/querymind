@@ -43,6 +43,20 @@ def test_laws_are_extracted_with_their_article() -> None:
     assert found["laws"] == ["《个人信息保护法》第十三条", "《数据安全法》"]
 
 
+def test_a_named_article_without_book_title_marks_is_extracted() -> None:
+    """How the bundled texts' article headings and most prose write a citation."""
+
+    found = extract_regulation_citations("#### 个人信息保护法 第十九条\n依据中华人民共和国数据安全法第二十一条执行。")
+
+    assert found["laws"] == ["《个人信息保护法》第十九条", "《数据安全法》第二十一条"]
+
+
+def test_the_same_article_in_both_forms_is_listed_once() -> None:
+    found = extract_regulation_citations("《个人信息保护法》第十九条，即个人信息保护法 第十九条")
+
+    assert found["laws"] == ["《个人信息保护法》第十九条"]
+
+
 def test_standards_are_extracted_with_their_year() -> None:
     found = extract_regulation_citations("按 GB/T 22239-2019 与 GB 17859 执行，另见GB/T35273。")
 
