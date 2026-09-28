@@ -7,6 +7,7 @@ import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from app.agents.verifier.validation.claims_text import claims_text
 from app.agents.verifier.validation.hallucination_patterns import detect_all_patterns
 from app.agents.verifier.validation.models import (
     CascadeLevel,
@@ -144,11 +145,11 @@ class RuleValidator:
                 )
             )
         issue_types = {issue.issue_type for issue in issues}
-        if (
-            extract_numbers(request.answer)
-            and not extract_numbers(source_text)
-            and "number_mismatch" not in issue_types
-        ):
+        # The claims, not the markup: a list ordinal or a citation marker is not
+        # a numeric claim. The PII check above keeps reading the raw answer --
+        # safety has to see everything a reader will.
+        claims = claims_text(request.answer)
+        if extract_numbers(claims) and not extract_numbers(source_text) and "number_mismatch" not in issue_types:
             issues.append(
                 RuleBasisIssue(
                     issue_type="number_mismatch",
@@ -157,7 +158,7 @@ class RuleValidator:
                     suggestion="Verify numeric claims against source",
                 )
             )
-        if extract_dates(request.answer) and not extract_dates(source_text) and "date_mismatch" not in issue_types:
+        if extract_dates(claims) and not extract_dates(source_text) and "date_mismatch" not in issue_types:
             issues.append(
                 RuleBasisIssue(
                     issue_type="date_mismatch",

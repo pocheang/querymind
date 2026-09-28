@@ -126,6 +126,13 @@ _ABBR_DOT = chr(0xE000)
 # the property instead. Same length substitution, so offsets are unaffected.
 _INLINE_DOT_RE = re.compile(r"(?<=[A-Za-z0-9])\.(?=[A-Za-z0-9])")
 
+# The dot of a list or heading ordinal -- `2. item`, `#### 2. **标题**` -- is not a
+# sentence boundary either. Split there, `#### 2.` became a fragment of its own
+# and the heading text joined the body below it, so the hedge landed in the
+# heading: `#### 基于当前可用证据，受影响版本范围`, measured on 2026-09-27.
+# Anchored and bounded, so it cannot backtrack.
+_ORDINAL_DOT_RE = re.compile(r"(?m)^([ \t]{0,8}(?:#{1,6}[ \t]{1,8})?\d{1,3})\.(?=[ \t])")
+
 
 def _tokenize(text: str) -> set[str]:
     return set(_TOKEN_RE.findall((text or "").lower()))
@@ -159,6 +166,7 @@ def _sentence_spans(text: str) -> list[tuple[int, int, str]]:
     # has to catch the ones outside links -- filenames, dotted module paths,
     # version numbers.
     protected_text = _INLINE_DOT_RE.sub(_ABBR_DOT, protected_text)
+    protected_text = _ORDINAL_DOT_RE.sub(lambda m: m.group(1) + _ABBR_DOT, protected_text)
 
     spans: list[tuple[int, int, str]] = []
     # A blank line always ends a sentence, whatever punctuation did or did not
@@ -180,9 +188,40 @@ def _sentence_spans(text: str) -> list[tuple[int, int, str]]:
         # like the "." it replaced, so protection never shifts a position. That
         # sentence was here before and was false: the sentinel was "<ABBR>".
         start = match.start() + (len(chunk) - len(chunk.lstrip()))
-        spans.append((start, start + len(stripped), stripped.replace(_ABBR_DOT, ".")))
+        spans.extend(_split_heading(start, stripped.replace(_ABBR_DOT, ".")))
 
     return spans if spans else [(0, len(raw_text), raw_text.strip())]
+
+
+def split_sentences(text: str) -> list[str]:
+    """The sentences of `text`, as grounding splits them.
+
+    Public so the NLI stage splits the same way: it used `[。！？.!?]\\s*`, which
+    broke at every dot -- "CVSS v3.1 score of 9.8" became "CVSS v3", "1 score
+    of 9" and "8" -- and three entailed sentences became seven fragments, three
+    of them not entailed, which rejected the answer.
+    """
+    return [sentence for _, _, sentence in _sentence_spans(text)]
+
+
+def _split_heading(start: int, text: str) -> list[tuple[int, int, str]]:
+    """A heading line is a span of its own, however the lines around it end.
+
+    The span pattern only breaks at a blank line, so a heading followed by a
+    single newline merged with the paragraph under it, and the merged fragment
+    -- long enough to count as a claim -- had the hedge put in front of the
+    heading text.
+    """
+    if not text.startswith("#"):
+        return [(start, start + len(text), text)]
+    newline = text.find("\n")
+    if newline == -1:
+        return [(start, start + len(text), text)]
+    rest = text[newline + 1 :]
+    rest_start = start + newline + 1 + (len(rest) - len(rest.lstrip()))
+    rest = rest.strip()
+    heading = [(start, start + newline, text[:newline].rstrip())]
+    return heading + ([(rest_start, rest_start + len(rest), rest)] if rest else [])
 
 
 def _support_score(sentence: str, evidence_tokens: set[str]) -> float:
@@ -221,7 +260,8 @@ def _makes_a_claim(sentence: str) -> bool:
     bare headings fail this the same way and for the same reason.
     """
     stripped = sentence.strip()
-    if _CLAIMLESS_RE.match(stripped):
+    if _CLAIMLESS_RE.match(stripped) or stripped.startswith("#"):
+        # A Markdown heading names a section, however long it is.
         return False
     # Structure, not prose: a heading names a section, it does not assert
     # anything, so qualifying it produces "**基于当前可用证据，参考来源**". Judged by
