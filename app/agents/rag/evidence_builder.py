@@ -113,6 +113,7 @@ class EvidenceItemBuilder:
                 version=self._normalize_page(metadata.get("version")),
                 page=self._normalize_page(page),
                 chunk_id=self._extract_text({}, metadata, "chunk_id") or None,
+                heading=self._heading(metadata),
                 image_id=image_id,
                 artifact_uri=self._extract_text({}, metadata, "artifact_uri", "original_image") or None,
                 modality=modality,
@@ -124,6 +125,12 @@ class EvidenceItemBuilder:
             )
         except (TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _heading(metadata: Mapping[str, Any]) -> str | None:
+        """The section the chunker carried onto this chunk, cut to the contract's 200 characters."""
+
+        return EvidenceItemBuilder._extract_text({}, metadata, "heading")[:200] or None
 
     @staticmethod
     def _extract_text(

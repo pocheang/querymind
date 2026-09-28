@@ -1,7 +1,7 @@
 """The offline routing rules, measured question by question against a labelled set.
 
 This is the first measurement behind "Router accuracy" in the quality table,
-which had none. Measured 2026-09-27 over 66 questions: the keyword rules pick
+which had none. Measured 2026-09-28 over 68 questions: the keyword rules pick
 the right specialist for 58.
 Every miss is in `KNOWN_MISROUTES` with the exact wrong answer.
 
@@ -98,6 +98,6 @@ def test_the_metric_can_fail() -> None:
 def test_the_measured_accuracy() -> None:
     """The headline numbers, derived from the per-question pins above; they move only when a pin does."""
 
-    assert REPORT.class_accuracy == pytest.approx(58 / 66)
+    assert REPORT.class_accuracy == pytest.approx(58 / 68)
     assert REPORT.per_class["general"] == (12, 12)
-    assert REPORT.per_class["pdf_text"] == (6, 6)
+    assert REPORT.per_class["pdf_text"] == (6, 8)

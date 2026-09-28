@@ -64,6 +64,7 @@ AGENT_CLASS_GUIDE = """1. cybersecurity（网络安全）
    - 不含针对模型或 AI 应用的攻击，那些归 cybersecurity
 3. pdf_text（文档与图片阅读）
    - 读取 PDF、图片、截图、扫描件里的原文：文本提取、OCR、按页或章节列出原文
+   - 用户自己的某份文档里某一章、某一页、某一条讲了什么（"这份合同第 3 章讲了什么"），不论文件类型
    - 文件类型不决定归属：问题的主题属于其他类别时（例如漏洞扫描报告 PDF 里的漏洞），归那个类别
 4. data_analysis（数据分析）
    - 对用户上传的表格（Excel、CSV、文档里的表）做计算：合计、平均、分组、筛选、排名、占比
@@ -77,7 +78,7 @@ AGENT_CLASS_GUIDE = """1. cybersecurity（网络安全）
    - 不属于以上五个类别的其他问题
 Examples: "如何实现访问控制？" -> cybersecurity; "LLM 遭遇 prompt 注入怎么防护？" -> cybersecurity;
 "解释一下Transformer模型" -> artificial_intelligence; "OCR 这张照片上的文字" -> pdf_text;
-"分析这个PDF文档" -> pdf_text; "这份 pdf 里的表格合计是多少？" -> data_analysis;
+"分析这个PDF文档" -> pdf_text; "这份 pdf 里的表格合计是多少？" -> data_analysis; "这份合同第 3 章讲了什么？" -> pdf_text;
 "我们的数据保留制度符合个人信息保护法吗？" -> compliance;
 "今天天气怎么样？" -> general"""
 

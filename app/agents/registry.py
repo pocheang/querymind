@@ -193,6 +193,12 @@ def _build_data_analysis_agent() -> BaseSpecialistAgent:
     return DataAnalysisAgentService()
 
 
+def _build_document_agent() -> BaseSpecialistAgent:
+    from app.agents.document.service import DocumentAgentService
+
+    return DocumentAgentService()
+
+
 def _build_compliance_agent() -> BaseSpecialistAgent:
     from app.agents.compliance.service import ComplianceAgentService
 
@@ -206,6 +212,7 @@ _BUILTIN_AGENT_FACTORIES: dict[str, Callable[[], BaseSpecialistAgent]] = {
     AgentClass.ARTIFICIAL_INTELLIGENCE: _build_ai_agent,
     AgentClass.DATA_ANALYSIS: _build_data_analysis_agent,
     AgentClass.COMPLIANCE: _build_compliance_agent,
+    AgentClass.PDF_TEXT: _build_document_agent,
 }
 
 _REGISTRY_LOCK = threading.Lock()

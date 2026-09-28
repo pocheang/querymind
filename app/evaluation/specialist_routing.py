@@ -36,7 +36,7 @@ __all__ = [
 DEFAULT_PATH = Path(__file__).resolve().parents[2] / "config" / "eval" / "specialist_routing.json"
 
 # Question id -> ((agent_class, skill) the offline rules return today, why).
-# Each entry is a known gap, not an accepted answer. Measured 2026-09-27 (66 questions since the compliance specialist).
+# Each entry is a known gap, not an accepted answer. Measured 2026-09-28 (68 questions since the document specialist).
 #
 # The keyword-rule entries are deliberately left as they are rather than "fixed"
 # by adding the missing words: a keyword added to pass one question here is
@@ -59,6 +59,14 @@ KNOWN_MISROUTES: dict[str, tuple[tuple[str, str], str]] = {
     "data-06": (
         ("general", "answer_with_citations"),
         "'table' is not a data keyword: routing tables, hash tables and tables of contents are not data analysis",
+    ),
+    "pdf-07": (
+        ("general", "answer_with_citations"),
+        "no reading keyword: asking what chapter 3 of a document says is the model router's call",
+    ),
+    "pdf-08": (
+        ("general", "answer_with_citations"),
+        "no reading keyword: asking what section 4 of a document says is the model router's call",
     ),
     "comp-06": (
         ("general", "answer_with_citations"),

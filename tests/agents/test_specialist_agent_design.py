@@ -258,7 +258,9 @@ def test_the_rule_classifier_has_no_domain_lists_of_its_own(monkeypatch: pytest.
     monkeypatch.setattr(registry_module, "get_domain_agent_registry", unavailable)
 
     assert agent_classifier.classify_agent_class("如何防护勒索病毒") == "general"
-    assert agent_classifier.classify_agent_class("读取这份pdf") == "pdf_text"  # the class no specialist owns
+    # PDF was the one class no specialist owned, with its own list here; the
+    # document specialist owns it now, so it goes when the registry does.
+    assert agent_classifier.classify_agent_class("读取这份pdf") == "general"
 
 
 def test_the_second_security_skill_picker_is_gone():

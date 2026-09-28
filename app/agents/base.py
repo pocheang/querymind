@@ -12,7 +12,7 @@ from app.services.observability.log_safety import question_ref
 
 if TYPE_CHECKING:
     from app.agents.synthesizer.service import SynthesizerAgentService
-    from app.domain.contracts import ToolResult
+    from app.domain.contracts import EvidenceItem, ToolResult
     from app.domain.workflow import CandidateAnswer, ContextBundle
     from app.orchestration.request import OrchestrationRequest
     from app.tools.category import ToolCategory
@@ -101,6 +101,17 @@ class BaseSpecialistAgent(ABC):
             synthesizer = _Synth()
         self._synthesizer = synthesizer
 
+    def evidence_findings(self, evidence: Sequence[EvidenceItem]) -> ToolResult | None:
+        """What this specialist reports about WHERE the evidence came from, as a tool finding.
+
+        Read from evidence metadata (document, page, heading) and never from its
+        text, so what it reports is something the pipeline recorded rather than
+        something a document says about itself. None when there is nothing to say.
+        """
+
+        del evidence
+        return None
+
     def domain_findings(self, text: str) -> ToolResult | None:
         """What this specialist extracts from the material, as a tool finding.
 
@@ -137,7 +148,8 @@ class BaseSpecialistAgent(ABC):
         evidence_text = "\n".join(item.content for item in context.evidence)
         tool_text = "\n".join(result.summary for result in results if result.summary)
         finding = self.domain_findings(f"{request.question}\n{context.rendered_context}\n{evidence_text}\n{tool_text}")
-        enriched = (*results, finding) if finding is not None else results
+        located = self.evidence_findings(context.evidence)
+        enriched = (*results, *(item for item in (finding, located) if item is not None))
         pipeline_skill = self.pipeline_skill_for(skill)
         return await self._synthesizer.synthesize_candidate(request, context, enriched, pipeline_skill)
 
