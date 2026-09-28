@@ -15,7 +15,7 @@ see; it never decides what they may see.
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
@@ -39,6 +39,21 @@ class DomainLabels:
     by_document_id: dict[str, str]
     by_source: dict[str, str]
     shared_root: str = ""
+    # Who owns each document, from the same registry read. Only the compliance
+    # follow-up search asks (app/knowledge/owned_policy.py), and it must come from
+    # the registry: a chunk's own metadata is text an ingest wrote, not a record
+    # of who uploaded it.
+    owner_by_document_id: dict[str, str] = field(default_factory=dict)
+    owner_by_source: dict[str, str] = field(default_factory=dict)
+
+    def owner_of(self, document_id: str | None, source: str | None) -> str | None:
+        """The registry's owner of an item, or None for a document nobody uploaded (the shared corpus)."""
+
+        if document_id and document_id in self.owner_by_document_id:
+            return self.owner_by_document_id[document_id]
+        if source and source in self.owner_by_source:
+            return self.owner_by_source[source]
+        return None
 
     def label_of(self, document_id: str | None, source: str | None) -> str | None:
         """The item's domain label: registry id, then stored path, then shared-corpus folder.
@@ -80,6 +95,32 @@ _cache: tuple[tuple[str, str, int, int], DomainLabels] | None = None
 _cache_lock = threading.Lock()
 
 
+def _registry_maps(rows: list[dict]) -> tuple[dict[str, str], dict[str, str], dict[str, str], dict[str, str]]:
+    """Labels and owners, each by document id and by stored source path."""
+
+    by_id: dict[str, str] = {}
+    by_source: dict[str, str] = {}
+    owner_by_id: dict[str, str] = {}
+    owner_by_source: dict[str, str] = {}
+    for row in rows:
+        document_id = str(row.get("document_id") or "")
+        source = str(row.get("source") or "")
+        owner = str(row.get("owner_user_id") or "").strip()
+        # Normalized, so a row written as `policy` before the compliance
+        # specialist existed reads as `compliance`.
+        label = normalize_agent_class(str(row.get("agent_class") or "")) or ""
+        _put(by_id, document_id, label)
+        _put(by_source, source, label)
+        _put(owner_by_id, document_id, owner)
+        _put(owner_by_source, source, owner)
+    return by_id, by_source, owner_by_id, owner_by_source
+
+
+def _put(mapping: dict[str, str], key: str, value: str) -> None:
+    if key and value:
+        mapping[key] = value
+
+
 def load_domain_labels(path: Path | None = None) -> DomainLabels:
     """Every document's label, re-read only when the registry file changes.
 
@@ -101,19 +142,14 @@ def load_domain_labels(path: Path | None = None) -> DomainLabels:
         if _cache is not None and _cache[0] == key:
             return _cache[1]
 
-    by_id: dict[str, str] = {}
-    by_source: dict[str, str] = {}
-    for row in list_document_records(target):
-        # Normalized, so a row written as `policy` before the compliance
-        # specialist existed reads as `compliance`.
-        label = normalize_agent_class(str(row.get("agent_class") or "")) or ""
-        if not label:
-            continue
-        if row.get("document_id"):
-            by_id[str(row["document_id"])] = label
-        if row.get("source"):
-            by_source[str(row["source"])] = label
-    labels = DomainLabels(by_document_id=by_id, by_source=by_source, shared_root=shared_root)
+    by_id, by_source, owner_by_id, owner_by_source = _registry_maps(list_document_records(target))
+    labels = DomainLabels(
+        by_document_id=by_id,
+        by_source=by_source,
+        shared_root=shared_root,
+        owner_by_document_id=owner_by_id,
+        owner_by_source=owner_by_source,
+    )
     with _cache_lock:
         _cache = (key, labels)
     return labels

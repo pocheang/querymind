@@ -191,6 +191,7 @@ class WorkflowNodeRuntime:
             confidence=route.confidence,
             reason=route.reason,
             agent_class=route.agent_class,
+            skill=route.skill,
         )
         return {"route": route, "route_decision": decision, "trace": (event,)}
 
