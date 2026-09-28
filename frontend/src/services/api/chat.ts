@@ -11,6 +11,7 @@ import type {
   NormalizedQueryResult,
   PendingApproval,
   PromptCheckResponse,
+  RetrievalSourceOutcome,
   ToolRun,
   PromptTemplate,
   SessionDetail,
@@ -89,6 +90,7 @@ function toolRunList(value: unknown): ToolRun[] {
         tool_id: record.tool_id,
         status: record.status,
         summary: typeof record.summary === "string" ? record.summary : "",
+        ...(typeof record.marker === "string" && record.marker ? { marker: record.marker } : {}),
       },
     ];
   });
@@ -103,6 +105,22 @@ function pendingApproval(value: unknown): PendingApproval | null {
     token: record.token,
     summary: typeof record.summary === "string" ? record.summary : "",
   };
+}
+
+function sourceOutcomeList(value: unknown): RetrievalSourceOutcome[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((outcome): RetrievalSourceOutcome[] => {
+    const record = recordOrUndefined(outcome);
+    if (!record || typeof record.source !== "string" || typeof record.status !== "string") return [];
+    return [
+      {
+        source: record.source,
+        status: record.status,
+        count: typeof record.count === "number" ? record.count : 0,
+        reason: typeof record.reason === "string" ? record.reason : null,
+      },
+    ];
+  });
 }
 
 function recordOrUndefined(value: unknown): Record<string, unknown> | undefined {
@@ -161,6 +179,10 @@ export const queryApi = {
       pendingApproval: pendingApproval(payload.pending_approval),
       toolRuns: toolRunList(metadata.tool_runs),
       route: typeof metadata.route === "string" ? metadata.route : undefined,
+      agentClass: typeof metadata.agent_class === "string" ? metadata.agent_class : undefined,
+      skill: typeof metadata.skill === "string" ? metadata.skill : undefined,
+      sources: sourceOutcomeList(metadata.sources),
+      webUsed: metadata.web_used === true,
       executionId: typeof metadata.execution_id === "string" ? metadata.execution_id : undefined,
       qualityReport: recordOrUndefined(payload.answer_quality),
       executionMetadata: metadata,

@@ -82,6 +82,8 @@ def test_execution_id_is_returned_in_metadata():
     metadata = advanced_rag._response_metadata(
         pipeline_result_metadata={"validation": {"state": "validated"}},
         route="vector",
+        agent_class="general",
+        skill="answer_with_citations",
         citations=[{"source": "doc1"}],
         tool_runs=[],
         execution_id="exec-123",

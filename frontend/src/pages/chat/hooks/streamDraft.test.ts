@@ -148,3 +148,34 @@ describe("applyStreamResult and the reasoning channel", () => {
     expect(next[1].metadata?.reasoning).toBeFalsy();
   });
 });
+
+describe("applyStreamResult keeps what a reload would show", () => {
+  // The metadata block is rebuilt from EMPTY_METADATA, so a field the result
+  // does not copy is erased: a fresh answer named no specialist and showed "no
+  // sources" until the page was reloaded and the saved message was read back.
+  const result: NormalizedQueryResult = {
+    answer: "done",
+    citations: [],
+    status: "complete",
+    pendingApproval: null,
+    toolRuns: [],
+    agentClass: "data_analysis",
+    skill: "data_analysis_report",
+    sources: [{ source: "bm25", status: "completed", count: 2 }],
+    webUsed: false,
+  };
+
+  it("copies the specialist and the answer shape", () => {
+    const next = applyStreamResult(messages("draft"), result);
+
+    expect(next[1].metadata?.agent_class).toBe("data_analysis");
+    expect(next[1].metadata?.skill).toBe("data_analysis_report");
+  });
+
+  it("copies the retrieval outcome the source badges read", () => {
+    const next = applyStreamResult(messages("draft"), result);
+
+    expect(next[1].metadata?.sources).toEqual([{ source: "bm25", status: "completed", count: 2 }]);
+    expect(next[1].metadata?.web_used).toBe(false);
+  });
+});

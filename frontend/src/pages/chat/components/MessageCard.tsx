@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMessage } from "@/types/api";
 import { EMPTY_METADATA } from "@/pages/chat/constants";
+import { useToolLabel } from "@/pages/chat/answerLabels";
 import { MarkdownBlock } from "@/pages/chat/components/MarkdownBlock";
 import { CollapsibleSection } from "@/pages/chat/components/CollapsibleSection";
 import { MetadataBadges } from "@/pages/chat/components/MetadataBadges";
@@ -34,6 +35,7 @@ type Props = {
  */
 export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonly<Props>) {
   const { t, i18n } = useTranslation();
+  const toolLabel = useToolLabel();
   const isAssistant = message.role === "assistant";
   const metadata = message.metadata || EMPTY_METADATA;
   const timeLocale = i18n.language === "zh" ? "zh-CN" : "en-US";
@@ -257,8 +259,15 @@ export function MessageCard({ message, onEditMessage, onRemoveMessage }: Readonl
                     <ul className="space-y-1.5 text-xs sm:text-sm text-ink/90">
                       {(metadata.tool_runs || []).map((run, index) => (
                         <li key={`${message.message_id}-tool-${index}`} className="flex flex-wrap items-center gap-1.5">
-                          <Badge variant="brand" size="xs" mono>
-                            {run.tool_id}
+                          {/* The number the answer's tool-source list uses, so [T1]
+                              in the text points at exactly this row. */}
+                          {run.marker && (
+                            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded bg-brand px-1 font-mono text-xs font-bold text-white">
+                              {run.marker}
+                            </span>
+                          )}
+                          <Badge variant="brand" size="xs" title={run.tool_id}>
+                            {toolLabel(run.tool_id)}
                           </Badge>
                           <span className="text-ink/80">
                             {t(`components.messages.toolStatus.${run.status}`, { defaultValue: run.status })}

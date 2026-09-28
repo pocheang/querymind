@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.agents.registry import answer_shape
 from app.pipeline.contracts import ConversationMessage, PipelineRequest, PipelineUser, SourceScope
 from app.pipeline.profiles import PipelineProfile
 from app.pipeline.rag_pipeline import RAGPipeline
@@ -85,6 +86,10 @@ def execute_standard_compatibility(
         "answer": pipeline_result.answer,
         "route": pipeline_result.route.route,
         "reason": pipeline_result.route.reason,
+        # `sessions.py` read `agent_class` off this dict when it never carried
+        # one, so every re-run answer was recorded as the general analyst.
+        "agent_class": pipeline_result.route.agent_class or "general",
+        "skill": answer_shape(pipeline_result.route.agent_class, pipeline_result.route.skill),
         "citations": citations,
         "vector_result": {"citations": citations},
         # Derived from the run's own diagnostics. `sessions.py` read these two

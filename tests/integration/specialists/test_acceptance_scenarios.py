@@ -249,6 +249,10 @@ def test_a1_an_affected_version_is_answered_from_the_store_with_the_playbook(thr
     assert 'Answer template for "are we affected by this vulnerability' in model.prompts[0]
     assert "querymind_cyber_product_exposure" in final.answer, "the cited tool is listed for the reader"
     assert "log4shell-playbook.md" in final.answer and "[E1]" not in final.answer
+    # The tool panel shows the number the answer uses: only the cited result
+    # carries one, and a tool that ran but was not cited carries none.
+    markers = {r.tool_id: r.citation_marker for r in final.tool_results if not r.derived}
+    assert markers == {"querymind_cyber_product_exposure": "T1", "querymind_cyber_cve_lookup": None}
 
 
 def test_a2_a_technique_is_answered_from_the_synced_attack_data(threat_intel) -> None:

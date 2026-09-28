@@ -221,6 +221,8 @@ class ToolRunView(BaseModel):
     tool_id: str
     status: str
     summary: str = ""
+    # "T1", "T2", ... when the answer cites this result under Tool sources.
+    marker: str | None = None
 
 
 class PendingApproval(BaseModel):

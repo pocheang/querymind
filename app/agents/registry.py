@@ -229,6 +229,19 @@ def get_domain_agent_registry() -> DomainAgentRegistry:
     return _GLOBAL_AGENT_REGISTRY
 
 
+def answer_shape(agent_class: str, skill: str) -> str:
+    """The synthesis skill a routed question is answered with.
+
+    A specialist translates its own skill names and passes through the ones
+    with a template of their own; a class with no specialist uses the skill as
+    chosen. The routing evaluation compares answers by this, and the chat
+    response reports it, so the two must agree -- which is why there is one.
+    """
+
+    specialist = get_domain_agent_registry().get_agent(agent_class)
+    return specialist.pipeline_skill_for(skill) if specialist is not None else skill
+
+
 def reset_domain_agent_registry() -> None:
     """Reset the global singleton registry (intended for test isolation)."""
     global _GLOBAL_AGENT_REGISTRY
@@ -238,6 +251,7 @@ def reset_domain_agent_registry() -> None:
 
 __all__ = [
     "DomainAgentRegistry",
+    "answer_shape",
     "get_domain_agent_registry",
     "reset_domain_agent_registry",
 ]

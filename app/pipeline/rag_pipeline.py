@@ -219,7 +219,12 @@ class RAGPipeline:
                 )
             ),
             tool_runs=tuple(
-                ToolRunView(tool_id=result.tool_id, status=result.status, summary=result.summary)
+                ToolRunView(
+                    tool_id=result.tool_id,
+                    status=result.status,
+                    summary=result.summary,
+                    marker=result.citation_marker,
+                )
                 for result in answer.tool_results
             ),
             answer=answer.answer,
@@ -229,6 +234,11 @@ class RAGPipeline:
             route=PipelineRoute(
                 route=answer.route.route or answer.route.intent,
                 reason=answer.route.reason,
+                # Both fields existed on PipelineRoute and were never filled,
+                # so every consumer downstream -- the chat response, the
+                # rerun record, the analytics log -- saw an empty class.
+                skill=answer.route.skill,
+                agent_class=answer.route.agent_class,
                 confidence=answer.route.confidence,
             ),
             contexts=contexts,

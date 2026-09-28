@@ -4,9 +4,13 @@ import tailwindcss from "@tailwindcss/vite";
 // @ts-ignore - JavaScript plugin without type definitions
 import inlineCriticalCSS from './vite-plugin-inline-critical.js';
 
+// Overridable because Windows reserves port ranges (Hyper-V / WSL) that can
+// include 8000, and the dev server then has nothing to proxy to.
+const BACKEND_TARGET = process.env.QUERYMIND_API_TARGET || "http://127.0.0.1:8000";
+
 function createBackendProxy(rewriteAppBase = false) {
   return {
-    target: "http://127.0.0.1:8000",
+    target: BACKEND_TARGET,
     changeOrigin: true,
     timeout: 600000,
     proxyTimeout: 600000,

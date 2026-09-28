@@ -236,6 +236,10 @@ class ToolResult(ImmutableContract):
     # tool output and are never citable as a source -- see
     # app/agents/synthesizer/citations.py::citable_tool_results.
     derived: bool = False
+    # The `T{k}` this result was cited as in the finished answer, set by
+    # output_filter from the same numbering it applies to the text. None for a
+    # result the answer did not cite, and for every result before that stage.
+    citation_marker: str | None = None
 
 
 class FinalAnswer(ImmutableContract):

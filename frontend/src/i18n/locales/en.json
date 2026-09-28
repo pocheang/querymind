@@ -1646,5 +1646,37 @@
       "title": "General Analyst",
       "desc": "Cross-domain analysis and executive summaries."
     }
+  },
+  "answerShapes": {
+    "answerWithCitations": "Cited answer",
+    "compareEntities": "Comparison",
+    "timelineBuilder": "Timeline",
+    "webFactCheck": "Web fact check",
+    "cyberAttackAnalysis": "Attack analysis",
+    "cyberDefenseHardening": "Hardening plan",
+    "incidentResponsePlaybook": "Incident response",
+    "vulnerabilityExposureAssessment": "Exposure assessment",
+    "aiKnowledgeAssistant": "AI explainer",
+    "aiEngineeringEstimate": "Engineering estimate",
+    "pdfTextReader": "Passage and location",
+    "dataAnalysisReport": "Data report",
+    "complianceGapAnalysis": "Gap analysis"
+  },
+  "toolNames": {
+    "cveLookup": "CVE lookup",
+    "mitreAttack": "ATT&CK lookup",
+    "productExposure": "Product exposure",
+    "indicatorExtract": "Indicator extraction",
+    "memoryEstimate": "GPU memory estimate",
+    "computeEstimate": "Compute estimate",
+    "mathEval": "Calculator",
+    "specificationExtract": "Model spec extraction",
+    "tableList": "Table list",
+    "tableQuery": "Table query (SQL)",
+    "complianceCitationExtract": "Regulation references",
+    "documentLocations": "Document locations",
+    "connectorListOwned": "My connectors",
+    "connectorDisableOwned": "Disable connector",
+    "toolSelector": "Tool selection"
   }
 }

@@ -78,3 +78,35 @@ def test_a_run_with_no_tools_reports_none():
     assert result.tool_runs == ()
     assert result.status == "complete"
     assert result.pending_approval is None
+
+
+def test_the_marker_the_answer_cites_a_tool_by_reaches_the_public_result():
+    result = _result(
+        ToolResult(tool_id="querymind_cyber_product_exposure", status="succeeded", summary="s", citation_marker="T1"),
+        ToolResult(tool_id="querymind_cyber_cve_lookup", status="succeeded", summary="s"),
+    )
+
+    assert [run.marker for run in result.tool_runs] == ["T1", None]
+
+
+def test_the_specialist_and_its_skill_reach_the_public_route():
+    # PipelineRoute had both fields from the start and nothing filled them, so
+    # the chat response reported every answer as the general analyst.
+    from app.domain.contracts import RouteDecision
+
+    result = RAGPipeline._result_from_final_answer(
+        PipelineProfile.ADVANCED,
+        FinalAnswer(
+            answer="done",
+            route=RouteDecision(
+                route="vector",
+                confidence=0.9,
+                requires_plan=False,
+                reason="stub",
+                agent_class="cybersecurity",
+                skill="cve_vulnerability_assessment",
+            ),
+        ),
+    )
+
+    assert (result.route.agent_class, result.route.skill) == ("cybersecurity", "cve_vulnerability_assessment")
