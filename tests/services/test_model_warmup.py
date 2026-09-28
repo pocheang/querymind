@@ -78,7 +78,8 @@ def test_clearing_the_cache_still_works_through_the_wrapper() -> None:
         calls.append(1)
         return len(calls)
 
-    assert load() == 1 and load() == 1
+    assert load() == 1
+    assert load() == 1
     load.cache_clear()
     assert load() == 2
 
@@ -101,8 +102,10 @@ def test_each_component_is_recorded_and_a_failure_stops_nothing() -> None:
     assert status["status"] == "ready"
     components = status["components"]
     assert list(components) == ["embedding", "reranker", "validation_nli"]
-    assert components["embedding"]["result"] == "loaded" and components["embedding"]["ok"]
-    assert components["reranker"]["result"] == "failed: RuntimeError" and not components["reranker"]["ok"]
+    assert components["embedding"]["result"] == "loaded"
+    assert components["embedding"]["ok"]
+    assert components["reranker"]["result"] == "failed: RuntimeError"
+    assert not components["reranker"]["ok"]
     assert components["validation_nli"]["result"] == "absent"
 
 
@@ -175,8 +178,8 @@ def client(monkeypatch) -> TestClient:
     return TestClient(app)
 
 
-def test_ready_says_warming_while_the_models_load(client) -> None:
-    warmup._state.status = "warming"
+def test_ready_says_warming_while_the_models_load(client, monkeypatch) -> None:
+    monkeypatch.setattr(warmup._state, "status", "warming")
 
     response = client.get("/ready")
 
@@ -185,8 +188,8 @@ def test_ready_says_warming_while_the_models_load(client) -> None:
     assert response.json()["services"]["models"]["status"] == "warming"
 
 
-def test_ready_is_ready_once_warm(client) -> None:
-    warmup._state.status = "ready"
+def test_ready_is_ready_once_warm(client, monkeypatch) -> None:
+    monkeypatch.setattr(warmup._state, "status", "ready")
 
     response = client.get("/ready")
 
@@ -201,7 +204,7 @@ def test_ready_loads_no_model_and_calls_no_provider(client, monkeypatch) -> None
         pytest.fail("/ready touched the embedding model")
 
     monkeypatch.setattr(runtime, "get_embedding_model", forbidden)
-    warmup._state.status = "ready"
+    monkeypatch.setattr(warmup._state, "status", "ready")
 
     assert client.get("/ready").status_code == 200
 
@@ -211,4 +214,5 @@ def test_ready_shares_only_the_state_word(client) -> None:
 
     models = client.get("/ready").json()["services"]["models"]
 
-    assert "components" not in models and "result" not in str(models)
+    assert "components" not in models
+    assert "result" not in str(models)
