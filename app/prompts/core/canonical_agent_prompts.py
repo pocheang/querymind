@@ -65,7 +65,9 @@ AGENT_CLASS_GUIDE = """1. cybersecurity（网络安全）
 3. pdf_text（文档与图片阅读）
    - 读取 PDF、图片、截图、扫描件里的原文：文本提取、OCR、按页或章节列出原文
    - 用户自己的某份文档里某一章、某一页、某一条讲了什么（"这份合同第 3 章讲了什么"），不论文件类型
-   - 文件类型不决定归属：问题的主题属于其他类别时（例如漏洞扫描报告 PDF 里的漏洞），归那个类别
+   - 文件类型不决定归属，问的对象决定：对象是漏洞、恶意样本、哈希、IP、域名等安全对象时归 cybersecurity，是表格里要算的数时归 data_analysis，是法规条款时归 compliance——即使它在 PDF、图片或截图里
+   - "图片/截图里的 X 是什么"：X 是安全对象（样本哈希、C2 地址、恶意域名）时归 cybersecurity，不归 pdf_text。安全专家读的是同一份 OCR 文字，并且会把这些指标抽出来、查情报；pdf_text 只会把文字原样读出来
+   - pdf_text 只处理对象就是文档本身的问题：这份文件写了什么、某一章讲了什么、把某段原文读出来
 4. data_analysis（数据分析）
    - 对用户上传的表格（Excel、CSV、文档里的表）做计算：合计、平均、分组、筛选、排名、占比
    - 问题要的是从表里算出来的数，归这里；文档里的表格也归这里，pdf_text 只能引用原文
@@ -78,7 +80,7 @@ AGENT_CLASS_GUIDE = """1. cybersecurity（网络安全）
    - 不属于以上五个类别的其他问题
 Examples: "如何实现访问控制？" -> cybersecurity; "LLM 遭遇 prompt 注入怎么防护？" -> cybersecurity;
 "解释一下Transformer模型" -> artificial_intelligence; "OCR 这张照片上的文字" -> pdf_text;
-"分析这个PDF文档" -> pdf_text; "这份 pdf 里的表格合计是多少？" -> data_analysis; "这份合同第 3 章讲了什么？" -> pdf_text;
+"分析这个PDF文档" -> pdf_text; "这份 pdf 里的表格合计是多少？" -> data_analysis; "这份合同第 3 章讲了什么？" -> pdf_text; "截图里这个 IP 是不是 C2 服务器？" -> cybersecurity;
 "我们的数据保留制度符合个人信息保护法吗？" -> compliance;
 "今天天气怎么样？" -> general"""
 

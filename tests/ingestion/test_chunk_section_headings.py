@@ -100,3 +100,15 @@ def test_the_deleted_chunker_is_not_half_deleted():
 
     for name in multimodal.__all__:
         assert getattr(multimodal, name, None) is not None, f"{name} is advertised but does not resolve"
+
+
+def test_a_chinese_chapter_is_carried_onto_its_chunks():
+    """Numbered Chinese titles are headings now; before, every chunk of a Chinese
+    document without Markdown headings carried none."""
+
+    body = "合同总价为人民币四十八万元，分三期支付，逾期付款按日支付违约金。" * 40
+    document = _Doc(f"第三章 付款与结算\n\n{body}", {"source": "合同.md", "document_id": "d2", "version": "1"})
+    children, _parents = split_documents([document])
+
+    assert len(children) > 1
+    assert {chunk.metadata.get("heading") for chunk in children} == {"第三章 付款与结算"}

@@ -64,9 +64,42 @@ def _title_case_heading(line: str) -> int | None:
     return 2 if capitalized / len(words) > 0.6 else None
 
 
+# Chinese headings, recognised by their numbering and nothing else. A bare title
+# ("备份保留策略") is indistinguishable from a short sentence, and marking every
+# short line a heading is worse than missing one -- a chunk's heading would then
+# name the wrong section. Every quantifier is bounded, so each is linear.
+# Any Unicode space after the number: official texts use U+3000 and U+2002 as
+# well as ASCII. `\s` cannot run past the line -- callers pass one stripped line.
+_CN_NUMBERED_HEADING_RE = re.compile(r"^第[一二三四五六七八九十百零〇\d]{1,6}([章节条])(?:\s|$)")
+# Not "一、二、三", which is a list of ordinals rather than a section title.
+_CN_ORDINAL_HEADING_RE = re.compile(r"^[一二三四五六七八九十]{1,3}、(?![一二三四五六七八九十]{1,3}、)[^、\s]")
+_CN_PAREN_HEADING_RE = re.compile(r"^[（(][一二三四五六七八九十]{1,3}[）)]")
+_CN_LEVELS = {"章": 1, "节": 2, "条": 3}
+# A heading is short, holds no clause punctuation, and does not end introducing a list.
+_CN_MAX_HEADING_CHARS = 40
+_CN_CLAUSE_MARKS = ("。", "；", "，", ";", ",")
+_CN_LIST_INTRODUCERS = ("：", ":")
+
+
+def _chinese_heading(line: str) -> int | None:
+    """`第三章 付款与结算`, `第二节`, `第十九条`, `一、总则`, `（一）适用范围`."""
+    if len(line) > _CN_MAX_HEADING_CHARS or line.endswith(_CN_LIST_INTRODUCERS):
+        return None
+    if any(mark in line for mark in _CN_CLAUSE_MARKS):
+        return None
+    numbered = _CN_NUMBERED_HEADING_RE.match(line)
+    if numbered:
+        return _CN_LEVELS[numbered.group(1)]
+    if _CN_ORDINAL_HEADING_RE.match(line):
+        return 2
+    if _CN_PAREN_HEADING_RE.match(line):
+        return 3
+    return None
+
+
 # Order is load-bearing: the first rule that recognises the line wins, and the
 # rules overlap. "1. SCOPE" is a numbered heading rather than an all-caps one.
-_HEADING_RULES = (_markdown_heading, _numbered_heading, _all_caps_heading, _title_case_heading)
+_HEADING_RULES = (_markdown_heading, _numbered_heading, _chinese_heading, _all_caps_heading, _title_case_heading)
 
 
 def detect_heading_level(line: str) -> int | None:
