@@ -1,0 +1,240 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1376 780" width="1376" height="780" role="img" aria-labelledby="t d" font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, 'Noto Sans SC', 'Microsoft YaHei', sans-serif">
+  <title id="t">QueryMind v0.7.1 architecture</title>
+  <desc id="d">A question passes seven LangGraph nodes: privacy and permission, router, optional planner, knowledge (hybrid retrieval and governed tools), synthesizer, verifier with a bounded retry loop, and output filter. Five domain specialists chosen by the router narrow the tools and shape the answer. Shared state lives in Redis and SQLite.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#070b18"/>
+      <stop offset="1" stop-color="#0d1530"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#1b2748" stroke-width="1"/>
+    </pattern>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#7dd3fc"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#fbbf24"/>
+    </marker>
+    <marker id="arrowViolet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#c4b5fd"/>
+    </marker>
+    <style>
+      .title { fill: #e0f2fe; font-size: 30px; font-weight: 700; letter-spacing: 1.5px; }
+      .sub { fill: #94a3b8; font-size: 14px; }
+      .h { font-size: 15px; font-weight: 700; }
+      .t { fill: #cbd5e1; font-size: 12px; }
+      .s { fill: #94a3b8; font-size: 11px; }
+      .num { font-size: 13px; font-weight: 700; }
+      .chip { fill: #0f1a33; stroke-width: 1.2; }
+      .ct { fill: #e2e8f0; font-size: 12px; font-weight: 600; }
+      .flow { stroke: #7dd3fc; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1376" height="780" fill="url(#bg)"/>
+  <rect width="1376" height="780" fill="url(#grid)" opacity="0.55"/>
+
+  <text x="688" y="50" text-anchor="middle" class="title" filter="url(#glow)">QUERYMIND AGENTIC RAG · v0.7.1</text>
+  <text x="688" y="76" text-anchor="middle" class="sub">One LangGraph state machine · seven nodes · every answer cited, verified and redacted</text>
+
+  <!-- retry loop -->
+  <path d="M1099 150 V112 H662 V146" stroke="#2dd4bf" stroke-width="1.8" stroke-dasharray="6 5" fill="none" marker-end="url(#arrow)"/>
+  <text x="880" y="105" text-anchor="middle" class="s" fill="#5eead4">retry retrieval + synthesis when verification falls short (bounded, and only if the budget allows)</text>
+
+  <!-- 1 client -->
+  <g>
+    <rect x="24" y="150" width="112" height="330" rx="14" fill="#0b1630" stroke="#38bdf8" stroke-width="2" filter="url(#glow)"/>
+    <circle cx="46" cy="174" r="12" fill="none" stroke="#38bdf8" stroke-width="1.6"/><text x="46" y="179" text-anchor="middle" class="num" fill="#38bdf8">1</text>
+    <text x="80" y="214" text-anchor="middle" class="h" fill="#7dd3fc">Client</text>
+    <rect x="46" y="236" width="68" height="48" rx="6" fill="none" stroke="#38bdf8" stroke-width="1.5"/>
+    <line x1="46" y1="248" x2="114" y2="248" stroke="#38bdf8" stroke-width="1.2"/>
+    <text x="80" y="310" text-anchor="middle" class="t">React 18 SPA</text>
+    <text x="80" y="328" text-anchor="middle" class="t">zh / en</text>
+    <text x="80" y="356" text-anchor="middle" class="s">specialist</text>
+    <text x="80" y="370" text-anchor="middle" class="s">mode cards</text>
+    <text x="80" y="398" text-anchor="middle" class="s">live draft</text>
+    <text x="80" y="412" text-anchor="middle" class="s">+ trace (SSE)</text>
+  </g>
+  <line x1="136" y1="315" x2="158" y2="315" class="flow" marker-end="url(#arrow)"/>
+  <text x="147" y="300" text-anchor="middle" class="s" font-size="10">API</text>
+
+  <!-- 2 privacy -->
+  <g>
+    <rect x="160" y="150" width="140" height="330" rx="14" fill="#1a0d16" stroke="#f87171" stroke-width="2" filter="url(#glow)"/>
+    <circle cx="182" cy="174" r="12" fill="none" stroke="#f87171" stroke-width="1.6"/><text x="182" y="179" text-anchor="middle" class="num" fill="#f87171">2</text>
+    <text x="230" y="214" text-anchor="middle" class="h" fill="#fca5a5">Privacy &amp;</text>
+    <text x="230" y="233" text-anchor="middle" class="h" fill="#fca5a5">Permission</text>
+    <path d="M230 250 l24 9 v18 c0 16 -11 26 -24 31 c-13 -5 -24 -15 -24 -31 v-18z" fill="none" stroke="#f87171" stroke-width="1.8"/>
+    <text x="230" y="336" text-anchor="middle" class="t">access scope</text>
+    <text x="230" y="352" text-anchor="middle" class="t">resolved first</text>
+    <text x="230" y="378" text-anchor="middle" class="t">PII in the question</text>
+    <text x="230" y="394" text-anchor="middle" class="t">→ stable tokens</text>
+    <text x="230" y="420" text-anchor="middle" class="s">injection screening</text>
+    <text x="230" y="448" text-anchor="middle" class="s">auth + rate limits</text>
+    <text x="230" y="462" text-anchor="middle" class="s">run before the graph</text>
+  </g>
+  <line x1="300" y1="315" x2="324" y2="315" class="flow" marker-end="url(#arrow)"/>
+
+  <!-- 3 router + planner -->
+  <g>
+    <rect x="326" y="150" width="150" height="206" rx="14" fill="#140f2b" stroke="#a78bfa" stroke-width="2" filter="url(#glow)"/>
+    <circle cx="348" cy="174" r="12" fill="none" stroke="#a78bfa" stroke-width="1.6"/><text x="348" y="179" text-anchor="middle" class="num" fill="#a78bfa">3</text>
+    <text x="401" y="214" text-anchor="middle" class="h" fill="#c4b5fd">Router</text>
+    <text x="401" y="240" text-anchor="middle" class="t">one model call:</text>
+    <text x="401" y="258" text-anchor="middle" class="t">route · specialist ·</text>
+    <text x="401" y="274" text-anchor="middle" class="t">answer shape</text>
+    <text x="401" y="302" text-anchor="middle" class="s">vector / graph / hybrid</text>
+    <text x="401" y="316" text-anchor="middle" class="s">/ react / web</text>
+    <text x="401" y="340" text-anchor="middle" class="s">keyword rules on timeout</text>
+    <rect x="326" y="374" width="150" height="106" rx="12" fill="none" stroke="#a78bfa" stroke-width="1.6" stroke-dasharray="6 5"/>
+    <text x="401" y="404" text-anchor="middle" class="h" fill="#c4b5fd" font-size="14">Planner</text>
+    <text x="401" y="424" text-anchor="middle" class="s">only when needed</text>
+    <text x="401" y="444" text-anchor="middle" class="t">sub-queries</text>
+    <text x="401" y="460" text-anchor="middle" class="t">+ retrieval budget</text>
+  </g>
+  <line x1="401" y1="356" x2="401" y2="372" stroke="#a78bfa" stroke-width="1.6" stroke-dasharray="4 4"/>
+  <line x1="476" y1="250" x2="500" y2="250" class="flow" marker-end="url(#arrow)"/>
+  <line x1="476" y1="427" x2="500" y2="427" stroke="#a78bfa" stroke-width="1.6" stroke-dasharray="4 4" marker-end="url(#arrowViolet)"/>
+
+  <!-- 4 knowledge: retrieval + tools -->
+  <g>
+    <rect x="502" y="150" width="320" height="330" rx="14" fill="#07182a" stroke="#22d3ee" stroke-width="2" filter="url(#glow)"/>
+    <circle cx="524" cy="174" r="12" fill="none" stroke="#22d3ee" stroke-width="1.6"/><text x="524" y="179" text-anchor="middle" class="num" fill="#22d3ee">4</text>
+    <text x="662" y="180" text-anchor="middle" class="h" fill="#67e8f9">Knowledge · hybrid retrieval</text>
+
+    <rect x="518" y="196" width="140" height="40" rx="8" class="chip" stroke="#22d3ee"/>
+    <text x="588" y="214" text-anchor="middle" class="ct">Vector</text>
+    <text x="588" y="229" text-anchor="middle" class="s" font-size="10">Chroma · BGE-M3</text>
+    <rect x="666" y="196" width="140" height="40" rx="8" class="chip" stroke="#22d3ee"/>
+    <text x="736" y="214" text-anchor="middle" class="ct">BM25</text>
+    <text x="736" y="229" text-anchor="middle" class="s" font-size="10">jieba + CJK bigrams</text>
+    <rect x="518" y="242" width="140" height="40" rx="8" class="chip" stroke="#22d3ee"/>
+    <text x="588" y="260" text-anchor="middle" class="ct">Knowledge graph</text>
+    <text x="588" y="275" text-anchor="middle" class="s" font-size="10">Neo4j (optional)</text>
+    <rect x="666" y="242" width="140" height="40" rx="8" class="chip" stroke="#22d3ee"/>
+    <text x="736" y="260" text-anchor="middle" class="ct">Web</text>
+    <text x="736" y="275" text-anchor="middle" class="s" font-size="10">filtered, pages read</text>
+
+    <rect x="518" y="290" width="288" height="26" rx="6" fill="#0b2a3d" stroke="#22d3ee" stroke-width="1.2"/>
+    <text x="662" y="307" text-anchor="middle" class="ct">RRF fusion → cross-encoder rerank</text>
+    <text x="662" y="334" text-anchor="middle" class="s">+ domain-label boost · inside the caller's scope only</text>
+
+    <rect x="518" y="346" width="288" height="122" rx="10" fill="#1d1606" stroke="#fbbf24" stroke-width="1.8"/>
+    <text x="662" y="368" text-anchor="middle" class="h" fill="#fcd34d" font-size="14">Governed tools · up to 3 steps</text>
+    <text x="662" y="388" text-anchor="middle" class="t">the specialist's own read-only tools</text>
+    <text x="662" y="405" text-anchor="middle" class="s">CVE · ATT&amp;CK · product exposure · GPU memory</text>
+    <text x="662" y="419" text-anchor="middle" class="s">&amp; compute · table list / SQL</text>
+    <text x="662" y="440" text-anchor="middle" class="t">selector never sees retrieved text</text>
+    <text x="662" y="457" text-anchor="middle" class="s">write tools wait for the user's approval</text>
+  </g>
+  <line x1="822" y1="315" x2="846" y2="315" class="flow" marker-end="url(#arrow)"/>
+
+  <!-- 5 synthesizer -->
+  <g>
+    <rect x="848" y="150" width="150" height="330" rx="14" fill="#06201a" stroke="#34d399" stroke-width="2" filter="url(#glow)"/>
+    <circle cx="870" cy="174" r="12" fill="none" stroke="#34d399" stroke-width="1.6"/><text x="870" y="179" text-anchor="middle" class="num" fill="#34d399">5</text>
+    <text x="923" y="214" text-anchor="middle" class="h" fill="#6ee7b7">Synthesizer</text>
+    <text x="923" y="244" text-anchor="middle" class="t">grounded draft in</text>
+    <text x="923" y="260" text-anchor="middle" class="t">the specialist's</text>
+    <text x="923" y="276" text-anchor="middle" class="t">answer shape</text>
+    <rect x="872" y="296" width="46" height="24" rx="5" class="chip" stroke="#34d399"/>
+    <text x="895" y="313" text-anchor="middle" class="ct">[E1]</text>
+    <rect x="928" y="296" width="46" height="24" rx="5" class="chip" stroke="#fbbf24"/>
+    <text x="951" y="313" text-anchor="middle" class="ct">[T1]</text>
+    <text x="923" y="342" text-anchor="middle" class="s">evidence · tool</text>
+    <text x="923" y="356" text-anchor="middle" class="s">markers</text>
+    <text x="923" y="386" text-anchor="middle" class="t">as long as the</text>
+    <text x="923" y="402" text-anchor="middle" class="t">evidence supports</text>
+    <text x="923" y="434" text-anchor="middle" class="s">streams a draft</text>
+    <text x="923" y="448" text-anchor="middle" class="s">over SSE</text>
+  </g>
+  <line x1="998" y1="315" x2="1022" y2="315" class="flow" marker-end="url(#arrow)"/>
+
+  <!-- 6 verifier -->
+  <g>
+    <rect x="1024" y="150" width="150" height="330" rx="14" fill="#061f22" stroke="#2dd4bf" stroke-width="2" filter="url(#glow)"/>
+    <circle cx="1046" cy="174" r="12" fill="none" stroke="#2dd4bf" stroke-width="1.6"/><text x="1046" y="179" text-anchor="middle" class="num" fill="#2dd4bf">6</text>
+    <text x="1099" y="214" text-anchor="middle" class="h" fill="#5eead4">Verifier</text>
+    <path d="M1083 244 l10 10 l22 -22" fill="none" stroke="#2dd4bf" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1099" y="290" text-anchor="middle" class="t">citation support</text>
+    <text x="1099" y="312" text-anchor="middle" class="t">NLI entailment</text>
+    <text x="1099" y="328" text-anchor="middle" class="s">claim vs best passages</text>
+    <text x="1099" y="354" text-anchor="middle" class="t">sentence grounding</text>
+    <text x="1099" y="370" text-anchor="middle" class="s">tool sentences checked</text>
+    <text x="1099" y="384" text-anchor="middle" class="s">against the tool output</text>
+    <text x="1099" y="414" text-anchor="middle" class="t">approved / degraded</text>
+    <text x="1099" y="430" text-anchor="middle" class="t">/ rejected</text>
+  </g>
+  <line x1="1174" y1="315" x2="1198" y2="315" class="flow" marker-end="url(#arrow)"/>
+
+  <!-- 7 output filter -->
+  <g>
+    <rect x="1200" y="150" width="152" height="330" rx="14" fill="#0b1f0e" stroke="#4ade80" stroke-width="2" filter="url(#glow)"/>
+    <circle cx="1222" cy="174" r="12" fill="none" stroke="#4ade80" stroke-width="1.6"/><text x="1222" y="179" text-anchor="middle" class="num" fill="#4ade80">7</text>
+    <text x="1276" y="214" text-anchor="middle" class="h" fill="#86efac">Output filter</text>
+    <path d="M1258 236 h36 l-13 16 v14 l-10 6 v-20z" fill="none" stroke="#4ade80" stroke-width="1.8" stroke-linejoin="round"/>
+    <text x="1276" y="300" text-anchor="middle" class="t">DLP redaction</text>
+    <text x="1276" y="326" text-anchor="middle" class="t">[E] → [1] [2]</text>
+    <text x="1276" y="342" text-anchor="middle" class="s">verified reference list</text>
+    <text x="1276" y="368" text-anchor="middle" class="t">[T] → Tool sources</text>
+    <text x="1276" y="396" text-anchor="middle" class="s">model-made reference</text>
+    <text x="1276" y="410" text-anchor="middle" class="s">lists stripped</text>
+    <rect x="1222" y="428" width="108" height="34" rx="8" fill="#4ade80" fill-opacity="0.15" stroke="#4ade80" stroke-width="1.4"/>
+    <text x="1276" y="450" text-anchor="middle" class="ct" fill="#bbf7d0">Answer</text>
+  </g>
+
+  <!-- specialists band -->
+  <rect x="160" y="520" width="1192" height="116" rx="14" fill="#100d24" stroke="#a78bfa" stroke-width="1.6" stroke-dasharray="7 5"/>
+  <text x="182" y="548" class="h" fill="#c4b5fd">Domain specialists</text>
+  <text x="182" y="568" class="s">chosen by the router · narrow the tool catalog · set the answer shape · boost their own domain's documents · never widen what the caller can see</text>
+  <path d="M662 520 V470" stroke="#fbbf24" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#arrowAmber)"/>
+  <path d="M923 520 V482" stroke="#c4b5fd" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#arrowViolet)"/>
+  <g>
+    <rect x="182" y="584" width="178" height="38" rx="9" class="chip" stroke="#f87171"/>
+    <text x="271" y="601" text-anchor="middle" class="ct">Security</text>
+    <text x="271" y="615" text-anchor="middle" class="s" font-size="10">exposure verdict · KEV / EPSS</text>
+    <rect x="372" y="584" width="178" height="38" rx="9" class="chip" stroke="#a78bfa"/>
+    <text x="461" y="601" text-anchor="middle" class="ct">AI</text>
+    <text x="461" y="615" text-anchor="middle" class="s" font-size="10">formula · assumptions · limits</text>
+    <rect x="562" y="584" width="178" height="38" rx="9" class="chip" stroke="#22d3ee"/>
+    <text x="651" y="601" text-anchor="middle" class="ct">Data analysis</text>
+    <text x="651" y="615" text-anchor="middle" class="s" font-size="10">table · SQL · result · caveats</text>
+    <rect x="752" y="584" width="178" height="38" rx="9" class="chip" stroke="#fbbf24"/>
+    <text x="841" y="601" text-anchor="middle" class="ct">Compliance review</text>
+    <text x="841" y="615" text-anchor="middle" class="s" font-size="10">clause-by-clause gap table</text>
+    <rect x="942" y="584" width="178" height="38" rx="9" class="chip" stroke="#34d399"/>
+    <text x="1031" y="601" text-anchor="middle" class="ct">Document reading</text>
+    <text x="1031" y="615" text-anchor="middle" class="s" font-size="10">passage · page · section</text>
+    <rect x="1132" y="584" width="200" height="38" rx="9" class="chip" stroke="#64748b"/>
+    <text x="1232" y="601" text-anchor="middle" class="ct">General analyst</text>
+    <text x="1232" y="615" text-anchor="middle" class="s" font-size="10">everything else</text>
+  </g>
+
+  <!-- state layer -->
+  <text x="24" y="682" class="h" fill="#7dd3fc" font-size="13">STATE</text>
+  <text x="24" y="700" class="s">shared by</text>
+  <text x="24" y="714" class="s">every worker</text>
+  <g>
+    <rect x="160" y="664" width="226" height="58" rx="10" class="chip" stroke="#38bdf8"/>
+    <text x="273" y="687" text-anchor="middle" class="ct">Redis</text>
+    <text x="273" y="705" text-anchor="middle" class="s" font-size="10">limits · execution streams · cache generations</text>
+    <rect x="400" y="664" width="226" height="58" rx="10" class="chip" stroke="#38bdf8"/>
+    <text x="513" y="687" text-anchor="middle" class="ct">SQLite</text>
+    <text x="513" y="705" text-anchor="middle" class="s" font-size="10">sessions · approvals · tables · memory</text>
+    <rect x="640" y="664" width="226" height="58" rx="10" class="chip" stroke="#38bdf8"/>
+    <text x="753" y="687" text-anchor="middle" class="ct">Chroma server</text>
+    <text x="753" y="705" text-anchor="middle" class="s" font-size="10">one ingest worker writes the index</text>
+    <rect x="880" y="664" width="226" height="58" rx="10" class="chip" stroke="#f87171"/>
+    <text x="993" y="687" text-anchor="middle" class="ct">Threat intelligence</text>
+    <text x="993" y="705" text-anchor="middle" class="s" font-size="10">NVD · KEV · EPSS · ATT&amp;CK, synced offline</text>
+    <rect x="1120" y="664" width="232" height="58" rx="10" class="chip" stroke="#fbbf24"/>
+    <text x="1236" y="687" text-anchor="middle" class="ct">Bundled regulations</text>
+    <text x="1236" y="705" text-anchor="middle" class="s" font-size="10">CSL · DSL · PIPL · GDPR</text>
+  </g>
+
+  <text x="1352" y="762" text-anchor="end" class="s" font-size="10">security tools read the local threat-intelligence store · nothing is fetched for them on the request path</text>
+</svg>
