@@ -70,10 +70,16 @@ def test_an_append_waits_for_a_write_already_in_progress_and_keeps_it(paths):
 
     other = sqlite3.connect(paths / "history.db", isolation_level=None, check_same_thread=False)
     other.execute("BEGIN IMMEDIATE")
-    raw = other.execute("SELECT data_json FROM sessions WHERE session_id='s1'").fetchone()[0]
-    data = json.loads(raw)
-    data["messages"].append({"message_id": "other", "role": "assistant", "content": "from the other worker"})
-    other.execute("UPDATE sessions SET data_json=? WHERE session_id='s1'", (json.dumps(data),))
+    namespace, count = other.execute("SELECT namespace, message_count FROM sessions WHERE session_id='s1'").fetchone()
+    other.execute(
+        "INSERT INTO session_messages(namespace, session_id, seq, message_id, data_json) VALUES(?, 's1', ?, 'other', ?)",
+        (
+            namespace,
+            count,
+            json.dumps({"message_id": "other", "role": "assistant", "content": "from the other worker"}),
+        ),
+    )
+    other.execute("UPDATE sessions SET message_count=? WHERE session_id='s1'", (count + 1,))
 
     def commit() -> None:
         other.execute("COMMIT")

@@ -479,7 +479,7 @@ class Settings(BaseSettings):
     shadow_queue_maxsize: int = Field(default=200, alias="SHADOW_QUEUE_MAXSIZE")
     synthesis_refine_max_rounds: int = Field(default=5, alias="SYNTHESIS_REFINE_MAX_ROUNDS")
     synthesis_refine_overload_rounds: int = Field(default=1, alias="SYNTHESIS_REFINE_OVERLOAD_ROUNDS")
-    history_backend: _choice("file", "sqlite") = Field(default="file", alias="HISTORY_BACKEND")
+    history_backend: _choice("file", "sqlite") = Field(default="sqlite", alias="HISTORY_BACKEND")
     history_sqlite_path_str: str = Field(default="./data/history.db", alias="HISTORY_SQLITE_PATH")
     history_cold_dir: str = Field(default="./data/sessions_cold", alias="HISTORY_COLD_DIR")
     history_hot_tier_days: int = Field(default=14, alias="HISTORY_HOT_TIER_DAYS")
