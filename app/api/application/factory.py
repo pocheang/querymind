@@ -15,52 +15,19 @@ from app.core.config import normalise_environment_name
 from app.services.runtime.file_locks import LockBusy
 from app.services.runtime.shared_state import SharedStateUnavailable
 
-_APP_BASE_API_SEGMENTS = {
-    "admin",
-    "api",
-    "auth",
-    "documents",
-    "prompts",
-    "query",
-    "sessions",
-    "upload",
-    "user",
-}
-
-# Bare routers the production frontend reaches through nginx's /api/ location:
-# its build sets VITE_API_BASE_URL=/api, so `/admin/users` is requested as
-# `/api/admin/users`. `admin`, `user` and `model-catalog` were missing until
-# 2026-09-25, so behind the production nginx the whole admin console, the
-# active-model poll and the model catalog answered 404 -- invisible in
-# development, where Vite proxies the bare paths directly.
-# tests/api/test_frontend_paths_reach_the_backend.py keeps this in step.
-_LEGACY_API_PREFIX_SEGMENTS = {
-    "admin",
-    "agent-tracking",
-    "auth",
-    "documents",
-    "model-catalog",
-    "prompts",
-    "query",
-    "sessions",
-    "upload",
-    "user",
-}
-
 
 async def rewrite_app_prefixed_api_paths(request, call_next):
-    """Support public /app prefixes and legacy /api prefixes for bare routers."""
+    """Accept `/app/api/...` as `/api/...`.
+
+    The single-page app can be served under a base path (`/app`), and the
+    client prefixes its API calls with it. That is the only alias left: every
+    endpoint has exactly one spelling, `/api/v1/...` (ARC-06). The bare paths
+    (`/sessions`, `/admin/...`) and the `/api/<name>` forms that this used to
+    rewrite are gone.
+    """
     path = str(request.scope.get("path", "") or "")
-    if path.startswith("/app/"):
-        remainder = path[len("/app/") :]
-        first_segment = remainder.split("/", 1)[0]
-        if first_segment in _APP_BASE_API_SEGMENTS:
-            request.scope["path"] = f"/{remainder}"
-    elif path.startswith("/api/"):
-        remainder = path[len("/api/") :]
-        first_segment = remainder.split("/", 1)[0]
-        if first_segment in _LEGACY_API_PREFIX_SEGMENTS:
-            request.scope["path"] = f"/{remainder}"
+    if path.startswith("/app/api/"):
+        request.scope["path"] = path[len("/app") :]
     return await call_next(request)
 
 

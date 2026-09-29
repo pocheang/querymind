@@ -69,19 +69,19 @@ _ID = r"[^/]+"
 
 RATE_LIMIT_RULES: tuple[RateLimitRule, ...] = (
     # Unauthenticated, and the reason this middleware exists.
-    _rule("login", "POST", r"/auth/login", 5, MINUTE),
-    _rule("register", "POST", r"/auth/register", 3, 5 * MINUTE),
-    _rule("change_password", "POST", r"/auth/change-password", 3, 5 * MINUTE),
+    _rule("login", "POST", r"/api/v1/auth/login", 5, MINUTE),
+    _rule("register", "POST", r"/api/v1/auth/register", 3, 5 * MINUTE),
+    _rule("change_password", "POST", r"/api/v1/auth/change-password", 3, 5 * MINUTE),
     # Administrative, and unlimited until 2026-09-02 -- see the module docstring.
     # The numbers are the ones the dead decorators carried.
-    _rule("admin_create", "POST", r"/admin/users/create-admin", 1, HOUR),
-    _rule("approval_token_reset", "POST", rf"/admin/users/{_ID}/reset-approval-token", 3, HOUR),
-    _rule("admin_password_reset", "POST", rf"/admin/users/{_ID}/reset-password", 5, HOUR),
-    _rule("role_update", "PATCH", rf"/admin/users/{_ID}/role", 10, HOUR),
-    _rule("status_update", "PATCH", rf"/admin/users/{_ID}/status", 20, HOUR),
-    _rule("credit_add", "POST", rf"/admin/users/{_ID}/credits/add", 30, HOUR),
-    _rule("list_users", "GET", r"/admin/users", 100, MINUTE),
-    _rule("audit_logs", "GET", r"/admin/audit-logs", 50, MINUTE),
+    _rule("admin_create", "POST", r"/api/v1/admin/users/create-admin", 1, HOUR),
+    _rule("approval_token_reset", "POST", rf"/api/v1/admin/users/{_ID}/reset-approval-token", 3, HOUR),
+    _rule("admin_password_reset", "POST", rf"/api/v1/admin/users/{_ID}/reset-password", 5, HOUR),
+    _rule("role_update", "PATCH", rf"/api/v1/admin/users/{_ID}/role", 10, HOUR),
+    _rule("status_update", "PATCH", rf"/api/v1/admin/users/{_ID}/status", 20, HOUR),
+    _rule("credit_add", "POST", rf"/api/v1/admin/users/{_ID}/credits/add", 30, HOUR),
+    _rule("list_users", "GET", r"/api/v1/admin/users", 100, MINUTE),
+    _rule("audit_logs", "GET", r"/api/v1/admin/audit-logs", 50, MINUTE),
 )
 
 

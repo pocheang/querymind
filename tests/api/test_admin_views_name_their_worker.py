@@ -39,7 +39,13 @@ def client(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "path", ["/admin/ops/runtime", "/admin/ops/overview", "/admin/system-logs", "/circuit-breakers"]
+    "path",
+    [
+        "/api/v1/admin/ops/runtime",
+        "/api/v1/admin/ops/overview",
+        "/api/v1/admin/system-logs",
+        "/api/v1/circuit-breakers",
+    ],
 )
 def test_a_per_worker_view_names_the_worker_that_answered(client, path):
     response = client.get(path, headers=ADMIN)
@@ -49,11 +55,14 @@ def test_a_per_worker_view_names_the_worker_that_answered(client, path):
 
 
 def test_the_overview_says_which_of_its_parts_are_per_worker(client):
-    assert client.get("/admin/ops/overview", headers=ADMIN).json()["worker_scoped"] == ["requests", "diagnostics"]
+    assert client.get("/api/v1/admin/ops/overview", headers=ADMIN).json()["worker_scoped"] == [
+        "requests",
+        "diagnostics",
+    ]
 
 
 def test_the_csv_export_names_the_worker_behind_its_request_figures(client):
-    body = client.get("/admin/ops/export.csv", headers=ADMIN).text
+    body = client.get("/api/v1/admin/ops/export.csv", headers=ADMIN).text
 
     assert f"meta,worker_pid,{os.getpid()}" in body.replace("\r\n", "\n")
 

@@ -58,7 +58,7 @@ from app.services.security.rbac import Permission
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/advanced-rag", tags=["advanced-rag"])
+router = APIRouter(prefix="/advanced-rag", tags=["advanced-rag"])
 
 
 class AdvancedRAGRequest(BaseModel):

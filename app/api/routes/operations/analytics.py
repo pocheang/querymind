@@ -13,7 +13,7 @@ from app.api.dependencies import _require_permission, _require_user
 from app.services.retrieval.logger import RetrievalLogger
 from app.services.security.rbac import Permission
 
-router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 @router.get("/overview")

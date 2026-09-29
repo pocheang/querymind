@@ -1,4 +1,4 @@
-"""What `/auth` does around the auth service, which is where the rules live.
+"""What `/api/v1/auth` does around the auth service, which is where the rules live.
 
 `AuthDBService` is covered elsewhere. The route module was at 26%, and what was
 missing is not the happy path -- it is every rule the route adds on top of a
@@ -131,7 +131,7 @@ def client(
     monkeypatch.setattr(auth_helpers, "auth_service", service)
 
     app = FastAPI()
-    app.include_router(auth_routes.router)
+    app.include_router(auth_routes.router, prefix="/api/v1")
     app.dependency_overrides[auth_routes._require_user_and_token] = lambda: (
         FakeAuthService._user("alice"),
         "session-token-aaa",
@@ -143,7 +143,7 @@ def client(
 def _login(client: TestClient, username: str = "Alice", password: str = GOOD):
     # `_client_ip` reads `request.client.host`, which TestClient reports as
     # "testclient" -- hence that literal in every expected key below.
-    return client.post("/auth/login", json={"username": username, "password": password})
+    return client.post("/api/v1/auth/login", json={"username": username, "password": password})
 
 
 class TestTheFailureCounterIsScopedToBothTheAddressAndTheAccount:
@@ -303,8 +303,8 @@ class TestRegistration:
         scope to, so scoping to the requested username would let one address
         register unlimited accounts by varying the name."""
 
-        client.post("/auth/register", json={"username": "alice", "password": "x"})
-        client.post("/auth/register", json={"username": "bob", "password": "x"})
+        client.post("/api/v1/auth/register", json={"username": "alice", "password": "x"})
+        client.post("/api/v1/auth/register", json={"username": "bob", "password": "x"})
 
         assert register_limiter.keys("try_acquire") == ["register::testclient", "register::testclient"]
 
@@ -313,7 +313,7 @@ class TestRegistration:
     ) -> None:
         register_limiter.limited.add("register::testclient")
 
-        response = client.post("/auth/register", json={"username": "alice", "password": "x"})
+        response = client.post("/api/v1/auth/register", json={"username": "alice", "password": "x"})
 
         assert response.status_code == 429
         assert [row["result"] for row in service.audit_rows] == ["blocked"]
@@ -323,7 +323,7 @@ class TestChangingAPassword:
     def test_a_rotated_session_replaces_the_cookie(self, client: TestClient, service: FakeAuthService) -> None:
         service.rotation_succeeds = True
 
-        response = client.post("/auth/change-password", json={"old_password": "a", "new_password": "b"})
+        response = client.post("/api/v1/auth/change-password", json={"old_password": "a", "new_password": "b"})
 
         assert response.json() == {"ok": True, "message": "密码已成功更改", "token_rotated": True}
         assert response.cookies["auth_token"] == "session-token-bbb"
@@ -336,7 +336,7 @@ class TestChangingAPassword:
 
         service.rotation_succeeds = False
 
-        response = client.post("/auth/change-password", json={"old_password": "a", "new_password": "b"})
+        response = client.post("/api/v1/auth/change-password", json={"old_password": "a", "new_password": "b"})
         body = response.json()
 
         assert body["ok"] is True, "the password really did change; this is not a failure to report as one"
@@ -349,9 +349,9 @@ class TestChangingAPassword:
         result string for both would hide every forced re-authentication."""
 
         service.rotation_succeeds = True
-        client.post("/auth/change-password", json={"old_password": "a", "new_password": "b"})
+        client.post("/api/v1/auth/change-password", json={"old_password": "a", "new_password": "b"})
         service.rotation_succeeds = False
-        client.post("/auth/change-password", json={"old_password": "a", "new_password": "b"})
+        client.post("/api/v1/auth/change-password", json={"old_password": "a", "new_password": "b"})
 
         assert [row["result"] for row in service.audit_rows] == ["success", "success_needs_reauth"]
 
@@ -382,10 +382,10 @@ class TestGoogleSignInWhenTheDeploymentHasNotConfiguredIt:
         """
 
         app = FastAPI()
-        app.include_router(auth_routes.router)
+        app.include_router(auth_routes.router, prefix="/api/v1")
         return TestClient(app, raise_server_exceptions=False)
 
-    @pytest.mark.parametrize("path", ["/auth/google/login", "/auth/google/callback"])
+    @pytest.mark.parametrize("path", ["/api/v1/auth/google/login", "/api/v1/auth/google/callback"])
     def test_the_route_says_not_implemented_rather_than_failing(self, path: str) -> None:
         assert self._bare_client().get(path).status_code == 501
 
@@ -422,4 +422,4 @@ class TestGoogleSignInWhenTheDeploymentHasNotConfiguredIt:
         monkeypatch.setattr(auth_routes, "oauth", None)
 
         assert auth_routes._google_client() is None
-        assert self._bare_client().get("/auth/google/login").status_code == 501
+        assert self._bare_client().get("/api/v1/auth/google/login").status_code == 501

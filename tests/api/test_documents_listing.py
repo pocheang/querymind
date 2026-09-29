@@ -62,7 +62,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     )
 
     app = FastAPI()
-    app.include_router(documents_routes.router)
+    app.include_router(documents_routes.router, prefix="/api/v1")
     app.dependency_overrides[_require_user] = lambda: USER
     return TestClient(app)
 
@@ -96,7 +96,7 @@ def test_a_caller_with_documents_gets_them(client: TestClient, monkeypatch: pyte
     """The case that 500'd: one visible document is enough to enter the loop."""
     _serve(monkeypatch, [_row(OWNED, "report.pdf")])
 
-    response = client.get("/documents")
+    response = client.get("/api/v1/documents")
 
     assert response.status_code == 200, response.text
     assert [item["filename"] for item in response.json()] == ["report.pdf"]
@@ -113,7 +113,7 @@ def test_can_manage_is_computed_per_row_rather_than_left_at_its_default(
     """
     _serve(monkeypatch, [_row(OWNED, "report.pdf"), _row(SHARED, "handbook.md")])
 
-    body = client.get("/documents").json()
+    body = client.get("/api/v1/documents").json()
     by_name = {item["filename"]: item["can_manage"] for item in body}
 
     assert by_name == {"report.pdf": True, "handbook.md": False}
@@ -125,7 +125,7 @@ def test_a_caller_with_no_documents_still_gets_an_empty_list(
     """The state that masked the defect for nine days: the loop never runs."""
     _serve(monkeypatch, [])
 
-    response = client.get("/documents")
+    response = client.get("/api/v1/documents")
 
     assert response.status_code == 200
     assert response.json() == []

@@ -3,7 +3,7 @@ import { authRequest } from "@/services/http/client";
 /**
  * The record of what this system remembers about the signed-in person.
  *
- * Deliberately not the session endpoints (`/sessions/{id}/memories/long`).
+ * Deliberately not the session endpoints (`/api/v1/sessions/{id}/memories/long`).
  * Those return a working set -- the handful of memories one conversation would
  * be given, capped at five and ordered per session -- which is the wrong thing
  * to put behind a control labelled "what do you remember about me".

@@ -12,7 +12,6 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps.auth import require_admin
-from app.api.routes.internal.path_params import ExecutionId
 from app.api.transport.errors import error_responses
 from app.services.legacy_agent_health import (
     available_agent_health_checks,
@@ -138,55 +137,6 @@ async def get_agent_execution_status() -> dict[str, Any]:
     except Exception:
         logger.exception("Failed to get agent execution status")
         raise HTTPException(status_code=500, detail="Failed to get execution status")
-
-
-@router.get("/trace/{execution_id}", dependencies=[Depends(require_admin)], responses=error_responses(404, 500))
-async def get_execution_trace(execution_id: ExecutionId) -> dict[str, Any]:
-    """
-    Get detailed execution trace for a specific query.
-
-    Returns the complete execution trace including all agent steps,
-    timings, inputs, outputs, and decision rationales.
-
-    **Parameters:**
-    - `execution_id`: Execution ID from query response
-
-    **Response:**
-    ```json
-    {
-        "execution_id": "exec_123",
-        "query": "ä»€ä¹ˆæ˜¯Dockerï¼Ÿ",
-        "status": "completed",
-        "start_time": "2026-07-02T10:00:00+00:00",
-        "end_time": "2026-07-02T10:00:02+00:00",
-        "total_duration_ms": 2000,
-        "steps": [
-            {
-                "step_id": "step_1",
-                "agent_name": "EnhancedRouterAgent",
-                "status": "completed",
-                "duration_ms": 450,
-                "input_data": {...},
-                "output_data": {...},
-                "decision_rationale": "..."
-            }
-        ]
-    }
-    ```
-    """
-    try:
-        tracker = AgentExecutionTracker.get_instance()
-        trace = tracker.get_execution_trace(execution_id)
-
-        if not trace:
-            raise HTTPException(status_code=404, detail=f"Execution trace not found for ID: {execution_id}")
-
-        return trace.model_dump()
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Failed to get execution trace for %s", execution_id)
-        raise HTTPException(status_code=500, detail="Failed to get execution trace")
 
 
 @router.get("/config", dependencies=[Depends(require_admin)], responses=error_responses(500))

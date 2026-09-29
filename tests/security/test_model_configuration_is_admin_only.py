@@ -2,7 +2,7 @@
 every user. An ordinary user has no model configuration of their own.
 
 This was already how answers were produced before 2026-09-08, but only by
-accident. Three `/user/api-settings` endpoints let any signed-in user save a
+accident. Three `/api/v1/user/api-settings` endpoints let any signed-in user save a
 provider, a base URL, a model and an API key; the key was encrypted into their
 row; a Test button reported a green success because it probed the posted values
 directly; and the drawer echoed everything back as saved. Nothing on the answer
@@ -47,14 +47,14 @@ def test_no_endpoint_lets_a_user_save_a_model_configuration():
 
 
 def test_the_only_model_configuration_a_user_can_reach_is_read_only():
-    """`/user/active-model` reports; it must never accept."""
+    """`/api/v1/user/active-model` reports; it must never accept."""
 
-    operations = _openapi_paths()["/user/active-model"]
+    operations = _openapi_paths()["/api/v1/user/active-model"]
     assert set(operations) == {"get"}, f"expected a read-only report, got {sorted(operations)}"
 
 
 def test_every_model_configuration_write_is_an_admin_path():
-    """A body shaped like a model configuration may only be posted to `/admin/`."""
+    """A body shaped like a model configuration may only be posted to `/api/v1/admin/`."""
 
     paths = _openapi_paths()
     offenders = [
@@ -63,7 +63,7 @@ def test_every_model_configuration_write_is_an_admin_path():
         for method, operation in operations.items()
         if method in {"post", "put", "patch"}
         and "AdminModelSettings" in json.dumps(operation.get("requestBody", {}))
-        and not path.startswith("/admin/")
+        and not path.startswith("/api/v1/admin/")
     ]
     assert not offenders, f"model configuration accepted outside /admin/: {offenders}"
 
@@ -162,7 +162,7 @@ def test_the_active_model_report_obeys_the_environment_pin(monkeypatch: pytest.M
     """With `MODEL_BACKEND=local` pinned, the saved configuration is discarded.
 
     Reporting it as active would tell a reader the opposite of what answers
-    their question -- the same failure `/admin/model-settings` was fixed for.
+    their question -- the same failure `/api/v1/admin/model-settings` was fixed for.
     """
 
     from app.services.models import runtime

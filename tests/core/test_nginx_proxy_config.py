@@ -19,8 +19,6 @@ from pathlib import Path
 
 import pytest
 
-from app.api.application.factory import _LEGACY_API_PREFIX_SEGMENTS
-
 ROOT = Path(__file__).resolve().parents[2]
 NGINX = ROOT / "nginx.conf"
 EXECUTION_API = ROOT / "frontend" / "src" / "services" / "execution" / "execution-api.ts"
@@ -29,7 +27,6 @@ EXECUTION_API = ROOT / "frontend" / "src" / "services" / "execution" / "executio
 # nginx's /api/ location. test_the_stream_list_is_complete keeps it in step.
 SSE_ROUTES = {
     "app/api/routes/public/orchestration.py": "/api/v1/orchestration/executions/{execution_id}/events",
-    "app/api/routes/operations/agent_tracking.py": "/api/agent-tracking/stream/{execution_id}",
 }
 
 
@@ -108,7 +105,11 @@ def test_the_path_the_frontend_builds_takes_the_unbuffered_location():
 
 @pytest.mark.parametrize(
     "path",
-    ["/api/v1/orchestration/executions/exec-7f3a", "/api/advanced-rag/query", "/api/agent-tracking/trace/exec-7f3a"],
+    [
+        "/api/v1/orchestration/executions/exec-7f3a",
+        "/api/v1/advanced-rag/query",
+        "/api/v1/agent-tracking/trace/exec-7f3a",
+    ],
 )
 def test_ordinary_requests_keep_the_buffered_location(path: str):
     """An unbuffered location costs a worker connection per slow client; it is for streams only."""
@@ -123,10 +124,8 @@ def test_the_stream_location_does_not_buffer_or_cut_a_long_stream():
     assert settings["proxy_buffering"] == ["off"]
     assert settings["proxy_cache"] == ["off"]
     assert int(settings["proxy_read_timeout"][0].rstrip("s")) >= 3600
-    # No URI after the host: the path goes through unchanged, and the backend
-    # strips /api for bare routers like /agent-tracking.
+    # No URI after the host: the path goes through unchanged.
     assert settings["proxy_pass"] == ["http://backend:8000"]
-    assert "agent-tracking" in _LEGACY_API_PREFIX_SEGMENTS
 
 
 def test_the_api_prefix_does_not_outrank_the_stream_location():

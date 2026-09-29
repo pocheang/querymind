@@ -176,7 +176,7 @@ def _app_with_middleware() -> FastAPI:
     app = FastAPI()
     app.middleware("http")(invalidation_middleware)
 
-    @app.get("/documents")
+    @app.get("/api/v1/documents")
     def documents():
         return {"ok": True}
 
@@ -192,7 +192,7 @@ def test_every_request_catches_up_before_it_is_handled(monkeypatch):
     monkeypatch.setattr("app.services.runtime.shared_state.is_shared", lambda: True)
     monkeypatch.setattr(invalidation, "catch_up", lambda: seen.append("caught up") or [])
 
-    assert TestClient(_app_with_middleware()).get("/documents").status_code == 200
+    assert TestClient(_app_with_middleware()).get("/api/v1/documents").status_code == 200
     assert seen == ["caught up"]
 
 
@@ -204,7 +204,7 @@ def test_redis_down_is_a_503_for_requests_and_not_for_health_probes(monkeypatch)
     monkeypatch.setattr(invalidation, "catch_up", unavailable)
     client = TestClient(_app_with_middleware())
 
-    assert client.get("/documents").status_code == 503
+    assert client.get("/api/v1/documents").status_code == 503
     assert client.get("/health").status_code == 200
 
 

@@ -56,7 +56,7 @@ def _resolve_query_file(query_file: str) -> str:
     return str(_EVALUATION_ROOT / name)
 
 
-router = APIRouter(prefix="/api/evaluation", tags=["evaluation"])
+router = APIRouter(prefix="/evaluation", tags=["evaluation"])
 
 
 # Request/Response models

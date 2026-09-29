@@ -3,7 +3,7 @@ import { ApiError } from "@/services/http/client";
 /**
  * Is this failure a reason to destroy the stored session token?
  *
- * Only one answer is yes. `App` bootstraps by calling `/auth/me`, and it used
+ * Only one answer is yes. `App` bootstraps by calling `/api/v1/auth/me`, and it used
  * to clear the token on **any** rejection -- so a backend that was restarting,
  * a request that timed out, or a laptop that had just woken up signed the user
  * out. Reproduced on 2026-09-09 by restarting the API under an open tab: the

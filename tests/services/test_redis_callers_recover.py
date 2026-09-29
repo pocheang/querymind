@@ -272,11 +272,11 @@ def test_the_rate_limit_middleware_answers_503_not_500(monkeypatch):
     probe = FastAPI()
     probe.add_middleware(RateLimitMiddleware, redis_url="redis://unit-test:6379/0", shared=True)
 
-    @probe.post("/auth/login")
+    @probe.post("/api/v1/auth/login")
     def login():
         return {"ok": True}
 
-    response = TestClient(probe).post("/auth/login")
+    response = TestClient(probe).post("/api/v1/auth/login")
 
     assert response.status_code == 503
     assert response.json()["error_code"] == "SHARED_STATE_UNAVAILABLE"

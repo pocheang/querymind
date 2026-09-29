@@ -116,7 +116,7 @@ def _leases(stack) -> list[tuple[str, float]]:
 def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stack):
     a, b = stack.workers
     on_a, on_b = stack.login(a), stack.login(b)
-    warm = on_b.post("/api/advanced-rag/query", json={"query": "warm up"})
+    warm = on_b.post("/api/v1/advanced-rag/query", json={"query": "warm up"})
     assert _ran(warm), warm.text
     # A is deliberately NOT warmed up: its first graph lookup is the one that
     # hangs on the silent socket. Warming it was tried (2026-09-26) and the slow
@@ -129,7 +129,7 @@ def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stac
     def slow_query() -> None:
         started = time.monotonic()
         try:
-            outcome["status"] = on_a.post("/api/advanced-rag/query", json={"query": SLOW_QUESTION}).status_code
+            outcome["status"] = on_a.post("/api/v1/advanced-rag/query", json={"query": SLOW_QUESTION}).status_code
         except httpx.HTTPError as exc:  # the worker serving it is killed mid-request
             outcome["error"] = type(exc).__name__
         outcome["seconds"] = round(time.monotonic() - started, 2)
@@ -148,7 +148,7 @@ def test_a_slot_held_by_a_killed_worker_is_reclaimed_when_its_lease_expires(stac
     stack.kill(a)
     assert not a.alive()
 
-    refused = on_b.post("/api/advanced-rag/query", json={"query": "anything"})
+    refused = on_b.post("/api/v1/advanced-rag/query", json={"query": "anything"})
     assert refused.status_code == 503 and not _ran(refused), refused.text
     assert _leases(stack) == leases, "the dead worker's lease is still there"
 
@@ -169,7 +169,7 @@ def _first_admission(stack, client: httpx.Client, *, timeout: float) -> float | 
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         sent_at = _redis_time(stack)
-        response = client.post("/api/advanced-rag/query", json={"query": "anything"})
+        response = client.post("/api/v1/advanced-rag/query", json={"query": "anything"})
         if _ran(response):
             return sent_at
         assert response.status_code == 503, response.text

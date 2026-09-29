@@ -181,7 +181,7 @@ class Stack:
     # ---- clients ----------------------------------------------------------------
 
     def login(self, worker: Process, username: str = ADMIN_USERNAME, password: str = ADMIN_PASSWORD) -> httpx.Client:
-        response = httpx.post(f"{worker.base_url}/auth/login", json={"username": username, "password": password})
+        response = httpx.post(f"{worker.base_url}/api/v1/auth/login", json={"username": username, "password": password})
         assert response.status_code == 200, response.text
         return self.client(worker, response.json()["token"])
 

@@ -106,11 +106,9 @@ CIRCUIT_BREAKER_OPEN_UNTIL = Gauge(
 
 
 def request_kind(method: str, path: str) -> str:
-    if method == "POST" and path == "/api/advanced-rag/query":
+    if method == "POST" and path == "/api/v1/advanced-rag/query":
         return "query"
-    if path.startswith("/agent-tracking/stream/") or (
-        path.startswith("/api/v1/orchestration/executions/") and path.endswith("/events")
-    ):
+    if path.startswith("/api/v1/orchestration/executions/") and path.endswith("/events"):
         return "stream"
     return "other"
 

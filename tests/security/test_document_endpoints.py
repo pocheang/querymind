@@ -99,7 +99,7 @@ def _as(user_id: str, role: str = "viewer") -> dict[str, str]:
 def test_an_explicit_source_cannot_reach_another_users_file(client):
     """`?source=` narrows the candidates; it never selects one on its own."""
     response = client.delete(
-        f"/documents/report.pdf?source={BOB_SOURCE}&remove_file=true",
+        f"/api/v1/documents/report.pdf?source={BOB_SOURCE}&remove_file=true",
         headers=_as("alice"),
     )
 
@@ -110,7 +110,7 @@ def test_an_explicit_source_cannot_reach_another_users_file(client):
 def test_an_admin_gets_no_further_than_anyone_else(client):
     """Role alone no longer grants the whole uploads root."""
     response = client.delete(
-        f"/documents/report.pdf?source={BOB_SOURCE}",
+        f"/api/v1/documents/report.pdf?source={BOB_SOURCE}",
         headers=_as("root", role="admin"),
     )
 
@@ -120,7 +120,7 @@ def test_an_admin_gets_no_further_than_anyone_else(client):
 
 def test_reindex_has_the_same_boundary_as_delete(client):
     response = client.post(
-        f"/documents/report.pdf/reindex?source={BOB_SOURCE}",
+        f"/api/v1/documents/report.pdf/reindex?source={BOB_SOURCE}",
         headers=_as("alice"),
     )
 
@@ -132,7 +132,7 @@ def test_reindex_has_the_same_boundary_as_delete(client):
 
 
 def test_a_user_deletes_their_own_document_by_filename(client):
-    response = client.delete("/documents/report.pdf", headers=_as("alice"))
+    response = client.delete("/api/v1/documents/report.pdf", headers=_as("alice"))
 
     assert response.status_code == 200
     assert client.performed == [{"op": "delete", "filename": "report.pdf", "source": ALICE_SOURCE}]
@@ -141,7 +141,7 @@ def test_a_user_deletes_their_own_document_by_filename(client):
 def test_an_explicit_matching_source_still_works(client):
     """What the frontend sends: a source taken from the list it already fetched."""
     response = client.delete(
-        f"/documents/report.pdf?source={ALICE_SOURCE}&remove_file=false",
+        f"/api/v1/documents/report.pdf?source={ALICE_SOURCE}&remove_file=false",
         headers=_as("alice"),
     )
 
@@ -150,7 +150,7 @@ def test_an_explicit_matching_source_still_works(client):
 
 
 def test_a_user_reindexes_their_own_document(client):
-    response = client.post("/documents/notes.pdf/reindex", headers=_as("alice"))
+    response = client.post("/api/v1/documents/notes.pdf/reindex", headers=_as("alice"))
 
     assert response.status_code == 202
     assert client.performed == [{"op": "reindex", "filename": "notes.pdf", "source": "/uploads/alice/notes.pdf"}]
@@ -160,27 +160,27 @@ def test_a_user_reindexes_their_own_document(client):
 
 
 def test_delete_by_id_targets_exactly_one_document(client):
-    response = client.delete("/documents/by-id/doc-alice", headers=_as("alice"))
+    response = client.delete("/api/v1/documents/by-id/doc-alice", headers=_as("alice"))
 
     assert response.status_code == 200
     assert client.performed == [{"op": "delete", "filename": "report.pdf", "source": ALICE_SOURCE}]
 
 
 def test_reindex_by_id_targets_exactly_one_document(client):
-    response = client.post("/documents/by-id/doc-alice-notes/reindex", headers=_as("alice"))
+    response = client.post("/api/v1/documents/by-id/doc-alice-notes/reindex", headers=_as("alice"))
 
     assert response.status_code == 202
     assert client.performed == [{"op": "reindex", "filename": "notes.pdf", "source": "/uploads/alice/notes.pdf"}]
 
 
 def test_an_unknown_id_is_refused(client):
-    assert client.delete("/documents/by-id/doc-bob", headers=_as("alice")).status_code == 404
+    assert client.delete("/api/v1/documents/by-id/doc-bob", headers=_as("alice")).status_code == 404
     assert client.performed == []
 
 
 def test_the_by_id_route_is_not_shadowed_by_the_filename_route(client):
-    """`/documents/by-id/x` must not be read as a filename called `by-id`."""
-    response = client.delete("/documents/by-id/doc-alice", headers=_as("alice"))
+    """`/api/v1/documents/by-id/x` must not be read as a filename called `by-id`."""
+    response = client.delete("/api/v1/documents/by-id/doc-alice", headers=_as("alice"))
 
     assert response.status_code == 200
     assert client.performed[0]["filename"] == "report.pdf"
@@ -194,7 +194,7 @@ def test_a_successful_action_records_the_document_and_its_owner(client, monkeypa
     audits: list[dict[str, Any]] = []
     monkeypatch.setattr(documents_route, "_audit", lambda request, **kwargs: audits.append(kwargs))
 
-    client.delete("/documents/report.pdf", headers=_as("alice"))
+    client.delete("/api/v1/documents/report.pdf", headers=_as("alice"))
 
     assert audits, "the action was not audited"
     detail = audits[-1]["detail"]
@@ -206,7 +206,7 @@ def test_a_refusal_is_audited_too(client, monkeypatch):
     audits: list[dict[str, Any]] = []
     monkeypatch.setattr(documents_route, "_audit", lambda request, **kwargs: audits.append(kwargs))
 
-    client.delete(f"/documents/report.pdf?source={BOB_SOURCE}", headers=_as("alice"))
+    client.delete(f"/api/v1/documents/report.pdf?source={BOB_SOURCE}", headers=_as("alice"))
 
     assert [entry["result"] for entry in audits] == ["denied"]
 
@@ -237,7 +237,7 @@ def test_a_document_with_no_chunks_is_still_reachable_by_its_id(client, monkeypa
     monkeypatch.setattr(registry, "list_document_records", lambda path=None: [dict(record)])
     _ROWS.append({**on_disk_only, "document_id": "doc-alice-failed"})
     try:
-        response = getattr(client, method)(f"/documents/by-id/doc-alice-failed{suffix}", headers=_as("alice"))
+        response = getattr(client, method)(f"/api/v1/documents/by-id/doc-alice-failed{suffix}", headers=_as("alice"))
     finally:
         _ROWS.pop()
 

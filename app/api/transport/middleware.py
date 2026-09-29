@@ -152,7 +152,7 @@ def get_request_metrics() -> list[dict[str, Any]]:
 
 
 # Probes answer about this process and must not depend on Redis answering.
-_INVALIDATION_EXEMPT_PREFIXES = ("/health", "/ready", "/metrics", "/api/health", "/api/ready")
+_INVALIDATION_EXEMPT_PREFIXES = ("/health", "/ready", "/metrics")
 
 
 async def invalidation_middleware(request, call_next):

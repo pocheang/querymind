@@ -57,7 +57,7 @@ def test_the_register_limit_is_shared_across_workers(stack):
     for n in range(4):
         worker = stack.workers[n % 2]
         body = {"username": f"reg_{uuid.uuid4().hex[:8]}", "password": "ValidPass123!"}
-        statuses.append(httpx.post(f"{worker.base_url}/auth/register", json=body).status_code)
+        statuses.append(httpx.post(f"{worker.base_url}/api/v1/auth/register", json=body).status_code)
 
     assert statuses == [200, 200, 200, 429]
 
@@ -71,7 +71,7 @@ def test_the_query_quota_is_one_count_for_every_worker(stack):
     clients = [stack.login(worker) for worker in stack.workers]
 
     statuses = [
-        clients[n % 2].post("/api/advanced-rag/query", json={"query": f"quota probe {n}"}).status_code
+        clients[n % 2].post("/api/v1/advanced-rag/query", json={"query": f"quota probe {n}"}).status_code
         for n in range(QUERY_QUOTA + 1)
     ]
 
@@ -84,11 +84,13 @@ def test_login_failures_add_up_across_workers_and_lock_both(stack):
     a, b = stack.workers
     wrong = {"username": "stackadmin", "password": "not-the-password"}
 
-    failures = [httpx.post(f"{stack.workers[n % 2].base_url}/auth/login", json=wrong).status_code for n in range(3)]
+    failures = [
+        httpx.post(f"{stack.workers[n % 2].base_url}/api/v1/auth/login", json=wrong).status_code for n in range(3)
+    ]
     assert failures == [401, 401, 401]
 
     for worker in (a, b):
-        locked = httpx.post(f"{worker.base_url}/auth/login", json=wrong)
+        locked = httpx.post(f"{worker.base_url}/api/v1/auth/login", json=wrong)
         assert locked.status_code == 429, worker.name
         detail = locked.json()["detail"]
         assert (detail["error"], detail["attempts_used"], detail["max_attempts"]) == (

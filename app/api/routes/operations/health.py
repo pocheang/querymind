@@ -328,7 +328,7 @@ async def ready_dependencies():
     return JSONResponse(content=payload, status_code=code)
 
 
-@router.get("/circuit-breakers", dependencies=[Depends(require_admin)])
+@router.get("/api/v1/circuit-breakers", dependencies=[Depends(require_admin)])
 def circuit_breaker_status():
     """
     Get status of all circuit breakers in the system.

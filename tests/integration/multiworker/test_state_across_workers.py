@@ -58,7 +58,7 @@ def admin(stack: Stack):
 
 @pytest.fixture(scope="module")
 def admin_id(admin) -> str:
-    return admin[0].get("/auth/me").json()["user_id"]
+    return admin[0].get("/api/v1/auth/me").json()["user_id"]
 
 
 # ---- scenario 2: an approval issued in one process, approved and redeemed in the others ---
@@ -100,7 +100,7 @@ def _connector_enabled(client: httpx.Client) -> bool:
 
 def _resume(client: httpx.Client, token: str) -> httpx.Response:
     return client.post(
-        "/api/advanced-rag/query", json={"query": f"disable connector {CONNECTOR}", "approval_token": token}
+        "/api/v1/advanced-rag/query", json={"query": f"disable connector {CONNECTOR}", "approval_token": token}
     )
 
 
@@ -160,7 +160,7 @@ def test_a_subscriber_on_b_receives_a_run_on_a_complete_and_in_order(stack, admi
     subscriber.start()
     time.sleep(0.3)
     answer = on_a.post(
-        "/api/advanced-rag/query",
+        "/api/v1/advanced-rag/query",
         json={"query": "What is the retention window for backups?", "execution_id": execution_id},
     )
     subscriber.join(90)
@@ -189,14 +189,14 @@ def test_concurrent_writes_to_one_conversation_from_both_workers_lose_nothing(st
     def ask(n: int) -> int:
         client = admin[n % 2]
         return client.post(
-            "/api/advanced-rag/query", json={"query": questions[n], "session_id": session_id}
+            "/api/v1/advanced-rag/query", json={"query": questions[n], "session_id": session_id}
         ).status_code
 
     with ThreadPoolExecutor(max_workers=16) as pool:
         statuses = list(pool.map(ask, range(50)))
 
     assert statuses == [200] * 50
-    messages = admin[1].get(f"/sessions/{session_id}").json()["messages"]
+    messages = admin[1].get(f"/api/v1/sessions/{session_id}").json()["messages"]
     assert len(messages) == 100
     assert sorted(m["content"] for m in messages if m["role"] == "user") == sorted(questions)
     assert sum(1 for m in messages if m["role"] == "assistant") == 50
@@ -212,17 +212,17 @@ def test_a_log_level_set_on_a_takes_effect_on_b(stack, admin):
 
     on_a, on_b = admin
     logger_name = f"qm.phase10.{uuid.uuid4().hex[:6]}"
-    set_on_a = on_a.post("/admin/ops/logging/level", json={"logger": logger_name, "level": "DEBUG"})
+    set_on_a = on_a.post("/api/v1/admin/ops/logging/level", json={"logger": logger_name, "level": "DEBUG"})
     assert set_on_a.status_code == 200, set_on_a.text
     assert set_on_a.json()["applies_to"] == "all_workers"
 
     deadline = time.monotonic() + PROPAGATION_SECONDS
     seen = None
     while time.monotonic() < deadline:
-        seen = on_b.get("/admin/ops/logging/levels").json()["loggers"].get(logger_name)
+        seen = on_b.get("/api/v1/admin/ops/logging/levels").json()["loggers"].get(logger_name)
         if seen == "DEBUG":
             break
         time.sleep(0.2)
 
     assert seen == "DEBUG", f"B still reports {seen!r} after {PROPAGATION_SECONDS}s"
-    on_a.post("/admin/ops/logging/reset")
+    on_a.post("/api/v1/admin/ops/logging/reset")

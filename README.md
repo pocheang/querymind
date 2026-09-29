@@ -383,7 +383,7 @@ make eval-full-pipeline
 
 - ✅ **每个门禁都被验证过「能失败」。** 一个从没红过的扫描器什么也证明不了。敏感内容闸门、死类名审计、覆盖率检查、复杂度门禁在改动时都要先种一个已知的坏样本确认它会报。
 - ✅ **棘轮双向失败。** 覆盖率掉了是回归，涨了说明基线过期；端点数少了是 router 掉了，多了是基线该更新。只能涨不能收的豁免名单会从「决策记录」退化成「不做决策的方式」。
-- ✅ **容器不只是构建，还要服务。** jsdom 测试、`npm run build`、`nginx -t` 全都能在一个**只会显示白屏**的部署上通过。冒烟检查断言 `/api/advanced-rag/health` 返回的是 JSON 而不是 SPA 兜底的 `index.html`——只有这一条能发现代理没接到后端。
+- ✅ **容器不只是构建，还要服务。** jsdom 测试、`npm run build`、`nginx -t` 全都能在一个**只会显示白屏**的部署上通过。冒烟检查断言 `/api/v1/advanced-rag/health` 返回的是 JSON 而不是 SPA 兜底的 `index.html`——只有这一条能发现代理没接到后端。
 - ✅ **Pre-commit 在 CI 里有副本。** 钩子能被 `--no-verify` 绕过，在没跑过 `pre-commit install` 的新 clone 里则根本不存在。
 - ✅ **SonarCloud Quality Gate 通过**：main 分支（2026-09-26 查询）0 Bugs / 0 Vulnerabilities / 0 Security Hotspots；认知复杂度（S3776）由本地门禁保持 0 个函数超标。Code smell（9）和重复率（0.1%）不为零，以 [SonarCloud 仪表盘](https://sonarcloud.io/dashboard?id=pocheang_querymind) 为准——这里曾写“全部为 0”，那是某一天的快照，写在 README 里就会过期。
 

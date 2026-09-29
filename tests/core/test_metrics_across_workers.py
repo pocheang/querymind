@@ -130,13 +130,13 @@ def test_the_middleware_records_into_what_metrics_exports():
     app = FastAPI()
     app.middleware("http")(request_timing_middleware)
 
-    @app.post("/api/advanced-rag/query")
+    @app.post("/api/v1/advanced-rag/query")
     def query():
         return {"ok": True}
 
     key = ("http_requests_total", (("kind", "query"), ("status", "200")))
     before = _samples(runtime_metrics.render()[0].decode()).get(key, 0.0)
-    TestClient(app).post("/api/advanced-rag/query")
+    TestClient(app).post("/api/v1/advanced-rag/query")
 
     assert _samples(runtime_metrics.render()[0].decode())[key] == before + 1
 
@@ -144,10 +144,10 @@ def test_the_middleware_records_into_what_metrics_exports():
 @pytest.mark.parametrize(
     ("method", "path", "kind"),
     [
-        ("POST", "/api/advanced-rag/query", "query"),
-        ("GET", "/api/advanced-rag/query", "other"),
+        ("POST", "/api/v1/advanced-rag/query", "query"),
+        ("GET", "/api/v1/advanced-rag/query", "other"),
         ("GET", "/api/v1/orchestration/executions/abc/events", "stream"),
-        ("GET", "/agent-tracking/stream/abc", "stream"),
+        ("GET", "/api/v1/agent-tracking/trace/abc", "other"),
         ("GET", "/health", "other"),
         ("GET", "/api/v1/orchestration/executions/abc", "other"),
     ],
