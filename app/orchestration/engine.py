@@ -20,6 +20,7 @@ from app.orchestration.answer_stream import current_answer_stream_id, get_defaul
 from app.orchestration.event_publisher import EventPublisher, NullEventPublisher
 from app.orchestration.execution_events import current_execution_id
 from app.orchestration.langgraph.checkpoint import checkpoint_config
+from app.orchestration.langgraph.run_scope import bind_run_scope
 from app.orchestration.langgraph.workflow import build_workflow
 from app.orchestration.policies import ExecutionPolicy
 from app.orchestration.request import OrchestrationRequest
@@ -259,17 +260,11 @@ class OrchestrationEngine:
         if persistence_config is not None and self._checkpointed_workflow is not None:
             workflow = self._checkpointed_workflow
             invoke_config.update(persistence_config)
-        result = await workflow.ainvoke(
-            {
-                "request": request,
-                "retry_count": 0,
-                "errors": (),
-                "trace": (),
-                "budget": budget,
-                "reporter": reporter,
-            },
-            config=invoke_config,
-        )
+        with bind_run_scope(budget, reporter):
+            result = await workflow.ainvoke(
+                {"request": request, "retry_count": 0, "errors": (), "trace": ()},
+                config=invoke_config,
+            )
         answer = result.get("final_answer")
         if not isinstance(answer, FinalAnswer):
             raise RuntimeError("LangGraph workflow completed without FinalAnswer")
