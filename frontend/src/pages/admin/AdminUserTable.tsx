@@ -12,6 +12,7 @@ type Props = {
   onUpdateRole: (user: AdminUserSummary, role: string) => Promise<void>;
   onUpdateStatus: (user: AdminUserSummary, status: string) => Promise<void>;
   onAddCredits: (user: AdminUserSummary) => Promise<void>;
+  onChangeOrganization: (user: AdminUserSummary) => Promise<void>;
   onOpenClassEditor: (user: AdminUserSummary) => void;
   onResetPassword: (user: AdminUserSummary) => Promise<void>;
   onResetApprovalToken: (user: AdminUserSummary) => Promise<void>;
@@ -50,6 +51,7 @@ export function AdminUserTable({
   onUpdateRole,
   onUpdateStatus,
   onAddCredits,
+  onChangeOrganization,
   onOpenClassEditor,
   onResetPassword,
   onResetApprovalToken,
@@ -59,7 +61,7 @@ export function AdminUserTable({
   const renderValue = (value?: string | null) => value?.trim() || "-";
 
   return (
-    <table className={cn(ADMIN_TABLE, ADMIN_TABLE_WIDE, "min-w-[1320px] overflow-visible")}>
+    <table className={cn(ADMIN_TABLE, ADMIN_TABLE_WIDE, "min-w-[1450px] overflow-visible")}>
       <thead>
         <tr>
           <th className={cn(STICKY[0], STICKY_HEAD)}>{t("admin.ui.username")}</th>
@@ -67,6 +69,7 @@ export function AdminUserTable({
           <th className={cn(STICKY[2], STICKY_HEAD)}>{t("admin.ui.status")}</th>
           <th className={cn(STICKY[3], STICKY_HEAD)}>{t("admin.ui.credits")}</th>
           <th className="w-[180px]">{t("admin.ui.operation")}</th>
+          <th className="w-[130px]">{t("admin.ui.organization")}</th>
           <th className="w-[180px]">{t("admin.ui.businessUnit")}</th>
           <th className="w-[190px]">{t("admin.ui.type")}</th>
           <th className="w-[110px]">{t("admin.ui.createdBy")}</th>
@@ -126,6 +129,9 @@ export function AdminUserTable({
                 <Button variant="secondary" size="xs" onClick={() => onOpenClassEditor(row)}>
                   {t("admin.ui.classify")}
                 </Button>
+                <Button variant="secondary" size="xs" onClick={() => void onChangeOrganization(row)}>
+                  {t("admin.ui.changeOrganization")}
+                </Button>
                 <Button variant="secondary" size="xs" onClick={() => void onResetPassword(row)}>
                   {t("admin.ui.resetPassword")}
                 </Button>
@@ -140,6 +146,9 @@ export function AdminUserTable({
                   </Button>
                 ) : null}
               </RowActions>
+            </td>
+            <td>
+              <span className="truncate font-mono text-xs">{renderValue(row.tenant_id)}</span>
             </td>
             <td>
               <CellStack>

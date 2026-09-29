@@ -56,11 +56,17 @@ class GBrainLongTermMemory:
 
 
 def memory_base_dir(base_root: Path, *, tenant_id: str, user_id: str) -> Path:
-    owner = _segment(user_id)
-    tenant = _segment(tenant_id)
-    if tenant == owner:
-        return base_root / owner / "_long_memory"
-    return base_root / tenant / owner / "_long_memory"
+    """One user's memory directory. Keyed on the user alone, on purpose.
+
+    Memories are the person's, not their organization's, and user ids are unique
+    across organizations. Keying on the tenant as well meant that moving a user
+    to another organization (BUG-04) would have left every memory behind in a
+    directory nothing reads -- and before organizations existed the tenant was
+    the user id, so this is the path every existing memory already lives at.
+    `tenant_id` stays in the signature because the callers' scopes carry it.
+    """
+    del tenant_id
+    return base_root / _segment(user_id) / "_long_memory"
 
 
 def _segment(value: str) -> str:

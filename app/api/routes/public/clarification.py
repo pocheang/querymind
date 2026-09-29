@@ -18,6 +18,7 @@ from app.api.dependencies import (
 from app.api.transport.errors import error_responses
 from app.domain.contracts import ClarificationContext, ClarificationQuestion
 from app.orchestration.request import OrchestrationRequest, RequestActor, RequestScope
+from app.services.documents.tenancy import tenant_of
 from app.services.security.rbac import Permission
 
 router = APIRouter(prefix="/api/v1/clarification", tags=["clarification"])
@@ -156,7 +157,7 @@ async def check_clarification(
     """
     _require_permission(user, Permission.QUERY_RUN, request, "query")
     req.session_id = _require_valid_session_id(req.session_id)
-    tenant_id = str(user.get("tenant_id", "") or user.get("user_id", "") or "")
+    tenant_id = tenant_of(user)
     user_id = str(user.get("user_id", "") or "")
     workflow_thread_id = ":".join((tenant_id, user_id, req.session_id))
     clarification_service = ClarificationAgentService()

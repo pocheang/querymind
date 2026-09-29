@@ -285,6 +285,7 @@ export type AdminUserSummary = {
   user_type?: string | null;
   data_scope?: string | null;
   credit_balance: number;
+  tenant_id?: string | null;
   is_online?: boolean;
   is_online_10m?: boolean;
   created_at?: string;

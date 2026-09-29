@@ -26,6 +26,7 @@ from app.api.schemas import (
 from app.api.transport.errors import bad_request, not_found
 from app.api.transport.middleware import record_grounding_support
 from app.pipeline.contracts import ConversationMessage, PipelineUser
+from app.services.documents.tenancy import tenant_of
 from app.services.query.input_normalizer import (
     normalize_and_validate_user_question,
     normalize_user_question,
@@ -230,6 +231,7 @@ def _rerun_after_message_edit(
             allowed_sources=_allowed_sources_for_user(user),
             user=PipelineUser(
                 user_id=str(user.get("user_id", "") or "") or None,
+                tenant_id=tenant_of(user) or None,
                 username=str(user.get("username", "") or "") or None,
                 role=str(user.get("role", "") or "") or None,
                 permissions=frozenset(user.get("permissions") or []),

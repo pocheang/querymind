@@ -398,6 +398,7 @@ class AuthDBService:
         admin_ticket_id = blank_to_none(provenance.admin_ticket_id)
         admin_approval_token_hash = blank_to_none(provenance.admin_approval_token_hash)
         user_id = uuid.uuid4().hex
+        tenant_id = get_settings().default_tenant_id
         salt_hex = generate_salt()
         password_hash = hash_password(password, salt_hex)
         created_at = iso(now())
@@ -407,8 +408,9 @@ class AuthDBService:
                 INSERT INTO users(
                   user_id, username, salt, password_hash, role, status,
                   created_by_user_id, created_by_username, admin_ticket_id, admin_approval_token_hash,
-                  business_unit, department, user_type, data_scope, display_name, credit_balance, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  business_unit, department, user_type, data_scope, display_name, credit_balance, created_at,
+                  tenant_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     user_id,
@@ -433,6 +435,7 @@ class AuthDBService:
                     # reported is certainly the number stored is to store this one.
                     DEFAULT_CHAT_CREDITS,
                     created_at,
+                    tenant_id,
                 ),
             )
         except sqlite3.IntegrityError as exc:
@@ -452,6 +455,7 @@ class AuthDBService:
             "user_type": user_type,
             "data_scope": data_scope,
             "display_name": display_name,
+            "tenant_id": tenant_id,
         }
 
     def login(self, username: str, password: str) -> dict[str, Any]:
@@ -649,6 +653,9 @@ class AuthDBService:
     def update_user_password(self, user_id: str, password: str) -> dict[str, Any] | None:
         return self.user_manager.update_user_password(user_id, password)
 
+    def update_user_tenant(self, user_id: str, tenant_id: str) -> dict[str, Any] | None:
+        return self.user_manager.update_user_tenant(user_id, tenant_id)
+
     def update_user_classification(
         self,
         user_id: str,
@@ -815,10 +822,21 @@ def _busy_timeout_seconds() -> float:
     return max(1.0, min(timeout_s, 3600.0))
 
 
+def _users_have_an_organization(conn: sqlite3.Connection) -> None:
+    """Every account belongs to an organization (BUG-04); existing ones join the default."""
+
+    existing = {str(row[1]) for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+    if "tenant_id" not in existing:
+        conn.execute("ALTER TABLE users ADD COLUMN tenant_id TEXT NOT NULL DEFAULT ''")
+    conn.execute("UPDATE users SET tenant_id=? WHERE tenant_id=''", (get_settings().default_tenant_id,))
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id)")
+
+
 AUTH_MIGRATIONS = (
     Migration(
         1, "baseline: users, OAuth identities, sessions, audit log, system settings", AuthDBService._baseline_schema
     ),
+    Migration(2, "users belong to an organization (tenant_id)", _users_have_an_organization),
 )
 
 

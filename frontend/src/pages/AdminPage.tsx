@@ -347,6 +347,7 @@ export function AdminPage({ user, onLogout }: Readonly<Props>) {
               onUpdateRole={actions.updateRole}
               onUpdateStatus={actions.updateStatus}
               onAddCredits={actions.addUserCredits}
+              onChangeOrganization={actions.changeOrganization}
               onOpenClassEditor={openClassEditor}
               onResetPassword={actions.resetUserPassword}
               onResetApprovalToken={actions.resetAdminApprovalToken}

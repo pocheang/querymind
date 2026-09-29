@@ -48,6 +48,7 @@ from app.pipeline.contracts import (
 )
 from app.pipeline.profiles import PipelineProfile
 from app.pipeline.rag_pipeline import RAGPipeline
+from app.services.documents.tenancy import tenant_of
 from app.services.observability.agent_execution_tracker import AgentExecutionTracker
 from app.services.observability.log_safety import question_ref
 from app.services.query.decomposer import DEFAULT_MAX_SUB_QUERIES
@@ -492,6 +493,7 @@ async def _run_advanced_query(
         conversation=conversation,
         user=PipelineUser(
             user_id=str(user.get("user_id", "") or "") or None,
+            tenant_id=tenant_of(user) or None,
             username=str(user.get("username", "") or "") or None,
             role=str(user.get("role", "") or "") or None,
             permissions=frozenset(user.get("permissions") or []),

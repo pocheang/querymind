@@ -111,6 +111,7 @@ class AdminUserSummary(BaseModel):
     user_type: str | None = None
     data_scope: str | None = None
     credit_balance: int = Field(default=10, ge=0)
+    tenant_id: str | None = None
     is_online: bool = False
     is_online_10m: bool = False
     created_at: str | None = None
@@ -118,6 +119,10 @@ class AdminUserSummary(BaseModel):
 
 class AdminRoleUpdateRequest(BaseModel):
     role: str
+
+
+class AdminTenantUpdateRequest(BaseModel):
+    tenant_id: str = Field(..., min_length=1, max_length=64)
 
 
 class AdminStatusUpdateRequest(BaseModel):

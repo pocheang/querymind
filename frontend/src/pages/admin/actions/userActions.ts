@@ -134,6 +134,30 @@ export function createUserActions(params: AdminActionsParams, errorHandler: Erro
     }
   };
 
+  // Mirrors the server's rule (`validate_tenant_id`): the server is what enforces it.
+  const ORGANIZATION_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+
+  const changeOrganization = async (target: AdminUserSummary) => {
+    const raw = await promptInput({
+      title: t("admin.ui.changeOrganization"),
+      message: t("admin.actions.organizationPrompt", { username: target.username }),
+      defaultValue: target.tenant_id || "",
+    });
+    const tenantId = (raw || "").trim();
+    if (!tenantId || tenantId === (target.tenant_id || "")) return;
+    if (!ORGANIZATION_ID.test(tenantId) || tenantId === "shared") {
+      return setError(t("admin.actions.organizationInvalid"));
+    }
+    try {
+      const updated = await appApi.adminUpdateTenant(target.user_id, tenantId);
+      setUsers((prev) => prev.map((x) => (x.user_id === updated.user_id ? updated : x)));
+      setStatusText(t("admin.actions.organizationChanged", { username: updated.username, tenant: tenantId }));
+      setError("");
+    } catch (e) {
+      await handleApiError(e, t("admin.actions.changeOrganizationFailed"));
+    }
+  };
+
   const saveClass = async () => {
     if (!editingUser) return;
     setSavingClass(true);
@@ -231,6 +255,7 @@ export function createUserActions(params: AdminActionsParams, errorHandler: Erro
     updateRole,
     updateStatus,
     addUserCredits,
+    changeOrganization,
     saveClass,
     resetAdminApprovalToken,
     resetUserPassword,

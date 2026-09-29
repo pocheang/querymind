@@ -35,7 +35,7 @@ MAX_CREDIT_TOP_UP = 1_000_000
 _ADMIN_VIEW_SQL = """
     SELECT u.user_id, u.username, u.role, u.status, u.created_by_user_id, u.created_by_username, u.admin_ticket_id,
            CASE WHEN u.admin_approval_token_hash IS NOT NULL AND u.admin_approval_token_hash <> '' THEN 1 ELSE 0 END AS has_admin_approval_token,
-           u.business_unit, u.department, u.user_type, u.data_scope, u.credit_balance,
+           u.business_unit, u.department, u.user_type, u.data_scope, u.credit_balance, u.tenant_id,
            CASE WHEN s.user_id IS NULL THEN 0 ELSE 1 END AS is_online,
            CASE WHEN s10.user_id IS NULL THEN 0 ELSE 1 END AS is_online_10m,
            u.created_at
@@ -140,7 +140,7 @@ class UserManager:
         username = validate_username(username)
         with self.conn_factory() as conn:
             row = conn.execute(
-                "SELECT user_id, username, salt, password_hash, role, status, credit_balance FROM users WHERE lower(username)=lower(?)",
+                "SELECT user_id, username, salt, password_hash, role, status, credit_balance, tenant_id FROM users WHERE lower(username)=lower(?)",
                 (username,),
             ).fetchone()
             if row is None:
@@ -155,6 +155,7 @@ class UserManager:
                 "role": str(row["role"]),
                 "status": str(row["status"]),
                 "credit_balance": int(row["credit_balance"]),
+                "tenant_id": str(row["tenant_id"] or ""),
             }
 
     def list_users(self) -> list[dict[str, Any]]:
@@ -186,7 +187,7 @@ class UserManager:
                 """
                 SELECT user_id, username, role, status, created_by_user_id, created_by_username, admin_ticket_id,
                        business_unit, department, user_type, data_scope, credit_balance,
-                       admin_approval_token_hash, created_at
+                       admin_approval_token_hash, created_at, tenant_id
                 FROM users
                 WHERE user_id=?
                 """,
@@ -280,6 +281,19 @@ class UserManager:
             if result.rowcount <= 0:
                 return None
             conn.execute("DELETE FROM auth_sessions WHERE user_id=?", (user_id,))
+            return self._admin_view(conn, user_id)
+
+    def update_user_tenant(self, user_id: str, tenant_id: str) -> dict[str, Any] | None:
+        """Move a user to another organization. Their documents are moved by the caller."""
+        from app.services.documents.tenancy import validate_tenant_id
+
+        user_id = _validate_user_id(user_id)
+        tenant_id = validate_tenant_id(tenant_id)
+        with self.conn_factory() as conn:
+            cursor = conn.execute("UPDATE users SET tenant_id=? WHERE user_id=?", (tenant_id, user_id))
+            if int(cursor.rowcount or 0) == 0:
+                return None
+            conn.commit()
             return self._admin_view(conn, user_id)
 
     def update_user_classification(

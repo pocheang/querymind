@@ -21,6 +21,7 @@ from app.orchestration.answer_stream import (
 from app.orchestration.execution_events import ExecutionEventStore, get_default_execution_event_store
 from app.orchestration.request import RequestActor
 from app.services.connectors.management import ConnectorManagementService
+from app.services.documents.tenancy import tenant_of
 from app.services.security.rbac import Permission
 
 
@@ -115,6 +116,7 @@ def require_request_actor(user: dict[str, Any] = Depends(_require_user)) -> Requ
     """Adapt legacy authentication output once into an immutable actor contract."""
     return RequestActor(
         user_id=str(user.get("user_id") or "") or None,
+        tenant_id=tenant_of(user) or None,
         username=str(user.get("username") or "") or None,
         role=str(user.get("role") or "") or None,
         permissions=frozenset(str(item) for item in (user.get("permissions") or ())),

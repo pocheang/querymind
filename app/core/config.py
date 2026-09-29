@@ -448,6 +448,16 @@ class Settings(BaseSettings):
     auto_ingest_watch_uploads: bool = Field(default=True, alias="AUTO_INGEST_WATCH_UPLOADS")
     auto_ingest_recursive: bool = Field(default=True, alias="AUTO_INGEST_RECURSIVE")
     auth_token_ttl_hours: int = Field(default=24, alias="AUTH_TOKEN_TTL_HOURS")
+    # The organization every account starts in (BUG-04). A public document is
+    # visible to its owner's organization; an administrator moves a user to
+    # another one from the users page. Not "shared": that names the shared corpus.
+    default_tenant_id: str = Field(
+        default="default",
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$",
+        alias="DEFAULT_TENANT_ID",
+    )
     auth_expose_token_in_response: bool = Field(default=False, alias="AUTH_EXPOSE_TOKEN_IN_RESPONSE")
     auth_cookie_name: str = Field(default="auth_token", alias="AUTH_COOKIE_NAME")
     auth_cookie_secure: bool = Field(default=True, alias="AUTH_COOKIE_SECURE")
@@ -617,6 +627,12 @@ class Settings(BaseSettings):
     cors_allow_headers: str = Field(default="*", alias="CORS_ALLOW_HEADERS")
     cors_allow_credentials: bool = Field(default=True, alias="CORS_ALLOW_CREDENTIALS")
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+
+    @model_validator(mode="after")
+    def _default_tenant_is_not_the_shared_corpus(self) -> "Settings":
+        if self.default_tenant_id == "shared":
+            raise ValueError("DEFAULT_TENANT_ID may not be 'shared': that tenant is the shared corpus, readable by all")
+        return self
 
     @model_validator(mode="after")
     def _stage_ceilings_fit_the_total(self) -> "Settings":

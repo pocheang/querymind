@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🏢 Organizations: public documents are shared
+
+- Accounts belong to an organization (`users.tenant_id`). Every existing and new account starts in `DEFAULT_TENANT_ID` (`default`); an administrator moves a user from the users page ("Organization"), or with `PATCH /api/v1/admin/users/{user_id}/tenant`, and the documents the user owns move with them.
+- A document approved as **public** is now visible to everyone in its owner's organization, and still to nobody outside it. Until now uploads were tagged with the uploader's own id, so a public document was visible to its uploader alone.
+- Existing documents are moved to their owners' organization once, at startup (registry, chunk and parent records, vector metadata, structured tables; nothing is re-embedded). An owner always sees their own documents, before and after a move.
+- Long-term memory and conversations belong to the person and do not move.
+
 ### 🔧 Fixes
 
 - `OAUTH_REDIRECT_URI` defaulted to `/api/auth/google/callback`, which v0.7.2 removed, so an installation relying on the default would have sent every Google sign-in to a 404. It is `/api/v1/auth/google/callback` now, and a test checks the default names a route.

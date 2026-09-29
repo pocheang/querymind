@@ -59,7 +59,7 @@ class SessionManager:
                 """
                 SELECT s.user_id AS user_id, s.username AS username, s.expires_at AS expires_at,
                        u.role AS role, u.status AS status, u.credit_balance AS credit_balance,
-                       u.display_name AS display_name
+                       u.display_name AS display_name, u.tenant_id AS tenant_id
                 FROM auth_sessions s
                 JOIN users u ON u.user_id = s.user_id
                 WHERE s.token=?
@@ -86,6 +86,8 @@ class SessionManager:
                 # profile page and the top bar, reported `None` for everyone
                 # forever. A write nobody reads.
                 "display_name": row["display_name"],
+                # The organization, which scopes what a public document reaches (BUG-04).
+                "tenant_id": str(row["tenant_id"] or ""),
             }
 
     def touch_session(self, token: str) -> None:

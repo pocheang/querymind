@@ -28,11 +28,12 @@ from app.api.schemas import (
     AdminResetPasswordRequest,
     AdminRoleUpdateRequest,
     AdminStatusUpdateRequest,
+    AdminTenantUpdateRequest,
     AdminUserClassificationUpdateRequest,
     AdminUserSummary,
     AuditLogEntry,
 )
-from app.api.transport.errors import bad_request, not_found
+from app.api.transport.errors import bad_request, error_responses, not_found
 from app.services.auth.auth_service import AdminProvenance
 from app.services.observability.log_buffer import list_captured_logs
 from app.services.observability.worker_scope import this_worker
@@ -389,6 +390,49 @@ def admin_update_user_classification(
             f"business_unit={row.get('business_unit') or '-'}; department={row.get('department') or '-'}; "
             f"user_type={row.get('user_type') or '-'}; data_scope={row.get('data_scope') or '-'}"
         ),
+    )
+    return AdminUserSummary(**row)
+
+
+@router.patch("/users/{user_id}/tenant", response_model=AdminUserSummary, responses=error_responses(404, 503))
+def admin_update_user_tenant(
+    user_id: str,
+    req: AdminTenantUpdateRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(_require_user),
+):
+    """Move a user to another organization; the documents they own move with them (BUG-04).
+
+    The account and its documents are two writes to separate stores. The account
+    moves first, then the documents under the index lock; if the second step is
+    refused (the index is busy: 503) the account has moved and its documents
+    have not -- the owner still reaches them (an owner is never outside their own
+    document's boundary), and repeating the request finishes the move.
+    """
+    from app.services.documents.index_lock import request_index_writes
+    from app.services.documents.tenancy import retag_owner
+
+    _require_permission(user, Permission.ADMIN_USER_MANAGE, request, "admin", resource_id=user_id)
+
+    try:
+        row = auth_service.update_user_tenant(user_id, req.tenant_id)
+    except Exception as e:
+        handle_service_exception(e, _audit, request, AuditAction.ADMIN_USER_TENANT_UPDATE, user, user_id)
+
+    if row is None:
+        raise not_found("User")
+
+    tenant_id = str(row["tenant_id"])
+    with request_index_writes():
+        moved = retag_owner(user_id, tenant_id)
+    _audit(
+        request,
+        action=AuditAction.ADMIN_USER_TENANT_UPDATE,
+        resource_type="user",
+        result="success",
+        user=user,
+        resource_id=user_id,
+        detail=f"tenant_id={tenant_id}; documents={moved.registry}; chunks={moved.chunks}; tables={moved.tables}",
     )
     return AdminUserSummary(**row)
 

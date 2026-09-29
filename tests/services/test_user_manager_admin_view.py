@@ -48,6 +48,7 @@ _ADMIN_VIEW_KEYS = frozenset(
         "user_type",
         "data_scope",
         "credit_balance",
+        "tenant_id",
         "is_online",
         "is_online_10m",
         "created_at",
@@ -91,7 +92,8 @@ def manager():
               data_scope TEXT,
               display_name TEXT,
               credit_balance INTEGER NOT NULL DEFAULT {DEFAULT_CHAT_CREDITS} CHECK(credit_balance >= 0),
-              created_at TEXT NOT NULL
+              created_at TEXT NOT NULL,
+              tenant_id TEXT NOT NULL DEFAULT 'default'
             )
             """
         )
