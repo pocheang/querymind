@@ -48,6 +48,14 @@ export function applyStreamResult(messages: SessionMessage[], result: Normalized
           metadata: {
             ...EMPTY_METADATA,
             route: result.route || "",
+            // What a reload reads back from the saved message. Leaving them
+            // out meant a fresh answer showed no specialist and "no sources"
+            // until the page was reloaded, because this block is rebuilt
+            // from EMPTY_METADATA.
+            agent_class: result.agentClass || "",
+            skill: result.skill || "",
+            sources: result.sources ?? [],
+            web_used: result.webUsed ?? false,
             citations: result.citations,
             tool_runs: result.toolRuns,
             quality_report: result.qualityReport,

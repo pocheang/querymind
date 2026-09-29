@@ -48,6 +48,8 @@ export type ToolRun = {
   tool_id: string;
   status: string;
   summary: string;
+  /** "T1", "T2", ... when the answer cites this result under Tool sources. */
+  marker?: string;
 };
 
 /** A governed action the run produced but did not perform. */
@@ -77,6 +79,11 @@ export type NormalizedQueryResult = {
   pendingApproval: PendingApproval | null;
   toolRuns: ToolRun[];
   route?: string;
+  /** Which specialist answered, and the shape it answered in. */
+  agentClass?: string;
+  skill?: string;
+  sources?: RetrievalSourceOutcome[];
+  webUsed?: boolean;
   executionId?: string;
   qualityReport?: Record<string, unknown>;
   executionMetadata?: Record<string, unknown>;
@@ -98,6 +105,8 @@ export type SessionMessageMetadata = {
   route?: string;
   execution_route?: string;
   agent_class?: string;
+  /** The shape the answer was written in (the pipeline skill). */
+  skill?: string;
   web_used?: boolean;
   /** Which sources the run actually reached, and what each returned. Derived
    *  from the run's own diagnostics rather than assumed: `web_used` alone was a

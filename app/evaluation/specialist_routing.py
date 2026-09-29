@@ -24,6 +24,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.agents.registry import answer_shape
+
 __all__ = [
     "KNOWN_MISROUTES",
     "RoutingCase",
@@ -177,20 +179,6 @@ def load_cases(path: Path | None = None) -> tuple[RoutingCase, ...]:
         )
         for row in payload["queries"]
     )
-
-
-def answer_shape(agent_class: str, skill: str) -> str:
-    """The synthesis skill a routed question is answered with.
-
-    A specialist translates its own skill names and passes through the ones
-    with a template of their own; a class with no specialist uses the skill as
-    chosen.
-    """
-
-    from app.agents.registry import get_domain_agent_registry
-
-    specialist = get_domain_agent_registry().get_agent(agent_class)
-    return specialist.pipeline_skill_for(skill) if specialist is not None else skill
 
 
 def rule_route(question: str) -> tuple[str, str]:

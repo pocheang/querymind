@@ -513,7 +513,7 @@ class WorkflowNodeRuntime:
             # discloses nothing this same response did not already carry.
             language = _reference_language(request, numbered)
             reference_list = render_reference_list(references, language)
-            numbered, tool_list, tool_redactions = _tool_sources(
+            numbered, tool_list, tool_redactions, cited_tools = _tool_sources(
                 self._services.privacy, numbered, answer.tool_results, language, scope
             )
             # A model that wrote its own reference section gets it removed first.
@@ -550,6 +550,7 @@ class WorkflowNodeRuntime:
                     "evidence": safe_evidence,
                     "cited_evidence": references,
                     "evidence_ids": tuple(item.item_id for item in references),
+                    "tool_results": _mark_cited_tools(answer.tool_results, cited_tools),
                     "validation": validation,
                     "safety": {
                         **dict(answer.safety),
@@ -740,7 +741,7 @@ def _tool_sources(
     tool_results: tuple[ToolResult, ...],
     language: str,
     scope: AccessScope,
-) -> tuple[str, str, int]:
+) -> tuple[str, str, int, tuple[ToolResult, ...]]:
     """Number the answer's ``[T{k}]`` markers and render the tool-source list.
 
     Numbered over the same citable results the synthesizer offered, and listed
@@ -748,15 +749,31 @@ def _tool_sources(
     ``[n]``. The list quotes each tool's summary, which is tool output, so it
     gets the same mandatory output-DLP pass as the answer before it is shown.
 
-    Returns the renumbered text, the list (empty when no tool was cited), and
-    how many redactions the list needed.
+    Returns the renumbered text, the list (empty when no tool was cited), how
+    many redactions the list needed, and the cited results in marker order.
     """
 
     numbered, cited = number_tool_markers(answer_text, citable_tool_results(tool_results))
     if not cited:
-        return numbered, "", 0
+        return numbered, "", 0, ()
     dlp = privacy.filter_output(render_tool_source_list(cited, language), (), scope)
-    return numbered, dlp.answer, dlp.redaction_count
+    return numbered, dlp.answer, dlp.redaction_count, cited
+
+
+def _mark_cited_tools(tool_results: tuple[ToolResult, ...], cited: tuple[ToolResult, ...]) -> tuple[ToolResult, ...]:
+    """Record on each result the ``T{k}`` the finished answer cites it as.
+
+    The client's tool panel shows the same number as the answer's tool-source
+    list. It cannot work that out itself: the number follows the order the
+    answer first cites each tool, and counts only citable results. ``cited``
+    holds the very objects ``tool_results`` does, so identity is the key.
+    """
+
+    markers = {id(result): f"T{number}" for number, result in enumerate(cited, start=1)}
+    return tuple(
+        result.model_copy(update={"citation_marker": markers[id(result)]}) if id(result) in markers else result
+        for result in tool_results
+    )
 
 
 def _citation_label(source: str, page: int | None) -> str:

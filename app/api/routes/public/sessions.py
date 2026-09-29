@@ -235,6 +235,7 @@ def _rerun_after_message_edit(
             metadata={
                 "route": result.get("route", "unknown"),
                 "agent_class": result.get("agent_class", "general"),
+                "skill": result.get("skill", ""),
                 "web_used": result.get("web_result", {}).get("used", False),
                 "thoughts": result.get("thoughts", []),
                 "graph_entities": result.get("graph_result", {}).get("entities", []),

@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from app.agents.rag.service import RetrievalFailureError
+from app.agents.registry import answer_shape
 from app.api.dependencies import (
     _build_memory_context_for_session,
     _history_store_for_user,
@@ -241,6 +242,8 @@ def _response_metadata(
     *,
     pipeline_result_metadata: dict[str, Any],
     route: str,
+    agent_class: str,
+    skill: str,
     citations: list[dict[str, Any]],
     tool_runs: list[dict[str, Any]],
     execution_id: str,
@@ -257,6 +260,14 @@ def _response_metadata(
     summary = retrieval_summary(pipeline_result_metadata)
     return {
         "route": route,
+        # Which specialist answered and in what shape. Without these the client
+        # could name only the mode the user pinned in the sidebar, never the
+        # one the router chose, so an automatically routed answer never said
+        # who wrote it. `skill` is the shape the answer was written in, after
+        # the specialist's translation -- the same value the routing
+        # evaluation compares.
+        "agent_class": agent_class,
+        "skill": skill,
         "citations": citations,
         # Rides the same path citations do, so a multi-step run leaves a record
         # in the persisted message rather than only in the answer prose.
@@ -507,6 +518,8 @@ async def _run_advanced_query(
     metadata = _response_metadata(
         pipeline_result_metadata=dict(pipeline_result.execution_metadata),
         route=pipeline_result.route.route,
+        agent_class=pipeline_result.route.agent_class or "general",
+        skill=answer_shape(pipeline_result.route.agent_class, pipeline_result.route.skill),
         citations=[citation.model_dump(mode="json") for citation in pipeline_result.citations],
         tool_runs=[run.model_dump(mode="json") for run in pipeline_result.tool_runs],
         execution_id=execution_id,

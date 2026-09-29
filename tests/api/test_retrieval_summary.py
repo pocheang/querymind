@@ -91,6 +91,8 @@ class TestBothEntryPointsReportIt:
         metadata = _response_metadata(
             pipeline_result_metadata=EMPTY_CORPUS,
             route="vector",
+            agent_class="general",
+            skill="answer_with_citations",
             citations=[],
             tool_runs=[],
             execution_id="exec-1",

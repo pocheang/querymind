@@ -1646,5 +1646,37 @@
       "title": "综合分析",
       "desc": "跨领域分析与管理摘要。"
     }
+  },
+  "answerShapes": {
+    "answerWithCitations": "引用作答",
+    "compareEntities": "对比分析",
+    "timelineBuilder": "时间线",
+    "webFactCheck": "联网核实",
+    "cyberAttackAnalysis": "攻击分析",
+    "cyberDefenseHardening": "加固方案",
+    "incidentResponsePlaybook": "应急处置",
+    "vulnerabilityExposureAssessment": "漏洞暴露评估",
+    "aiKnowledgeAssistant": "AI 知识解答",
+    "aiEngineeringEstimate": "工程估算",
+    "pdfTextReader": "原文与出处",
+    "dataAnalysisReport": "数据分析报告",
+    "complianceGapAnalysis": "合规差距分析"
+  },
+  "toolNames": {
+    "cyberCveLookup": "CVE 查询",
+    "cyberMitreAttack": "ATT&CK 技术查询",
+    "cyberProductExposure": "产品暴露面",
+    "cyberIndicatorExtract": "IoC 提取",
+    "aiMemoryEstimate": "显存估算",
+    "aiComputeEstimate": "算力估算",
+    "aiMathEval": "计算器",
+    "aiSpecificationExtract": "模型规格提取",
+    "tableList": "表格列表",
+    "tableQuery": "表格查询（SQL）",
+    "complianceCitationExtract": "法规引用提取",
+    "documentLocations": "文档出处",
+    "connectorListOwned": "我的连接器",
+    "connectorDisableOwned": "停用连接器",
+    "toolSelector": "工具选择"
   }
 }

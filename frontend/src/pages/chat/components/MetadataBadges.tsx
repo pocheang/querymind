@@ -1,6 +1,9 @@
 import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
+import { useAnswerShapeLabel } from "@/pages/chat/answerLabels";
+import { useAgentModeLabels } from "@/pages/chat/agentModeLabels";
+import { AGENT_MODES } from "@/pages/chat/constants";
 
 import type { RetrievalSourceOutcome, SessionMessageMetadata } from "@/types/api";
 
@@ -36,8 +39,31 @@ function sourceChips(metadata: SessionMessageMetadata) {
   return outcomes.filter((outcome) => outcome.status === "completed");
 }
 
+/**
+ * "Cybersecurity · Exposure assessment": who answered, and in what shape.
+ *
+ * Named from the same labels the mode cards use, so a specialist is called the
+ * same thing in the sidebar and on its answers. It used to print the raw class,
+ * `agent: cybersecurity`, and only on re-run answers -- the chat response did
+ * not carry the class at all. The general analyst answering in the default
+ * shape is the unremarkable case and gets no badge.
+ */
+function useSpecialistBadge(metadata: SessionMessageMetadata): string {
+  const modeLabel = useAgentModeLabels();
+  const shapeLabel = useAnswerShapeLabel();
+  const agentClass = metadata.agent_class || "";
+  const skill = metadata.skill || "";
+  if (!agentClass && !skill) return "";
+  if (agentClass === "general" && (!skill || skill === "answer_with_citations")) return "";
+  const mode = AGENT_MODES.find((candidate) => candidate.key === agentClass);
+  const who = mode ? modeLabel(mode).title : agentClass;
+  const shape = skill ? shapeLabel(skill) : "";
+  return [who, shape].filter(Boolean).join(" · ");
+}
+
 export function MetadataBadges({ metadata }: Readonly<Props>) {
   const { t } = useTranslation();
+  const specialist = useSpecialistBadge(metadata);
   const latency = formatLatency(metadata.latency_ms);
   const sources = sourceChips(metadata);
 
@@ -54,11 +80,7 @@ export function MetadataBadges({ metadata }: Readonly<Props>) {
         </Badge>
       )}
       {metadata.route === "smalltalk_fast" && <Badge variant="info">smalltalk-fast</Badge>}
-      {metadata.agent_class && (
-        <Badge variant="info" mono>
-          agent: {metadata.agent_class}
-        </Badge>
-      )}
+      {specialist && <Badge variant="info">{specialist}</Badge>}
       {sources.length === 0 ? (
         <Badge variant="outline">{t("chat.badges.noSources")}</Badge>
       ) : (

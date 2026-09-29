@@ -1,4 +1,12 @@
-import type { AuthUser, Citation, IndexedFileSummary, PromptTemplate, SessionMessage, ToolRun } from "@/types/api";
+import type {
+  AuthUser,
+  Citation,
+  IndexedFileSummary,
+  PromptTemplate,
+  RetrievalSourceOutcome,
+  SessionMessage,
+  ToolRun,
+} from "@/types/api";
 
 /**
  * The agent classes a user can pin a question to, plus "" for the router's own choice.
@@ -79,7 +87,9 @@ export type ChatMetadata = {
   route: string;
   execution_route?: string;
   agent_class: string;
+  skill?: string;
   web_used: boolean;
+  sources?: RetrievalSourceOutcome[];
   latency_ms?: number;
   thoughts: string[];
   /** The model's reasoning, only ever present when the request opted in
