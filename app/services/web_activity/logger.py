@@ -17,6 +17,8 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from app.core.singleton import Singleton
+
 logger = logging.getLogger("app.agents.web_activity_logger")
 
 
@@ -603,21 +605,15 @@ class WebActivityAnalyzer:
 
 
 # 全局实例
-_global_activity_logger = None
-_global_activity_analyzer = None
+_global_activity_logger = Singleton(lambda: WebActivityLogger())
+_global_activity_analyzer = Singleton(lambda: WebActivityAnalyzer(get_activity_logger()))
 
 
 def get_activity_logger() -> WebActivityLogger:
     """获取全局日志记录器实例"""
-    global _global_activity_logger
-    if _global_activity_logger is None:
-        _global_activity_logger = WebActivityLogger()
-    return _global_activity_logger
+    return _global_activity_logger.get()
 
 
 def get_activity_analyzer() -> WebActivityAnalyzer:
     """获取全局分析器实例"""
-    global _global_activity_analyzer
-    if _global_activity_analyzer is None:
-        _global_activity_analyzer = WebActivityAnalyzer(get_activity_logger())
-    return _global_activity_analyzer
+    return _global_activity_analyzer.get()

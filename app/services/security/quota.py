@@ -28,9 +28,8 @@ business-unit mode without saying so.
 
 from __future__ import annotations
 
-import threading
-
 from app.core.config import get_settings
+from app.core.singleton import Singleton
 from app.services.security.rate_limiter import make_limiter
 
 _WINDOW_SECONDS = 60
@@ -107,23 +106,16 @@ def _business_unit(user_id: str) -> str:
     return str(profile.get("business_unit") or "").strip().lower()
 
 
-_GUARD: QuotaGuard | None = None
-_GUARD_LOCK = threading.Lock()
+_GUARD = Singleton(lambda: QuotaGuard())
 
 
 def get_quota_guard() -> QuotaGuard:
     """The process's guard. One instance, so the in-process counters (memory mode) are one set."""
 
-    global _GUARD
-    with _GUARD_LOCK:
-        if _GUARD is None:
-            _GUARD = QuotaGuard()
-        return _GUARD
+    return _GUARD.get()
 
 
 def reset_quota_guard() -> None:
     """Rebuild from current settings on the next use -- the limits and the mode are read at construction."""
 
-    global _GUARD
-    with _GUARD_LOCK:
-        _GUARD = None
+    _GUARD.reset()

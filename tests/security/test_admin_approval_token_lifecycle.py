@@ -238,7 +238,7 @@ class TestTheTrackerIsOneObjectPerProcess:
         `if _global_tracker is None` beside it had never once been the branch
         that created it. Deleted with the unused export."""
 
-        monkeypatch.setattr(tracker_module, "_global_tracker", None)
+        monkeypatch.setattr(tracker_module._global_tracker, "_value", None)
 
         assert tracker_module.get_token_tracker() is not None
 

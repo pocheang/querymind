@@ -17,6 +17,7 @@ import sqlite3
 import time
 from pathlib import Path
 
+from app.core.singleton import Singleton
 from app.services.observability.log_safety import key_ref
 from app.services.runtime.sqlite_schema import Migration, ensure_schema
 
@@ -194,7 +195,7 @@ def validate_admin_approval_token(
 
 
 # Global token tracker instance
-_global_tracker: AdminTokenTracker | None = None
+_global_tracker = Singleton(lambda: AdminTokenTracker(expiry_hours=24))
 
 
 def get_token_tracker() -> AdminTokenTracker:
@@ -204,10 +205,7 @@ def get_token_tracker() -> AdminTokenTracker:
     Returns:
         AdminTokenTracker instance
     """
-    global _global_tracker
-    if _global_tracker is None:
-        _global_tracker = AdminTokenTracker(expiry_hours=24)
-    return _global_tracker
+    return _global_tracker.get()
 
 
 def _admin_token_baseline(conn: sqlite3.Connection) -> None:

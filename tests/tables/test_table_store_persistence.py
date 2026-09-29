@@ -103,7 +103,7 @@ def test_an_evicted_engine_is_rebuilt_from_the_database(db_path: Path) -> None:
 
 def test_the_test_run_never_persists_into_the_developer_database(monkeypatch) -> None:
     """Same rule as the admin bootstrap: under pytest the shared store is in memory."""
-    monkeypatch.setattr(store_module, "_GLOBAL_TABLE_STORE", None)
+    monkeypatch.setattr(store_module._GLOBAL_TABLE_STORE, "_value", None)
 
     assert os.getenv("PYTEST_CURRENT_TEST")
     assert store_module.get_table_store().persistent is False

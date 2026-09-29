@@ -17,6 +17,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
+from app.core.singleton import Singleton
+
 logger = logging.getLogger("app.agents.web_activity_alerts")
 
 
@@ -361,15 +363,12 @@ class WebActivityAlertSystem:
 
 
 # 全局实例
-_global_alert_system = None
+_global_alert_system = Singleton(lambda: WebActivityAlertSystem())
 
 
 def get_alert_system() -> WebActivityAlertSystem:
     """获取全局告警系统实例"""
-    global _global_alert_system
-    if _global_alert_system is None:
-        _global_alert_system = WebActivityAlertSystem()
-    return _global_alert_system
+    return _global_alert_system.get()
 
 
 def check_and_alert(metrics: dict) -> list[Alert]:

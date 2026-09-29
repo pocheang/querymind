@@ -11,7 +11,6 @@ Optimizations:
 import json
 import logging
 import re
-import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -29,6 +28,7 @@ from app.agents.shared.config import (
     VALID_SKILLS,
 )
 from app.core.config import get_settings
+from app.core.singleton import Singleton
 from app.domain.text import normalize_string
 from app.prompts import build_router_prompt
 from app.services.agent_classifier import classify_agent_class
@@ -59,8 +59,7 @@ __all__ = [
 # it. The lock matters because `decide_route` runs under `asyncio.to_thread`:
 # two threads racing here would each build a calibrator, and both would flush
 # accumulated outcomes to the same file.
-_calibrator: ConfidenceCalibrator | None = None
-_calibrator_lock = threading.Lock()
+_calibrator = Singleton(lambda: ConfidenceCalibrator())
 
 
 def _get_calibrator() -> ConfidenceCalibrator | None:
@@ -68,11 +67,7 @@ def _get_calibrator() -> ConfidenceCalibrator | None:
 
     if not get_settings().enable_calibration:
         return None
-    global _calibrator
-    with _calibrator_lock:
-        if _calibrator is None:
-            _calibrator = ConfidenceCalibrator()
-        return _calibrator
+    return _calibrator.get()
 
 
 @dataclass

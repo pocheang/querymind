@@ -18,6 +18,7 @@ from typing import Literal
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
+from app.core.singleton import Singleton
 from app.services.models.runtime import get_chat_model
 
 logger = logging.getLogger(__name__)
@@ -461,12 +462,9 @@ class AIReportEditor:
 # 全局实例
 # ============================================================================
 
-_ai_editor: AIReportEditor | None = None
+_ai_editor = Singleton(lambda: AIReportEditor())
 
 
 def get_ai_report_editor() -> AIReportEditor:
     """获取AI报告编辑器实例（单例）"""
-    global _ai_editor
-    if _ai_editor is None:
-        _ai_editor = AIReportEditor()
-    return _ai_editor
+    return _ai_editor.get()

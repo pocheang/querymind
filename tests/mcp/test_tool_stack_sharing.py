@@ -148,7 +148,7 @@ def test_constructing_the_tool_agent_does_not_build_the_stack():
 
     import app.mcp.runtime as runtime
 
-    assert runtime._stack is None
+    assert runtime._stack.peek() is None
 
 
 def test_default_capabilities_still_share_the_compiled_engine():

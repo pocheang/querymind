@@ -334,7 +334,7 @@ def tables(monkeypatch) -> TableStore:
         owner_user_id="bob",
         source="/uploads/bob/payroll.xlsx",
     )
-    monkeypatch.setattr(table_store_module, "_GLOBAL_TABLE_STORE", store)
+    monkeypatch.setattr(table_store_module._GLOBAL_TABLE_STORE, "_value", store)
     return store
 
 

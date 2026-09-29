@@ -52,10 +52,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "领域专家智能体全局只读注册表，启动时加载内置智能体，多进程独立保留",
     ),
-    "app/agents/registry.py::_REGISTRY_LOCK": (
-        "D",
-        "智能体注册表互斥锁，多进程各持一份保护自身单例初始化与查找",
-    ),
     "app/agents/router/calibration.py::_WRITER": (
         "D",
         "路由校准的后台写入线程和队列，写入的是 app.db 里的原子累加；队列本身只缓冲本进程待写的增量",
@@ -63,10 +59,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
     "app/agents/router/routing.py::_calibrator": (
         "D",
         "ARC-01 审计（2026-09-25）后：计数存在 app.db 的 router_calibration 表，各 worker 只做原子累加并定期重读；这个对象只缓冲不超过 20 条未写入的结果",
-    ),
-    "app/agents/router/routing.py::_calibrator_lock": (
-        "D",
-        "保护 _calibrator 的进程内互斥锁，本身不需要跨进程共享",
     ),
     "app/agents/shared/cache.py::_router_decision_cache": (
         "B",
@@ -159,10 +151,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
     "app/core/config.py::get_settings": (
         "B",
         "全局配置对象缓存，运行时热重载配置或配置中心推送变更时需要跨进程清理失效",
-    ),
-    "app/mcp/runtime.py::_lock": (
-        "D",
-        "工具栈延迟初始化线程互斥锁，多进程各持一份保护自身单例构建",
     ),
     "app/mcp/runtime.py::_stack": (
         "D",
@@ -396,10 +384,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "仅 SESSION_METADATA_BACKEND=memory 使用；STATE_BACKEND=shared 拒绝该后端（阶段 4），所以只在单进程部署里存在",
     ),
-    "app/services/tables/store.py::_GLOBAL_LOCK": (
-        "D",
-        "表格存储单例初始化互斥锁，多进程各持一份保护自身单例构建",
-    ),
     "app/services/tables/store.py::_GLOBAL_TABLE_STORE": (
         "B",
         "表格存储全局服务单例，包含进程内 TableEngine LRU 缓存，更新时需要跨进程失效",
@@ -460,10 +444,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "工具提供者全局注册表，启动时加载内置提供者，各进程可独立保留只读注册表",
     ),
-    "app/tools/registry.py::_REGISTRY_LOCK": (
-        "D",
-        "工具注册表互斥锁，多进程各持一份保护单进程内的工具初始化与发现",
-    ),
     "app/tools/web/factory.py::_PROVIDER_CACHE": (
         "B",
         "Web 搜索提供者实例缓存，配置热重载时需要跨进程失效重建",
@@ -504,10 +484,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "配额守卫单例；shared 模式下计数在 Redis（make_limiter），对象本身只持有限额与模式；配置重载时由 reset_quota_guard 重建",
     ),
-    "app/services/security/quota.py::_GUARD_LOCK": (
-        "D",
-        "只保护配额守卫单例的惰性构建，不持有任何状态",
-    ),
     "app/services/models/warmup.py::_state": (
         "D",
         "本进程模型预热的状态；每个 worker 各自加载自己的模型，状态也只描述本进程",
@@ -515,5 +491,13 @@ INVENTORY: dict[str, tuple[Category, str]] = {
     "app/services/models/warmup.py::_lock": (
         "D",
         "保护本进程预热状态的互斥锁",
+    ),
+    "app/services/runtime/execution_wake.py::_lock": (
+        "D",
+        "保护本进程内 SSE 订阅者登记表的互斥锁；订阅者只存在于接收连接的那个进程，无需跨进程共享",
+    ),
+    "app/services/runtime/execution_wake.py::_waiters": (
+        "D",
+        "内存模式下本进程 SSE 订阅者的唤醒登记；shared 模式改走 Redis Stream，不使用它",
     ),
 }
