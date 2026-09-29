@@ -67,7 +67,8 @@ def test_a_store_that_refuses_the_delete_keeps_the_file_and_the_registry_row(dat
     assert result["failed_steps"] == ["tables"]
     assert path.exists(), "the upload is what a retry needs to find the document again"
     row = get_document_by_source(str(path))
-    assert row is not None and row["status"] == "delete_failed"
+    assert row is not None
+    assert row["status"] == "delete_failed"
     assert "tables" in row["error"]
 
 
@@ -104,7 +105,8 @@ def test_reconcile_reports_orphans_without_touching_them(data, monkeypatch):
     assert report.orphan_table_sources == ["gone.xlsx"]
     assert report.orphan_multimodal_sources["image_descriptions"] == ["gone.png"]
     assert not report.clean
-    assert deleted == [] and path.exists()
+    assert deleted == []
+    assert path.exists()
 
 
 def test_a_consistent_index_is_clean(data, monkeypatch):
@@ -123,9 +125,11 @@ def test_repair_removes_only_derived_orphans(data, monkeypatch):
 
     report = reconcile.reconcile_index(repair=True)
 
-    assert removed["vectors"] == ["ghost"] and removed["tables"] == ["gone.xlsx"]
+    assert removed["vectors"] == ["ghost"]
+    assert removed["tables"] == ["gone.xlsx"]
     assert report.repaired["vectors"] == 1
-    assert path.exists() and get_document_by_source(str(path)) is not None
+    assert path.exists()
+    assert get_document_by_source(str(path)) is not None
 
 
 def test_an_unreadable_store_is_skipped_not_reported_empty(data, monkeypatch):
@@ -160,7 +164,8 @@ def test_repair_removes_orphan_graph_sources(data, monkeypatch):
 
     report = reconcile.reconcile_index(repair=True)
 
-    assert seen == ["gone.txt"] and report.repaired["graph_relations"] == 3
+    assert seen == ["gone.txt"]
+    assert report.repaired["graph_relations"] == 3
 
 
 def test_an_unreachable_graph_is_skipped_not_reported_clean_of_orphans(data, monkeypatch):
@@ -172,7 +177,8 @@ def test_an_unreachable_graph_is_skipped_not_reported_clean_of_orphans(data, mon
 
     monkeypatch.setattr(reconcile, "_graph_sources", down)
     report = reconcile.reconcile_index()
-    assert "graph" in report.skipped and report.orphan_graph_sources == []
+    assert "graph" in report.skipped
+    assert report.orphan_graph_sources == []
 
 
 def test_the_schedule_is_off_by_default_and_runs_a_pass_when_on(data, monkeypatch):

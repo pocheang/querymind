@@ -97,7 +97,9 @@ def test_the_migration_splits_a_version_one_blob(tmp_path):
     with closing(sqlite3.connect(db)) as conn:
         head, count = conn.execute("SELECT data_json, message_count FROM sessions").fetchone()
         rows = conn.execute("SELECT message_id FROM session_messages").fetchall()
-    assert "messages" not in json.loads(head) and count == 1 and rows == [("a",)]
+    assert "messages" not in json.loads(head)
+    assert count == 1
+    assert rows == [("a",)]
 
 
 def test_file_sessions_are_imported_once_when_the_backend_defaults_to_sqlite(settings_env, tmp_path):
