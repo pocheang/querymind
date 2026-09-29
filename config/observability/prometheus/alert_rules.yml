@@ -49,7 +49,7 @@ groups:
           component: queries
         annotations:
           summary: "More than 10% of questions fail with a server error"
-          description: "5xx ratio on POST /api/advanced-rag/query: {{ $value | humanizePercentage }}"
+          description: "5xx ratio on POST /api/v1/advanced-rag/query: {{ $value | humanizePercentage }}"
           action: "Check application logs; a 503 names an unavailable dependency, a 500 this service"
 
       - alert: AllCircuitBreakersOpen
@@ -78,7 +78,7 @@ groups:
           component: performance
         annotations:
           summary: "P95 question latency exceeds 4 seconds"
-          description: "P95 latency of POST /api/advanced-rag/query: {{ $value | humanizeDuration }}"
+          description: "P95 latency of POST /api/v1/advanced-rag/query: {{ $value | humanizeDuration }}"
           action: "Check the execution trace for the slow stage"
 
       - alert: CircuitBreakerOpen

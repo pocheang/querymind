@@ -121,7 +121,7 @@ export function LoginPage({ onLogin }: Readonly<Props>) {
       }
     }
 
-    window.location.href = `/auth/google/login?return=${encodeURIComponent(returnUrl)}`;
+    window.location.href = `/api/v1/auth/google/login?return=${encodeURIComponent(returnUrl)}`;
   };
 
   const handleGitHubLogin = () => {

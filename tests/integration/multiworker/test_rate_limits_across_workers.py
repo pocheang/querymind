@@ -71,7 +71,7 @@ def test_the_query_quota_is_one_count_for_every_worker(stack):
     clients = [stack.login(worker) for worker in stack.workers]
 
     statuses = [
-        clients[n % 2].post("/api/advanced-rag/query", json={"query": f"quota probe {n}"}).status_code
+        clients[n % 2].post("/api/v1/advanced-rag/query", json={"query": f"quota probe {n}"}).status_code
         for n in range(QUERY_QUOTA + 1)
     ]
 

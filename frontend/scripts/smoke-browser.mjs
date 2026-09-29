@@ -38,7 +38,7 @@ const BASE = (process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:8080").replace(/\/
 // Unauthenticated and served by the backend, so it answers through the proxy
 // without a token. A 401 would prove the proxy just as well; a 200 also proves
 // the application behind it is answering.
-const API_PROBE = "/api/advanced-rag/health";
+const API_PROBE = "/api/v1/advanced-rag/health";
 const TIMEOUT_MS = 30_000;
 
 const failures = [];

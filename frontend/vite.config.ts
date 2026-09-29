@@ -18,41 +18,23 @@ function createBackendProxy(rewriteAppBase = false) {
   };
 }
 
-const proxyConfig = {
-  "/auth": {
-    ...createBackendProxy(),
-    changeOrigin: true,
-    configure: (proxy: any, _options: any) => {
-      proxy.on('proxyRes', (proxyRes: any, _req: any, _res: any) => {
-        // Remove 'secure' flag from cookies in development
-        const setCookie = proxyRes.headers['set-cookie'];
-        if (setCookie) {
-          proxyRes.headers['set-cookie'] = Array.isArray(setCookie)
-            ? setCookie.map((cookie: string) => cookie.replace(/; secure/gi, ''))
-            : [(setCookie as string).replace(/; secure/gi, '')];
-        }
-      });
+// Every endpoint is /api/v1/... (ARC-06), so one prefix is proxied. The
+// `secure` flag is stripped from cookies the backend sets: development is plain
+// http, and a Secure cookie would never come back.
+const stripSecureCookies = (proxy: any, _options: any) => {
+  proxy.on("proxyRes", (proxyRes: any, _req: any, _res: any) => {
+    const setCookie = proxyRes.headers["set-cookie"];
+    if (setCookie) {
+      proxyRes.headers["set-cookie"] = Array.isArray(setCookie)
+        ? setCookie.map((cookie: string) => cookie.replace(/; secure/gi, ""))
+        : [(setCookie as string).replace(/; secure/gi, "")];
     }
-  },
-  "/sessions": createBackendProxy(),
-  "/documents": createBackendProxy(),
-  "/upload": createBackendProxy(),
-  "/prompts": createBackendProxy(),
-  "/query": createBackendProxy(),
-  "/admin": createBackendProxy(),
-  "/user": createBackendProxy(),
-  "/model-catalog": createBackendProxy(),
-  "/api/v1": createBackendProxy(),
-  "/api": createBackendProxy(),
-  "/app/auth": createBackendProxy(true),
-  "/app/sessions": createBackendProxy(true),
-  "/app/documents": createBackendProxy(true),
-  "/app/upload": createBackendProxy(true),
-  "/app/prompts": createBackendProxy(true),
-  "/app/query": createBackendProxy(true),
-  "/app/user": createBackendProxy(true),
-  "/app/model-catalog": createBackendProxy(true),
-  "/app/api": createBackendProxy(true),
+  });
+};
+
+const proxyConfig = {
+  "/api": { ...createBackendProxy(), configure: stripSecureCookies },
+  "/app/api": { ...createBackendProxy(true), configure: stripSecureCookies },
 };
 
 export default defineConfig({

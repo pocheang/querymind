@@ -110,7 +110,7 @@ def test_the_endpoint_changes_nothing_anywhere_when_redis_does_not_answer(levels
     logging.getLogger(LOGGER).setLevel(logging.WARNING)
 
     response = TestClient(main.app).post(
-        "/admin/ops/logging/level", json={"logger": LOGGER, "level": "DEBUG"}, headers=ADMIN
+        "/api/v1/admin/ops/logging/level", json={"logger": LOGGER, "level": "DEBUG"}, headers=ADMIN
     )
 
     assert response.status_code == 503
@@ -122,7 +122,7 @@ def test_the_endpoint_says_which_processes_a_change_reaches(levels_restored):
 
     body = (
         TestClient(main.app)
-        .post("/admin/ops/logging/level", json={"logger": LOGGER, "level": "INFO"}, headers=ADMIN)
+        .post("/api/v1/admin/ops/logging/level", json={"logger": LOGGER, "level": "INFO"}, headers=ADMIN)
         .json()
     )
 
@@ -138,7 +138,7 @@ def test_in_shared_mode_the_endpoint_says_the_change_reaches_every_worker(shared
 
     body = (
         TestClient(main.app)
-        .post("/admin/ops/logging/level", json={"logger": LOGGER, "level": "ERROR"}, headers=ADMIN)
+        .post("/api/v1/admin/ops/logging/level", json={"logger": LOGGER, "level": "ERROR"}, headers=ADMIN)
         .json()
     )
 

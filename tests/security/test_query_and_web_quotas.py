@@ -265,7 +265,7 @@ def test_the_query_route_answers_429_with_retry_after_before_running_anything(si
     guard.enforce_query_quota(user["X-Test-User-Id"])
     monkeypatch.setattr(query_module, "_run_advanced_query", lambda *a, **k: pytest.fail("the pipeline ran"))
 
-    response = _client().post("/api/advanced-rag/query", json={"query": "anything"}, headers=user)
+    response = _client().post("/api/v1/advanced-rag/query", json={"query": "anything"}, headers=user)
 
     assert response.status_code == 429, response.text
     assert int(response.headers["Retry-After"]) >= 1
@@ -286,7 +286,7 @@ def test_web_as_the_only_source_refused_by_quota_is_a_429_not_an_outage(
 
     monkeypatch.setattr(query_module, "_run_advanced_query", fail)
 
-    response = _client().post("/api/advanced-rag/query", json={"query": "latest news"}, headers=signed_in_user)
+    response = _client().post("/api/v1/advanced-rag/query", json={"query": "latest news"}, headers=signed_in_user)
 
     assert response.status_code == status, response.text
     if status == 429:

@@ -142,7 +142,9 @@ def _as(user_id: str) -> dict[str, str]:
 
 
 def test_an_owner_can_relabel_their_document(client):
-    response = client.patch("/documents/by-id/doc-alice", json={"agent_class": "CyberSecurity"}, headers=_as("alice"))
+    response = client.patch(
+        "/api/v1/documents/by-id/doc-alice", json={"agent_class": "CyberSecurity"}, headers=_as("alice")
+    )
 
     assert response.status_code == 200, response.text
     assert response.json() == {"document_id": "doc-alice", "agent_class": "cybersecurity"}
@@ -155,8 +157,12 @@ def test_an_owner_can_relabel_their_document(client):
 def test_someone_elses_document_is_not_found_not_forbidden(client):
     """'No such document' and 'not yours' answer identically: the difference is a disclosure."""
 
-    response = client.patch("/documents/by-id/doc-bob", json={"agent_class": "cybersecurity"}, headers=_as("alice"))
-    missing = client.patch("/documents/by-id/doc-none", json={"agent_class": "cybersecurity"}, headers=_as("alice"))
+    response = client.patch(
+        "/api/v1/documents/by-id/doc-bob", json={"agent_class": "cybersecurity"}, headers=_as("alice")
+    )
+    missing = client.patch(
+        "/api/v1/documents/by-id/doc-none", json={"agent_class": "cybersecurity"}, headers=_as("alice")
+    )
 
     assert response.status_code == missing.status_code == 404
     assert response.json() == missing.json()
@@ -164,7 +170,9 @@ def test_someone_elses_document_is_not_found_not_forbidden(client):
 
 
 def test_an_unknown_class_is_refused_and_nothing_is_written(client):
-    response = client.patch("/documents/by-id/doc-alice", json={"agent_class": "astrology"}, headers=_as("alice"))
+    response = client.patch(
+        "/api/v1/documents/by-id/doc-alice", json={"agent_class": "astrology"}, headers=_as("alice")
+    )
 
     assert response.status_code == 400
     assert "unknown agent_class" in response.text

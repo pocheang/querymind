@@ -27,19 +27,19 @@ export interface DocumentStats {
 
 export const analyticsApi = {
   overview() {
-    return request<AnalyticsOverview>("/api/analytics/overview");
+    return request<AnalyticsOverview>("/api/v1/analytics/overview");
   },
 
   agents() {
-    return request<AgentStats[]>("/api/analytics/agents");
+    return request<AgentStats[]>("/api/v1/analytics/agents");
   },
 
   documents(limit = 10) {
-    return request<DocumentStats[]>(`/api/analytics/documents?limit=${limit}`);
+    return request<DocumentStats[]>(`/api/v1/analytics/documents?limit=${limit}`);
   },
 
   exportUrl(format: "json" | "csv") {
-    return toUrl(`/api/analytics/export?format=${format}`);
+    return toUrl(`/api/v1/analytics/export?format=${format}`);
   },
 };
 
@@ -48,12 +48,12 @@ export const userSettingsApi = {
    * What model is answering, for a reader who cannot change it.
    *
    * Read-only by design: models are configured by an administrator and applied
-   * to every user. This replaced three `/user/api-settings` endpoints that let
+   * to every user. This replaced three per-user `api-settings` endpoints that let
    * any signed-in user save a provider, key and model -- and were never once
    * consulted when answering their questions.
    */
   async getActiveModel() {
-    const res = await authFetch("/user/active-model", { method: "GET" });
+    const res = await authFetch("/api/v1/user/active-model", { method: "GET" });
     return parseOrThrow<{
       ok: boolean;
       managed_by_admin: boolean;

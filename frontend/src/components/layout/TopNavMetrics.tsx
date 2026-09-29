@@ -11,13 +11,13 @@ import { analyticsApi, type AnalyticsOverview } from "@/services/api/app";
  * **The numbers are real and labelled as what they are.** The prototype shows
  * `Latency: 184ms` and `Cache Hit: 89.4%` as hardcoded demo text. There is no
  * cache-hit metric in this system, and the only figure available is the
- * corpus-wide average from `/api/analytics/overview` -- not "your last request",
+ * corpus-wide average from `/api/v1/analytics/overview` -- not "your last request",
  * which is what a bare "Latency" in a top bar reads as. So the labels say
  * *average*, and the second slot carries success rate, which this system does
  * measure, rather than a cache-hit number invented to fill the shape.
  *
  * **It renders for admins only, because that is who can read it.**
- * `/api/analytics/overview` is gated on `ADMIN_OPS_MANAGE`; showing the strip
+ * `/api/v1/analytics/overview` is gated on `ADMIN_OPS_MANAGE`; showing the strip
  * to anyone else would be a control that is permanently empty, which reads as
  * broken rather than as absent.
  *

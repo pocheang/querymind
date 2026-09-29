@@ -27,14 +27,14 @@ from app.api.middleware.rate_limit import RATE_LIMIT_RULES, RateLimitMiddleware
 
 # The operations that used to carry a decorator, as (method, concrete path).
 PREVIOUSLY_DECORATED = [
-    ("GET", "/admin/users", "list_users"),
-    ("POST", "/admin/users/u-1/credits/add", "credit_add"),
-    ("PATCH", "/admin/users/u-1/role", "role_update"),
-    ("POST", "/admin/users/create-admin", "admin_create"),
-    ("POST", "/admin/users/u-1/reset-approval-token", "approval_token_reset"),
-    ("POST", "/admin/users/u-1/reset-password", "admin_password_reset"),
-    ("PATCH", "/admin/users/u-1/status", "status_update"),
-    ("GET", "/admin/audit-logs", "audit_logs"),
+    ("GET", "/api/v1/admin/users", "list_users"),
+    ("POST", "/api/v1/admin/users/u-1/credits/add", "credit_add"),
+    ("PATCH", "/api/v1/admin/users/u-1/role", "role_update"),
+    ("POST", "/api/v1/admin/users/create-admin", "admin_create"),
+    ("POST", "/api/v1/admin/users/u-1/reset-approval-token", "approval_token_reset"),
+    ("POST", "/api/v1/admin/users/u-1/reset-password", "admin_password_reset"),
+    ("PATCH", "/api/v1/admin/users/u-1/status", "status_update"),
+    ("GET", "/api/v1/admin/audit-logs", "audit_logs"),
 ]
 
 
@@ -76,8 +76,8 @@ class TestEveryRuleGuardsSomethingThatExists:
         """Keying on the path would make the limit per target rather than per
         operation -- five password resets *each* rather than five in total."""
 
-        one = next(r for r in RATE_LIMIT_RULES if r.matches("POST", "/admin/users/aaa/reset-password"))
-        another = next(r for r in RATE_LIMIT_RULES if r.matches("POST", "/admin/users/bbb/reset-password"))
+        one = next(r for r in RATE_LIMIT_RULES if r.matches("POST", "/api/v1/admin/users/aaa/reset-password"))
+        another = next(r for r in RATE_LIMIT_RULES if r.matches("POST", "/api/v1/admin/users/bbb/reset-password"))
 
         assert one.name == another.name
 
@@ -88,7 +88,7 @@ class TestTheLimitIsEnforced:
 
     @staticmethod
     def _client() -> TestClient:
-        app = Starlette(routes=[Route("/auth/login", lambda request: PlainTextResponse("ok"), methods=["POST"])])
+        app = Starlette(routes=[Route("/api/v1/auth/login", lambda request: PlainTextResponse("ok"), methods=["POST"])])
         app.add_middleware(RateLimitMiddleware)
         return TestClient(app)
 
@@ -96,8 +96,8 @@ class TestTheLimitIsEnforced:
         client = self._client()
         login = next(r for r in RATE_LIMIT_RULES if r.name == "login")
 
-        allowed = [client.post("/auth/login").status_code for _ in range(login.max_requests)]
-        refused = client.post("/auth/login")
+        allowed = [client.post("/api/v1/auth/login").status_code for _ in range(login.max_requests)]
+        refused = client.post("/api/v1/auth/login")
 
         assert allowed == [200] * login.max_requests
         assert refused.status_code == 429

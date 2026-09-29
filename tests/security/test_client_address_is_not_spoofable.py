@@ -85,7 +85,9 @@ async def test_a_rotating_forwarded_header_does_not_buy_more_attempts():
     """The bypass itself: a fresh X-Forwarded-For per request used to mean a fresh bucket."""
 
     register = next(rule for rule in RATE_LIMIT_RULES if rule.name == "register")
-    inner = Starlette(routes=[Route("/auth/register", lambda request: PlainTextResponse("ok"), methods=["POST"])])
+    inner = Starlette(
+        routes=[Route("/api/v1/auth/register", lambda request: PlainTextResponse("ok"), methods=["POST"])]
+    )
     inner.add_middleware(RateLimitMiddleware)
     app = _served(inner)
     peer = "203.0.113.41"  # distinct from every other test's, so the process-wide counters cannot mix
@@ -93,7 +95,9 @@ async def test_a_rotating_forwarded_header_does_not_buy_more_attempts():
     statuses = []
     for attempt in range(register.max_requests + 1):
         headers = {"X-Forwarded-For": f"10.9.8.{attempt}", "X-Real-IP": f"10.9.7.{attempt}"}
-        statuses.append((await _request(app, peer, "/auth/register", method="POST", headers=headers)).status_code)
+        statuses.append(
+            (await _request(app, peer, "/api/v1/auth/register", method="POST", headers=headers)).status_code
+        )
 
     assert statuses == [200] * register.max_requests + [429]
 

@@ -50,7 +50,7 @@ def client(tmp_path, monkeypatch):
 
 
 def test_status_reports_every_source(client):
-    response = client.get("/admin/threat-intel/status", headers=ADMIN)
+    response = client.get("/api/v1/admin/threat-intel/status", headers=ADMIN)
 
     assert response.status_code == 200
     sources = {row["source"]: row for row in response.json()["sources"]}
@@ -59,7 +59,7 @@ def test_status_reports_every_source(client):
 
 
 def test_a_sync_is_accepted_queued_and_audited(client):
-    response = client.post("/admin/threat-intel/sync", json={"source": "kev"}, headers=ADMIN)
+    response = client.post("/api/v1/admin/threat-intel/sync", json={"source": "kev"}, headers=ADMIN)
 
     assert response.status_code == 202
     assert client.synced == ["kev"]
@@ -68,13 +68,13 @@ def test_a_sync_is_accepted_queued_and_audited(client):
 
 
 def test_all_means_every_source_in_order(client):
-    client.post("/admin/threat-intel/sync", json={"source": "all"}, headers=ADMIN)
+    client.post("/api/v1/admin/threat-intel/sync", json={"source": "all"}, headers=ADMIN)
 
     assert client.synced == ["nvd", "kev", "epss", "attack"]
 
 
 def test_an_unknown_source_is_rejected_before_anything_runs(client):
-    response = client.post("/admin/threat-intel/sync", json={"source": "osv"}, headers=ADMIN)
+    response = client.post("/api/v1/admin/threat-intel/sync", json={"source": "osv"}, headers=ADMIN)
 
     assert response.status_code == 422
     assert client.synced == []
@@ -83,14 +83,14 @@ def test_an_unknown_source_is_rejected_before_anything_runs(client):
 def test_a_full_queue_is_a_503_not_a_silent_drop(client):
     client.queue.accept = False
 
-    response = client.post("/admin/threat-intel/sync", json={"source": "kev"}, headers=ADMIN)
+    response = client.post("/api/v1/admin/threat-intel/sync", json={"source": "kev"}, headers=ADMIN)
 
     assert response.status_code == 503
     assert client.audits == []
 
 
 @pytest.mark.parametrize(
-    ("method", "path"), [("get", "/admin/threat-intel/status"), ("post", "/admin/threat-intel/sync")]
+    ("method", "path"), [("get", "/api/v1/admin/threat-intel/status"), ("post", "/api/v1/admin/threat-intel/sync")]
 )
 def test_a_non_admin_is_refused(client, method, path):
     response = getattr(client, method)(path, headers=VIEWER, **({"json": {}} if method == "post" else {}))

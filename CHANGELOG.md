@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ⚠️ Breaking: every endpoint is under `/api/v1`
+
+- The API was spread over about twenty prefixes: bare `/sessions`, `/admin/...`, `/auth/...`, `/documents`, `/prompts`, `/upload`, `/user/...`, `/model-catalog`, `/optimization/...`, `/agent-tracking/...`, `/circuit-breakers`, and `/api/advanced-rag`, `/api/analytics`, `/api/evaluation`. All of them are now `/api/v1/<same path>` (for example `/sessions` is `/api/v1/sessions`, `/api/advanced-rag/query` is `/api/v1/advanced-rag/query`). The old paths are removed, not deprecated, and so is the middleware that rewrote `/api/<name>` onto them; `/app/api/...` still works for a frontend served under a base path.
+- Not moved: `/`, `/health`, `/ready`, `/ready/dependencies`, `/metrics`, and the SPA under `/app`.
+- Update scripts, n8n workflows and monitoring that call the old paths. If Google sign-in is configured, change the authorized redirect URI to `.../api/v1/auth/google/callback`. Prometheus rules and nginx are updated in the repository; a deployment that copied its own nginx.conf needs `location ~ ^/api/v1/(orchestration/executions/[^/]+/events|agent-tracking/stream/)`.
+
 ## [0.7.1.1] - 2026-09-29
 
 Upgrade notes and API changes: [docs/releases/v0.7.1.1-release-notes.md](docs/releases/v0.7.1.1-release-notes.md).

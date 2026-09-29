@@ -150,7 +150,7 @@ const QUERY_ABORT_MS = QUERY_DEADLINE_MS + 15_000;
 export const queryApi = {
   async advanced(input: AdvancedQueryInput): Promise<NormalizedQueryResult> {
     const res = await authFetch(
-      "/api/advanced-rag/query",
+      "/api/v1/advanced-rag/query",
       {
         method: "POST",
         signal: input.signal,
@@ -196,37 +196,37 @@ export const queryApi = {
 
 export const sessionApi = {
   sessions() {
-    return authRequest<SessionSummary[]>("/sessions");
+    return authRequest<SessionSummary[]>("/api/v1/sessions");
   },
   sessionCreate(signal?: AbortSignal) {
-    return authRequest<SessionDetail>("/sessions", { method: "POST", signal });
+    return authRequest<SessionDetail>("/api/v1/sessions", { method: "POST", signal });
   },
   sessionDetail(sessionId: string, signal?: AbortSignal) {
-    return authRequest<SessionDetail>(`/sessions/${encodePathParam(sessionId)}`, { signal });
+    return authRequest<SessionDetail>(`/api/v1/sessions/${encodePathParam(sessionId)}`, { signal });
   },
   sessionDelete(sessionId: string) {
-    return authRequest<{ ok: boolean; session_id: string }>(`/sessions/${encodePathParam(sessionId)}`, {
+    return authRequest<{ ok: boolean; session_id: string }>(`/api/v1/sessions/${encodePathParam(sessionId)}`, {
       method: "DELETE",
     });
   },
   sessionRename(sessionId: string, title: string) {
-    return buildPatchRequest<SessionDetail>(`/sessions/${encodePathParam(sessionId)}`, { title });
+    return buildPatchRequest<SessionDetail>(`/api/v1/sessions/${encodePathParam(sessionId)}`, { title });
   },
   sessionPin(sessionId: string, pinned: boolean) {
-    return buildPatchRequest<SessionDetail>(`/sessions/${encodePathParam(sessionId)}`, { pinned });
+    return buildPatchRequest<SessionDetail>(`/api/v1/sessions/${encodePathParam(sessionId)}`, { pinned });
   },
   messageUpdate(sessionId: string, messageId: string, content: string, rerun: boolean) {
     const qs = buildQueryString({
       rerun: rerun ? "true" : "false",
     });
     return buildPatchRequest<SessionDetail>(
-      `/sessions/${encodePathParam(sessionId)}/messages/${encodePathParam(messageId)}?${qs}`,
+      `/api/v1/sessions/${encodePathParam(sessionId)}/messages/${encodePathParam(messageId)}?${qs}`,
       { content }
     );
   },
   messageDelete(sessionId: string, messageId: string) {
     return authRequest<SessionDetail>(
-      `/sessions/${encodePathParam(sessionId)}/messages/${encodePathParam(messageId)}`,
+      `/api/v1/sessions/${encodePathParam(sessionId)}/messages/${encodePathParam(messageId)}`,
       { method: "DELETE" }
     );
   },
@@ -243,7 +243,7 @@ export const documentApi = {
         const form = new FormData();
         for (const file of files) form.append("files", file);
         form.append("visibility", visibility);
-        const res = await authFetch("/upload", { method: "POST", body: form });
+        const res = await authFetch("/api/v1/upload", { method: "POST", body: form });
         return parseOrThrow<UploadResponse>(res);
       })();
     }
@@ -254,7 +254,7 @@ export const documentApi = {
       form.append("visibility", visibility);
 
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", toUrl("/upload"));
+      xhr.open("POST", toUrl("/api/v1/upload"));
       xhr.withCredentials = true;
       const headers = new Headers();
       const token = getToken();
@@ -299,11 +299,11 @@ export const documentApi = {
   },
 
   documents(params?: { visibility?: "all" | "private" | "public"; doc_type?: "pdf" | "other" }) {
-    return buildGetRequest<IndexedFileSummary[]>("/documents", params);
+    return buildGetRequest<IndexedFileSummary[]>("/api/v1/documents", params);
   },
 
   deleteDocument(filename: string) {
-    return authFetch(`/documents/${encodePathParam(filename)}`, { method: "DELETE" }).then(
+    return authFetch(`/api/v1/documents/${encodePathParam(filename)}`, { method: "DELETE" }).then(
       parseOrThrow<{ ok: boolean; filename: string }>
     );
   },
@@ -314,57 +314,57 @@ export const documentApi = {
   async documentDelete(filename: string, source: string, removeFile: boolean, documentId?: string | null) {
     const qs = new URLSearchParams({ remove_file: removeFile ? "true" : "false" });
     const path = documentId
-      ? `/documents/by-id/${encodePathParam(documentId)}?${qs.toString()}`
-      : `/documents/${encodePathParam(filename)}?${qs.toString()}&source=${encodeURIComponent(source)}`;
+      ? `/api/v1/documents/by-id/${encodePathParam(documentId)}?${qs.toString()}`
+      : `/api/v1/documents/${encodePathParam(filename)}?${qs.toString()}&source=${encodeURIComponent(source)}`;
     const res = await authFetch(path, { method: "DELETE" });
     return parseOrThrow<FileIndexActionResponse>(res);
   },
 
   reindexDocument(filename: string) {
-    return authFetch(`/documents/${encodePathParam(filename)}/reindex`, { method: "POST" }).then(
+    return authFetch(`/api/v1/documents/${encodePathParam(filename)}/reindex`, { method: "POST" }).then(
       parseOrThrow<FileIndexActionResponse>
     );
   },
 
   async documentReindex(filename: string, source: string, documentId?: string | null) {
     const path = documentId
-      ? `/documents/by-id/${encodePathParam(documentId)}/reindex`
-      : `/documents/${encodePathParam(filename)}/reindex?source=${encodeURIComponent(source)}`;
+      ? `/api/v1/documents/by-id/${encodePathParam(documentId)}/reindex`
+      : `/api/v1/documents/${encodePathParam(filename)}/reindex?source=${encodeURIComponent(source)}`;
     const res = await authFetch(path, { method: "POST" });
     return parseOrThrow<FileIndexActionResponse>(res);
   },
 
   /** Change a document's specialist domain. No reindex: the label is read at query time. */
   documentRelabel(documentId: string, agentClass: string) {
-    return buildPatchRequest<DocumentLabelResponse>(`/documents/by-id/${encodePathParam(documentId)}`, {
+    return buildPatchRequest<DocumentLabelResponse>(`/api/v1/documents/by-id/${encodePathParam(documentId)}`, {
       agent_class: agentClass,
     });
   },
 
   indexHealth() {
-    return authFetch("/documents/index-health", { method: "GET" }).then(parseOrThrow<IndexHealthResponse>);
+    return authFetch("/api/v1/documents/index-health", { method: "GET" }).then(parseOrThrow<IndexHealthResponse>);
   },
 };
 
 export const promptApi = {
   prompts() {
-    return authFetch("/prompts").then(parseOrThrow<PromptTemplate[]>);
+    return authFetch("/api/v1/prompts").then(parseOrThrow<PromptTemplate[]>);
   },
   promptCheck(title: string, content: string, useReasoning: boolean) {
-    return buildPostRequest<PromptCheckResponse>("/prompts/check", {
+    return buildPostRequest<PromptCheckResponse>("/api/v1/prompts/check", {
       title,
       content,
       use_reasoning: useReasoning,
     });
   },
   promptCreate(title: string, content: string) {
-    return buildPostRequest<PromptTemplate>("/prompts", { title, content });
+    return buildPostRequest<PromptTemplate>("/api/v1/prompts", { title, content });
   },
   promptUpdate(promptId: string, title: string, content: string) {
-    return buildPatchRequest<PromptTemplate>(`/prompts/${encodePathParam(promptId)}`, { title, content });
+    return buildPatchRequest<PromptTemplate>(`/api/v1/prompts/${encodePathParam(promptId)}`, { title, content });
   },
   async promptDelete(promptId: string) {
-    const res = await authFetch(`/prompts/${encodePathParam(promptId)}`, { method: "DELETE" });
+    const res = await authFetch(`/api/v1/prompts/${encodePathParam(promptId)}`, { method: "DELETE" });
     return parseOrThrow<{ ok: boolean; prompt_id: string }>(res);
   },
 };

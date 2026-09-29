@@ -45,7 +45,7 @@ def _wait_until_ready(client, expected: int, timeout: float = 180.0) -> dict:
     deadline = time.monotonic() + timeout
     report: dict = {}
     while time.monotonic() < deadline:
-        report = client.get("/documents/index-health").json()
+        report = client.get("/api/v1/documents/index-health").json()
         if report["ready_documents"] + report["failed_documents"] >= expected and not report["indexing_documents"]:
             return report
         time.sleep(0.5)
@@ -64,7 +64,7 @@ def test_concurrent_uploads_to_both_workers_agree_in_the_corpus_and_in_chroma(st
 
         files = {"files": (f"retention_{n}.txt", _text(n).encode("utf-8"), "text/plain")}
         for _ in range(30):
-            response = clients[n % 2].post("/upload", files=files)
+            response = clients[n % 2].post("/api/v1/upload", files=files)
             if response.status_code != 503:
                 return response
             assert response.json()["error_code"] == "INDEX_BUSY", response.text
