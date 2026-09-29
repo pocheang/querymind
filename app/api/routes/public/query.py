@@ -27,7 +27,7 @@ from app.api.dependencies import (
 from app.api.deps.auth import require_admin
 from app.api.deps.documents import _allowed_sources_for_user
 from app.api.routes.internal.pipeline_contract import record_query_analytics, retrieval_summary
-from app.api.transport.errors import internal_error, quota_exceeded, service_unavailable
+from app.api.transport.errors import internal_error, quota_exceeded, service_unavailable, unprocessable
 from app.api.transport.middleware import record_grounding_support
 from app.core.config import get_settings
 from app.domain.advanced_rag import (
@@ -51,6 +51,7 @@ from app.pipeline.rag_pipeline import RAGPipeline
 from app.services.observability.agent_execution_tracker import AgentExecutionTracker
 from app.services.observability.log_safety import question_ref
 from app.services.query.decomposer import DEFAULT_MAX_SUB_QUERIES
+from app.services.query.input_normalizer import QuestionBlockedError
 from app.services.runtime.shared_state import is_shared
 from app.services.security.quota import get_quota_guard
 from app.services.security.rbac import Permission
@@ -556,6 +557,13 @@ async def _run_advanced_query(
 
 def _raise_advanced_query_failure(exc: Exception, tracker, execution_id: str, query: str) -> None:
     """Translate a pipeline failure into the right HTTP error, after recording it. Always raises."""
+    if isinstance(exc, QuestionBlockedError):
+        # The screening refused the question. That is a fact about the
+        # question, not a fault in this service: a 500 read as an outage and
+        # gave the user nothing to act on.
+        tracker.fail_execution(execution_id, str(exc))
+        logger.info("Question refused by input screening on %s", question_ref(query))
+        raise unprocessable(str(exc)) from exc
     retrieval_failure = _retrieval_failure(exc)
     if retrieval_failure is None:
         tracker.fail_execution(execution_id, str(exc))

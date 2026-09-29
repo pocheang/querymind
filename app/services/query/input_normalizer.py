@@ -12,17 +12,6 @@ _SPACE_RE = re.compile(r"[ \u3000\t]+")
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
 _MULTI_REPEAT_CHAR_RE = re.compile(r"(.)\1{5,}")
 
-_ACTION_INTENT_RE = re.compile(
-    r"(执行|运行|帮我执行|直接执行|一键|下载并运行|run\s+this|execute|powershell|bash|shell|cmd)",
-    flags=re.IGNORECASE,
-)
-_DANGEROUS_COMMAND_RE = re.compile(
-    r"(rm\s+-rf|del\s+/[sqf]|format\s+[a-z]:|shutdown\s+/s|"
-    r"invoke-expression|iex\s*\(|powershell\s+-enc|cmd\.exe|"
-    r"curl\s+[^\\n]*\|\s*(bash|sh)|wget\s+[^\\n]*\|\s*(bash|sh)|"
-    r"reg\s+add\b|bcdedit\b|vssadmin\s+delete\s+shadows)",
-    flags=re.IGNORECASE,
-)
 _PROMPT_INJECTION_RE = re.compile(
     r"(ignore\s+(all\s+)?previous\s+instructions|"
     r"reveal\s+system\s+prompt|"
@@ -65,15 +54,27 @@ def normalize_user_question(question: str) -> str:
     return text
 
 
+class QuestionBlockedError(ValueError):
+    """A question the input screening refuses. The API answers 422, not 500.
+
+    A subclass of ValueError so existing callers that catch ValueError keep
+    working; the query endpoint catches this one first, because a refusal is a
+    fact about the question and a 500 sends an operator to look at the service.
+    """
+
+
 def validate_user_question_security(question: str) -> None:
+    """Refuse instructions aimed at the assistant, judged by intent.
+
+    A keyword rule used to run first: a dangerous command anywhere in the
+    question plus any word from an "action" list (执行, run, bash, shell...)
+    blocked it. "vssadmin delete shadows 被执行了怎么办？" -- an incident-response
+    question for the security specialist -- matched both, because 被执行了
+    ("was executed") contains 执行. `detect_prompt_injection` already blocks a
+    dangerous command only when it is a request to run it ("帮我执行 rm -rf"),
+    so the keyword rule added nothing but refusals of defensive questions.
+    """
     text = str(question or "")
-    danger = _DANGEROUS_COMMAND_RE.search(text)
-    action_intent = _ACTION_INTENT_RE.search(text)
-
-    if danger and action_intent:
-        raise ValueError(f"question blocked: potentially dangerous instruction '{danger.group(0)}'")
-
-    # Run state-of-the-art injection detector
     settings = get_settings()
     defense_enabled = bool(getattr(settings, "prompt_injection_defense_enabled", True))
     if defense_enabled:
@@ -85,14 +86,14 @@ def validate_user_question_security(question: str) -> None:
                 assessment.risk_score,
                 assessment.matched_rules,
             )
-            raise ValueError(
+            raise QuestionBlockedError(
                 f"question blocked: prompt-injection like instruction detected ({assessment.threat_type.value if assessment.threat_type else 'threat'})"
             )
     else:
         # Fallback legacy regex if defense is explicitly disabled
         injection = _PROMPT_INJECTION_RE.search(text)
         if injection:
-            raise ValueError("question blocked: prompt-injection like instruction detected")
+            raise QuestionBlockedError("question blocked: prompt-injection like instruction detected")
 
 
 def normalize_and_validate_user_question(question: str) -> str:

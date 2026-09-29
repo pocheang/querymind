@@ -427,10 +427,20 @@ class LocalEvidenceChatModel:
             return SimpleNamespace(content=self._decomposition_echo(human_text))
         return SimpleNamespace(content=self._answer(human_text))
 
+    # Where the clarification prompt (app/agents/clarification/prompts.py) puts
+    # the user's question, in either language.
+    _CLARIFICATION_QUESTION_RE = re.compile(r"(?:用户原始问题：|User Question:)[ \t]*([^\n]*)")
+
     def _clarification_json(self, text: str) -> str:
-        t = text.lower()
+        # Judge the question, not the prompt. This scanned the whole prompt, and
+        # the prompt's own instructions contain 设计 / 选型 / 方案 / 架构, so every
+        # question on the offline backend -- "is log4j 2.14.1 affected?" included
+        # -- was asked which tech stack it planned to use.
+        match = self._CLARIFICATION_QUESTION_RE.search(text)
+        t = (match.group(1) if match else "").lower()
         if any(w in t for w in ["设计", "选型", "方案", "架构", "迁移", "优化", "design", "architecture", "recommend"]):
-            is_en = "clarification agent" in t and "chinese" not in t and "zh" not in t
+            prompt = text.lower()
+            is_en = "clarification agent" in prompt and "chinese" not in prompt and "zh" not in prompt
             if is_en:
                 return json.dumps(
                     {
