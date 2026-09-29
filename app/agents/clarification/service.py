@@ -192,6 +192,15 @@ class ClarificationAgentService:
     def _should_skip_dynamic(self, request: OrchestrationRequest, active_context: ClarificationContext) -> bool:
         if is_smalltalk_query(request.question):
             return True
+        # The rules answer "complete" for anything they do not recognise, so
+        # asking the model whenever they did cost every question one serial
+        # model call before its answer started -- "is log4j 2.14.1 affected?"
+        # included. A first round asks the model only when there are
+        # constraints to collect: a question too short to say what it is about,
+        # or an open-ended task (build, design, plan). A lookup has none. A
+        # round already under way continues.
+        if active_context.clarification_round == 0 and not _may_lack_constraints(request.question):
+            return True
         max_dynamic_rounds = min(active_context.max_rounds, 3)
         return active_context.clarification_round >= max_dynamic_rounds
 
@@ -297,6 +306,36 @@ class ClarificationAgentService:
         if expected is None:
             return token is None
         return bool(token) and hmac.compare_digest(expected, str(token))
+
+
+# An open-ended task: something to build, design or plan, which comes with
+# constraints (scale, stack, budget) the question may not state.
+_OPEN_TASK_RE = re.compile(
+    r"设计|规划|搭建|构建|实现一个|选型|方案|架构|迁移|"
+    r"\b(?:build|design|plan|architect|set\s+up|migrate|recommend)\b",
+    re.IGNORECASE,
+)
+
+
+_CJK_CHAR_RE = re.compile(r"[一-鿿]")
+_LATIN_WORD_RE = re.compile(r"[A-Za-z0-9_.]+")
+
+
+def _too_short_to_say_what_it_is_about(question: str) -> bool:
+    """Fewer than twelve units: a Chinese character counts one, a Latin word two.
+
+    Characters alone make every English question long; the shared "few tokens"
+    rule counts a whole Chinese run as one token and makes every Chinese
+    question short. "怎么优化？" and "How do I fix it?" are short; "我们的数据
+    保留制度符合个保法吗？" is not.
+    """
+    text = question or ""
+    size = len(_CJK_CHAR_RE.findall(text)) + 2 * len(_LATIN_WORD_RE.findall(text))
+    return size < 12
+
+
+def _may_lack_constraints(question: str) -> bool:
+    return _too_short_to_say_what_it_is_about(question) or bool(_OPEN_TASK_RE.search(question or ""))
 
 
 def _question_language(request: OrchestrationRequest) -> str:

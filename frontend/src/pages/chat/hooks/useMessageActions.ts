@@ -262,7 +262,10 @@ async function runQueryAndStream({
       query: q,
       sessionId: sid,
       enableDecomposition: true,
-      enableSelfRag: true,
+      // Off: the verifier has already checked the answer. Self-RAG ran two or
+      // more further model calls after it, outside the pipeline's budget, and
+      // reported a second quality verdict that could contradict the first.
+      enableSelfRag: false,
       useWebFallback: useWebSearch,
       useReasoning: showReasoning,
       // The sidebar's agent mode. "" is Auto Router and sends nothing.

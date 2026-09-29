@@ -407,11 +407,29 @@ async def _run_self_rag_evaluation_impl(
     return answer_quality, sub_query_results
 
 
+def _self_rag_timeout(deadline_at: datetime | None) -> float | None:
+    """How long Self-RAG may take: the synthesis ceiling, cut to what the caller has left.
+
+    It runs after the pipeline, outside its budget. With only the synthesis
+    ceiling (30 s) a slow pipeline plus a slow evaluation ran past the client's
+    abort: the browser reported a timeout while the server went on to save the
+    answer. None means no time is left, so it is skipped.
+    """
+    ceiling = max(1.0, get_settings().stage_timeout_synthesis_ms / 1000.0)
+    if deadline_at is None:
+        return ceiling
+    remaining = (deadline_at - datetime.now(UTC)).total_seconds()
+    if remaining < 1.0:
+        return None
+    return min(ceiling, remaining)
+
+
 async def _run_self_rag_evaluation(
     *,
     query: str,
     pipeline_result: PipelineResult,
     plan_data: dict[str, Any] | None,
+    deadline_at: datetime | None = None,
 ) -> tuple[AnswerQuality | None, list[SubQueryResult]]:
     """Evaluate retrieval relevance and answer quality with the real SelfRAGEvaluator.
 
@@ -423,11 +441,14 @@ async def _run_self_rag_evaluation(
     its own ceiling here a slow model or a wide plan could make the whole
     response take arbitrarily longer than what the client declared.
     """
-    settings = get_settings()
+    timeout = _self_rag_timeout(deadline_at)
+    if timeout is None:
+        logger.info("Self-RAG evaluation skipped: the caller's deadline has no time left for it")
+        return None, []
     try:
         return await asyncio.wait_for(
             _run_self_rag_evaluation_impl(query=query, pipeline_result=pipeline_result, plan_data=plan_data),
-            timeout=max(1.0, settings.stage_timeout_synthesis_ms / 1000.0),
+            timeout=timeout,
         )
     except TimeoutError:
         logger.warning("Self-RAG evaluation timed out; returning primary answer without quality data")
@@ -506,6 +527,7 @@ async def _run_advanced_query(
             query=request_data.query,
             pipeline_result=pipeline_result,
             plan_data=plan_data,
+            deadline_at=pipeline_request.deadline_at,
         )
 
     # Rides the request's own metrics row, which is the window build_ops_alerts
