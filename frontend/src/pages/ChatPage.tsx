@@ -1,3 +1,5 @@
+import { useSessions } from "@/pages/chat/hooks/useSessions";
+import { useDocuments } from "@/pages/chat/hooks/useDocuments";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -42,15 +44,9 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     setSidebarOpen,
     sidebarCollapsed,
     setSidebarCollapsed,
-    sessions,
-    setSessions,
-    setSessionLoading,
     currentSessionId,
-    setCurrentSessionId,
     messages,
     setMessages,
-    setBusySessionId,
-    setIsCreatingSession,
     setQuestion,
     isSending,
     setIsSending,
@@ -58,24 +54,14 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     setAgentClassHint,
     pdfTargetFile,
     setPdfTargetFile,
-    documents,
-    setDocuments,
-    setDocsLoading,
-    setUploading,
-    setUploadInfo,
-    setUploadProgress,
-    setUploadProgressText,
-    uploadVisibility,
     setUploadVisibility,
     setDocDropActive,
     setComposerDropActive,
     setPromptTitle,
     setPromptContent,
     setEditingPromptId,
-    setPromptCheckInfo,
     toasts,
     setToasts,
-    setError,
     settingsOpen,
     setSettingsOpen,
     fileInputRef,
@@ -83,6 +69,8 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
     questionRef,
     chatScrollRef,
   } = useChatPageState();
+  const { sessions } = useSessions();
+  const { documents } = useDocuments();
 
   const [searchParams] = useSearchParams();
   useEffect(() => {
@@ -110,29 +98,6 @@ export function ChatPage({ user, onLogout, onUserRefresh }: Readonly<Props>) {
   };
 
   const actions = useChatActions({
-    setToasts,
-    setError,
-    setSessions,
-    setSessionLoading,
-    setCurrentSessionId,
-    setMessages,
-    setBusySessionId,
-    setIsCreatingSession,
-    setDocuments,
-    setDocsLoading,
-    setUploading,
-    setUploadInfo,
-    setUploadProgress,
-    setUploadProgressText,
-    setAgentClassHint,
-    setEditingPromptId,
-    setPromptTitle,
-    setPromptContent,
-    setPromptCheckInfo,
-    currentSessionId,
-    sessions,
-    messages,
-    uploadVisibility,
     fileInputRef,
     chatUploadInputRef,
     onLogout,

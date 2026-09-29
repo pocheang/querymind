@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { IndexedFileSummary, SessionMessage, SessionSummary } from "@/types/api";
+import type { SessionMessage } from "@/types/api";
 import type { Toast } from "@/pages/chat/types";
 import type { AgentClassHint } from "@/pages/chat/constants";
 
@@ -10,8 +10,6 @@ export interface ChatState {
   // Session State
   sidebarOpen: boolean;
   sidebarCollapsed: boolean;
-  sessions: SessionSummary[];
-  sessionLoading: boolean;
   currentSessionId: string | null;
   messages: SessionMessage[];
   busySessionId: string | null;
@@ -30,8 +28,6 @@ export interface ChatState {
   showReasoning: boolean;
 
   // Document State
-  documents: IndexedFileSummary[];
-  docsLoading: boolean;
   uploading: boolean;
   uploadInfo: string;
   uploadProgress: number;
@@ -54,8 +50,6 @@ export interface ChatState {
   // Actions / Setters
   setSidebarOpen: (open: Updater<boolean>) => void;
   setSidebarCollapsed: (collapsed: Updater<boolean>) => void;
-  setSessions: (sessions: Updater<SessionSummary[]>) => void;
-  setSessionLoading: (loading: Updater<boolean>) => void;
   setCurrentSessionId: (id: Updater<string | null>) => void;
   setMessages: (messages: Updater<SessionMessage[]>) => void;
   setBusySessionId: (id: Updater<string | null>) => void;
@@ -69,8 +63,6 @@ export interface ChatState {
   setUseWebSearch: (useWebSearch: Updater<boolean>) => void;
   setShowReasoning: (showReasoning: Updater<boolean>) => void;
 
-  setDocuments: (docs: Updater<IndexedFileSummary[]>) => void;
-  setDocsLoading: (loading: Updater<boolean>) => void;
   setUploading: (uploading: Updater<boolean>) => void;
   setUploadInfo: (info: Updater<string>) => void;
   setUploadProgress: (progress: Updater<number>) => void;
@@ -115,8 +107,6 @@ const INITIAL_STATE: ChatData = {
   // Session State
   sidebarOpen: false,
   sidebarCollapsed: false,
-  sessions: [],
-  sessionLoading: true,
   currentSessionId: null,
   messages: [],
   busySessionId: null,
@@ -132,8 +122,6 @@ const INITIAL_STATE: ChatData = {
   showReasoning: false,
 
   // Document State
-  documents: [],
-  docsLoading: false,
   uploading: false,
   uploadInfo: "",
   uploadProgress: 0,
@@ -160,8 +148,6 @@ export const useChatStore = create<ChatState>((set) => ({
   // Setters supporting both raw values and functional updates
   setSidebarOpen: (val) => set((s) => ({ sidebarOpen: updateValue(val, s.sidebarOpen) })),
   setSidebarCollapsed: (val) => set((s) => ({ sidebarCollapsed: updateValue(val, s.sidebarCollapsed) })),
-  setSessions: (val) => set((s) => ({ sessions: updateValue(val, s.sessions) })),
-  setSessionLoading: (val) => set((s) => ({ sessionLoading: updateValue(val, s.sessionLoading) })),
   setCurrentSessionId: (val) => set((s) => ({ currentSessionId: updateValue(val, s.currentSessionId) })),
   setMessages: (val) => set((s) => ({ messages: updateValue(val, s.messages) })),
   setBusySessionId: (val) => set((s) => ({ busySessionId: updateValue(val, s.busySessionId) })),
@@ -175,8 +161,6 @@ export const useChatStore = create<ChatState>((set) => ({
   setUseWebSearch: (val) => set((s) => ({ useWebSearch: updateValue(val, s.useWebSearch) })),
   setShowReasoning: (val) => set((s) => ({ showReasoning: updateValue(val, s.showReasoning) })),
 
-  setDocuments: (val) => set((s) => ({ documents: updateValue(val, s.documents) })),
-  setDocsLoading: (val) => set((s) => ({ docsLoading: updateValue(val, s.docsLoading) })),
   setUploading: (val) => set((s) => ({ uploading: updateValue(val, s.uploading) })),
   setUploadInfo: (val) => set((s) => ({ uploadInfo: updateValue(val, s.uploadInfo) })),
   setUploadProgress: (val) => set((s) => ({ uploadProgress: updateValue(val, s.uploadProgress) })),

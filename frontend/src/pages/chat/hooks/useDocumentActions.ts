@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { appApi } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
+import { DOCUMENTS_QUERY_KEY, fetchDocuments } from "./useDocuments";
 import type { FileIndexActionResponse, IndexedFileSummary, UploadResponse } from "@/types/api";
 import type { AgentClassHint } from "@/pages/chat/types";
 import { waitForReindex, type ReindexOutcome } from "./reindexPolling";
@@ -55,8 +57,6 @@ function buildUploadSummary(data: UploadResponse, t: TFn): string[] {
 }
 
 interface UseDocumentActionsParams {
-  setDocuments: Dispatch<SetStateAction<IndexedFileSummary[]>>;
-  setDocsLoading: Dispatch<SetStateAction<boolean>>;
   setUploading: Dispatch<SetStateAction<boolean>>;
   setUploadInfo: Dispatch<SetStateAction<string>>;
   setUploadProgress: Dispatch<SetStateAction<number>>;
@@ -74,8 +74,6 @@ interface UseDocumentActionsParams {
 export function useDocumentActions(params: UseDocumentActionsParams) {
   const { t } = useTranslation();
   const {
-    setDocuments,
-    setDocsLoading,
     setUploading,
     setUploadInfo,
     setUploadProgress,
@@ -90,16 +88,13 @@ export function useDocumentActions(params: UseDocumentActionsParams) {
     confirm,
   } = params;
 
-  const refreshDocuments = async (silent = false) => {
-    if (!silent) setDocsLoading(true);
+  // The list lives in the query cache (useDocuments); see refreshSessions.
+  const refreshDocuments = async (_silent = false) => {
     try {
-      const rows = await appApi.documents();
-      setDocuments(rows);
+      await queryClient.fetchQuery({ queryKey: DOCUMENTS_QUERY_KEY, queryFn: fetchDocuments, staleTime: 0 });
       setError("");
     } catch (e) {
       await handleApiError(e, t("components.workbench.loadDocumentsFailed"));
-    } finally {
-      if (!silent) setDocsLoading(false);
     }
   };
 

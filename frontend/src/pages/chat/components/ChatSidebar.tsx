@@ -1,3 +1,5 @@
+import { useSessions } from "@/pages/chat/hooks/useSessions";
+import { useDocuments } from "@/pages/chat/hooks/useDocuments";
 import { usePrompts } from "@/pages/chat/hooks/usePrompts";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -71,18 +73,16 @@ export function ChatSidebar({
 }: Readonly<Props>) {
   const { t } = useTranslation();
   const { prompts, promptsLoading } = usePrompts();
+  const { sessions, sessionLoading } = useSessions();
+  const { documents, docsLoading } = useDocuments();
   const {
     sidebarOpen,
     sidebarCollapsed,
-    sessions,
-    sessionLoading,
     currentSessionId,
     busySessionId,
     isCreatingSession,
     agentClassHint,
     pdfTargetFile,
-    documents,
-    docsLoading,
     uploading,
     uploadInfo,
     uploadProgress,
@@ -97,15 +97,11 @@ export function ChatSidebar({
     useShallow((s) => ({
       sidebarOpen: s.sidebarOpen,
       sidebarCollapsed: s.sidebarCollapsed,
-      sessions: s.sessions,
-      sessionLoading: s.sessionLoading,
       currentSessionId: s.currentSessionId,
       busySessionId: s.busySessionId,
       isCreatingSession: s.isCreatingSession,
       agentClassHint: s.agentClassHint,
       pdfTargetFile: s.pdfTargetFile,
-      documents: s.documents,
-      docsLoading: s.docsLoading,
       uploading: s.uploading,
       uploadInfo: s.uploadInfo,
       uploadProgress: s.uploadProgress,

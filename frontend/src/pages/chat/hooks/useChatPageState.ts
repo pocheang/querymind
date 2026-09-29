@@ -10,13 +10,10 @@ export function useChatPageState() {
   // docs/superpowers/plans/2026-08-29-frontend-audit-followups.md Part 1.
   const sidebarOpen = useChatStore((s) => s.sidebarOpen);
   const sidebarCollapsed = useChatStore((s) => s.sidebarCollapsed);
-  const sessions = useChatStore((s) => s.sessions);
   const currentSessionId = useChatStore((s) => s.currentSessionId);
   const messages = useChatStore((s) => s.messages);
   const isSending = useChatStore((s) => s.isSending);
   const pdfTargetFile = useChatStore((s) => s.pdfTargetFile);
-  const documents = useChatStore((s) => s.documents);
-  const uploadVisibility = useChatStore((s) => s.uploadVisibility);
   const toasts = useChatStore((s) => s.toasts);
   const settingsOpen = useChatStore((s) => s.settingsOpen);
 
@@ -26,32 +23,19 @@ export function useChatPageState() {
   const {
     setSidebarOpen,
     setSidebarCollapsed,
-    setSessions,
-    setSessionLoading,
-    setCurrentSessionId,
     setMessages,
-    setBusySessionId,
-    setIsCreatingSession,
     setQuestion,
     setIsSending,
     setRunStatus,
     setAgentClassHint,
     setPdfTargetFile,
-    setDocuments,
-    setDocsLoading,
-    setUploading,
-    setUploadInfo,
-    setUploadProgress,
-    setUploadProgressText,
     setUploadVisibility,
     setDocDropActive,
     setComposerDropActive,
     setPromptTitle,
     setPromptContent,
     setEditingPromptId,
-    setPromptCheckInfo,
     setToasts,
-    setError,
     setSettingsOpen,
   } = useChatStore.getState();
 
@@ -65,15 +49,9 @@ export function useChatPageState() {
     setSidebarOpen,
     sidebarCollapsed,
     setSidebarCollapsed,
-    sessions,
-    setSessions,
-    setSessionLoading,
     currentSessionId,
-    setCurrentSessionId,
     messages,
     setMessages,
-    setBusySessionId,
-    setIsCreatingSession,
     setQuestion,
     isSending,
     setIsSending,
@@ -81,24 +59,14 @@ export function useChatPageState() {
     setAgentClassHint,
     pdfTargetFile,
     setPdfTargetFile,
-    documents,
-    setDocuments,
-    setDocsLoading,
-    setUploading,
-    setUploadInfo,
-    setUploadProgress,
-    setUploadProgressText,
-    uploadVisibility,
     setUploadVisibility,
     setDocDropActive,
     setComposerDropActive,
     setPromptTitle,
     setPromptContent,
     setEditingPromptId,
-    setPromptCheckInfo,
     toasts,
     setToasts,
-    setError,
     settingsOpen,
     setSettingsOpen,
     fileInputRef,

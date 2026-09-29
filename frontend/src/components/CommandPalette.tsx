@@ -1,3 +1,4 @@
+import { useCachedSessions } from "@/pages/chat/hooks/useSessions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Command } from "cmdk";
 import { useTranslation } from "react-i18next";
@@ -63,7 +64,7 @@ export function CommandPalette({
   const navigate = useNavigate();
   const location = useLocation();
   const toggleSidebar = useSidebarToggle();
-  const sessions = useChatStore((s) => s.sessions);
+  const sessions = useCachedSessions();
   const setCurrentSessionId = useChatStore((s) => s.setCurrentSessionId);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);

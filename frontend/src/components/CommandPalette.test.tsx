@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 
 import { CommandPalette } from "@/components/CommandPalette";
+import { queryClient } from "@/lib/queryClient";
+import { SESSIONS_QUERY_KEY } from "@/pages/chat/hooks/useSessions";
 import { useChatStore } from "@/stores/useChatStore";
 import type { UserIdentity } from "@/types/auth";
 
@@ -34,23 +37,28 @@ const viewer: UserIdentity = { user_id: "u2", username: "vera", role: "viewer" }
 
 function show(props: Partial<React.ComponentProps<typeof CommandPalette>> = {}) {
   return render(
-    <MemoryRouter initialEntries={["/app"]}>
-      <CommandPalette open onOpenChange={vi.fn()} user={admin} {...props} />
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/app"]}>
+        <CommandPalette open onOpenChange={vi.fn()} user={admin} {...props} />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
 afterEach(() => {
   cleanup();
   useChatStore.getState().reset();
+  queryClient.clear();
 });
 
 describe("the command palette", () => {
   it("renders nothing while closed", () => {
     const { container } = render(
-      <MemoryRouter>
-        <CommandPalette open={false} onOpenChange={vi.fn()} user={admin} />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CommandPalette open={false} onOpenChange={vi.fn()} user={admin} />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
     expect(container.innerHTML).toBe("");
   });
@@ -94,10 +102,10 @@ describe("the command palette", () => {
     expect(screen.queryByText("Sessions")).toBeNull();
 
     cleanup();
-    useChatStore.getState().setSessions([
+    queryClient.setQueryData(SESSIONS_QUERY_KEY, [
       { session_id: "s1", title: "Retrieval tuning" },
       { session_id: "s2", title: "Graph route" },
-    ] as never);
+    ]);
     show();
     expect(screen.getByText("Retrieval tuning")).toBeTruthy();
   });
@@ -128,17 +136,21 @@ describe("dismissal", () => {
     expect(document.activeElement).toBe(opener);
 
     const { rerender } = render(
-      <MemoryRouter initialEntries={["/app"]}>
-        <CommandPalette open onOpenChange={vi.fn()} user={admin} />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/app"]}>
+          <CommandPalette open onOpenChange={vi.fn()} user={admin} />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
     // The palette autofocuses its input, so focus has definitely moved.
     expect(document.activeElement).not.toBe(opener);
 
     rerender(
-      <MemoryRouter initialEntries={["/app"]}>
-        <CommandPalette open={false} onOpenChange={vi.fn()} user={admin} />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/app"]}>
+          <CommandPalette open={false} onOpenChange={vi.fn()} user={admin} />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
     expect(document.activeElement).toBe(opener);
     opener.remove();

@@ -1,8 +1,7 @@
-import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { createApiErrorHandler } from "@/services/http/apiErrorHandler";
-import type { IndexedFileSummary, SessionMessage, SessionSummary } from "@/types/api";
-import type { AgentClassHint, Toast } from "@/pages/chat/types";
+import type { Toast } from "@/pages/chat/types";
+import { useChatStore } from "@/stores/useChatStore";
 import { useSessionActions } from "./useSessionActions";
 import { useDocumentActions } from "./useDocumentActions";
 import { usePromptActions } from "./usePromptActions";
@@ -10,29 +9,6 @@ import { useMessageOperations } from "./useMessageOperations";
 import { randomId } from "@/lib/randomId";
 
 interface UseChatActionsParams {
-  setToasts: Dispatch<SetStateAction<Toast[]>>;
-  setError: Dispatch<SetStateAction<string>>;
-  setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
-  setSessionLoading: Dispatch<SetStateAction<boolean>>;
-  setCurrentSessionId: Dispatch<SetStateAction<string | null>>;
-  setMessages: Dispatch<SetStateAction<SessionMessage[]>>;
-  setBusySessionId: Dispatch<SetStateAction<string | null>>;
-  setIsCreatingSession: Dispatch<SetStateAction<boolean>>;
-  setDocuments: Dispatch<SetStateAction<IndexedFileSummary[]>>;
-  setDocsLoading: Dispatch<SetStateAction<boolean>>;
-  setUploading: Dispatch<SetStateAction<boolean>>;
-  setUploadInfo: Dispatch<SetStateAction<string>>;
-  setUploadProgress: Dispatch<SetStateAction<number>>;
-  setUploadProgressText: Dispatch<SetStateAction<string>>;
-  setAgentClassHint: Dispatch<SetStateAction<AgentClassHint>>;
-  setEditingPromptId: Dispatch<SetStateAction<string | null>>;
-  setPromptTitle: Dispatch<SetStateAction<string>>;
-  setPromptContent: Dispatch<SetStateAction<string>>;
-  setPromptCheckInfo: Dispatch<SetStateAction<string>>;
-  currentSessionId: string | null;
-  sessions: SessionSummary[];
-  messages: SessionMessage[];
-  uploadVisibility: "private" | "public";
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   chatUploadInputRef: React.RefObject<HTMLInputElement | null>;
   onLogout: () => Promise<void>;
@@ -48,17 +24,19 @@ interface UseChatActionsParams {
 
 export function useChatActions(params: UseChatActionsParams) {
   const { t } = useTranslation();
+  // Store-backed state and its setters are read here rather than threaded
+  // through ChatPage: the setters never change identity, and passing twenty of
+  // them down by hand is what made this hook's signature the widest in the app.
+  const currentSessionId = useChatStore((st) => st.currentSessionId);
+  const messages = useChatStore((st) => st.messages);
+  const uploadVisibility = useChatStore((st) => st.uploadVisibility);
   const {
     setToasts,
     setError,
-    setSessions,
-    setSessionLoading,
     setCurrentSessionId,
     setMessages,
     setBusySessionId,
     setIsCreatingSession,
-    setDocuments,
-    setDocsLoading,
     setUploading,
     setUploadInfo,
     setUploadProgress,
@@ -68,17 +46,8 @@ export function useChatActions(params: UseChatActionsParams) {
     setPromptTitle,
     setPromptContent,
     setPromptCheckInfo,
-    currentSessionId,
-    sessions,
-    messages,
-    uploadVisibility,
-    fileInputRef,
-    chatUploadInputRef,
-    onLogout,
-    closeSidebar,
-    confirm,
-    promptInput,
-  } = params;
+  } = useChatStore.getState();
+  const { fileInputRef, chatUploadInputRef, onLogout, closeSidebar, confirm, promptInput } = params;
 
   const notify = (text: string, kind: Toast["kind"] = "info", ttl = 2400) => {
     const id = randomId();
@@ -99,14 +68,11 @@ export function useChatActions(params: UseChatActionsParams) {
   const sessionActions = useSessionActions({
     setToasts,
     setError,
-    setSessions,
-    setSessionLoading,
     setCurrentSessionId,
     setMessages,
     setBusySessionId,
     setIsCreatingSession,
     currentSessionId,
-    sessions,
     messages,
     onLogout,
     closeSidebar,
@@ -116,8 +82,6 @@ export function useChatActions(params: UseChatActionsParams) {
 
   // Document management actions
   const documentActions = useDocumentActions({
-    setDocuments,
-    setDocsLoading,
     setUploading,
     setUploadInfo,
     setUploadProgress,
