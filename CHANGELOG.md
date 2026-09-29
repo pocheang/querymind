@@ -4,12 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-09-29
+
+Upgrade notes: [docs/releases/v0.7.2-release-notes.md](docs/releases/v0.7.2-release-notes.md).
+
 ### ⚠️ Breaking: every endpoint is under `/api/v1`
 
 - The API was spread over about twenty prefixes: bare `/sessions`, `/admin/...`, `/auth/...`, `/documents`, `/prompts`, `/upload`, `/user/...`, `/model-catalog`, `/optimization/...`, `/agent-tracking/...`, `/circuit-breakers`, and `/api/advanced-rag`, `/api/analytics`, `/api/evaluation`. All of them are now `/api/v1/<same path>` (for example `/sessions` is `/api/v1/sessions`, `/api/advanced-rag/query` is `/api/v1/advanced-rag/query`). The old paths are removed, not deprecated, and so is the middleware that rewrote `/api/<name>` onto them; `/app/api/...` still works for a frontend served under a base path.
 - One live stream and one trace endpoint: `GET /api/v1/orchestration/executions/{id}/events` is the only SSE (the polling `/agent-tracking/stream/{id}`, which saw only its own worker, is removed), and `/api/v1/agent-tracking/trace/{id}` is the only trace read (the admin-only duplicate `/agents/trace/{id}` is removed). 160 operations become 158.
 - Not moved: `/`, `/health`, `/ready`, `/ready/dependencies`, `/metrics`, and the SPA under `/app`.
 - Update scripts, n8n workflows and monitoring that call the old paths. If Google sign-in is configured, change the authorized redirect URI to `.../api/v1/auth/google/callback`. Prometheus rules and nginx are updated in the repository; a deployment that copied its own nginx.conf needs `location ~ ^/api/v1/(orchestration/executions/[^/]+/events|agent-tracking/stream/)`.
+
+### 🗂️ Deleting and storing documents and conversations
+
+- A document delete that a store refuses keeps the upload and the registry record, marks it `delete_failed` and answers 503; retrying finishes it.
+- `python -m app.services.documents.reconcile [--repair]` compares corpus, vectors, tables, image/table summaries, the graph and the registry; `INDEX_RECONCILE_INTERVAL_SECONDS` schedules it (off by default, report-only unless `INDEX_RECONCILE_REPAIR`).
+- `HISTORY_BACKEND` defaults to `sqlite`; each message is its own row, and existing JSON conversations are imported on first access.
+
+### ⚙️ Internals
+
+- Single-process event streams are woken by writers instead of polling every 50 ms.
+- The workflow state holds only serializable data; per-run budget and callbacks live in a run scope.
+- Process-wide singletons share one helper (`global` statements 43 → 1).
+- Frontend: one import path for the API client; sessions, documents and prompts in a TanStack Query cache, cleared on sign-out.
 
 ## [0.7.1.1] - 2026-09-29
 
