@@ -47,6 +47,8 @@ _LOCK_REGISTRY_GUARD = threading.Lock()
 _LOCK_REGISTRY: dict[str, threading.RLock] = {}
 _SESSION_FILE_GLOB = "*.json"
 _IMPORTED_MARKER = ".imported-to-sqlite"
+# Take the write lock at the start, so a read-modify-write cannot interleave with another writer.
+_BEGIN_WRITE = "BEGIN IMMEDIATE"
 
 # A change: edit the session in place and return True to write it back, or
 # False to abandon it -- nothing is written and the caller gets None.
@@ -231,7 +233,7 @@ class HistoryStore:
             # connection with a transaction open rolls it back.
             with closing(self._connect()) as conn:
                 conn.isolation_level = None
-                conn.execute("BEGIN IMMEDIATE")
+                conn.execute(_BEGIN_WRITE)
                 data, stored = read_session_row(conn, self._namespace, session_id)
                 yield _Unit(data, lambda new: write_session(conn, self._namespace, session_id, new, stored))
                 conn.execute("COMMIT")
@@ -371,7 +373,7 @@ class HistoryStore:
         if self._backend == "sqlite":
             with self._lock, closing(self._connect()) as conn:
                 conn.isolation_level = None
-                conn.execute("BEGIN IMMEDIATE")
+                conn.execute(_BEGIN_WRITE)
                 conn.execute(
                     "DELETE FROM session_messages WHERE namespace=? AND session_id=?", (self._namespace, session_id)
                 )
@@ -647,7 +649,7 @@ class HistoryStore:
             return
         with self._lock, closing(self._connect()) as conn:
             conn.isolation_level = None
-            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(_BEGIN_WRITE)
             imported = 0
             for directory in (self.base_dir, self._cold_dir):
                 for path in sorted(directory.glob(_SESSION_FILE_GLOB)):

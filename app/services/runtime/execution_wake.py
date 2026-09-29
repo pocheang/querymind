@@ -40,10 +40,11 @@ class Waiter:
     def clear(self) -> None:
         self._event.clear()
 
-    async def wait(self, timeout: float) -> bool:
-        """True if woken, False on timeout (the heartbeat)."""
+    async def wait(self, heartbeat: float) -> bool:
+        """True if woken, False when `heartbeat` seconds pass first."""
         try:
-            await asyncio.wait_for(self._event.wait(), timeout)
+            async with asyncio.timeout(heartbeat):
+                await self._event.wait()
         except TimeoutError:
             return False
         return True
