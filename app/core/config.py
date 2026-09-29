@@ -471,7 +471,7 @@ class Settings(BaseSettings):
     google_client_id: str = Field(default="", alias="GOOGLE_CLIENT_ID")
     google_client_secret: str = Field(default="", alias="GOOGLE_CLIENT_SECRET")
     google_redirect_uri: str = Field(
-        default="http://localhost:8000/api/auth/google/callback", alias="OAUTH_REDIRECT_URI"
+        default="http://localhost:8000/api/v1/auth/google/callback", alias="OAUTH_REDIRECT_URI"
     )
 
     query_rate_limit_max_attempts: int = Field(default=30, alias="QUERY_RATE_LIMIT_MAX_ATTEMPTS")

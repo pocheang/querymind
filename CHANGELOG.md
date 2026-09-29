@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 Fixes
+
+- `OAUTH_REDIRECT_URI` defaulted to `/api/auth/google/callback`, which v0.7.2 removed, so an installation relying on the default would have sent every Google sign-in to a 404. It is `/api/v1/auth/google/callback` now, and a test checks the default names a route.
+- Documentation, the embedding-mismatch error message and `frontend/SECURITY.md` name the `/api/v1` paths.
+
 ## [0.7.2] - 2026-09-29
 
 Upgrade notes: [docs/releases/v0.7.2-release-notes.md](docs/releases/v0.7.2-release-notes.md).

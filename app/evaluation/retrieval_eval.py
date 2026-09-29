@@ -1,7 +1,7 @@
 """Measure retrieval quality on a corpus that ships with the repository.
 
 Why this exists at all: CLAUDE.md has claimed P@5 > 0.85 for a long time and
-nothing measured it. `POST /api/evaluation/run` reads `data/evaluation/*.json`,
+nothing measured it. `POST /api/v1/evaluation/run` reads `data/evaluation/*.json`,
 and `data/` is gitignored -- so on every checkout where nobody hand-placed a file
 the endpoint returned 404. A target with no measurement behind it is a number,
 not a claim.
