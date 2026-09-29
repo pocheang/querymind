@@ -313,7 +313,7 @@ def admin_ops_benchmark_run(
     A run executes up to ``max_queries`` full RAG queries; doing that inline kept
     one HTTP request open for minutes (well past any reverse-proxy timeout) and
     occupied a threadpool worker the whole time.  Results land in the existing
-    benchmark history, readable via ``GET /admin/ops/benchmark/trends``.
+    benchmark history, readable via ``GET /api/v1/admin/ops/benchmark/trends``.
     """
     _require_permission(user, Permission.ADMIN_OPS_MANAGE, request, "admin")
     if max_queries < 1:

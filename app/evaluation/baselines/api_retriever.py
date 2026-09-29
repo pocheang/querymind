@@ -29,7 +29,7 @@ def _result(query_id: str, query: str, retrieved_docs: list[str], start_time: fl
 
     There used to be two constructions, and both passed `query=` where the field
     is `query_text` -- so `RetrievalResult` raised for a missing required field on
-    every query, for both baselines, and `POST /api/evaluation/run` could not
+    every query, for both baselines, and `POST /api/v1/evaluation/run` could not
     complete. It survived because the happy path's ValidationError was swallowed
     by the bare `except Exception` below, which then re-made the identical mistake
     *outside* the try, where nothing could catch it.

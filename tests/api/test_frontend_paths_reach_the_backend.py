@@ -137,3 +137,15 @@ async def test_a_rate_limit_applies_to_the_path_the_frontend_sends():
 
     assert 429 not in statuses[: rule.max_requests]
     assert statuses[-1] == 429
+
+
+def test_the_default_oauth_redirect_names_a_route():
+    """`OAUTH_REDIRECT_URI` defaulted to `/api/auth/google/callback` after the move to one prefix, a path that
+    no longer exists: Google would have sent every sign-in to a 404."""
+
+    from urllib.parse import urlparse
+
+    from app.core.config import Settings
+
+    default = Settings.model_fields["google_redirect_uri"].default
+    assert urlparse(default).path in _backend_paths()

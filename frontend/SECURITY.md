@@ -22,7 +22,7 @@ QueryMind Frontend implements a **defense-in-depth** model across client state, 
 ┌────────────────────────────────────────────────────────────────────────┐
 │                          Ingress & Headers                             │
 │  • CSP: nosniff, frame-ancestors 'self', strict-transport-security     │
-│  • Nginx Rate Limiting: /auth/login (5 req/min), /api/ (100 req/min)   │
+│  • Nginx Rate Limiting: /api/v1/auth/login (5/min), /api/ (100/min)    │
 │  • Anti-Clickjacking (X-Frame-Options: SAMEORIGIN)                     │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ Bearer Token + X-CSRF-Token
@@ -130,7 +130,7 @@ Nginx and gateway reverse proxies are configured with burst-limited request queu
 
 ```nginx
 # Authentication Endpoints
-location /auth/login {
+location /api/v1/auth/login {
     limit_req zone=login_limit burst=3 nodelay;  # 5 req/min threshold
 }
 

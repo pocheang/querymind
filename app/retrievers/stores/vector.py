@@ -226,7 +226,7 @@ def _as_dimension_mismatch(error: Exception) -> Exception:
     return EmbeddingDimensionMismatch(
         "The vector store was built with a different embedding model, so its vectors "
         "are a different size than the one now loaded. Rebuild the index (admin console "
-        "-> Knowledge Base -> reindex, or POST /admin/ops/reindex) after changing "
+        "-> Knowledge Base -> reindex, or POST /api/v1/documents/by-id/{id}/reindex) after changing "
         f"LOCAL_EMBED_MODEL or the embedding provider. Original error: {error}"
     )
 
