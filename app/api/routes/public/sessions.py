@@ -25,15 +25,14 @@ from app.api.schemas import (
 )
 from app.api.transport.errors import bad_request, not_found
 from app.api.transport.middleware import record_grounding_support
-from app.pipeline.contracts import PipelineUser
+from app.pipeline.contracts import ConversationMessage, PipelineUser
 from app.services.query.input_normalizer import (
-    enhance_user_question_for_completion,
     normalize_and_validate_user_question,
     normalize_user_question,
 )
-from app.services.query.intent import is_casual_chat_query
 from app.services.security.audit_actions import AuditAction
 from app.services.security.rbac import Permission
+from app.services.sessions.memory_store import SHORT_TERM_ROUNDS, _pair_user_assistant_rounds
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -209,15 +208,25 @@ def _rerun_after_message_edit(
     content: str,
     history_store,
 ) -> dict[str, Any]:
-    """Regenerate the assistant reply for an edited user message."""
-    effective_question = content if is_casual_chat_query(content) else enhance_user_question_for_completion(content)
-    memory_context = _build_memory_context_for_session(user=user, session_id=session_id, question=effective_question)
+    """Regenerate the assistant reply for an edited user message, as the chat path would have.
+
+    It used to ask a different question. A short question was sent with a
+    "[补全提示]" block appended -- instructions demanding 结论、执行步骤、风险点,
+    which contradicted the specialists' answer shapes and went into retrieval as
+    part of the query -- reasoning was always on where chat defaults it off, and
+    the session went in as one pre-rendered block rather than as the turns query
+    rewriting needs. Now the question is asked as written, with the memory
+    block and the turns that came *before* the edited message: the ones after it
+    belong to the answer being replaced.
+    """
+    memory_context = _build_memory_context_for_session(user=user, session_id=session_id, question=content)
+    conversation = _conversation_before(history_store, session_id, message_id, memory_context)
     with _reserve_chat_credit(request, user, "message_rerun") as credit:
         result = execute_standard_compatibility(
-            question=effective_question,
+            question=content,
             use_web_fallback=False,
-            use_reasoning=True,
-            memory_context=memory_context,
+            use_reasoning=False,
+            conversation=conversation,
             allowed_sources=_allowed_sources_for_user(user),
             user=PipelineUser(
                 user_id=str(user.get("user_id", "") or "") or None,
@@ -248,6 +257,22 @@ def _rerun_after_message_edit(
         _promote_long_term_memory(user=user, session_id=session_id, question=content, result=result)
         credit.commit()
     return data
+
+
+def _conversation_before(
+    history_store, session_id: str, message_id: str, memory_context: str
+) -> tuple[ConversationMessage, ...]:
+    """The memory block, then the last few rounds that precede `message_id`."""
+    messages = (history_store.get_session(session_id) or {}).get("messages", []) or []
+    ids = [str(message.get("message_id", "")) for message in messages]
+    earlier = messages[: ids.index(message_id)] if message_id in ids else messages
+    turns: list[ConversationMessage] = []
+    if memory_context:
+        turns.append(ConversationMessage(role="system", content=memory_context))
+    for question, answer in _pair_user_assistant_rounds(earlier)[-SHORT_TERM_ROUNDS:]:
+        turns.append(ConversationMessage(role="user", content=question))
+        turns.append(ConversationMessage(role="assistant", content=answer))
+    return tuple(turns)
 
 
 @router.patch("/{session_id}/messages/{message_id}", response_model=SessionDetail)

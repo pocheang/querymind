@@ -37,6 +37,7 @@ def execute_standard_compatibility(
     use_web_fallback: bool = False,
     use_reasoning: bool = False,
     memory_context: str = "",
+    conversation: tuple[ConversationMessage, ...] | None = None,
     allowed_sources: list[str] | None = None,
     user: PipelineUser | None = None,
     session_id: str | None = None,
@@ -58,7 +59,11 @@ def execute_standard_compatibility(
     Returns:
         Dictionary containing answer, citations, and metadata in standard format
     """
-    conversation = (ConversationMessage(role="system", content=memory_context),) if memory_context else ()
+    # Turns when the caller has them -- the chat path's shape, which query
+    # rewriting needs to complete a follow-up -- otherwise the older single
+    # system block.
+    if conversation is None:
+        conversation = (ConversationMessage(role="system", content=memory_context),) if memory_context else ()
     pipeline_result = RAGPipeline().execute_sync(
         PipelineRequest(
             question=question,
