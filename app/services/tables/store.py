@@ -364,6 +364,10 @@ class TableStore:
             )
         return results
 
+    def sources(self) -> set[str]:
+        """Every document source that still has a stored table (for reconciliation)."""
+        return {record.source for record in self._backend.all_records() if record.source}
+
     def delete_by_sources(self, sources: Iterable[str]) -> int:
         """Forget every table ingested from one of `sources`; returns how many."""
         wanted = {str(source) for source in sources if source}

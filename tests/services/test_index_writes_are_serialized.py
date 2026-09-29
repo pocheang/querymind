@@ -233,8 +233,8 @@ def test_a_writer_outside_a_request_waits_for_the_lock_rather_than_writing_throu
     monkeypatch.setattr(index_manager, "_delete_vector_documents", lambda ids: None)
     monkeypatch.setattr(index_manager, "_reset_bm25", lambda: None)
     monkeypatch.setattr(index_manager, "_reset_retrieval_cache", lambda: None)
-    monkeypatch.setattr(index_manager, "_delete_triplets_by_sources", lambda sources: 0)
-    monkeypatch.setattr(index_manager, "_delete_tables_by_sources", lambda sources: 0)
+    monkeypatch.setattr(index_manager, "_delete_triplets_by_sources", lambda sources, failures=None: 0)
+    monkeypatch.setattr(index_manager, "_delete_tables_by_sources", lambda sources, failures=None: 0)
     call = {
         "delete_file_index": lambda: index_manager.delete_file_index("report.txt", source="x"),
         "rebuild_all_vector_index": index_manager.rebuild_all_vector_index,
@@ -294,7 +294,7 @@ def test_deleting_a_document_removes_its_images_and_tables_from_the_multimodal_i
         rows = [{"id": "chunk-1", "text": "t", "metadata": {"source": mine, "filename": "report.txt"}}]
         write_corpus_records(rows if has_chunks else [])
         monkeypatch.setattr(index_manager, "_delete_vector_documents", lambda ids: None)
-        monkeypatch.setattr(index_manager, "_delete_triplets_by_sources", lambda sources: 0)
+        monkeypatch.setattr(index_manager, "_delete_triplets_by_sources", lambda sources, failures=None: 0)
 
         index_manager.delete_file_index("report.txt", source=mine)
 
