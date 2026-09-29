@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "@/lib/api-client";
+import { ApiError } from "@/services/http/client";
 import { shouldForgetSession } from "@/lib/sessionRecovery";
 
 /**

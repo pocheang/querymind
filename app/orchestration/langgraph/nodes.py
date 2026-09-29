@@ -35,10 +35,11 @@ from app.domain.workflow import (
     VerificationDecision,
 )
 from app.knowledge.context import ContextBuilder
+from app.orchestration.langgraph.run_scope import run_scope
 from app.orchestration.langgraph.state import OrchestrationGraphState
 from app.orchestration.policies import ExecutionPolicy
 from app.orchestration.request import OrchestrationRequest, RequestScope
-from app.orchestration.timeout_control import ExecutionBudget, StageTimeoutError, run_with_timeout
+from app.orchestration.timeout_control import StageTimeoutError, run_with_timeout
 from app.privacy.models import PrivacyResult
 from app.privacy.service import PrivacyService
 from app.services.security.access_scope import AccessScopeResolver
@@ -122,6 +123,9 @@ class WorkflowNodeRuntime:
     ) -> None:
         self._services = services
         self._policy = policy
+        # Capped at one on purpose: a retry replays knowledge + synthesis +
+        # verification (TimeoutConfig.retry_round_ms) and the total budget cannot
+        # fund a second. Tool results are kept from round one, not re-run.
         self._max_verifier_retries = max(0, min(1, int(max_verifier_retries)))
         self._context_builder = ContextBuilder(token_budget=context_token_budget)
         self._monitor = monitor
@@ -402,7 +406,7 @@ class WorkflowNodeRuntime:
             async def verification_operation() -> VerificationDecision:
                 return await verifier(request, context, candidate_answer, retry_count)
 
-        budget = _required(state, "budget", ExecutionBudget)
+        budget = run_scope(state).budget
         decision, verifier_event = await self._run_stage(
             state,
             event_stage="verifier",
@@ -485,7 +489,7 @@ class WorkflowNodeRuntime:
         request = _required(state, "request", OrchestrationRequest)
         scope = state.get("permission_scope")
         evidence = _required(state, "evidence_bundle", EvidenceBundle)
-        budget = _required(state, "budget", ExecutionBudget)
+        budget = run_scope(state).budget
 
         async def operation() -> FinalAnswer:  # NOSONAR
             if scope is None:
@@ -620,7 +624,8 @@ class WorkflowNodeRuntime:
         even though a degraded answer was available.
         """
 
-        budget = _required(state, "budget", ExecutionBudget)
+        scope = run_scope(state)
+        budget = scope.budget
 
         async def invoke() -> Any:
             return await run_with_timeout(timeout_stage, operation, budget)
@@ -647,7 +652,7 @@ class WorkflowNodeRuntime:
                 message=f"{event_stage} timed out; continuing with a degraded result",
                 metadata=(EventMetadata(key="failure_reason", value=f"stage_timeout:{event_stage}"),),
             )
-            state["reporter"](event)
+            scope.reporter(event)
             return on_timeout(), event
         try:
             if validator is not None:
@@ -661,7 +666,7 @@ class WorkflowNodeRuntime:
             status="completed",
             duration_ms=int(budget.stage_times.get(timeout_stage, 0)),
         )
-        state["reporter"](event)
+        scope.reporter(event)
         return result, event
 
 

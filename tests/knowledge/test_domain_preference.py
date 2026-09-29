@@ -254,7 +254,7 @@ def _write_registry(path, rows):
 
 
 def test_labels_are_read_from_the_registry_by_id_then_by_source(tmp_path, monkeypatch):
-    monkeypatch.setattr(domain_labels, "_cache", None)
+    monkeypatch.setattr(domain_labels._cache, "value", None)
     registry = tmp_path / "documents.jsonl"
     _write_registry(
         registry,
@@ -274,7 +274,7 @@ def test_labels_are_read_from_the_registry_by_id_then_by_source(tmp_path, monkey
 def test_a_relabel_is_seen_on_the_next_read(tmp_path, monkeypatch):
     """No reindex, no cross-process message: the registry file is the signal."""
 
-    monkeypatch.setattr(domain_labels, "_cache", None)
+    monkeypatch.setattr(domain_labels._cache, "value", None)
     registry = tmp_path / "documents.jsonl"
     _write_registry(registry, [{"document_id": "doc-1", "source": "/s", "agent_class": "general"}])
     assert load_domain_labels(registry).label_of("doc-1", None) == "general"

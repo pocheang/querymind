@@ -22,6 +22,8 @@ from collections import OrderedDict
 from contextvars import ContextVar
 from threading import RLock
 
+from app.services.runtime.execution_wake import notify
+
 # The execution whose answer fragments the current async task is producing.
 # A ContextVar for the same reason execution_events uses one: the engine is
 # cached and shared, so instance state would let one request's fragments land
@@ -73,6 +75,7 @@ class AnswerStreamStore:
                 self._fragments.move_to_end(execution_id)
             if len(fragments) < self._max_fragments:
                 fragments.append(fragment)
+        notify(execution_id)
         if self._shared_kind is not None:
             _mirror(execution_id, self._shared_kind, fragment)
 
@@ -80,6 +83,7 @@ class AnswerStreamStore:
         """Mark that no further fragments are coming, so a reader can stop."""
         with self._lock:
             self._complete.add(execution_id)
+        notify(execution_id)
 
     def since(self, execution_id: str, offset: int) -> tuple[str, ...]:
         with self._lock:

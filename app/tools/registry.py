@@ -6,6 +6,7 @@ import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
+from app.core.singleton import Singleton
 from app.tools.base import BaseToolProvider
 from app.tools.category import ToolCategory
 
@@ -155,28 +156,23 @@ class DomainToolRegistry:
             self._initialized = True
 
 
-_GLOBAL_REGISTRY: DomainToolRegistry | None = None
-_REGISTRY_LOCK = threading.Lock()
+def _build_registry() -> DomainToolRegistry:
+    registry = DomainToolRegistry()
+    registry._ensure_defaults()
+    return registry
+
+
+_GLOBAL_REGISTRY = Singleton(_build_registry)
 
 
 def get_domain_tool_registry() -> DomainToolRegistry:
     """Return the process-wide DomainToolRegistry singleton."""
-    global _GLOBAL_REGISTRY
-    if _GLOBAL_REGISTRY is not None:
-        return _GLOBAL_REGISTRY
-    with _REGISTRY_LOCK:
-        if _GLOBAL_REGISTRY is None:
-            registry = DomainToolRegistry()
-            registry._ensure_defaults()
-            _GLOBAL_REGISTRY = registry
-        return _GLOBAL_REGISTRY
+    return _GLOBAL_REGISTRY.get()
 
 
 def reset_domain_tool_registry() -> None:
     """Reset the global registry singleton (primarily for tests)."""
-    global _GLOBAL_REGISTRY
-    with _REGISTRY_LOCK:
-        _GLOBAL_REGISTRY = None
+    _GLOBAL_REGISTRY.reset()
 
 
 __all__ = [

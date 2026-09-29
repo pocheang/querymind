@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from app.core.singleton import Singleton
 from app.retrievers.stores.vector import SHARED_CORPUS_TENANT
 from app.services.multimodal.models import TableContent
 from app.services.runtime.sqlite_schema import Migration, ensure_schema
@@ -364,6 +365,10 @@ class TableStore:
             )
         return results
 
+    def sources(self) -> set[str]:
+        """Every document source that still has a stored table (for reconciliation)."""
+        return {record.source for record in self._backend.all_records() if record.source}
+
     def delete_by_sources(self, sources: Iterable[str]) -> int:
         """Forget every table ingested from one of `sources`; returns how many."""
         wanted = {str(source) for source in sources if source}
@@ -415,8 +420,7 @@ class TableStore:
         return loaded.engine.execute_query(adjusted_sql, max_rows=max_rows)
 
 
-_GLOBAL_TABLE_STORE: TableStore | None = None
-_GLOBAL_LOCK = threading.Lock()
+_GLOBAL_TABLE_STORE = Singleton(lambda: TableStore(db_path=_default_db_path()))
 
 
 def _default_db_path() -> Path | None:
@@ -436,12 +440,7 @@ def _default_db_path() -> Path | None:
 
 def get_table_store() -> TableStore:
     """Get or initialize the process-wide TableStore."""
-    global _GLOBAL_TABLE_STORE
-    if _GLOBAL_TABLE_STORE is None:
-        with _GLOBAL_LOCK:
-            if _GLOBAL_TABLE_STORE is None:
-                _GLOBAL_TABLE_STORE = TableStore(db_path=_default_db_path())
-    return _GLOBAL_TABLE_STORE
+    return _GLOBAL_TABLE_STORE.get()
 
 
 def _tables_baseline(conn: sqlite3.Connection) -> None:

@@ -7,6 +7,7 @@ from contextvars import ContextVar
 from threading import RLock
 
 from app.domain.events import ExecutionEvent
+from app.services.runtime.execution_wake import notify
 
 # The execution whose events the current async task is producing.  A ContextVar
 # rather than publisher state because OrchestrationEngine is cached and shared
@@ -59,6 +60,7 @@ class ExecutionEventStore:
                 self._events.move_to_end(execution_id)
             if len(events) < self._max_events_per_execution:
                 events.append(event)
+        notify(execution_id)
         if self._mirror_to_shared:
             _mirror(execution_id, event)
 

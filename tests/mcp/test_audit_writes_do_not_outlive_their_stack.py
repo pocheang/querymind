@@ -63,13 +63,13 @@ def test_resetting_the_stack_waits_for_its_queued_audit_rows(isolated_env, monke
         audit=AuditLog(write=slow_write),
     )
     stack = runtime.ToolStack(approvals=None, registry=registry, gateway=None, connectors=None)
-    monkeypatch.setattr(runtime, "_stack", stack)
+    monkeypatch.setattr(runtime._stack, "_value", stack)
 
     registry._audit.append(_record())
     runtime.reset_tool_stack()
 
     assert written == ["querymind_demo_tool"], "reset returned while an audit row was still queued"
-    assert runtime._stack is None
+    assert runtime._stack.peek() is None
 
 
 def test_the_audit_writer_uses_the_database_named_when_it_was_created(isolated_env, monkeypatch):

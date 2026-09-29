@@ -38,21 +38,14 @@ from app.agents.verifier.validation.rules import (
     safety_score as _safety_check,
 )
 from app.core.config import get_settings
+from app.core.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
-_validation_cascade: ValidationCascade | None = None
-_cascade_load_attempted = False
 
-
-def _get_validation_cascade() -> ValidationCascade:
-    """Build the process-wide cascade; the legacy engine no longer exists."""
-    global _cascade_load_attempted, _validation_cascade
-    if _validation_cascade is not None:
-        return _validation_cascade
-    _cascade_load_attempted = True
+def _build_validation_cascade() -> ValidationCascade:
     settings = get_settings()
-    _validation_cascade = ValidationCascade(
+    return ValidationCascade(
         config={
             "nli_timeout_ms": settings.cascade_nli_timeout_ms,
             "deep_timeout_ms": settings.cascade_deep_timeout_ms,
@@ -63,7 +56,14 @@ def _get_validation_cascade() -> ValidationCascade:
             "enforce_minimum_length": True,
         }
     )
-    return _validation_cascade
+
+
+_validation_cascade = Singleton(_build_validation_cascade)
+
+
+def _get_validation_cascade() -> ValidationCascade:
+    """Build the process-wide cascade; the legacy engine no longer exists."""
+    return _validation_cascade.get()
 
 
 def clear_validation_caches() -> None:
@@ -81,9 +81,7 @@ def clear_validation_caches() -> None:
     model reloads lazily from local files on the next answer that needs it.
     """
 
-    global _cascade_load_attempted, _validation_cascade
-    _validation_cascade = None
-    _cascade_load_attempted = False
+    _validation_cascade.reset()
     load_nli_cross_encoder.cache_clear()
 
 

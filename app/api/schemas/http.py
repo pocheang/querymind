@@ -283,6 +283,7 @@ class FileIndexActionResponse(BaseModel):
     vector_ids_removed: int = 0
     triplets_removed: int = 0
     file_removed: bool = False
+    failed_steps: list[str] = Field(default_factory=list)
     loaded_documents: int = 0
     chunks_indexed: int = 0
     triplets_written: int = 0

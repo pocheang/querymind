@@ -9,6 +9,8 @@ from pydantic import BeforeValidator, Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from pydantic_settings.sources import DotEnvSettingsSource
 
+from app.core.singleton import Cell
+
 logger = logging.getLogger(__name__)
 
 
@@ -436,6 +438,10 @@ class Settings(BaseSettings):
 
     sessions_dir: str = Field(default="./data/sessions", alias="SESSIONS_DIR")
     uploads_dir: str = Field(default="./data/uploads", alias="UPLOADS_DIR")
+    # How often the index is compared with itself (see services/documents/reconcile.py);
+    # 0 switches the schedule off. Report-only unless INDEX_RECONCILE_REPAIR is on.
+    index_reconcile_interval_seconds: float = Field(default=0.0, ge=0.0, alias="INDEX_RECONCILE_INTERVAL_SECONDS")
+    index_reconcile_repair: bool = Field(default=False, alias="INDEX_RECONCILE_REPAIR")
     auto_ingest_enabled: bool = Field(default=False, alias="AUTO_INGEST_ENABLED")
     auto_ingest_interval_seconds: float = Field(default=3.0, alias="AUTO_INGEST_INTERVAL_SECONDS")
     auto_ingest_watch_docs: bool = Field(default=True, alias="AUTO_INGEST_WATCH_DOCS")
@@ -479,7 +485,7 @@ class Settings(BaseSettings):
     shadow_queue_maxsize: int = Field(default=200, alias="SHADOW_QUEUE_MAXSIZE")
     synthesis_refine_max_rounds: int = Field(default=5, alias="SYNTHESIS_REFINE_MAX_ROUNDS")
     synthesis_refine_overload_rounds: int = Field(default=1, alias="SYNTHESIS_REFINE_OVERLOAD_ROUNDS")
-    history_backend: _choice("file", "sqlite") = Field(default="file", alias="HISTORY_BACKEND")
+    history_backend: _choice("file", "sqlite") = Field(default="sqlite", alias="HISTORY_BACKEND")
     history_sqlite_path_str: str = Field(default="./data/history.db", alias="HISTORY_SQLITE_PATH")
     history_cold_dir: str = Field(default="./data/sessions_cold", alias="HISTORY_COLD_DIR")
     history_hot_tier_days: int = Field(default=14, alias="HISTORY_HOT_TIER_DAYS")
@@ -840,14 +846,13 @@ def validate_shared_state_backends(settings: Settings) -> None:
 # Handed from `reload_settings` to `get_settings`, so a reload constructs
 # `Settings` once. See `reload_settings` for why that is worth a module global.
 _RELOAD_LOCK = threading.Lock()
-_PENDING: Settings | None = None
+_PENDING = Cell[Settings | None](None)
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    global _PENDING
-    settings = _PENDING if _PENDING is not None else Settings()
-    _PENDING = None
+    settings = _PENDING.value if _PENDING.value is not None else Settings()
+    _PENDING.value = None
     settings.chroma_path.mkdir(parents=True, exist_ok=True)
     settings.docs_path.mkdir(parents=True, exist_ok=True)
     settings.corpus_path.parent.mkdir(parents=True, exist_ok=True)
@@ -878,13 +883,12 @@ def reload_settings() -> Settings:
     since this is reachable from an HTTP request.
     """
 
-    global _PENDING
     with _RELOAD_LOCK:
         candidate = Settings()
         validate_security_settings(candidate)
-        _PENDING = candidate
+        _PENDING.value = candidate
         get_settings.cache_clear()
         try:
             return get_settings()
         finally:
-            _PENDING = None
+            _PENDING.value = None

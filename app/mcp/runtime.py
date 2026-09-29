@@ -20,10 +20,10 @@ to hold connector credentials; deferring to first tool use keeps that working.
 from __future__ import annotations
 
 import asyncio
-import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from app.core.singleton import Singleton
 from app.domain.contracts import ToolResult
 from app.mcp.approvals import ApprovalStore
 from app.mcp.authorization import AuthorizationPolicy
@@ -57,8 +57,7 @@ class ToolStack:
     connectors: ConnectorManagementService
 
 
-_stack: ToolStack | None = None
-_lock = threading.Lock()
+_stack: Singleton[ToolStack] = Singleton(lambda: _build_tool_stack())
 
 
 def get_tool_stack() -> ToolStack:
@@ -68,13 +67,7 @@ def get_tool_stack() -> ToolStack:
     the API layer reaches it from the event loop.
     """
 
-    global _stack
-    if _stack is not None:
-        return _stack
-    with _lock:
-        if _stack is None:
-            _stack = _build_tool_stack()
-    return _stack
+    return _stack.get()
 
 
 def reset_tool_stack() -> None:
@@ -89,9 +82,7 @@ def reset_tool_stack() -> None:
     that was not theirs.
     """
 
-    global _stack
-    with _lock:
-        stack, _stack = _stack, None
+    stack = _stack.reset()
     if stack is not None:
         stack.registry.flush_audit()
 

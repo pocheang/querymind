@@ -1,20 +1,19 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { appApi } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
+import { fetchSessions, SESSIONS_QUERY_KEY } from "./useSessions";
 import type { SessionMessage, SessionSummary } from "@/types/api";
 import type { Toast } from "@/pages/chat/types";
 
 interface UseSessionActionsParams {
   setToasts: Dispatch<SetStateAction<Toast[]>>;
   setError: Dispatch<SetStateAction<string>>;
-  setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
-  setSessionLoading: Dispatch<SetStateAction<boolean>>;
   setCurrentSessionId: Dispatch<SetStateAction<string | null>>;
   setMessages: Dispatch<SetStateAction<SessionMessage[]>>;
   setBusySessionId: Dispatch<SetStateAction<string | null>>;
   setIsCreatingSession?: Dispatch<SetStateAction<boolean>>;
   currentSessionId: string | null;
-  sessions: SessionSummary[];
   messages: SessionMessage[];
   onLogout: () => Promise<void>;
   closeSidebar: () => void;
@@ -26,14 +25,11 @@ export function useSessionActions(params: UseSessionActionsParams) {
   const { t } = useTranslation();
   const {
     setError,
-    setSessions,
-    setSessionLoading,
     setCurrentSessionId,
     setMessages,
     setBusySessionId,
     setIsCreatingSession,
     currentSessionId,
-    sessions,
     messages,
     closeSidebar,
     notify,
@@ -55,19 +51,18 @@ export function useSessionActions(params: UseSessionActionsParams) {
     }
   };
 
-  const refreshSessions = async (preferSelectFirst = false, silent = false) => {
-    if (!silent) setSessionLoading(true);
+  // The list lives in the query cache (useSessions). Fetching through the client
+  // updates every reader; the loading flag is true only before the first answer,
+  // so a background refresh (`silent`) never flashes the list.
+  const refreshSessions = async (preferSelectFirst = false, _silent = false) => {
     try {
-      const rows = await appApi.sessions();
-      setSessions(rows);
+      const rows = await queryClient.fetchQuery({ queryKey: SESSIONS_QUERY_KEY, queryFn: fetchSessions, staleTime: 0 });
       setError("");
       if (preferSelectFirst && rows.length > 0) await loadSession(rows[0].session_id);
       return rows;
     } catch (e) {
       await handleApiError(e, "Failed to refresh sessions");
       return [] as SessionSummary[];
-    } finally {
-      if (!silent) setSessionLoading(false);
     }
   };
 
@@ -107,7 +102,8 @@ export function useSessionActions(params: UseSessionActionsParams) {
 
   const deleteSession = async (sessionId: string) => {
     try {
-      const deletedIndex = sessions.findIndex((session) => session.session_id === sessionId);
+      const cached = queryClient.getQueryData<SessionSummary[]>(SESSIONS_QUERY_KEY) ?? [];
+      const deletedIndex = cached.findIndex((session) => session.session_id === sessionId);
       await appApi.sessionDelete(sessionId);
 
       // If deleting current session, intelligently select next one

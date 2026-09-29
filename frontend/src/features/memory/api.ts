@@ -1,4 +1,4 @@
-import { authRequest } from "@/lib/api-client";
+import { authRequest } from "@/services/http/client";
 
 /**
  * The record of what this system remembers about the signed-in person.

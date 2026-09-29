@@ -163,7 +163,7 @@ def test_a_registry_row_written_as_policy_is_labelled_compliance(tmp_path: Path,
         json.dumps({"document_id": "d1", "source": "/u/rules.md", "agent_class": "policy"}) + "\n", encoding="utf-8"
     )
     monkeypatch.setattr(domain_labels, "_shared_root", lambda: "")
-    monkeypatch.setattr(domain_labels, "_cache", None)
+    monkeypatch.setattr(domain_labels._cache, "value", None)
 
     assert load_domain_labels(registry).label_of("d1", None) == AgentClass.COMPLIANCE
 
@@ -194,7 +194,7 @@ def test_the_folder_label_holds_with_no_registry_and_yields_to_one(tmp_path: Pat
     root = tmp_path / "docs"
     source = str(root / "compliance" / "pipl.md")
     monkeypatch.setattr(domain_labels, "_shared_root", lambda: str(root.resolve()))
-    monkeypatch.setattr(domain_labels, "_cache", None)
+    monkeypatch.setattr(domain_labels._cache, "value", None)
 
     assert load_domain_labels(tmp_path / "missing.jsonl").label_of(None, source) == AgentClass.COMPLIANCE
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, authRequest } from "@/lib/api-client";
+import { ApiError, authRequest } from "@/services/http/client";
 import { ExportButtons } from "@/utils/exportUtils";
 import { WebActivityKpiCards } from "./components/WebActivityKpiCards";
 import { WebActivityCharts } from "./components/WebActivityCharts";

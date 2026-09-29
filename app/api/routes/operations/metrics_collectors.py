@@ -22,9 +22,11 @@ from typing import Any
 
 from prometheus_client.core import GaugeMetricFamily
 
+from app.core.singleton import Cell
+
 _CACHE_SECONDS = 15.0
 _cache_lock = threading.Lock()
-_cached: tuple[float, dict[str, dict[str, Any]]] | None = None
+_cached = Cell[tuple[float, dict[str, dict[str, Any]]] | None](None)
 
 
 class DeploymentStateCollector:
@@ -55,22 +57,20 @@ class DeploymentStateCollector:
 async def probe_dependencies(checks: dict[str, Callable[[], dict[str, Any]]]) -> dict[str, dict[str, Any]]:
     """Run the checks concurrently, reusing a result younger than the cache window."""
 
-    global _cached
     now = time.monotonic()
     with _cache_lock:
-        if _cached is not None and now - _cached[0] < _CACHE_SECONDS:
-            return _cached[1]
+        if _cached.value is not None and now - _cached.value[0] < _CACHE_SECONDS:
+            return _cached.value[1]
     results = await asyncio.gather(*(asyncio.to_thread(fn) for fn in checks.values()), return_exceptions=True)
     found = {
         name: ({"ok": False, "required": False} if isinstance(result, BaseException) else result)
         for name, result in zip(checks, results, strict=True)
     }
     with _cache_lock:
-        _cached = (time.monotonic(), found)
+        _cached.value = (time.monotonic(), found)
     return found
 
 
 def reset_for_tests() -> None:
-    global _cached
     with _cache_lock:
-        _cached = None
+        _cached.value = None

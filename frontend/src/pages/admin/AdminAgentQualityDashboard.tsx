@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ApiError, authRequest } from "@/lib/api-client";
+import { ApiError, authRequest } from "@/services/http/client";
 import { ExportButtons } from "@/utils/exportUtils";
 import { Button } from "@/components/ui/button";
 import {

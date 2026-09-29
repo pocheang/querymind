@@ -1,3 +1,6 @@
+import { useSessions } from "@/pages/chat/hooks/useSessions";
+import { useDocuments } from "@/pages/chat/hooks/useDocuments";
+import { usePrompts } from "@/pages/chat/hooks/usePrompts";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronsLeft, KeyRound, LogOut, Settings2, User as UserIcon } from "lucide-react";
@@ -69,26 +72,23 @@ export function ChatSidebar({
   onLogout,
 }: Readonly<Props>) {
   const { t } = useTranslation();
+  const { prompts, promptsLoading } = usePrompts();
+  const { sessions, sessionLoading } = useSessions();
+  const { documents, docsLoading } = useDocuments();
   const {
     sidebarOpen,
     sidebarCollapsed,
-    sessions,
-    sessionLoading,
     currentSessionId,
     busySessionId,
     isCreatingSession,
     agentClassHint,
     pdfTargetFile,
-    documents,
-    docsLoading,
     uploading,
     uploadInfo,
     uploadProgress,
     uploadProgressText,
     uploadVisibility,
     docDropActive,
-    prompts,
-    promptsLoading,
     promptTitle,
     promptContent,
     editingPromptId,
@@ -97,23 +97,17 @@ export function ChatSidebar({
     useShallow((s) => ({
       sidebarOpen: s.sidebarOpen,
       sidebarCollapsed: s.sidebarCollapsed,
-      sessions: s.sessions,
-      sessionLoading: s.sessionLoading,
       currentSessionId: s.currentSessionId,
       busySessionId: s.busySessionId,
       isCreatingSession: s.isCreatingSession,
       agentClassHint: s.agentClassHint,
       pdfTargetFile: s.pdfTargetFile,
-      documents: s.documents,
-      docsLoading: s.docsLoading,
       uploading: s.uploading,
       uploadInfo: s.uploadInfo,
       uploadProgress: s.uploadProgress,
       uploadProgressText: s.uploadProgressText,
       uploadVisibility: s.uploadVisibility,
       docDropActive: s.docDropActive,
-      prompts: s.prompts,
-      promptsLoading: s.promptsLoading,
       promptTitle: s.promptTitle,
       promptContent: s.promptContent,
       editingPromptId: s.editingPromptId,

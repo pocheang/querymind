@@ -35,6 +35,7 @@ from app.api.transport.errors import (
     internal_error,
     not_found,
     rate_limited,
+    service_unavailable,
 )
 from app.api.utils.auth_helpers import _client_ip
 from app.api.utils.string_utils import normalize_string
@@ -292,6 +293,17 @@ def _perform_delete(
         result = FileIndexActionResponse(
             **delete_document_index(filename, remove_physical_file=remove_file, source=source)
         )
+        if result.failed_steps:
+            _audit(
+                request,
+                action=AuditAction.DOCUMENT_DELETE,
+                resource_type="document",
+                result="failed",
+                user=user,
+                resource_id=filename,
+                detail=f"{_document_audit_detail(row)}; left in: {', '.join(result.failed_steps)}",
+            )
+            raise service_unavailable("The document was only partly deleted; retry the delete.")
         _audit(
             request,
             action=AuditAction.DOCUMENT_DELETE,

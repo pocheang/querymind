@@ -1,4 +1,4 @@
-import { authRequest } from "../../lib/api-client";
+import { authRequest } from "@/services/http/client";
 
 export type ConnectorStatus = "enabled" | "disabled";
 export type ConnectorTestStatus = "not_tested" | "passed" | "failed";

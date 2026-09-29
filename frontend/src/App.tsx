@@ -1,3 +1,4 @@
+import { queryClient } from "@/lib/queryClient";
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
@@ -22,6 +23,7 @@ import { useAdminStore } from "@/stores/useAdminStore";
 function clearUserState() {
   useChatStore.getState().reset();
   useAdminStore.getState().reset();
+  queryClient.clear();
 }
 
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(({ LoginPage }) => ({ default: LoginPage })));

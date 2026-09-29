@@ -7,11 +7,12 @@ from collections import deque
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.singleton import Cell
 from app.domain.text import normalize_string
 
 _LOCK = threading.Lock()
 _BUFFER: deque[dict[str, Any]] = deque(maxlen=4000)
-_INSTALLED = False
+_INSTALLED = Cell(False)
 
 
 class InMemoryLogHandler(logging.Handler):
@@ -41,9 +42,8 @@ class InMemoryLogHandler(logging.Handler):
 
 
 def setup_log_capture() -> None:
-    global _INSTALLED
     with _LOCK:
-        if _INSTALLED:
+        if _INSTALLED.value:
             return
         handler = InMemoryLogHandler()
         handler.setLevel(logging.INFO)
@@ -51,7 +51,7 @@ def setup_log_capture() -> None:
         root.addHandler(handler)
         logging.getLogger("uvicorn.error").addHandler(handler)
         logging.getLogger("uvicorn.access").addHandler(handler)
-        _INSTALLED = True
+        _INSTALLED.value = True
 
 
 def list_captured_logs(

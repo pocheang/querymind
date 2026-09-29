@@ -26,8 +26,6 @@ const { usePromptActions } = await import("./usePromptActions");
 
 function params() {
   return {
-    setPrompts: vi.fn(),
-    setPromptsLoading: vi.fn(),
     setEditingPromptId: vi.fn(),
     setPromptTitle: vi.fn(),
     setPromptContent: vi.fn(),

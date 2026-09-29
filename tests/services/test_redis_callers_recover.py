@@ -266,7 +266,7 @@ def test_the_rate_limit_middleware_answers_503_not_500(monkeypatch):
     import app.services.auth.redis_rate_limit as limiter_module
     from app.api.middleware.rate_limit import RateLimitMiddleware
 
-    monkeypatch.setattr(limiter_module, "_rate_limiter", None)
+    monkeypatch.setattr(limiter_module._rate_limiter, "value", None)
     _install_async(monkeypatch, [_BrokenAsyncClient()])
 
     probe = FastAPI()

@@ -46,6 +46,9 @@ _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 _LOCK_REGISTRY_GUARD = threading.Lock()
 _LOCK_REGISTRY: dict[str, threading.RLock] = {}
 _SESSION_FILE_GLOB = "*.json"
+_IMPORTED_MARKER = ".imported-to-sqlite"
+# Take the write lock at the start, so a read-modify-write cannot interleave with another writer.
+_BEGIN_WRITE = "BEGIN IMMEDIATE"
 
 # A change: edit the session in place and return True to write it back, or
 # False to abandon it -- nothing is written and the caller gets None.
@@ -99,23 +102,92 @@ def _decode(raw: object, session_id: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def upsert_session_row(conn: sqlite3.Connection, namespace: str, session_id: str, data: dict[str, Any]) -> None:
-    """Write one session row. UPDATE-then-INSERT rather than `ON CONFLICT`,
-    because a table upgraded by the baseline migration's ALTER keeps its original
-    primary key, which does not name `namespace`."""
+def _dump(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _stored_messages(conn: sqlite3.Connection, namespace: str, session_id: str) -> list[str]:
+    rows = conn.execute(
+        "SELECT data_json FROM session_messages WHERE namespace=? AND session_id=? ORDER BY seq",
+        (namespace, session_id),
+    ).fetchall()
+    return [str(r[0]) for r in rows]
+
+
+def read_session_row(
+    conn: sqlite3.Connection, namespace: str, session_id: str
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """One session assembled from its row and its message rows, plus the stored
+    message payloads (what `write_session` diffs against)."""
+
+    row = conn.execute(
+        "SELECT data_json FROM sessions WHERE namespace=? AND session_id=?", (namespace, session_id)
+    ).fetchone()
+    data = _decode(row[0], session_id) if row else None
+    if data is None:
+        return None, []
+    stored = _stored_messages(conn, namespace, session_id)
+    data["messages"] = [m for m in (_decode(raw, session_id) for raw in stored) if m is not None]
+    return data, stored
+
+
+def write_session(
+    conn: sqlite3.Connection,
+    namespace: str,
+    session_id: str,
+    data: dict[str, Any],
+    stored: list[str] | None = None,
+) -> None:
+    """Write one session: its row, and only the messages that differ from `stored`.
+
+    Appending a message inserts one row; editing one updates one; the session
+    row carries everything else. `stored` is the payload list `read_session_row`
+    returned -- omit it to read it here. UPDATE-then-INSERT rather than `ON
+    CONFLICT`, because a table upgraded by the baseline migration's ALTER keeps
+    its original primary key, which does not name `namespace`.
+    """
+
+    if stored is None:
+        stored = _stored_messages(conn, namespace, session_id)
+    messages = list(data.get("messages") or [])
+    payloads = [_dump(m) for m in messages]
+    for seq, (message, payload) in enumerate(zip(messages, payloads, strict=True)):
+        message_id = str(message.get("message_id", "") or "")
+        if seq >= len(stored):
+            conn.execute(
+                "INSERT INTO session_messages(namespace, session_id, seq, message_id, data_json) VALUES(?, ?, ?, ?, ?)",
+                (namespace, session_id, seq, message_id, payload),
+            )
+        elif stored[seq] != payload:
+            conn.execute(
+                "UPDATE session_messages SET message_id=?, data_json=? WHERE namespace=? AND session_id=? AND seq=?",
+                (message_id, payload, namespace, session_id, seq),
+            )
+    if len(payloads) < len(stored):
+        conn.execute(
+            "DELETE FROM session_messages WHERE namespace=? AND session_id=? AND seq>=?",
+            (namespace, session_id, len(payloads)),
+        )
 
     now = datetime.now(UTC).isoformat()
-    payload = json.dumps(data, ensure_ascii=False)
+    head = _dump({k: v for k, v in data.items() if k != "messages"})
     updated_at = str(data.get("updated_at") or now)
     updated = conn.execute(
-        "UPDATE sessions SET data_json=?, updated_at=? WHERE namespace=? AND session_id=?",
-        (payload, updated_at, namespace, session_id),
+        "UPDATE sessions SET data_json=?, updated_at=?, message_count=? WHERE namespace=? AND session_id=?",
+        (head, updated_at, len(payloads), namespace, session_id),
     )
     if int(updated.rowcount or 0) == 0:
         conn.execute(
-            "INSERT INTO sessions(namespace, session_id, data_json, created_at, updated_at) VALUES(?, ?, ?, ?, ?)",
-            (namespace, session_id, payload, str(data.get("created_at") or now), updated_at),
+            "INSERT INTO sessions(namespace, session_id, data_json, created_at, updated_at, message_count)"
+            " VALUES(?, ?, ?, ?, ?, ?)",
+            (namespace, session_id, head, str(data.get("created_at") or now), updated_at, len(payloads)),
         )
+
+
+def upsert_session_row(conn: sqlite3.Connection, namespace: str, session_id: str, data: dict[str, Any]) -> None:
+    """Kept for the file-to-sqlite migration tools; see `write_session`."""
+
+    write_session(conn, namespace, session_id, data)
 
 
 class _Unit:
@@ -145,6 +217,7 @@ class HistoryStore:
         self._last_tier_ts = 0.0
         if self._backend == "sqlite":
             self._init_sqlite()
+            self._import_legacy_files()
 
     # ---- the one write path -----------------------------------------------------
 
@@ -160,13 +233,9 @@ class HistoryStore:
             # connection with a transaction open rolls it back.
             with closing(self._connect()) as conn:
                 conn.isolation_level = None
-                conn.execute("BEGIN IMMEDIATE")
-                row = conn.execute(
-                    "SELECT data_json FROM sessions WHERE namespace=? AND session_id=?",
-                    (self._namespace, session_id),
-                ).fetchone()
-                data = _decode(row[0], session_id) if row else None
-                yield _Unit(data, lambda new: upsert_session_row(conn, self._namespace, session_id, new))
+                conn.execute(_BEGIN_WRITE)
+                data, stored = read_session_row(conn, self._namespace, session_id)
+                yield _Unit(data, lambda new: write_session(conn, self._namespace, session_id, new, stored))
                 conn.execute("COMMIT")
 
     def _mutate(self, session_id: str, change: Change, *, create: bool = False) -> dict[str, Any] | None:
@@ -237,7 +306,7 @@ class HistoryStore:
                     "title": data.get("title", DEFAULT_TITLE),
                     "created_at": data.get("created_at"),
                     "updated_at": data.get("updated_at"),
-                    "message_count": len(data.get("messages", [])),
+                    "message_count": data.get("message_count", len(data.get("messages", []))),
                     "pinned": data.get("pinned", False),
                 }
             )
@@ -303,10 +372,15 @@ class HistoryStore:
             return False
         if self._backend == "sqlite":
             with self._lock, closing(self._connect()) as conn:
+                conn.isolation_level = None
+                conn.execute(_BEGIN_WRITE)
+                conn.execute(
+                    "DELETE FROM session_messages WHERE namespace=? AND session_id=?", (self._namespace, session_id)
+                )
                 cur = conn.execute(
                     "DELETE FROM sessions WHERE namespace=? AND session_id=?", (self._namespace, session_id)
                 )
-                conn.commit()
+                conn.execute("COMMIT")
                 return int(cur.rowcount or 0) > 0
         with self._lock:
             path = self.base_dir / f"{session_id}.json"
@@ -459,11 +533,13 @@ class HistoryStore:
             return None
         if self._backend == "sqlite":
             with closing(self._connect()) as conn:
-                row = conn.execute(
-                    "SELECT data_json FROM sessions WHERE namespace=? AND session_id=?",
-                    (self._namespace, session_id),
-                ).fetchone()
-            return _decode(row[0], session_id) if row else None
+                conn.isolation_level = None
+                # One snapshot (WAL) for the row and its messages, so a writer
+                # committing between the two reads cannot tear the session.
+                conn.execute("BEGIN")
+                data, _ = read_session_row(conn, self._namespace, session_id)
+                conn.execute("COMMIT")
+            return data
         with self._lock:
             path = self.base_dir / f"{session_id}.json"
             if not path.exists():
@@ -480,20 +556,20 @@ class HistoryStore:
             return data if isinstance(data, dict) else None
 
     def _rows_from_sqlite(self) -> list[dict[str, Any]]:
+        """Session headers with `message_count` -- never the messages themselves."""
+
         with closing(self._connect()) as conn:
             out = conn.execute(
-                "SELECT data_json FROM sessions WHERE namespace=? ORDER BY updated_at DESC",
+                "SELECT data_json, message_count FROM sessions WHERE namespace=? ORDER BY updated_at DESC",
                 (self._namespace,),
             ).fetchall()
         rows: list[dict[str, Any]] = []
-        for row in out:
-            try:
-                data = json.loads(str(row[0] or ""))
-            except ValueError as e:
-                logger.debug(f"Skipping invalid session data: {e}")
+        for raw, count in out:
+            data = _decode(raw, "")
+            if data is None:
                 continue
-            if isinstance(data, dict):
-                rows.append(data)
+            data["message_count"] = int(count or 0)
+            rows.append(data)
         return rows
 
     def _rows_from_json_files(self, directory: Path, *, log_label: str) -> list[dict[str, Any]]:
@@ -558,6 +634,46 @@ class HistoryStore:
 
     def _init_sqlite(self) -> None:
         ensure_history_schema(self._db_path)
+
+    def _import_legacy_files(self) -> None:
+        """Bring this user's file-backend sessions into SQLite, once.
+
+        `sqlite` is the default backend, so an installation upgraded from the
+        file default would otherwise see its conversations vanish. The files are
+        left in place (switching back keeps working) and a marker beside them
+        stops the scan; a session already in SQLite is never overwritten.
+        """
+
+        marker = self.base_dir / _IMPORTED_MARKER
+        if marker.exists():
+            return
+        with self._lock, closing(self._connect()) as conn:
+            conn.isolation_level = None
+            conn.execute(_BEGIN_WRITE)
+            imported = 0
+            for directory in (self.base_dir, self._cold_dir):
+                for path in sorted(directory.glob(_SESSION_FILE_GLOB)):
+                    imported += self._import_one_file(conn, path)
+            conn.execute("COMMIT")
+        marker.write_text(f"{imported} sessions imported into {self._db_path}", encoding="utf-8")
+
+    def _import_one_file(self, conn: sqlite3.Connection, path: Path) -> int:
+        try:
+            session_id = validate_session_id(path.stem)
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, OSError) as e:
+            logger.warning("session file %s not imported: %s", path, e)
+            return 0
+        if not isinstance(data, dict):
+            return 0
+        exists = conn.execute(
+            "SELECT 1 FROM sessions WHERE namespace=? AND session_id=?", (self._namespace, session_id)
+        ).fetchone()
+        if exists:
+            return 0
+        data.setdefault("session_id", session_id)
+        write_session(conn, self._namespace, session_id, data)
+        return 1
 
     @staticmethod
     def _now() -> str:
@@ -679,7 +795,51 @@ def _history_baseline(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_ns_updated_at ON sessions(namespace, updated_at)")
 
 
-HISTORY_MIGRATIONS = (Migration(1, "baseline: sessions keyed by namespace and session id", _history_baseline),)
+def _history_message_rows(conn: sqlite3.Connection) -> None:
+    """Move each session's messages out of its JSON document into their own rows.
+
+    Appending a message used to rewrite the whole conversation, and listing
+    sessions parsed every message of every session just to count them.
+    """
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS session_messages(
+            namespace TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            seq INTEGER NOT NULL,
+            message_id TEXT NOT NULL DEFAULT '',
+            data_json TEXT NOT NULL,
+            PRIMARY KEY(namespace, session_id, seq)
+        )
+        """
+    )
+    cols = [str(r[1]) for r in conn.execute("PRAGMA table_info(sessions)").fetchall()]
+    if "message_count" not in cols:
+        conn.execute("ALTER TABLE sessions ADD COLUMN message_count INTEGER NOT NULL DEFAULT 0")
+    for namespace, session_id, raw in conn.execute("SELECT namespace, session_id, data_json FROM sessions").fetchall():
+        data = _decode(raw, session_id)
+        if data is None or "messages" not in data:
+            continue
+        messages = [m for m in data.pop("messages") or [] if isinstance(m, dict)]
+        conn.execute("DELETE FROM session_messages WHERE namespace=? AND session_id=?", (namespace, session_id))
+        conn.executemany(
+            "INSERT INTO session_messages(namespace, session_id, seq, message_id, data_json) VALUES(?, ?, ?, ?, ?)",
+            [
+                (namespace, session_id, seq, str(m.get("message_id", "") or ""), _dump(m))
+                for seq, m in enumerate(messages)
+            ],
+        )
+        conn.execute(
+            "UPDATE sessions SET data_json=?, message_count=? WHERE namespace=? AND session_id=?",
+            (_dump(data), len(messages), namespace, session_id),
+        )
+
+
+HISTORY_MIGRATIONS = (
+    Migration(1, "baseline: sessions keyed by namespace and session id", _history_baseline),
+    Migration(2, "messages in their own rows; sessions carry a message count", _history_message_rows),
+)
 
 
 def ensure_history_schema(db_path: Path) -> int:

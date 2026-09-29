@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.core.singleton import Singleton
+
 logger = logging.getLogger(__name__)
 
 
@@ -201,12 +203,9 @@ class PerformanceMonitor:
 
 
 # Global monitor instance
-_global_monitor: PerformanceMonitor | None = None
+_global_monitor = Singleton(lambda: PerformanceMonitor())
 
 
 def get_monitor() -> PerformanceMonitor:
     """Get global performance monitor instance."""
-    global _global_monitor
-    if _global_monitor is None:
-        _global_monitor = PerformanceMonitor()
-    return _global_monitor
+    return _global_monitor.get()

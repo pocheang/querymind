@@ -259,7 +259,7 @@ def test_shared_mode_keeps_no_per_process_copy(shared_cache, monkeypatch):
     monkeypatch.setattr(caching, "redis_client", lambda settings: None)  # Redis gone
 
     assert caching.cache_lookup("q", settings, _span) is None
-    assert caching._RETRIEVAL_CACHE is None
+    assert caching._RETRIEVAL_CACHE.value is None
 
 
 def test_nothing_is_cached_before_the_first_look(shared_cache):
@@ -319,7 +319,7 @@ def test_a_delete_announces_a_corpus_change(announced, monkeypatch, tmp_path):
     get_settings.cache_clear()
     for name in ("_delete_vector_documents", "_reset_bm25", "_reset_retrieval_cache"):
         monkeypatch.setattr(index_manager, name, lambda *a: None)
-    monkeypatch.setattr(index_manager, "_delete_triplets_by_sources", lambda sources: 0)
+    monkeypatch.setattr(index_manager, "_delete_triplets_by_sources", lambda sources, failures=None: 0)
     try:
         index_manager.delete_file_index("report.txt", source="x")
     finally:

@@ -187,7 +187,13 @@ def list_indexed_files() -> list[dict[str, Any]]:
     return items
 
 
-def _delete_triplets_by_sources(sources: list[str]) -> int:
+def _delete_triplets_by_sources(sources: list[str], failures: list[str] | None = None) -> int:
+    """Remove a document's graph rows. `failures` collects a step name when Neo4j
+    was reachable-or-configured and a delete did not go through.
+
+    An absent client (not installed) is not a failure: the graph is optional.
+    """
+    failed = failures if failures is not None else []
     try:
         from app.graph.knowledge.client import Neo4jClient
     except ImportError:
@@ -199,6 +205,8 @@ def _delete_triplets_by_sources(sources: list[str]) -> int:
         client = Neo4jClient()
     except Exception as e:
         logger.warning(f"Failed to create Neo4j client: {e}")
+        # Neo4j is optional and usually not running: an unreachable server has no
+        # rows of ours to leave behind, so it is not a failed delete.
         return 0
     try:
         for source_key in sources:
@@ -206,18 +214,20 @@ def _delete_triplets_by_sources(sources: list[str]) -> int:
                 removed += client.delete_by_source(source_key)
             except Exception as e:
                 logger.warning(f"Failed to delete triplets for source {source_key}: {e}")
+                failed.append("graph")
                 continue
     except Exception as e:
         logger.warning(f"Failed during Neo4j triplet deletion: {e}")
+        failed.append("graph")
     finally:
         try:
             client.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Neo4j client close failed: %s", e)
     return removed
 
 
-def _delete_tables_by_sources(sources: list[str]) -> int:
+def _delete_tables_by_sources(sources: list[str], failures: list[str] | None = None) -> int:
     """Drop the SQL-queryable copies of a deleted document's tables.
 
     Full source paths only, never basenames: two users routinely hold a
@@ -231,6 +241,8 @@ def _delete_tables_by_sources(sources: list[str]) -> int:
         return get_table_store().delete_by_sources(sources)
     except Exception as e:
         logger.warning(f"Failed to delete tables for removed sources: {e}")
+        if failures is not None:
+            failures.append("tables")
         return 0
 
 
@@ -239,7 +251,7 @@ def _delete_tables_by_sources(sources: list[str]) -> int:
 MULTIMODAL_COLLECTIONS = ("image_descriptions", "table_summaries")
 
 
-def _delete_multimodal_by_sources(sources: list[str]) -> None:
+def _delete_multimodal_by_sources(sources: list[str], failures: list[str] | None = None) -> None:
     """Remove a deleted document's image and table vectors.
 
     Deleting a document used to leave them: the chunks went, the SQL copy of its
@@ -258,6 +270,8 @@ def _delete_multimodal_by_sources(sources: list[str]) -> None:
             delete_where(collection, where)
         except Exception as e:
             logger.warning(f"Failed to delete {collection} entries for removed sources: {e}")
+            if failures is not None:
+                failures.append(collection)
 
 
 def _delete_vector_documents(ids: list[str]) -> None:
@@ -351,13 +365,16 @@ def delete_file_index(
         source_keys = set(removed_sources)
         for source_value in removed_sources:
             source_keys.add(Path(source_value).name)
-        triplets_removed = _delete_triplets_by_sources(sorted(source_keys))
-        _delete_tables_by_sources(removed_sources)
-        _delete_multimodal_by_sources(sorted(set(removed_sources) | ({source} if source else set())))
+        failed_steps: list[str] = []
+        triplets_removed = _delete_triplets_by_sources(sorted(source_keys), failed_steps)
+        _delete_tables_by_sources(removed_sources, failed_steps)
+        _delete_multimodal_by_sources(sorted(set(removed_sources) | ({source} if source else set())), failed_steps)
 
         settings = get_settings()
         file_removed = False
-        if remove_physical_file:
+        # The upload is what a retry needs to find the document again, so it goes
+        # last and only once every other store has let go of it.
+        if remove_physical_file and not failed_steps:
             candidates = _physical_delete_candidates(filename, source, removed_sources, settings)
             file_removed = _delete_physical_files(candidates)
 
@@ -369,6 +386,7 @@ def delete_file_index(
             "vector_ids_removed": len(removed_ids),
             "triplets_removed": triplets_removed,
             "file_removed": file_removed,
+            "failed_steps": sorted(set(failed_steps)),
         }
 
 
@@ -385,7 +403,22 @@ def delete_document_index(filename: str, *, source: str, remove_physical_file: b
             version=int(record.get("version", 1) or 1),
             tenant_id=str(record.get("tenant_id", "") or "") or None,
         )
-    if remove_physical_file:
+    if result.get("failed_steps"):
+        # Some store still holds this document. Keep its registry row, marked, so
+        # the delete can be retried (every step is idempotent) instead of leaving
+        # rows that nothing names. `reconcile` reports the same state.
+        try:
+            update_document_by_source(
+                source,
+                {
+                    "status": "delete_failed",
+                    "stage": "delete",
+                    "error": "left in: " + ", ".join(result["failed_steps"]),
+                },
+            )
+        except ValueError:
+            logger.warning("delete of %s left rows in %s and has no registry row", source, result["failed_steps"])
+    elif remove_physical_file:
         delete_document_by_source(source)
     else:
         try:

@@ -16,6 +16,8 @@ import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from app.core.singleton import Singleton
+
 logger = logging.getLogger("app.agents.web_activity_data_manager")
 
 _LOG_FILE_GLOB = "web_activity_*.jsonl"
@@ -365,12 +367,9 @@ class WebActivityDataManager:
 
 
 # 全局实例
-_global_data_manager = None
+_global_data_manager = Singleton(lambda: WebActivityDataManager())
 
 
 def get_data_manager() -> WebActivityDataManager:
     """获取全局数据管理器实例"""
-    global _global_data_manager
-    if _global_data_manager is None:
-        _global_data_manager = WebActivityDataManager()
-    return _global_data_manager
+    return _global_data_manager.get()

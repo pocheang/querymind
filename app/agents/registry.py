@@ -9,6 +9,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from app.agents.catalog import AgentClass
+from app.core.singleton import Singleton
 from app.services.query.keyword_match import count_keywords
 
 if TYPE_CHECKING:
@@ -215,18 +216,12 @@ _BUILTIN_AGENT_FACTORIES: dict[str, Callable[[], BaseSpecialistAgent]] = {
     AgentClass.PDF_TEXT: _build_document_agent,
 }
 
-_REGISTRY_LOCK = threading.Lock()
-_GLOBAL_AGENT_REGISTRY: DomainAgentRegistry | None = None
+_GLOBAL_AGENT_REGISTRY = Singleton(DomainAgentRegistry)
 
 
 def get_domain_agent_registry() -> DomainAgentRegistry:
     """Retrieve or create the global singleton DomainAgentRegistry."""
-    global _GLOBAL_AGENT_REGISTRY
-    if _GLOBAL_AGENT_REGISTRY is None:
-        with _REGISTRY_LOCK:
-            if _GLOBAL_AGENT_REGISTRY is None:
-                _GLOBAL_AGENT_REGISTRY = DomainAgentRegistry()
-    return _GLOBAL_AGENT_REGISTRY
+    return _GLOBAL_AGENT_REGISTRY.get()
 
 
 def answer_shape(agent_class: str, skill: str) -> str:
@@ -244,9 +239,7 @@ def answer_shape(agent_class: str, skill: str) -> str:
 
 def reset_domain_agent_registry() -> None:
     """Reset the global singleton registry (intended for test isolation)."""
-    global _GLOBAL_AGENT_REGISTRY
-    with _REGISTRY_LOCK:
-        _GLOBAL_AGENT_REGISTRY = None
+    _GLOBAL_AGENT_REGISTRY.reset()
 
 
 __all__ = [

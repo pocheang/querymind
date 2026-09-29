@@ -143,10 +143,14 @@ def scan_source(code: str, path_str: str) -> set[tuple[str, str]]:
             # Check R2 sync primitives & container calls
             if isinstance(val, ast.Call):
                 func_last = None
-                if isinstance(val.func, ast.Name):
-                    func_last = val.func.id
-                elif isinstance(val.func, ast.Attribute):
-                    func_last = val.func.attr
+                func = val.func
+                # `Cell[int | None](None)`: the generic subscript hides the class name.
+                if isinstance(func, ast.Subscript):
+                    func = func.value
+                if isinstance(func, ast.Name):
+                    func_last = func.id
+                elif isinstance(func, ast.Attribute):
+                    func_last = func.attr
                 if func_last in SYNC_PRIMITIVES:
                     found.add((f"{path_str}::{tname}", "R2"))
                 elif func_last in CONTAINER_CALLS:

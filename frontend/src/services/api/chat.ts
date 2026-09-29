@@ -34,7 +34,7 @@ import {
   buildPostRequest,
   buildQueryString,
   encodePathParam,
-} from "@/lib/api-helpers";
+} from "@/services/http/requests";
 
 type AdvancedQueryInput = {
   query: string;

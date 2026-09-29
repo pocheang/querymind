@@ -17,6 +17,7 @@ from typing import Final
 from pydantic import BaseModel, Field, field_validator
 
 from app.agents.catalog import BUILTIN_AGENT_CLASSES, AgentClass
+from app.core.singleton import Singleton
 
 # ============================================================================
 # Vector RAG Configuration (3 constants)
@@ -214,15 +215,12 @@ class UnifiedAgentConfig(BaseModel):
 # Configuration Access Functions
 # ============================================================================
 
-_config_instance: UnifiedAgentConfig | None = None
+_config_instance = Singleton(lambda: UnifiedAgentConfig())
 
 
 def get_agent_config() -> UnifiedAgentConfig:
     """Get the global agent configuration instance."""
-    global _config_instance
-    if _config_instance is None:
-        _config_instance = UnifiedAgentConfig()
-    return _config_instance
+    return _config_instance.get()
 
 
 def get_vector_rag_config() -> VectorRAGConfig:

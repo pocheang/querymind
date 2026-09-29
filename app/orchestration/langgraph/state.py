@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 from app.domain.contracts import EvidenceBundle, FinalAnswer, RouteDecision, TaskPlan, ToolResult
-from app.domain.events import ExecutionEvent
 from app.domain.knowledge import AccessScope, KnowledgeStrategy
 from app.domain.workflow import (
     CandidateAnswer,
@@ -16,7 +13,6 @@ from app.domain.workflow import (
     WorkflowState,
 )
 from app.orchestration.request import OrchestrationRequest
-from app.orchestration.timeout_control import ExecutionBudget
 from app.privacy.models import PrivacyResult
 
 # LangGraph resolves inherited TypedDict annotations with this module's globals.
@@ -43,8 +39,6 @@ class OrchestrationGraphState(WorkflowState, total=False):
     evidence_bundle: EvidenceBundle
     tool_results: tuple[ToolResult, ...]
     candidate: FinalAnswer
-    budget: ExecutionBudget
-    reporter: Callable[[ExecutionEvent], None]
 
 
 __all__ = ["OrchestrationGraphState"]
