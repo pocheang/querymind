@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { appApi } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
+import { fetchPrompts, PROMPTS_QUERY_KEY } from "./usePrompts";
 import type { PromptTemplate } from "@/types/api";
 import type { AgentClassHint, Toast } from "@/pages/chat/types";
 
@@ -23,8 +25,6 @@ function isValidAgentClass(value: unknown): value is AgentClassHint {
 }
 
 interface UsePromptActionsParams {
-  setPrompts: Dispatch<SetStateAction<PromptTemplate[]>>;
-  setPromptsLoading: Dispatch<SetStateAction<boolean>>;
   setEditingPromptId: Dispatch<SetStateAction<string | null>>;
   setPromptTitle: Dispatch<SetStateAction<string>>;
   setPromptContent: Dispatch<SetStateAction<string>>;
@@ -39,8 +39,6 @@ interface UsePromptActionsParams {
 export function usePromptActions(params: UsePromptActionsParams) {
   const { t } = useTranslation();
   const {
-    setPrompts,
-    setPromptsLoading,
     setEditingPromptId,
     setPromptTitle,
     setPromptContent,
@@ -52,16 +50,15 @@ export function usePromptActions(params: UsePromptActionsParams) {
     confirm,
   } = params;
 
-  const refreshPrompts = async (silent = false) => {
-    if (!silent) setPromptsLoading(true);
+  // The list lives in the query cache (usePrompts). Fetching through the client
+  // updates every reader; the loading flag is only true before the first answer,
+  // so a background refresh (`silent`) never flashes the list.
+  const refreshPrompts = async (_silent = false) => {
     try {
-      const rows = await appApi.prompts();
-      setPrompts(rows);
+      await queryClient.fetchQuery({ queryKey: PROMPTS_QUERY_KEY, queryFn: fetchPrompts, staleTime: 0 });
       setError("");
     } catch (e) {
       await handleApiError(e, t("components.workbench.loadPromptsFailed"));
-    } finally {
-      if (!silent) setPromptsLoading(false);
     }
   };
 

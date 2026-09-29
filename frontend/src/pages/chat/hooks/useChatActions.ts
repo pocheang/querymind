@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { createApiErrorHandler } from "@/services/http/apiErrorHandler";
-import type { IndexedFileSummary, PromptTemplate, SessionMessage, SessionSummary } from "@/types/api";
+import type { IndexedFileSummary, SessionMessage, SessionSummary } from "@/types/api";
 import type { AgentClassHint, Toast } from "@/pages/chat/types";
 import { useSessionActions } from "./useSessionActions";
 import { useDocumentActions } from "./useDocumentActions";
@@ -25,8 +25,6 @@ interface UseChatActionsParams {
   setUploadProgress: Dispatch<SetStateAction<number>>;
   setUploadProgressText: Dispatch<SetStateAction<string>>;
   setAgentClassHint: Dispatch<SetStateAction<AgentClassHint>>;
-  setPrompts: Dispatch<SetStateAction<PromptTemplate[]>>;
-  setPromptsLoading: Dispatch<SetStateAction<boolean>>;
   setEditingPromptId: Dispatch<SetStateAction<string | null>>;
   setPromptTitle: Dispatch<SetStateAction<string>>;
   setPromptContent: Dispatch<SetStateAction<string>>;
@@ -66,8 +64,6 @@ export function useChatActions(params: UseChatActionsParams) {
     setUploadProgress,
     setUploadProgressText,
     setAgentClassHint,
-    setPrompts,
-    setPromptsLoading,
     setEditingPromptId,
     setPromptTitle,
     setPromptContent,
@@ -138,8 +134,6 @@ export function useChatActions(params: UseChatActionsParams) {
 
   // Prompt management actions
   const promptActions = usePromptActions({
-    setPrompts,
-    setPromptsLoading,
     setEditingPromptId,
     setPromptTitle,
     setPromptContent,

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { IndexedFileSummary, PromptTemplate, SessionMessage, SessionSummary } from "@/types/api";
+import type { IndexedFileSummary, SessionMessage, SessionSummary } from "@/types/api";
 import type { Toast } from "@/pages/chat/types";
 import type { AgentClassHint } from "@/pages/chat/constants";
 
@@ -41,8 +41,6 @@ export interface ChatState {
   composerDropActive: boolean;
 
   // Prompt State
-  prompts: PromptTemplate[];
-  promptsLoading: boolean;
   promptTitle: string;
   promptContent: string;
   editingPromptId: string | null;
@@ -81,8 +79,6 @@ export interface ChatState {
   setDocDropActive: (active: Updater<boolean>) => void;
   setComposerDropActive: (active: Updater<boolean>) => void;
 
-  setPrompts: (prompts: Updater<PromptTemplate[]>) => void;
-  setPromptsLoading: (loading: Updater<boolean>) => void;
   setPromptTitle: (title: Updater<string>) => void;
   setPromptContent: (content: Updater<string>) => void;
   setEditingPromptId: (id: Updater<string | null>) => void;
@@ -147,8 +143,6 @@ const INITIAL_STATE: ChatData = {
   composerDropActive: false,
 
   // Prompt State
-  prompts: [],
-  promptsLoading: false,
   promptTitle: "",
   promptContent: "",
   editingPromptId: null,
@@ -191,8 +185,6 @@ export const useChatStore = create<ChatState>((set) => ({
   setDocDropActive: (val) => set((s) => ({ docDropActive: updateValue(val, s.docDropActive) })),
   setComposerDropActive: (val) => set((s) => ({ composerDropActive: updateValue(val, s.composerDropActive) })),
 
-  setPrompts: (val) => set((s) => ({ prompts: updateValue(val, s.prompts) })),
-  setPromptsLoading: (val) => set((s) => ({ promptsLoading: updateValue(val, s.promptsLoading) })),
   setPromptTitle: (val) => set((s) => ({ promptTitle: updateValue(val, s.promptTitle) })),
   setPromptContent: (val) => set((s) => ({ promptContent: updateValue(val, s.promptContent) })),
   setEditingPromptId: (val) => set((s) => ({ editingPromptId: updateValue(val, s.editingPromptId) })),
