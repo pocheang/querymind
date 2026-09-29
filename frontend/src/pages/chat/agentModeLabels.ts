@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 
+import { AGENT_MODES } from "@/pages/chat/constants";
 import type { AgentMode } from "@/pages/chat/types";
 
 /**
@@ -60,5 +61,18 @@ export function useAgentModeLabels() {
           desc: t("agentModes.auto.desc", mode.desc),
         };
     }
+  };
+}
+
+/**
+ * The reader-facing name of an agent class as the backend reports it -- the
+ * same title its mode card shows. A class no card describes (an extension's)
+ * keeps its identifier, which is still true.
+ */
+export function useAgentClassName() {
+  const modeLabel = useAgentModeLabels();
+  return (agentClass: string): string => {
+    const mode = AGENT_MODES.find((candidate) => candidate.key === agentClass);
+    return mode ? modeLabel(mode).title : agentClass;
   };
 }

@@ -144,8 +144,8 @@ function ReactScenarioTable({ isZh }: Readonly<{ isZh: boolean }>) {
     <ScenarioTable
       title={
         isZh
-          ? "表 2：华东区月度销售业绩与环比增长分析表（数据沙箱精确计算）"
-          : "Table 2: East Region Monthly Sales & MoM Growth Analysis (Sandbox Calculator)"
+          ? "表 2：华东区月度销售额与环比增长（表格查询 [T1] 的结果）"
+          : "Table 2: East Region Monthly Sales & MoM Growth (result of table query [T1])"
       }
       headers={
         isZh

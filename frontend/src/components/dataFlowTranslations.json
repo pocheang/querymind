@@ -44,8 +44,8 @@
     "en": "🌍 Web Research Agent\nExternal Search Engine\nReal-time Info"
   },
   "12": {
-    "zh": "🤖 ReAct Agent\nReasoning + Acting\n迭代工具调用 (最多5轮)",
-    "en": "🤖 ReAct Agent\nReasoning + Acting\nIterative Tool Use (max 5 cycles)"
+    "zh": "🤖 ReAct Agent\nReasoning + Acting\n专家只读工具 (最多3步)",
+    "en": "🤖 ReAct Agent\nReasoning + Acting\nSpecialist read-only tools (max 3 steps)"
   },
   "13": {
     "zh": "✨ Synthesis Agent\n答案生成 + 引用\n上下文整合",
