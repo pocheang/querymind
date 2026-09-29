@@ -18,6 +18,8 @@ Validator = Callable[
     Awaitable[Any],
 ]
 
+NO_EVIDENCE = "no authorized evidence retrieved"
+
 
 class VerifierAgentService:
     """Check support, citations, omissions, and conflicts with at most one retry."""
@@ -48,7 +50,7 @@ class VerifierAgentService:
         # alone has something to attribute to. Treating it as evidence-less sent
         # it round a retry that re-ran retrieval and the tools for nothing.
         if not context.evidence and not candidate.tool_sources:
-            missing_aspects.append("no authorized evidence retrieved")
+            missing_aspects.append(NO_EVIDENCE)
 
         documents = [
             {
@@ -151,7 +153,12 @@ class VerifierAgentService:
 
         action = str(getattr(result, "action", "regenerate") or "regenerate")
         needs_retrieval = bool(action == "regenerate" or unsupported_tuple or citation_tuple or missing_tuple)
-        if needs_retrieval and retry_count < self._max_retries:
+        # Retrieval that found nothing at all is not retried. A retry replays
+        # retrieval and synthesis with a reworded query over the same scope --
+        # for a user with no documents and no web search, round two found zero
+        # results again and paid for a second synthesis to say so.
+        nothing_was_found = NO_EVIDENCE in missing_tuple
+        if needs_retrieval and retry_count < self._max_retries and not nothing_was_found:
             return VerificationDecision(
                 status="retry_retrieval",
                 unsupported_claims=unsupported_tuple,

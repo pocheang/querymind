@@ -281,7 +281,14 @@ class WorkflowNodeRuntime:
         )
         tool_results: tuple[ToolResult, ...] = ()
         trace = [strategy_event, event]
-        if self._policy.should_run_tools(route, plan):
+        if int(state.get("retry_count", 0)) > 0 and "tool_results" in state:
+            # A verifier retry re-runs retrieval with a new query; the tool stage
+            # would get the same inputs -- tool selection sees the request, the
+            # route and the plan, never the evidence -- and repeat the same
+            # calls: the same lookups again, and for a write tool a second
+            # approval token for one action. The first round's results stand.
+            tool_results = tuple(state.get("tool_results") or ())
+        elif self._policy.should_run_tools(route, plan):
             tool_results, tool_event = await self._run_stage(
                 state,
                 event_stage="tool",
