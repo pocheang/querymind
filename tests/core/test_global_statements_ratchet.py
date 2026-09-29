@@ -16,7 +16,7 @@ from pathlib import Path
 APP = Path(__file__).resolve().parents[2] / "app"
 
 # Update only downwards.
-MAX_GLOBAL_STATEMENTS = 22
+MAX_GLOBAL_STATEMENTS = 1
 
 
 def _count() -> tuple[int, list[str]]:

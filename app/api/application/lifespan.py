@@ -20,6 +20,7 @@ from app.api.dependencies import (
 from app.api.deps.runtime import install_app_services
 from app.core.config import validate_security_settings, validate_shared_state_backends, validate_worker_topology
 from app.core.remote_config import watch_remote_config
+from app.core.singleton import Cell
 from app.graph.knowledge.client import Neo4jClient
 from app.services.observability.log_buffer import setup_log_capture
 from app.services.observability.log_safety import install_control_character_escaping
@@ -28,10 +29,9 @@ from app.services.observability.log_safety import install_control_character_esca
 install_control_character_escaping()
 setup_log_capture()
 logger = logging.getLogger(__name__)
-_auto_ingest_thread: threading.Thread | None = None
+_auto_ingest_thread = Cell[threading.Thread | None](None)
 
 # Performance optimization imports
-_cache_initialized = False
 
 
 def _run_startup_tasks(settings) -> None:
@@ -189,31 +189,29 @@ def _start_auto_ingest_thread(settings) -> None:
     ingest each new file once per worker, so the watcher lives in the ingest
     worker instead (ARC-01 phase 5, C1).
     """
-    global _auto_ingest_thread
     if not settings.auto_ingest_enabled or settings.state_backend == "shared":
         return
-    if _auto_ingest_thread is not None and _auto_ingest_thread.is_alive():
+    if _auto_ingest_thread.value is not None and _auto_ingest_thread.value.is_alive():
         return
     _auto_ingest_stop_event.clear()
-    _auto_ingest_thread = threading.Thread(
+    _auto_ingest_thread.value = threading.Thread(
         target=auto_ingest_watcher.run_loop,
         args=(lambda: _auto_ingest_stop_event.is_set(),),
         daemon=True,
         name="auto-ingest-watcher",
     )
-    _auto_ingest_thread.start()
+    _auto_ingest_thread.value.start()
 
 
 async def _shutdown_services(tracker, cache_initialized: bool) -> None:
-    global _auto_ingest_thread
     logger.info("Shutting down services...")
 
     await tracker.stop_periodic_cleanup()
 
     _auto_ingest_stop_event.set()
-    if _auto_ingest_thread is not None and _auto_ingest_thread.is_alive():
-        _auto_ingest_thread.join(timeout=5)
-    _auto_ingest_thread = None
+    if _auto_ingest_thread.value is not None and _auto_ingest_thread.value.is_alive():
+        _auto_ingest_thread.value.join(timeout=5)
+    _auto_ingest_thread.value = None
     api_dependencies.get_query_runtime().shadow_queue.stop(timeout=2.0)
     Neo4jClient.close_shared_driver()
 
@@ -231,7 +229,6 @@ async def _shutdown_services(tracker, cache_initialized: bool) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage backend lifecycle (replaces deprecated on_event hooks)."""
-    global _cache_initialized
     query_runtime = api_dependencies.get_query_runtime()
     settings = query_runtime.settings
     validate_security_settings(settings)
@@ -272,7 +269,7 @@ async def lifespan(app: FastAPI):
     tracker = get_tracker()
     tracker.start_periodic_cleanup(interval_seconds=300)
 
-    _cache_initialized = _init_cache_manager(settings)
+    cache_initialized = _init_cache_manager(settings)
     await asyncio.to_thread(_recover_unfinished_ingests, settings)
     _start_auto_ingest_thread(settings)
     # In the background: startup is not delayed, and /ready reports `warming`
@@ -284,7 +281,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        await _shutdown_services(tracker, _cache_initialized)
+        await _shutdown_services(tracker, cache_initialized)
 
 
 __all__ = ["lifespan"]

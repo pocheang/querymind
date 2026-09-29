@@ -32,6 +32,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from app.core.singleton import Cell
+
 logger = logging.getLogger(__name__)
 
 COOLDOWN_SECONDS = 15.0
@@ -43,7 +45,7 @@ here rather than a new setting: nobody has needed to tune it, and a setting that
 only ever held its default is configuration surface without a reason.
 """
 
-_ERRORS: tuple[type[BaseException], ...] | None = None
+_ERRORS = Cell[tuple[type[BaseException], ...] | None](None)
 
 
 def redis_unavailable_errors() -> tuple[type[BaseException], ...]:
@@ -57,18 +59,17 @@ def redis_unavailable_errors() -> tuple[type[BaseException], ...]:
     is an optional install, so this must neither import per call nor require it.
     """
 
-    global _ERRORS
-    if _ERRORS is None:
+    if _ERRORS.value is None:
         base: tuple[type[BaseException], ...] = (ValueError, TypeError, OSError)
         try:
             # The submodule, not `redis.RedisError`: it resolves the same class
             # and does not depend on what the top-level package object exposes.
             from redis.exceptions import RedisError  # type: ignore
 
-            _ERRORS = (*base, RedisError)
+            _ERRORS.value = (*base, RedisError)
         except ImportError:
-            _ERRORS = base
-    return _ERRORS
+            _ERRORS.value = base
+    return _ERRORS.value
 
 
 def _settings_redis_url() -> str:

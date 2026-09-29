@@ -2,12 +2,13 @@ import copy
 import json
 import logging
 
+from app.core.singleton import Cell
 from app.services.runtime.redis_connector import RedisConnector
 from app.services.runtime.resilience import TTLCache
 
 logger = logging.getLogger(__name__)
 
-_RETRIEVAL_CACHE: TTLCache | None = None
+_RETRIEVAL_CACHE = Cell[TTLCache | None](None)
 # Bytes, not str: cached payloads are JSON that `json.loads` takes either way,
 # and this is what the client was configured with before the connector existed.
 _REDIS = RedisConnector(
@@ -49,19 +50,17 @@ def redis_client(settings):  # noqa: ARG001 -- the URL is read from settings at 
 
 def get_retrieval_cache(settings) -> TTLCache:
     """Get or create the in-memory retrieval cache."""
-    global _RETRIEVAL_CACHE
-    if _RETRIEVAL_CACHE is None:
-        _RETRIEVAL_CACHE = TTLCache(
+    if _RETRIEVAL_CACHE.value is None:
+        _RETRIEVAL_CACHE.value = TTLCache(
             ttl_seconds=int(getattr(settings, "retrieval_cache_ttl_seconds", 45) or 45),
             max_items=int(getattr(settings, "retrieval_cache_max_items", 256) or 256),
         )
-    return _RETRIEVAL_CACHE
+    return _RETRIEVAL_CACHE.value
 
 
 def clear_retrieval_cache() -> None:
     """Clear both memory and Redis caches."""
-    global _RETRIEVAL_CACHE
-    _RETRIEVAL_CACHE = None
+    _RETRIEVAL_CACHE.value = None
     try:
         from app.core.config import get_settings
 
@@ -85,8 +84,7 @@ def clear_retrieval_cache() -> None:
 
 def drop_local_retrieval_cache() -> None:
     """Forget this process's in-memory results; Redis entries are left to their keys (below)."""
-    global _RETRIEVAL_CACHE
-    _RETRIEVAL_CACHE = None
+    _RETRIEVAL_CACHE.value = None
 
 
 def _shared() -> bool:

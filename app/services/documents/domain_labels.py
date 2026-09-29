@@ -20,6 +20,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.agents.catalog import normalize_agent_class
+from app.core.singleton import Cell
 from app.services.documents.registry import _default_path, list_document_records
 
 __all__ = ["DomainLabels", "folder_label", "load_domain_labels"]
@@ -91,7 +92,7 @@ def folder_label(source: str, shared_root: str) -> str | None:
     return normalize_agent_class(relative.parts[0])
 
 
-_cache: tuple[tuple[str, str, int, int], DomainLabels] | None = None
+_cache = Cell[tuple[tuple[str, str, int, int], DomainLabels] | None](None)
 _cache_lock = threading.Lock()
 
 
@@ -129,7 +130,6 @@ def load_domain_labels(path: Path | None = None) -> DomainLabels:
     next question without a cross-process invalidation of its own.
     """
 
-    global _cache
     target = path or _default_path()
     shared_root = _shared_root()
     try:
@@ -139,8 +139,8 @@ def load_domain_labels(path: Path | None = None) -> DomainLabels:
         return DomainLabels(by_document_id={}, by_source={}, shared_root=shared_root)
     key = (str(target), shared_root, stat.st_mtime_ns, stat.st_size)
     with _cache_lock:
-        if _cache is not None and _cache[0] == key:
-            return _cache[1]
+        if _cache.value is not None and _cache.value[0] == key:
+            return _cache.value[1]
 
     by_id, by_source, owner_by_id, owner_by_source = _registry_maps(list_document_records(target))
     labels = DomainLabels(
@@ -151,5 +151,5 @@ def load_domain_labels(path: Path | None = None) -> DomainLabels:
         owner_by_source=owner_by_source,
     )
     with _cache_lock:
-        _cache = (key, labels)
+        _cache.value = (key, labels)
     return labels

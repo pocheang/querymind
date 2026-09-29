@@ -6,6 +6,8 @@ import hashlib
 import logging
 import re
 
+from app.core.singleton import Cell
+
 __all__ = ["install_control_character_escaping", "install_http_url_redaction", "key_ref", "question_ref"]
 
 
@@ -49,7 +51,7 @@ def key_ref(key: str | None) -> str:
 # second log record that looks like it came from this application.
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0a-\x1f\x7f-\x9f]")
 
-_INSTALLED = False
+_INSTALLED = Cell(False)
 
 
 def _escaped(text: str) -> str:
@@ -88,8 +90,7 @@ def install_control_character_escaping() -> None:
     not the finding.
     """
 
-    global _INSTALLED
-    if _INSTALLED:
+    if _INSTALLED.value:
         return
 
     previous = logging.getLogRecordFactory()
@@ -103,7 +104,7 @@ def install_control_character_escaping() -> None:
         return record
 
     logging.setLogRecordFactory(factory)
-    _INSTALLED = True
+    _INSTALLED.value = True
 
 
 # The HTTP clients the web search reaches the network through. Their records
@@ -115,7 +116,7 @@ _HTTP_CLIENT_LOGGERS = ("httpx", "httpcore", "ddgs", "primp")
 # prose or in a repr. Negated classes, no nested quantifiers: linear.
 _URL_QUERY = re.compile(r"(https?://[^\s'\"()<>?]+)\?[^\s'\"()<>]*")
 
-_URL_REDACTION_INSTALLED = False
+_URL_REDACTION_INSTALLED = Cell(False)
 
 
 def _without_url_queries(text: str) -> str:
@@ -146,8 +147,7 @@ def install_http_url_redaction() -> None:
     Idempotent, and it chains to whatever factory was installed before it.
     """
 
-    global _URL_REDACTION_INSTALLED
-    if _URL_REDACTION_INSTALLED:
+    if _URL_REDACTION_INSTALLED.value:
         return
 
     previous = logging.getLogRecordFactory()
@@ -163,7 +163,7 @@ def install_http_url_redaction() -> None:
         return record
 
     logging.setLogRecordFactory(factory)
-    _URL_REDACTION_INSTALLED = True
+    _URL_REDACTION_INSTALLED.value = True
 
 
 def _escaped_record_args(args: dict | tuple) -> dict | tuple:

@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import Request
 
 from app.core.config import get_settings
+from app.core.singleton import Cell
 from app.services.runtime.runtime_metrics import record_request, request_kind
 
 # Global metrics storage.
@@ -20,7 +21,7 @@ from app.services.runtime.runtime_metrics import record_request, request_kind
 # The deque is built on first use rather than at import: its bound is a Settings
 # field now, and Settings is not loaded yet while this module is being imported.
 _request_metrics_lock = threading.Lock()
-_request_metrics: deque[dict[str, Any]] | None = None
+_request_metrics = Cell[deque[dict[str, Any]] | None](None)
 
 
 def _metrics() -> deque[dict[str, Any]]:
@@ -29,10 +30,9 @@ def _metrics() -> deque[dict[str, Any]]:
     Call only while holding `_request_metrics_lock`.
     """
 
-    global _request_metrics
-    if _request_metrics is None:
-        _request_metrics = deque(maxlen=get_settings().request_metrics_maxlen)
-    return _request_metrics
+    if _request_metrics.value is None:
+        _request_metrics.value = deque(maxlen=get_settings().request_metrics_maxlen)
+    return _request_metrics.value
 
 
 def record_grounding_support(request: Request, execution_metadata: Mapping[str, Any]) -> None:

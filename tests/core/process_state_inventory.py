@@ -72,10 +72,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "B",
         "NLI 交叉编码器模型单例缓存，模型配置更新时需要跨进程失效或重新加载",
     ),
-    "app/agents/verifier/validation/public.py::_cascade_load_attempted": (
-        "B",
-        "校验级联加载尝试标志，与校验级联缓存联动，热重载时需要重置",
-    ),
     "app/agents/verifier/validation/public.py::_validation_cascade": (
         "B",
         "答案校验级联实例缓存，重载配置时需要跨进程失效并重新构建校验器",
@@ -83,10 +79,6 @@ INVENTORY: dict[str, tuple[Category, str]] = {
     "app/api/application/lifespan.py::_auto_ingest_thread": (
         "D",
         "自动摄取监视线程只在 STATE_BACKEND=memory（单进程）时由 API 启动；shared 模式下监视器运行在唯一的 ingest-worker 里（阶段 5）",
-    ),
-    "app/api/application/lifespan.py::_cache_initialized": (
-        "D",
-        "进程生命周期内缓存服务初始化状态标志，各进程独立维护自身的启停状态",
     ),
     "app/api/dependencies.py::_auto_ingest_stop_event": (
         "D",

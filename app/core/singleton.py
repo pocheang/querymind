@@ -51,3 +51,17 @@ class Singleton(Generic[T]):
     def set(self, value: T | None) -> None:
         with self._lock:
             self._value = value
+
+
+class Cell(Generic[T]):
+    """A named, mutable slot for process-wide state that is not built lazily.
+
+    Flags ("installed"), a cache entry, the last thread started. Holding it in
+    an object means writing it needs no `global` statement, and a test can
+    replace it with `monkeypatch.setattr(module.CELL, "value", ...)`.
+    """
+
+    __slots__ = ("value",)
+
+    def __init__(self, value: T) -> None:
+        self.value = value

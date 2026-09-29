@@ -259,7 +259,7 @@ def test_shared_mode_keeps_no_per_process_copy(shared_cache, monkeypatch):
     monkeypatch.setattr(caching, "redis_client", lambda settings: None)  # Redis gone
 
     assert caching.cache_lookup("q", settings, _span) is None
-    assert caching._RETRIEVAL_CACHE is None
+    assert caching._RETRIEVAL_CACHE.value is None
 
 
 def test_nothing_is_cached_before_the_first_look(shared_cache):

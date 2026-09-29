@@ -10,6 +10,7 @@ import logging
 import time
 import uuid
 
+from app.core.singleton import Cell
 from app.services.runtime.redis_connector import AsyncRedisConnector
 from app.services.runtime.shared_state import SharedStateUnavailable, is_unavailable_error
 
@@ -117,12 +118,11 @@ class RedisRateLimiter:
         self._memory_store.pop(key, None)
 
 
-_rate_limiter: RedisRateLimiter | None = None
+_rate_limiter = Cell[RedisRateLimiter | None](None)
 
 
 def get_rate_limiter(redis_url: str | None = None, *, shared: bool = False) -> RedisRateLimiter:
     """Get or create the process-wide rate limiter."""
-    global _rate_limiter
-    if _rate_limiter is None:
-        _rate_limiter = RedisRateLimiter(redis_url, shared=shared)
-    return _rate_limiter
+    if _rate_limiter.value is None:
+        _rate_limiter.value = RedisRateLimiter(redis_url, shared=shared)
+    return _rate_limiter.value

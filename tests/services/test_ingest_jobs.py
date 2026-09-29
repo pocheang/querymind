@@ -215,7 +215,7 @@ def test_the_api_does_not_watch_folders_in_shared_mode(data, monkeypatch):
 
     started: list[str] = []
     monkeypatch.setattr(lifespan_module.threading, "Thread", lambda *a, **k: started.append("thread") or _NoThread())
-    monkeypatch.setattr(lifespan_module, "_auto_ingest_thread", None)
+    monkeypatch.setattr(lifespan_module._auto_ingest_thread, "value", None)
 
     shared = get_settings().model_copy(update={"auto_ingest_enabled": True, "state_backend": "shared"})
     lifespan_module._start_auto_ingest_thread(shared)
