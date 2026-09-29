@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.1.1] - 2026-09-29
+
+Upgrade notes and API changes: [docs/releases/v0.7.1.1-release-notes.md](docs/releases/v0.7.1.1-release-notes.md).
+
+### 🧠 Answers name their specialist and number their tools
+
+- Every answer was reported as the general analyst: `RAGPipeline` never copied the route's specialist and skill into its result, so the chat response, the re-run record and the analytics log all read "general". The chat response now carries `agent_class` and `skill`, and the badge reads "网络安全 · 漏洞暴露评估" instead of `agent: cybersecurity` (which appeared only on re-runs).
+- The tool panel shows each tool by name and with the `[T{k}]` number the answer's Tool sources list uses: `output_filter` records the number on each cited tool result (`tool_runs[].marker`).
+- A fresh answer keeps its source badges instead of showing "no sources" until the page is reloaded.
+
+### 🖥️ The pages describe the system as it runs
+
+- Chat page: the specialist count is derived (it read a literal 4); new tiles for the specialists and for cited tool results; starter questions follow the selected mode; follow-up suggestions use the specialists' tools; the PDF card is **Document Reading**.
+- Architecture page: the six steps describe the real nodes (they claimed sandboxed calculators and APIs, "1-5 req/h" and "5 tool rounds"); KPIs show 5 specialists and 160 endpoints; the API catalog is rebuilt from the live OpenAPI document (it listed endpoints that do not exist) and checked by a test; the architecture diagram is redrawn from the pipeline as an SVG.
+- Landing page: the document card and the tool-gateway pop-ups no longer claim a sandbox. Analytics: per-specialist charts use specialist names.
+
+### ⚡ Fewer model calls per question
+
+- Clarification asks the model only about a question too short to say what it is about, or an open-ended build/design/plan task; it asked about every question the rules found complete.
+- The chat client no longer requests Self-RAG, which ran two or more model calls after the pipeline, outside its budget; a caller that does gets only what the deadline leaves, so a slow run no longer ends in a browser timeout while the server saves the answer.
+- A verifier retry is not started when retrieval found nothing, and a retry keeps the first round's tool results instead of running the tools (and minting approval tokens) again.
+
+### 🔧 Fixes
+
+- Questions about attacks are answered: "vssadmin delete shadows 被执行了怎么办？" was refused because a keyword rule read 被执行了 ("was executed") as a request to run the command. The intent-based check still refuses requests to run one. A refused question answers 422 with the reason instead of a 500.
+- On the offline backend, clarification no longer asks every question which tech stack it plans to use: it scanned its own prompt, which contains 设计 / 架构.
+- Re-running an edited message asks the question the chat path would: no appended "[补全提示]" instructions, reasoning off as in chat, and the conversation as the turns before the edited message.
+- `QUERYMIND_API_TARGET` overrides the Vite dev server's backend target, for machines where Windows reserves port 8000.
+
 ## [0.7.1] - 2026-09-28
 
 Upgrade guide, new settings and API changes: [docs/releases/v0.7.1-release-notes.md](docs/releases/v0.7.1-release-notes.md).
