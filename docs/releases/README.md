@@ -4,6 +4,13 @@ Official release notes for QueryMind（智询）.
 
 ## Latest Release
 
+**[v0.7.2](v0.7.2-release-notes.md)** - 2026-09-29
+- **Breaking**: every endpoint is under `/api/v1`; the old paths are removed
+- One execution event stream and one trace endpoint
+- Failed document deletes are kept and retryable; index reconciliation across all stores
+- Session messages stored per row; SQLite is the default history backend
+- **Upgrade**: back up `data/`, update API callers and the Google OAuth redirect URI
+
 **[v0.7.1.1](v0.7.1.1-release-notes.md)** - 2026-09-29
 - Answers name the specialist that wrote them and the shape they answer in; the tool panel numbers tools the way the answer does
 - Chat, architecture, landing and analytics pages describe the pipeline as it runs; the API catalog is rebuilt from the live OpenAPI document
