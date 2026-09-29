@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### ⚠️ Breaking: every endpoint is under `/api/v1`
 
 - The API was spread over about twenty prefixes: bare `/sessions`, `/admin/...`, `/auth/...`, `/documents`, `/prompts`, `/upload`, `/user/...`, `/model-catalog`, `/optimization/...`, `/agent-tracking/...`, `/circuit-breakers`, and `/api/advanced-rag`, `/api/analytics`, `/api/evaluation`. All of them are now `/api/v1/<same path>` (for example `/sessions` is `/api/v1/sessions`, `/api/advanced-rag/query` is `/api/v1/advanced-rag/query`). The old paths are removed, not deprecated, and so is the middleware that rewrote `/api/<name>` onto them; `/app/api/...` still works for a frontend served under a base path.
+- One live stream and one trace endpoint: `GET /api/v1/orchestration/executions/{id}/events` is the only SSE (the polling `/agent-tracking/stream/{id}`, which saw only its own worker, is removed), and `/api/v1/agent-tracking/trace/{id}` is the only trace read (the admin-only duplicate `/agents/trace/{id}` is removed). 160 operations become 158.
 - Not moved: `/`, `/health`, `/ready`, `/ready/dependencies`, `/metrics`, and the SPA under `/app`.
 - Update scripts, n8n workflows and monitoring that call the old paths. If Google sign-in is configured, change the authorized redirect URI to `.../api/v1/auth/google/callback`. Prometheus rules and nginx are updated in the repository; a deployment that copied its own nginx.conf needs `location ~ ^/api/v1/(orchestration/executions/[^/]+/events|agent-tracking/stream/)`.
 

@@ -27,7 +27,6 @@ EXECUTION_API = ROOT / "frontend" / "src" / "services" / "execution" / "executio
 # nginx's /api/ location. test_the_stream_list_is_complete keeps it in step.
 SSE_ROUTES = {
     "app/api/routes/public/orchestration.py": "/api/v1/orchestration/executions/{execution_id}/events",
-    "app/api/routes/operations/agent_tracking.py": "/api/v1/agent-tracking/stream/{execution_id}",
 }
 
 

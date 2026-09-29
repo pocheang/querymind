@@ -147,7 +147,7 @@ def test_the_middleware_records_into_what_metrics_exports():
         ("POST", "/api/v1/advanced-rag/query", "query"),
         ("GET", "/api/v1/advanced-rag/query", "other"),
         ("GET", "/api/v1/orchestration/executions/abc/events", "stream"),
-        ("GET", "/api/v1/agent-tracking/stream/abc", "stream"),
+        ("GET", "/api/v1/agent-tracking/trace/abc", "other"),
         ("GET", "/health", "other"),
         ("GET", "/api/v1/orchestration/executions/abc", "other"),
     ],

@@ -1,10 +1,7 @@
-import asyncio
-import json
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.api.dependencies import _require_permission, _require_user
@@ -18,6 +15,11 @@ from app.services.security.rbac import Permission
 
 logger = logging.getLogger(__name__)
 
+# Per-execution trace inspection (steps, status, history), scoped to the owner.
+# One stream exists and it is not here: a run's live events are
+# `GET /api/v1/orchestration/executions/{id}/events`. A second, 0.5 s polling
+# SSE at `/agent-tracking/stream` saw only this worker's traces and had no
+# caller; it was removed with the admin-only duplicate `/agents/trace/{id}`.
 router = APIRouter(prefix="/agent-tracking", tags=["agent-tracking"])
 
 _EXECUTION_NOT_FOUND = "Execution not found"
@@ -52,78 +54,6 @@ class ExecutionStatus(BaseModel):
     start_time: str
     end_time: str | None = None
     total_duration_ms: float | None = None
-
-
-async def _stream_execution(execution_id: ExecutionId, tracker: AgentExecutionTracker, max_iterations: int):
-    last_step_count = 0
-    heartbeat_counter = 0
-    iteration = 0
-
-    while iteration < max_iterations:
-        iteration += 1
-        trace = tracker.get_execution_trace(execution_id)
-
-        if not trace:
-            yield f"event: error\ndata: {json.dumps({'error': _EXECUTION_NOT_FOUND})}\n\n"
-            break
-
-        if iteration == 1:
-            yield f"event: heartbeat\ndata: {json.dumps({'timestamp': trace.start_time.isoformat()})}\n\n"
-
-        if len(trace.steps) > last_step_count:
-            for step in trace.steps[last_step_count:]:
-                step_data = step.model_dump(mode="json")
-                yield f"event: agent_step\ndata: {json.dumps(step_data)}\n\n"
-            last_step_count = len(trace.steps)
-
-        if trace.status in ["completed", "failed"]:
-            trace_data = trace.model_dump(mode="json")
-            yield f"event: execution_complete\ndata: {json.dumps(trace_data)}\n\n"
-            break
-
-        heartbeat_counter += 1
-        if heartbeat_counter >= 30:
-            yield f"event: heartbeat\ndata: {json.dumps({'timestamp': trace.start_time.isoformat()})}\n\n"
-            heartbeat_counter = 0
-
-        await asyncio.sleep(0.5)
-
-    if iteration >= max_iterations:
-        yield f"event: timeout\ndata: {json.dumps({'message': 'Stream timeout'})}\n\n"
-
-
-@router.get("/stream/{execution_id}")
-async def stream_execution(
-    execution_id: ExecutionId,
-    request: Request,
-    user: dict[str, Any] = Depends(_require_user),
-    max_iterations: int = 600,
-):
-    """
-    Server-Sent Events (SSE) endpoint for real-time execution tracking.
-
-    Streams agent steps as they complete during execution.
-    User can only stream their own executions unless they are admin.
-    """
-    _require_permission(user, Permission.QUERY_RUN, request, "agent-tracking")
-    tracker = AgentExecutionTracker.get_instance()
-    max_iterations = max(1, min(int(max_iterations or 600), 600))
-
-    # Verify ownership before streaming
-    trace = tracker.get_execution_trace(execution_id)
-    if not trace:
-        raise not_found(_EXECUTION_NOT_FOUND)
-    _verify_trace_ownership(trace, user)
-
-    return StreamingResponse(
-        _stream_execution(execution_id, tracker, max_iterations),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
 
 
 @router.get("/trace/{execution_id}", response_model=ExecutionTrace)
