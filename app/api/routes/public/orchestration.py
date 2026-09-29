@@ -37,6 +37,7 @@ from app.orchestration.answer_stream import AnswerStreamStore
 from app.orchestration.execution_events import ExecutionEventStore
 from app.orchestration.request import RequestActor
 from app.services.observability.agent_execution_tracker import AgentExecutionTracker, ExecutionTrace, terminal_event
+from app.services.runtime import execution_wake
 from app.services.runtime.shared_state import SharedStateUnavailable, is_shared
 
 router = APIRouter(prefix="/api/v1/orchestration", tags=["orchestration"])
@@ -119,25 +120,32 @@ async def _stream_execution_events(
     event_offset = 0
     answer_offset = 0
     thought_offset = 0
-    while True:
-        current_trace = AgentExecutionTracker.get_instance().get_execution_trace(execution_id)
-        if current_trace is None:
-            return
-        event_offset, answer_offset, thought_offset, items = _poll_execution_updates(
-            execution_id, event_store, answer_store, thought_store, event_offset, answer_offset, thought_offset
-        )
-        for item in items:
-            yield item
-        if current_trace.status in {"completed", "failed"}:
-            yield serialize_execution_event(terminal_event(current_trace))
-            return
-        if await request.is_disconnected():
-            return
-        await asyncio.sleep(0.05)
+    with execution_wake.subscribe(execution_id) as waiter:
+        while True:
+            # Clear before looking: a change that lands after the look sets the
+            # flag again, so the wait below returns at once instead of missing it.
+            waiter.clear()
+            current_trace = AgentExecutionTracker.get_instance().get_execution_trace(execution_id)
+            if current_trace is None:
+                return
+            event_offset, answer_offset, thought_offset, items = _poll_execution_updates(
+                execution_id, event_store, answer_store, thought_store, event_offset, answer_offset, thought_offset
+            )
+            for item in items:
+                yield item
+            if current_trace.status in {"completed", "failed"}:
+                yield serialize_execution_event(terminal_event(current_trace))
+                return
+            if await request.is_disconnected():
+                return
+            await waiter.wait(_STREAM_HEARTBEAT_SECONDS)
 
 
 _SUBSCRIBE_GRACE_SECONDS = 10.0
 _SUBSCRIBE_POLL_SECONDS = 0.05
+# Writers announce every change (`execution_wake`); this only bounds how long a
+# subscriber sleeps if one did not, and how soon a disconnect is noticed.
+_STREAM_HEARTBEAT_SECONDS = 1.0
 
 
 async def _await_trace(execution_id: str) -> ExecutionTrace | None:
@@ -151,11 +159,14 @@ async def _await_trace(execution_id: str) -> ExecutionTrace | None:
     SSE connection reaches the server first.
     """
     deadline = time.monotonic() + _SUBSCRIBE_GRACE_SECONDS
-    while True:
-        trace = AgentExecutionTracker.get_instance().get_execution_trace(execution_id)
-        if trace is not None or time.monotonic() >= deadline:
-            return trace
-        await asyncio.sleep(_SUBSCRIBE_POLL_SECONDS)
+    with execution_wake.subscribe(execution_id) as waiter:
+        while True:
+            waiter.clear()
+            trace = AgentExecutionTracker.get_instance().get_execution_trace(execution_id)
+            remaining = deadline - time.monotonic()
+            if trace is not None or remaining <= 0:
+                return trace
+            await waiter.wait(min(remaining, _STREAM_HEARTBEAT_SECONDS))
 
 
 # ---- STATE_BACKEND=shared: one Redis stream per execution, pushed ---------------------

@@ -12,6 +12,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.services.observability.log_safety import key_ref
+from app.services.runtime.execution_wake import notify
 
 logger = logging.getLogger(__name__)
 
@@ -337,6 +338,7 @@ class AgentExecutionTracker:
         }
         with self._traces_lock:
             self._traces[execution_id] = trace
+        notify(execution_id)
         if _shared():
             # Owner and status only -- never the question -- so a subscriber on
             # another worker can be authorized and can tell when the run ends.
@@ -490,6 +492,7 @@ class AgentExecutionTracker:
                 trace.metadata["result"] = final_result
             logger.info("Completed execution trace: %s", trace.execution_id)
         _mirror_finish(trace)
+        notify(execution_id)
 
     def fail_execution(self, execution_id: str, error: str) -> None:
         with self._traces_lock:
@@ -505,6 +508,7 @@ class AgentExecutionTracker:
             trace.metadata["error"] = error
             logger.info("Failed execution trace: %s", trace.execution_id)
         _mirror_finish(trace)
+        notify(execution_id)
 
     def get_execution_trace(self, execution_id: str) -> ExecutionTrace | None:
         with self._traces_lock:
