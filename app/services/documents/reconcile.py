@@ -7,6 +7,7 @@ nothing names. This module finds them:
 
 * vectors in the main collection that no corpus row names, and the reverse;
 * image / table vectors and SQL tables whose source has no corpus chunks;
+* graph sources (Neo4j, when it is configured and reachable) with no corpus chunks;
 * registry rows marked ``delete_failed`` (a delete that left rows behind);
 * registry rows whose file is gone from disk.
 
@@ -22,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -32,6 +34,7 @@ from app.services.documents.index_manager import (
     MULTIMODAL_COLLECTIONS,
     _delete_multimodal_by_sources,
     _delete_tables_by_sources,
+    _delete_triplets_by_sources,
     _delete_vector_documents,
     _record_source,
 )
@@ -46,6 +49,7 @@ class ReconcileReport:
     corpus_ids_without_vector: list[str] = field(default_factory=list)
     orphan_table_sources: list[str] = field(default_factory=list)
     orphan_multimodal_sources: dict[str, list[str]] = field(default_factory=dict)
+    orphan_graph_sources: list[str] = field(default_factory=list)
     delete_failed: list[str] = field(default_factory=list)
     registry_missing_file: list[str] = field(default_factory=list)
     repaired: dict[str, int] = field(default_factory=dict)
@@ -58,6 +62,7 @@ class ReconcileReport:
             or self.corpus_ids_without_vector
             or self.orphan_table_sources
             or any(self.orphan_multimodal_sources.values())
+            or self.orphan_graph_sources
             or self.delete_failed
             or self.registry_missing_file
         )
@@ -83,6 +88,16 @@ def _table_sources() -> set[str]:
     from app.services.tables.store import get_table_store
 
     return get_table_store().sources()
+
+
+def _graph_sources() -> set[str]:
+    from app.graph.knowledge.client import Neo4jClient
+
+    client = Neo4jClient()
+    try:
+        return client.list_sources()
+    finally:
+        client.close()
 
 
 def _probe(report: ReconcileReport, name: str, fn: Any) -> Any:
@@ -116,6 +131,13 @@ def reconcile_index(*, repair: bool = False) -> ReconcileReport:
             if found is not None:
                 report.orphan_multimodal_sources[name] = sorted(found - corpus_sources)
 
+        graph_sources = _probe(report, "graph", _graph_sources)
+        if graph_sources is not None:
+            # The graph keys some rows by full path and some by file name (see
+            # `delete_file_index`), so a name that belongs to a live chunk's file is not an orphan.
+            live = corpus_sources | {Path(s).name for s in corpus_sources}
+            report.orphan_graph_sources = sorted(graph_sources - live)
+
         for row in list_document_records():
             source = str(row.get("source", "") or "")
             if str(row.get("status", "")) == "delete_failed":
@@ -134,10 +156,52 @@ def _repair(report: ReconcileReport) -> None:
         report.repaired["vectors"] = len(report.orphan_vector_ids)
     if report.orphan_table_sources:
         report.repaired["tables"] = _delete_tables_by_sources(report.orphan_table_sources)
+    if report.orphan_graph_sources:
+        failures: list[str] = []
+        removed = _delete_triplets_by_sources(report.orphan_graph_sources, failures)
+        report.repaired["graph_relations"] = removed
+        if failures:
+            report.skipped.append("graph repair")
     orphans = sorted({s for group in report.orphan_multimodal_sources.values() for s in group})
     if orphans:
         _delete_multimodal_by_sources(orphans)
         report.repaired["multimodal_sources"] = len(orphans)
+
+
+def run_scheduled(stop: threading.Event, settings: Any | None = None) -> None:
+    """Reconcile every `INDEX_RECONCILE_INTERVAL_SECONDS` until `stop` is set.
+
+    The first pass waits one interval, so a restart loop does not scan the
+    index each time. A pass holds the index write lock for its duration (a
+    repair must not race an ingest), so this belongs in the one process that
+    owns background work: the ingest worker in shared mode, the API process in
+    memory mode. A failed pass is logged and the schedule goes on.
+    """
+
+    from app.core.config import get_settings
+
+    active = settings or get_settings()
+    interval = float(active.index_reconcile_interval_seconds)
+    while interval > 0 and not stop.wait(interval):
+        try:
+            report = reconcile_index(repair=bool(active.index_reconcile_repair))
+        except Exception:
+            logger.exception("index_reconcile_failed")
+            continue
+        if report.clean:
+            logger.info("index_reconcile_clean skipped=%s", report.skipped)
+        else:
+            logger.warning("index_reconcile_drift %s", json.dumps(report.as_dict(), ensure_ascii=False)[:2000])
+
+
+def start_scheduled(settings: Any) -> threading.Event | None:
+    """Start the schedule on a daemon thread; the returned event stops it. None when switched off."""
+
+    if float(settings.index_reconcile_interval_seconds) <= 0:
+        return None
+    stop = threading.Event()
+    threading.Thread(target=run_scheduled, args=(stop, settings), daemon=True, name="index-reconcile").start()
+    return stop
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -182,6 +182,16 @@ def _recover_unfinished_ingests(settings) -> None:
         logger.warning("ingest_recovery requeued=%d", len(recovered))
 
 
+def _start_reconcile(settings):
+    """Compare the index stores on a schedule -- memory mode only, for the reason the watcher is:
+    in shared mode every API worker would run its own pass, so the ingest worker does."""
+    if settings.state_backend == "shared":
+        return None
+    from app.services.documents.reconcile import start_scheduled
+
+    return start_scheduled(settings)
+
+
 def _start_auto_ingest_thread(settings) -> None:
     """Watch the document folders from this process -- in memory mode only.
 
@@ -272,6 +282,7 @@ async def lifespan(app: FastAPI):
     cache_initialized = _init_cache_manager(settings)
     await asyncio.to_thread(_recover_unfinished_ingests, settings)
     _start_auto_ingest_thread(settings)
+    reconcile_stop = _start_reconcile(settings)
     # In the background: startup is not delayed, and /ready reports `warming`
     # until the models are loaded (app/services/models/warmup.py).
     from app.services.models.warmup import start_model_warmup
@@ -281,6 +292,8 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if reconcile_stop is not None:
+            reconcile_stop.set()
         await _shutdown_services(tracker, cache_initialized)
 
 

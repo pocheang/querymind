@@ -669,6 +669,24 @@ class Neo4jClient:
                 return int(session.write_transaction(_tx_work))
             return int(_tx_work(session))
 
+    def list_sources(self) -> set[str]:
+        """Every document source the graph still holds anything for.
+
+        Source nodes, chunk nodes and the `sources` list on relations are the
+        three places `delete_by_source` cleans; a source named by none of them
+        has nothing left in the graph. Used by index reconciliation.
+        """
+
+        cypher = """
+        MATCH (s:Source) RETURN s.name AS source
+        UNION
+        MATCH (k:Chunk) RETURN k.source AS source
+        UNION
+        MATCH ()-[r:RELATED]-() UNWIND coalesce(r.sources, []) AS source RETURN source
+        """
+        with self.driver.session() as session:
+            return {str(row["source"]) for row in session.run(cypher) if row["source"]}
+
     def batch_entity_neighbors(
         self, entities: list[str], limit_per_entity: int = 10, allowed_sources: list[str] | None = None
     ) -> dict[str, list[dict]]:

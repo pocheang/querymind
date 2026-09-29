@@ -438,6 +438,10 @@ class Settings(BaseSettings):
 
     sessions_dir: str = Field(default="./data/sessions", alias="SESSIONS_DIR")
     uploads_dir: str = Field(default="./data/uploads", alias="UPLOADS_DIR")
+    # How often the index is compared with itself (see services/documents/reconcile.py);
+    # 0 switches the schedule off. Report-only unless INDEX_RECONCILE_REPAIR is on.
+    index_reconcile_interval_seconds: float = Field(default=0.0, ge=0.0, alias="INDEX_RECONCILE_INTERVAL_SECONDS")
+    index_reconcile_repair: bool = Field(default=False, alias="INDEX_RECONCILE_REPAIR")
     auto_ingest_enabled: bool = Field(default=False, alias="AUTO_INGEST_ENABLED")
     auto_ingest_interval_seconds: float = Field(default=3.0, alias="AUTO_INGEST_INTERVAL_SECONDS")
     auto_ingest_watch_docs: bool = Field(default=True, alias="AUTO_INGEST_WATCH_DOCS")

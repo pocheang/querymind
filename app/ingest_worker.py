@@ -161,6 +161,9 @@ def main(argv: list[str] | None = None) -> int:
     recovered = recover_unfinished_documents()
     logger.info("ingest_worker_starting queue=%s recovered=%d", queue.name, len(recovered))
     _start_folder_watcher(settings)
+    from app.services.documents.reconcile import start_scheduled
+
+    start_scheduled(settings)
     build_worker(connection, queue).work(burst=args.burst, with_scheduler=False)
     return 0
 

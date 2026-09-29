@@ -83,7 +83,8 @@ def test_a_retry_after_the_store_recovers_finishes_the_delete(data, stores, monk
     assert get_document_by_source(str(path)) is None
 
 
-def _fake_stores(monkeypatch, *, vectors, tables, images):
+def _fake_stores(monkeypatch, *, vectors, tables, images, graph=()):
+    monkeypatch.setattr(reconcile, "_graph_sources", lambda: set(graph))
     monkeypatch.setattr(reconcile, "_vector_ids", lambda: set(vectors))
     monkeypatch.setattr(reconcile, "_table_sources", lambda: set(tables))
     monkeypatch.setattr(
@@ -138,3 +139,56 @@ def test_an_unreadable_store_is_skipped_not_reported_empty(data, monkeypatch):
     report = reconcile.reconcile_index()
     assert "vectors" in report.skipped
     assert report.corpus_ids_without_vector == []
+
+
+def test_a_graph_source_with_no_chunks_is_an_orphan_but_a_file_name_of_a_live_one_is_not(data, monkeypatch):
+    path = _index(data)
+    _fake_stores(monkeypatch, vectors={"c1"}, tables=set(), images=set(), graph={path.name, "gone.txt", str(path)})
+
+    report = reconcile.reconcile_index()
+
+    assert report.orphan_graph_sources == ["gone.txt"]
+
+
+def test_repair_removes_orphan_graph_sources(data, monkeypatch):
+    _index(data)
+    _fake_stores(monkeypatch, vectors={"c1"}, tables=set(), images=set(), graph={"gone.txt"})
+    seen = []
+    monkeypatch.setattr(
+        reconcile, "_delete_triplets_by_sources", lambda sources, failures=None: seen.extend(sources) or 3
+    )
+
+    report = reconcile.reconcile_index(repair=True)
+
+    assert seen == ["gone.txt"] and report.repaired["graph_relations"] == 3
+
+
+def test_an_unreachable_graph_is_skipped_not_reported_clean_of_orphans(data, monkeypatch):
+    _index(data)
+    _fake_stores(monkeypatch, vectors={"c1"}, tables=set(), images=set())
+
+    def down():
+        raise ConnectionError("neo4j down")
+
+    monkeypatch.setattr(reconcile, "_graph_sources", down)
+    report = reconcile.reconcile_index()
+    assert "graph" in report.skipped and report.orphan_graph_sources == []
+
+
+def test_the_schedule_is_off_by_default_and_runs_a_pass_when_on(data, monkeypatch):
+    import threading
+
+    class Cfg:
+        index_reconcile_interval_seconds = 0.0
+        index_reconcile_repair = False
+
+    assert reconcile.start_scheduled(Cfg()) is None
+
+    ran = threading.Event()
+    monkeypatch.setattr(reconcile, "reconcile_index", lambda repair=False: ran.set() or reconcile.ReconcileReport())
+    Cfg.index_reconcile_interval_seconds = 0.01
+    stop = reconcile.start_scheduled(Cfg())
+    try:
+        assert ran.wait(2.0)
+    finally:
+        stop.set()
