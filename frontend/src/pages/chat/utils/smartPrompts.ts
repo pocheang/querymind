@@ -1,52 +1,55 @@
 import type { SessionMessage } from "@/types/api";
 
+/**
+ * What to ask next, by the specialist that answered. A table rather than a
+ * chain of `if` blocks with the same shape, which SonarCloud counted as
+ * duplicated code.
+ */
+const FOLLOW_UPS: Record<string, { zh: string[]; en: string[] }> = {
+  cybersecurity: {
+    zh: ["这个漏洞在 CISA KEV 里吗？EPSS 概率是多少？", "对应的 ATT&CK 技术怎么检测和缓解？", "按优先级给出处置步骤"],
+    en: [
+      "Is this vulnerability in CISA KEV, and what is its EPSS probability?",
+      "How is the matching ATT&CK technique detected and mitigated?",
+      "Turn this into prioritised remediation steps",
+    ],
+  },
+  artificial_intelligence: {
+    zh: ["换成 INT4 量化再估算一次显存", "按 6ND 估算训练需要的算力和 GPU 时长", "说明这个估算没有计入哪些开销"],
+    en: [
+      "Estimate the memory again with INT4 quantization",
+      "Estimate the training compute and GPU time with 6ND",
+      "What does this estimate leave out?",
+    ],
+  },
+  data_analysis: {
+    zh: ["按其他维度再分组看一遍", "列出结果里的空值和异常值", "说明这个结果用了哪张表和哪条 SQL"],
+    en: [
+      "Break the same figure down by another dimension",
+      "List the empty and outlying values in this result",
+      "State which table and which SQL produced this result",
+    ],
+  },
+  compliance: {
+    zh: ["列出仍无法判断的条款和需要补充的材料", "按整改优先级给出行动计划", "对照另一部法规再审查一遍"],
+    en: [
+      "List the clauses that still cannot be judged and what material would settle them",
+      "Turn the remediation into a prioritised action plan",
+      "Review the same policy against another regulation",
+    ],
+  },
+  pdf_text: {
+    zh: ["这段内容在第几页、哪个章节？", "下一章讲了什么？", "把这一章的原文要点逐条列出"],
+    en: [
+      "Which page and section is this passage from?",
+      "What does the next chapter say?",
+      "List this chapter's points as they are written",
+    ],
+  },
+};
+
 function getAgentPrompts(agentClass: string, isZh: boolean): string[] {
-  if (agentClass === "cybersecurity") {
-    return isZh
-      ? ["深入分析这个安全问题的攻击面和防护措施", "给出具体的安全加固建议和实施步骤", "分析相关的安全合规要求"]
-      : [
-          "Analyze attack surfaces and mitigation strategies for this security issue",
-          "Provide concrete security hardening recommendations and action steps",
-          "Assess relevant regulatory and compliance requirements",
-        ];
-  }
-  if (agentClass === "artificial_intelligence") {
-    return isZh
-      ? ["详细解释这个AI概念的技术原理", "给出实际应用场景和代码示例", "对比不同的AI方法和优缺点"]
-      : [
-          "Explain the underlying technical principles of this AI concept",
-          "Provide production use cases and implementation code examples",
-          "Compare alternative AI methodologies, pros, and trade-offs",
-        ];
-  }
-  if (agentClass === "data_analysis") {
-    return isZh
-      ? ["按其他维度再分组看一遍", "列出结果里的空值和异常值", "说明这个结果用了哪张表和哪条 SQL"]
-      : [
-          "Break the same figure down by another dimension",
-          "List the empty and outlying values in this result",
-          "State which table and which SQL produced this result",
-        ];
-  }
-  if (agentClass === "compliance") {
-    return isZh
-      ? ["列出仍无法判断的条款和需要补充的材料", "按整改优先级给出行动计划", "对照另一部法规再审查一遍"]
-      : [
-          "List the clauses that still cannot be judged and what material would settle them",
-          "Turn the remediation into a prioritised action plan",
-          "Review the same policy against another regulation",
-        ];
-  }
-  if (agentClass === "pdf_text") {
-    return isZh
-      ? ["提取文档中的关键数据和证据", "总结文档的核心要点和结论", "分析文档中的风险点和建议"]
-      : [
-          "Extract key empirical figures and evidence citations from the document",
-          "Summarize core findings and conclusions from this document",
-          "Analyze potential vulnerabilities, risk points, and recommendations",
-        ];
-  }
-  return [];
+  return FOLLOW_UPS[agentClass]?.[isZh ? "zh" : "en"] ?? [];
 }
 
 function getQuestionTypePrompts(userQuestion: string, isZh: boolean): string[] {
@@ -133,23 +136,82 @@ function getMetadataPrompts(metadata: SessionMessage["metadata"], isZh: boolean)
 }
 
 /**
+ * What to ask first. Each specialist's starters are questions it answers with
+ * its own tools and shape -- the acceptance questions it was built against --
+ * and Auto (or the general analyst) shows one per specialist, so the first
+ * screen says what the specialists are for. These replace starters that asked
+ * the system to describe itself, which no specialist answers well.
+ */
+const STARTERS: Record<string, { zh: string[]; en: string[] }> = {
+  cybersecurity: {
+    zh: [
+      "我们用的 log4j 2.14.1 受影响吗？怎么处置？",
+      "T1190 怎么检测和缓解？",
+      "CVE-2022-22965 的 CVSS 和 KEV 状态是什么？",
+    ],
+    en: [
+      "Are we affected by log4j 2.14.1, and what should we do?",
+      "How is T1190 detected and mitigated?",
+      "What are the CVSS score and KEV status of CVE-2022-22965?",
+    ],
+  },
+  artificial_intelligence: {
+    zh: [
+      "70B 模型 FP16 推理需要多少显存？",
+      "7B 模型用 1T token 训练需要多少算力？",
+      "LoRA 和全参数微调各有什么优缺点？",
+    ],
+    en: [
+      "How much GPU memory does a 70B model need for FP16 inference?",
+      "How much compute does training a 7B model on 1T tokens take?",
+      "What are the trade-offs between LoRA and full fine-tuning?",
+    ],
+  },
+  data_analysis: {
+    zh: ["我上传的销售表里，各区域第三季度的销售额是多少？", "有哪些表格可以查询？", "按月份汇总销售额并排序"],
+    en: [
+      "In my sales table, what were each region's Q3 sales?",
+      "Which tables can I query?",
+      "Total the sales by month and sort them",
+    ],
+  },
+  compliance: {
+    zh: ["我们的数据保留制度符合个保法吗？", "个人信息保护法对跨境传输有什么要求？", "我们的制度还缺哪些 GDPR 条款？"],
+    en: [
+      "Does our data retention policy comply with PIPL?",
+      "What does PIPL require for cross-border transfers?",
+      "Which GDPR requirements does our policy not yet cover?",
+    ],
+  },
+  pdf_text: {
+    zh: ["这份合同第 3 章讲了什么？", "我上传的制度第 4 条原文是什么？", "这份报告的结论在哪一页？"],
+    en: [
+      "What does chapter 3 of this contract say?",
+      "What is the exact text of section 4 of the policy I uploaded?",
+      "Which page is this report's conclusion on?",
+    ],
+  },
+};
+
+const MIXED_STARTERS: Array<[string, number]> = [
+  ["cybersecurity", 0],
+  ["artificial_intelligence", 0],
+  ["data_analysis", 0],
+  ["compliance", 0],
+];
+
+export function starterPrompts(agentClassHint: string, isZh: boolean): string[] {
+  const lang = isZh ? "zh" : "en";
+  const own = STARTERS[agentClassHint];
+  if (own) return own[lang];
+  return MIXED_STARTERS.map(([agentClass, index]) => STARTERS[agentClass][lang][index]);
+}
+
+/**
  * 根据对话历史智能生成快速提示 (支持中英双语)
  */
-export function generateSmartPrompts(messages: SessionMessage[], isZh = true): string[] {
-  // 默认提示（当没有对话历史时）
-  const defaultPrompts = isZh
-    ? [
-        "介绍一下系统中有哪些网络安全知识",
-        "解释一下人工智能的基本概念",
-        "总结最新上传的 PDF 文档内容",
-        "用 5 条要点汇报当前知识库状态",
-      ]
-    : [
-        "What cybersecurity capabilities are available in this system?",
-        "Explain the fundamental concepts of artificial intelligence",
-        "Summarize the key takeaways from the latest uploaded PDF",
-        "Provide an executive summary of current knowledge base status in 5 points",
-      ];
+export function generateSmartPrompts(messages: SessionMessage[], isZh = true, agentClassHint = ""): string[] {
+  const defaultPrompts = starterPrompts(agentClassHint, isZh);
 
   // 如果没有消息或只有一条消息，返回默认提示
   if (messages.length <= 1) {
@@ -179,70 +241,11 @@ export function generateSmartPrompts(messages: SessionMessage[], isZh = true): s
       : [
           "Tabulate the essential takeaways into a clean markdown table",
           "Provide practical industry benchmarks and implementation tips",
-          "Re-evaluate this question using a different specialized agent mode",
+          "Re-evaluate this question using a different specialist",
         ]),
   ];
 
   // 去重并返回前4个
   const uniquePrompts = Array.from(new Set(prompts));
   return uniquePrompts.slice(0, 4);
-}
-
-/**
- * 生成基于主题的快速提示 (支持中英双语)
- */
-export function generateTopicPrompts(topic: string, isZh = true): string[] {
-  const topicLower = topic.toLowerCase();
-
-  if (topicLower.includes("安全") || topicLower.includes("security")) {
-    return isZh
-      ? [
-          "分析这个安全问题的攻击链和影响范围",
-          "给出分层防护方案和加固建议",
-          "评估安全风险等级并制定处置计划",
-          "总结相关的安全合规要求",
-        ]
-      : [
-          "Analyze the kill chain and blast radius for this security alert",
-          "Propose a defense-in-depth security hardening plan",
-          "Score risk severity and construct a triage roadmap",
-          "Summarize applicable compliance standards and mandates",
-        ];
-  }
-
-  if (topicLower.includes("ai") || topicLower.includes("人工智能") || topicLower.includes("machine learning")) {
-    return isZh
-      ? ["详细解释技术原理和数学基础", "给出代码实现和实际应用案例", "对比不同方法的优缺点", "分析性能优化和调优策略"]
-      : [
-          "Explain technical foundations and mathematical formulations",
-          "Provide reference code implementation and enterprise use cases",
-          "Compare architectural paradigms, pros, and trade-offs",
-          "Outline throughput optimization and latency reduction methods",
-        ];
-  }
-
-  if (topicLower.includes("架构") || topicLower.includes("architecture")) {
-    return isZh
-      ? ["详细说明各组件的职责和交互流程", "分析架构的优缺点和适用场景", "给出架构演进和优化建议", "对比其他架构方案"]
-      : [
-          "Detail component responsibilities and end-to-end data flows",
-          "Analyze architectural trade-offs and recommended scale",
-          "Provide architecture evolution guidelines and roadmap",
-          "Benchmark against alternative distributed RAG topologies",
-        ];
-  }
-
-  return isZh
-    ? [
-        "详细展开说明，包含具体案例",
-        "给出实际应用场景和最佳实践",
-        "用表格形式总结关键信息",
-        "提供相关的参考资料和延伸阅读",
-      ]
-    : [
-        "Elaborate in detail with practical real-world examples",
-        "Provide recommended deployment patterns and best practices",
-        "Synthesize key insights into a structured markdown table",
-        "Suggest relevant reference papers and further reading",
-      ];
 }
