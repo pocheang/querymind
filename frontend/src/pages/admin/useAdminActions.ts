@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { createApiErrorHandler } from "@/lib/api-error-handler";
+import { createApiErrorHandler } from "@/services/http/apiErrorHandler";
 import type { AdminActionsParams } from "./actions/types";
 import { createUserActions } from "./actions/userActions";
 import { createModelActions } from "./actions/modelActions";

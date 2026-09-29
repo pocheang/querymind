@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
-import { createApiErrorHandler } from "@/lib/api-error-handler";
+import { createApiErrorHandler } from "@/services/http/apiErrorHandler";
 import type { IndexedFileSummary, PromptTemplate, SessionMessage, SessionSummary } from "@/types/api";
 import type { AgentClassHint, Toast } from "@/pages/chat/types";
 import { useSessionActions } from "./useSessionActions";

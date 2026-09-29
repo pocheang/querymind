@@ -1,4 +1,4 @@
-import { authRequest, buildQueryString } from "./api-client";
+import { authRequest, buildQueryString } from "./client";
 
 export function encodePathParam(value: string): string {
   return encodeURIComponent(value);

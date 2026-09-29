@@ -22,7 +22,7 @@ import {
   buildGetRequest,
   buildQueryString,
   encodePathParam,
-} from "@/lib/api-helpers";
+} from "@/services/http/requests";
 
 export const adminUserApi = {
   adminUsers() {
@@ -250,4 +250,13 @@ export const adminConfigApi = {
   saveConfig(values: Record<string, string>, dataId?: string) {
     return buildPostRequest<ConfigSaveResponse>("/admin/config/values", { values, data_id: dataId ?? null });
   },
+};
+
+export const adminApi = {
+  ...adminUserApi,
+  ...adminAuditApi,
+  ...adminOpsApi,
+  ...adminModelApi,
+  ...adminSystemLogApi,
+  ...adminConfigApi,
 };

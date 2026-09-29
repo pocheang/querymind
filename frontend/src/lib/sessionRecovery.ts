@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/api-client";
+import { ApiError } from "@/services/http/client";
 
 /**
  * Is this failure a reason to destroy the stored session token?

@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/services/http/client";
 
 /**
  * Shared 401-aware API error handler. Chat and admin previously each
