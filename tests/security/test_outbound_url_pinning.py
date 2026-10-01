@@ -127,4 +127,5 @@ async def test_the_probe_resolves_off_the_event_loop(monkeypatch, sent):
     monkeypatch.setattr(network.socket, "getaddrinfo", resolve)
     await management.probe_http_connector("https://api.example.com/", frozenset({"api.example.com"}))
 
-    assert threads and threading.main_thread().name not in threads
+    assert threads
+    assert threading.main_thread().name not in threads

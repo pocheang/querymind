@@ -65,7 +65,7 @@ def migrate_stored_secrets(settings: Settings | None = None) -> SecretMigrationR
 def _upgrade(value: str, key: bytes, context: str, label: str, report: SecretMigrationReport) -> str | None:
     try:
         upgraded = upgrade_secret_text(value, key, context=context)
-    except (ValueError, TypeError, UnicodeDecodeError) as exc:
+    except (ValueError, TypeError) as exc:  # UnicodeDecodeError is a ValueError
         report.unreadable.append(label)
         logger.warning("Stored secret %s could not be read for upgrade: %s", label, type(exc).__name__)
         return None
