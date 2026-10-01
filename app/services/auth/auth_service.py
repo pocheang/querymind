@@ -14,6 +14,8 @@ from app.services.auth.encryption import (
     decrypt_api_settings_payload,
     encrypt_api_settings_payload,
     encryption_key_from_seed,
+    system_secret_context,
+    user_secret_context,
 )
 from app.services.auth.password_utils import generate_salt, hash_password
 from app.services.auth.session_manager import SessionManager
@@ -120,11 +122,11 @@ class AuthDBService:
             self._api_settings_key = encryption_key_from_seed(seed)
             return self._api_settings_key
 
-    def _encrypt_api_settings_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return encrypt_api_settings_payload(payload, self._api_settings_data_key())
+    def _encrypt_api_settings_payload(self, payload: dict[str, Any], *, context: str) -> dict[str, Any]:
+        return encrypt_api_settings_payload(payload, self._api_settings_data_key(), context=context)
 
-    def _decrypt_api_settings_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return decrypt_api_settings_payload(payload, self._api_settings_data_key())
+    def _decrypt_api_settings_payload(self, payload: dict[str, Any], *, context: str) -> dict[str, Any]:
+        return decrypt_api_settings_payload(payload, self._api_settings_data_key(), context=context)
 
     def _connect(self) -> sqlite3.Connection:
         timeout_s = _busy_timeout_seconds()
@@ -723,7 +725,7 @@ class AuthDBService:
                 settings_data = json.loads(row["settings"])
                 value = settings_data.get(key)
                 if key == "api_settings" and isinstance(value, dict):
-                    return self._decrypt_api_settings_payload(value)
+                    return self._decrypt_api_settings_payload(value, context=user_secret_context(user_id))
                 return value
             except (json.JSONDecodeError, AttributeError):
                 return None
@@ -741,7 +743,7 @@ class AuthDBService:
 
             to_store = dict(value)
             if key == "api_settings":
-                to_store = self._encrypt_api_settings_payload(to_store)
+                to_store = self._encrypt_api_settings_payload(to_store, context=user_secret_context(user_id))
             settings[key] = to_store
 
             conn.execute("UPDATE users SET settings = ? WHERE user_id = ?", (json.dumps(settings), user_id))
@@ -780,7 +782,7 @@ class AuthDBService:
             try:
                 value = json.loads(row["value"])
                 if key == "global_model_settings" and isinstance(value, dict):
-                    return self._decrypt_api_settings_payload(value)
+                    return self._decrypt_api_settings_payload(value, context=system_secret_context(key))
                 return value
             except (json.JSONDecodeError, AttributeError):
                 return None
@@ -788,7 +790,7 @@ class AuthDBService:
     def set_system_metadata(self, key: str, value: dict[str, Any]) -> None:
         to_store = dict(value)
         if key == "global_model_settings":
-            to_store = self._encrypt_api_settings_payload(to_store)
+            to_store = self._encrypt_api_settings_payload(to_store, context=system_secret_context(key))
         with self._connect() as conn:
             conn.execute(
                 """

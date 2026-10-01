@@ -31,6 +31,9 @@ from app.mcp.contracts import ToolCall
 from app.mcp.runtime import LIST_CONNECTORS_TOOL_ID, get_tool_stack, reset_tool_stack
 from app.orchestration.request import RequestActor
 
+# Connector names must resolve since SEC-08; tests/conftest.py answers DNS.
+pytestmark = pytest.mark.usefixtures("resolvable_public_hosts")
+
 _ALICE = RequestActor(user_id="alice", tenant_id="t1", role="viewer")
 _BOB = RequestActor(user_id="bob", tenant_id="t1", role="viewer")
 

@@ -29,6 +29,9 @@ from app.services.connectors.metadata_repository import ConnectorMetadataReposit
 from app.services.connectors.repository import CredentialRepository
 from app.services.connectors.service import ConnectorCredentialService
 
+# Connector names must resolve since SEC-08; tests/conftest.py answers DNS.
+pytestmark = pytest.mark.usefixtures("resolvable_public_hosts")
+
 _OWNER = "user-alice"
 _INTRUDER = "user-mallory"
 _KEY = b"0" * 32

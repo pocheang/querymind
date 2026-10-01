@@ -8,6 +8,11 @@ All notable changes to this project will be documented in this file.
 
 - The frontend image now sends a Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy and Permissions-Policy on the application page and its static assets. The headers live in `nginx-security-headers.conf`, which the image installs and every location that serves a file includes; `script-src` is `'self'` with no `unsafe-inline` or `unsafe-eval`. CI checks the headers on real responses, and the browser smoke test fails on any CSP violation. The unused `frontend/nginx-security.conf` and `frontend/public/_headers` are removed. A deployment that copied its own `nginx.conf` should include the new file the same way.
 - Output from tools that return externally authored content (the table query tool) is now screened for injected instructions and placed in the untrusted evidence region of the prompt, separate from the tool's status line.
+- Session tokens are stored as SHA-256 digests. Existing sessions are converted at startup; nobody is signed out.
+- Login spends the same password-hashing work whether or not the username exists, and reports a disabled account only after the password is verified.
+- Stored credentials (connector secrets, the administrator's model API key) use AES-256-GCM with a key identifier and are bound to the record they belong to. Existing values are re-encrypted once at startup by `python -m app.init_app`; afterwards plaintext or older-format values in the database are refused. `cryptography` is now a declared dependency.
+- Outbound URL checks refuse a host that does not resolve, and the connector reachability probe connects to the address it checked (keeping the host name for TLS), checks its host allowlist before sending, and resolves names off the event loop.
+- Markdown images are only loaded from this origin (or `data:`/`blob:`); any other image is shown as text naming its host. Both Content-Security-Policies restrict `img-src` accordingly, and the backend's default policy no longer allows inline scripts or `eval`.
 
 ### ⚡ Performance
 
