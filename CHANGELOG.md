@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ⚡ Performance
+
+- The chunk corpus is parsed once per version per process (keyed on the file's stat signature) instead of twice per question during access-scope resolution, and visibility checks no longer re-resolve paths that are already resolved. Measured at 100k chunks: scope resolution 2.8 s → 0.31 s per call.
+- BM25 no longer builds a global index over every tenant's corpus. Each access scope's index is reused until a chunk of one of its own sources changes, so one user's upload no longer rebuilds every other user's index. Measured at 100k chunks: first query after start 55 s → 3.3 s; an unaffected user's query after someone else's ingest 57 s → 1.1 s. Rankings are unchanged.
+- The router's low-confidence reasoning re-ask runs only when it can finish within both the router stage ceiling and the request deadline; otherwise the safe route is taken immediately. Decisions shaped by a timeout or a failed model call are no longer cached for the question.
+
 ### 🔧 Fixes
 
 - `OAUTH_REDIRECT_URI` defaulted to `/api/auth/google/callback`, which v0.7.2 removed, so an installation relying on the default would have sent every Google sign-in to a 404. It is `/api/v1/auth/google/callback` now, and a test checks the default names a route.

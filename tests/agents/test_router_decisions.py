@@ -46,7 +46,11 @@ def _router_wiring(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(routing, "_get_calibrator", lambda: None)
     # The keyword rules' suggestion; the model's answer is what each test sets.
     monkeypatch.setattr(routing, "classify_agent_class", lambda question: "general")
-    monkeypatch.setattr(routing, "get_settings", lambda: type("S", (), {"enable_web_route_downgrade": False})())
+    monkeypatch.setattr(
+        routing,
+        "get_settings",
+        lambda: type("S", (), {"enable_web_route_downgrade": False, "stage_timeout_route_ms": 8_000})(),
+    )
     yield
     clear_router_decision_cache()
 

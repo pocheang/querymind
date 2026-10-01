@@ -129,6 +129,9 @@ def cached_router_decision(func: Callable) -> Callable:
             return cached_result
 
         result = func(question, *args, **kwargs)
+        if not getattr(result, "cacheable", True):
+            # Shaped by this request (a timeout, a failed call), not the question.
+            return result
         _router_decision_cache.set(cache_key, result)
         logger.debug(f"Router decision cache miss: {cache_key[:16]}")
         return result
