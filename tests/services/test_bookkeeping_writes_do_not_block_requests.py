@@ -161,14 +161,16 @@ def auth(tmp_path):
 def _set_last_seen(db_path, token: str, when: datetime) -> None:
     conn = sqlite3.connect(db_path)
     with conn:
-        conn.execute("UPDATE auth_sessions SET last_seen_at=? WHERE token=?", (iso(when), token))
+        conn.execute("UPDATE auth_sessions SET last_seen_at=? WHERE token=?", (iso(when), sessions.stored_token(token)))
     conn.close()
 
 
 def _last_seen(db_path, token: str) -> str:
     conn = sqlite3.connect(db_path)
     try:
-        return conn.execute("SELECT last_seen_at FROM auth_sessions WHERE token=?", (token,)).fetchone()[0]
+        return conn.execute(
+            "SELECT last_seen_at FROM auth_sessions WHERE token=?", (sessions.stored_token(token),)
+        ).fetchone()[0]
     finally:
         conn.close()
 

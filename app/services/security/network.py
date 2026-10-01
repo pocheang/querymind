@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import ipaddress
 import socket
-from urllib.parse import urlparse
+from dataclasses import dataclass
+from urllib.parse import urlparse, urlsplit
 
 from app.core.config import get_settings
 from app.domain.text import normalize_string
@@ -65,12 +66,19 @@ def _is_blocked_ip(addr: IPAddress) -> bool:
 
 
 def _resolve_host_ips(host: str, port: int, *, enabled: bool) -> list[IPAddress]:
+    """Every address `host` resolves to; refuses when it resolves to none (SEC-08).
+
+    A lookup failure used to return an empty list, and `any([])` is False, so a
+    name the check could not resolve passed the check -- and the HTTP client
+    then resolved it again, possibly to somewhere else.
+    """
+
     if not enabled:
         return []
     try:
         rows = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-    except OSError:
-        return []
+    except OSError as exc:
+        raise OutboundURLValidationError("outbound URL host could not be resolved") from exc
     resolved: list[ipaddress._BaseAddress] = []
     for row in rows:
         sockaddr = row[4]
@@ -82,6 +90,8 @@ def _resolve_host_ips(host: str, port: int, *, enabled: bool) -> list[IPAddress]
         parsed = _parse_ip_literal(ip_text)
         if parsed is not None:
             resolved.append(parsed)
+    if not resolved:
+        raise OutboundURLValidationError("outbound URL host could not be resolved")
     return resolved
 
 
@@ -107,6 +117,51 @@ def validate_public_http_url(url: str) -> str:
     if any(_is_blocked_ip(address) for address in resolved_ips):
         raise OutboundURLValidationError("outbound URL DNS resolution includes a blocked address")
     return normalized
+
+
+@dataclass(frozen=True)
+class PinnedTarget:
+    """A URL whose host was resolved and checked once, and the address to use.
+
+    Checking a name and then letting the HTTP client resolve it again leaves a
+    window: a name with a zero TTL can answer the check with a public address
+    and the connection with 169.254.169.254 (SEC-08). Connecting to the
+    checked address closes it; `host` still goes in the Host header and, for
+    https, as the SNI name the certificate is verified against.
+    """
+
+    host: str
+    address: str
+    url: str
+
+    def request_url(self) -> str:
+        parts = urlsplit(self.url)
+        ip = f"[{self.address}]" if ":" in self.address else self.address
+        netloc = f"{ip}:{parts.port}" if parts.port else ip
+        return parts._replace(netloc=netloc).geturl()
+
+    def host_header(self) -> str:
+        port = urlsplit(self.url).port
+        return f"{self.host}:{port}" if port else self.host
+
+
+def pin_public_http_url(url: str) -> PinnedTarget:
+    """Validate `url` as `validate_public_http_url` does and fix the address to connect to.
+
+    Synchronous (it resolves a name): call it from a worker thread.
+    """
+
+    normalized = validate_public_http_url(url)
+    parsed = urlparse(normalized)
+    host = normalize_string(parsed.hostname, lowercase=True)
+    literal = _parse_ip_literal(host)
+    if literal is not None:
+        return PinnedTarget(host=host, address=str(literal), url=normalized)
+    port = int(parsed.port or (443 if parsed.scheme.lower() == "https" else 80))
+    addresses = _resolve_host_ips(host, port, enabled=True)
+    if any(_is_blocked_ip(address) for address in addresses):
+        raise OutboundURLValidationError("outbound URL DNS resolution includes a blocked address")
+    return PinnedTarget(host=host, address=str(addresses[0]), url=normalized)
 
 
 def _apply_provider_path_convention(provider_lc: str, path: str, normalized: str) -> str:

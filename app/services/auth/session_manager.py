@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import secrets
 import sqlite3
@@ -12,6 +13,35 @@ logger = logging.getLogger(__name__)
 # `last_seen_at` has one reader, the admin view's "online in the last 10
 # minutes", so recording it more than once a minute buys nothing.
 TOUCH_INTERVAL_SECONDS = 60
+
+# What `auth_sessions.token` holds is a digest of the bearer token, never the
+# token itself (SEC-05): anyone who can read app.db -- a backup, a copied
+# volume -- could otherwise sign in as every user with a live session. The
+# token is 320 random bits, so an unsalted SHA-256 is enough; a slow hash would
+# add latency to every request and no security. The prefix keeps a digest
+# distinguishable from a legacy plaintext row, which `token_urlsafe` can never
+# start with (its alphabet has no colon).
+_DIGEST_PREFIX = "sha256:"
+
+
+def stored_token(token: str) -> str:
+    return _DIGEST_PREFIX + hashlib.sha256(str(token or "").encode("utf-8")).hexdigest()
+
+
+def hash_stored_session_tokens(conn_factory) -> int:
+    """Replace any plaintext token still stored with its digest; return how many.
+
+    Idempotent, and nobody is signed out: the client keeps the token it holds,
+    and from now on it is looked up by digest.
+    """
+
+    with conn_factory() as conn:
+        rows = conn.execute(
+            "SELECT token FROM auth_sessions WHERE token NOT LIKE ?", (_DIGEST_PREFIX + "%",)
+        ).fetchall()
+        for row in rows:
+            conn.execute("UPDATE auth_sessions SET token=? WHERE token=?", (stored_token(row[0]), row[0]))
+    return len(rows)
 
 
 class SessionManager:
@@ -33,7 +63,7 @@ class SessionManager:
         with self.conn_factory() as conn:
             conn.execute(
                 "INSERT INTO auth_sessions(token, user_id, username, issued_at, last_seen_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (token, user_id, username, iso(issued_at), iso(issued_at), iso(expires_at)),
+                (stored_token(token), user_id, username, iso(issued_at), iso(issued_at), iso(expires_at)),
             )
         return {
             "token": token,
@@ -50,7 +80,7 @@ class SessionManager:
 
     def delete_session(self, token: str) -> None:
         with self.conn_factory() as conn:
-            conn.execute("DELETE FROM auth_sessions WHERE token=?", (token,))
+            conn.execute("DELETE FROM auth_sessions WHERE token=?", (stored_token(token),))
 
     def get_user_by_token(self, token: str, include_disabled: bool = False) -> dict[str, Any] | None:
         with self.conn_factory() as conn:
@@ -64,12 +94,12 @@ class SessionManager:
                 JOIN users u ON u.user_id = s.user_id
                 WHERE s.token=?
                 """,
-                (token,),
+                (stored_token(token),),
             ).fetchone()
             if row is None:
                 return None
             if parse_iso(str(row["expires_at"])) <= now_ts:
-                conn.execute("DELETE FROM auth_sessions WHERE token=?", (token,))
+                conn.execute("DELETE FROM auth_sessions WHERE token=?", (stored_token(token),))
                 return None
             if str(row["status"]).lower() != "active" and not include_disabled:
                 return None
@@ -103,12 +133,16 @@ class SessionManager:
 
         current = now()
         with closing(self.conn_factory()) as conn:
-            row = conn.execute("SELECT last_seen_at FROM auth_sessions WHERE token=?", (token,)).fetchone()
+            row = conn.execute(
+                "SELECT last_seen_at FROM auth_sessions WHERE token=?", (stored_token(token),)
+            ).fetchone()
         if row is None or _seen_recently(row["last_seen_at"], current):
             return
         try:
             with closing(self.conn_factory()) as conn, conn:
-                conn.execute("UPDATE auth_sessions SET last_seen_at=? WHERE token=?", (iso(current), token))
+                conn.execute(
+                    "UPDATE auth_sessions SET last_seen_at=? WHERE token=?", (iso(current), stored_token(token))
+                )
         except sqlite3.OperationalError as error:
             if not _is_contention(error):
                 raise

@@ -18,3 +18,26 @@ def _no_page_reads_from_the_suite(monkeypatch: pytest.MonkeyPatch) -> None:
     """
 
     monkeypatch.setattr("app.agents.rag.web.fetch_page_text", lambda *args, **kwargs: None)
+
+
+# A public address (is_global) for names the outbound URL check resolves.
+PUBLIC_TEST_ADDRESS = "93.184.215.14"
+
+
+@pytest.fixture
+def resolvable_public_hosts(monkeypatch: pytest.MonkeyPatch) -> str:
+    """Make every name resolve to one public address for the outbound URL check.
+
+    Since SEC-08 a name that does not resolve is refused rather than passed.
+    Tests that create connectors for `example.invalid` -- a TLD reserved never
+    to resolve -- passed only through that fail-open path; they need DNS
+    answered, not the check weakened.
+    """
+
+    import socket
+
+    def resolve(host, port, *args, **kwargs):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (PUBLIC_TEST_ADDRESS, port))]
+
+    monkeypatch.setattr("app.services.security.network.socket.getaddrinfo", resolve)
+    return PUBLIC_TEST_ADDRESS

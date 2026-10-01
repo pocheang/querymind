@@ -19,8 +19,8 @@ import pytest
 from app.services.auth.encryption import (
     MIN_ENCRYPTION_SEED_LENGTH,
     decrypt_secret_text,
-    encrypt_secret_text,
     encryption_key_from_seed,
+    upgrade_secret_text,
 )
 
 GOOD_SEED = "q" * MIN_ENCRYPTION_SEED_LENGTH
@@ -37,12 +37,30 @@ def test_the_refusal_says_how_to_make_one():
         encryption_key_from_seed("short")
 
 
-def test_the_derivation_is_unchanged_so_old_ciphertext_still_decrypts():
+def test_the_derivation_is_unchanged_so_old_ciphertext_can_be_upgraded():
+    """The master key is still SHA-256 of the seed, so the one-time migration
+    (SEC-07) can read what v1 wrote and re-encrypt it."""
+
     legacy_key = hashlib.sha256(GOOD_SEED.encode("utf-8")).digest()
-    stored = encrypt_secret_text("sk-live-value", legacy_key)
+    stored = _v1_encrypt("sk-live-value", legacy_key)
 
     assert encryption_key_from_seed(GOOD_SEED) == legacy_key
-    assert decrypt_secret_text(stored, encryption_key_from_seed(GOOD_SEED)) == "sk-live-value"
+    upgraded = upgrade_secret_text(stored, encryption_key_from_seed(GOOD_SEED), context="ctx")
+    assert decrypt_secret_text(upgraded, encryption_key_from_seed(GOOD_SEED), context="ctx") == "sk-live-value"
+
+
+def _v1_encrypt(plaintext: str, key: bytes) -> str:
+    """The retired v1 writer, reproduced to make a realistic stored value."""
+
+    import base64
+    import hmac
+
+    from app.services.auth.encryption import _legacy_keystream_xor
+
+    nonce = b"" * 16
+    cipher = _legacy_keystream_xor(plaintext.encode("utf-8"), key, nonce)
+    tag = hmac.new(key, nonce + cipher, hashlib.sha256).digest()[:16]
+    return "enc:v1:" + base64.urlsafe_b64encode(nonce + tag + cipher).decode("ascii")
 
 
 def test_surrounding_whitespace_does_not_change_the_key():

@@ -96,6 +96,7 @@ def test_no_module_resolves_a_model_from_a_per_user_override():
     assert "get_request_api_settings" not in source
 
 
+@pytest.mark.usefixtures("resolvable_public_hosts")  # example.invalid must resolve since SEC-08
 def test_the_probe_tests_the_configuration_it_is_given(monkeypatch: pytest.MonkeyPatch):
     """Test is pressed *before* Save, so it must not answer from what is saved.
 

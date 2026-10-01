@@ -33,6 +33,9 @@ from app.mcp.runtime import (
 )
 from app.orchestration.request import OrchestrationRequest, RequestActor
 
+# Connector names must resolve since SEC-08; tests/conftest.py answers DNS.
+pytestmark = pytest.mark.usefixtures("resolvable_public_hosts")
+
 _ACTOR = RequestActor(user_id="u1", tenant_id="t1", role="viewer")
 
 
