@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
-from app.retrievers.stores.corpus import read_corpus_records, write_corpus_records
+from app.core.singleton import Cell
+from app.retrievers.stores.corpus import CorpusSnapshot, corpus_snapshot, read_corpus_records, write_corpus_records
 from app.retrievers.stores.parent import read_parent_records, write_parent_records
 from app.services.documents.dedup import compute_sha256
 from app.services.documents.index_lock import index_writes, request_index_writes
@@ -125,7 +127,7 @@ def _merge_corpus_row_into_entry(entry: dict[str, Any], meta: dict[str, Any], ro
             pass
 
 
-def _seed_entries_from_corpus(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def _seed_entries_from_corpus(records: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     by_file: dict[str, dict[str, Any]] = {}
     for row in records:
         source = _record_source(row)
@@ -172,8 +174,26 @@ def _merge_disk_files(
         entry["source"] = str(path)
 
 
+# The per-document entries of one corpus snapshot. Built once per corpus
+# version: scope resolution asks for them twice per question (PERF-01).
+_CORPUS_ENTRIES: Cell[tuple[CorpusSnapshot, dict[str, dict[str, Any]]] | None] = Cell(None)
+
+
+def _corpus_entries() -> dict[str, dict[str, Any]]:
+    """A fresh copy of the entries, since the caller merges disk state into them."""
+
+    snapshot = corpus_snapshot()
+    cached = _CORPUS_ENTRIES.value
+    # Identity, not signature: a snapshot whose read raced a write carries a
+    # sentinel signature that another such snapshot would share.
+    if cached is None or cached[0] is not snapshot:
+        cached = (snapshot, _seed_entries_from_corpus(snapshot.records))
+        _CORPUS_ENTRIES.value = cached
+    return {key: {**entry, "pages": set(entry["pages"])} for key, entry in cached[1].items()}
+
+
 def list_indexed_files() -> list[dict[str, Any]]:
-    by_file = _seed_entries_from_corpus(read_corpus_records())
+    by_file = _corpus_entries()
 
     settings = get_settings()
     _merge_disk_files(by_file, settings.uploads_path, in_uploads=True, force_in_uploads=True)

@@ -69,7 +69,9 @@ async def create_connector(
 ) -> ConnectorView:
     """Store encrypted credentials and return only a server-managed redaction."""
     try:
-        return service.create(
+        # Resolves the URL's host and writes SQLite: off the event loop (SEC-08).
+        return await asyncio.to_thread(
+            service.create,
             connector_id=body.connector_id,
             owner_id=_owner_id(actor),
             name=body.name,

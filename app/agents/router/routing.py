@@ -11,6 +11,7 @@ Optimizations:
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -34,6 +35,7 @@ from app.prompts import build_router_prompt
 from app.services.agent_classifier import classify_agent_class
 from app.services.models.runtime import get_chat_model, get_reasoning_model
 from app.services.query.intent import is_smalltalk_query
+from app.services.runtime.request_context import remaining_seconds
 
 if TYPE_CHECKING:  # pragma: no cover - import only for the annotation below
     from app.agents.registry import DomainAgentRegistry
@@ -84,6 +86,15 @@ class LegacyRouteDecision:
     agent_class: str
     confidence: float = 0.7  # Default confidence for backward compatibility
     raw_confidence: float = 0.7  # Pre-calibration value; the calibration loop keys on it
+    # False when the decision reflects this request's circumstances rather than
+    # the question -- a skipped re-ask for lack of time, a failed model call --
+    # so the per-question memo must not serve it to the next caller.
+    cacheable: bool = True
+
+
+# The reason tag for a low-confidence decision that went to the safe route
+# because the re-ask could not finish in time (PERF-03).
+REASK_SKIPPED_FOR_BUDGET = "reasoning_reask_skipped_budget"
 
 
 # Inject few-shot examples into prompt
@@ -273,6 +284,10 @@ def decide_route(
         agent_class=agent_class,
         confidence=_calibrated(raw_confidence),
         raw_confidence=raw_confidence,
+        # A failed call or a re-ask skipped for time says nothing about the
+        # question; caching it would answer the next 30 minutes of the same
+        # question with this request's bad luck.
+        cacheable=not any(tag in reason for tag in ("router_invoke_error", REASK_SKIPPED_FOR_BUDGET)),
     )
 
 
@@ -349,7 +364,9 @@ def _llm_route(
 Question: {question}
 {class_line}
 Suggested skill: {skill}"""
+    started = time.monotonic()
     response = model.invoke(prompt)
+    first_call_seconds = time.monotonic() - started
     response_text = response.content if hasattr(response, "content") else str(response)
     route_data = _extract_json(response_text)
     llm_class = normalize_agent_class(str(route_data.get("agent_class") or ""))
@@ -371,7 +388,15 @@ Suggested skill: {skill}"""
     route_confidence = _stated_confidence(route_data)
     if route_confidence < ROUTER_LOW_CONFIDENCE_THRESHOLD:
         route, reason, route_confidence = _recover_low_confidence(
-            question, agent_class, skill, route, reason, route_confidence, forced_reason
+            question,
+            agent_class,
+            skill,
+            route,
+            reason,
+            route_confidence,
+            forced_reason,
+            spent_seconds=time.monotonic() - started,
+            call_seconds=first_call_seconds,
         )
     return route, reason, skill, route_confidence, llm_class
 
@@ -421,15 +446,26 @@ def _recover_low_confidence(
     reason: str,
     route_confidence: float,
     forced_reason: str,
+    *,
+    spent_seconds: float = 0.0,
+    call_seconds: float = 0.0,
 ) -> tuple[str, str, float]:
     """Re-ask with the reasoning model, and fall back to vector if that fails too.
+
+    The re-ask is skipped, straight to the safe route, when there is no time
+    for it (PERF-03): see `_reask_fits`.
 
     The confidence is floored at 0.5 rather than raised to it: a safe route
     chosen because nothing better was available should still read as uncertain.
     """
 
     logger.info(f"Low confidence detected: {route_confidence:.2f} < {ROUTER_LOW_CONFIDENCE_THRESHOLD}")
-    fallback_result = _try_fallback_with_reasoning(question, agent_class, skill, route_confidence)
+    if not _reask_fits(spent_seconds, call_seconds):
+        logger.info("Reasoning re-ask skipped: not enough time left (spent %.1fs)", spent_seconds)
+        reason = _append_reason(reason, REASK_SKIPPED_FOR_BUDGET)
+        fallback_result = None
+    else:
+        fallback_result = _try_fallback_with_reasoning(question, agent_class, skill, route_confidence)
     if fallback_result is not None:
         route, reason, route_confidence = fallback_result
     else:
@@ -440,6 +476,23 @@ def _recover_low_confidence(
     if forced_reason:
         reason = _append_reason(reason, forced_reason)
     return route, reason, route_confidence
+
+
+def _reask_fits(spent_seconds: float, call_seconds: float) -> bool:
+    """Whether a second routing call can finish inside both budgets.
+
+    Two budgets bound it: the router stage's ceiling (`STAGE_TIMEOUT_ROUTE_MS`,
+    8 s by default) and the caller's own deadline. The second call is a
+    reasoning model, so the first call's duration is a floor on its cost, not
+    an estimate of it. A first call measured at 3-4 s left an 8 s stage too
+    little room for the re-ask, so the stage timed out, fell back to the safe
+    route anyway, and left the abandoned call running on a pool thread.
+    """
+
+    stage_left = get_settings().stage_timeout_route_ms / 1000 - spent_seconds
+    request_left = remaining_seconds()
+    left = stage_left if request_left is None else min(stage_left, request_left)
+    return call_seconds <= left
 
 
 def _calibrated(raw_confidence: float) -> float:

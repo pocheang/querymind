@@ -34,8 +34,9 @@ def _prompt(contexts: SynthesisContexts, *, nonce: str = "") -> str:
     )
 
 
-def test_the_bundle_has_the_five_sections_the_prompt_renders():
-    assert _FIELDS == ("memory", "vector", "graph", "web", "tool")
+def test_the_bundle_has_the_sections_the_prompt_renders():
+    # `tool_payload` is the untrusted half of the tool results, sandboxed (SEC-04).
+    assert _FIELDS == ("memory", "vector", "graph", "web", "tool", "tool_payload")
 
 
 @pytest.mark.parametrize("field_name", _FIELDS)

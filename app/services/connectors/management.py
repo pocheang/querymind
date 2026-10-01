@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from urllib.parse import urlparse
 
@@ -11,7 +12,7 @@ from app.mcp.contracts import ConnectorDefinition
 from app.services.connectors.contracts import ConnectorMetadata, ConnectorProbeResult, ConnectorView
 from app.services.connectors.metadata_repository import ConnectorMetadataRepository
 from app.services.connectors.service import ConnectorCredentialService
-from app.services.security.network import OutboundURLValidationError, validate_public_http_url
+from app.services.security.network import OutboundURLValidationError, pin_public_http_url, validate_public_http_url
 
 ConnectorProbe = Callable[[str, frozenset[str]], Awaitable[ConnectorProbeResult]]
 
@@ -121,14 +122,26 @@ class ConnectorManagementService:
 
 
 async def probe_http_connector(base_url: str, allowed_hosts: frozenset[str]) -> ConnectorProbeResult:
-    """Perform one bounded, read-only HTTP reachability probe without redirects."""
+    """Perform one bounded, read-only HTTP reachability probe without redirects.
+
+    Three things about the order, each a SEC-08 finding: the allowlist is
+    checked before anything is sent (it used to be checked on the response,
+    after the request had gone out); the name is resolved off the event loop;
+    and the request goes to the address that was checked, not to whatever the
+    name resolves to a moment later.
+    """
     try:
-        safe_url = validate_public_http_url(base_url)
+        if (urlparse(base_url).hostname or "").lower() not in allowed_hosts:
+            return ConnectorProbeResult(status="failed", message="probe host is not allowed")
+        target = await asyncio.to_thread(pin_public_http_url, base_url)
         async with httpx.AsyncClient(follow_redirects=False, timeout=5.0) as client:
-            response = await client.get(safe_url)
-        final_host = (urlparse(str(response.url)).hostname or "").lower()
-        if final_host not in allowed_hosts:
-            return ConnectorProbeResult(status="failed", message="response host is not allowed")
+            request = client.build_request(
+                "GET",
+                target.request_url(),
+                headers={"Host": target.host_header()},
+                extensions={"sni_hostname": target.host},
+            )
+            response = await client.send(request)
         if 200 <= response.status_code < 400:
             return ConnectorProbeResult(status="passed", message="reachable")
         return ConnectorProbeResult(status="failed", message=f"HTTP {response.status_code}")

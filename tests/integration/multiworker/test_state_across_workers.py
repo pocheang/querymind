@@ -113,8 +113,12 @@ def test_an_approval_crosses_workers_and_is_redeemed_exactly_once(stack, admin, 
         json={
             "connector_id": CONNECTOR,
             "name": "Falcon runbook",
-            "base_url": "https://runbook.example.com",
-            "allowed_hosts": ["runbook.example.com"],
+            # A public address, not a name: since SEC-08 a host that does not
+            # resolve is refused, and the workers are separate processes, so a
+            # DNS fixture in this one cannot answer for them. Nothing is sent to
+            # it -- the scenario only creates, approves and toggles.
+            "base_url": "https://93.184.215.14",
+            "allowed_hosts": ["93.184.215.14"],
             "secret": "stack-test-secret-value",
         },
     )

@@ -36,6 +36,21 @@ updates:
         update-types: [minor, patch]
     commit-message:
       prefix: deps
+    ignore:
+      # Major bumps require dedicated migrations and coordination across peer dependencies;
+      # uncoordinated automated PRs break npm ci and type checking.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
 # **pip is deliberately absent, and this is the part to read before adding it.**
 #

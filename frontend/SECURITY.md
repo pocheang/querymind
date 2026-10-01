@@ -14,15 +14,15 @@ QueryMind Frontend implements a **defense-in-depth** model across client state, 
 ┌────────────────────────────────────────────────────────────────────────┐
 │                          Client Browser (UI)                           │
 │  • React 18 Escaped DOM        • Strict No dangerouslySetInnerHTML     │
-│  • Client Input Sanitization   • Password Policy Live Evaluation       │
+│  • React-escaped text, no HTML • Password Policy Live Evaluation       │
 │  • Open-Redirect Whitelist     • Zustand Memory Isolation on Logout   │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ HTTPS + WSS / SSE (TLS 1.3)
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │                          Ingress & Headers                             │
-│  • CSP: nosniff, frame-ancestors 'self', strict-transport-security     │
-│  • Nginx Rate Limiting: /api/v1/auth/login (5/min), /api/ (100/min)    │
+│  • CSP (script/img 'self'), nosniff, frame-ancestors 'self'            │
+│  • Application rate limits per route, shared across workers            │
 │  • Anti-Clickjacking (X-Frame-Options: SAMEORIGIN)                     │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ Bearer Token + X-CSRF-Token
@@ -30,7 +30,7 @@ QueryMind Frontend implements a **defense-in-depth** model across client state, 
 ┌────────────────────────────────────────────────────────────────────────┐
 │                       Application Gateway / API                        │
 │  • RBAC Access Control (User / Admin Role Isolation)                  │
-│  • PBKDF2 Password Hashing (Salt + 100k rounds)                        │
+│  • PBKDF2-SHA256 Password Hashing (salt + 600k rounds)                 │
 │  • CSRF Token Session Verification                                     │
 │  • Single-Use Ephemeral Tokens for Sensitive ReAct Tool Approvals      │
 └────────────────────────────────────────────────────────────────────────┘
@@ -41,14 +41,14 @@ QueryMind Frontend implements a **defense-in-depth** model across client state, 
 ## 🛡️ 2. Authentication & Session Security
 
 ### 2.1 Token Lifecycle & Storage
-- **Bearer Token Authentication**: JWT authentication tokens are handled through centralized API client wrappers (`src/lib/api.ts`).
+- **Bearer Token Authentication**: session tokens are opaque random values (`secrets.token_urlsafe(40)`), handled through the centralized API client (`src/lib/api.ts`). The server stores only their SHA-256 digest, so a copy of the database does not contain a usable token.
 - **Automatic Request Injection**: Authenticated endpoints automatically receive `Authorization: Bearer <token>` and `X-CSRF-Token` headers.
 - **Session Recovery & Resilience**: Handled via `src/lib/sessionRecovery.ts`. The client carefully inspects network error status codes to avoid clearing tokens prematurely during transient server restarts or system sleep wakes, while strictly invalidating credentials on verified 401 unauthorized responses.
 - **Complete In-Memory State Clearance**: On logout or session invalidation, `clearUserState()` completely purges `useChatStore` and `useAdminStore` Zustand state slices to prevent sensitive session data, indexed documents, and configuration state from leaking to subsequent users on shared workstations.
 
 ### 2.2 Password Security & Input Policy
 - **Client-Side Verification**: Real-time evaluation of password criteria (length ≥ 8, uppercase, lowercase, numbers, and special symbols) via `src/lib/validation.ts` and `src/components/PasswordRequirements.tsx`.
-- **Backend Hashing**: Passwords are never stored in plaintext and are hashed using **PBKDF2 with SHA-256 and unique cryptographic salt** on the backend.
+- **Backend Hashing**: Passwords are never stored in plaintext and are hashed using **PBKDF2 with SHA-256 (600,000 iterations) and a unique salt** on the backend. A failed sign-in costs the same hashing work whether or not the username exists, so response time does not reveal which usernames are registered.
 
 ---
 
@@ -80,7 +80,7 @@ async def validate_csrf(request: Request, call_next):
 ### 4.1 Storage Inventory
 | Key | Storage Engine | Purpose | Sensitivity | Protection Level |
 | :--- | :--- | :--- | :--- | :--- |
-| `auth_token` | `localStorage` | JWT Access Token | High | Bearer Header Only |
+| `auth_token` | `localStorage` | Session token (opaque) | High | Bearer Header Only |
 | `csrf_token` | `sessionStorage` | Anti-CSRF Token | High | Ephemeral (Tab Lifetime) |
 | `remembered_username` | `localStorage` | Login pre-fill | Low | Plaintext (a convenience, not a secret) |
 | `language` | `localStorage` | Locale preference (`zh` / `en`) | Low | Plaintext |
@@ -97,9 +97,11 @@ async def validate_csrf(request: Request, call_next):
    - The codebase strictly prohibits `dangerouslySetInnerHTML`. Verified via automated AST lint sweeps.
 2. **Safe Markdown Rendering**:
    - AI responses and rich-text explanations are rendered via `react-markdown` with `remark-gfm` in text-mode without arbitrary HTML parsing.
-3. **Strict Input Sanitization**:
-   - Prompts, filenames, and session titles pass through `sanitizeString()` (`src/lib/validation.ts`) to strip script tags, dangerous entities, and control characters before transmission.
-4. **Output DLP & Hallucination Guardrails**:
+3. **No HTML blacklist**:
+   - Prompts, filenames and session titles are rendered as React text, which React escapes. The former `sanitizeString()` blacklist was removed: it added no safety on top of that and cut words out of ordinary prompts.
+4. **Images in Markdown load only from this origin**:
+   - Markdown shown in the app (answers, the streaming draft, citation excerpts from retrieved documents, the model's reasoning) is not written by the reader, and an image there would be fetched as soon as it renders. `MarkdownBlock` loads an image only from the same origin, `data:` or `blob:` (`src/lib/imageSource.ts`); any other image is shown as plain text naming its host, not as a link. The CSP's `img-src` enforces the same rule (section 8).
+5. **Output DLP & Hallucination Guardrails**:
    - Streaming SSE responses implement real-time output data-leak prevention (DLP) token masking and NLI factuality grounding checks before display.
 
 ---
@@ -126,24 +128,15 @@ if (returnUrl.startsWith("http://") || returnUrl.startsWith("https://") || retur
 
 ## 🚦 7. Rate Limiting & Gateway Hardening
 
-Nginx and gateway reverse proxies are configured with burst-limited request queues:
+Rate limits are enforced by the application, not by nginx: `app/api/middleware/rate_limit.py` applies per-route rules (sign-in, registration, uploads, administrative actions); with `STATE_BACKEND=shared` the counts live in Redis, so every worker shares one count. nginx (`nginx.conf`) only serves the frontend and proxies `/api/`; it overwrites `X-Forwarded-For` with the connecting address, so a client cannot choose the address its limits are counted against.
+
+The execution event stream is proxied without buffering, so events arrive as they happen:
 
 ```nginx
-# Authentication Endpoints
-location /api/v1/auth/login {
-    limit_req zone=login_limit burst=3 nodelay;  # 5 req/min threshold
-}
-
-# General API Endpoints
-location /api/ {
-    limit_req zone=api_limit burst=20 nodelay;   # 100 req/min threshold
-}
-
-# SSE Streaming Stream Connections
-location /query/stream {
+location ~ ^/api/v1/orchestration/executions/[^/]+/events {
+    proxy_pass http://backend:8000;
     proxy_buffering off;
-    proxy_read_timeout 600s;
-    limit_req zone=stream_limit burst=10 nodelay;
+    proxy_read_timeout 3600s;
 }
 ```
 
@@ -151,17 +144,19 @@ location /query/stream {
 
 ## 🌐 8. Security Headers Specification
 
-Production servers must deliver the following security headers:
+The frontend image sends these headers on the application page and its static assets. They are defined once in `nginx-security-headers.conf` and included by every nginx location that serves a file; `/api/` responses carry the backend's own headers (`app/api/transport/middleware.py`), whose policy also limits `img-src` to `'self' data: blob:` and runs no inline script or `eval`.
 
 ```http
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: wss:; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self';
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'
 X-Frame-Options: SAMEORIGIN
 X-Content-Type-Options: nosniff
-X-XSS-Protection: 1; mode=block
 Referrer-Policy: strict-origin-when-cross-origin
-Permissions-Policy: accelerometer=(), camera=(), geolocation=(), microphone=(), payment=(), usb=()
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
 ```
+
+- `style-src` allows inline styles because React style attributes, ReactFlow, Recharts and the inlined critical CSS need them; scripts are never inline.
+- `Strict-Transport-Security` is added by the backend on HTTPS requests; set it on the TLS-terminating proxy in front of the frontend image as well.
+- CI checks these headers on real responses from the built image (`images` job), and the browser smoke test (`npm run smoke`) fails on any CSP violation.
 
 ---
 

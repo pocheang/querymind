@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import { Check, Copy } from "lucide-react";
 
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { imageSourceHost, isLoadableImageSource } from "@/lib/imageSource";
 
 /** Recognise the language from remark's `language-xxx` class, for the header tag. */
 function languageOf(className: string) {
@@ -52,6 +53,25 @@ function CodeBlock({ code, className = "" }: Readonly<{ code: string; className?
         <code className={className}>{code}</code>
       </pre>
     </div>
+  );
+}
+
+/**
+ * A Markdown image, loaded only from this origin (SEC-09).
+ *
+ * Anything else becomes plain text naming the image and its host: not a link,
+ * because a click on a crafted URL leaks exactly what loading it would.
+ */
+function MarkdownImage({ src, alt }: Readonly<{ src?: string; alt?: string }>) {
+  const { t } = useTranslation();
+  const origin = globalThis.location?.origin ?? "";
+  if (isLoadableImageSource(src, origin)) {
+    return <img src={src} alt={alt ?? ""} className="my-2 max-w-full rounded-card" />;
+  }
+  return (
+    <span className="rounded border border-line bg-surface-muted px-1.5 py-0.5 text-xs text-ink-muted">
+      {t("components.markdownImage.notLoaded", { alt: alt || "-", host: imageSourceHost(src, origin) })}
+    </span>
   );
 }
 
@@ -137,6 +157,7 @@ const MARKDOWN_COMPONENTS: Parameters<typeof ReactMarkdown>[0]["components"] = {
   ),
   tr: ({ children }) => <tr className="even:bg-slate-50 hover:bg-slate-100">{children}</tr>,
   hr: () => <hr className="my-3.5 border-line" />,
+  img: ({ src, alt }) => <MarkdownImage src={typeof src === "string" ? src : undefined} alt={alt} />,
 };
 
 /**

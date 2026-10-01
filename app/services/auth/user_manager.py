@@ -16,6 +16,12 @@ from app.services.auth.validation import (
 
 logger = logging.getLogger(__name__)
 
+# Hashed against when the username does not exist, so that path costs what a
+# real check costs. Any salt works: the work is in the derivation, not in what
+# it is compared with, and this comparison can never succeed.
+_UNKNOWN_USER_SALT = generate_salt()
+_UNKNOWN_USER_HASH = "0" * 64
+
 DEFAULT_CHAT_CREDITS = 10
 MAX_CREDIT_TOP_UP = 1_000_000
 
@@ -143,12 +149,18 @@ class UserManager:
                 "SELECT user_id, username, salt, password_hash, role, status, credit_balance, tenant_id FROM users WHERE lower(username)=lower(?)",
                 (username,),
             ).fetchone()
+            # Every outcome pays for one PBKDF2 run, and "disabled" is told only
+            # to someone who knows the password (SEC-06). An unknown name used
+            # to return at once and a known one cost 600k iterations, so the
+            # response time said which usernames exist; a disabled account was
+            # reported before its password was checked, which said the same.
             if row is None:
+                verify_password(password or "", _UNKNOWN_USER_SALT, _UNKNOWN_USER_HASH)
+                return None
+            if not verify_password(password or "", str(row["salt"]), str(row["password_hash"])):
                 return None
             if str(row["status"]).lower() != "active":
                 raise ValueError("user disabled")
-            if not verify_password(password or "", str(row["salt"]), str(row["password_hash"])):
-                return None
             return {
                 "user_id": str(row["user_id"]),
                 "username": str(row["username"]),

@@ -102,6 +102,8 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
+`API_SETTINGS_ENCRYPTION_KEY` 加密存储的凭据（连接器密钥、管理员配置的模型 API key），格式为 AES-256-GCM（`enc:v2:<kid>:…`），每个值绑定到它所属的记录。升级时 `python -m app.init_app` 会把旧格式和明文值一次性重新加密；之后数据库里出现的明文或旧格式值一律被拒绝。**更换这个密钥后，已存储的凭据将无法解密**，需要重新录入——日志会按 kid 指出是"另一把密钥"写的值。数据库里的会话令牌只保存 SHA-256 摘要，泄露 `app.db` 不会泄露可用的令牌。
+
 ### 3. 启用生产安全设置
 
 编辑 `.env` 文件：

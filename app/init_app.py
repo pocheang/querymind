@@ -152,6 +152,46 @@ def purge_retired_user_model_settings() -> None:
         logger.info("Cleared retired per-user model settings from %d account(s)", cleared)
 
 
+def secure_stored_credentials(settings: Settings) -> None:
+    """Bring credentials stored before SEC-05 / SEC-07 to their current form.
+
+    Session tokens become digests (nobody is signed out) and stored secrets are
+    re-encrypted as enc:v2; after this the readers accept nothing older. Both
+    steps are idempotent, so this runs on every start.
+    """
+
+    import sqlite3
+    from contextlib import closing
+
+    from app.services.auth.secret_migration import migrate_stored_secrets
+    from app.services.auth.session_manager import hash_stored_session_tokens
+
+    db_path = Path(settings.app_db_path)
+    if db_path.exists():
+        try:
+            with closing(sqlite3.connect(db_path)) as conn:
+                hashed = hash_stored_session_tokens(lambda: conn)
+        except sqlite3.Error as exc:
+            logger.exception("Could not hash stored session tokens: %s", exc)
+        else:
+            if hashed:
+                logger.info("Stored %d existing session token(s) as digests", hashed)
+    try:
+        report = migrate_stored_secrets(settings)
+    except Exception as exc:  # pragma: no cover - a broken database is its own problem
+        logger.exception("Could not upgrade stored secrets: %s", exc)
+        return
+    if report.upgraded:
+        logger.info("Re-encrypted %d stored secret(s) in the current format", report.upgraded)
+    if report.unreadable:
+        logger.error(
+            "%d stored secret(s) could not be read with the current API_SETTINGS_ENCRYPTION_KEY and were left "
+            "as they are; they will be refused until re-entered: %s",
+            len(report.unreadable),
+            ", ".join(report.unreadable),
+        )
+
+
 def install_bundled_texts(settings: Settings) -> None:
     """Copy the reference texts that ship with the application into the shared corpus.
 
@@ -198,6 +238,7 @@ def run(settings: Settings | None = None) -> dict[str, int]:
     with held(lock_path, timeout=_STARTUP_LOCK_TIMEOUT_SECONDS):
         bootstrap_administrator()
         purge_retired_user_model_settings()
+        secure_stored_credentials(settings)
         install_bundled_texts(settings)
     return versions
 

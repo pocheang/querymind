@@ -11,7 +11,6 @@ from app.core.config import Settings, get_settings
 from app.domain.knowledge import AccessScope
 from app.retrievers.stores.vector import SHARED_CORPUS_TENANT
 from app.services.documents.index_manager import list_indexed_files
-from app.services.runtime.rag_runtime_scope import is_under_path
 from app.services.security.rbac import Permission, can
 
 if TYPE_CHECKING:
@@ -80,10 +79,12 @@ def list_visible_document_rows(
     visible: list[dict[str, Any]] = []
     for raw_row in rows:
         row = dict(raw_row)
+        # The boundary first: it compares strings, and a row outside it never
+        # needs its path resolved. Both must hold, so the order changes nothing.
+        if not _within_reach(row, viewer):
+            continue
         source_path = _resolved_source(row)
         if source_path is None:
-            continue
-        if not _within_reach(row, viewer):
             continue
         if _is_visible_to(row, source_path, viewer):
             visible.append(row)
@@ -134,11 +135,22 @@ def _within_reach(row: Mapping[str, Any], viewer: _Viewer) -> bool:
 def _is_visible_to(row: Mapping[str, Any], source_path: Path, viewer: _Viewer) -> bool:
     """Four independent grants; any one of them is enough."""
 
-    if is_under_path(source_path, viewer.docs_root):
+    if _is_within(source_path, viewer.docs_root):
         return True
     if str(row.get("visibility", "private") or "private").strip().lower() == "public":
         return True
     return _is_owned_by(row, source_path, viewer) or _is_admin_of(row, viewer)
+
+
+def _is_within(resolved_path: Path, resolved_root: Path) -> bool:
+    """Both sides are already resolved (`_resolved_source`, `_viewer_from`).
+
+    `is_under_path` resolves them again, and on Windows `resolve()` is a chain
+    of system calls: re-resolving every row twice was most of the cost of
+    scope resolution, which runs twice per question (PERF-01).
+    """
+
+    return resolved_path == resolved_root or resolved_root in resolved_path.parents
 
 
 def _is_owned_by(row: Mapping[str, Any], source_path: Path, viewer: _Viewer) -> bool:

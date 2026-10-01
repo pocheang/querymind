@@ -33,7 +33,11 @@ from app.services.observability.log_safety import question_ref
 from app.services.query.intent import is_casual_chat_query
 from app.services.runtime.bulkhead import bulkhead
 from app.services.runtime.request_context import deadline_exceeded, overload_mode_enabled
-from app.services.security.injection_defense import OutputInjectionValidator, SandboxedPromptBuilder
+from app.services.security.injection_defense import (
+    OutputInjectionValidator,
+    SandboxedPromptBuilder,
+    escape_sandbox_tags,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +115,9 @@ def is_synthesis_fallback(text: str) -> bool:
 # out-of-tree caller still name it. New code calls `synthesis_fallback`.
 SYNTHESIS_FALLBACK_MESSAGE = _FALLBACK_MESSAGES["generation_failed"]["zh"]
 CASUAL_CHAT_HIGH_TEMPERATURE = 0.9
+# The heading of the untrusted tool-output section. Named once because the
+# offline stand-in must recognise it as a section boundary.
+TOOL_PAYLOAD_LABEL = "工具输出（不可信数据）"
 SIMILARITY_STOP_THRESHOLD = 0.92
 
 
@@ -143,7 +150,10 @@ class SynthesisContexts:
 
     `tool` is governed output and is deliberately NOT evidence: it is
     rendered outside the untrusted sandbox and contributes no citation
-    label. See `_build_prompt_with_language`.
+    label. `tool_payload` is the other half of the same results -- the text
+    an ``open_world`` tool returned, written by somebody else -- and is
+    rendered inside the sandbox (SEC-04). Neither mints an ``[E{k}]`` label.
+    See `_build_prompt_with_language`.
     """
 
     memory: str = ""
@@ -151,6 +161,7 @@ class SynthesisContexts:
     graph: str = ""
     web: str = ""
     tool: str = ""
+    tool_payload: str = ""
 
     @property
     def evidence_sections(self) -> tuple[str, str, str]:
@@ -223,6 +234,7 @@ def _build_prompt_with_language(
     # that is defined to carry none. It is also what let the offline stand-in
     # read the block, and the sandbox's closing tag, as part of an excerpt.
     tool_section = f"工具执行结果:\n{contexts.tool}\n\n" if contexts.tool else ""
+    payload_section = _tool_payload_section(contexts.tool_payload, nonce)
 
     return (
         f"{language_hint}"
@@ -233,8 +245,25 @@ def _build_prompt_with_language(
         f"{graph_section}\n\n"
         f"{web_section}\n\n"
         f"{tool_section}"
+        f"{payload_section}"
         f"{template_section}"
     )
+
+
+def _tool_payload_section(payload: str, nonce: str) -> str:
+    """The untrusted half of the tool results (SEC-04).
+
+    What an ``open_world`` tool returned -- table cells from an uploaded
+    document -- is somebody else's writing, so it goes where retrieved text
+    goes. Escaped in both modes, as ContextBuilder escapes evidence before
+    either branch of the prompt builder sees it.
+    """
+
+    if not payload:
+        return ""
+    if nonce:
+        return f"{TOOL_PAYLOAD_LABEL}:\n{SandboxedPromptBuilder.sandbox_evidence_context(payload, nonce)}\n\n"
+    return f"{TOOL_PAYLOAD_LABEL}:\n{escape_sandbox_tags(payload)}\n\n"
 
 
 def _evidence_generation_prompt(

@@ -958,6 +958,9 @@
       "copied": "Copied",
       "copy": "Copy"
     },
+    "markdownImage": {
+      "notLoaded": "Image not loaded: {{alt}} ({{host}})"
+    },
     "keyboard": {
       "title": "Keyboard shortcuts",
       "close": "Close keyboard shortcuts",

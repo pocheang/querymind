@@ -1,12 +1,14 @@
 import re
-from functools import lru_cache
+import threading
+from collections import OrderedDict
 
 try:
     from rank_bm25 import BM25Okapi
 except ImportError:  # pragma: no cover - optional dependency fallback
     BM25Okapi = None  # type: ignore[assignment]
 
-from app.retrievers.stores.corpus import read_corpus_records
+from app.core.singleton import Cell
+from app.retrievers.stores.corpus import corpus_snapshot, reset_corpus_snapshot
 
 # English tokenization pattern (original)
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_\-]+|[\u4e00-\u9fff]")
@@ -147,37 +149,48 @@ def _build_index(records: list[dict], use_chinese_tokenizer: bool):
     return BM25Okapi(tokenized), records, token_sets
 
 
-@lru_cache(maxsize=1)
-def _load_bm25(use_chinese_tokenizer: bool = True):
-    """
-    Load BM25 index with optional Chinese-aware tokenization.
+_EMPTY_INDEX = (None, [], [])
+# (scope, tokenizer flag) -> (digests of the scope's sources, built index).
+#
+# There is no global index any more (PERF-02). One used to be built over every
+# tenant's corpus only to obtain the record list, which meant tokenizing the
+# whole corpus with jieba -- measured at 55 s for 100k chunks -- and since
+# every ingest cleared it, one user's upload made the next query of every
+# other user pay that again. A scoped index is now reused for as long as the
+# chunks of *its own* sources are byte-identical, which the corpus snapshot
+# tells us without reading their text again.
+_SCOPED_INDEXES: Cell[OrderedDict] = Cell(OrderedDict())
+_SCOPED_LOCK = threading.Lock()
 
-    Args:
-        use_chinese_tokenizer: If True, use jieba for Chinese text (default: True)
 
-    Returns:
-        Tuple of (BM25Okapi instance, corpus records, per-record token sets)
-    """
-    return _build_index(read_corpus_records(), use_chinese_tokenizer)
-
-
-@lru_cache(maxsize=SCOPED_INDEX_CACHE_SIZE)
 def _load_scoped_bm25(allowed: tuple[str, ...], use_chinese_tokenizer: bool = True):
-    """Build (and keep) the BM25 index for one access scope.
+    """The BM25 index for one access scope, rebuilt only when its sources changed."""
 
-    Scoping used to re-filter the whole corpus and rebuild the index on *every*
-    query. The result was correct but paid an O(corpus) scan plus a full index
-    build per question, so a user asking three questions in a row rebuilt their
-    index three times. Keyed on the scope's own source list, a repeat question
-    from the same user now reuses the index.
-    """
-    _bm25, records, _token_sets = _load_bm25(use_chinese_tokenizer=use_chinese_tokenizer)
-    if not records:
-        return None, [], []
+    snapshot = corpus_snapshot()
+    digests = tuple(snapshot.source_digests.get(source, "") for source in allowed)
+    key = (allowed, use_chinese_tokenizer)
+    with _SCOPED_LOCK:
+        cached = _SCOPED_INDEXES.value.get(key)
+        if cached is not None and cached[0] == digests:
+            _SCOPED_INDEXES.value.move_to_end(key)
+            return cached[1]
+    index = _build_scoped_index(snapshot.records, allowed, use_chinese_tokenizer)
+    with _SCOPED_LOCK:
+        indexes = _SCOPED_INDEXES.value
+        indexes[key] = (digests, index)
+        indexes.move_to_end(key)
+        while len(indexes) > SCOPED_INDEX_CACHE_SIZE:
+            indexes.popitem(last=False)
+    return index
+
+
+def _build_scoped_index(records, allowed: tuple[str, ...], use_chinese_tokenizer: bool):
+    # Corpus order, not scope order: BM25 ties are broken by position, so the
+    # records must stay in the order the old filter over the full list kept.
     permitted = set(allowed)
     scoped = [row for row in records if str((row.get("metadata", {}) or {}).get("source", "")) in permitted]
     if not scoped:
-        return None, [], []
+        return _EMPTY_INDEX
     return _build_index(scoped, use_chinese_tokenizer)
 
 
@@ -247,6 +260,18 @@ def bm25_search(
 
 
 def reset_bm25_cache() -> None:
-    """Clear the BM25 index caches to force reloading."""
-    _load_bm25.cache_clear()
-    _load_scoped_bm25.cache_clear()
+    """The corpus changed: re-read it on the next query.
+
+    Scoped indexes are deliberately kept. Each one is checked against its own
+    sources' digests on use, so after an ingest only the scopes that can see
+    the changed document are rebuilt -- clearing them all here is what made one
+    user's upload cold-start every other user's index (PERF-02).
+    """
+    reset_corpus_snapshot()
+
+
+def clear_bm25_indexes() -> None:
+    """Drop every scoped index as well (tests, and memory pressure)."""
+    reset_corpus_snapshot()
+    with _SCOPED_LOCK:
+        _SCOPED_INDEXES.value.clear()
