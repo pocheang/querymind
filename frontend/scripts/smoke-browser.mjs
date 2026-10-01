@@ -9,7 +9,7 @@
  * broken deploy is a hashed asset that 404s, and the only thing that sees it is
  * a browser pointed at the real thing.
  *
- * Deliberately five assertions, each one a distinct failure:
+ * Deliberately six assertions, each one a distinct failure:
  *
  *   1. `/api/...` returns JSON, not HTML. A reverse proxy that is not reaching
  *      the backend falls through to the SPA and answers every path with
@@ -24,6 +24,12 @@
  *      reports without failing a deployment that works.
  *   5. `#root` has children. React mounted; the page is not a blank document
  *      that technically returned 200.
+ *   6. The Content-Security-Policy refused nothing. nginx sends a policy with
+ *      `script-src 'self'` and no 'unsafe-eval' (SEC-03); a dependency that
+ *      starts needing either would break the page in production only, and
+ *      silently, since a refused script is a console line, not an exception.
+ *      Served without a policy (`npm run preview`) there is nothing to refuse,
+ *      so this cannot fail there for the wrong reason.
  *
  * Console *errors* are collected and printed but never fail the run: a
  * third-party warning is not a broken deployment, and a check that goes red for
@@ -65,6 +71,13 @@ try {
   const badAssets = [];
 
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  // Registered before any page script runs, so a violation during boot counts.
+  await page.addInitScript(() => {
+    window.__cspViolations = [];
+    document.addEventListener("securitypolicyviolation", (event) => {
+      window.__cspViolations.push(`${event.effectiveDirective} ${event.blockedURI || "(inline)"}`);
+    });
+  });
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -88,7 +101,7 @@ try {
   }
   check(
     api !== null && apiType.includes("json"),
-    `${API_PROBE} answered ${api.status()} ${apiType || "(no content-type)"} -- ` +
+    `${API_PROBE} answered ${api?.status()} ${apiType || "(no content-type)"} -- ` +
       `expected JSON. Anything else means the request did not reach the backend: ` +
       `HTML is the SPA fallback answering, a 5xx is the proxy failing to connect.`,
   );
@@ -110,11 +123,16 @@ try {
   check(pageErrors.length === 0, `uncaught page errors: ${pageErrors.join(" | ")}`);
   check(badAssets.length === 0, `assets failed to load: ${badAssets.join(", ")}`);
 
+  const cspViolations = await page.evaluate(() => window.__cspViolations ?? []);
+  check(cspViolations.length === 0, `the Content-Security-Policy refused: ${cspViolations.join(" | ")}`);
+  const csp = response?.headers()["content-security-policy"] ?? "";
+
   console.log(`smoke: ${BASE}`);
   console.log(`  api probe      ${api?.status() ?? "unreachable"} ${apiType}`);
   console.log(`  page           ${response?.status()}, #root children: ${rootChildren}`);
   console.log(`  title          ${title}`);
   console.log(`  page errors    ${pageErrors.length}`);
+  console.log(`  csp            ${csp ? "sent" : "not sent"}, violations: ${cspViolations.length}`);
   const consoleDetail = consoleErrors.length ? ` (not fatal): ${consoleErrors.join(" | ")}` : "";
   console.log(`  console errors ${consoleErrors.length}${consoleDetail}`);
   if (notes.length) console.log(`  other 4xx/5xx  ${notes.join(", ")}`);

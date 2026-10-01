@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔒 Security
+
+- The frontend image now sends a Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy and Permissions-Policy on the application page and its static assets. The headers live in `nginx-security-headers.conf`, which the image installs and every location that serves a file includes; `script-src` is `'self'` with no `unsafe-inline` or `unsafe-eval`. CI checks the headers on real responses, and the browser smoke test fails on any CSP violation. The unused `frontend/nginx-security.conf` and `frontend/public/_headers` are removed. A deployment that copied its own `nginx.conf` should include the new file the same way.
+- Output from tools that return externally authored content (the table query tool) is now screened for injected instructions and placed in the untrusted evidence region of the prompt, separate from the tool's status line.
+
 ### 🔧 Fixes
 
 - `OAUTH_REDIRECT_URI` defaulted to `/api/auth/google/callback`, which v0.7.2 removed, so an installation relying on the default would have sent every Google sign-in to a 404. It is `/api/v1/auth/google/callback` now, and a test checks the default names a route.

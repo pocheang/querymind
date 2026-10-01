@@ -312,6 +312,9 @@ class LocalEvidenceChatModel:
         "图谱上下文",
         "联网补充上下文",
         "工具执行结果",
+        # generation.TOOL_PAYLOAD_LABEL; generation imports this module, so the
+        # name is repeated rather than imported and a test checks they agree.
+        "工具输出（不可信数据）",
         "答案模板指导",
     )
     _SECTION_END = re.compile("\n\n(?=(?:" + "|".join(_SECTION_LABELS) + ")[^\n]{0,40}?[:：])")

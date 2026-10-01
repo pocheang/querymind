@@ -676,26 +676,48 @@ def screen_evidence_items(items: Sequence[_EvidenceT]) -> tuple[_EvidenceT, ...]
 
     if not items:
         return tuple(items)
-    if not bool(getattr(get_settings(), "prompt_injection_defense_enabled", True)):
+    if not _defense_enabled():
         return tuple(items)
 
     screened: list[_EvidenceT] = []
     for item in items:
         content = getattr(item, "content", "")
-        assessment = detect_prompt_injection(content, is_retrieved_evidence=True)
-        if not assessment.is_blocked:
+        if _carries_injection(
+            content, f"document {getattr(item, 'document_id', '?')} (item {getattr(item, 'item_id', '?')})"
+        ):
+            screened.append(item.model_copy(update={"content": REDACTED_EVIDENCE_NOTICE}))
+        else:
             screened.append(item)
-            continue
-        threat = assessment.threat_type.value if assessment.threat_type else "indirect_injection"
-        logger.warning(
-            "Indirect prompt injection detected in document %s (item %s): threat=%s risk=%.2f",
-            getattr(item, "document_id", "?"),
-            getattr(item, "item_id", "?"),
-            threat,
-            assessment.risk_score,
-        )
-        screened.append(item.model_copy(update={"content": REDACTED_EVIDENCE_NOTICE}))
     return tuple(screened)
+
+
+def screen_untrusted_text(text: str, *, origin: str) -> str:
+    """The same screen as `screen_evidence_items`, for text that is not an evidence item.
+
+    An ``open_world`` tool's output -- table cells parsed from an uploaded
+    document -- is the same kind of content as a retrieved chunk and reaches the
+    same model, so it gets the same test and the same replacement (SEC-04).
+    ``origin`` names it in the log line, never the text itself.
+    """
+
+    if not text or not _defense_enabled():
+        return text
+    return REDACTED_EVIDENCE_NOTICE if _carries_injection(text, origin) else text
+
+
+def _defense_enabled() -> bool:
+    return bool(getattr(get_settings(), "prompt_injection_defense_enabled", True))
+
+
+def _carries_injection(content: str, origin: str) -> bool:
+    assessment = detect_prompt_injection(content, is_retrieved_evidence=True)
+    if not assessment.is_blocked:
+        return False
+    threat = assessment.threat_type.value if assessment.threat_type else "indirect_injection"
+    logger.warning(
+        "Indirect prompt injection detected in %s: threat=%s risk=%.2f", origin, threat, assessment.risk_score
+    )
+    return True
 
 
 __all__ = [
@@ -709,4 +731,5 @@ __all__ = [
     "OutputInjectionValidator",
     "REDACTED_EVIDENCE_NOTICE",
     "screen_evidence_items",
+    "screen_untrusted_text",
 ]

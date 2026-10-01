@@ -124,6 +124,10 @@ class ToolRegistry:
             result = ToolResult(tool_id=call.tool_id, status="failed", summary="tool returned an unexpected tool id")
         if approval is not None:
             result = result.model_copy(update={"approval_status": "approved"})
+        # Stamped here, from the declaration, so a tool cannot vouch for its own
+        # output: an ``open_world`` summary is somebody else's writing (SEC-04).
+        if definition.risk == "open_world":
+            result = result.model_copy(update={"untrusted": True})
         return self._finish(
             call,
             actor,
