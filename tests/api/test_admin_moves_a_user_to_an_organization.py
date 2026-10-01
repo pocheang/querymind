@@ -72,7 +72,8 @@ def test_an_invalid_organization_is_refused_and_nothing_moves(client, tenant):
     response = http.patch("/api/v1/admin/users/alice/tenant", json={"tenant_id": tenant}, headers=ADMIN)
 
     assert response.status_code == 400, response.text
-    assert auth.moved == [] and retagged == []
+    assert auth.moved == []
+    assert retagged == []
 
 
 def test_an_unknown_user_is_404_and_nothing_moves(client):

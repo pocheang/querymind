@@ -77,7 +77,8 @@ def tenant_for_user(user_id: str) -> str:
         return default
     try:
         profile = AuthDBService().get_user_profile(user_id) or {}
-    except Exception:  # noqa: BLE001 - an unreadable users table must not stop an ingest
+    # An unreadable users table must not stop an ingest.
+    except Exception:  # noqa: BLE001
         logger.warning("tenant lookup failed; using the default organization", exc_info=True)
         return default
     return str(profile.get("tenant_id") or default)
@@ -179,7 +180,8 @@ def migrate_legacy_document_tenants(app_db_path: Path) -> list[str]:
             continue
         try:
             moved += retag_owner(user_id, tenant_id, only_from=user_id).total
-        except Exception as exc:  # noqa: BLE001 - reported, and the run is retried
+        # Any failure is reported, and the run is retried on the next start.
+        except Exception as exc:  # noqa: BLE001
             problems.append(f"documents of {user_id} not moved to {tenant_id}: {exc}")
     if not problems:
         marker.write_text(f"{moved} rows moved to their owners' organizations\n", encoding="utf-8")
