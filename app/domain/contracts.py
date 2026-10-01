@@ -236,6 +236,12 @@ class ToolResult(ImmutableContract):
     # tool output and are never citable as a source -- see
     # app/agents/synthesizer/citations.py::citable_tool_results.
     derived: bool = False
+    # True when `summary` carries text this system did not write -- the output
+    # of an ``open_world`` tool, such as table cells from an uploaded document.
+    # Set by the registry from the tool's declared risk, never by the tool. The
+    # synthesizer screens such a summary and renders it inside the evidence
+    # sandbox, apart from the trusted tool metadata (SEC-04).
+    untrusted: bool = False
     # The `T{k}` this result was cited as in the finished answer, set by
     # output_filter from the same numbering it applies to the text. None for a
     # result the answer did not cite, and for every result before that stage.

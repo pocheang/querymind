@@ -23,6 +23,7 @@ from app.orchestration.answer_stream import current_answer_stream_id
 from app.orchestration.request import OrchestrationRequest
 from app.privacy.streaming import StreamingRedactor
 from app.services.language.detector import detect_language
+from app.services.security.injection_defense import screen_untrusted_text
 
 SynthesisGenerator = Callable[..., object]
 
@@ -83,6 +84,7 @@ class SynthesizerAgentService:
                 memory=_render_conversation(request.conversation if request.enable_context_tracking else ()),
                 vector=generation_context,
                 tool=_render_tool_results(tool_results),
+                tool_payload=_render_tool_payloads(tool_results),
             ),
             force_language=request.force_language,
             session_id=request.session_id or "",
@@ -294,12 +296,11 @@ def _render_tool_results(tool_results: tuple[ToolResult, ...]) -> str:
     answer with no hint that the action they asked for had not happened.
     """
 
-    citable = citable_tool_results(tool_results)
-    label = {id(result): f"[T{index}]" for index, result in enumerate(citable, start=1)}
+    label = _tool_labels(tool_results)
     lines = [
         f"{label.get(id(result), 'Tool')} ({result.tool_id}) -> {result.status}: {summary}"
         for result in tool_results
-        if (summary := (result.summary.strip() or _default_tool_summary(result)))
+        if (summary := _trusted_summary(result))
     ]
     if not lines:
         return ""
@@ -312,6 +313,41 @@ def _render_tool_results(tool_results: tuple[ToolResult, ...]) -> str:
         "result with its [T{k}] marker; an `approval_required` action has NOT been "
         "performed yet):\n" + "\n".join(lines)
     )
+
+
+def _render_tool_payloads(tool_results: tuple[ToolResult, ...]) -> str:
+    """The output of ``untrusted`` tools, for the evidence sandbox (SEC-04).
+
+    Table cells from an uploaded document are written by whoever uploaded it,
+    so they are screened like a retrieved chunk and rendered where the system
+    prompt declares text passive data -- not in the governed block above, whose
+    header tells the model to report what it reads. Each payload is headed by
+    the same ``[T{k}]`` its metadata line carries, so a fact taken from it is
+    still cited with that marker. Labels are only ever read from the governed
+    block, so a payload that writes its own ``[T9]`` line offers nothing.
+    """
+
+    label = _tool_labels(tool_results)
+    blocks = [
+        f"{label.get(id(result), 'Tool')} {result.tool_id} output:\n"
+        + screen_untrusted_text(summary, origin=f"tool output ({result.tool_id})")
+        for result in tool_results
+        if result.untrusted and (summary := result.summary.strip())
+    ]
+    return "\n\n".join(blocks)
+
+
+def _tool_labels(tool_results: tuple[ToolResult, ...]) -> dict[int, str]:
+    citable = citable_tool_results(tool_results)
+    return {id(result): f"[T{index}]" for index, result in enumerate(citable, start=1)}
+
+
+def _trusted_summary(result: ToolResult) -> str:
+    """What the governed block may say about a result: never untrusted text."""
+
+    if result.untrusted and result.summary.strip():
+        return "output is in the untrusted tool output section, under the same marker"
+    return result.summary.strip() or _default_tool_summary(result)
 
 
 def _default_tool_summary(result: ToolResult) -> str:
