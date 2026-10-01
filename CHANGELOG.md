@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔒 Security
+
+- The frontend image now sends a Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy and Permissions-Policy on the application page and its static assets. The headers live in `nginx-security-headers.conf`, which the image installs and every location that serves a file includes; `script-src` is `'self'` with no `unsafe-inline` or `unsafe-eval`. CI checks the headers on real responses, and the browser smoke test fails on any CSP violation. The unused `frontend/nginx-security.conf` and `frontend/public/_headers` are removed. A deployment that copied its own `nginx.conf` should include the new file the same way.
+- Output from tools that return externally authored content (the table query tool) is now screened for injected instructions and placed in the untrusted evidence region of the prompt, separate from the tool's status line.
+
 ### ⚡ Performance
 
 - The chunk corpus is parsed once per version per process (keyed on the file's stat signature) instead of twice per question during access-scope resolution, and visibility checks no longer re-resolve paths that are already resolved. Measured at 100k chunks: scope resolution 2.8 s → 0.31 s per call.

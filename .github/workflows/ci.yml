@@ -473,6 +473,33 @@ jobs:
           echo "the frontend container never served / within 60s"
           exit 1
 
+      - name: The frontend sends its security headers
+        # SEC-03. nginx drops every server-level add_header from a location that
+        # declares one of its own, so the entry page and the hashed assets -- the
+        # two locations that set Cache-Control -- went out with no
+        # X-Frame-Options, and there was no CSP anywhere in the image. `nginx -t`
+        # parses that configuration happily; only a response shows it. Four
+        # paths, one per location that serves a file: the root, the entry page
+        # by name, a client-side route (the try_files fallback), and the bundle.
+        run: |
+          asset=$(curl -fsS http://127.0.0.1:8080/ | grep -o '/assets/index-[^"]*\.js' | head -1)
+          test -n "$asset" || { echo "index.html names no /assets/index-*.js"; exit 1; }
+          status=0
+          for path in / /index.html /chat "$asset"; do
+            headers=$(curl -fsSI "http://127.0.0.1:8080$path")
+            for expected in \
+              "^content-security-policy:.*script-src 'self';" \
+              "^content-security-policy:.*frame-ancestors 'self'" \
+              "^x-frame-options: SAMEORIGIN" \
+              "^x-content-type-options: nosniff"; do
+              if ! printf '%s\n' "$headers" | tr -d '\r' | grep -qi -- "$expected"; then
+                echo "$path is missing: $expected"
+                status=1
+              fi
+            done
+          done
+          exit $status
+
       - uses: actions/setup-node@v7
         with:
           node-version: "22"

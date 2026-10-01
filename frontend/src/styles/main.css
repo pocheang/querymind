@@ -39,7 +39,7 @@
 @import "tw-animate-css";
 
 /* Self-hosted webfonts. The production CSP is `font-src 'self' data:`
-   (app/api/transport/middleware.py, public/_headers, nginx-security.conf all
+   (app/api/transport/middleware.py and nginx-security-headers.conf both
    agree), so the design prototype's Google Fonts @import would be blocked --
    and blocked silently, with the page just falling back to a system face. */
 @import "@fontsource-variable/inter/index.css";
