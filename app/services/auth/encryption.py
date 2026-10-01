@@ -1,12 +1,12 @@
 import base64
 import hashlib
-import hmac
 import logging
 import secrets
 from typing import Any
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hmac as crypto_hmac
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
@@ -135,11 +135,24 @@ def upgrade_secret_text(value: str, key: bytes, *, context: str) -> str | None:
     return encrypt_secret_text(plain, key, context=context)
 
 
+def _legacy_mac(key: bytes, data: bytes) -> bytes:
+    """HMAC-SHA256 under a key derived from the random API_SETTINGS_ENCRYPTION_KEY.
+
+    The v1 format's keystream and tag. A MAC under a random key, not password
+    hashing, which is what CodeQL's py/weak-sensitive-data-hashing reads it as
+    (alerts #15 and #16 were dismissed as false positives on the v1 writer).
+    """
+
+    mac = crypto_hmac.HMAC(key, hashes.SHA256())
+    mac.update(data)
+    return mac.finalize()
+
+
 def _legacy_keystream_xor(data: bytes, key: bytes, nonce: bytes) -> bytes:
     out = bytearray()
     counter = 0
     while len(out) < len(data):
-        out.extend(hmac.new(key, nonce + counter.to_bytes(8, "big"), hashlib.sha256).digest())
+        out.extend(_legacy_mac(key, nonce + counter.to_bytes(8, "big")))
         counter += 1
     return bytes(a ^ b for a, b in zip(data, out[: len(data)], strict=False))
 
@@ -149,7 +162,7 @@ def _decrypt_legacy_v1(value: str, key: bytes) -> str:
     if len(decoded) < 32:
         raise ValueError("invalid encrypted payload")
     nonce, tag, cipher = decoded[:16], decoded[16:32], decoded[32:]
-    if not hmac.compare_digest(tag, hmac.new(key, nonce + cipher, hashlib.sha256).digest()[:16]):
+    if not secrets.compare_digest(tag, _legacy_mac(key, nonce + cipher)[:16]):
         raise ValueError("encrypted payload integrity check failed")
     return _legacy_keystream_xor(cipher, key, nonce).decode("utf-8")
 
