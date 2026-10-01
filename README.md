@@ -161,9 +161,9 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 | **跨文档 P@5** | **0.4000（上限 0.4500）** | 同上，也是全项目**唯一一个 P@5 低于自身上限**的地方——即它终于在测检索，而不是在测标注。 |
 | **全链路检索质量** | **未测量（会拒绝）** | `make eval-full-pipeline` 测向量 + BM25 + 交叉编码器重排，但在本机**退出码 2、一个数字都不输出**：两个模型都以 `local_files_only=True` 加载，缺失时静默降级成词面回退和哈希嵌入。一个测错东西的绿色数字比没有数字更糟。 |
 | **端点数量** | **158** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
-| **后端行覆盖率** | **73.9%**（基线 73.9%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。数字取自 CI 的 Python 3.11 任务。 |
+| **后端行覆盖率** | **74.3%**（基线 73.9%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。数字取自 CI 的 Python 3.11 任务。 |
 | **认知复杂度** | **0 个函数 > 15** | `tests/core/test_cognitive_complexity_is_bounded.py`，覆盖 `app/` 与 `scripts/` 的硬门禁。`scripts/audit/cognitive_complexity.py` 本地实现了 Sonar 的评分规则，`--validate` 能逐条复现项目全部 75 条历史 S3776 发现。 |
-| **测试数量** | **4,742 后端 / 327 前端** | CI 的 Python 3.11 任务（Linux，带 Redis 与 Chroma 服务容器）报告 4,742 passed、0 skipped；3.12 任务不起服务容器，多进程组整组跳过。`vitest` 报告 327 passed（44 文件）。没有 xfail。写运行时真正打印的数字，而不是单一总数。 |
+| **测试数量** | **4,823 后端 / 343 前端** | CI 的 Python 3.11 任务（Linux，带 Redis 与 Chroma 服务容器）报告 4,823 passed、0 skipped；3.12 任务不起服务容器，多进程组整组跳过（4,813 passed、10 skipped）。`vitest` 报告 343 passed（46 文件）。没有 xfail。写运行时真正打印的数字，而不是单一总数。 |
 | **入口包体积** | **151.5 KB gzip** | `npm run build` 实测：入口 chunk 441 KB 原始 / 151.5 KB gzip，主样式 142 KB / 38.6 KB gzip，其余按路由拆成 40 个懒加载 chunk。 |
 | **专家路由准确率** | **模型 68/68，关键词兜底 58/68**（按类别） | `config/eval/specialist_routing.json`：68 道中英文题，标注的是**正确的路由应当给出什么**，含 prompt 注入 vs 依赖注入、PDF 里的表格等边界题。`make eval-routing` 离线跑关键词规则（模型路由超时时就是它在回答），每条偏离都记录原因；`make eval-routing-llm` 跑真实模型，没有真实聊天模型时拒绝运行。这是单次运行的数字，不是统计置信区间。此处曾写「没有测量」，更早曾写 99.1%，那个数字没有任何东西在测。 |
 | **引用完整性** | **没有聚合测量** | 每个回答由校验级联的引用阶段**逐条强制执行**，但从未在一个查询集上打过总分。 |
@@ -292,7 +292,7 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (Linter & Formatter), Pre-commit (CI 内同样执行)
-    ├── Testing: Pytest (后端 4,742 用例，含真实 Redis/Chroma 上的多进程组), Vitest (前端 327 用例), Prettier
+    ├── Testing: Pytest (后端 4,823 用例，含真实 Redis/Chroma 上的多进程组), Vitest (前端 343 用例), Prettier
     ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 22+24 / images / analysis)
     ├── Security: CodeQL (python + js-ts), pip-audit + npm audit 门禁, Trivy 镜像扫描（每周）
     ├── Static Analysis: SonarCloud Quality Gate, 认知复杂度本地门禁 (S3776, 0 超标)
@@ -340,14 +340,14 @@ multi_agent_rag_local_v4/
 
 ```bash
 # 后端，推送前用这个：屏蔽 CI 不安装的可选包、不读本机 .runtime/ 与 data/，结果可复现
-# CI（Linux + Redis + Chroma）：4,742 passed
+# CI（Linux + Redis + Chroma）：4,823 passed
 make test-ci
 
 # 多进程组：两个 API 进程 + init + ingest-worker，需要真实的 Redis 和 Chroma 服务端（没配置时整组跳过）
 make up
 QM_INTEGRATION_REDIS_URL=redis://:PASSWORD@127.0.0.1:6379/0 QM_INTEGRATION_CHROMA_URL=http://127.0.0.1:8001 pytest tests/integration/multiworker -q
 
-# 前端：327 项用例，44 个文件
+# 前端：343 项用例，46 个文件
 cd frontend && npm test -- --run
 
 # 静态检查
