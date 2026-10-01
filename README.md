@@ -123,6 +123,7 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 
 ### 2. 🛡️ 确定性安全架构与输出合规 (Zero-Trust Security & DLP)
 - **非后置的数据隔离**：传统的 RAG 往往全量召回后再过滤未授权切片，容易造成泄露。QueryMind 在检索发起时直接在底层向量数据库与 SQL 查询条件中注入 `tenant_id` 与 `data_scope`。
+- **组织（租户）边界**：每个账号属于一个组织（`users.tenant_id`，默认 `default`），管理员在用户页的「组织」按钮或 `PATCH /api/v1/admin/users/{id}/tenant` 移动账号，其文档随之迁移。审批为「公开」的文档对同一组织的所有成员可见，组织之外不可见；属主始终能看到自己上传的文档；长期记忆与会话属于个人，不随组织移动。
 - **实时输出 DLP（Data Loss Prevention）**：在 SSE 字符流输出边界以滑动窗口检测敏感凭证、手机号、身份证和自定义正则规则，实时用掩码替换。
 - **安全日志脱敏**：用户提问与私密文档内容通过 AST 守卫拦截，日志系统仅记录不可逆的内容指纹与耗时度量，符合金融医疗合规要求。
 - **表格与图谱同样按归属隔离**：结构化表格只对文档属主（或公开文档、共享语料）可见，他人一律返回「不存在」；知识图谱的实体描述与社区摘要按来源授权，不会跨租户泄露。
@@ -160,10 +161,10 @@ QueryMind 架构由上至下划分为用户交互层、智能体编排管道、�
 | **跨文档 complete@5** | **0.7500** | `make eval-crossdoc`：8 个「单篇文档答不了」的问题。complete@5 问的是**所有必需文档是否都进了前五**——半份证据不是半个答案，是一个自信的错答。八题里两题组装不起来，`KNOWN_INCOMPLETE_CROSSDOC` 记录的是**缺了哪一篇**。 |
 | **跨文档 P@5** | **0.4000（上限 0.4500）** | 同上，也是全项目**唯一一个 P@5 低于自身上限**的地方——即它终于在测检索，而不是在测标注。 |
 | **全链路检索质量** | **未测量（会拒绝）** | `make eval-full-pipeline` 测向量 + BM25 + 交叉编码器重排，但在本机**退出码 2、一个数字都不输出**：两个模型都以 `local_files_only=True` 加载，缺失时静默降级成词面回退和哈希嵌入。一个测错东西的绿色数字比没有数字更糟。 |
-| **端点数量** | **158** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
-| **后端行覆盖率** | **74.3%**（基线 73.9%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。数字取自 CI 的 Python 3.11 任务。 |
+| **端点数量** | **159** | `tests/api/test_endpoint_census.py`，**精确**断言。变少说明某个 router 被静默丢掉，变多说明基线过期——两个方向都红。 |
+| **后端行覆盖率** | **74.4%**（基线 73.9%） | `scripts/check_coverage.py ratchet`，CI 双向门禁（掉了是回归，涨了是基线该更新）。数字取自 CI 的 Python 3.11 任务。 |
 | **认知复杂度** | **0 个函数 > 15** | `tests/core/test_cognitive_complexity_is_bounded.py`，覆盖 `app/` 与 `scripts/` 的硬门禁。`scripts/audit/cognitive_complexity.py` 本地实现了 Sonar 的评分规则，`--validate` 能逐条复现项目全部 75 条历史 S3776 发现。 |
-| **测试数量** | **4,823 后端 / 343 前端** | CI 的 Python 3.11 任务（Linux，带 Redis 与 Chroma 服务容器）报告 4,823 passed、0 skipped；3.12 任务不起服务容器，多进程组整组跳过（4,813 passed、10 skipped）。`vitest` 报告 343 passed（46 文件）。没有 xfail。写运行时真正打印的数字，而不是单一总数。 |
+| **测试数量** | **4,855 后端 / 343 前端** | CI 的 Python 3.11 任务（Linux，带 Redis 与 Chroma 服务容器）报告 4,855 passed、0 skipped；3.12 任务不起服务容器，多进程组整组跳过（4,845 passed、10 skipped）。`vitest` 报告 343 passed（46 文件）。没有 xfail。写运行时真正打印的数字，而不是单一总数。 |
 | **入口包体积** | **151.5 KB gzip** | `npm run build` 实测：入口 chunk 441 KB 原始 / 151.5 KB gzip，主样式 142 KB / 38.6 KB gzip，其余按路由拆成 40 个懒加载 chunk。 |
 | **专家路由准确率** | **模型 68/68，关键词兜底 58/68**（按类别） | `config/eval/specialist_routing.json`：68 道中英文题，标注的是**正确的路由应当给出什么**，含 prompt 注入 vs 依赖注入、PDF 里的表格等边界题。`make eval-routing` 离线跑关键词规则（模型路由超时时就是它在回答），每条偏离都记录原因；`make eval-routing-llm` 跑真实模型，没有真实聊天模型时拒绝运行。这是单次运行的数字，不是统计置信区间。此处曾写「没有测量」，更早曾写 99.1%，那个数字没有任何东西在测。 |
 | **引用完整性** | **没有聚合测量** | 每个回答由校验级联的引用阶段**逐条强制执行**，但从未在一个查询集上打过总分。 |
@@ -262,7 +263,7 @@ QueryMind 提供了生产环境标准的 Docker Compose 一键式编排体系：
 ```
 
 - **多 worker 是默认的**：Compose 里 `STATE_BACKEND=shared`，Redis 和 Chroma 服务端因此是**必需**的依赖；Redis 不可用时登录、查询等接口返回 503，而不是悄悄退回按进程计数。
-- **从旧版本升级**：第一次部署前先 `docker compose down`（**不要加 `-v`**，那会删掉数据卷）。`init` 服务会把旧的文件会话和内置向量库迁移过去并逐条核对，核对失败就不启动 backend。
+- **从旧版本升级**：先备份 `data/`（数据卷）——升级会执行不可逆的一次性迁移（数据库结构、会话令牌改存摘要、已存凭据重新加密、文档按属主的组织重新打标），而镜像回退到旧版本时会因数据库版本更新而拒绝启动。第一次部署前先 `docker compose down`（**不要加 `-v`**，那会删掉数据卷）。`init` 服务会把旧的文件会话和内置向量库迁移过去并逐条核对，核对失败就不启动 backend。
 - 完整说明（worker 数、可信代理、超时、迁移、多进程测试）见 [deploy/README.md](deploy/README.md)。
 
 ---
@@ -292,7 +293,7 @@ QueryMind Technology Stack
 │   └── UI Primitives: Radix UI (@radix-ui/react-dialog, slot, dropdown)
 └── Engineering & DevOps
     ├── Code Quality: Ruff (Linter & Formatter), Pre-commit (CI 内同样执行)
-    ├── Testing: Pytest (后端 4,823 用例，含真实 Redis/Chroma 上的多进程组), Vitest (前端 343 用例), Prettier
+    ├── Testing: Pytest (后端 4,855 用例，含真实 Redis/Chroma 上的多进程组), Vitest (前端 343 用例), Prettier
     ├── CI: GitHub Actions 5 job (lint / backend 3.11+3.12 / frontend Node 22+24 / images / analysis)
     ├── Security: CodeQL (python + js-ts), pip-audit + npm audit 门禁, Trivy 镜像扫描（每周）
     ├── Static Analysis: SonarCloud Quality Gate, 认知复杂度本地门禁 (S3776, 0 超标)
@@ -340,7 +341,7 @@ multi_agent_rag_local_v4/
 
 ```bash
 # 后端，推送前用这个：屏蔽 CI 不安装的可选包、不读本机 .runtime/ 与 data/，结果可复现
-# CI（Linux + Redis + Chroma）：4,823 passed
+# CI（Linux + Redis + Chroma）：4,855 passed
 make test-ci
 
 # 多进程组：两个 API 进程 + init + ingest-worker，需要真实的 Redis 和 Chroma 服务端（没配置时整组跳过）
