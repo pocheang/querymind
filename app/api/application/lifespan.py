@@ -52,9 +52,13 @@ def _run_startup_tasks(settings) -> None:
     if os.getenv("PYTEST_CURRENT_TEST"):
         return
 
-    from app.init_app import run
+    from app.init_app import migrate_document_tenants, run
 
     run(settings)
+    # The init service has already done this in a shared-state deployment; here
+    # it is the backstop, and a no-op once its marker exists.
+    for problem in migrate_document_tenants(settings):
+        logger.error("tenant migration: %s", problem)
 
 
 def _start_invalidation_tracking() -> None:

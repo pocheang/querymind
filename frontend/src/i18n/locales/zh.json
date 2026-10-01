@@ -297,7 +297,9 @@
       "pagination": "分页",
       "itemsPerPage": "每页条数",
       "catalogFallback": "正在使用已验证的备用目录",
-      "noServiceData": "暂无服务数据"
+      "noServiceData": "暂无服务数据",
+      "organization": "组织",
+      "changeOrganization": "组织"
     },
     "actions": {
       "loadUsersFailed": "加载用户失败",
@@ -352,7 +354,11 @@
       "testModelSettingsFailed": "测试模型设置失败。",
       "connectionFailedDefault": "连接失败。",
       "loadAuditLogsFailed": "加载审计日志失败",
-      "loadSystemLogsFailed": "加载系统日志失败"
+      "loadSystemLogsFailed": "加载系统日志失败",
+      "organizationPrompt": "将 {{username}} 移到组织（字母、数字、'_' 或 '-'）。其文档随之迁移，公开文档此后只对新组织可见。",
+      "organizationInvalid": "组织 ID 须为 1-64 位字母、数字、'_' 或 '-'，且不能是 'shared'",
+      "organizationChanged": "{{username}} 已移到组织 {{tenant}}",
+      "changeOrganizationFailed": "修改组织失败"
     },
     "export": {
       "csv": "导出为 CSV",

@@ -50,6 +50,11 @@ export const adminUserApi = {
       data_scope: input.dataScope || null,
     });
   },
+  adminUpdateTenant(userId: string, tenantId: string) {
+    return buildPatchRequest<AdminUserSummary>(`/api/v1/admin/users/${encodePathParam(userId)}/tenant`, {
+      tenant_id: tenantId,
+    });
+  },
   adminCreateAdmin(input: {
     username: string;
     password: string;

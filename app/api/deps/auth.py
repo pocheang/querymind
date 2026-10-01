@@ -62,13 +62,18 @@ def _resolve_pytest_header_user(request: Request) -> dict[str, Any] | None:
     if not username and not user_id:
         return None
 
-    return {
+    user = {
         "user_id": user_id or username or "pytest-user",
         "username": username or user_id or "pytest-user",
         "role": role or "viewer",
         "status": "active",
         "auth_source": "test-header",
     }
+    # Optional: without it the user is their own tenant, the shape tests were written against.
+    tenant_id = str(request.headers.get("X-Test-Tenant", "") or "").strip()
+    if tenant_id:
+        user["tenant_id"] = tenant_id
+    return user
 
 
 def _unauthorized(detail: str) -> HTTPException:

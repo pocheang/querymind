@@ -80,6 +80,7 @@ class AuditAction(StrEnum):
     ADMIN_USER_ROLE_UPDATE = "admin.user.role_update"
     ADMIN_USER_STATUS_UPDATE = "admin.user.status_update"
     ADMIN_USER_CLASSIFICATION_UPDATE = "admin.user.classification_update"
+    ADMIN_USER_TENANT_UPDATE = "admin.user.tenant_update"
     ADMIN_USER_CREDITS_ADD = "admin.user.credits_add"
     ADMIN_USER_RESET_PASSWORD = "admin.user.reset_password"
     ADMIN_USER_RESET_APPROVAL_TOKEN = "admin.user.reset_approval_token"

@@ -37,6 +37,7 @@ from app.api.transport.errors import bad_request, service_unavailable
 from app.api.transport.middleware import get_request_metrics
 from app.core.config import get_settings
 from app.pipeline.contracts import PipelineUser
+from app.services.documents.tenancy import tenant_of
 from app.services.models.config_store import get_global_model_settings, public_global_model_settings
 from app.services.observability.log_buffer import (
     list_log_levels,
@@ -200,6 +201,7 @@ def _execute_standard_profile(question: str, *, user: dict[str, Any]) -> dict[st
         use_reasoning=False,
         user=PipelineUser(
             user_id=str(user.get("user_id", "") or "") or None,
+            tenant_id=tenant_of(user) or None,
             username=str(user.get("username", "") or "") or None,
             role=str(user.get("role", "") or "") or None,
             permissions=frozenset(user.get("permissions") or []),

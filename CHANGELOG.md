@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🏢 Organizations: public documents are shared
+
+- Accounts belong to an organization (`users.tenant_id`). Every existing and new account starts in `DEFAULT_TENANT_ID` (`default`); an administrator moves a user from the users page ("Organization"), or with `PATCH /api/v1/admin/users/{user_id}/tenant`, and the documents the user owns move with them.
+- A document approved as **public** is now visible to everyone in its owner's organization, and still to nobody outside it. Until now uploads were tagged with the uploader's own id, so a public document was visible to its uploader alone.
+- Existing documents are moved to their owners' organization once, at startup (registry, chunk and parent records, vector metadata, structured tables; nothing is re-embedded). An owner always sees their own documents, before and after a move.
+- Long-term memory and conversations belong to the person and do not move.
+
 ### 🔒 Security
 
 - The frontend image now sends a Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Referrer-Policy and Permissions-Policy on the application page and its static assets. The headers live in `nginx-security-headers.conf`, which the image installs and every location that serves a file includes; `script-src` is `'self'` with no `unsafe-inline` or `unsafe-eval`. CI checks the headers on real responses, and the browser smoke test fails on any CSP violation. The unused `frontend/nginx-security.conf` and `frontend/public/_headers` are removed. A deployment that copied its own `nginx.conf` should include the new file the same way.

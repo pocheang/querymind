@@ -297,7 +297,9 @@
       "pagination": "Pagination",
       "itemsPerPage": "Items per page",
       "catalogFallback": "Using verified fallback catalog",
-      "noServiceData": "No service data available"
+      "noServiceData": "No service data available",
+      "organization": "Organization",
+      "changeOrganization": "Organization"
     },
     "actions": {
       "loadUsersFailed": "Failed to load users",
@@ -352,7 +354,11 @@
       "testModelSettingsFailed": "Failed to test model settings.",
       "connectionFailedDefault": "Connection failed.",
       "loadAuditLogsFailed": "Failed to load audit logs",
-      "loadSystemLogsFailed": "Failed to load system logs"
+      "loadSystemLogsFailed": "Failed to load system logs",
+      "organizationPrompt": "Move {{username}} to organization (letters, digits, '_' or '-'). Their documents move with them; public ones become visible to the new organization only.",
+      "organizationInvalid": "Organization id must be 1-64 letters, digits, '_' or '-', and cannot be 'shared'",
+      "organizationChanged": "{{username}} moved to organization {{tenant}}",
+      "changeOrganizationFailed": "Failed to change organization"
     },
     "export": {
       "csv": "Export as CSV",

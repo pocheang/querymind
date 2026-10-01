@@ -17,6 +17,7 @@ from app.services.documents.registry import (
     get_document_by_source,
     update_document_by_source,
 )
+from app.services.documents.tenancy import tenant_for_user
 from app.services.runtime.invalidation import announce
 from app.services.runtime.runtime_ops import append_index_freshness
 
@@ -574,7 +575,7 @@ def rebuild_document_index(filename: str, *, source: str, user_id: str) -> dict[
         metadata_overrides_by_source={
             source: {
                 "owner_user_id": owner_user_id,
-                "tenant_id": str(record.get("tenant_id", "") or owner_user_id),
+                "tenant_id": str(record.get("tenant_id", "") or tenant_for_user(owner_user_id)),
                 "document_id": str(record.get("document_id", "") or ""),
                 "version": int(record.get("version", 1) or 1),
                 "acl_tags": tuple(str(value) for value in record.get("acl_tags", ()) or ()),

@@ -240,6 +240,13 @@ def register_and_enqueue_uploads(
 ) -> list[str]:
     """Create document records and enqueue their ingestion as one runtime operation."""
     document_ids: list[str] = []
+    if not tenant_id:
+        from app.services.documents.tenancy import tenant_for_user
+
+        # The owner's organization, not the owner: a user id here is the
+        # pre-organization shape, and a public document tagged with it is
+        # visible to nobody but its owner (BUG-04).
+        tenant_id = tenant_for_user(owner_user_id)
     for upload in uploads:
         parser_profile = upload.parser_profile
         record = create_document_record(
@@ -250,7 +257,7 @@ def register_and_enqueue_uploads(
             visibility=visibility,
             agent_class=upload.agent_class,
             parser_profile=str(parser_profile.get("name", "") or ""),
-            tenant_id=tenant_id or owner_user_id,
+            tenant_id=tenant_id,
             acl_tags=acl_tags,
         )
         document_id = str(record["document_id"])
@@ -260,7 +267,7 @@ def register_and_enqueue_uploads(
             path=upload.path,
             metadata_overrides={
                 "owner_user_id": owner_user_id,
-                "tenant_id": str(record.get("tenant_id", "") or tenant_id or owner_user_id),
+                "tenant_id": str(record.get("tenant_id", "") or tenant_id),
                 "document_id": document_id,
                 "version": int(record.get("version", 1) or 1),
                 "acl_tags": tuple(str(value) for value in record.get("acl_tags", ()) or ()),

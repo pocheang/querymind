@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import os
@@ -101,6 +102,19 @@ class _MemoryBackend:
                 del self._rows[key]
         return len(doomed)
 
+    def retag_owner(self, owner_user_id: str, tenant_id: str, only_from: str | None) -> int:
+        with self._lock:
+            moved = [
+                (key, record, content)
+                for key, (record, content) in self._rows.items()
+                if record.owner_user_id == owner_user_id and (only_from is None or record.tenant_id == only_from)
+            ]
+            for key, record, content in moved:
+                del self._rows[key]
+                updated = dataclasses.replace(record, tenant_id=tenant_id)
+                self._rows[(updated.table_id, tenant_id)] = (updated, content)
+        return len(moved)
+
 
 class _SqliteBackend:
     """Rows in the application database, so a table outlives the process that
@@ -193,6 +207,20 @@ class _SqliteBackend:
             summary=str(payload.get("summary", "")),
             metadata=dict(payload.get("metadata") or {}),
         )
+
+    def retag_owner(self, owner_user_id: str, tenant_id: str, only_from: str | None) -> int:
+        with self._connection() as conn:
+            if only_from is None:
+                cursor = conn.execute(
+                    "UPDATE structured_tables SET tenant_id = ? WHERE owner_user_id = ? AND tenant_id <> ?",
+                    (tenant_id, owner_user_id, tenant_id),
+                )
+            else:
+                cursor = conn.execute(
+                    "UPDATE structured_tables SET tenant_id = ? WHERE owner_user_id = ? AND tenant_id = ?",
+                    (tenant_id, owner_user_id, only_from),
+                )
+            return int(cursor.rowcount or 0)
 
     def delete_sources(self, sources: set[str]) -> int:
         ordered = sorted(sources)
@@ -368,6 +396,13 @@ class TableStore:
     def sources(self) -> set[str]:
         """Every document source that still has a stored table (for reconciliation)."""
         return {record.source for record in self._backend.all_records() if record.source}
+
+    def retag_owner(self, owner_user_id: str, tenant_id: str, *, only_from: str | None = None) -> int:
+        """Move an owner's tables to `tenant_id` (all of them, or those still in `only_from`)."""
+        moved = self._backend.retag_owner(owner_user_id, tenant_id, only_from)
+        with self._lock:
+            self._engines.clear()
+        return moved
 
     def delete_by_sources(self, sources: Iterable[str]) -> int:
         """Forget every table ingested from one of `sources`; returns how many."""

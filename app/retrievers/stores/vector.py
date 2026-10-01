@@ -400,6 +400,31 @@ def delete_where(collection_name: str, where: dict) -> None:
         store._collection.delete(where=where)  # noqa: SLF001 - langchain's delete takes ids only
 
 
+def retag_owner_metadata(collection_name: str | None, owner_user_id: str, tenant_id: str, only_from: str | None) -> int:
+    """Set `tenant_id` on an owner's entries in one collection; returns how many changed.
+
+    Metadata only: the stored vectors and documents are untouched, so nothing is
+    re-embedded. `collection_name=None` is the main chunk collection.
+    """
+
+    store = _store_for(collection_name)
+    with _VECTOR_OP_LOCK:
+        collection = store._collection  # noqa: SLF001 - langchain has no metadata update
+        found = collection.get(where={"owner_user_id": {"$eq": owner_user_id}}, include=["metadatas"])
+        ids: list[str] = []
+        metadatas: list[dict] = []
+        for entry_id, metadata in zip(found.get("ids") or [], found.get("metadatas") or [], strict=False):
+            current = str((metadata or {}).get("tenant_id", "") or "")
+            if current == tenant_id or (only_from is not None and current != only_from):
+                continue
+            ids.append(str(entry_id))
+            metadatas.append({**(metadata or {}), "tenant_id": tenant_id})
+        batch = _max_batch_size(store)
+        for start in range(0, len(ids), batch):
+            collection.update(ids=ids[start : start + batch], metadatas=metadatas[start : start + batch])
+    return len(ids)
+
+
 def delete_documents_by_ids(ids: list[str]):
     if not ids:
         return

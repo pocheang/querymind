@@ -31,6 +31,7 @@ export const ACTION_KEYWORD_OPTIONS = [
   "admin.user.role_update",
   "admin.user.status_update",
   "admin.user.classification_update",
+  "admin.user.tenant_update",
   "admin.user.reset_password",
   "admin.user.reset_approval_token",
 ];

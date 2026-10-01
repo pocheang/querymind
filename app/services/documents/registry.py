@@ -261,6 +261,28 @@ def update_document_by_source(source: str, fields: dict[str, Any], path: Path | 
         return updated
 
 
+def retag_owner_documents(
+    owner_user_id: str, tenant_id: str, *, only_from: str | None = None, path: Path | None = None
+) -> int:
+    """Move an owner's registry rows to `tenant_id` (all of them, or those still in `only_from`)."""
+
+    target = path or _default_path()
+    with _registry_lock(target):
+        rows = _read_document_records(target)
+        moved = 0
+        for row in rows:
+            if str(row.get("owner_user_id", "") or "") != owner_user_id:
+                continue
+            current = str(row.get("tenant_id", "") or "")
+            if current == tenant_id or (only_from is not None and current != only_from):
+                continue
+            row["tenant_id"] = tenant_id
+            moved += 1
+        if moved:
+            _write_document_records(target, rows)
+    return moved
+
+
 def delete_document_by_source(source: str, path: Path | None = None) -> bool:
     target = path or _default_path()
     source_value = str(source)

@@ -214,6 +214,21 @@ def install_bundled_texts(settings: Settings) -> None:
         )
 
 
+def migrate_document_tenants(settings: Settings | None = None) -> list[str]:
+    """Move documents still tagged with their owner's user id to the owner's organization (BUG-04).
+
+    After `migrate_legacy_data`, so vectors copied from the embedded store to the
+    server are the ones retagged. Once per installation (a marker file).
+    """
+
+    from app.services.documents.tenancy import migrate_legacy_document_tenants
+
+    settings = settings or get_settings()
+    lock_path = Path(settings.app_db_path).parent / ".startup.lock"
+    with held(lock_path, timeout=_STARTUP_LOCK_TIMEOUT_SECONDS):
+        return migrate_legacy_document_tenants(Path(settings.app_db_path))
+
+
 def run(settings: Settings | None = None) -> dict[str, int]:
     """Migrate every store, then run the once-only tasks under one cross-process lock."""
 
@@ -317,6 +332,8 @@ def main(argv: list[str] | None = None) -> int:
     for component, version in versions.items():
         print(f"{component}: schema version {version}")
     problems = migrate_legacy_data()
+    if not problems:
+        problems = migrate_document_tenants()
     for problem in problems[:_PROBLEMS_SHOWN]:
         print(f"MIGRATION PROBLEM: {problem}", file=sys.stderr)
     if len(problems) > _PROBLEMS_SHOWN:

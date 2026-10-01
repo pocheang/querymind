@@ -59,6 +59,7 @@ from app.services.documents.registry import (
     merge_visible_document_status,
     update_document_record,
 )
+from app.services.documents.tenancy import tenant_of
 from app.services.parser_profiles import choose_parser_profile
 from app.services.runtime.file_locks import LockBusy
 from app.services.runtime.ingest_queue import enqueue_reindex_job, register_and_enqueue_uploads
@@ -531,7 +532,7 @@ async def upload_files(
             uploads=storage_result.saved_uploads,
             owner_user_id=str(user.get("user_id", "")),
             visibility=storage_result.visibility_applied,
-            tenant_id=str(user.get("tenant_id", "") or user.get("user_id", "")),
+            tenant_id=tenant_of(user),
             acl_tags=tuple(str(value) for value in user.get("acl_tags", ()) or ()),
         )
     except Exception as e:

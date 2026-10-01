@@ -53,7 +53,8 @@ def _viewer_from(actor: Mapping[str, Any], settings: Settings) -> _Viewer:
     role = str(actor.get("role", "viewer") or "viewer").strip().lower()
     return _Viewer(
         user_id=user_id,
-        # A single-tenant deployment has no tenant column, so the user is the tenant.
+        # The organization (`users.tenant_id`, BUG-04). An actor built without one
+        # is its own tenant, the shape before organizations existed.
         tenant_id=str(actor.get("tenant_id", "") or user_id).strip(),
         role=role,
         acl_tags=frozenset(str(value) for value in actor.get("acl_tags", ()) or ()),
@@ -113,6 +114,13 @@ def _within_reach(row: Mapping[str, Any], viewer: _Viewer) -> bool:
     if viewer.cross_tenant:
         return True
     row_tenant = str(row.get("tenant_id", "") or "").strip()
+    owner_user_id = str(row.get("owner_user_id", "") or "").strip()
+    # An owner is never outside their own document's boundary. The tenant check
+    # exists to keep *other* organizations out; an owner who has just been moved
+    # to another organization, or whose rows still carry the pre-organization
+    # tag (the user id), must not lose sight of what they uploaded (BUG-04).
+    if owner_user_id and owner_user_id == viewer.user_id:
+        row_tenant = viewer.tenant_id
     # The shared corpus is the one tenant every viewer is inside: ingest tags a
     # `data/docs/` document with no owner as `shared`, and rejecting that tag
     # here locked every ordinary user out of the shared corpus the moment it

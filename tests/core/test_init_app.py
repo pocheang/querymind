@@ -266,7 +266,7 @@ def test_three_inits_started_together_all_succeed_and_create_one_administrator(t
     outputs = [run.communicate(timeout=240) for run in runs]
 
     assert [run.returncode for run in runs] == [0, 0, 0], [err[-2000:] for _, err in outputs]
-    assert all("auth: schema version 1" in out for out, _ in outputs)
+    assert all("auth: schema version 2" in out for out, _ in outputs)
     with sqlite3.connect(tmp_path / "app.db") as conn:
         admins = conn.execute("SELECT username FROM users WHERE role='admin'").fetchall()
     assert admins == [("initadmin",)]

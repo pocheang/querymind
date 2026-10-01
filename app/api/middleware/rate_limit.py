@@ -79,6 +79,7 @@ RATE_LIMIT_RULES: tuple[RateLimitRule, ...] = (
     _rule("admin_password_reset", "POST", rf"/api/v1/admin/users/{_ID}/reset-password", 5, HOUR),
     _rule("role_update", "PATCH", rf"/api/v1/admin/users/{_ID}/role", 10, HOUR),
     _rule("status_update", "PATCH", rf"/api/v1/admin/users/{_ID}/status", 20, HOUR),
+    _rule("tenant_update", "PATCH", rf"/api/v1/admin/users/{_ID}/tenant", 20, HOUR),
     _rule("credit_add", "POST", rf"/api/v1/admin/users/{_ID}/credits/add", 30, HOUR),
     _rule("list_users", "GET", r"/api/v1/admin/users", 100, MINUTE),
     _rule("audit_logs", "GET", r"/api/v1/admin/audit-logs", 50, MINUTE),
