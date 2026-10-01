@@ -17,8 +17,11 @@ See P1-4 and P1-5 in docs/superpowers/plans/2026-08-29-user-data-isolation.md.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
+from app.core.config import get_settings
 from app.graph.knowledge.cypher_validation import get_simpler_query
 from app.retrievers import bm25_retriever
 
@@ -56,13 +59,48 @@ _CORPUS = [*_chunks("alice", ALICE_DOC), *_chunks("bob", BOB_DOC)]
 
 
 @pytest.fixture
-def corpus(monkeypatch) -> list[dict]:
-    monkeypatch.setattr(bm25_retriever, "read_corpus_records", lambda: list(_CORPUS))
-    bm25_retriever.reset_bm25_cache()
-    try:
-        yield _CORPUS
-    finally:
+def use_corpus(monkeypatch, tmp_path):
+    """Write `rows` as the corpus file and point the settings at it.
+
+    A real file rather than a patched reader, because the cache is keyed on the
+    file's stat signature and that is part of what is under test.
+    """
+
+    target = tmp_path / "chunks.jsonl"
+    monkeypatch.setenv("CORPUS_STORE_PATH", str(target))
+    get_settings.cache_clear()
+
+    def write(rows: list[dict]) -> None:
+        target.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
         bm25_retriever.reset_bm25_cache()
+
+    bm25_retriever.clear_bm25_indexes()
+    try:
+        yield write
+    finally:
+        get_settings.cache_clear()
+        bm25_retriever.clear_bm25_indexes()
+
+
+@pytest.fixture
+def corpus(use_corpus) -> list[dict]:
+    use_corpus(_CORPUS)
+    return _CORPUS
+
+
+@pytest.fixture
+def builds(monkeypatch) -> list[int]:
+    """One entry per scoped index actually built."""
+
+    calls: list[int] = []
+    real = bm25_retriever._build_index
+
+    def counting(records, use_chinese_tokenizer):
+        calls.append(len(records))
+        return real(records, use_chinese_tokenizer)
+
+    monkeypatch.setattr(bm25_retriever, "_build_index", counting)
+    return calls
 
 
 def _sources(rows) -> set[str]:
@@ -96,30 +134,69 @@ def test_bm25_does_not_serve_one_scope_from_another_scopes_index(corpus):
     assert _sources(second) == {BOB_DOC}
 
 
-def test_bm25_reuses_a_scopes_index_across_queries(corpus):
+def test_bm25_reuses_a_scopes_index_across_queries(corpus, builds):
     """A user asking twice must not rebuild their index twice."""
     bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
-    before = bm25_retriever._load_scoped_bm25.cache_info()
-
     bm25_retriever.bm25_search("roadmap", k=6, allowed_sources=[ALICE_DOC])
-    after = bm25_retriever._load_scoped_bm25.cache_info()
 
-    assert after.hits == before.hits + 1
-    assert after.misses == before.misses
+    assert len(builds) == 1
 
 
-def test_bm25_scope_order_does_not_split_the_cache(corpus):
+def test_bm25_scope_order_does_not_split_the_cache(corpus, builds):
     """The same source set in a different order is the same scope."""
     bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC, BOB_DOC])
-    before = bm25_retriever._load_scoped_bm25.cache_info()
-
     bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[BOB_DOC, ALICE_DOC])
-    after = bm25_retriever._load_scoped_bm25.cache_info()
 
-    assert after.misses == before.misses
+    assert len(builds) == 1
 
 
-def test_a_single_chunk_scope_still_matches(corpus, monkeypatch):
+def test_no_index_is_built_over_sources_outside_the_scope(corpus, builds):
+    """There is no global index any more (PERF-02): the only index built for
+    Alice's question holds Alice's four chunks, not the whole corpus."""
+    bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
+
+    assert builds == [4]
+
+
+def test_another_users_ingest_does_not_rebuild_this_scope(use_corpus, builds):
+    """PERF-02: one user's upload used to clear every user's index."""
+    use_corpus(_CORPUS)
+    bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
+
+    use_corpus([*_CORPUS, {"id": "bob-new", "text": "bob new upload", "metadata": {"source": BOB_DOC}}])
+    rows = bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
+
+    assert [row["id"] for row in rows] == ["chunk-alice-hit"]
+    assert len(builds) == 1
+
+
+def test_a_change_to_a_scoped_source_rebuilds_that_scope(use_corpus, builds):
+    """The other half: reuse must never serve a scope its own stale chunks."""
+    use_corpus(_CORPUS)
+    bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
+
+    changed = [{**row, "text": "alice relocated budget"} if row["id"] == "chunk-alice-hit" else row for row in _CORPUS]
+    use_corpus(changed)
+
+    assert bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC]) == []
+    assert [row["id"] for row in bm25_retriever.bm25_search("relocated", k=6, allowed_sources=[ALICE_DOC])] == [
+        "chunk-alice-hit"
+    ]
+    assert len(builds) == 2
+
+
+def test_a_metadata_only_change_rebuilds_the_scope(use_corpus):
+    """Results carry metadata, so a visibility relabel must reach them too."""
+    use_corpus(_CORPUS)
+    bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
+
+    use_corpus([{**row, "metadata": {**row["metadata"], "visibility": "public"}} for row in _CORPUS])
+    rows = bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
+
+    assert rows[0]["metadata"]["visibility"] == "public"
+
+
+def test_a_single_chunk_scope_still_matches(corpus, use_corpus):
     """A one-document scope must still return its document.
 
     BM25 IDF goes negative for a term present in most documents, so in a
@@ -128,12 +205,7 @@ def test_a_single_chunk_scope_still_matches(corpus, monkeypatch):
     and one that inverts here -- so a user whose whole corpus was a single chunk
     got no BM25 hits at all. Matching is now term overlap; BM25 only ranks.
     """
-    monkeypatch.setattr(
-        bm25_retriever,
-        "read_corpus_records",
-        lambda: [{"id": "solo", "text": "alice quarterly compensation review", "metadata": {"source": ALICE_DOC}}],
-    )
-    bm25_retriever.reset_bm25_cache()
+    use_corpus([{"id": "solo", "text": "alice quarterly compensation review", "metadata": {"source": ALICE_DOC}}])
 
     rows = bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
 
@@ -151,12 +223,10 @@ def test_a_query_with_no_overlap_returns_nothing(corpus):
     assert bm25_retriever.bm25_search("helicopter", k=6, allowed_sources=[ALICE_DOC]) == []
 
 
-def test_ranking_still_orders_by_bm25(corpus, monkeypatch):
+def test_ranking_still_orders_by_bm25(corpus, use_corpus):
     """Term overlap decides membership; BM25 decides order."""
-    monkeypatch.setattr(
-        bm25_retriever,
-        "read_corpus_records",
-        lambda: [
+    use_corpus(
+        [
             {
                 "id": "weak",
                 "text": "compensation " + " ".join(f"filler{i}" for i in range(60)),
@@ -164,29 +234,20 @@ def test_ranking_still_orders_by_bm25(corpus, monkeypatch):
             },
             {"id": "strong", "text": "compensation compensation compensation", "metadata": {"source": ALICE_DOC}},
             {"id": "other", "text": "unrelated travel policy", "metadata": {"source": ALICE_DOC}},
-        ],
+        ]
     )
-    bm25_retriever.reset_bm25_cache()
 
     rows = bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
 
     assert [row["id"] for row in rows] == ["strong", "weak"]
 
 
-def test_k_counts_matching_documents_not_candidates(corpus, monkeypatch):
+def test_k_counts_matching_documents_not_candidates(corpus, use_corpus):
     """Truncation happens after matching, so k returns k results when k exist."""
-    monkeypatch.setattr(
-        bm25_retriever,
-        "read_corpus_records",
-        lambda: (
-            [
-                {"id": f"hit-{i}", "text": f"compensation review {i}", "metadata": {"source": ALICE_DOC}}
-                for i in range(5)
-            ]
-            + [{"id": f"miss-{i}", "text": f"travel policy {i}", "metadata": {"source": ALICE_DOC}} for i in range(5)]
-        ),
+    use_corpus(
+        [{"id": f"hit-{i}", "text": f"compensation review {i}", "metadata": {"source": ALICE_DOC}} for i in range(5)]
+        + [{"id": f"miss-{i}", "text": f"travel policy {i}", "metadata": {"source": ALICE_DOC}} for i in range(5)]
     )
-    bm25_retriever.reset_bm25_cache()
 
     rows = bm25_retriever.bm25_search("compensation", k=3, allowed_sources=[ALICE_DOC])
 
@@ -194,12 +255,11 @@ def test_k_counts_matching_documents_not_candidates(corpus, monkeypatch):
     assert all(row["id"].startswith("hit-") for row in rows)
 
 
-def test_resetting_the_cache_picks_up_a_reindex(corpus, monkeypatch):
+def test_resetting_the_cache_picks_up_a_reindex(corpus, use_corpus):
     """Ingest calls reset_bm25_cache; the scoped indexes must go with it."""
     assert bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC])
 
-    monkeypatch.setattr(bm25_retriever, "read_corpus_records", list)
-    bm25_retriever.reset_bm25_cache()
+    use_corpus([])
 
     assert bm25_retriever.bm25_search("compensation", k=6, allowed_sources=[ALICE_DOC]) == []
 

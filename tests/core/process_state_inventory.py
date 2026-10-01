@@ -172,13 +172,29 @@ INVENTORY: dict[str, tuple[Category, str]] = {
         "D",
         "已编译的 LangGraph 工作流引擎缓存，纯不可变计算图各进程独立持有即可",
     ),
-    "app/retrievers/bm25_retriever.py::_load_bm25": (
+    "app/retrievers/bm25_retriever.py::_SCOPED_INDEXES": (
         "B",
-        "全局 BM25 倒排索引缓存；阶段 6：shared 模式下每个请求开始时比对 qm:gen:corpus，落后即清空（摄取、删除、全量重建后 announce）",
+        "权限分域的 BM25 倒排索引缓存（LRU 32）；PERF-02：每次使用时比对本域各来源在语料快照中的摘要，只有本域来源的块变了才重建，其他用户的摄取不再使其失效",
     ),
-    "app/retrievers/bm25_retriever.py::_load_scoped_bm25": (
+    "app/retrievers/bm25_retriever.py::_SCOPED_LOCK": (
+        "D",
+        "保护本进程分域索引缓存的锁，只协调本进程内线程",
+    ),
+    "app/retrievers/stores/corpus.py::_EMPTY_SNAPSHOT": (
+        "D",
+        "语料文件不存在时返回的不可变空快照",
+    ),
+    "app/retrievers/stores/corpus.py::_SNAPSHOT": (
         "B",
-        "权限分域的 BM25 倒排索引缓存；阶段 6：shared 模式下每个请求开始时比对 qm:gen:corpus，落后即清空",
+        "语料文件的解析快照（PERF-01）；按文件 stat 签名（路径、mtime_ns、大小、inode）判定版本，任何进程原子替换语料文件后下次读取即失效，无需 announce",
+    ),
+    "app/retrievers/stores/corpus.py::_SNAPSHOT_LOCK": (
+        "D",
+        "串行化本进程内语料快照的解析，避免并发请求重复解析同一版本",
+    ),
+    "app/services/documents/index_manager.py::_CORPUS_ENTRIES": (
+        "B",
+        "由语料快照派生的按文档汇总条目（PERF-01）；以快照对象身份为键，快照换版本即重建",
     ),
     "app/retrievers/hybrid/caching.py::_REDIS": (
         "D",
