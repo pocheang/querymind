@@ -90,7 +90,7 @@ async def request_timing_middleware(request: Request, call_next):
                 "default-src 'self'",
                 "script-src 'self'",  # No unsafe-inline or unsafe-eval
                 "style-src 'self'",  # No unsafe-inline
-                "img-src 'self' data: blob: https:",
+                "img-src 'self' data: blob:",
                 "font-src 'self' data:",
                 "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000",
                 "frame-ancestors 'self'",
@@ -100,12 +100,18 @@ async def request_timing_middleware(request: Request, call_next):
                 "upgrade-insecure-requests",
             ]
         else:
-            # Relaxed CSP for compatibility with React/Vite
+            # The default. It differs from the strict one only in allowing inline
+            # styles, which React style attributes and the inlined critical CSS
+            # need. script-src carried 'unsafe-inline' 'unsafe-eval' "for React"
+            # (SEC-09): the production build has no inline script and no eval.
+            # img-src had `https:`, which let a Markdown image in an answer or a
+            # retrieved document fetch any URL -- carrying whatever its query
+            # string was made to carry -- the moment it rendered.
             csp_directives = [
                 "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  # Allow inline scripts for React
-                "style-src 'self' 'unsafe-inline'",  # Allow inline styles
-                "img-src 'self' data: blob: https:",  # Allow images from self, data URIs, blob, and HTTPS
+                "script-src 'self'",
+                "style-src 'self' 'unsafe-inline'",
+                "img-src 'self' data: blob:",
                 "font-src 'self' data:",
                 "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000",  # API calls (dev + prod)
                 "frame-ancestors 'self'",  # Allow framing from same origin

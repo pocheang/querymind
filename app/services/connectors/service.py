@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.mcp.contracts import ConnectorCredential, ConnectorCredentialDisplay
-from app.services.auth.encryption import decrypt_secret_text, encrypt_secret_text
+from app.services.auth.encryption import connector_secret_context, decrypt_secret_text, encrypt_secret_text
 from app.services.connectors.repository import CredentialRepository
 
 
@@ -24,7 +24,9 @@ class ConnectorCredentialService:
         credential = ConnectorCredential(
             connector_id=connector_id,
             owner_id=owner_id,
-            encrypted_secret=encrypt_secret_text(normalized_secret, self._encryption_key),
+            encrypted_secret=encrypt_secret_text(
+                normalized_secret, self._encryption_key, context=connector_secret_context(owner_id, connector_id)
+            ),
             display_value=_redact(normalized_secret),
         )
         stored = self._repository.save(credential)
@@ -49,7 +51,11 @@ class ConnectorCredentialService:
         credential = self._repository.get_for_owner(credential_id, owner_id)
         if credential is None:
             raise PermissionError("connector credential is not available to this owner")
-        return decrypt_secret_text(credential.encrypted_secret, self._encryption_key)
+        return decrypt_secret_text(
+            credential.encrypted_secret,
+            self._encryption_key,
+            context=connector_secret_context(credential.owner_id, credential.connector_id),
+        )
 
 
 def _redact(secret: str) -> str:
